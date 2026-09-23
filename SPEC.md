@@ -380,6 +380,22 @@ same `<owner>.github.io` domain can read what Agent M stores in the browser.
 sites share `https://akmaier.github.io`, and each could read Agent M's storage. The person decides
 whether that is acceptable, or hosts their instance under an owner used for nothing else.
 *Check:* `tests/test_settings_disclosure.py`
+
+**THE TOKEN LINK IS PREFILLED** *(PO A. Maier, 2026-09-24)*
+Agent M links to GitHub's page for new fine-grained tokens with name, description, expiry and the
+required permissions already filled in.
+*Occasion:* people new to GitHub should not have to find the page or know what a permission is.
+Measured 2026-09-24: GitHub prefills `name`, `description`, `expires_in` and permissions such as
+`contents` from the link.
+*Check:* `tests/test_token_scope_documented.py`
+
+**THE REPOSITORY CHOICE IS SPELLED OUT** *(PO A. Maier, 2026-09-24)*
+Agent M tells the person to choose *Only select repositories* on GitHub's token page and names each
+repository to select.
+*Occasion:* the link cannot preselect repositories — GitHub documents no parameter for it — and
+with prefilled permissions the page defaults to *All repositories* (measured 2026-09-24), the
+broadest choice and the one `A TOKEN IS SCOPED TO WHAT IT WRITES` rules out.
+*Check:* `tests/test_token_scope_documented.py`
 ## 8. Versioning
 
 **CALENDAR VERSIONS** *(PO A. Maier, 2026-09-23)*
