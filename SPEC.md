@@ -276,15 +276,21 @@ The same stage, given the same inputs, produces the same kind of artifact in all
 product decision and a reader cannot move between them.
 *Check:* `tests/test_runtime_parity.py`
 
-**THE LOCAL BRIDGE BINDS CAN BE TUNNELED OR FORWARDED TO ALLOW REMOTE WORK ** 
-The local bridge accepts a bind address of `127.0.0.1`, `::1` or `localhost`. In order to allow remote 
-access, safe tunnels, e.g. via ssh are possible.
+**THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY** *(PO A. Maier, 2026-09-23)*
+The local bridge accepts a bind address of `127.0.0.1`, `::1` or `localhost` and refuses any other.
 *Occasion:* the bridge hands work to a CLI session that is already authenticated on the machine.
-Its protection is the loopback bind; a tool that can be started on a LAN address has none. Tunnels
-can provide a safe alternative.
+Its protection is the loopback bind; a tool that can be started on a LAN address has none.
 *Check:* `tests/test_bridge_loopback.py`
 
-**THE LOCAL BRIDGE REQUIRES A TOKEN** 
+**REMOTE ACCESS TO THE BRIDGE GOES THROUGH A TUNNEL** *(PO A. Maier, 2026-09-23)*
+Remote work reaches the local bridge only through an authenticated tunnel or port forward, such as
+SSH, that ends on the bridge's loopback address.
+*Occasion:* working from another machine is a legitimate need. A tunnel meets it without widening
+the bind: the bridge stays invisible on the network, and the tunnel brings its own authentication.
+*Check:* `tests/test_bridge_tunnel.py` — the bridge answers through a forwarded loopback port and
+on no non-loopback interface.
+
+**THE LOCAL BRIDGE REQUIRES A TOKEN** *(PO A. Maier, 2026-09-23)*
 The bridge rejects any request that does not carry the session token it printed at startup.
 *Occasion:* loopback is not a permission boundary between programs on the same machine. Any local
 process, including a page from an unrelated site, can reach a loopback port.
