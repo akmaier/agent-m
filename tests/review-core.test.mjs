@@ -250,3 +250,25 @@ test("every site module parses — the app itself is only run in a browser, so c
     assert.equal(r.status, 0, `${f}: ${r.stderr}`);
   }
 });
+
+// ---------------------------------------------------------------- token at instance setup (UC-014), extended in UC-001
+
+import { tokenListUrl, extendTokenSteps } from "../docs/assets/review-core.mjs";
+
+test("UC-014: setup names only the instance", () => {
+  const s = repositoryChoiceSteps("reader/agent-m", null);
+  assert.ok(s.some((x) => x.includes("reader/agent-m")));
+  assert.ok(!s.some((x) => /null|undefined/.test(x)));
+});
+
+test("UC-001: extending the token names the token, adds the product, keeps the instance, copies nothing", () => {
+  assert.equal(tokenListUrl(), "https://github.com/settings/personal-access-tokens");
+  const s = extendTokenSteps("reader/agent-m", "reader/thesis").join("\n");
+  assert.match(s, /Agent M · reader\/agent-m/);      // the name tokenLinkUrl gave it
+  assert.match(s, /add “reader\/thesis”/);
+  assert.match(s, /keep “reader\/agent-m”/);
+  assert.match(s, /Update/);
+  assert.match(s, /nothing to copy/i);
+  const name = new URL(tokenLinkUrl("reader/agent-m")).searchParams.get("name");
+  assert.ok(s.includes(name), "the steps must name the token exactly as the setup link created it");
+});

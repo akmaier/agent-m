@@ -11,7 +11,8 @@ import DOMPurify from "./vendor/purify.es.mjs";
 import { browserStore } from "./settings-store.mjs";
 import {
   fetchText, gitBlobSha, deriveTarget, parseProducts, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
-  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout, addProductText, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout, addProductText,
+  tokenListUrl, extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, newFileUrl, editUrl, blobUrl, extractSection, sectionText, parseQueueIndex,
   parseDecisions, deriveUseCaseStatus, deriveSpecStatus,
 } from "./review-core.mjs";
@@ -330,6 +331,10 @@ async function viewUseCases() {
       <td>${badge(u.status)}</td>
     </tr>`).join("");
   main().innerHTML = `
+    ${token() ? "" : `<section class="panel setup-banner"><h3>Finish setting up your instance</h3>
+      <p>This browser has no key for <strong>${h(T.instance)}</strong> yet. Without one you can read and review;
+      accepting and editing then go through GitHub's own pages, and products cannot be added.</p>
+      <p><a class="btn primary" href="#setup">Set up now</a></p></section>`}
     <section class="head"><h2>Use cases</h2><p>${counts(state.useCases)}</p></section>
     <table class="list"><thead><tr><th>ID</th><th>Title</th><th>Stage</th><th>Realises</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody></table>
@@ -515,19 +520,92 @@ const EXPLAIN = {
   store: `The token is saved in this browser only (its <code>localStorage</code>), never in a cookie, never in an
     address, never in any repository. It is sent only to GitHub's API, as a header. Another computer or browser
     does not have it. “Clear everything” in Settings removes it.`,
+  extend: `Your key was created for this instance only, on purpose: it can write nowhere else. A new product has to
+    be added to it once. GitHub lets you change which repositories an existing key reaches; the key's text stays
+    the same, so there is nothing to copy into Agent M. You can remove the product from the key again the same way.`,
+  check: `Agent M reads the product repository with your key. For a private repository, success proves the key
+    reaches it. A public repository can be read by anyone, so there the proof comes with the first write in Step C —
+    if the key does not reach it yet, Step C says so and nothing is written.`,
   add: `One click writes two commits under your account: into the product repository, the folders Agent M uses
     (<code>docs/use-cases/</code>, <code>docs/approvals/</code>, <code>docs/spec-freigaben/</code>), an empty
     <code>SPEC.md</code> and a <code>CHANGELOG.md</code> — only those that do not exist yet; and into this instance, one
     line in <code>docs/products.md</code>. Both are ordinary commits you can see and revert on GitHub.`,
 };
 
+const REPO_INPUT = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
+
+async function checkReach(repo) {
+  try {
+    const r = JSON.parse(await fetchText(`${API}/repos/${repo}`, {}, token()));
+    return { ok: true, priv: r.private, branch: r.default_branch };
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+
+const reachLine = ([r, x]) => x.ok
+  ? `✓ ${h(r)} reachable${x.priv ? "" : " — public, so write access is confirmed only by the first write"}`
+  : `✗ ${h(r)}: ${h(x.error)}`;
+
+// Step A of UC-014: create the key (for the instance, or — without a key in this browser — for both).
+function createKeyStep(repos, title = "Step A · Create your key on GitHub") {
+  return stepHtml({ title,
+    body: `<p><a class="btn primary" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
+      <p>On that page:</p>
+      <ol class="choices">${repositoryChoiceSteps(repos[0], repos[1] || null).map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
+    explain: EXPLAIN.token });
+}
+
+// Step B of UC-014: notice, paste, store, check the given repositories.
+function storeKeyStep() {
+  return stepHtml({ title: "Step B · Give the key to Agent M",
+    body: `<p class="notice">${h(sharedOriginNotice(T.instance.split("/")[0]))}</p>
+      <p><label><input type="checkbox" id="key-ack"> I have read this.</label></p>
+      <p><input type="password" id="key-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" disabled aria-label="GitHub token">
+      <button class="btn" id="key-store" disabled>Store and check</button></p>
+      <p id="key-check" class="muted"></p>`,
+    explain: EXPLAIN.store });
+}
+
+function wireStoreKey(reposToCheck, onStored) {
+  const ack = document.getElementById("key-ack"), tok = document.getElementById("key-token");
+  const btn = document.getElementById("key-store"), out = document.getElementById("key-check");
+  ack.addEventListener("change", () => { tok.disabled = btn.disabled = !canStore(ack.checked); });
+  btn.addEventListener("click", async () => {
+    const v = tok.value.trim();
+    if (!canStore(ack.checked)) return;
+    if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { out.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
+    store.setToken(v);
+    tok.value = "";
+    const res = await Promise.all(reposToCheck().map(async (r) => [r, await checkReach(r)]));
+    out.innerHTML = res.map(reachLine).join("<br>");
+    onStored?.(res);
+  });
+}
+
+// UC-014 · Finish setting up your instance
+function viewSetup() {
+  main().innerHTML = `
+    <p class="crumbs"><a href="#uc">← back</a></p>
+    <section class="head"><h2>Finish setting up your instance</h2>
+      <p class="muted">Two steps, once per browser. They give this dashboard a key that can write to
+      <strong>${h(T.instance)}</strong> — and nothing else. Products are added to the same key later.</p></section>
+    ${createKeyStep([T.instance])}
+    ${storeKeyStep()}
+    <p id="setup-done"></p>`;
+  wireStoreKey(() => [T.instance], (res) => {
+    if (res.every(([, x]) => x.ok)) {
+      document.getElementById("setup-done").innerHTML =
+        `<a class="btn primary" href="#uc">Your instance is ready →</a> <a class="btn" href="#add">+ Add a product</a>`;
+    }
+  });
+}
+
+// UC-001 · Add a product
 async function viewAddProduct(preset = "") {
   const owner = T.instance.split("/")[0];
-  const stored = token();
   main().innerHTML = `
     <p class="crumbs"><a href="#uc">← back</a></p>
     <section class="head"><h2>Add a product</h2>
-      <p class="muted">Three steps. Steps A and B are needed only once per browser.</p></section>
+      <p class="muted">${token() ? "Your key exists already; it only needs to reach the new product." : "No key is stored in this browser yet — it is created first."}</p></section>
     <section class="panel">
       <label>Product repository <input id="add-repo" value="${h(preset)}" placeholder="${h(owner)}/my-project" spellcheck="false" autocomplete="off"></label>
       <details class="explain"><summary>What is this?</summary><div>${EXPLAIN.repo}</div></details>
@@ -537,59 +615,39 @@ async function viewAddProduct(preset = "") {
   const steps = document.getElementById("add-steps");
   const render = () => {
     const repo = input.value.trim();
-    const valid = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo) && !repo.includes("..");
-    const a = stepHtml({ title: stored ? "Step A · Your GitHub key (done)" : "Step A · Create your key on GitHub",
-      body: `${stored ? `<p class="muted">A token is stored in this browser. If it does not cover
-        <strong>${h(valid ? repo : "the product")}</strong>, extend it on GitHub:
-        <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">your tokens ↗</a>
-        → the Agent M token → Edit → Repository access → add it → Update.</p>` : ""}
-        <p><a class="btn ${stored ? "" : "primary"}" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
-        <p>On that page:</p>
-        <ol class="choices">${repositoryChoiceSteps(T.instance, valid ? repo : "<your product>").map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
-      explain: EXPLAIN.token });
-    const b = stepHtml({ title: "Step B · Give the key to Agent M",
-      body: `<p class="notice">${h(sharedOriginNotice(owner))}</p>
-        <p><label><input type="checkbox" id="add-ack"> I have read this.</label></p>
-        <p><input type="password" id="add-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" disabled aria-label="GitHub token">
-        <button class="btn" id="add-store" disabled>Store and check</button></p>
-        <p id="add-check" class="muted">${stored ? `Stored (…${h(stored.slice(-4))}).` : ""}</p>`,
-      explain: EXPLAIN.store });
+    const valid = REPO_INPUT.test(repo) && !repo.includes("..");
+    const product = valid ? repo : "<your product>";
     const c = stepHtml({ title: "Step C · Add the product",
       body: `<p><button class="btn primary" id="add-go" ${valid && token() ? "" : "disabled"}>Add product</button></p>
-        <p id="add-result" class="muted">${!valid ? "Type the product repository above." : !token() ? "Store a token in Step B first." : ""}</p>`,
+        <p id="add-result" class="muted">${!valid ? "Type the product repository above." : !token() ? "Store your key in Step B first." : ""}</p>`,
       explain: EXPLAIN.add });
-    steps.innerHTML = a + b + c;
-    wireAdd(repo, valid);
+    if (token()) {
+      const a = stepHtml({ title: "Step A · Let your key reach the product",
+        body: `<p><a class="btn" href="${h(tokenListUrl())}" target="_blank" rel="noopener">Open your tokens on GitHub ↗</a></p>
+          <p>On that page:</p>
+          <ol class="choices">${extendTokenSteps(T.instance, product).map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
+        explain: EXPLAIN.extend });
+      const b = stepHtml({ title: "Step B · Check",
+        body: `<p><button class="btn" id="add-check-btn" ${valid ? "" : "disabled"}>Check</button></p><p id="add-check" class="muted"></p>`,
+        explain: EXPLAIN.check });
+      steps.innerHTML = a + b + c;
+      document.getElementById("add-check-btn").addEventListener("click", async () => {
+        document.getElementById("add-check").innerHTML = reachLine([repo, await checkReach(repo)]);
+      });
+    } else {
+      steps.innerHTML = createKeyStep([T.instance, product]) + storeKeyStep() + c;
+      wireStoreKey(() => [T.instance, ...(valid ? [repo] : [])], () => {
+        document.getElementById("add-go").disabled = !valid;
+        document.getElementById("add-result").textContent = valid ? "" : "Type the product repository above.";
+      });
+    }
+    wireAddGo(repo);
   };
   input.addEventListener("input", render);
   render();
 }
 
-async function checkReach(repo) {
-  try {
-    const r = JSON.parse(await fetchText(`${API}/repos/${repo}`, {}, token()));
-    return { ok: true, priv: r.private, branch: r.default_branch };
-  } catch (e) { return { ok: false, error: e.message }; }
-}
-
-function wireAdd(repo, valid) {
-  const ack = document.getElementById("add-ack"), tok = document.getElementById("add-token");
-  const store_ = document.getElementById("add-store"), check = document.getElementById("add-check");
-  ack.addEventListener("change", () => { tok.disabled = store_.disabled = !canStore(ack.checked); });
-  store_.addEventListener("click", async () => {
-    const v = tok.value.trim();
-    if (!canStore(ack.checked)) return;
-    if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { check.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
-    store.setToken(v);
-    tok.value = "";
-    const repos = [...new Set([T.instance, valid ? repo : null].filter(Boolean))];
-    const res = await Promise.all(repos.map(async (r) => [r, await checkReach(r)]));
-    check.innerHTML = res.map(([r, x]) => x.ok
-      ? `✓ ${h(r)} readable${x.priv ? "" : " — public, so write access is confirmed only when you add the product"}`
-      : `✗ ${h(r)}: ${h(x.error)}`).join("<br>");
-    document.getElementById("add-go").disabled = !valid;
-    document.getElementById("add-result").textContent = valid ? "" : "Type the product repository above.";
-  });
+function wireAddGo(repo) {
   document.getElementById("add-go").addEventListener("click", async (ev) => {
     const out = document.getElementById("add-result"), b = ev.currentTarget;
     b.disabled = true;
@@ -618,8 +676,8 @@ function wireAdd(repo, valid) {
       out.innerHTML = `Done${links.length ? " — " + links.join(" · ") : " — nothing was missing"}.
         <a class="btn primary" href="?repo=${encodeURIComponent(repo)}">Open ${h(repo)} →</a>`;
     } catch (e) {
-      out.textContent = /403/.test(e.message)
-        ? `Your token cannot write there (${e.message}). Extend it on GitHub (Step A), then click again.`
+      out.textContent = /403|404/.test(e.message)
+        ? `Your key cannot write to ${repo} yet (${e.message}). Do Step A — add the product to your key on GitHub — and click again.`
         : e.message;
       b.disabled = false;
     }
@@ -655,6 +713,7 @@ async function route() {
     else if (kind === "how") viewHow();
     else if (kind === "settings") viewSettings();
     else if (kind === "add") await viewAddProduct(a ? decodeURIComponent(a) : "");
+    else if (kind === "setup") viewSetup();
     else if (kind === "uc" && a) await viewUseCase(decodeURIComponent(a));
     else await viewUseCases();
   } catch (e) {
@@ -666,7 +725,7 @@ async function route() {
 async function start() {
   await loadProducts();
   renderProductSelector();
-  const early = /^#(settings|add)/.test(location.hash);
+  const early = /^#(settings|add|setup)/.test(location.hash);
   if (early) {
     addEventListener("hashchange", route);
     route();

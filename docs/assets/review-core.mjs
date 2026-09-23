@@ -272,6 +272,19 @@ export function repositoryChoiceSteps(instance, product) {
   ];
 }
 
+export const tokenListUrl = () => "https://github.com/settings/personal-access-tokens";
+
+// UC-001: the instance's token (created in UC-014) is extended by one repository — same token,
+// nothing to copy. The token's name is the one tokenLinkUrl gave it, so the person can find it.
+export function extendTokenSteps(instance, product) {
+  const name = new URLSearchParams(new URL(tokenLinkUrl(instance)).search).get("name");
+  return [
+    `Click the token “${name}”, then “Edit”.`,
+    `Under “Repository access” → “Select repositories”, add “${product}” — keep “${instance}” selected.`,
+    "Press “Update” at the bottom. The token itself stays the same — nothing to copy, nothing to paste here.",
+  ];
+}
+
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 // EVERY STEP EXPLAINS ITSELF: the only way to render a step, and it refuses one without explanation.
