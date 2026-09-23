@@ -415,13 +415,29 @@ the dashboard's comparison across versions becomes meaningless.
 *Check:* `tests/test_tags_immutable.py`
 ## 9. Human gates
 
-**A GENERATED ARTIFACT IS A PROPOSAL** *(PO A. Maier, 2026-09-23)*
-Everything Agent M generates enters the product repository as a proposal — a branch, a pull
-request, or a queued entry — never as a direct write to the default branch.
+**A GENERATED ARTIFACT IS A PROPOSAL** *(PO A. Maier, 2026-09-23, reworded 2026-09-23)*
+Everything Agent M generates counts as a proposal until a person accepts it.
 *Occasion:* generation is cheap and review is not, so the volume of candidate changes grows faster
-than the capacity to check them. A tool that writes straight to the default branch converts that
-imbalance into accumulated unreviewed state.
-*Check:* `tests/test_no_direct_write.py`
+than the capacity to check them. What decides is not where a text is stored but whether a person
+has accepted it.
+*Check:* `tests/review-core.test.mjs` — a file without an approval record naming its current text
+is shown as open.
+
+**A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN** *(PO A. Maier, 2026-09-23)*
+A use case or a SPEC change proposal may be written directly to the default branch, where it counts
+as open until an approval record names its text.
+*Occasion:* for these artifacts the approval record is the gate. A pull request in front of it
+added a second click that controlled nothing: a merged use case was still open, and an unmerged one
+could not be reviewed on the dashboard at all.
+*Check:* `tests/review-core.test.mjs`
+
+**CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI** *(PO A. Maier, 2026-09-23)*
+A change to code, tests, workflows or the dashboard reaches the default branch only through a pull
+request whose CI run is green.
+*Occasion:* code has no approval record; the pull request with its CI run is its only check. Who
+merges once CI is green is not restricted — the author of the change may merge it, including an
+agent.
+*Check:* no automatic check; at review. The repository's branch protection can enforce it.
 
 **A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN** *(PO A. Maier, 2026-09-23; after "JEDE
 SPEC-AENDERUNG LAEUFT UEBER DAS FREIGABE-WERKZEUG")*
@@ -468,7 +484,6 @@ in the working tree.
 *Occasion:* a shortening is safe only if the removed part can still be moved where it belongs. A
 duplicate folder did that a second time and drifted away from the history.
 *Check:* `tests/test_replaced_in_history.py`
-
 ## 10. Review on GitHub Pages
 
 **THE PAGES ROOT IS DOCS** *(PO A. Maier, 2026-09-23, products removed 2026-09-23)*
