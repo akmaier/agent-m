@@ -400,7 +400,7 @@ than the capacity to check them. A tool that writes straight to the default bran
 imbalance into accumulated unreviewed state.
 *Check:* `tests/test_no_direct_write.py`
 
-**A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN** *("JEDE
+**A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN** *(PO A. Maier, 2026-09-23; after "JEDE
 SPEC-AENDERUNG LAEUFT UEBER DAS FREIGABE-WERKZEUG")*
 A change to a product's specification is shown beside the text it would replace and is written
 only after a person accepts it.
@@ -410,14 +410,14 @@ specification without agreement, because proposals made in conversation lose the
 are replacing.
 *Check:* `tests/test_spec_gate.py`
 
-**THE APPROVED TEXT IS TAKEN VERBATIM** *("DER PO-TEXT WIRD WORTGETREU
+**THE APPROVED TEXT IS TAKEN VERBATIM** *(PO A. Maier, 2026-09-23; after "DER PO-TEXT WIRD WORTGETREU
 UEBERNOMMEN")*
 What stands in the approval field is exactly what is written to the specification; nothing
 reformulates it afterwards.
 *Occasion:* verbatim transfer is the property that makes an approval an approval.
 *Check:* `tests/test_verbatim.py`
 
-**NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT** *("KEIN VORSCHLAG OHNE
+**NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT** *(PO A. Maier, 2026-09-23; after "KEIN VORSCHLAG OHNE
 DEN IST-ZUSTAND DANEBEN")*
 A change is presented together with the specification text that currently holds, not as a summary
 of it.
@@ -438,7 +438,7 @@ Every passed gate records who decided, when, and on which text.
 it is precisely the evidence a regulated profile (§5) has to produce.
 *Check:* `tests/test_gate_record.py`
 
-**THE REPLACED TEXT STAYS REACHABLE** *("DER ERSETZTE TEXT BLEIBT
+**THE REPLACED TEXT STAYS REACHABLE** *(PO A. Maier, 2026-09-23; after "DER ERSETZTE TEXT BLEIBT
 AUFFINDBAR")*
 A replaced specification section remains reachable through the git history; no second copy is kept
 in the working tree.
