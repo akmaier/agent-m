@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent M · Review</title>
+  <meta name="description" content="Review dashboard of Agent M: use cases and SPEC changes, accepted by a commit in GitHub.">
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/vendor/mermaid.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">M</span>
+      <div>
+        <h1>Agent M <span class="sub">Review</span></h1>
+        <p class="repo" id="repo-line">loading…</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <a href="#uc" role="tab" id="tab-uc">Use cases</a>
+      <a href="#spec" role="tab" id="tab-spec">SPEC changes</a>
+      <a href="#how" role="tab" id="tab-how">How acceptance works</a>
+    </nav>
+  </header>
+
+  <main id="main" aria-live="polite">
+    <p class="muted">Loading from GitHub…</p>
+  </main>
+
+  <footer class="foot">
+    Reads public data from GitHub and writes nothing. Every change and every acceptance is a
+    commit you make in GitHub under your own account (SPEC §10).
+  </footer>
+
+  <script type="module" src="assets/review-app.mjs"></script>
+</body>
+</html>
