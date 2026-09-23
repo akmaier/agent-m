@@ -372,7 +372,7 @@ of Agent M's and of every other product's.
 would renumber the others.
 *Check:* `tests/test_version_independence.py`
 
-**A RELEASE IS TAGGED AND LOGGED**
+**A RELEASE IS TAGGED AND LOGGED** *(PO A. Maier, 2026-09-23)*
 A release raises the version, adds a dated entry to the changelog, and sets the git tag
 `vYYYY.MINOR.PATCH`.
 *Occasion:* a version number that exists only in a file cannot be checked out. The tag is what
