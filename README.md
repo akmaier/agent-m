@@ -1,19 +1,32 @@
 # Agent M
 
-**Companion tool to the *Vibe Coding* book.** Agent M runs the software engineering cycle the book
-teaches — requirement sources, requirements, use cases, architecture, implementation, tests,
-release, manual — as an actual workflow on an actual repository, with an AI doing the work and a
-human standing at the gates.
+**Companion tool to the book [*Vibe Coding*](https://link.springer.com/book/9783032399069) (Springer).**
+Agent M runs the software engineering cycle the book teaches — requirement sources, requirements, use
+cases, architecture, implementation, tests, release, manual — as an actual workflow on an actual
+repository, with an AI doing the work and a human standing at the gates.
 
-It is a **GitHub Pages site plus a set of repository conventions**. There is no server, no
-account, and no database. Your product lives in your own GitHub repository; Agent M reads and
-writes it through the GitHub API, and the model endpoint it talks to is whichever one you
-configure in your browser.
+It is a **GitHub Pages site plus a set of repository conventions**. There is no server, no account,
+and no database. Your products live in their own GitHub repositories; Agent M reads and writes them
+through the GitHub API, with a token that stays in your browser.
 
-> **Status: Phase 1 — specification and design. No implementation yet.**
-> The binding requirements are being proposed one block at a time in
-> [`docs/spec-freigaben/`](docs/spec-freigaben/); [`SPEC.md`](SPEC.md) fills up as they are
-> approved. The design that motivates them is in [`PLAN.md`](PLAN.md).
+## Start here — your own Agent M in three steps
+
+Every user runs their own copy (a *fork*). GitHub leaves two switches off on every fork, and only
+you can turn them on:
+
+1. **Fork this repository** — button *Fork* at the top right of this page.
+2. In your fork, open **[Settings → Pages](../../settings/pages)** and choose *Deploy from a branch*,
+   branch `main`, folder `/docs`, then *Save*.
+3. In your fork, open **[Actions](../../actions)** and press *I understand my workflows, go ahead and
+   enable them*.
+
+After a minute your dashboard is at `https://<your-github-name>.github.io/agent-m/`. From there,
+**+ Add product** guides you through everything else, including the GitHub key it needs — with an
+explanation behind every step if you are new to GitHub.
+
+> **Status:** the review dashboard is live — use cases and SPEC changes are reviewed and accepted
+> there. The generating stages (requirements, use cases, architecture …) are specified in
+> [`SPEC.md`](SPEC.md) and not built yet. The design is in [`PLAN.md`](PLAN.md).
 
 ---
 
@@ -53,11 +66,11 @@ artifacts and evidence without replacing the underlying flow.
 
 The same prompts and schemas, three drivers:
 
-- **In your browser.** The Pages site calls the model endpoint you configured. Configuration and
-  API key live in `localStorage` and never leave the machine — they are not sent to GitHub, and
-  they are never written to this repository.
-- **In GitHub Actions.** The same stage runs server-side against a repository secret and opens a
-  pull request. Useful for long runs and for reviewers who are not you.
+- **In your browser.** The Pages site calls the model endpoint you configured. Configuration, API
+  key and GitHub token live in the browser's `localStorage` — never in a cookie, a URL or a
+  repository. The GitHub token goes only to GitHub's API.
+- **In GitHub Actions.** The same stage runs server-side against a repository secret; its results
+  appear on the dashboard as open, for you to accept. Useful for long runs.
 - **Through a local CLI session.** A loopback bridge in front of `claude` or `codex` lets the page
   hand a coding task to the agent already running on your machine.
 

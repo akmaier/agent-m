@@ -78,12 +78,13 @@ export function sharedOriginNotice(owner) {
 
 export const canStore = (acknowledged) => acknowledged === true;
 
-export const TOKEN_GUIDANCE = `Create a fine-grained personal access token at https://github.com/settings/personal-access-tokens/new
+export const TOKEN_GUIDANCE = `A fine-grained personal access token is a key you create on GitHub. It lets this page act for you
+in exactly the repositories you choose, and nowhere else.
 — Repository access: Only select repositories — this instance and the products it manages, nothing else.
-— Permissions: Contents (read; read and write once Agent M opens pull requests) and Pull requests (read and write).
-— Expiration: choose one; GitHub mails you before it expires.
-Why this scope: the dashboard only reads, and later stages only open pull requests in these repositories; no
-other permission is needed, so none is asked for.
+— Permission: Contents, read and write. That is all: accepting, editing and adding a product are commits.
+— Expiration: 90 days is preset; GitHub mails you before it expires, and you can renew it.
+Why this scope: every write the dashboard makes is a commit you asked for by clicking; no other permission
+is needed, so none is asked for.
 Where the token goes: only to https://api.github.com, as an Authorization header. Never to the model endpoint,
 never into a URL, never into a repository.`;
 
@@ -245,4 +246,102 @@ export function deriveSpecStatus({ queue, nr, proposalPath, proposalText, propos
     && r.proposal === proposalPath);
   if (mine.some((r) => r.blob === proposalBlob && r.section === sectionBlob)) return "approved";
   return mine.length ? "stale" : "open";
+}
+
+// ---------------------------------------------------------------- guided token setup (SPEC §7)
+
+export function tokenLinkUrl(instance) {
+  const q = new URLSearchParams({
+    name: `Agent M · ${instance}`,
+    description: `Agent M dashboard of ${instance}: commits you ask for by clicking (accept, edit, add product).`,
+    expires_in: "90",
+    contents: "write",
+    metadata: "read",
+  });
+  return `https://github.com/settings/personal-access-tokens/new?${q}`;
+}
+
+export function repositoryChoiceSteps(instance, product) {
+  const repos = [...new Set([instance, product].filter(Boolean))];
+  return [
+    "Under “Repository access”, choose “Only select repositories”. GitHub preselects “All repositories”, " +
+      "which would give Agent M write access to everything you own.",
+    `Open “Select repositories” and pick ${repos.map((r) => `“${r}”`).join(" and ")} — nothing else.`,
+    "Leave the permissions as they are (Contents: read and write), scroll down and press “Generate token”.",
+    "Copy the token GitHub now shows — it starts with github_pat_ and is shown only once.",
+  ];
+}
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// EVERY STEP EXPLAINS ITSELF: the only way to render a step, and it refuses one without explanation.
+export function stepHtml({ title, body, explain }) {
+  if (!explain || !String(explain).trim()) throw new Error(`step "${title}" has no \"explain\" text (EVERY STEP EXPLAINS ITSELF)`);
+  return `<section class="step"><h3>${esc(title)}</h3>${body}` +
+    `<details class="explain"><summary>What is this?</summary><div>${explain}</div></details></section>`;
+}
+
+// ---------------------------------------------------------------- writing (SPEC §9, §10)
+
+// THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Every write needs the click event that caused it;
+// `isTrusted` is set by the browser for real user input only and cannot be set by a script.
+// All files go into ONE commit, fast-forward only — nobody else's work is ever overwritten.
+export async function commitFiles({ repo, branch, files, message, token, click }) {
+  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
+  if (!token) throw new Error("writing needs a stored token");
+  if (!REPO_RE.test(repo) || repo.includes("..")) throw new Error(`not a repository: ${repo}`);
+  if (!files.length) throw new Error("nothing to write");
+  const api = `https://api.github.com/repos/${repo}`;
+  const call = async (method, path, body) => {
+    const r = await fetch(api + path, { method, credentials: "omit", cache: "no-store",
+      headers: { Accept: "application/vnd.github+json", ...authHeaders(api, token), ...(body ? { "Content-Type": "application/json" } : {}) },
+      body: body ? JSON.stringify(body) : undefined });
+    const text = await r.text();
+    if (!r.ok) {
+      let msg = text;
+      try { msg = JSON.parse(text).message || text; } catch { /* keep raw */ }
+      const e = new Error(`${method} ${path}: ${r.status} ${msg}`);
+      e.status = r.status;
+      throw e;
+    }
+    return text ? JSON.parse(text) : {};
+  };
+  const ref = encodeURIComponent(branch).replace(/%2F/g, "/");
+  const head = (await call("GET", `/git/ref/heads/${ref}`)).object.sha;
+  for (const f of files) {
+    if (!f.expectBlob) continue;
+    let current = null;
+    try {
+      current = (await call("GET", `/contents/${f.path.split("/").map(encodeURIComponent).join("/")}?ref=${head}`)).sha;
+    } catch (e) { if (e.status !== 404) throw e; }
+    if (current !== f.expectBlob) throw new Error(`${f.path} changed since you opened it — reload and look at the new text first`);
+  }
+  const baseTree = (await call("GET", `/git/commits/${head}`)).tree.sha;
+  const tree = await call("POST", "/git/trees", { base_tree: baseTree,
+    tree: files.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })) });
+  const commit = await call("POST", "/git/commits", { message, tree: tree.sha, parents: [head] });
+  await call("PATCH", `/git/refs/heads/${ref}`, { sha: commit.sha, force: false });
+  return { sha: commit.sha, url: commit.html_url || `https://github.com/${repo}/commit/${commit.sha}` };
+}
+
+// ---------------------------------------------------------------- adding a product (UC-001)
+
+export function missingLayout(existingPaths, product) {
+  const have = new Set(existingPaths);
+  const hasPrefix = (p) => existingPaths.some((x) => x.startsWith(p));
+  const out = [];
+  const add = (path, dirPrefix, content) => { if (!have.has(path) && !(dirPrefix && hasPrefix(dirPrefix))) out.push({ path, content }); };
+  add("docs/use-cases/README.md", "docs/use-cases/", `# Use cases of ${product}\n\nOne file per use case, \`UC-<nnn>-<slug>.md\`. Reviewed on the Agent M dashboard.\n`);
+  add("docs/approvals/README.md", "docs/approvals/", "# Approval records\n\nOne file per acceptance, written by the Agent M dashboard. Never edited to change a status.\n");
+  add("docs/spec-freigaben/README.md", "docs/spec-freigaben/", "# SPEC change queues\n\nOne folder per queue; each entry is accepted on the Agent M dashboard.\n");
+  add("SPEC.md", null, `# ${product} — Specification\n\n**VERBINDLICH (SPEC)**\n\nNo requirement yet. Requirements enter through the approval queues in \`docs/spec-freigaben/\`.\n`);
+  add("CHANGELOG.md", null, `# Changelog of ${product}\n\nCalendar versions \`YYYY.MINOR.PATCH\`. No release yet.\n`);
+  return out;
+}
+
+export function addProductText(text, repo, note) {
+  if (!REPO_RE.test(repo) || repo.includes("..")) throw new Error(`not a repository: ${repo}`);
+  if (parseProducts(text).some((p) => p.repo === repo)) return text;
+  const clean = String(note || "").replace(/[\r\n`]/g, " ").trim();
+  return (text.endsWith("\n") ? text : text + "\n") + `- \`${repo}\`${clean ? ` — ${clean}` : ""}\n`;
 }

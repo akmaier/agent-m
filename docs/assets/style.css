@@ -96,3 +96,13 @@ aside .panel:first-child { margin-top: 0; }
 .guidance { white-space: pre-wrap; font-size: .8rem; }
 #token-input { width: 100%; max-width: 32rem; font-family: ui-monospace, Menlo, monospace; padding: .45rem .6rem;
   border: 1px solid var(--line); border-radius: 6px; background: var(--code); color: var(--fg); }
+
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.2rem; margin: 1rem 0; }
+.step h3 { margin: 0 0 .5rem; font-size: 1rem; }
+details.explain { margin-top: .6rem; font-size: .9rem; }
+details.explain summary { cursor: pointer; color: var(--accent); }
+details.explain > div, details.explain > pre { margin-top: .5rem; padding: .6rem .8rem; background: var(--code); border-radius: 6px; }
+.choices li { margin: .3rem 0; }
+p.notice { border: 1px solid var(--warn); background: var(--warn-bg); padding: .6rem .8rem; border-radius: 6px; }
+#add-repo, #add-token { font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .45rem .6rem; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--code); color: var(--fg); width: 100%; max-width: 28rem; }

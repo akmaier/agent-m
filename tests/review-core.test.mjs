@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import {
   gitBlobSha, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
@@ -121,5 +121,132 @@ test("THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ · THE TOKEN IS SENT ONLY
 
 test("the app never calls fetch directly — every request goes through fetchText", () => {
   const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
-  assert.doesNotMatch(app.replace(/fetchText\(/g, ""), /\bfetch\s*\(|XMLHttpRequest|sendBeacon|localStorage|sessionStorage|document\.cookie/);
+  const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
+  assert.doesNotMatch(app.replace(/fetchText\(/g, ""), FORBIDDEN);
+  // counter-proof: access is caught, the word in an explanation is not
+  assert.match("localStorage.getItem('t')", FORBIDDEN);
+  assert.match("fetch(url)", FORBIDDEN);
+  assert.match("const s = globalThis.localStorage;", FORBIDDEN);
+  assert.doesNotMatch("saved in this browser (its <code>localStorage</code>)", FORBIDDEN);
+});
+
+// ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
+
+import {
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout, addProductText,
+} from "../docs/assets/review-core.mjs";
+
+const click = { isTrusted: true };
+
+function fakeGitHub(files = {}) {
+  // Minimal git-data API: one branch "main" at commit c0 with tree t0.
+  const calls = [];
+  const fetchMock = async (u, init) => {
+    const url = new URL(u), m = init.method, path = url.pathname;
+    calls.push([m, path, init.headers?.Authorization, init.body ? JSON.parse(init.body) : null]);
+    const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
+    if (m === "GET" && path.endsWith("/git/ref/heads/main")) return ok({ object: { sha: "c0" } });
+    if (m === "GET" && path.endsWith("/git/commits/c0")) return ok({ tree: { sha: "t0" } });
+    if (m === "GET" && path.includes("/contents/")) {
+      const p = decodeURIComponent(path.split("/contents/")[1]);
+      return p in files ? ok({ sha: files[p] }) : new Response("{}", { status: 404 });
+    }
+    if (m === "POST" && path.endsWith("/git/trees")) return ok({ sha: "t1" });
+    if (m === "POST" && path.endsWith("/git/commits")) return ok({ sha: "c1", html_url: "https://github.com/a/b/commit/c1" });
+    if (m === "PATCH" && path.endsWith("/git/refs/heads/main")) return ok({ object: { sha: "c1" } });
+    return new Response("{}", { status: 500 });
+  };
+  return { calls, fetchMock };
+}
+
+async function withFetch(mock, f) {
+  const real = globalThis.fetch;
+  globalThis.fetch = mock;
+  try { return await f(); } finally { globalThis.fetch = real; }
+}
+
+test("THE TOKEN LINK IS PREFILLED — name, description, expiry, the one permission; no more", () => {
+  const u = new URL(tokenLinkUrl("reader/agent-m"));
+  assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
+  assert.equal(u.searchParams.get("name"), "Agent M · reader/agent-m");
+  assert.equal(u.searchParams.get("expires_in"), "90");
+  assert.equal(u.searchParams.get("contents"), "write");
+  assert.equal(u.searchParams.get("metadata"), "read");
+  assert.equal(u.searchParams.get("pull_requests"), null, "the dashboard needs no pull-request permission");
+  assert.ok(u.searchParams.get("description"));
+});
+
+test("THE REPOSITORY CHOICE IS SPELLED OUT — both repositories named, 'Only select repositories' first", () => {
+  const s = repositoryChoiceSteps("reader/agent-m", "reader/thesis");
+  assert.match(s[0], /Only select repositories/);
+  assert.match(s[0], /All repositories/);
+  assert.ok(s.some((x) => x.includes("reader/agent-m")) && s.some((x) => x.includes("reader/thesis")));
+  assert.ok(s.some((x) => /github_pat_/.test(x)));
+  assert.equal(repositoryChoiceSteps("r/agent-m", "r/agent-m").filter((x) => x.includes("r/agent-m")).length, 1,
+    "the instance as its own product is named once");
+});
+
+test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be rendered", () => {
+  const h = stepHtml({ title: "Step A", body: "<p>x</p>", explain: "A token is a key." });
+  assert.match(h, /class="step"/);
+  assert.match(h, /<details class="explain"><summary>What is this\?<\/summary>/);
+  assert.throws(() => stepHtml({ title: "Step A", body: "x", explain: "" }), /explain/);
+  assert.throws(() => stepHtml({ title: "Step A", body: "x" }), /explain/);
+});
+
+test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — no trusted click, no request", async () => {
+  const { calls, fetchMock } = fakeGitHub();
+  await withFetch(fetchMock, async () => {
+    const base = { repo: "a/b", branch: "main", files: [{ path: "x.md", content: "x\n" }], message: "m", token: "github_pat_t" };
+    await assert.rejects(commitFiles({ ...base }), /click/);
+    await assert.rejects(commitFiles({ ...base, click: { isTrusted: false } }), /click/);
+    await assert.rejects(commitFiles({ ...base, click, token: null }), /token/);
+  });
+  assert.equal(calls.length, 0);
+});
+
+test("one commit, fast-forward only, token only to the API", async () => {
+  const { calls, fetchMock } = fakeGitHub();
+  const r = await withFetch(fetchMock, () => commitFiles({ repo: "a/b", branch: "main", message: "accept UC-001",
+    token: "github_pat_t", click, files: [{ path: "docs/approvals/UC-001-abc.md", content: "kind: use-case\n" }] }));
+  assert.equal(r.sha, "c1");
+  assert.deepEqual(calls.map(([m, p]) => `${m} ${p}`), [
+    "GET /repos/a/b/git/ref/heads/main", "GET /repos/a/b/git/commits/c0", "POST /repos/a/b/git/trees",
+    "POST /repos/a/b/git/commits", "PATCH /repos/a/b/git/refs/heads/main"]);
+  assert.ok(calls.every(([, , auth]) => auth === "Bearer github_pat_t"));
+  const tree = calls[2][3], commit = calls[3][3], ref = calls[4][3];
+  assert.deepEqual(tree, { base_tree: "t0", tree: [{ path: "docs/approvals/UC-001-abc.md", mode: "100644", type: "blob", content: "kind: use-case\n" }] });
+  assert.deepEqual(commit, { message: "accept UC-001", tree: "t1", parents: ["c0"] });
+  assert.deepEqual(ref, { sha: "c1", force: false });
+});
+
+test("an edit is refused when the file changed since it was loaded", async () => {
+  const { calls, fetchMock } = fakeGitHub({ "docs/use-cases/UC-001-x.md": "newer" });
+  await withFetch(fetchMock, () => assert.rejects(commitFiles({ repo: "a/b", branch: "main", message: "edit", token: "github_pat_t",
+    click, files: [{ path: "docs/use-cases/UC-001-x.md", content: "mine\n", expectBlob: "older" }] }), /changed since/));
+  assert.ok(!calls.some(([m]) => m === "PATCH"), "nothing written");
+});
+
+test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
+  const all = missingLayout([], "alice/thesis").map((f) => f.path).sort();
+  assert.deepEqual(all, ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
+  const some = missingLayout(["SPEC.md", "docs/use-cases/UC-001-x.md"], "alice/thesis").map((f) => f.path).sort();
+  assert.deepEqual(some, ["CHANGELOG.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md"]);
+  assert.match(missingLayout([], "alice/thesis").find((f) => f.path === "SPEC.md").content, /VERBINDLICH \(SPEC\)/);
+});
+
+test("THE INSTANCE LISTS ITS PRODUCTS IN A FILE — adding appends once, keeps the rest", () => {
+  const base = "# Products\n\n```\n- `owner/name` — example\n```\n\n## Products\n\n";
+  const once = addProductText(base, "alice/thesis", "Thesis tool");
+  assert.ok(once.startsWith(base));
+  assert.match(once, /\n- `alice\/thesis` — Thesis tool\n$/);
+  assert.equal(addProductText(once, "alice/thesis", "again"), once);
+  assert.throws(() => addProductText(base, "../evil", ""), /repository/);
+});
+
+test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
+  for (const f of ["review-app.mjs", "review-core.mjs", "settings-store.mjs"]) {
+    const r = spawnSync(process.execPath, ["--check", new URL(`../docs/assets/${f}`, import.meta.url).pathname]);
+    assert.equal(r.status, 0, `${f}: ${r.stderr}`);
+  }
 });
