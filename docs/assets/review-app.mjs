@@ -10,7 +10,8 @@ import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 import { browserStore } from "./settings-store.mjs";
 import {
-  fetchText, gitBlobSha, deriveTarget, parseProducts, sharedOriginNotice, canStore, TOKEN_GUIDANCE, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
+  fetchText, gitBlobSha, deriveTarget, parseProducts, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout, addProductText, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, newFileUrl, editUrl, blobUrl, extractSection, sectionText, parseQueueIndex,
   parseDecisions, deriveUseCaseStatus, deriveSpecStatus,
 } from "./review-core.mjs";
@@ -48,9 +49,15 @@ const raw = (path) => (token()
 
 async function loadProducts() {
   try {
-    state.products = parseProducts(await fetchText(new URL("products.md", document.baseURI).href));
+    const text = token()
+      ? await fetchText(`${API}/repos/${T.instance}/contents/docs/products.md?ref=main`,
+        { headers: { Accept: "application/vnd.github.raw+json" } }, token())
+      : await fetchText(new URL("products.md", document.baseURI).href);
+    state.products = parseProducts(text);
+    state.productsText = text;
   } catch {
     state.products = [];
+    state.productsText = null;
   }
 }
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
@@ -182,6 +189,21 @@ function diffHtml(a, b) {
 
 function acceptPanel(record, path, what) {
   const text = recordText(record);
+  if (token()) {
+    return `
+  <section class="panel accept">
+    <h3>Accept ${h(what)}</h3>
+    <p>One click commits an approval record under your GitHub account. It names exactly the text shown
+    here by its blob SHA <code>${h(record.blob.slice(0, 12))}</code>.</p>
+    <p><button class="btn primary" data-accept-path="${h(path)}" data-accept-record="${h(text)}">Accept</button></p>
+    <p class="result muted"></p>
+    <details class="explain"><summary>What happens when I click?</summary><div>
+      A three-line file is committed to <code>${h(path)}</code> in <code>${h(T.repo)}</code> with the token stored in
+      this browser. Git records you as the author and the time; the file records which text you accepted.
+      ${record.kind === "spec" ? "A workflow then writes the proposal into SPEC.md, byte for byte." : ""}
+      Nothing else is changed. Edit the text later, and it shows as changed again.</div></details>
+  </section>`;
+  }
   const url = newFileUrl(T.repo, T.ref, path, text);
   return `
   <section class="panel accept">
@@ -202,27 +224,53 @@ function acceptPanel(record, path, what) {
   </section>`;
 }
 
-function editPanel(path, text) {
+function editPanel(path, text, blob) {
   return `
   <section class="panel edit" hidden>
     <h3>Edit</h3>
-    <p class="muted">Prepare the change here with a live preview. <strong>Copy &amp; open GitHub editor</strong>
-    copies your text and opens GitHub's editor for <code>${h(path)}</code>: select all, paste, commit.
-    After that the file has a new SHA and is reviewed again.</p>
+    <p class="muted">${token()
+      ? `Change the text with a live preview; <strong>Save</strong> commits it to <code>${h(path)}</code> under your account.`
+      : `Change the text with a live preview. Without a stored token, <strong>Copy &amp; open GitHub editor</strong> copies your
+        text and opens GitHub's editor for <code>${h(path)}</code>: select all, paste, commit. A token in <a href="#settings">Settings</a>
+        makes this one click.`} After saving, the file has a new SHA and is reviewed again.</p>
     <div class="editor">
       <textarea spellcheck="false" aria-label="Edited text">${h(text)}</textarea>
       <div class="preview md"></div>
     </div>
     <p>
-      <button class="btn primary" data-edit-commit="${h(path)}">Copy &amp; open GitHub editor ↗</button>
+      ${token() ? `<button class="btn primary" data-edit-save="${h(path)}">Save</button>`
+        : `<button class="btn primary" data-edit-commit="${h(path)}">Copy &amp; open GitHub editor ↗</button>`}
       <button class="btn" data-edit-diff>Show difference</button>
       <button class="btn" data-edit-reset>Reset</button>
     </p>
+    <p class="result muted"></p>
     <div class="edit-diff"></div>
-  </section>`;
+  </section>`.replace('data-edit-save="', `data-edit-blob="${h(blob || "")}" data-edit-save="`);
+}
+
+async function reloadAndRoute() {
+  await loadAll();
+  await route();
 }
 
 function wireCommon(root, original) {
+  root.querySelectorAll("[data-accept-path]").forEach((b) => b.addEventListener("click", async (ev) => {
+    const out = b.closest(".panel").querySelector(".result");
+    b.disabled = true;
+    out.textContent = "Committing…";
+    try {
+      const c = await commitFiles({ repo: T.repo, branch: T.ref, token: token(), click: ev,
+        message: `accept ${b.dataset.acceptPath.split("/").pop().replace(/\.md$/, "")} (Agent M dashboard)`,
+        files: [{ path: b.dataset.acceptPath, content: b.dataset.acceptRecord }] });
+      out.innerHTML = `Accepted — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>. Reloading…`;
+      await reloadAndRoute();
+    } catch (e) {
+      out.textContent = /403|404/.test(e.message)
+        ? `Your token cannot write to ${T.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
+        : e.message;
+      b.disabled = false;
+    }
+  }));
   root.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
     await navigator.clipboard.writeText(b.dataset.copy);
     b.textContent = "Copied ✓";
@@ -243,7 +291,20 @@ function wireCommon(root, original) {
   ta.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(update, 300); });
   ed.querySelector("[data-edit-reset]").addEventListener("click", () => { ta.value = original; update(); ed.querySelector(".edit-diff").innerHTML = ""; });
   ed.querySelector("[data-edit-diff]").addEventListener("click", () => { ed.querySelector(".edit-diff").innerHTML = diffHtml(original, ta.value); });
-  ed.querySelector("[data-edit-commit]").addEventListener("click", async (ev) => {
+  ed.querySelector("[data-edit-save]")?.addEventListener("click", async (ev) => {
+    const b = ev.currentTarget, out = ed.querySelector(".result");
+    const text = ta.value.endsWith("\n") ? ta.value : ta.value + "\n";
+    b.disabled = true;
+    out.textContent = "Saving…";
+    try {
+      const c = await commitFiles({ repo: T.repo, branch: T.ref, token: token(), click: ev,
+        message: `edit ${b.dataset.editSave.split("/").pop()} (Agent M dashboard)`,
+        files: [{ path: b.dataset.editSave, content: text, expectBlob: b.dataset.editBlob || null }] });
+      out.innerHTML = `Saved — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>. Reloading…`;
+      await reloadAndRoute();
+    } catch (e) { out.textContent = e.message; b.disabled = false; }
+  });
+  ed.querySelector("[data-edit-commit]")?.addEventListener("click", async (ev) => {
     const text = ta.value.endsWith("\n") ? ta.value : ta.value + "\n";
     await navigator.clipboard.writeText(text);
     window.open(editUrl(T.repo, T.ref, ev.currentTarget.dataset.editCommit), "_blank", "noopener");
@@ -308,7 +369,7 @@ async function viewUseCase(id) {
         ${u.status === "accepted" ? "" : acceptPanel(useCaseRecord(u.path, u.blob), approvalPath(u.fields.id, u.blob), u.fields.id)}
       </aside>
     </div>
-    ${editPanel(u.path, u.text)}`;
+    ${editPanel(u.path, u.text, u.blob)}`;
   wireCommon(main(), u.text);
   await renderMermaid(main());
 }
@@ -355,7 +416,7 @@ async function viewSpecEntry(qname, nn) {
     ${e.rationale ? `<section class="panel md rationale"><h3>Rationale</h3>${md(e.rationale.replace(/^# .*\n/, ""))}</section>` : ""}
     <section class="panel"><button class="btn" data-toggle-edit>Edit proposal…</button></section>
     ${rec ? acceptPanel(rec, approvalPath(`spec-${q.name}-${e.nn}`, e.proposalBlob), `entry ${e.nn}`) : ""}
-    ${e.proposalPath ? editPanel(e.proposalPath, e.proposalText) : ""}`;
+    ${e.proposalPath ? editPanel(e.proposalPath, e.proposalText, e.proposalBlob) : ""}`;
   wireCommon(main(), e.proposalText);
   await renderMermaid(main());
 }
@@ -407,7 +468,9 @@ function viewSettings() {
     <section class="panel">
       <h3>GitHub token</h3>
       <p>Status: <strong id="token-status">${stored ? `stored (…${h(stored.slice(-4))})` : "none stored"}</strong></p>
-      <pre class="guidance">${h(TOKEN_GUIDANCE)}</pre>
+      <p><a class="btn" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
+      <ol class="choices">${repositoryChoiceSteps(T.instance, null).map((s) => `<li>${h(s)}</li>`).join("")}</ol>
+      <details class="explain"><summary>What is this?</summary><pre class="guidance">${h(TOKEN_GUIDANCE)}</pre></details>
       <p><input type="password" id="token-input" autocomplete="off" spellcheck="false" disabled
         placeholder="github_pat_…" aria-label="GitHub token"></p>
       <p>
@@ -440,6 +503,129 @@ function viewSettings() {
   });
 }
 
+const EXPLAIN = {
+  repo: `A <em>repository</em> is the folder on GitHub that holds a project's files and their history. You name it as
+    <code>owner/name</code>, exactly as it appears in its address <code>github.com/owner/name</code>. The product's
+    requirements and use cases will live in that repository; this dashboard only shows them.`,
+  token: `A <em>token</em> is a key you create on GitHub and give to this page, so it can make commits for you — only in
+    the repositories you select, only with the one permission it needs, and only until the date you choose.
+    You can delete it on GitHub at any time; it then stops working immediately.<br><br>
+    <strong>Why “Only select repositories”?</strong> GitHub preselects “All repositories”. That would let this page write
+    to every repository you own. Choosing the two repositories named above limits it to what Agent M actually needs.`,
+  store: `The token is saved in this browser only (its <code>localStorage</code>), never in a cookie, never in an
+    address, never in any repository. It is sent only to GitHub's API, as a header. Another computer or browser
+    does not have it. “Clear everything” in Settings removes it.`,
+  add: `One click writes two commits under your account: into the product repository, the folders Agent M uses
+    (<code>docs/use-cases/</code>, <code>docs/approvals/</code>, <code>docs/spec-freigaben/</code>), an empty
+    <code>SPEC.md</code> and a <code>CHANGELOG.md</code> — only those that do not exist yet; and into this instance, one
+    line in <code>docs/products.md</code>. Both are ordinary commits you can see and revert on GitHub.`,
+};
+
+async function viewAddProduct(preset = "") {
+  const owner = T.instance.split("/")[0];
+  const stored = token();
+  main().innerHTML = `
+    <p class="crumbs"><a href="#uc">← back</a></p>
+    <section class="head"><h2>Add a product</h2>
+      <p class="muted">Three steps. Steps A and B are needed only once per browser.</p></section>
+    <section class="panel">
+      <label>Product repository <input id="add-repo" value="${h(preset)}" placeholder="${h(owner)}/my-project" spellcheck="false" autocomplete="off"></label>
+      <details class="explain"><summary>What is this?</summary><div>${EXPLAIN.repo}</div></details>
+    </section>
+    <div id="add-steps"></div>`;
+  const input = document.getElementById("add-repo");
+  const steps = document.getElementById("add-steps");
+  const render = () => {
+    const repo = input.value.trim();
+    const valid = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo) && !repo.includes("..");
+    const a = stepHtml({ title: stored ? "Step A · Your GitHub key (done)" : "Step A · Create your key on GitHub",
+      body: `${stored ? `<p class="muted">A token is stored in this browser. If it does not cover
+        <strong>${h(valid ? repo : "the product")}</strong>, extend it on GitHub:
+        <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">your tokens ↗</a>
+        → the Agent M token → Edit → Repository access → add it → Update.</p>` : ""}
+        <p><a class="btn ${stored ? "" : "primary"}" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
+        <p>On that page:</p>
+        <ol class="choices">${repositoryChoiceSteps(T.instance, valid ? repo : "<your product>").map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
+      explain: EXPLAIN.token });
+    const b = stepHtml({ title: "Step B · Give the key to Agent M",
+      body: `<p class="notice">${h(sharedOriginNotice(owner))}</p>
+        <p><label><input type="checkbox" id="add-ack"> I have read this.</label></p>
+        <p><input type="password" id="add-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" disabled aria-label="GitHub token">
+        <button class="btn" id="add-store" disabled>Store and check</button></p>
+        <p id="add-check" class="muted">${stored ? `Stored (…${h(stored.slice(-4))}).` : ""}</p>`,
+      explain: EXPLAIN.store });
+    const c = stepHtml({ title: "Step C · Add the product",
+      body: `<p><button class="btn primary" id="add-go" ${valid && token() ? "" : "disabled"}>Add product</button></p>
+        <p id="add-result" class="muted">${!valid ? "Type the product repository above." : !token() ? "Store a token in Step B first." : ""}</p>`,
+      explain: EXPLAIN.add });
+    steps.innerHTML = a + b + c;
+    wireAdd(repo, valid);
+  };
+  input.addEventListener("input", render);
+  render();
+}
+
+async function checkReach(repo) {
+  try {
+    const r = JSON.parse(await fetchText(`${API}/repos/${repo}`, {}, token()));
+    return { ok: true, priv: r.private, branch: r.default_branch };
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+
+function wireAdd(repo, valid) {
+  const ack = document.getElementById("add-ack"), tok = document.getElementById("add-token");
+  const store_ = document.getElementById("add-store"), check = document.getElementById("add-check");
+  ack.addEventListener("change", () => { tok.disabled = store_.disabled = !canStore(ack.checked); });
+  store_.addEventListener("click", async () => {
+    const v = tok.value.trim();
+    if (!canStore(ack.checked)) return;
+    if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { check.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
+    store.setToken(v);
+    tok.value = "";
+    const repos = [...new Set([T.instance, valid ? repo : null].filter(Boolean))];
+    const res = await Promise.all(repos.map(async (r) => [r, await checkReach(r)]));
+    check.innerHTML = res.map(([r, x]) => x.ok
+      ? `✓ ${h(r)} readable${x.priv ? "" : " — public, so write access is confirmed only when you add the product"}`
+      : `✗ ${h(r)}: ${h(x.error)}`).join("<br>");
+    document.getElementById("add-go").disabled = !valid;
+    document.getElementById("add-result").textContent = valid ? "" : "Type the product repository above.";
+  });
+  document.getElementById("add-go").addEventListener("click", async (ev) => {
+    const out = document.getElementById("add-result"), b = ev.currentTarget;
+    b.disabled = true;
+    try {
+      out.textContent = "Reading the product repository…";
+      const info = await checkReach(repo);
+      if (!info.ok) throw new Error(`cannot read ${repo}: ${info.error}`);
+      const tree = JSON.parse(await fetchText(`${API}/repos/${repo}/git/trees/${encodeURIComponent(info.branch)}?recursive=1`, {}, token()));
+      const files = missingLayout(tree.tree.filter((e) => e.type === "blob").map((e) => e.path), repo);
+      const links = [];
+      if (files.length) {
+        out.textContent = `Writing ${files.length} files into ${repo}…`;
+        const c = await commitFiles({ repo, branch: info.branch, token: token(), click: ev, files,
+          message: "Add the Agent M review layout (Agent M dashboard)" });
+        links.push(`<a href="${h(c.url)}" target="_blank" rel="noopener">layout in ${h(repo)}</a>`);
+      }
+      await loadProducts();
+      if (!state.products.some((p) => p.repo === repo) && repo !== T.instance) {
+        out.textContent = `Adding ${repo} to ${T.instance}…`;
+        const base = state.productsText ?? "# Products of this instance\n\n## Products\n\n";
+        const c = await commitFiles({ repo: T.instance, branch: "main", token: token(), click: ev,
+          files: [{ path: "docs/products.md", content: addProductText(base, repo, "") }],
+          message: `Add product ${repo} (Agent M dashboard)` });
+        links.push(`<a href="${h(c.url)}" target="_blank" rel="noopener">entry in ${h(T.instance)}</a>`);
+      }
+      out.innerHTML = `Done${links.length ? " — " + links.join(" · ") : " — nothing was missing"}.
+        <a class="btn primary" href="?repo=${encodeURIComponent(repo)}">Open ${h(repo)} →</a>`;
+    } catch (e) {
+      out.textContent = /403/.test(e.message)
+        ? `Your token cannot write there (${e.message}). Extend it on GitHub (Step A), then click again.`
+        : e.message;
+      b.disabled = false;
+    }
+  });
+}
+
 function renderProductSelector() {
   const sel = document.getElementById("product");
   const options = [{ repo: T.instance, note: "this instance" }, ...state.products.filter((p) => p.repo !== T.instance)];
@@ -447,8 +633,8 @@ function renderProductSelector() {
     + `<option value="__add">+ Add product…</option>`;
   sel.addEventListener("change", () => {
     if (sel.value === "__add") {
-      window.open(editUrl(T.instance, "main", "docs/products.md"), "_blank", "noopener");
       sel.value = T.repo;
+      location.hash = "#add";
       return;
     }
     const q = new URLSearchParams();
@@ -468,6 +654,7 @@ async function route() {
     else if (kind === "spec") await viewSpec();
     else if (kind === "how") viewHow();
     else if (kind === "settings") viewSettings();
+    else if (kind === "add") await viewAddProduct(a ? decodeURIComponent(a) : "");
     else if (kind === "uc" && a) await viewUseCase(decodeURIComponent(a));
     else await viewUseCases();
   } catch (e) {
@@ -479,7 +666,8 @@ async function route() {
 async function start() {
   await loadProducts();
   renderProductSelector();
-  if (location.hash.startsWith("#settings")) {
+  const early = /^#(settings|add)/.test(location.hash);
+  if (early) {
     addEventListener("hashchange", route);
     route();
   }
@@ -488,7 +676,7 @@ async function start() {
     document.getElementById("repo-line").innerHTML =
       `<a href="https://github.com/${h(T.repo)}" target="_blank" rel="noopener">${h(T.repo)}</a> · ${h(T.ref)} · <code>${h(state.commit.slice(0, 12))}</code>`;
   } catch (e) {
-    if (location.hash.startsWith("#settings")) return;
+    if (early) return;
     const limited = /403|429/.test(e.message), missing = /404/.test(e.message);
     main().innerHTML = `<p class="warn">Could not read ${h(T.repo)} @ ${h(T.ref)}: ${h(e.message)}</p>
       ${limited ? `<p class="muted">Without a token GitHub allows 60 API calls per hour and network; this page uses two per load. A token in <a href="#settings">Settings</a> raises that.</p>` : ""}
@@ -497,7 +685,7 @@ async function start() {
     addEventListener("hashchange", route);
     return;
   }
-  if (!location.hash.startsWith("#settings")) { addEventListener("hashchange", route); route(); }
+  if (!early) { addEventListener("hashchange", route); route(); }
 }
 
 start();
