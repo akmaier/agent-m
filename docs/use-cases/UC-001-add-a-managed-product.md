@@ -37,7 +37,7 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
 
 ## Precondition
 
-- The author has an Agent M instance (UC-014).
+- The author has an Agent M instance with its token stored in this browser (UC-014).
 - The product repository exists on GitHub and the author can write to it.
 
 ## Main flow
@@ -45,77 +45,67 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
 1. On the instance's dashboard, the author opens the product selector and chooses **+ Add product**.
    A panel opens on the same page.
 2. The author types the product repository, for example `alice/thesis-tool`.
-3. If no token is stored yet, or the stored one cannot reach both repositories, the panel shows
-   **Step A · Create your key on GitHub**:
-   - a button **Open GitHub's token page**, which opens GitHub in a new tab with name
-     (`Agent M · <instance>`), description, expiry (90 days) and the one permission Agent M needs
-     (*Contents: read and write*) already filled in;
-   - underneath, exactly what to do there, with the repository names filled in:
-     1. under *Repository access*, choose **Only select repositories** — GitHub preselects *All
-        repositories*, which would give Agent M far more than it needs;
-     2. in *Select repositories*, pick **`<instance repository>`** and **`<product repository>`**;
-     3. at the bottom, press **Generate token**;
-     4. copy the token that GitHub shows once — it starts with `github_pat_`.
-4. The panel shows **Step B · Give the key to Agent M**, on the same page:
-   - the notice that everything stored in this browser can be read by every GitHub Pages site of
-     the same owner, with a checkbox **I have read this**;
-   - a field **GitHub token** — paste the copied token here;
-   - a button **Store and check**. Agent M writes the token to this browser's `localStorage` (no
-     cookie, never in a URL, never in a repository) and immediately tries to read both
-     repositories. Each gets a ✓, or a message naming what is missing.
-5. The author presses **Add product** — one click. Agent M:
-   - writes the missing review layout into the product repository's default branch
-     (`docs/use-cases/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md` skeleton, a first
-     version entry), skipping whatever already exists;
-   - adds the product to `docs/products.md` of the instance repository;
-   - shows both commits as links, and switches the dashboard to the new product.
+3. **Step A · Let your key reach the product.** The key from UC-014 covers only the instance. The
+   panel shows a button **Open your tokens on GitHub** and, underneath, exactly what to do there,
+   with the names filled in:
+   1. click the token **`Agent M · <instance>`**, then **Edit**;
+   2. under *Repository access* → *Select repositories*, add **`<product repository>`** — keep
+      `<instance>` selected;
+   3. press **Update** at the bottom.
 
-Every step carries a folded **What is this?** explanation for newcomers: what a token is and why
-Agent M needs one; why *Only select repositories*; what happens to the token in the browser; what
-the two commits contain; how to undo them.
+   The token itself does not change — nothing to copy, nothing to paste in Agent M.
+4. **Step B · Check.** The author presses **Check**; Agent M reads the product repository with the
+   stored token and shows ✓, or names what is missing. For a *public* repository a read succeeds
+   even without the token's permission, so the panel says that write access is confirmed at the
+   next step.
+5. **Step C · Add the product** — one click. Agent M:
+   - writes the missing review layout into the product repository's default branch
+     (`docs/use-cases/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md` skeleton, a
+     `CHANGELOG.md`), skipping whatever already exists;
+   - adds the product to `docs/products.md` of the instance repository;
+   - shows both commits as links, and offers to switch to the new product.
+
+Every step carries a folded **What is this?** explanation for newcomers: what a repository is, why
+the key has to be extended, what the two commits contain, how to undo them.
 
 ```mermaid
 sequenceDiagram
     actor A as Author
     participant D as Dashboard (instance Pages)
-    participant G as GitHub token page
-    participant L as localStorage
+    participant G as GitHub token list
     participant P as Product repository
     participant I as Instance repository
     A->>D: + Add product, type owner/name
-    D-->>A: Step A with prefilled link and exact choices
-    A->>G: Only select repositories, pick both, Generate
-    G-->>A: token, shown once
-    A->>D: Step B, read notice, paste, Store and check
-    D->>L: store token
+    D-->>A: Step A, which token, what to add
+    A->>G: Edit token, add product repository, Update
+    A->>D: Step B, Check
     D->>P: read (token)
-    D->>I: read (token)
-    D-->>A: both reachable
-    A->>D: Add product
+    D-->>A: reachable
+    A->>D: Step C, Add product
     D->>P: commit missing layout
     D->>I: commit entry in docs/products.md
-    D-->>A: two commit links, product selected
+    D-->>A: two commit links
 ```
 
 ## Alternative flows
 
-- **3a. A token is stored and reaches both repositories.** Steps A and B are skipped: adding a
-  product is typing its name and one click.
-- **4a. The token cannot reach one of the repositories.** Agent M names it and shows how to add it
-  to the existing token: GitHub's token list (linked) → the Agent M token → *Edit* → *Repository
-  access* → add the repository → *Update*. No new token is needed.
-- **4b. The pasted text is not a token.** Nothing is stored; the panel says what a token looks like.
+- **3a. The token already reaches the product** (for example, the author selected it in UC-014).
+  Step A is shown as done; adding a product is typing its name, *Check*, *Add product*.
+- **3b. No token is stored in this browser** (another computer, or the setup of UC-014 was skipped).
+  The panel first shows UC-014's key setup, with both repositories named; then continues at step 4.
+- **4a. The check fails.** Agent M names the repository it cannot reach and shows Step A again.
+- **5a. The write is refused** although the read succeeded — a public repository not yet added to the
+  token. Agent M says so and shows Step A again; nothing was written.
 - **2a. The product repository does not exist yet.** Agent M says so and links GitHub's page for a
   new repository, with a folded explanation of the choices there; the author returns and continues
   at step 2.
-- **5a. The product already has the complete layout.** Only the entry in `docs/products.md` is
+- **5b. The product already has the complete layout.** Only the entry in `docs/products.md` is
   written.
 
 ## Postcondition
 
 - The product repository contains the review layout; it has no Pages site.
 - The instance lists the product in `docs/products.md`.
-- The token exists only in this browser, and can write only to the repositories the author selected.
-- The author has clicked: *+ Add product*, *Open GitHub's token page*, GitHub's *Generate token*,
-  *I have read this*, *Store and check*, *Add product* — and none of them twice. With a token already
-  stored: *+ Add product* and *Add product*.
+- The one token from UC-014 now reaches the instance and this product, and nothing else.
+- Clicks: *+ Add product*, *Open your tokens on GitHub*, on GitHub *Edit* and *Update*, *Check*,
+  *Add product*. If the token already reaches the product: *+ Add product*, *Check*, *Add product*.
