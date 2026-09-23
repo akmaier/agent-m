@@ -106,3 +106,7 @@ details.explain > div, details.explain > pre { margin-top: .5rem; padding: .6rem
 p.notice { border: 1px solid var(--warn); background: var(--warn-bg); padding: .6rem .8rem; border-radius: 6px; }
 #add-repo, #add-token { font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .45rem .6rem; border: 1px solid var(--line);
   border-radius: 6px; background: var(--code); color: var(--fg); width: 100%; max-width: 28rem; }
+
+.setup-banner { border-color: var(--accent); }
+#key-token { font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .45rem .6rem; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--code); color: var(--fg); width: 100%; max-width: 28rem; }
