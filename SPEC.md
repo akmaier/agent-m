@@ -500,6 +500,20 @@ in the working tree.
 *Occasion:* a shortening is safe only if the removed part can still be moved where it belongs. A
 duplicate folder did that a second time and drifted away from the history.
 *Check:* `tests/test_replaced_in_history.py`
+
+**A PERSON'S OWN INPUT IS COMMITTED DIRECTLY** *(PO A. Maier, 2026-09-24)*
+What a person enters in Agent M themselves — a requirement source, a product, a release — is
+committed to the default branch under their own account when they save it.
+*Occasion:* the person who typed it has already decided on it; a second review of one's own input
+adds a click and no control.
+*Check:* `tests/review-core.test.mjs`
+
+**ADDING A PRODUCT CREATES ITS LAYOUT** *(PO A. Maier, 2026-09-24)*
+When a person adds a product, Agent M writes the missing review layout into the product's default
+branch and the product's entry into the instance's `docs/products.md`, without a pull request.
+*Occasion:* PO, 2026-09-24: two merges in one setup "is a bit much. Both need to be automated."
+The layout is empty folders and a SPEC skeleton; there is nothing in it to review.
+*Check:* `tests/review-core.test.mjs`
 ## 10. Review on GitHub Pages
 
 **THE PAGES ROOT IS DOCS** *(PO A. Maier, 2026-09-23, products removed 2026-09-23)*
