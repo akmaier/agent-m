@@ -1,0 +1,50 @@
+# SPEC §10 AN ACCEPTED SPEC CHANGE IS WRITTEN BY A WORKFLOW · A STALE APPROVAL IS NOT APPLIED
+# A person accepts a SPEC change by committing an approval record in GitHub's web interface.
+# This workflow writes the approved proposal into SPEC.md byte for byte, or writes nothing.
+name: apply approvals
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/approvals/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-approvals
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply approved SPEC changes
+        id: apply
+        run: |
+          set +e
+          python3 tools/apply_approvals.py | tee apply-report.txt
+          echo "rc=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      - name: Commit what was applied
+        run: |
+          if git diff --quiet; then echo "nothing applied"; exit 0; fi
+          approver="$(git log -1 --format='%an <%ae>' -- docs/approvals)"
+          git config user.name "agent-m apply-approvals"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SPEC.md docs/spec-freigaben
+          {
+            echo "spec(freigabe): approved change written by the apply workflow"
+            echo
+            cat apply-report.txt
+            echo
+            echo "Approved by: ${approver} in ${GITHUB_SHA}"
+          } > msg.txt
+          git commit -F msg.txt
+          git push
+      - name: Fail on refused approvals
+        if: steps.apply.outputs.rc != '0'
+        run: |
+          echo "::error::At least one approval was refused (stale or malformed). See the report above."
+          exit 1

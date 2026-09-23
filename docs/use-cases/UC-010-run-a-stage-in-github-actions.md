@@ -1,0 +1,64 @@
+---
+id: UC-010
+title: Run a stage in GitHub Actions
+stage: runtime
+actors:
+  - Author
+  - GitHub Actions
+  - Model endpoint
+realises:
+  - ONE DEFINITION, THREE DRIVERS
+  - A RUNTIME IS INTERCHANGEABLE
+  - A GENERATED ARTIFACT IS A PROPOSAL
+  - NO SECRET IN THE REPOSITORY
+---
+# UC-010 Run a stage in GitHub Actions
+
+**Goal.** A stage runs server-side in the product repository's own CI, for long runs or when the
+endpoint does not accept browser calls.
+
+## Actors
+
+- **Author** — starts the run.
+- **GitHub Actions** — executes the stage with a repository secret.
+- **Model endpoint** — does the drafting.
+
+## Precondition
+
+- The product repository holds the endpoint key as an Actions secret, not in any file.
+- The stage workflow of Agent M is installed in the product repository.
+
+## Main flow
+
+1. The author starts the stage from the dashboard or from GitHub's Actions page.
+2. The workflow reads the stage definition and prompt — the same files the browser uses.
+3. The workflow calls the endpoint with the secret.
+4. The workflow writes the resulting artifacts to a new branch and opens a pull request.
+5. The author reviews the pull request as in UC-006 or UC-008.
+
+```mermaid
+sequenceDiagram
+    actor A as Author
+    participant G as GitHub
+    participant W as Actions workflow
+    participant E as Model endpoint
+    A->>G: start stage
+    G->>W: run
+    W->>W: read stage definition and prompt
+    W->>E: request with secret
+    E-->>W: result
+    W->>G: branch and pull request
+    A->>G: review
+```
+
+## Alternative flows
+
+- **3a. The secret is missing.** The workflow fails with a message naming the secret; nothing is
+  written.
+- **4a. The result equals the current artifacts.** No pull request is opened; the run reports
+  "no change".
+
+## Postcondition
+
+- The artifacts are of the same kind the browser runtime would produce.
+- Nothing reached the default branch without review.
