@@ -51,3 +51,21 @@ empty string after the last `\n`. `tools/apply_approvals.py` preserves it (test
 repository has the same logic and does drop it: `SPEC.md` ended with `\n` as a skeleton (commit
 `687a6bc`) and has not since the approvals of 2026-09-23. Harmless for rendering; reported, not
 fixed here, because the tool belongs to the process repository.
+
+## 4. End to end: a record built by the browser, applied by the workflow
+
+The dashboard, served locally and reading `feature/review-dashboard` at `aa029a2`, built the
+approval record for queue `2026-09-23c_review-auf-github` entry 01 (proposal blob `571d11a…`,
+section blob `916c0fa…`). The same record was committed in a throwaway worktree of that branch and
+`tools/apply_approvals.py` was run.
+
+- The browser's blob SHA for `UC-008` equals `git rev-parse <branch>:<file>` (`22c8cde…`).
+- **First attempt: crash.** `docs/approvals/README.md` shows example records in code blocks; the
+  applier read it as a record and died with a traceback on the missing `<queue>/index.md`. The
+  unit tests had not covered it. Fixed: the README is skipped (as the dashboard and the record
+  test already did), and a record naming a queue without `index.md` is **refused**, not a crash.
+  Both are regression tests now (`test_readme_with_example_records_is_not_a_record`,
+  `test_unknown_queue_is_refused_not_crashed`), both red before the fix.
+- **Second attempt:** `applied — SPEC.md ## 9. Human gates`, rc 0; the proposal stands verbatim
+  in `SPEC.md` with exactly one `## 10.` heading; one decision line appended; the file ends with a
+  newline again; a second run reports `nothing to apply`.

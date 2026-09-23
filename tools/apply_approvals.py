@@ -108,6 +108,8 @@ def apply(root: Path) -> tuple[int, str]:
     root = Path(root)
     report, rc = [], 0
     for rec_path in sorted((root / APPROVALS).glob("*.md")):
+        if rec_path.name == "README.md":  # documents the format with example records
+            continue
         r = parse_record(rec_path.read_text(encoding="utf-8"))
         if r.get("kind") != "spec":
             continue
@@ -125,6 +127,10 @@ def apply(root: Path) -> tuple[int, str]:
             rc = 1
             continue
         qdir = root / queue
+        if not (qdir / "index.md").is_file():
+            report.append(f"{name}: refused — queue {queue} has no index.md")
+            rc = 1
+            continue
         if name in applied_records(qdir):
             continue
         nr = int(r["entry"])

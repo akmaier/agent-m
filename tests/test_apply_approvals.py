@@ -124,6 +124,22 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual((rc, self.r.spec()), (1, SPEC))
         self.assertIn("proposal", report)
 
+    def test_readme_with_example_records_is_not_a_record(self):
+        # Found end-to-end on 2026-09-23: docs/approvals/README.md documents the record format
+        # with example lines and was read as a record.
+        (self.r.root / "docs/approvals/README.md").write_text(
+            "# Records\n\n```\nkind: spec\nqueue: docs/spec-freigaben/<queue>\nentry: 01\n"
+            "proposal: docs/spec-freigaben/<queue>/01-x.md\nblob: <sha>\ntarget: SPEC.md\n"
+            "anchor: ## x\nsection: <sha>\n```\n", encoding="utf-8")
+        rc, report = ap.apply(self.r.root)
+        self.assertEqual((rc, report, self.r.spec()), (0, "", SPEC))
+
+    def test_unknown_queue_is_refused_not_crashed(self):
+        self.r.record(queue="docs/spec-freigaben/missing", proposal="docs/spec-freigaben/missing/01-x.md")
+        rc, report = ap.apply(self.r.root)
+        self.assertEqual((rc, self.r.spec()), (1, SPEC))
+        self.assertIn("no index.md", report)
+
     def test_use_case_records_are_left_alone(self):
         (self.r.root / "docs/approvals/UC-001-aaaaaaaaaaaa.md").write_text(
             "kind: use-case\nfile: docs/use-cases/UC-001-x.md\nblob: " + "a" * 40 + "\n", encoding="utf-8")
