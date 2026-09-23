@@ -10,19 +10,82 @@ export const MAX_URL_VALUE = 1000; // NO TEXT TRAVELS IN A URL — a record is ~
 
 // ---------------------------------------------------------------- reading (GET only, no credential)
 
-export async function fetchText(url, init = {}) {
+export const TOKEN_DESTINATIONS = ["https://api.github.com"];
+
+// The only way the dashboard reads. SPEC §7/§10: GET only; the GitHub token, if any, goes only to
+// GitHub's API as a header built here — never in a URL, never to another origin, never by a caller.
+export async function fetchText(url, init = {}, token = null) {
   const u = new URL(url, globalThis.location?.href);
   const sameOrigin = globalThis.location && u.origin === globalThis.location.origin;
   if (!sameOrigin && !ALLOWED_ORIGINS.has(u.origin)) throw new Error(`origin not allowed: ${u.origin}`);
   if ((init.method || "GET").toUpperCase() !== "GET") throw new Error("only GET is allowed");
-  const h = init.headers || {};
-  if (Object.keys(h).some((k) => /^authorization$/i.test(k)) || init.credentials === "include") {
-    throw new Error("the review dashboard sends no credential");
+  const h = { ...(init.headers || {}) };
+  if (Object.keys(h).some((k) => /^authorization$/i.test(k))) throw new Error("no caller-set authorization header");
+  if (init.credentials === "include") throw new Error("the dashboard sends no browser credential");
+  if (token) {
+    if (u.href.includes(token)) throw new Error("A credential is never placed in a URL");
+    if (!TOKEN_DESTINATIONS.includes(u.origin)) throw new Error(`the token may only go to ${TOKEN_DESTINATIONS.join(", ")}`);
+    Object.assign(h, authHeaders(u.href, token));
   }
   const r = await fetch(u, { method: "GET", headers: h, credentials: "omit", cache: "no-store" });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${u.href}`);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`);
   return r.text();
 }
+
+export function authHeaders(url, token) {
+  if (!token) return {};
+  return TOKEN_DESTINATIONS.includes(new URL(url).origin) ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ---------------------------------------------------------------- instance and products (SPEC §10)
+
+const REPO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/;
+export const UPSTREAM = "akmaier/agent-m";
+
+export function deriveTarget({ hostname, pathname, search }) {
+  const owner = hostname.endsWith(".github.io") ? hostname.split(".")[0] : null;
+  const name = pathname.split("/").filter(Boolean)[0];
+  const instance = owner && name ? `${owner}/${name}` : UPSTREAM;
+  const q = new URLSearchParams(search || "");
+  const wanted = q.get("repo");
+  const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
+  const ref = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..") ? q.get("ref") : "main";
+  return { instance, repo, ref };
+}
+
+export function parseProducts(text) {
+  const out = [];
+  let fenced = false;
+  for (const line of text.split("\n")) {
+    if (line.trimStart().startsWith("```")) { fenced = !fenced; continue; }
+    if (fenced) continue; // format examples in code blocks are not products
+    const m = line.match(/^- `([^`]+)`(?:\s+—\s+(.*))?\s*$/);
+    if (m && REPO_RE.test(m[1]) && !m[1].includes("..") && !out.some((p) => p.repo === m[1])) {
+      out.push({ repo: m[1], note: (m[2] || "").trim() });
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- settings texts (SPEC §7)
+
+export function sharedOriginNotice(owner) {
+  return `Everything Agent M stores in this browser is stored for the address https://${owner}.github.io — ` +
+    `not only for this instance. Every other GitHub Pages site of ${owner} is served from the same address ` +
+    `and can read it, including any script those sites load. If that is not acceptable, run your instance ` +
+    `under a GitHub owner (account or organisation) that has no other Pages sites.`;
+}
+
+export const canStore = (acknowledged) => acknowledged === true;
+
+export const TOKEN_GUIDANCE = `Create a fine-grained personal access token at https://github.com/settings/personal-access-tokens/new
+— Repository access: Only select repositories — this instance and the products it manages, nothing else.
+— Permissions: Contents (read; read and write once Agent M opens pull requests) and Pull requests (read and write).
+— Expiration: choose one; GitHub mails you before it expires.
+Why this scope: the dashboard only reads, and later stages only open pull requests in these repositories; no
+other permission is needed, so none is asked for.
+Where the token goes: only to https://api.github.com, as an Authorization header. Never to the model endpoint,
+never into a URL, never into a repository.`;
 
 // ---------------------------------------------------------------- git blob identity
 

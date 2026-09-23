@@ -89,3 +89,10 @@ aside .panel:first-child { margin-top: 0; }
 .diff { white-space: pre-wrap; font-size: .8rem; }
 .diff span { display: block; }
 .dadd { background: var(--add); } .ddel { background: var(--del); text-decoration: line-through; opacity: .85; }
+
+.product { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--muted); align-self: center; }
+.product select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
+.notice { border-color: var(--warn); background: var(--warn-bg); }
+.guidance { white-space: pre-wrap; font-size: .8rem; }
+#token-input { width: 100%; max-width: 32rem; font-family: ui-monospace, Menlo, monospace; padding: .45rem .6rem;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--code); color: var(--fg); }
