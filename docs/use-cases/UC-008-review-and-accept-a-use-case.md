@@ -10,7 +10,7 @@ realises:
   - AN APPROVAL NAMES THE EXACT TEXT
   - STATUS IS DERIVED FROM THE RECORDS
   - EDITS ARE PREPARED ON THE DASHBOARD
-  - THE REVIEW DASHBOARD HOLDS NO CREDENTIAL
+  - THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ
   - NO TEXT TRAVELS IN A URL
   - THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW
   - THE GATE IS RECORDED
@@ -31,8 +31,8 @@ exactly the text they read — by a commit in GitHub.
 
 ## Main flow
 
-1. The reviewer opens the dashboard; it lists every use case with its derived status: open,
-   accepted, or changed since acceptance.
+1. The reviewer opens the instance's dashboard and selects a product; the dashboard lists every
+   use case of that product with its derived status: open, accepted, or changed since acceptance.
 2. The reviewer opens a use case; the dashboard renders its text and Mermaid diagram.
 3. The reviewer chooses **Accept**.
 4. The dashboard computes the git blob SHA of the text it shows and opens GitHub's new-file page
@@ -61,6 +61,9 @@ sequenceDiagram
   the reviewer pastes and commits. The use case then has a new SHA and is reviewed from step 2.
 - **4a. The prefill does not arrive.** The dashboard shows the record with a copy button and the
   exact file path.
+- **1a. The product repository is private.** The dashboard reads it with the token stored in the
+  reviewer's browser, `GET` only. Without a token that reaches the repository, it says so and
+  shows nothing.
 - **5a. The reviewer has no write access.** GitHub turns the commit into a pull request; the
   acceptance counts only once a maintainer merges it.
 - **6a. The file is edited after acceptance.** Its SHA changes, no record names it, and the

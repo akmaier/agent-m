@@ -6,71 +6,86 @@ actors:
   - Author
   - GitHub
 realises:
+  - A MANAGED PRODUCT NEEDS NO PAGES SITE
+  - THE INSTANCE LISTS ITS PRODUCTS IN A FILE
+  - ONE REVIEW LAYOUT FOR EVERY PRODUCT
   - THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
   - EVERY PRODUCT HAS ITS OWN VERSION LINE
+  - CONFIGURATION LIVES IN THE BROWSER
+  - THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
+  - THE TOKEN IS SENT ONLY TO GITHUB
   - A TOKEN IS SCOPED TO WHAT IT WRITES
+  - THE SHARED PAGES ORIGIN IS DISCLOSED
   - THE PAGE STATES WHAT IT SENDS WHERE
-  - ONE REVIEW LAYOUT FOR EVERY PRODUCT
-  - THE PAGES ROOT IS DOCS
-  - NO SERVER
+  - A GENERATED ARTIFACT IS A PROPOSAL
 ---
 # UC-001 Add a managed product
 
-**Goal.** The author brings an existing or new GitHub repository under Agent M, so that its
-sources, requirements and use cases can be produced and reviewed there.
+**Goal.** The author brings an existing or new GitHub repository under their Agent M instance. The
+product's artifacts live in the product's own repository; they are reviewed on the instance's
+dashboard. The product gets no Pages site of its own.
 
 ## Actors
 
-- **Author** — the person who owns the product and runs Agent M for it.
-- **GitHub** — hosts the product repository and its Pages site.
+- **Author** — runs the Agent M instance and owns the product.
+- **GitHub** — hosts the product repository, the instance repository, and the token page.
 
 ## Precondition
 
-- The author has a GitHub account with write access to the product repository.
-- The Agent M site is open in the author's browser.
+- The author has an Agent M instance (UC-014) and write access to the product repository.
 
 ## Main flow
 
-1. The author names the product repository (`owner/name`).
-2. Agent M states which access it needs to that repository and why, and which destinations it
-   will contact.
-3. The author issues a GitHub token limited to that repository and enters it in the browser.
-4. Agent M reads the repository and reports which parts of the review layout below `docs/`
+1. The author opens the instance's dashboard and chooses **Add product**.
+2. The author names the product repository (`owner/name`).
+3. Agent M states what it needs: a fine-grained GitHub token with access to the product repository
+   and to the instance repository, permissions *Contents* and *Pull requests*, read and write. It
+   names every destination it will contact — GitHub's API and raw file host — and states that
+   browser storage on `<owner>.github.io` can be read by every Pages site of the same owner.
+4. The author creates the token on github.com, choosing repositories and expiry there, and pastes
+   it into the dashboard's settings. Agent M stores it in `localStorage`; it sets no cookie and puts
+   the token in no URL.
+5. Agent M reads the product repository and reports which parts of the review layout below `docs/`
    already exist.
-5. Agent M proposes the missing parts — `docs/use-cases/`, `docs/approvals/`,
-   `docs/spec-freigaben/`, an empty `SPEC.md` skeleton, a first version entry — as a pull request.
-6. The author merges the pull request in GitHub.
-7. The author enables GitHub Pages for the repository, served from `docs/` on the default
-   branch; this is the product's review site.
-8. The product appears in Agent M's product list with its own version line.
+6. Agent M opens a pull request in the product repository with the missing parts —
+   `docs/use-cases/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md` skeleton, a first
+   version entry.
+7. The author merges it in GitHub.
+8. Agent M opens a pull request in the instance repository that adds the product to
+   `docs/products.md`.
+9. The author merges it; the product appears in the dashboard's product list, with its own version
+   line.
 
 ```mermaid
 sequenceDiagram
     actor A as Author
-    participant M as Agent M (browser)
-    participant G as GitHub
-    A->>M: name product repository
-    M-->>A: required access and destinations
-    A->>M: repository-scoped token
-    M->>G: read repository layout
-    G-->>M: existing files
-    M->>G: pull request with missing layout
-    A->>G: review and merge
-    A->>G: enable Pages on docs/
-    M-->>A: product listed, own version line
+    participant D as Dashboard (instance Pages)
+    participant L as localStorage
+    participant P as Product repository
+    participant I as Instance repository
+    A->>D: add product owner/name
+    D-->>A: token scope, destinations, shared-origin notice
+    A->>D: paste fine-grained token
+    D->>L: store token
+    D->>P: read layout (token, GET)
+    D->>P: pull request with missing layout
+    A->>P: merge
+    D->>I: pull request adding product to docs/products.md
+    A->>I: merge
+    D-->>A: product listed
 ```
 
 ## Alternative flows
 
-- **4a. The repository already uses the layout.** Nothing is proposed; the product is listed
-  directly.
-- **4b. The token cannot read the repository.** Agent M names the missing permission and stops;
-  no partial layout is written.
-- **5a. The author declines the pull request.** The product is not listed; nothing else changed.
+- **4a. A token is already stored.** Agent M checks that it reaches the product repository; if it
+  does not, it names the missing repository or permission, and the author extends or replaces the
+  token on github.com.
+- **5a. The repository already has the layout.** Steps 6–7 are skipped.
+- **5b. The repository is private.** Nothing changes: reading uses the stored token, `GET` only.
+- **7a. The author declines the pull request.** Steps 8–9 do not happen; nothing else changed.
 
 ## Postcondition
 
-- The product repository contains the review layout, merged by the author.
-- The product's review site is its own GitHub Pages site; no server was set up.
-- No credential has been written to the repository.
-- Removing Agent M later leaves every artifact readable in the repository.
+- The product repository contains the review layout, merged by the author; it has no Pages site.
+- The instance lists the product in `docs/products.md`.
+- The token exists only in the author's browser; no repository contains it.
