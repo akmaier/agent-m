@@ -10,6 +10,7 @@ realises:
   - EVOLUTION ENTERS THROUGH THE SPECIFICATION
   - A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
   - EVERY ARTIFACT NAMES ITS ORIGIN
+  - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
 ---
 # UC-012 Turn an issue into a specification change
 
@@ -34,7 +35,8 @@ and only then work on code or other artifacts.
    that references its name.
 4. Agent M proposes them as a queue under `docs/spec-freigaben/`, naming the issue as origin.
 5. The author reviews the queue (UC-006).
-6. Only after acceptance does Agent M offer the downstream stages for the changed requirements.
+6. Only after acceptance does Agent M offer the downstream stages for the changed requirements;
+   a code change that follows goes through a pull request and is merged once its CI run is green.
 
 ```mermaid
 sequenceDiagram

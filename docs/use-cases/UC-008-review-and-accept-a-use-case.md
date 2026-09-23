@@ -10,10 +10,12 @@ realises:
   - AN APPROVAL NAMES THE EXACT TEXT
   - STATUS IS DERIVED FROM THE RECORDS
   - EDITS ARE PREPARED ON THE DASHBOARD
-  - THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ
   - NO TEXT TRAVELS IN A URL
   - THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW
   - THE GATE IS RECORDED
+  - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+  - WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+  - ONE CLICK PER DECISION
 ---
 # UC-008 Review and accept a use case
 
@@ -34,11 +36,10 @@ exactly the text they read — by a commit in GitHub.
 1. The reviewer opens the instance's dashboard and selects a product; the dashboard lists every
    use case of that product with its derived status: open, accepted, or changed since acceptance.
 2. The reviewer opens a use case; the dashboard renders its text and Mermaid diagram.
-3. The reviewer chooses **Accept**.
-4. The dashboard computes the git blob SHA of the text it shows and opens GitHub's new-file page
-   for `docs/approvals/UC-<nnn>-<sha>.md`, prefilled with a three-line record.
-5. The reviewer commits the record.
-6. The dashboard shows the use case as accepted, because a record now names its current SHA.
+3. The reviewer presses **Accept** — one click.
+4. The dashboard computes the git blob SHA of the text it shows and commits
+   `docs/approvals/UC-<nnn>-<sha>.md`, a three-line record, under the reviewer's own account.
+5. The dashboard shows the use case as accepted, because a record now names its current SHA.
 
 ```mermaid
 sequenceDiagram
@@ -49,24 +50,23 @@ sequenceDiagram
     D-->>R: text and diagram, status open
     R->>D: Accept
     D->>D: blob SHA of the shown text
-    D->>G: open new-file page with record
-    R->>G: commit record
+    D->>G: commit record (reviewer's token)
     D-->>R: status accepted
 ```
 
 ## Alternative flows
 
-- **3a. The reviewer wants to change the text.** The dashboard opens an editor with a live
-  preview. **Commit in GitHub** copies the edited text and opens GitHub's web editor for the file;
-  the reviewer pastes and commits. The use case then has a new SHA and is reviewed from step 2.
-- **4a. The prefill does not arrive.** The dashboard shows the record with a copy button and the
-  exact file path.
 - **1a. The product repository is private.** The dashboard reads it with the token stored in the
-  reviewer's browser, `GET` only. Without a token that reaches the repository, it says so and
-  shows nothing.
-- **5a. The reviewer has no write access.** GitHub turns the commit into a pull request; the
-  acceptance counts only once a maintainer merges it.
-- **6a. The file is edited after acceptance.** Its SHA changes, no record names it, and the
+  reviewer's browser. Without a token that reaches the repository, it says so and shows nothing.
+- **3a. The reviewer wants to change the text.** The dashboard opens an editor with a live
+  preview; **Save** commits it. The use case then has a new SHA and is shown again from step 2.
+- **3b. No token is stored.** **Accept** opens GitHub's new-file page with the record prefilled, and
+  the reviewer presses *Commit changes*; if the prefill does not arrive, the dashboard shows the
+  record with a copy button and the exact path. Editing opens GitHub's editor with the text on the
+  clipboard.
+- **4a. The reviewer has no write access.** The commit is refused; the dashboard says so and offers
+  the GitHub path, where the commit becomes a pull request that counts once a maintainer merges it.
+- **5a. The file is edited after acceptance.** Its SHA changes, no record names it, and the
   dashboard shows it as changed since acceptance — without anyone resetting a status.
 
 ## Postcondition

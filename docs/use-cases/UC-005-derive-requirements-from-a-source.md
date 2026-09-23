@@ -15,6 +15,8 @@ realises:
   - THE PAGE STATES WHAT IT SENDS WHERE
   - AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
   - EVERY ARTIFACT NAMES ITS ORIGIN
+  - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - ONE CLICK PER DECISION
 ---
 # UC-005 Derive requirements from a source
 
@@ -36,13 +38,14 @@ five-field form, for the author to approve or reject one by one.
 ## Main flow
 
 1. The author selects a source and provides its relevant text or excerpt.
-2. Agent M states which destination will receive the text and asks for confirmation.
+2. The run panel shows which destination will receive the text, and what exactly is sent; the
+   author presses **Run** — that click is the decision, there is no separate confirmation.
 3. Agent M sends the text with the requirement prompt from the repository's single definition.
 4. The endpoint returns candidates, each with name, source, rule, occasion and check.
 5. Agent M flags candidates whose rule contains a conjunction, and candidates without a check.
 6. Agent M records Agent M version, model and date on every candidate.
-7. Agent M proposes the candidates as SPEC change entries in a new queue under
-   `docs/spec-freigaben/`.
+7. Agent M writes the candidates as SPEC change entries in a new queue under
+   `docs/spec-freigaben/` on the default branch, where they are open until accepted.
 8. The author reviews and accepts entries as in UC-006.
 
 ```mermaid
@@ -53,17 +56,17 @@ sequenceDiagram
     participant G as GitHub
     A->>M: source and excerpt
     M-->>A: destination and content to be sent
-    A->>M: confirm
+    A->>M: Run
     M->>E: excerpt with requirement prompt
     E-->>M: candidates in five-field form
     M-->>A: flags for conjunctions and missing checks
-    M->>G: new SPEC change queue
+    M->>G: commit new SPEC change queue (open)
     A->>G: accept entries (UC-006)
 ```
 
 ## Alternative flows
 
-- **2a. The author declines.** Nothing is sent.
+- **2a. The author does not press Run.** Nothing is sent.
 - **4a. A candidate has no source that is registered.** It is not proposed; Agent M lists it as
   a hint to register the source first (UC-004).
 - **5a. The author splits a flagged candidate.** Each part becomes an entry of its own.

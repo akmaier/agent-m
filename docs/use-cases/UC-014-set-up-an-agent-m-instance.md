@@ -10,6 +10,7 @@ realises:
   - THE PAGES ROOT IS DOCS
   - NO SERVER
   - THE SHARED PAGES ORIGIN IS DISCLOSED
+  - EVERY STEP EXPLAINS ITSELF
 ---
 # UC-014 Set up an Agent M instance
 
@@ -28,11 +29,12 @@ their own settings, their own list of products.
 ## Main flow
 
 1. The person forks `akmaier/agent-m`, under their own account or under an owner they use for
-   nothing else.
-2. In the fork's settings, the person turns on GitHub Pages: deploy from the default branch, folder
-   `/docs`.
-3. On the fork's Actions page, the person enables workflows; GitHub disables them on a fork until
-   its owner does.
+   nothing else. The fork's front page (its README) opens with **Start here**: two links and what to
+   press on each page.
+2. The first link opens the fork's Pages settings; the person chooses *Deploy from a branch*,
+   `main`, `/docs`, *Save*. GitHub lets no one else switch this on for them.
+3. The second link opens the fork's Actions page; the person presses *I understand my workflows, go
+   ahead and enable them*. GitHub disables workflows on every fork until its owner does.
 4. The person opens `https://<owner>.github.io/agent-m/`. The dashboard derives its repository from
    that address and shows the instance's product list, empty at first.
 5. The dashboard states that everything stored in the browser can be read by every other Pages site

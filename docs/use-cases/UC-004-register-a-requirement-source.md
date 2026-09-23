@@ -11,6 +11,9 @@ realises:
   - THE SOURCE KIND IS ONE OF A CLOSED SET
   - EVERY ARTIFACT HAS AN IDENTIFIER
   - ARTIFACTS ARE MARKDOWN
+  - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+  - ONE CLICK PER DECISION
+  - EVERY STEP EXPLAINS ITSELF
 ---
 # UC-004 Register a requirement source
 
@@ -35,8 +38,12 @@ with which authority — before any requirement is written.
 4. If the source is maintained elsewhere, Agent M asks for the state that was read — a commit, a
    version, or a retrieval date.
 5. Agent M assigns the identifier `SRC-<slug>`.
-6. Agent M proposes the source as a Markdown file in the product repository.
-7. The author accepts it by committing in GitHub.
+6. The author presses **Save** — one click. Agent M commits the source as a Markdown file to the
+   product repository under the author's account; it is the author's own input and needs no second
+   approval.
+
+Each field carries a folded explanation: what counts as a source, and the difference between
+*normative*, *advisory* and *informational*, with an example of each.
 
 ```mermaid
 sequenceDiagram
@@ -48,8 +55,8 @@ sequenceDiagram
     A->>M: name, kind, authority, location
     M-->>A: ask pinned state (living source)
     A->>M: commit, version or date
-    M->>G: proposal SRC-slug as Markdown
-    A->>G: accept by commit
+    A->>M: Save
+    M->>G: commit SRC-slug as Markdown (author's token)
 ```
 
 ## Alternative flows

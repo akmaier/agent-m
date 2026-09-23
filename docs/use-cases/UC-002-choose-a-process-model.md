@@ -10,6 +10,10 @@ realises:
   - THE MODEL DETERMINES THE STAGES AND THE GATES
   - A PROFILE ADDS, IT DOES NOT REPLACE
   - A GATE NAMES WHAT IT CHECKS
+  - AGENT M CARRIES THE BOOK'S CATALOGUE
+  - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+  - ONE CLICK PER DECISION
+  - EVERY STEP EXPLAINS ITSELF
 ---
 # UC-002 Choose a process model and profile
 
@@ -35,8 +39,8 @@ and where a person must approve before work continues.
    checks and the condition it requires.
 5. The author optionally adds one or more profiles, for example IEC 62304 class B.
 6. Agent M shows which artifacts and evidence each profile adds, on top of the model's own.
-7. Agent M proposes the declaration as a change to the product repository.
-8. The author merges it.
+7. The author presses **Save** — one click; Agent M commits the declaration to the product
+   repository. Each model and profile carries a folded explanation with an example project it suits.
 
 ```mermaid
 sequenceDiagram
@@ -48,8 +52,8 @@ sequenceDiagram
     M-->>A: stages, pairings, gates
     A->>M: add profile (optional)
     M-->>A: added artifacts and evidence
-    M->>G: pull request with declaration
-    A->>G: merge
+    A->>M: Save
+    M->>G: commit declaration (author's token)
 ```
 
 ## Alternative flows

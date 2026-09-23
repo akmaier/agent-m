@@ -11,6 +11,7 @@ realises:
   - THE LOCAL BRIDGE REQUIRES A TOKEN
   - BROWSER REACHABILITY IS MEASURED, NOT ASSUMED
   - ONE DEFINITION, THREE DRIVERS
+  - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 ---
 # UC-011 Hand a stage to a local CLI session
 
@@ -33,8 +34,9 @@ authenticated on a machine they control.
 1. The author enters the bridge address and the session token on the Agent M site.
 2. The site sends the stage definition and inputs to the bridge, with the token.
 3. The bridge checks the token and hands the task to the CLI session.
-4. The CLI session produces the artifacts and pushes a branch.
-5. The bridge reports the branch; the site links to the pull request.
+4. The CLI session commits the artifacts to the default branch, where they are open; a code change
+   goes to a branch with a pull request instead.
+5. The bridge reports what was committed; the site shows the new artifacts for review.
 
 ```mermaid
 sequenceDiagram
@@ -46,9 +48,9 @@ sequenceDiagram
     M->>B: stage and inputs with token
     B->>B: check token
     B->>C: task
-    C-->>B: branch pushed
-    B-->>M: branch name
-    M-->>A: link to pull request
+    C-->>B: artifacts committed (open)
+    B-->>M: commit
+    M-->>A: artifacts ready for review
 ```
 
 ## Alternative flows
@@ -62,5 +64,5 @@ sequenceDiagram
 
 ## Postcondition
 
-- The artifacts arrived as a branch for review, never on the default branch.
+- The artifacts arrived as open; nothing counts as accepted before a person accepts it.
 - The bridge never listened on a non-loopback interface.

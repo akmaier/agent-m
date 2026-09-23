@@ -14,6 +14,8 @@ realises:
   - EVERY ARTIFACT NAMES ITS ORIGIN
   - A GENERATED ARTIFACT IS A PROPOSAL
   - ONE USE CASE, ONE FILE
+  - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - ONE CLICK PER DECISION
 ---
 # UC-007 Derive use cases from requirements
 
@@ -35,14 +37,14 @@ own file, for review in UC-008.
 
 1. The author selects the requirements the stage should cover, by default all that no use case
    realises yet.
-2. Agent M states the destination and the content to be sent, and the author confirms.
+2. The run panel shows the destination and the content to be sent; the author presses **Run**.
 3. Agent M sends the requirements with the use-case prompt from the single definition.
 4. The endpoint returns use cases, each with actors, precondition, main flow, alternative flows,
    postcondition, a Mermaid diagram, and the names of the requirements it realises.
 5. Agent M checks every realised name against the product's requirements and assigns
    identifiers `UC-<nnn>`.
-6. Agent M proposes one file per use case under `docs/use-cases/` as a pull request.
-7. The author merges; the use cases appear on the dashboard as open.
+6. Agent M writes one file per use case under `docs/use-cases/` on the default branch; they appear
+   on the dashboard as open, and each is accepted on its own (UC-008).
 
 ```mermaid
 sequenceDiagram
@@ -52,12 +54,11 @@ sequenceDiagram
     participant G as GitHub
     A->>M: select requirements
     M-->>A: destination and content
-    A->>M: confirm
+    A->>M: Run
     M->>E: requirements with use-case prompt
     E-->>M: drafted use cases
     M->>M: check realised names, assign UC ids
-    M->>G: pull request, one file per use case
-    A->>G: merge
+    M->>G: commit one file per use case (open)
 ```
 
 ## Alternative flows

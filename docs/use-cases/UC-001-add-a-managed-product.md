@@ -6,6 +6,9 @@ actors:
   - Author
   - GitHub
 realises:
+  - ONE CLICK PER DECISION
+  - EVERY STEP EXPLAINS ITSELF
+  - ADDING A PRODUCT CREATES ITS LAYOUT
   - A MANAGED PRODUCT NEEDS NO PAGES SITE
   - THE INSTANCE LISTS ITS PRODUCTS IN A FILE
   - ONE REVIEW LAYOUT FOR EVERY PRODUCT
@@ -13,79 +16,106 @@ realises:
   - EVERY PRODUCT HAS ITS OWN VERSION LINE
   - CONFIGURATION LIVES IN THE BROWSER
   - THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
-  - THE TOKEN IS SENT ONLY TO GITHUB
+  - THE TOKEN LINK IS PREFILLED
+  - THE REPOSITORY CHOICE IS SPELLED OUT
   - A TOKEN IS SCOPED TO WHAT IT WRITES
+  - THE TOKEN IS SENT ONLY TO GITHUB
   - THE SHARED PAGES ORIGIN IS DISCLOSED
   - THE PAGE STATES WHAT IT SENDS WHERE
-  - A GENERATED ARTIFACT IS A PROPOSAL
+  - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 ---
 # UC-001 Add a managed product
 
-**Goal.** The author brings an existing or new GitHub repository under their Agent M instance. The
-product's artifacts live in the product's own repository; they are reviewed on the instance's
-dashboard. The product gets no Pages site of its own.
+**Goal.** The author brings a GitHub repository under their Agent M instance with as little effort
+as possible, even if they are new to GitHub. The product's artifacts live in the product's own
+repository; they are reviewed on the instance's dashboard. The product gets no Pages site.
 
 ## Actors
 
-- **Author** — runs the Agent M instance and owns the product.
+- **Author** — runs the Agent M instance and owns the product; possibly new to GitHub.
 - **GitHub** — hosts the product repository, the instance repository, and the token page.
 
 ## Precondition
 
-- The author has an Agent M instance (UC-014) and write access to the product repository.
+- The author has an Agent M instance (UC-014).
+- The product repository exists on GitHub and the author can write to it.
 
 ## Main flow
 
-1. The author opens the instance's dashboard and chooses **Add product**.
-2. The author names the product repository (`owner/name`).
-3. Agent M states what it needs: a fine-grained GitHub token with access to the product repository
-   and to the instance repository, permissions *Contents* and *Pull requests*, read and write. It
-   names every destination it will contact — GitHub's API and raw file host — and states that
-   browser storage on `<owner>.github.io` can be read by every Pages site of the same owner.
-4. The author creates the token on github.com, choosing repositories and expiry there, and pastes
-   it into the dashboard's settings. Agent M stores it in `localStorage`; it sets no cookie and puts
-   the token in no URL.
-5. Agent M reads the product repository and reports which parts of the review layout below `docs/`
-   already exist.
-6. Agent M opens a pull request in the product repository with the missing parts —
-   `docs/use-cases/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md` skeleton, a first
-   version entry.
-7. The author merges it in GitHub.
-8. Agent M opens a pull request in the instance repository that adds the product to
-   `docs/products.md`.
-9. The author merges it; the product appears in the dashboard's product list, with its own version
-   line.
+1. On the instance's dashboard, the author opens the product selector and chooses **+ Add product**.
+   A panel opens on the same page.
+2. The author types the product repository, for example `alice/thesis-tool`.
+3. If no token is stored yet, or the stored one cannot reach both repositories, the panel shows
+   **Step A · Create your key on GitHub**:
+   - a button **Open GitHub's token page**, which opens GitHub in a new tab with name
+     (`Agent M · <instance>`), description, expiry (90 days) and the one permission Agent M needs
+     (*Contents: read and write*) already filled in;
+   - underneath, exactly what to do there, with the repository names filled in:
+     1. under *Repository access*, choose **Only select repositories** — GitHub preselects *All
+        repositories*, which would give Agent M far more than it needs;
+     2. in *Select repositories*, pick **`<instance repository>`** and **`<product repository>`**;
+     3. at the bottom, press **Generate token**;
+     4. copy the token that GitHub shows once — it starts with `github_pat_`.
+4. The panel shows **Step B · Give the key to Agent M**, on the same page:
+   - the notice that everything stored in this browser can be read by every GitHub Pages site of
+     the same owner, with a checkbox **I have read this**;
+   - a field **GitHub token** — paste the copied token here;
+   - a button **Store and check**. Agent M writes the token to this browser's `localStorage` (no
+     cookie, never in a URL, never in a repository) and immediately tries to read both
+     repositories. Each gets a ✓, or a message naming what is missing.
+5. The author presses **Add product** — one click. Agent M:
+   - writes the missing review layout into the product repository's default branch
+     (`docs/use-cases/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md` skeleton, a first
+     version entry), skipping whatever already exists;
+   - adds the product to `docs/products.md` of the instance repository;
+   - shows both commits as links, and switches the dashboard to the new product.
+
+Every step carries a folded **What is this?** explanation for newcomers: what a token is and why
+Agent M needs one; why *Only select repositories*; what happens to the token in the browser; what
+the two commits contain; how to undo them.
 
 ```mermaid
 sequenceDiagram
     actor A as Author
     participant D as Dashboard (instance Pages)
+    participant G as GitHub token page
     participant L as localStorage
     participant P as Product repository
     participant I as Instance repository
-    A->>D: add product owner/name
-    D-->>A: token scope, destinations, shared-origin notice
-    A->>D: paste fine-grained token
+    A->>D: + Add product, type owner/name
+    D-->>A: Step A with prefilled link and exact choices
+    A->>G: Only select repositories, pick both, Generate
+    G-->>A: token, shown once
+    A->>D: Step B, read notice, paste, Store and check
     D->>L: store token
-    D->>P: read layout (token, GET)
-    D->>P: pull request with missing layout
-    A->>P: merge
-    D->>I: pull request adding product to docs/products.md
-    A->>I: merge
-    D-->>A: product listed
+    D->>P: read (token)
+    D->>I: read (token)
+    D-->>A: both reachable
+    A->>D: Add product
+    D->>P: commit missing layout
+    D->>I: commit entry in docs/products.md
+    D-->>A: two commit links, product selected
 ```
 
 ## Alternative flows
 
-- **4a. A token is already stored.** Agent M checks that it reaches the product repository; if it
-  does not, it names the missing repository or permission, and the author extends or replaces the
-  token on github.com.
-- **5a. The repository already has the layout.** Steps 6–7 are skipped.
-- **5b. The repository is private.** Nothing changes: reading uses the stored token, `GET` only.
-- **7a. The author declines the pull request.** Steps 8–9 do not happen; nothing else changed.
+- **3a. A token is stored and reaches both repositories.** Steps A and B are skipped: adding a
+  product is typing its name and one click.
+- **4a. The token cannot reach one of the repositories.** Agent M names it and shows how to add it
+  to the existing token: GitHub's token list (linked) → the Agent M token → *Edit* → *Repository
+  access* → add the repository → *Update*. No new token is needed.
+- **4b. The pasted text is not a token.** Nothing is stored; the panel says what a token looks like.
+- **2a. The product repository does not exist yet.** Agent M says so and links GitHub's page for a
+  new repository, with a folded explanation of the choices there; the author returns and continues
+  at step 2.
+- **5a. The product already has the complete layout.** Only the entry in `docs/products.md` is
+  written.
 
 ## Postcondition
 
-- The product repository contains the review layout, merged by the author; it has no Pages site.
+- The product repository contains the review layout; it has no Pages site.
 - The instance lists the product in `docs/products.md`.
-- The token exists only in the author's browser; no repository contains it.
+- The token exists only in this browser, and can write only to the repositories the author selected.
+- The author has clicked: *+ Add product*, *Open GitHub's token page*, GitHub's *Generate token*,
+  *I have read this*, *Store and check*, *Add product* — and none of them twice. With a token already
+  stored: *+ Add product* and *Add product*.

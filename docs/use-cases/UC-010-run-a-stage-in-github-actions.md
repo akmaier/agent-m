@@ -11,6 +11,7 @@ realises:
   - A RUNTIME IS INTERCHANGEABLE
   - A GENERATED ARTIFACT IS A PROPOSAL
   - NO SECRET IN THE REPOSITORY
+  - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 ---
 # UC-010 Run a stage in GitHub Actions
 
@@ -33,8 +34,8 @@ endpoint does not accept browser calls.
 1. The author starts the stage from the dashboard or from GitHub's Actions page.
 2. The workflow reads the stage definition and prompt — the same files the browser uses.
 3. The workflow calls the endpoint with the secret.
-4. The workflow writes the resulting artifacts to a new branch and opens a pull request.
-5. The author reviews the pull request as in UC-006 or UC-008.
+4. The workflow commits the resulting artifacts to the default branch, where they are open.
+5. The author reviews them on the dashboard, as in UC-006 or UC-008.
 
 ```mermaid
 sequenceDiagram
@@ -47,18 +48,18 @@ sequenceDiagram
     W->>W: read stage definition and prompt
     W->>E: request with secret
     E-->>W: result
-    W->>G: branch and pull request
-    A->>G: review
+    W->>G: commit artifacts (open)
+    A->>G: review on the dashboard
 ```
 
 ## Alternative flows
 
 - **3a. The secret is missing.** The workflow fails with a message naming the secret; nothing is
   written.
-- **4a. The result equals the current artifacts.** No pull request is opened; the run reports
+- **4a. The result equals the current artifacts.** Nothing is committed; the run reports
   "no change".
 
 ## Postcondition
 
 - The artifacts are of the same kind the browser runtime would produce.
-- Nothing reached the default branch without review.
+- Nothing counts as accepted before a person accepts it on the dashboard.
