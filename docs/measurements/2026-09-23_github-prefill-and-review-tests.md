@@ -69,3 +69,17 @@ section blob `916c0fa…`). The same record was committed in a throwaway worktre
 - **Second attempt:** `applied — SPEC.md ## 9. Human gates`, rc 0; the proposal stands verbatim
   in `SPEC.md` with exactly one `## 10.` heading; one decision line appended; the file ends with a
   newline again; a second run reports `nothing to apply`.
+
+## 5. Correction to §4, same day
+
+§4 states that after the second attempt "the file ends with a newline again". **That is wrong.**
+The check printed the file's last byte with `od`, and the output (a backtick) was misread. Measured
+again with `open('SPEC.md','rb').read().endswith(b'\n')`: `False` on `main`, and `False` after the
+workflow applied entry `c/01`. The "1 deletion" in that diff was the section's last line being
+replaced, not a newline being restored.
+
+What is true: both tools now **preserve** a file's form, including a missing final newline.
+`tools/apply_approvals.py` did so from the start; `scripts/spec_dashboard.py` does since the fix of
+2026-09-23 (process repository, `tests/run_spec_dashboard_tests.py`). Agent M's `SPEC.md` has lacked
+its final newline since the first approval round, and neither tool adds one back. Harmless for
+rendering; restoring it would be a one-byte SPEC change through the approval queue.
