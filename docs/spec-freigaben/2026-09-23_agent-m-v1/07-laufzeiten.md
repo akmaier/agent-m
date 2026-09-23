@@ -15,13 +15,15 @@ The same stage, given the same inputs, produces the same kind of artifact in all
 product decision and a reader cannot move between them.
 *Check:* `tests/test_runtime_parity.py`
 
-**THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY** *(SOFTWARE_MAINTENANCE.md §6.1a, adapted)*
-The local bridge accepts a bind address of `127.0.0.1`, `::1` or `localhost` and refuses any other.
+**THE LOCAL BRIDGE BINDS CAN BE TUNNELED OR FORWARDED TO ALLOW REMOTE WORK ** 
+The local bridge accepts a bind address of `127.0.0.1`, `::1` or `localhost`. In order to allow remote 
+access, safe tunnels, e.g. via ssh are possible.
 *Occasion:* the bridge hands work to a CLI session that is already authenticated on the machine.
-Its protection is the loopback bind; a tool that can be started on a LAN address has none.
+Its protection is the loopback bind; a tool that can be started on a LAN address has none. Tunnels
+can provide a safe alternative.
 *Check:* `tests/test_bridge_loopback.py`
 
-**THE LOCAL BRIDGE REQUIRES A TOKEN** *(SOFTWARE_MAINTENANCE.md §6.1a point 2, adapted)*
+**THE LOCAL BRIDGE REQUIRES A TOKEN** 
 The bridge rejects any request that does not carry the session token it printed at startup.
 *Occasion:* loopback is not a permission boundary between programs on the same machine. Any local
 process, including a page from an unrelated site, can reach a loopback port.
@@ -39,6 +41,6 @@ configuration. A reader facing an opaque error will conclude the tool is broken.
 Before a runtime is released, the browser behaviour it depends on is measured on current browsers
 and the result is recorded in `docs/measurements/`.
 *Occasion:* the two mechanisms this design rests on — cross-origin calls to model endpoints, and
-Private Network Access preflights for the local bridge — are both documented and neither is
+Private Network Access preflights or SSH for the local bridge — are documented and neither is
 verified here. A design built on an unverified mechanism fails late and expensively.
 *Check:* `tests/test_measurement_present.py` — a released runtime has a dated measurement file.
