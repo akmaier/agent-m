@@ -3,3 +3,4 @@
 Append-only. Written by the apply workflow.
 
 | 2026-09-23 21:47 UTC | 1 | uebernommen | approval:spec-2026-09-23d_instanz-und-token-01-47a9e8a383b0.md |
+| 2026-09-23 21:49 UTC | 2 | uebernommen | approval:spec-2026-09-23d_instanz-und-token-02-d3ab83d159ed.md |

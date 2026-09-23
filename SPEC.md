@@ -471,9 +471,9 @@ duplicate folder did that a second time and drifted away from the history.
 
 ## 10. Review on GitHub Pages
 
-**THE PAGES ROOT IS DOCS** *(PO A. Maier, 2026-09-23)*
-The GitHub Pages site of Agent M and of every product it manages is served from the `docs/`
-folder of the default branch.
+**THE PAGES ROOT IS DOCS** *(PO A. Maier, 2026-09-23, products removed 2026-09-23)*
+The GitHub Pages site of an Agent M instance is served from the `docs/` folder of its default
+branch.
 *Occasion:* one known place for everything a reviewer reads. Code, tooling and the SPEC's approval
 machinery stay outside the published tree.
 *Check:* `tests/test_pages_layout.py`
@@ -511,11 +511,15 @@ A reviewed file counts as accepted exactly when an approval record names its cur
 returns the file to review by itself, and nobody has to remember to reset anything.
 *Check:* `tests/review-core.test.mjs`
 
-**THE REVIEW DASHBOARD HOLDS NO CREDENTIAL** *(PO A. Maier, 2026-09-23)*
-The review dashboard reads through public GitHub endpoints and writes nothing.
-*Occasion:* every write then happens in GitHub under the reviewer's own account and permissions. A
-reviewer without write access produces a pull request, and the approval only counts once a
-maintainer merges it.
+**THE REVIEW DASHBOARD HOLDS NO CREDENTIAL** *(PO A. Maier, 2026-09-23 — withdrawn 2026-09-23)*
+*Withdrawn:* private product repositories cannot be read without a token. Replaced by
+`THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ`. The name is not reused.
+
+**THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ** *(PO A. Maier, 2026-09-23)*
+The review dashboard sends the stored GitHub token with `GET` requests only.
+*Occasion:* private products must be reviewable, and every write still happens in GitHub under the
+reviewer's own account and permissions. A reviewer without write access produces a pull request,
+and the approval only counts once a maintainer merges it.
 *Check:* `tests/review-core.test.mjs` — the dashboard code issues no request other than `GET`.
 
 **EDITS ARE PREPARED ON THE DASHBOARD** *(PO A. Maier, 2026-09-23)*
@@ -545,3 +549,24 @@ SHAs named in the approval record.
 *Occasion:* the reviewer decided on one proposal beside one current text. If either changed after
 the decision, the decision does not cover the new state.
 *Check:* `tests/test_apply_approvals.py`
+
+**AN INSTANCE IS A FORK OF AGENT M** *(PO A. Maier, 2026-09-23)*
+A person or team runs Agent M as their own fork, and the fork's Pages site is the dashboard for the
+products that instance manages.
+*Occasion:* every user then has their own dashboard, their own settings, and their own browser
+storage origin; nothing is shared with the author's instance or with other readers.
+*Check:* `tests/test_instance_target.py` — the dashboard derives its own repository from the Pages
+address it is served from.
+
+**A MANAGED PRODUCT NEEDS NO PAGES SITE** *(PO A. Maier, 2026-09-23)*
+A managed product keeps its artifacts below `docs/` in its own repository and is reviewed through
+the instance's dashboard, never through a site of its own.
+*Occasion:* one dashboard per instance, one place to keep up to date. The artifacts stay with the
+product's code; the tool stays with the tool.
+*Check:* no automatic check; at review.
+
+**THE INSTANCE LISTS ITS PRODUCTS IN A FILE** *(PO A. Maier, 2026-09-23)*
+An instance names the product repositories it manages in `docs/products.md` of its own repository.
+*Occasion:* the list is then the same in every browser, changes by commit like everything else, and
+a reviewer sees which products an instance manages without any settings.
+*Check:* `tests/test_products_register.py`
