@@ -110,14 +110,14 @@ are the expensive kind — the process repository states the general form as "ni
 open question beats a confident wrong answer.
 *Check:* `tests/test_requirement_has_source.py`
 
-**A SOURCE DECLARES ITS AUTHORITY** 
+**A SOURCE DECLARES ITS AUTHORITY** *(PO A. Maier, 2026-09-23)*
 A source declares whether it is `normative`, `advisory` or `informational`; the declaration is
 made at the source, not inferred from how often it is cited.
 *Occasion:* linking a document does not make it binding. Without the field, every source silently
 becomes normative and a product acquires rules nobody agreed to.
 *Check:* `tests/test_source_authority.py`
 
-**A LIVING SOURCE IS PINNED** 
+**A LIVING SOURCE IS PINNED** *(PO A. Maier, 2026-09-23)*
 A source that is maintained elsewhere records the exact state that was read — a commit, a version,
 or a retrieval date — and a requirement derived from it names that state.
 *Occasion:* a standard maintained in a git repository published three versions in eight days. A
@@ -125,7 +125,7 @@ dated copy in one's own tree looks like provenance and is in fact a snapshot tha
 commit is the honest record.
 *Check:* `tests/test_source_pinned.py`
 
-**THE SOURCE KIND IS ONE OF A CLOSED SET** 
+**THE SOURCE KIND IS ONE OF A CLOSED SET** *(PO A. Maier, 2026-09-23)*
 A source has exactly one kind from: `organisation`, `person`, `standard`, `regulation`,
 `document`, `system`, `measurement`.
 *Occasion:* a free-text kind cannot be reasoned about. The closed set is what lets the dashboard
