@@ -537,11 +537,12 @@ Each use case is a single Markdown file named `docs/use-cases/UC-<nnn>-<slug>.md
 one separately editable and separately acceptable.
 *Check:* `tests/test_usecase_fields.py`
 
-**ACCEPTANCE IS A COMMIT IN GITHUB** *(PO A. Maier, 2026-09-23)*
-A use case or a SPEC change is accepted by a commit that a person makes in GitHub's web interface
-and that adds an approval record to `docs/approvals/`.
-*Occasion:* git already records who decided, when, and on which text. The act of approval should
-be that record rather than a button in a tool that then writes one.
+**ACCEPTANCE IS A COMMIT IN GITHUB** *(PO A. Maier, 2026-09-23, reworded 2026-09-24)*
+A use case or a SPEC change is accepted by a commit, made under the accepting person's own GitHub
+account, that adds an approval record to `docs/approvals/`.
+*Occasion:* git already records who decided, when, and on which text. Whether the commit is made
+by the dashboard with the person's token or in GitHub's web interface changes nothing about that
+record.
 *Check:* `tests/test_approval_records.py`
 
 **AN APPROVAL NAMES THE EXACT TEXT** *(PO A. Maier, 2026-09-23)*
@@ -560,19 +561,30 @@ returns the file to review by itself, and nobody has to remember to reset anythi
 *Withdrawn:* private product repositories cannot be read without a token. Replaced by
 `THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ`. The name is not reused.
 
-**THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ** *(PO A. Maier, 2026-09-23)*
-The review dashboard sends the stored GitHub token with `GET` requests only.
-*Occasion:* private products must be reviewable, and every write still happens in GitHub under the
-reviewer's own account and permissions. A reviewer without write access produces a pull request,
-and the approval only counts once a maintainer merges it.
-*Check:* `tests/review-core.test.mjs` — the dashboard code issues no request other than `GET`.
+**THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ** *(PO A. Maier, 2026-09-23 — withdrawn 2026-09-24)*
+*Withdrawn:* accepting and editing are now one click on the dashboard, which writes with the
+person's token. Replaced by `THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`. The name is not reused.
 
-**EDITS ARE PREPARED ON THE DASHBOARD** *(PO A. Maier, 2026-09-23)*
-The dashboard offers an editor with a live preview for a reviewed file, and the edited text is
-committed through GitHub's web editor.
-*Occasion:* reviewing and correcting belong on one screen. The commit belongs to the person, for
-the same reason acceptance does.
-*Check:* no automatic check; at review.
+**THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK** *(PO A. Maier, 2026-09-24)*
+The dashboard writes to a repository only as the direct result of a person's action on it, as a
+commit made with that person's own token.
+*Occasion:* every write stays attributable to a person and a decision; nothing is written in the
+background, on load, or on someone else's behalf.
+*Check:* `tests/review-core.test.mjs`
+
+**WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK** *(PO A. Maier, 2026-09-24)*
+Without a stored token, accepting and editing open GitHub's web interface with the commit prepared
+as far as GitHub allows.
+*Occasion:* a reviewer who does not want to store a token can still decide; it costs more clicks,
+not the ability.
+*Check:* `tests/review-core.test.mjs`
+
+**EDITS ARE PREPARED ON THE DASHBOARD** *(PO A. Maier, 2026-09-23, reworded 2026-09-24)*
+The dashboard offers an editor with a live preview for a reviewed file, and saving commits the
+edited text under the person's own account.
+*Occasion:* reviewing and correcting belong on one screen. Copying text into GitHub's editor was
+five actions for one decision.
+*Check:* `tests/review-core.test.mjs`
 
 **NO TEXT TRAVELS IN A URL** *(PO A. Maier, 2026-09-23)*
 A link that prepares a commit in GitHub carries at most a file path and an approval record, never
@@ -615,3 +627,17 @@ An instance names the product repositories it manages in `docs/products.md` of i
 *Occasion:* the list is then the same in every browser, changes by commit like everything else, and
 a reviewer sees which products an instance manages without any settings.
 *Check:* `tests/test_products_register.py`
+
+**ONE CLICK PER DECISION** *(PO A. Maier, 2026-09-24)*
+A decision a person makes on the dashboard — accept, save, add a product, release — takes one click
+once its inputs are complete, and everything that follows from it is done by Agent M.
+*Occasion:* PO, 2026-09-24: "Too much clicking kills our user experience." Each extra step between
+a decision and its effect is a place to get lost.
+*Check:* no automatic check; at review of each use case.
+
+**EVERY STEP EXPLAINS ITSELF** *(PO A. Maier, 2026-09-24)*
+Every step that asks something of the person carries an explanation that can be expanded, written
+for someone new to GitHub.
+*Occasion:* PO, 2026-09-24: users "might be new to GitHub". The explanation stays folded for
+those who do not need it.
+*Check:* `tests/test_step_explanations.py`
