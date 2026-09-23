@@ -15,10 +15,11 @@ Every user runs their own copy (a *fork*). GitHub leaves two switches off on eve
 you can turn them on:
 
 1. **Fork this repository** — button *Fork* at the top right of this page.
-2. In your fork, open **[Settings → Pages](../../settings/pages)** and choose *Deploy from a branch*,
-   branch `main`, folder `/docs`, then *Save*.
-3. In your fork, open **[Actions](../../actions)** and press *I understand my workflows, go ahead and
-   enable them*.
+2. In your fork, click the tab **Settings** (top of the page), then **Pages** in the left column.
+   Under *Build and deployment* choose *Deploy from a branch*, branch `main`, folder `/docs`, and
+   press *Save*.
+3. Still in your fork, click the tab **Actions** and press the green button *I understand my
+   workflows, go ahead and enable them*.
 
 After a minute your dashboard is at `https://<your-github-name>.github.io/agent-m/`. From there,
 **+ Add product** guides you through everything else, including the GitHub key it needs — with an
