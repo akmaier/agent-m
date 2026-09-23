@@ -8,8 +8,9 @@
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
+import { browserStore } from "./settings-store.mjs";
 import {
-  fetchText, gitBlobSha, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
+  fetchText, gitBlobSha, deriveTarget, parseProducts, sharedOriginNotice, canStore, TOKEN_GUIDANCE, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, newFileUrl, editUrl, blobUrl, extractSection, sectionText, parseQueueIndex,
   parseDecisions, deriveUseCaseStatus, deriveSpecStatus,
 } from "./review-core.mjs";
@@ -17,34 +18,41 @@ import {
 const API = "https://api.github.com";
 const RAW = "https://raw.githubusercontent.com";
 
-// ---------------------------------------------------------------- which repository
+// ---------------------------------------------------------------- instance, product, token
 
-function target() {
-  const q = new URLSearchParams(location.search);
-  let repo = q.get("repo");
-  if (!repo) {
-    const owner = location.hostname.endsWith(".github.io") ? location.hostname.split(".")[0] : null;
-    const name = location.pathname.split("/").filter(Boolean)[0];
-    repo = owner && name ? `${owner}/${name}` : "akmaier/agent-m";
-  }
-  return { repo, ref: q.get("ref") || "main" };
-}
-
-const T = target();
-const state = { commit: null, tree: [], useCases: [], records: [], queues: [], spec: "", overview: "" };
+// The instance is the fork this page is served from; the product is chosen with ?repo= (SPEC §10).
+const T = deriveTarget(location);
+const store = browserStore();
+const token = () => store.getToken();
+const state = { commit: null, tree: [], useCases: [], records: [], queues: [], spec: "", overview: "", products: [] };
 
 // ---------------------------------------------------------------- loading
 
 async function loadSnapshot() {
   const [owner, name] = T.repo.split("/");
   const commitJson = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/commits/${encodeURIComponent(T.ref)}`,
-    { headers: { Accept: "application/vnd.github+json" } }));
+    { headers: { Accept: "application/vnd.github+json" } }, token()));
   state.commit = commitJson.sha;
-  const tree = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/git/trees/${state.commit}?recursive=1`));
+  const tree = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/git/trees/${state.commit}?recursive=1`, {}, token()));
   state.tree = tree.tree.filter((e) => e.type === "blob");
 }
 
-const raw = (path) => fetchText(`${RAW}/${T.repo}/${state.commit}/${path.split("/").map(encodeURIComponent).join("/")}`);
+// Without a token, files come from GitHub's raw host (public repositories). With a token, they come
+// through the API, the only place the token may go (SPEC §7 THE TOKEN IS SENT ONLY TO GITHUB) —
+// which is also what makes private repositories readable.
+const encP = (path) => path.split("/").map(encodeURIComponent).join("/");
+const raw = (path) => (token()
+  ? fetchText(`${API}/repos/${T.repo}/contents/${encP(path)}?ref=${state.commit}`,
+    { headers: { Accept: "application/vnd.github.raw+json" } }, token())
+  : fetchText(`${RAW}/${T.repo}/${state.commit}/${encP(path)}`));
+
+async function loadProducts() {
+  try {
+    state.products = parseProducts(await fetchText(new URL("products.md", document.baseURI).href));
+  } catch {
+    state.products = [];
+  }
+}
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
 async function loadAll() {
@@ -377,9 +385,76 @@ writes nothing and the entry shows as *stale*.
 **Without write access**, GitHub turns your commit into a pull request. The acceptance counts once
 a maintainer merges it.
 
-Reading: repository \`${T.repo}\`, branch \`${T.ref}\`, commit \`${(state.commit || "").slice(0, 12)}\`.
-Another repository or branch: \`?repo=owner/name&ref=branch\`.
+Reading: repository \`${T.repo}\`, branch \`${T.ref}\`, commit \`${(state.commit || "").slice(0, 12)}\`,
+${token() ? "with the token stored in this browser" : "without a token"}. Instance: \`${T.instance}\`.
+Products are chosen in the selector at the top and listed in the instance's \`docs/products.md\`.
 `)}</article>`;
+}
+
+// ---------------------------------------------------------------- settings (SPEC §7)
+
+function viewSettings() {
+  const owner = T.instance.split("/")[0];
+  const stored = token();
+  main().innerHTML = `
+    <section class="head"><h2>Settings</h2>
+      <p class="muted">Stored only in this browser. Nothing here is sent anywhere until a page reads from GitHub.</p></section>
+    <section class="panel notice">
+      <h3>Before you store anything</h3>
+      <p>${h(sharedOriginNotice(owner))}</p>
+      <label><input type="checkbox" id="ack"> I have read this.</label>
+    </section>
+    <section class="panel">
+      <h3>GitHub token</h3>
+      <p>Status: <strong id="token-status">${stored ? `stored (…${h(stored.slice(-4))})` : "none stored"}</strong></p>
+      <pre class="guidance">${h(TOKEN_GUIDANCE)}</pre>
+      <p><input type="password" id="token-input" autocomplete="off" spellcheck="false" disabled
+        placeholder="github_pat_…" aria-label="GitHub token"></p>
+      <p>
+        <button class="btn primary" id="token-save" disabled>Store token</button>
+        <button class="btn" id="token-test" ${stored ? "" : "disabled"}>Test: read ${h(T.instance)}</button>
+        <button class="btn" id="token-clear">Clear everything Agent M stored</button>
+      </p>
+      <p id="token-msg" class="muted"></p>
+    </section>`;
+  const ack = document.getElementById("ack"), input = document.getElementById("token-input");
+  const save = document.getElementById("token-save"), msg = document.getElementById("token-msg");
+  ack.addEventListener("change", () => { input.disabled = !canStore(ack.checked); save.disabled = !canStore(ack.checked); });
+  save.addEventListener("click", () => {
+    if (!canStore(ack.checked) || !input.value.trim()) return;
+    store.setToken(input.value);
+    input.value = "";
+    viewSettings();
+    document.getElementById("token-msg").textContent = "Stored. Reload to read with it.";
+  });
+  document.getElementById("token-test").addEventListener("click", async () => {
+    try {
+      await fetchText(`${API}/repos/${T.instance}`, {}, token());
+      msg.textContent = `The token can read ${T.instance}.`;
+    } catch (e) { msg.textContent = `The token cannot read ${T.instance}: ${e.message}`; }
+  });
+  document.getElementById("token-clear").addEventListener("click", () => {
+    store.clear();
+    viewSettings();
+    document.getElementById("token-msg").textContent = token() ? "Clearing failed — token still stored." : "Nothing stored any more.";
+  });
+}
+
+function renderProductSelector() {
+  const sel = document.getElementById("product");
+  const options = [{ repo: T.instance, note: "this instance" }, ...state.products.filter((p) => p.repo !== T.instance)];
+  sel.innerHTML = options.map((p) => `<option value="${h(p.repo)}" ${p.repo === T.repo ? "selected" : ""}>${h(p.repo)}${p.note ? " — " + h(p.note) : ""}</option>`).join("")
+    + `<option value="__add">+ Add product…</option>`;
+  sel.addEventListener("change", () => {
+    if (sel.value === "__add") {
+      window.open(editUrl(T.instance, "main", "docs/products.md"), "_blank", "noopener");
+      sel.value = T.repo;
+      return;
+    }
+    const q = new URLSearchParams();
+    if (sel.value !== T.instance) q.set("repo", sel.value);
+    location.search = q.toString();
+  });
 }
 
 // ---------------------------------------------------------------- routing
@@ -392,6 +467,7 @@ async function route() {
     if (kind === "spec" && a) await viewSpecEntry(decodeURIComponent(a), b);
     else if (kind === "spec") await viewSpec();
     else if (kind === "how") viewHow();
+    else if (kind === "settings") viewSettings();
     else if (kind === "uc" && a) await viewUseCase(decodeURIComponent(a));
     else await viewUseCases();
   } catch (e) {
@@ -401,18 +477,27 @@ async function route() {
 }
 
 async function start() {
+  await loadProducts();
+  renderProductSelector();
+  if (location.hash.startsWith("#settings")) {
+    addEventListener("hashchange", route);
+    route();
+  }
   try {
     await loadAll();
     document.getElementById("repo-line").innerHTML =
       `<a href="https://github.com/${h(T.repo)}" target="_blank" rel="noopener">${h(T.repo)}</a> · ${h(T.ref)} · <code>${h(state.commit.slice(0, 12))}</code>`;
   } catch (e) {
-    const limited = /403|429/.test(e.message);
+    if (location.hash.startsWith("#settings")) return;
+    const limited = /403|429/.test(e.message), missing = /404/.test(e.message);
     main().innerHTML = `<p class="warn">Could not read ${h(T.repo)} @ ${h(T.ref)}: ${h(e.message)}</p>
-      ${limited ? `<p class="muted">GitHub allows 60 unauthenticated API calls per hour and network; this page uses two per load. Try again later.</p>` : ""}`;
+      ${limited ? `<p class="muted">Without a token GitHub allows 60 API calls per hour and network; this page uses two per load. A token in <a href="#settings">Settings</a> raises that.</p>` : ""}
+      ${missing && !token() ? `<p class="muted">A private repository cannot be read without a token — add one in <a href="#settings">Settings</a>.</p>` : ""}
+      ${missing && token() ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}`;
+    addEventListener("hashchange", route);
     return;
   }
-  addEventListener("hashchange", route);
-  route();
+  if (!location.hash.startsWith("#settings")) { addEventListener("hashchange", route); route(); }
 }
 
 start();

@@ -99,14 +99,27 @@ test("STATUS IS DERIVED FROM THE RECORDS: SPEC proposals", () => {
   assert.equal(deriveSpecStatus({ ...base, decisions: done }), "superseded");
 });
 
-test("THE REVIEW DASHBOARD HOLDS NO CREDENTIAL: only GET, only allowed origins", async () => {
+test("THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ · THE TOKEN IS SENT ONLY TO GITHUB", async () => {
   await assert.rejects(fetchText("https://example.org/x"), /origin/);
   await assert.rejects(fetchText("https://api.github.com/x", { method: "PUT" }), /GET/);
-  await assert.rejects(fetchText("https://api.github.com/x", { headers: { Authorization: "token x" } }), /credential/);
+  await assert.rejects(fetchText("https://api.github.com/x", { method: "POST" }, "t"), /GET/);
+  await assert.rejects(fetchText("https://raw.githubusercontent.com/a/b/c", {}, "github_pat_11ABCDEF"), /token may only go/);
+  await assert.rejects(fetchText("https://api.github.com/x", { headers: { Authorization: "Bearer x" } }), /header/);
+  await assert.rejects(fetchText("https://api.github.com/x", { credentials: "include" }), /credential/);
   assert.deepEqual([...ALLOWED_ORIGINS].sort(), ["https://api.github.com", "https://raw.githubusercontent.com"]);
+  // The one allowed way: GET to the API with the stored token, header built by fetchText itself.
+  const seen = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, init) => { seen.push([String(u), init.method, init.headers.Authorization]); return new Response("ok"); };
+  try {
+    assert.equal(await fetchText("https://api.github.com/repos/a/b", {}, "github_pat_t"), "ok");
+    assert.equal(await fetchText("https://raw.githubusercontent.com/a/b/c/d"), "ok");
+  } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(seen, [["https://api.github.com/repos/a/b", "GET", "Bearer github_pat_t"],
+    ["https://raw.githubusercontent.com/a/b/c/d", "GET", undefined]]);
 });
 
 test("the app never calls fetch directly — every request goes through fetchText", () => {
   const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
-  assert.doesNotMatch(app.replace(/fetchText\(/g, ""), /\bfetch\s*\(|XMLHttpRequest|sendBeacon|localStorage/);
+  assert.doesNotMatch(app.replace(/fetchText\(/g, ""), /\bfetch\s*\(|XMLHttpRequest|sendBeacon|localStorage|sessionStorage|document\.cookie/);
 });
