@@ -445,3 +445,80 @@ in the working tree.
 *Occasion:* a shortening is safe only if the removed part can still be moved where it belongs. A
 duplicate folder did that a second time and drifted away from the history.
 *Check:* `tests/test_replaced_in_history.py`
+
+## 10. Review on GitHub Pages
+
+**THE PAGES ROOT IS DOCS** *(PO A. Maier, 2026-09-23)*
+The GitHub Pages site of Agent M and of every product it manages is served from the `docs/`
+folder of the default branch.
+*Occasion:* one known place for everything a reviewer reads. Code, tooling and the SPEC's approval
+machinery stay outside the published tree.
+*Check:* `tests/test_pages_layout.py`
+
+**ONE REVIEW LAYOUT FOR EVERY PRODUCT** *(PO A. Maier, 2026-09-23)*
+Agent M and every managed product use the same layout below `docs/`: use cases in
+`docs/use-cases/`, SPEC change queues in `docs/spec-freigaben/`, approval records in
+`docs/approvals/`.
+*Occasion:* products will adopt this structure later. One layout means one dashboard serves all of
+them, and a reviewer who knows one product knows where to look in the next.
+*Check:* `tests/test_pages_layout.py`
+
+**ONE USE CASE, ONE FILE** *(PO A. Maier, 2026-09-23)*
+Each use case is a single Markdown file named `docs/use-cases/UC-<nnn>-<slug>.md`.
+*Occasion:* a file is the unit git versions, diffs and hashes. One use case per file makes each
+one separately editable and separately acceptable.
+*Check:* `tests/test_usecase_fields.py`
+
+**ACCEPTANCE IS A COMMIT IN GITHUB** *(PO A. Maier, 2026-09-23)*
+A use case or a SPEC change is accepted by a commit that a person makes in GitHub's web interface
+and that adds an approval record to `docs/approvals/`.
+*Occasion:* git already records who decided, when, and on which text. The act of approval should
+be that record rather than a button in a tool that then writes one.
+*Check:* `tests/test_approval_records.py`
+
+**AN APPROVAL NAMES THE EXACT TEXT** *(PO A. Maier, 2026-09-23)*
+An approval record names the file it approves and the git blob SHA of the text the reviewer saw.
+*Occasion:* "accepted" is meaningful only together with which text. A blob SHA identifies that
+text exactly and can be recomputed by anyone from the file.
+*Check:* `tests/test_approval_records.py`
+
+**STATUS IS DERIVED FROM THE RECORDS** *(PO A. Maier, 2026-09-23)*
+A reviewed file counts as accepted exactly when an approval record names its current blob SHA.
+*Occasion:* a stored status drifts from the text it describes. Derived, an edit after acceptance
+returns the file to review by itself, and nobody has to remember to reset anything.
+*Check:* `tests/review-core.test.mjs`
+
+**THE REVIEW DASHBOARD HOLDS NO CREDENTIAL** *(PO A. Maier, 2026-09-23)*
+The review dashboard reads through public GitHub endpoints and writes nothing.
+*Occasion:* every write then happens in GitHub under the reviewer's own account and permissions. A
+reviewer without write access produces a pull request, and the approval only counts once a
+maintainer merges it.
+*Check:* `tests/review-core.test.mjs` — the dashboard code issues no request other than `GET`.
+
+**EDITS ARE PREPARED ON THE DASHBOARD** *(PO A. Maier, 2026-09-23)*
+The dashboard offers an editor with a live preview for a reviewed file, and the edited text is
+committed through GitHub's web editor.
+*Occasion:* reviewing and correcting belong on one screen. The commit belongs to the person, for
+the same reason acceptance does.
+*Check:* no automatic check; at review.
+
+**NO TEXT TRAVELS IN A URL** *(PO A. Maier, 2026-09-23)*
+A link that prepares a commit in GitHub carries at most a file path and an approval record, never
+the reviewed text.
+*Occasion:* measured 2026-09-23: a link prefilled with 6 KB of text sent a logged-out reviewer
+through GitHub's login redirect, which answered HTTP 500.
+*Check:* `tests/review-core.test.mjs`
+
+**AN ACCEPTED SPEC CHANGE IS WRITTEN BY A WORKFLOW** *(PO A. Maier, 2026-09-23)*
+Once an approval record for a SPEC change is committed, a GitHub Actions workflow replaces the
+anchored SPEC section with the approved proposal text byte for byte.
+*Occasion:* the reviewer approves a proposal file; copying it into the SPEC by hand would reopen
+the question of whether the approved text arrived verbatim.
+*Check:* `tests/test_apply_approvals.py`
+
+**A STALE APPROVAL IS NOT APPLIED** *(PO A. Maier, 2026-09-23)*
+The workflow writes nothing when the proposal or the current SPEC section differs from the blob
+SHAs named in the approval record.
+*Occasion:* the reviewer decided on one proposal beside one current text. If either changed after
+the decision, the decision does not cover the new state.
+*Check:* `tests/test_apply_approvals.py`
