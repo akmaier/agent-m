@@ -1,0 +1,17 @@
+# Build output of the GitHub Pages site
+/_site/
+/dist/
+/node_modules/
+
+# Nothing configuration-related is ever committed (SPEC.md §0 NO SECRET IN THE REPOSITORY)
+.env
+.env.*
+*.key
+*.pem
+config.local.*
+
+# Editor / OS noise
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
