@@ -10,14 +10,13 @@ realises:
   - A GROUP CARRIES NO IDENTIFIER
   - A GROUP HOLDS ONE KIND OF ARTIFACT
   - AN ITEM HAS ONE PLACE IN ITS HIERARCHY
-  - THE SPEC'S SECTIONS ARE THE REQUIREMENT GROUPS
-  - THE OTHER HIERARCHIES ARE KEPT IN THE GROUP FILE
+  - EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN
   - REGROUPING LEAVES THE GROUPED FILE UNCHANGED
+  - A REGROUPING IS COMMITTED DIRECTLY
   - AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
   - THE NAME IS THE ID AND IT SURVIVES
   - A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION
   - STATUS IS DERIVED FROM THE RECORDS
-  - A SPEC EDIT IS SAVED AS A PROPOSAL
   - A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ARTIFACTS ARE MARKDOWN
@@ -34,10 +33,20 @@ exactly this twice: requirements at different levels of detail for different rea
 ch. 8 §1.1), and a backlog with "more structure than a pile of wishes" (ch. 8 §3.2). Grouping only
 arranges; it never renames, renumbers or reopens anything.
 
-| Kind | Where its groups live | What saving a regrouping does |
-|---|---|---|
-| Requirements | the nested section headings of the SPEC | writes a SPEC proposal, accepted in UC-006 |
-| Use cases, architecture elements, modules, tests | `docs/groups.md` of the product repository | commits `docs/groups.md` directly; no artifact file changes |
+Every kind has a group file of its own in the product repository; saving a regrouping commits
+that file directly and changes nothing else — not the SPEC, not an artifact file, no approval.
+
+| Kind | Group file |
+|---|---|
+| Requirements | `docs/groups/requirements.md` |
+| Use cases | `docs/groups/use-cases.md` |
+| Architecture decisions | `docs/groups/architecture.md` |
+| Modules | `docs/groups/modules.md` |
+| Tests | `docs/groups/tests.md` |
+
+The SPEC's own section headings stay as they are: they order the document for its readers. The
+requirement hierarchy in the browser comes from `docs/groups/requirements.md`, so tidying it up never
+sends the SPEC back to review.
 
 ## Actors
 
@@ -63,17 +72,12 @@ arranges; it never renames, renumbers or reopens anything.
    *new group "Derivation" under "Requirements"* — and keeps each rule of the hierarchy: a group
    holds one kind of artifact, an item has one place.
 4. The author presses **Save arrangement** — one click.
-5. **Use cases, architecture elements, modules, tests:** Agent M checks that `docs/groups.md` still
-   has the blob SHA it read in step 1, and commits the new version under the author's own account.
-   The file is Markdown: one heading per kind, groups as a nested list, each member by its
-   identifier. No use-case, architecture, module or test file is touched, so every status and every
-   approval stays as it was.
-   **Requirements:** a new group is a new sub-heading, a move is a requirement leaving one section and
-   entering another. Agent M writes one queue entry covering the affected sections, with every moved
-   requirement byte for byte and an impact list stating that references name identifiers, not
-   sections. The SPEC is unchanged until the entry is accepted (UC-006).
-6. The dashboard shows the commit as a link and the new hierarchy — for requirements, marked as
-   proposed until accepted.
+5. Agent M checks that the group file of this kind still has the blob SHA it read in step 1, and
+   commits the new version to the default branch under the author's own account. The file is
+   Markdown: groups as a nested list, each member by its identifier — for requirements, by name. No
+   other file is touched — neither the SPEC nor any use-case, architecture, module or test file — so
+   every status and every approval stays as it was.
+6. The dashboard shows the commit as a link and the new hierarchy.
 
 A folded **What is this?** explains that a group is only a heading: it has no identifier, nothing
 realises or tests it, and moving an item never changes the item.
@@ -84,54 +88,48 @@ sequenceDiagram
     participant D as Dashboard
     participant G as Product repository
     A->>D: Arrange (requirements, use cases, ARC, MOD or TST)
-    D->>G: read SPEC sections or docs/groups.md, note SHA
+    D->>G: read docs/groups/<kind>.md, note SHA
     D-->>A: hierarchy with every item in one place
     A->>D: create, move, rename groups and items
     D-->>A: list of pending changes
     A->>D: Save arrangement
     D->>G: compare SHA
-    alt use cases, ARC, MOD, TST
-        D->>G: commit docs/groups.md only
-    else requirements
-        D->>G: commit queue entry for the affected sections
-    end
+    D->>G: commit docs/groups/<kind>.md only
     D-->>A: commit link, new hierarchy
 ```
 
 ## Alternative flows
 
-- **1a. The product has no `docs/groups.md` yet.** Every item is shown at the top level; the first
+- **1a. The product has no group file of this kind yet.** Every item is shown at the top level; the first
   *Save arrangement* creates the file.
 - **1b. The author asks a participant to propose an arrangement** (**Propose groups**). As in UC-019:
   the author chooses a participant, sees what is sent — titles and identifiers of the items, with
   their text for requirements — and presses *Run*. The proposal arrives as a list of pending changes
   in step 3, where the author edits it before saving.
 - **2a. The author tries to put an item into a group of another kind** — a use case into a
-  requirement section. The move is refused and the reason shown; relations across kinds are
+  requirement group. The move is refused and the reason shown; relations across kinds are
   traceability (UC-009, UC-020), not grouping.
 - **2b. The author deletes a group.** Only an empty group can be deleted; otherwise the author first
   moves its content, or chooses *move content up one level*. Grouping never deletes an item.
 - **2c. The author renames a group.** Only its title changes; no artifact refers to it, so nothing
-  else has to change. For a requirement section, the rename is part of the SPEC proposal.
-- **3a. `docs/groups.md` names an identifier that no longer exists.** The tree shows it as *unknown
+  else has to change.
+- **3a. The group file names an identifier that no longer exists.** The tree shows it as *unknown
   member*, with the note that it was withdrawn, if it was; the author removes it or leaves it.
 - **3b. An item appears in no group** — for example, a use case just written by UC-007. It is shown
   at the top level, marked *not yet placed*.
-- **3c. `docs/groups.md` names an item twice.** The tree shows both places and asks the author to
+- **3c. The group file names an item twice.** The tree shows both places and asks the author to
   keep one; nothing is saved until the item has one place.
-- **5a. `docs/groups.md` or a SPEC section changed since step 1.** Nothing is written. The dashboard
+- **5a. The group file changed since step 1.** Nothing is written. The dashboard
   shows the newer hierarchy with the author's pending changes applied where they still apply, and
   names those that no longer apply; the author saves again.
-- **5b. A move of requirements spans sections that another open proposal also replaces.** The
-  dashboard names that proposal; whichever is accepted first makes the other stale.
-- **5c. No token is stored (GitHub).** *Save arrangement* puts the new `docs/groups.md` — or the
-  queue entry — on the clipboard and opens GitHub's editor at its path, as in UC-018 4a. On a GitLab
+- **5b. A requirement in the group file is withdrawn by an accepted SPEC change later.** The
+  group file is not changed by that acceptance; the tree shows the name as in 3a.
+- **5c. No token is stored (GitHub).** *Save arrangement* puts the new group file on the clipboard and opens GitHub's editor at its path, as in UC-018 4a. On a GitLab
   product without a token, there is no save.
 
 ## Postcondition
 
 - Every item of the arranged kind has exactly one place in its hierarchy; no identifier, no artifact
   file and no approval status has changed.
-- Use cases, architecture elements, modules and tests: `docs/groups.md` holds the new arrangement.
-- Requirements: a queue entry holds the rearranged sections; the SPEC changes only when it is
-  accepted (UC-006).
+- `docs/groups/<kind>.md` holds the new arrangement; the SPEC and every artifact file are
+  byte-identical to before.

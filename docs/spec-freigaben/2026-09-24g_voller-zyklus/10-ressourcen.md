@@ -132,3 +132,18 @@ late and with an unhelpful message; checking before the start fails early, with 
 same logic as `A ROLE NAMES THE CAPABILITIES IT NEEDS`.
 *Check:* `tests/test_resources.py` — a job needing a `runner:gpu` compute resource is not offered
 on a GitHub-hosted runner; counter-proof: it is offered on the runner with label `gpu`.
+
+**THE INSTANCE DECLARES ITS OWN RESOURCES** *(PO A. Maier, 2026-09-24)*
+An instance names the resources its own jobs use — clusters, runners, endpoints — in
+`docs/resources.md` of its own repository.
+*Occasion:* PO, 2026-09-24: "the instance has resources, the product too". A GPU cluster on which the
+instance runs its agents is the instance's; the product may use it or not.
+*Check:* `tests/test_resources.py`
+
+**INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT** *(PO A. Maier, 2026-09-24)*
+A product's resource list neither inherits from nor is inherited by the instance's; an entry in one
+list has no effect on the other.
+*Occasion:* PO, 2026-09-24: they "do not necessarily have to be the same". A product must say on its
+own what it runs on (`THE PRODUCT REPOSITORY IS SELF-SUFFICIENT`); the dashboard may offer an
+instance entry as a starting point, copied, never linked.
+*Check:* `tests/test_resources.py`

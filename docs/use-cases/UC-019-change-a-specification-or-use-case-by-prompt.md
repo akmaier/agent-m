@@ -122,7 +122,7 @@ sequenceDiagram
   bridge; the agent returns the draft to the dashboard and the flow continues at step 7.
 - **6b. The participant is a CI agent** (UC-010). The workflow commits the draft to the default
   branch as an open use case or an open queue entry; the author reviews it in UC-008 or UC-006
-  instead of step 8. *(Open question for the PO — see SPEC-g1.md.)*
+  instead of step 8. *(Open question for the PO — queue 2026-09-24g, rationale of entry 05, question 6.)*
 - **6c. The participant returns nothing usable** — no text, the unchanged text, or text that cannot
   be read as the artifact. The dashboard says which, shows the raw answer folded, and writes nothing.
 - **7a. The participant changed a use case's `id`.** Agent M restores the original identifier and

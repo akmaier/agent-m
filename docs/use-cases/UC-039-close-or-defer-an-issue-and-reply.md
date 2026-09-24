@@ -29,6 +29,7 @@ realises:
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
 ---
 # UC-039 Close or defer an issue and reply
 
@@ -72,7 +73,8 @@ of a local database, and the neutral issue lives in the product's tracker.
 2. The author opens a closed issue under *to answer*. The panel shows the neutral issue, what solved
    it (the closing pull request or commit and the release that contains it, where known), and one line
    per report with no reply: reporter, date, subject — read from the private tracker.
-3. The author picks the participant and presses **Draft replies** — one click. The panel states where
+3. The author picks the participant — Agent M offers only those whose processing place the mailbox
+   allows (UC-037, step 4) — and presses **Draft replies** — one click. The panel states where
    the participant processes data and what it receives: the issue, what solved it, and each report's
    mail. The participant returns one draft per report: what the problem was, what was done, from which
    version the fix is live, and the reporter's original mail quoted below it.

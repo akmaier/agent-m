@@ -29,6 +29,8 @@ realises:
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - THE INSTANCE DECLARES ITS OWN RESOURCES
+  - INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT
 ---
 # UC-040 Declare the product's resources
 
@@ -48,6 +50,12 @@ down cannot be checked, updated or handed over.
 | fixed by | commit, revision, file hash, served model | edition, hash of the text | capabilities, processing place |
 | file | product: `docs/resources.md` | product: `docs/sources.md` | instance: `docs/participants.md` |
 
+**The instance has resources of its own, too** — the cluster or runner on which it runs its agents, an
+endpoint its jobs use. They are declared the same way in `docs/resources.md` of the instance
+repository. The two lists are independent: an entry in one has no effect on the other, and the
+product's list never inherits from the instance's, so the product still says on its own what it is
+built with and runs on.
+
 The same local LLM endpoint can be both: a resource the product queries at runtime, and — as a
 coding agent behind the bridge — a participant that works on the product. It is then two entries,
 each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
@@ -57,7 +65,7 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
 | **repository** | `https://gitlab.rrze.fau.de/lme/speech-dlls` (private, binaries) | commit | the browser, with the token of its server |
 | **data** | a Hugging Face dataset, a folder on a group share | revision or SHA-256 of every file | the browser, or the job that downloads it |
 | **model** | a Hugging Face model, a checkpoint file | revision or SHA-256 of every file | the browser, or the job that downloads it |
-| **compute** | a SLURM cluster, a GPU workstation | — (see open question 4 of the SPEC draft) | the local bridge, or a self-hosted runner by label |
+| **compute** | a SLURM cluster, a GPU workstation | — (open question: queue 2026-09-24g, rationale of entry 10, question 4) | the local bridge, or a self-hosted runner by label |
 | **endpoint** | a local vLLM or Ollama server the product calls | identifier of the served model | the product itself at runtime; jobs through bridge or runner |
 | **agent** | an agent service the product delegates to at runtime | identifier of the served model or version | as endpoint |
 
@@ -137,12 +145,18 @@ sequenceDiagram
 
 - **1a. The author removes a resource.** Agent M lists the jobs and tests that name it; they are
   listed, not changed, and the removal is committed on **Save**.
+- **1b. The author declares a resource of the instance.** Settings → **Instance resources** runs the
+  same steps 2–8 and commits to `docs/resources.md` of the instance repository; no product's list
+  changes.
 - **2a. The system also works on the product** — for example the local LLM endpoint is also used as
   a coding agent. The folded explanation says it is declared here as a resource and, separately, as
   a participant in UC-017; a link opens UC-017 with type and address prefilled. The two entries
   share no fields.
 - **2b. What the author wants to record is a rule, not a thing used** — a norm, a guideline. A link
   opens UC-015.
+- **2c. The resource is already declared by the instance.** Agent M offers **Copy from the instance**:
+  the entry is copied into the product's list, where it is edited and saved like any other. The copy
+  is not linked; a later change on either side leaves the other unchanged.
 - **3a. A private repository is not readable with the stored token.** Agent M says so and shows how
   to add it to the token, as in UC-001 step A, with read access only; nothing is saved until the
   check succeeds or the author saves it unchecked.
@@ -174,6 +188,8 @@ sequenceDiagram
 - `docs/resources.md` of the product repository names every resource the product is built with,
   tested on or calls at runtime, each with kind, pin (where the kind has one), licence, maintainer,
   route and processing place as its kind requires.
+- The instance's own resources, if any, are in `docs/resources.md` of the instance repository; the
+  two lists do not depend on each other.
 - No credential and no restricted content is in the product repository.
 - Jobs that need a resource run only where it is reachable, against the pinned state.
 - Rules a resource imposes are requirements only through a source (UC-015); systems that develop the

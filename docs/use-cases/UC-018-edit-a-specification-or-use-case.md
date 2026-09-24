@@ -115,6 +115,9 @@ sequenceDiagram
 - **3d. The author adds a new requirement** instead of changing one: **+ Requirement** in a section
   of the browser opens the editor with the five fields empty. Saving proposes the section with the
   addition, exactly as in step 6.
+- **3e. The author wants a requirement or use case in another group.** That is not an edit: the
+  editor changes text only, never a group. A link opens the arrangement (UC-021), which commits the
+  group file directly and leaves this text — and its approval — untouched.
 - **4a. No token is stored (GitHub).** *Save* puts the edited text on the clipboard and opens
   GitHub's editor for the use-case file, or GitHub's new-file page at the path of the queue entry;
   the text never travels in the link. The dashboard compares the SHA before opening GitHub and warns

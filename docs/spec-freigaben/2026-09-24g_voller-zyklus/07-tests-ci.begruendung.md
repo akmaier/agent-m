@@ -50,3 +50,5 @@ word if you choose the first.
     generated CI configuration, so that the two never disagree on the default branch. That departs
     from `A PERSON'S OWN INPUT IS COMMITTED DIRECTLY`. Accept the exception, or commit the schedule
     directly and let the dashboard show "configuration pending" until the pull request is merged?
+
+**Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.

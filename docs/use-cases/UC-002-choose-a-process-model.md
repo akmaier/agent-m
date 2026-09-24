@@ -19,6 +19,9 @@ realises:
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
   - A PARTICIPANT DECLARES ITS CAPABILITIES
   - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A MERGE IS DECIDED BY THE REVIEW ROLE
+  - A PHASE MAY HAVE A BRANCH OF ITS OWN
+  - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A PHASE BRANCH IS SET
 ---
 # UC-002 Choose how the product is developed
 
@@ -62,9 +65,12 @@ and its process requirements show up here as additions to whatever model the aut
    author assigns participants from the instance's list (UC-017): people, model endpoints, CI agents,
    CLI agents or sandboxed agents — several to one role where the role allows it. Agent M offers only
    participants that have every capability the role needs, and shows for each where it processes
-   data.
+   data. One role is marked as the **review role**: its holder decides every merge of a pull request
+   (UC-024, UC-034) — in Scrum the Scrum Master, a person or an agent.
 5. Agent M shows the model's phases, their order, which phases pair for verification, and each gate
-   with what it checks.
+   with what it checks. For each phase, the author may set a **branch of its own** — for a sprint, for
+   example; the phase's work is then merged into that branch, and merging it into the default branch
+   is the gate at the end of the phase. Preset is *none*: work merges into the default branch.
 6. The author may add **practices**: DevOps, prototyping, incremental delivery, a scaling layer. Each
    says what it adds and to which models it fits; none of them replaces the model.
 7. Agent M shows, in the same workflow view, what the product's **process requirements** add: extra

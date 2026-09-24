@@ -121,3 +121,28 @@ as IEC 62304 asks for evidence that each requirement was verified (ch. 13 §6: "
 evidence"); a list that omits the gaps is not evidence. The view is derived like the traceability
 matrix and exported as Markdown (`ARTIFACTS ARE MARKDOWN`).
 *Check:* `tests/test_audit_view.py`
+
+**A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED** *(PO A. Maier, 2026-09-24)*
+A release whose run has failing tests or worse rates is tagged only after a person accepts the
+release test report with each failing test and the reason recorded in the approval.
+*Occasion:* PO, 2026-09-24: the book's conditional acceptance (ch. 13 §7) is right. A release that
+knowingly ships with a limitation must say so where an auditor looks — the approval and the
+changelog — not in someone's memory.
+*Check:* `tests/test_release_run.py` — a red run without a recorded limitation cannot be tagged;
+counter-proof: with one it can.
+
+**TEST RESULTS ARE KEPT IN THE REPOSITORY** *(PO A. Maier, 2026-09-24)*
+Every result record is committed to the branch `test-results` of the product repository.
+*Occasion:* PO, 2026-09-24: "we need to be able to audit the test results. Therefore, they need a
+permanent location in the repo." CI servers delete run logs after a retention period. A branch of
+their own keeps the results permanent without a commit on the default branch per run — which would
+also trigger CI again.
+*Check:* `tests/test_result_records.py`
+
+**A RESULT RECORD IS NEVER REWRITTEN** *(PO A. Maier, 2026-09-24)*
+The branch `test-results` only grows: no record on it is changed or deleted, and it is never
+force-pushed.
+*Occasion:* evidence that can be edited afterwards is no evidence. Appending only makes every audit
+repeatable against the same records.
+*Check:* `tests/test_result_records.py` — the branch's history is checked for rewritten or deleted
+records; counter-proof with a fixture that amends one.

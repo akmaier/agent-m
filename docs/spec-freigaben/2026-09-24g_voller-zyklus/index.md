@@ -9,9 +9,27 @@ the SPEC, the existing use cases and the relevant book chapters; **integrated by
 draft read in full, cross-checked, two duplicates dropped (entries 06 and 08 say which), the entries
 assembled from the current SPEC so that only the intended lines change.
 
-**Size:** 99 new requirements, 4 extended under their existing names, 1 withdrawn and renamed. Each
+**Size:** about 110 new requirements, 6 extended under their existing names, 1 withdrawn and renamed. Each
 entry is a block you can accept, edit or strike; the rationale of each entry carries the open questions
 of its drafting group.
+
+**PO decisions of 2026-09-24 on the open questions — already built into the entries:**
+
+| # | Decision | Where |
+|---|---|---|
+| 1 | a red release may be accepted with its limitations recorded (book ch. 13 §7) | 07 `A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED` |
+| 2 | where a mailbox's mail may be processed is configured; the US may be allowed, then non-compliance with EU rules is stated | 09, two new rules |
+| 3 | one GitHub token for every feature | 11 (new entry, §7) |
+| 4 | new identifier prefixes `ITM-` (backlog items) and `RES-` (resources) | 01 `EVERY ARTIFACT HAS AN IDENTIFIER`, extended |
+| 5 | the merge is decided by the review role (Scrum Master: person or agent); a phase may have its own branch, merged at the phase's end; default is `main` | 08, three new rules; one occasion corrected |
+| 6 | instance and product each declare resources, independently | 10, two new rules |
+| 7 | groups live in files of their own (`docs/groups/`), not in the SPEC's sections; regrouping is committed directly | 01 (rules replaced), 05 (a SPEC edit no longer includes regrouping) |
+| 8 | test results are kept permanently in the repository — on the branch `test-results`, append-only | 07, two new rules |
+
+Interpretations by the main agent, correct them in the edit field if they are not what you meant:
+"groups should have new files" → one group file per kind of artifact; "a permanent location in the
+repo" → a branch of its own, so that results do not add a commit to `main` per run (which would
+trigger CI again).
 
 **Order that matters:**
 1. **05 before 06–10** — 05 adds the headings §11–§15; until it is accepted, 06–10 show "anchor not
@@ -32,3 +50,4 @@ of its drafting group.
 | 08 | `SPEC.md` | ## 13. Process execution and jobs | — | — |
 | 09 | `SPEC.md` | ## 14. Issues and mail | — | — |
 | 10 | `SPEC.md` | ## 15. Product resources | — | — |
+| 11 | `SPEC.md` | ## 7. Configuration and secrets | — | — |

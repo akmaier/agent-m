@@ -11,7 +11,7 @@ realises:
   - OPEN PROPOSALS ARE SHOWN IN THE BROWSER
   - A REQUIREMENT SHOWS ITS HISTORY
   - ARTIFACTS ARE ARRANGED IN NESTED GROUPS
-  - THE SPEC'S SECTIONS ARE THE REQUIREMENT GROUPS
+  - EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN
   - AN ITEM HAS ONE PLACE IN ITS HIERARCHY
   - AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
   - THE TRACEABILITY MATRIX IS DERIVED
@@ -44,15 +44,15 @@ looks for before reading details (Vibe Coding, ch. 9 §1), applied to the specif
 1. The reader selects a product and opens **Specification**. A version selector at the top is preset
    to *current (default branch)* and lists every release tag `vYYYY.MINOR.PATCH` of the product
    (UC-013), newest first.
-2. Agent M reads, at the chosen version, the SPEC, the use cases, the group file, the architecture
+2. Agent M reads, at the chosen version, the SPEC, the use cases, the requirement group file `docs/groups/requirements.md`, the architecture
    elements, modules and tests, and the product's source links; for *current*, also the open queues
    under `docs/spec-freigaben/`.
-3. The browser shows the requirements as a tree: the SPEC's nested section headings are the groups,
-   each requirement appears once under its section by its name. Each group shows how many
+3. The browser shows the requirements as a tree: the groups of `docs/groups/requirements.md`, nested,
+   each requirement once under its group by its name, or at the top level if no group names it. Each group shows how many
    requirements it holds and how many of them no use case realises. Each requirement carries a status:
    - *in SPEC* — accepted;
    - *change proposed* or *withdrawal proposed* — an open queue entry would change it;
-   - *proposed* — an open queue entry would add it, shown in the section it would go to;
+   - *proposed* — an open queue entry would add it, shown at the top level until a group names it;
    - *withdrawn* — kept with its withdrawal note.
 4. The reader narrows the tree by typing part of a name or rule, or by filter: status, source,
    constrains product or process, realised or not.
@@ -100,7 +100,7 @@ sequenceDiagram
   shows nothing.
 - **2b. The product has no architecture elements, modules or tests yet.** Those lists read *none
   yet*, with a folded note on which phase produces them; nothing is hidden.
-- **3a. A requirement has been withdrawn.** It stays in its section, greyed, with its note; its
+- **3a. A requirement has been withdrawn.** It stays in its group, greyed, with its note; its
   history and everything that still names it remain visible.
 - **5a. Nothing realises or checks the requirement.** The lists say *none*; the gap is reported, as in
   UC-009, and blocks nothing.

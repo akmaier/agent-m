@@ -167,8 +167,7 @@ there. The dashboard says so instead of offering a route that fails.
 *Check:* `tests/review-core.test.mjs`
 
 **A SPEC EDIT IS SAVED AS A PROPOSAL** *(PO A. Maier, 2026-09-24)*
-Saving a change to a product's SPEC on the dashboard — typed, drafted by a participant, or a
-regrouping — writes an entry to a change queue under `docs/spec-freigaben/` instead of writing the
+Saving a change to a product's SPEC on the dashboard — typed or drafted by a participant — writes an entry to a change queue under `docs/spec-freigaben/` instead of writing the
 SPEC.
 *Occasion:* PO, 2026-09-24: specifications must be modifiable using "a text editor in the dashboard".
 The editor must not become a way around `A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN`;

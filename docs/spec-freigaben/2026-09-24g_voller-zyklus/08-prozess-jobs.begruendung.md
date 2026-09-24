@@ -50,3 +50,12 @@ listed rules change — the diff on the dashboard shows exactly that.
    proposes `A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE`. A test-battery run is a job in
    UC-036, and a job's runtime choice is also constrained by g6. The wording should be aligned when
    the three drafts are merged.
+
+**Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.
+
+**Consistency note (main agent, 2026-09-24).** `A JOB STOPS AT EVERY GATE` lets only a *person's*
+decision pass a gate, while the PO decided that the review role deciding a merge may be an agent. The
+occasion of `A JOB STOPS AT EVERY GATE` therefore says that the merge is *not* one of those gates; the
+gates from the model and from process requirements stay with a person. If the merge should count as
+a gate with an agent allowed to pass it, the rule text of `A JOB STOPS AT EVERY GATE` has to change
+instead — please say so in the edit field.

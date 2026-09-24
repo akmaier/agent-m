@@ -13,6 +13,7 @@ realises:
   - A GATE NAMES WHAT IT CHECKS
   - A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
+  - A MERGE IS DECIDED BY THE REVIEW ROLE
   - PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - DIAGRAMS ARE MERMAID IN MARKDOWN
@@ -30,12 +31,19 @@ What a definition contains:
 | Part | Content | Example (V-model, book ch. 6 §4) |
 |---|---|---|
 | **Kind of work** | *planned*: the whole accepted SPEC runs through every phase; or *pulled*: items are pulled from a backlog | planned |
-| **Phases** | name, order, the role that does the phase, the artifacts it produces (`REQ-` `UC-` `ARC-` `MOD-` `TST-`) | Requirements → Design → Implementation → Testing → Validation |
-| **Verification pairs** | which later phase checks which earlier one | Design ↔ Testing; Requirements ↔ Validation |
+| **Phases** | name, the role that does the phase, the artifacts it produces (`REQ-` `UC-` `ARC-` `MOD-` `TST-`) | Concept, Requirements, Design, Implementation, Testing, Validation & Verification, Operation & Maintenance |
+| **Transitions** | which phase follows which: in sequence, as alternatives, or back to an earlier phase | Concept → Requirements → Design → Implementation → Testing → Validation & Verification → Operation & Maintenance |
+| **Verification pairs** | which later phase checks which earlier one | Concept ↔ Operation & Maintenance; Requirements ↔ Validation & Verification; Design ↔ Testing |
 | **Gates** | between which phases; which artifacts must exist; which condition must hold | before Implementation: every `REQ-` has an `ARC-`, and the design is accepted |
-| **Roles** | name; person, agent or either; capabilities needed | Tester: agent or person; *read the repository*, *run code and tests* |
+| **Roles** | name; person, agent or either; capabilities needed; which one is the review role that decides merges | Tester: agent or person; *read the repository*, *run code and tests*; review role: *Quality lead* |
 | **Flow control** (pulled only) | a time box with its length, or a work-in-progress limit | Scrum: sprint of 2 weeks; Kanban: WIP 3 |
 | **Progress measure** | plan entries per phase, remaining items per time box, or items per state over time | plan entries per phase |
+
+The transitions carry the shapes of the other catalogue models (book ch. 6, ch. 7): waterfall is a
+single sequence of five phases; the reuse-oriented model runs discovery and evaluation side by side,
+returns from requirements refinement to the specification, and then chooses between *configure*,
+*adapt* and *develop* before integration; in Kanban, the phases are the board's columns — Backlog,
+Doing, Review, Done.
 
 ## Actors
 
@@ -60,16 +68,17 @@ What a definition contains:
    repository*.
 4. While the author types, Agent M validates the definition and lists each error beside the field
    that causes it, for example:
-   - a phase in the order that is not defined;
+   - a transition naming a phase that is not defined, or a phase no transition reaches;
    - a verification pair naming a missing phase;
    - a gate without artifacts or without a condition;
    - a role without capabilities, or a phase without a role;
+   - no review role, or more than one;
    - a gate that checks an artifact kind no earlier phase produces;
    - for *pulled* work, neither a time box nor a WIP limit, or both;
    - a progress measure that does not fit the kind of work.
 5. For a *planned* model, Agent M shows a preview of the plan the definition would produce for a
    product the author picks. Every accepted requirement of that product appears once in every phase.
-   The preview shows the count: for example *42 requirements × 6 phases = 252 plan entries*.
+   The preview shows the count: for example *42 requirements × 7 phases = 294 plan entries*.
 6. When the list of errors is empty, **Save** becomes available. The author presses it: one click.
    Agent M commits the definition as a Markdown data file under `docs/process-models/` of the
    instance. The file records the definition it was adapted from.

@@ -11,6 +11,9 @@ realises:
   - THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
   - A RELEASE RUNS EVERY TEST AT EVERY LEVEL
   - EVERY TEST RUN LEAVES A RESULT RECORD
+  - TEST RESULTS ARE KEPT IN THE REPOSITORY
+  - A RESULT RECORD IS NEVER REWRITTEN
+  - A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
   - A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
   - A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
   - RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
@@ -91,11 +94,11 @@ sequenceDiagram
   and the summary says so first. If the viewer is a person who may accept, Agent M offers the report
   with **Accept** (UC-028, 1b).
 - **2b. The release was accepted with known limitations.** The limitations stand at the top of the
-  summary, each linked to the rows it concerns — provided the PO decides that such acceptance exists
-  (see open questions).
+  summary, each linked to the rows it concerns, with the reason recorded in the approval.
 - **2c. A requirement has no test at any level.** Its row says *no test*; it is counted, not hidden.
-- **2d. Results cited by the report are no longer kept by the CI server.** The report in the
-  repository still holds each outcome; only the link to the server's log is marked unavailable.
+- **2d. The CI server no longer keeps the logs cited by the report.** The result records on the
+  branch `test-results` still hold each outcome; only the link to the server's log is marked
+  unavailable.
 - **1a. The release predates Agent M's test records.** Agent M says which parts cannot be derived
   for this tag and shows the rest.
 - **5a. The auditor wants the export in the repository.** A person with write access presses **Commit

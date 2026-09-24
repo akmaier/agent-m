@@ -18,6 +18,7 @@ realises:
   - A RELEASE RUNS EVERY TEST AT EVERY LEVEL
   - RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
   - THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+  - A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
 ---
 # UC-013 Release a version
 
@@ -81,8 +82,8 @@ sequenceDiagram
   requirements they guard. The author either fixes (UC-012) and starts a new candidate `-rc.N+1`, or —
   as the book's conditional acceptance allows (ch. 13 §7) — accepts the release test report **with
   known limitations**: the failing tests and the reason are recorded in the approval (UC-028, UC-030),
-  and the release then carries them in its changelog. *(Open question to the PO, queue 2026-09-24g
-  entry 07: whether this second route is allowed at all.)*
+  and the release then carries them in its changelog. Without a recorded limitation for every failing
+  test, the tag is not set.
 - **3b. A model-dependent rate fell below the running version's.** It is shown as a finding with its
   confidence interval, not as a verdict; the author decides, and the decision and its reason are
   recorded with the release.

@@ -83,9 +83,9 @@ A job that reaches a gate of the product's workflow waits in the state *waiting 
 a person's decision at that gate is recorded.
 *Occasion:* the book calls this human-in-the-loop: the agent pauses at a high-impact checkpoint and
 asks a person (ch. 11 §8). Gates come from the model and from process requirements
-(`A PROCESS REQUIREMENT ADDS TO THE MODEL`). Where the workflow sets no gate, for example before
-merging a pull request on green CI, the job continues
-(`CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI`).
+(`A PROCESS REQUIREMENT ADDS TO THE MODEL`). The merge of a pull request is not one of these gates: it
+is decided by the holder of the review role, who may be an agent (`A MERGE IS DECIDED BY THE REVIEW
+ROLE`).
 *Check:* `tests/test_job_gate.py`. A fixture job reaching a gate does not proceed while no gate
 record exists. It does not proceed on a record written by the job's own participant when that
 participant is not a person. It proceeds once a person's record exists.
@@ -136,3 +136,27 @@ weak inputs ("Radosophie", ch. 15 §4). An estimated cost shown beside measured 
 measured.
 *Check:* `tests/test_job_cost.py`. A job whose runtime reports neither cost nor usage shows
 "unknown", never zero.
+
+**A MERGE IS DECIDED BY THE REVIEW ROLE** *(PO A. Maier, 2026-09-24)*
+The pull request of an implementation job is merged by the holder of the model's review role — in
+Scrum the Scrum Master — who may be a person or an agent.
+*Occasion:* PO, 2026-09-24: "The review gate is the scrum master; it can be human or an agent." The
+gate before merge belongs to a role, like every other gate, so that the process model — not the
+implementing job — decides who merges.
+*Check:* `tests/test_job_gate.py` — a merge by a participant not holding the review role is refused;
+counter-proof: by its holder it proceeds.
+
+**A PHASE MAY HAVE A BRANCH OF ITS OWN** *(PO A. Maier, 2026-09-24)*
+A product may assign a phase — a sprint, for example — a branch of its own, into which the phase's
+work is merged; merging that branch into the default branch is then the gate at the end of the
+phase.
+*Occasion:* PO, 2026-09-24: "an entire scrum phase can be assigned an additional branch in git; then
+the merge is the gate at the end of the phase, but this is optional." It lets a team review a whole
+sprint's result at once, the way the sprint review does (ch. 7 §5).
+*Check:* `tests/test_phase_branch.py`
+
+**WORK MERGES INTO THE DEFAULT BRANCH UNLESS A PHASE BRANCH IS SET** *(PO A. Maier, 2026-09-24)*
+Without a phase branch, the work of every job is merged into the default branch.
+*Occasion:* PO, 2026-09-24: "it should be main by default." A phase branch is extra ceremony that a
+small product does not need.
+*Check:* `tests/test_phase_branch.py`

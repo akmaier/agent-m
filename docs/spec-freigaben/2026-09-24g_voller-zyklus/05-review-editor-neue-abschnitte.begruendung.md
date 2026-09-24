@@ -44,3 +44,5 @@ it (`docs/architecture/`).
    views). They could equally go to §10 (review on Pages).
 8. **Should the editor keep an unsaved draft** in the browser (`localStorage`) across a reload? Not
    proposed as a requirement; UC-018 only asks before discarding.
+
+**Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.

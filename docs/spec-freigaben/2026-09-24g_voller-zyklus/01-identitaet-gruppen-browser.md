@@ -1,10 +1,11 @@
 ## 1. Identity and traceability
 
-**EVERY ARTIFACT HAS AN IDENTIFIER** *(PO A. Maier, 2026-09-23)*
+**EVERY ARTIFACT HAS AN IDENTIFIER** *(PO A. Maier, 2026-09-23, extended 2026-09-24)*
 Every artifact Agent M produces carries an identifier from the scheme `SRC-` · `REQ-` · `UC-` ·
-`ARC-` · `MOD-` · `TST-`.
+`ARC-` · `MOD-` · `TST-` · `ITM-` · `RES-`.
 *Occasion:* an artifact that cannot be named cannot be referred to, and therefore cannot be traced
-to what justified it or to what checks it.
+to what justified it or to what checks it. PO, 2026-09-24: backlog items (`ITM-`) and resources
+(`RES-`) are artifacts too — jobs, pull requests and tests refer to them.
 *Check:* `tests/test_identifiers.py`
 
 **THE NAME IS THE ID AND IT SURVIVES** *(SOFTWARE_MAINTENANCE.md, "Der Name ist die ID")*
@@ -72,28 +73,23 @@ level.
 then counts some items twice, and moving an item leaves a copy behind.
 *Check:* `tests/test_groups.py`
 
-**THE SPEC'S SECTIONS ARE THE REQUIREMENT GROUPS** *(PO A. Maier, 2026-09-24)*
-The groups of a product's requirements are the nested section headings of its SPEC.
-*Occasion:* the SPEC is one document and is already divided into sections. A second grouping kept
-elsewhere would give every requirement two places that drift apart.
-*Check:* `tests/test_groups.py`
-
-**THE OTHER HIERARCHIES ARE KEPT IN THE GROUP FILE** *(PO A. Maier, 2026-09-24)*
-The groups of use cases, architecture elements, modules and tests are recorded in `docs/groups.md`
-of the product repository, which names each member by its identifier.
-*Occasion:* these artifacts are one file each (`ONE USE CASE, ONE FILE`), so their arrangement has no
-document of its own to live in. A Markdown file keeps it readable without Agent M
-(`THE PRODUCT REPOSITORY IS SELF-SUFFICIENT`).
+**EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN** *(PO A. Maier, 2026-09-24)*
+The groups of each kind of artifact — requirements, use cases, architecture decisions, modules,
+tests — are recorded in a file of their own under `docs/groups/` of the product repository, which
+names each member by its identifier.
+*Occasion:* PO, 2026-09-24: "groups should have new files." Kept apart from the artifacts and from
+the SPEC's sections, a hierarchy can be rearranged without touching what it arranges, and it stays
+readable without Agent M (`THE PRODUCT REPOSITORY IS SELF-SUFFICIENT`).
 *Check:* `tests/test_groups.py`
 
 **REGROUPING LEAVES THE GROUPED FILE UNCHANGED** *(PO A. Maier, 2026-09-24)*
-Moving a use case, architecture element, module or test to another group changes no byte of its
-file.
+Moving a requirement, use case, architecture decision, module or test to another group changes no
+byte of the SPEC or of the artifact's file.
 *Occasion:* acceptance names a file's blob SHA (`AN APPROVAL NAMES THE EXACT TEXT`). If a group were
-written into the file, tidying up the hierarchy would send every moved, accepted use case back to
-review.
-*Check:* `tests/test_groups.py` — blob SHAs of all artifact files are equal before and after a
-regrouping.
+written into the file — or into the SPEC — tidying up the hierarchy would send every moved, accepted
+artifact back to review.
+*Check:* `tests/test_groups.py` — blob SHAs of `SPEC.md` and of all artifact files are equal before
+and after a regrouping.
 
 **AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL** *(PO A. Maier, 2026-09-24)*
 An item that no group names is shown at the top level of its hierarchy.
@@ -130,3 +126,11 @@ person, and the text before and after.
 how a given one moved. Approval records and git history already hold every step
 (`THE GATE IS RECORDED`).
 *Check:* `tests/test_spec_browser.py`
+
+
+**A REGROUPING IS COMMITTED DIRECTLY** *(PO A. Maier, 2026-09-24)*
+A change to a group file is the person's own input and is committed to the default branch when they
+save it.
+*Occasion:* a group arranges artifacts and decides nothing about them; with groups in files of their
+own, rearranging them needs no approval (`A PERSON'S OWN INPUT IS COMMITTED DIRECTLY`).
+*Check:* `tests/test_groups.py`

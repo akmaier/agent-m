@@ -14,6 +14,8 @@ realises:
   - A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES
   - EVERY ARTIFACT NAMES ITS ORIGIN
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
+  - A MERGE IS DECIDED BY THE REVIEW ROLE
+  - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A PHASE BRANCH IS SET
   - A PARTICIPANT DECLARES ITS CAPABILITIES
   - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
@@ -68,8 +70,10 @@ the review point (ch. 12 §10).
 3. Agent M offers the participants that declare *write to the repository* and *run code and tests*,
    each with where it processes data. A folded **What is this?** explains the three kinds and what
    each costs in setup, speed and isolation.
-4. The author chooses the participant, the attempt limit for the fix cycle, and whether the pull
-   request may be merged by the participant once CI is green, or left for the author. The run panel
+4. The author chooses the participant and the attempt limit for the fix cycle. The panel names who
+   will merge: the holder of the model's review role — in Scrum the Scrum Master — a person or an
+   agent (UC-002), and the target branch: the default branch, or the phase branch if the current
+   phase has one (UC-031). The run panel
    shows the destination and what is sent; the author presses **Start job** — one click.
 5. Agent M hands the job over: through the local bridge with its session token, or by starting the
    workflow on the self-hosted runner. The participant creates a branch named after the job.
@@ -84,8 +88,9 @@ the review point (ch. 12 §10).
    product's CI, so that it holds whoever merges — confirms: the first commit contained only tests
    and its CI run was red; every changed file names one of the job's modules; every new test names a
    requirement and a module.
-9. CI is green. The pull request is merged — by the participant if the author allowed it in step 4,
-   otherwise by the author with **Merge** on the dashboard, one click.
+9. CI is green. The holder of the review role decides the merge: a person with **Merge** on the
+   dashboard, one click; an agent holding the role merges through its own route and records its
+   decision like a person's. A merge by anyone not holding the role is refused.
 10. The dashboard shows the job as done, with branch, the red run, the green run and the merge; the
     module view (UC-025) now shows the module's code files and tests.
 
@@ -106,7 +111,7 @@ sequenceDiagram
     C-->>G: green
     P->>G: pull request naming job, modules, requirements
     M->>G: check red first commit, module markers, scope
-    A->>M: Merge (unless the participant may merge)
+    A->>M: Merge (by the holder of the review role)
     M->>G: merge pull request
     M-->>A: job done, module view updated
 ```

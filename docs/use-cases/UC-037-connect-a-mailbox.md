@@ -18,6 +18,8 @@ realises:
   - NO SECRET IN THE REPOSITORY
   - THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
   - THE LOCAL BRIDGE REQUIRES A TOKEN
+  - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
+  - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
 ---
@@ -62,15 +64,23 @@ running the instance under an owner used for nothing else (UC-014, step 1).
    `<owner>`. With it, anyone can read all mail in this mailbox and send mail in its name. It goes to
    no server except your bridge on this machine. Recommended: run this instance under a GitHub owner
    you use for nothing else."* The author ticks **I have read this**.
-4. The author enters the password and presses **Store and test** — one click. Agent M:
-   - stores server, ports, account and password in `localStorage`, under the instance's key; no
+4. **Where the mail may be processed.** Agent M lists the processing places its participants declare
+   (UC-017) — for example *this machine*, *FAU data centre (EU)*, *US cloud provider* — and the
+   author ticks those to which this mailbox's mails may be given. Preset is none: until a place is
+   ticked, mails are only read, never handed to a participant. When the author ticks a place outside
+   the European Union, Agent M states before saving: *"Processing personal data there does not comply
+   with the EU's rules — the GDPR for transferring personal data, and the EU AI Act. You can still
+   allow it; this connection will record that you did."*
+5. The author enters the password and presses **Store and test** — one click. Agent M:
+   - stores server, ports, account, the allowed processing places and password in `localStorage`, under the instance's key; no
      cookie, nothing in the URL, nothing in any repository;
    - sends one test request to the bridge with the session token, carrying the connection;
    - the bridge opens an encrypted connection to the IMAP server and logs in, selects `INBOX`
      read-only and counts the mails; then opens an encrypted connection to the SMTP server, logs in and
      disconnects without sending anything; then forgets the password;
    - shows ✓ for IMAP and ✓ for SMTP, the number of mails in `INBOX`, and the encryption used.
-5. The mailbox is shown as connected, with **Disconnect** beside it. Other people who open the same
+6. The mailbox is shown as connected, with its allowed processing places and **Disconnect** beside
+   it. Other people who open the same
    instance in their own browsers see no mailbox: the connection exists only here.
 
 ```mermaid
@@ -82,7 +92,9 @@ sequenceDiagram
     participant S as Mail server
     A->>D: Connect a mailbox, address
     D-->>A: preset servers, notice on the shared origin
-    A->>D: I have read this, password, Store and test
+    A->>D: I have read this, allowed processing places
+    D-->>A: notice for any place outside the EU
+    A->>D: password, Store and test
     D->>L: store connection
     D->>B: test, connection and session token
     B->>S: IMAP login over TLS, read-only count
@@ -93,17 +105,19 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **4a. The bridge does not answer.** Agent M names the reason — not running, wrong address, session
+- **5a. The bridge does not answer.** Agent M names the reason — not running, wrong address, session
   token missing — and links UC-011. The connection is stored (the author decided in step 4) and shown
   as *untested*.
-- **4b. A server offers no encryption.** The bridge sends no login to it; Agent M says which server and
+- **5b. A server offers no encryption.** The bridge sends no login to it; Agent M says which server and
   that the password would travel in clear text. The author corrects the port or encryption setting.
-- **4c. The login is refused.** Agent M shows the server's answer. It adds that some providers require
+- **5c. The login is refused.** Agent M shows the server's answer. It adds that some providers require
   an app password instead of the account password when two-factor login is on, with a folded
   explanation.
-- **4d. IMAP works, SMTP does not.** Agent M shows both results separately; reading (UC-038) is
+- **5d. IMAP works, SMTP does not.** Agent M shows both results separately; reading (UC-038) is
   possible, sending (UC-039) is not, and the dashboard says so where a reply would be sent.
-- **6. The author presses Disconnect.** Agent M asks once for confirmation, then removes server,
+- **4a. The author changes the allowed places later.** Settings → Mailbox → **Processing places**; the
+  same list and the same notice as in step 4. A mail already handed to a participant is not recalled.
+- **6a. The author presses Disconnect.** Agent M asks once for confirmation, then removes server,
   account and password from `localStorage` — not only from the form — and confirms that nothing is
   stored. The bridge holds nothing to remove. The private tracker (UC-038) is not touched.
 - **1a. The author uses another browser or computer.** No mailbox is connected there; the author

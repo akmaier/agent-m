@@ -26,6 +26,8 @@ realises:
   - THE MAILBOX FLAG MARKS WHAT IS OPEN
   - THE PAGE STATES WHAT IT SENDS WHERE
   - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
+  - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
   - A GENERATED ARTIFACT IS A PROPOSAL
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - EVOLUTION ENTERS THROUGH THE SPECIFICATION
@@ -78,7 +80,9 @@ process, where mails live in a local ticket database (`scripts/ticket_db.py`) an
    `References` names a recorded mail is attached to that report and its issue at once, without a
    participant; it is shown under that issue (UC-039 uses it).
 4. The remaining mails are listed with sender, subject and date — visible only in this browser. The
-   author picks the participant for the proposals. The panel states where that participant processes
+   author picks the participant for the proposals; Agent M offers only participants whose processing
+   place the mailbox allows (UC-037, step 4), and marks a place outside the EU as not compliant with
+   the GDPR and the EU AI Act. The panel states where that participant processes
    data and exactly what it receives: the mail text, the list of the instance's products with their
    one-line descriptions, and the titles and numbers of their open issues. The author presses
    **Propose** — one click for all listed mails.
@@ -138,10 +142,13 @@ sequenceDiagram
   the reports there and nowhere else. The choice is kept in this browser with the mailbox connection.
 - **1b. The named repository is public or internal.** Agent M refuses it, says why — every mail would
   be published, and the history keeps it after deletion — and writes nothing.
-- **2a. The bridge does not answer.** Nothing is read; Agent M names the reason (UC-037, 4a).
+- **2a. The bridge does not answer.** Nothing is read; Agent M names the reason (UC-037, 5a).
 - **4a. The chosen participant is a CLI agent.** The dashboard hands the job to the bridge; the mails
   go to the agent on the same machine and do not travel further than that agent's own processing
   place, which the panel states.
+- **4c. No participant processes data at a place this mailbox allows.** Agent M says so and links to
+  the mailbox's processing places (UC-037, 4a); nothing is sent. The author can still decide each
+  mail by hand in step 7.
 - **4b. The author does not press Propose.** Nothing is sent to any participant; the author can still
   decide each mail by hand in step 7, with an empty proposal.
 - **5a. The mail has attachments.** They are stored with the report. Their text is sent to the

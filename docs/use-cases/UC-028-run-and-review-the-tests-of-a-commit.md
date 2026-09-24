@@ -8,6 +8,9 @@ actors:
   - Product repository
 realises:
   - EVERY TEST RUN LEAVES A RESULT RECORD
+  - TEST RESULTS ARE KEPT IN THE REPOSITORY
+  - A RESULT RECORD IS NEVER REWRITTEN
+  - A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
   - A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY
   - A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
   - A RELEASE RUNS EVERY TEST AT EVERY LEVEL
@@ -44,7 +47,8 @@ run yet can be run from the same page.
 
 1. The reviewer opens **Tests → Runs** and picks a commit: from the default branch's history, from an
    open pull request, or a release tag. The commit is shown by its SHA, message and date.
-2. Agent M reads every result record of that commit and shows one line per level: tests passed,
+2. Agent M reads every result record of that commit from the branch `test-results` of the product
+   repository, where every run commits its record, and shows one line per level: tests passed,
    failed, flaky, not run. A level that has no record for this commit reads **not run on this
    commit**, with the occasion that would run it (UC-027) — never *passed*.
 3. The reviewer opens a level. Each test shows its `TST-` identifier, its outcome, the requirement,
@@ -59,7 +63,7 @@ run yet can be run from the same page.
    one click.
 6. Agent M starts the run on that commit — a workflow run on GitHub, a pipeline on GitLab, or a job
    through the local bridge — and shows its progress.
-7. The run's result record arrives; the view updates. A deterministic test that now has a passing
+7. The run commits its result record to the branch `test-results`; the view updates. A deterministic test that now has a passing
    and a failing outcome on this commit is shown as **flaky**, not as passed, with both runs linked;
    its explanation says that a flaky test is repaired or removed, not retried until green.
 
@@ -92,13 +96,16 @@ sequenceDiagram
   every test, its level, its outcome or rate, the guarded identifiers, the commit — to
   `docs/tests/releases/v<version>.md`, and shows it to the reviewer with **Accept**. Accepting commits
   an approval record naming the report's blob SHA (UC-008 mechanics) and lets UC-013 set the tag. If
-  tests failed or a rate is worse than the last release's, the report says so first; how the release
-  continues then is an open question for the PO.
-- **2a. The CI server no longer keeps the results of this commit.** Agent M says so and offers *Run on
-  this commit*; a new run is a new record, not a replacement of the lost one.
+  tests failed or a rate is worse than the last release's, the report says so first, and *Accept*
+  asks for the reason of every failing test and every worse rate; the reasons go into the approval as
+  the release's known limitations (UC-013, 3a).
+- **2a. The CI server no longer keeps the logs of this commit.** The result records on `test-results`
+  are unaffected — every outcome stays readable; only the link to the full log is marked
+  unavailable. A new run is a new record beside the old one, never a replacement.
 - **2b. The records cannot be read from the browser** — for example a private repository without a
-  stored token, or results the server does not hand to other origins. Agent M says which, and links
-  to the run on the server.
+  stored token. Agent M says so, and links to the branch `test-results` and to the run on the server.
+- **7b. A run tries to change or delete an existing record on `test-results`.** The commit is
+  refused; records are only added, and the branch is never force-pushed.
 - **5a. No participant can run the chosen levels.** Agent M names the missing capability and links
   to UC-017.
 - **5b. The run is started without a token** — Agent M opens the workflow's page on GitHub with the
@@ -110,7 +117,7 @@ sequenceDiagram
 
 ## Postcondition
 
-- Every run started here left a result record naming the commit, the levels, the participant, the
+- Every run started here left a result record on the branch `test-results`, naming the commit, the levels, the participant, the
   date and each test's outcome.
 - The reviewer has seen, for this commit, which tests passed, failed, flipped or have not run.
 - For a release candidate, every test at every level has run, and the release test report is in the

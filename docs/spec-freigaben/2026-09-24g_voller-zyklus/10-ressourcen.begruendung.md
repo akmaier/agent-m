@@ -38,3 +38,5 @@ listed rules change — the diff on the dashboard shows exactly that.
 8. **File name of UC-015.** The title becomes "Link requirement sources to a product". Rename the
    file to `UC-015-link-requirement-sources-to-a-product.md` (references use the ID, so nothing
    breaks), or keep the old slug?
+
+**Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.

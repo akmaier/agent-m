@@ -34,3 +34,5 @@ listed rules change — the diff on the dashboard shows exactly that.
 7. **Address of the private tracker.** Its repository name may itself say something ("alice/
    support-mail"). Stored in the browser like the mailbox connection, or in the instance repository
    so that it is the same in every browser?
+
+**Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.

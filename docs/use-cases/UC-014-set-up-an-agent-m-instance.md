@@ -17,6 +17,7 @@ realises:
   - THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
   - A TOKEN IS SCOPED TO WHAT IT WRITES
   - ONE CLICK PER DECISION
+  - ONE GITHUB TOKEN SERVES EVERY FEATURE
 ---
 # UC-014 Get your own Agent M
 
@@ -56,7 +57,10 @@ on the dashboard.
    **Finish setting up your instance** at the top of its start page; the person presses **Set up
    now**.
 7. **Step A · Create your key on GitHub.** A button opens GitHub's token page with name, description,
-   expiry and *Contents: read and write* prefilled. Underneath, what to do there: choose **Only
+   expiry and the permissions every feature of Agent M needs prefilled — *Contents* and *Issues* read
+   and write, *Actions* read and write, *Metadata* read — so that one key is all the person ever
+   creates. A folded **Why these?** says what each is for: Contents to save and accept, Issues for
+   reports that become issues, Actions to start a run. Underneath, what to do there: choose **Only
    select repositories**, pick **`<owner>/agent-m`** — only the instance, products come later —,
    press *Generate token*, copy it.
 8. **Step B · Give the key to Agent M.** The dashboard states that everything stored in this browser

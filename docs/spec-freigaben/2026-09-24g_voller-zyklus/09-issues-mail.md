@@ -174,3 +174,20 @@ original mail of a report whose issue is closed does not.
 no "completed" mark; *no flag* means done.
 *Check:* `tests/test_bridge_mail.py` — IMAP mocked: open → `+FLAGS`, closed → `-FLAGS`, repeated sync
 is a no-op.
+
+**THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED** *(PO A. Maier, 2026-09-24)*
+Each mailbox connection names the processing places to which its mails may be given, and a
+participant that processes data elsewhere is never given them.
+*Occasion:* PO, 2026-09-24: this "is to be configured; can be ok in the US". Mails carry personal data;
+the person who connects the mailbox decides where it may be processed, once, instead of at every
+mail.
+*Check:* `tests/test_mail_privacy.py` — a mail is not sent to a participant whose processing place is
+not listed; counter-proof: it is sent to one whose place is.
+
+**A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT** *(PO A. Maier, 2026-09-24)*
+When a processing place outside the European Union is allowed for a mailbox, the dashboard states,
+before saving, that processing personal data there does not comply with the EU's rules — the GDPR
+for transferring personal data, and the EU AI Act.
+*Occasion:* PO, 2026-09-24: US processing "will not comply with EU AI ACT". The person may still choose
+it; the choice is then an informed one, and its record says so.
+*Check:* `tests/test_settings_disclosure.py`
