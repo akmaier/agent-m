@@ -71,7 +71,7 @@ inspection (ch. 7 §5).
    jobs, linked to the job dashboard (UC-036).
 6. The reader clicks a cell, a card or a point on the chart. Agent M shows the items or requirements
    behind it and their traceability: requirement → use case → item or plan entry → pull request →
-   tests (UC-009).
+   tests (UC-020).
 
 Each chart and panel carries a folded **What is this?** that says how to read it: what a burn-down
 that stays flat means, and what a widening band in cumulative flow means. It points to book ch. 7 or

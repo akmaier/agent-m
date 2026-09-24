@@ -19,6 +19,7 @@ realises:
   - GITLAB PRODUCTS ARE SUPPORTED
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A JOB RECORD STARTS NO CI RUN
 ---
 # UC-027 Configure continuous integration
 
@@ -76,7 +77,8 @@ workflow or a GitLab CI pipeline — so that every commit is checked the way the
 6. CI runs on that pull request with the new configuration. The dashboard shows the pull request
    and its CI outcome; once green, the author merges it with one click.
 7. From then on, every run the configuration starts leaves a result record (UC-028); the schedule
-   page shows the last run per occasion.
+   page shows the last run per occasion. A commit that only records a job (`docs/jobs/`) starts no
+   run.
 
 ```mermaid
 sequenceDiagram

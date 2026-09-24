@@ -53,3 +53,11 @@ only such participants hold it.
     every product it implements for (as UC-010 already assumes for its workflow). Acceptable, or should
     the check run only on the dashboard before a person's **Merge** — which would rule out
     participant-merges-on-green?
+
+**Decided by the PO on 2026-09-24:**
+- **Question 3, refactoring:** *"it does not; it must be possible without failing a test first."* —
+  `AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST` now holds for jobs that add or change behaviour;
+  two new rules cover the declared refactoring job.
+- **Question 7, licences:** *"products can have their own license; I want MIT license for agent m; that
+  should allow virtually any product license."* — `A PRODUCT DECLARES ITS LICENCE` and
+  `A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S`; Agent M's own licence is entry 13.

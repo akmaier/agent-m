@@ -19,13 +19,16 @@ realises:
   - THE NAME IS THE ID AND IT SURVIVES
   - UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
   - A VERSION IS NOT REWRITTEN
+  - CALENDAR VERSIONS
   - EVERY STEP EXPLAINS ITSELF
 ---
 # UC-020 Browse the specification
 
 **Goal.** The reader finds their way through a product's requirements — by chapter, by version, by
 status — and sees for each one where it comes from, what realises and checks it, what is about to
-change it, and how it got to its current wording. The browser is the "higher-level view" a reader
+change it, and how it got to its current wording. The same page shows the product's coverage: which
+requirements nothing realises yet, and which use cases realise nothing. (This absorbs the former
+UC-009 *Inspect traceability coverage*, withdrawn on 2026-09-24.) The browser is the "higher-level view" a reader
 looks for before reading details (Vibe Coding, ch. 9 §1), applied to the specification.
 
 ## Actors
@@ -68,6 +71,15 @@ looks for before reading details (Vibe Coding, ch. 9 §1), applied to the specif
    matrix.
 6. The reader follows a link — to a use case, a proposal, a source, another requirement — or, on the
    current version, presses **Edit** (UC-018) or **Change by prompt** (UC-019).
+7. **Coverage.** The tab **Gaps** shows, for the chosen version, the traceability matrix computed from
+   its artifacts — every requirement against every use case, architecture decision, module and test
+   that names it — and lists:
+   - requirements realised by no use case, and — once they exist — named by no module or no test;
+   - use cases that realise no requirement;
+   - names in use cases, modules or tests that match no requirement.
+
+   Each line leads to the requirement or use case as it read in that version. The gaps are shown and
+   block nothing.
 
 A folded **What is this?** explains the statuses, why a requirement has a history of approvals, and
 what a release tag is.
@@ -86,6 +98,8 @@ sequenceDiagram
     D->>G: read approval records and history of its section
     D-->>R: five fields, sources, use cases, ARC, MOD, TST, proposals, history
     R->>D: follow a link, or Edit / Change by prompt
+    R->>D: Gaps
+    D-->>R: unrealised requirements, use cases without requirement, unknown names
 ```
 
 ## Alternative flows
@@ -95,6 +109,7 @@ sequenceDiagram
   the current text only.
 - **1b. The reader compares two versions.** The reader picks a second version; the tree marks
   requirements added, changed and withdrawn between them, and a changed one opens with the difference.
+  On **Gaps**, it marks what became covered and what lost its coverage in between.
 - **1c. The product has no release yet.** Only *current* is offered, with a pointer to UC-013.
 - **2a. The repository is private and no token reaches it.** As UC-008 1a: the browser says so and
   shows nothing.
@@ -102,8 +117,11 @@ sequenceDiagram
   yet*, with a folded note on which phase produces them; nothing is hidden.
 - **3a. A requirement has been withdrawn.** It stays in its group, greyed, with its note; its
   history and everything that still names it remain visible.
-- **5a. Nothing realises or checks the requirement.** The lists say *none*; the gap is reported, as in
-  UC-009, and blocks nothing.
+- **5a. Nothing realises or checks the requirement.** The lists say *none*; the gap is also listed on
+  **Gaps** (step 7), and blocks nothing.
+- **7a. There are no gaps.** **Gaps** says so; it does not hide.
+- **7b. The chosen version predates Agent M's artifacts.** **Gaps** shows what exists at that commit and
+  says what is missing, instead of an empty matrix without explanation.
 - **5b. An artifact names a requirement that does not exist in the chosen version.** It is listed
   under *unknown names*, with the note that the name was withdrawn, if it was.
 - **5c. Two open proposals touch the same requirement.** Both are listed; the browser notes that
@@ -113,5 +131,5 @@ sequenceDiagram
 
 ## Postcondition
 
-- Nothing is written; the browser is a view.
+- Nothing is written; the browser and its coverage are a view, never a stored document.
 - Every reference the reader saw was derived from the artifacts of the version shown.

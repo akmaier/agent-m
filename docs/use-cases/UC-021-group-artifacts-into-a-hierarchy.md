@@ -108,7 +108,7 @@ sequenceDiagram
   in step 3, where the author edits it before saving.
 - **2a. The author tries to put an item into a group of another kind** — a use case into a
   requirement group. The move is refused and the reason shown; relations across kinds are
-  traceability (UC-009, UC-020), not grouping.
+  traceability (UC-020), not grouping.
 - **2b. The author deletes a group.** Only an empty group can be deleted; otherwise the author first
   moves its content, or chooses *move content up one level*. Grouping never deletes an item.
 - **2c. The author renames a group.** Only its title changes; no artifact refers to it, so nothing

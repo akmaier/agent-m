@@ -19,6 +19,8 @@ realises:
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A JOB IDENTIFIER IS NEVER REUSED
 ---
 # UC-036 Inspect running jobs
 
@@ -61,12 +63,15 @@ agents run on their own, and a person watches the whole and can step in.
 ## Main flow
 
 1. The author opens **Jobs** on the instance's dashboard. Agent M reads the jobs from every source:
-   - the Actions runs and GitLab pipelines of Agent M's job workflows in each product, each with the
+   - the job records `docs/jobs/JOB-<id>.md` of each product and of the instance — every job ever
+     started, with its inputs, participant, runtime, start and, once ended, its end state;
+   - for the jobs that have not ended, their live state: the Actions runs and GitLab pipelines of Agent M's job workflows in each product, each with the
      token of that product's server only;
    - the job list of each configured bridge, with its session token;
    - the jobs of this browser tab.
 2. Agent M shows one list across products, newest first, grouped by state. *Waiting for a person*
    comes first. Each row shows:
+   - the job's identifier, for example `JOB-20260924-1432-7f3a`;
    - the product and what the job works on, for example `ITM-014` or *derive requirements from
      SRC-007*;
    - the kind of job and the participant;
@@ -92,7 +97,7 @@ agents run on their own, and a person watches the whole and can step in.
    - It shows the job as *cancelled* once the runtime confirms.
    - Whatever the job pushed before cancelling stays on its branch. Nothing is pushed afterwards.
 7. For a **failed** or **cancelled** job, the author may press **Retry**: one click. Agent M starts a
-   new job with the same inputs, and offers the same participant or another holder of the same
+   new job, with a new identifier and a new record, with the same inputs, and offers the same participant or another holder of the same
    role. The earlier job stays in the list, and the new one names it.
 
 Every state, and every kind of runtime, carries a folded **What is this?**.
@@ -122,8 +127,11 @@ sequenceDiagram
 - **1a. A bridge or a server cannot be reached.** The list shows the source as *not reachable*, with
   the reason (not running, wrong address, token missing), and it says that jobs there are not shown.
   The other sources are listed normally.
-- **1b. A job was started in another browser and runs in its tab.** It cannot be seen here. The
-  folded explanation says so, and recommends a CI or bridge route for long jobs.
+- **1b. A job was started in another browser and runs in its tab.** Its record is listed, with the
+  note that its live state and log exist only in that tab; the folded explanation recommends a CI or
+  bridge route for long jobs.
+- **1c. A job has a start record but no end record, and no runtime knows it** — the tab was closed, the
+  bridge restarted. It is shown as *ended without record*; **Retry** is offered as for a failed job.
 - **4a. The runtime keeps no log for this job any more**, for example an expired Actions log. Agent M
   says so, and links the job's commits and pull request, which remain.
 - **4b. The runtime reports usage but the participant declares no price.** The cost shows the usage

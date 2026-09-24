@@ -90,6 +90,24 @@ HOLDS`), which includes every gate recorded before it.
 record exists. It does not proceed on a record written by the job's own participant when that
 participant is not a person. It proceeds once a person's record exists.
 
+**A JOB IS RECORDED IN ITS PRODUCT REPOSITORY** *(PO A. Maier, 2026-09-24)*
+Every job has a record `docs/jobs/JOB-<id>.md` in the repository of the product it works on — the
+instance's own repository for a job of the instance — naming its inputs, participant, runtime and
+start, and, once it has ended, its end state and results.
+*Occasion:* PO, 2026-09-24: "jobs need identifiers and they live in the respective product repo …
+probably in a subfolder thereof". Read only from the runtimes, a job that ran in another browser or
+on a bridge that is switched off is invisible, and CI servers delete their logs; the record keeps it.
+The start is written by the click that starts the job, the end by the job itself.
+*Check:* `tests/test_job_record.py`
+
+**A JOB IDENTIFIER IS NEVER REUSED** *(PO A. Maier, 2026-09-24)*
+No two jobs of a product share an identifier, a retried job included.
+*Occasion:* several browsers and bridges start jobs at the same time; an identifier made from the
+start time and a random part cannot collide, where a running number would. A retry that reused the
+identifier would overwrite the evidence of the failure it retries; the new job names the one it
+retries instead.
+*Check:* `tests/test_job_record.py`
+
 **PROGRESS AND JOB STATE ARE DERIVED, NOT STORED** *(PO A. Maier, 2026-09-24)*
 Everything the process dashboard and the job dashboard show is computed from the repositories and
 the runtimes. Neither dashboard stores a status of its own.
@@ -149,8 +167,9 @@ agent.
 
 **THE DEFAULT DEFINITION OF DONE IS THE JOB RULES** *(PO A. Maier, 2026-09-24)*
 Without a declaration, a pull request is done when its CI run is green, the job's first commit held
-only failing tests, it changes only the job's modules, and every gate the workflow places before the
-merge is recorded.
+only failing tests — or, for a refactoring job, CI was green on every commit and no expected result
+changed —, it changes only the job's modules, and every gate the workflow places before the merge is
+recorded.
 *Occasion:* these conditions already bind every implementation job (`AN IMPLEMENTATION JOB BEGINS
 WITH A FAILING TEST`, `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`, `A JOB STOPS AT EVERY GATE`);
 the default names them in one place, and a product adds its own — a review by a second developer, for

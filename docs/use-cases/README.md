@@ -7,6 +7,9 @@ acceptance — is not written anywhere: the review dashboard derives it from the
 Review them on the dashboard: **https://akmaier.github.io/agent-m/** — or on your own fork's dashboard
 (UC-014).
 
+**Withdrawn:** UC-009 *Inspect traceability coverage* — merged into UC-020 on 2026-09-24 (PO decision);
+its text stays in the git history, and the number is not reused.
+
 Terms: a **job** is one run (derive requirements, run a test battery, implement a backlog item); a
 **phase** is a part of a process model; the nine **steps** of the cycle are the areas below.
 
@@ -45,7 +48,6 @@ Terms: a **job** is one run (derive requirements, run a test battery, implement 
 |---|---|
 | [UC-007](UC-007-derive-use-cases-from-requirements.md) | Derive use cases from requirements |
 | [UC-008](UC-008-review-and-accept-a-use-case.md) | Review and accept a use case |
-| [UC-009](UC-009-inspect-traceability-coverage.md) | Inspect traceability coverage |
 
 ## 4 · Architecture
 
@@ -113,7 +115,7 @@ flowchart LR
     S[Setup<br/>UC-014 UC-017 UC-001 UC-002 UC-003 UC-031 UC-037] --> Q[1 Sources<br/>UC-004 UC-015 UC-016]
     S --> RES[Resources<br/>UC-040]
     Q --> R[2 Requirements<br/>UC-005 UC-006]
-    R --> U[3 Use cases<br/>UC-007 UC-008 UC-009]
+    R --> U[3 Use cases<br/>UC-007 UC-008]
     U --> A[4 Architecture<br/>UC-022 UC-023 UC-025]
     A --> I[5 Implementation<br/>UC-024 UC-032 UC-034 UC-041]
     I --> T[6 Tests<br/>UC-026 UC-027 UC-028 UC-029]

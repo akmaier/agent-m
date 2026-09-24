@@ -27,6 +27,9 @@ realises:
   - THE PAGE STATES WHAT IT SENDS WHERE
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A REFACTORING JOB BEGINS WITHOUT A FAILING TEST
+  - A REFACTORING JOB CHANGES NO EXPECTED RESULT
+  - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 ---
 # UC-024 Implement modules from the architecture
 
@@ -76,8 +79,9 @@ the review point (ch. 12 §10).
    person. The panel names the target branch: the default branch, or the branch of the current phase
    or sprint if the product set one (UC-002, step 5). The run panel shows the destination and what is
    sent; the author presses **Start job** — one click.
-5. Agent M hands the job over: through the local bridge with its session token, or by starting the
-   workflow on the self-hosted runner. The participant creates a branch named after the job.
+5. Agent M commits the job's start record `docs/jobs/JOB-<id>.md` — part of the author's click — and
+   hands the job over: through the local bridge with its session token, or by starting the workflow
+   on the self-hosted runner. The job writes its end record when it ends. The participant creates a branch named after the job.
 6. **Red.** The participant writes tests for the modules' specified behaviour. Each test names the
    requirement it guards and the module it exercises. It commits them — tests only — and pushes; CI
    runs and must be **red**.
@@ -131,6 +135,10 @@ sequenceDiagram
   wrong, runner offline — and nothing is started.
 - **5b. The dashboard's token may not start workflows.** Agent M opens the workflow's *Run workflow*
   page on GitHub with the job's inputs named, and the author starts it there.
+- **1b. The author starts a refactoring job** — structure changes, behaviour does not. The author ticks
+  *refactoring*; there is no red step: the participant changes the code with the existing tests, CI
+  must be green on every commit, and no test's expected result may change. Agent M's job check
+  verifies both; a refactoring that needs a changed expectation is an ordinary implementation job.
 - **6a. CI is green on the tests-only commit.** The tests pass before any code exists, so they check
   nothing new. The job stops and reports it; the participant rewrites the tests, or the author closes
   the job because the behaviour already exists.

@@ -2,10 +2,11 @@
 
 **EVERY ARTIFACT HAS AN IDENTIFIER** *(PO A. Maier, 2026-09-23, extended 2026-09-24)*
 Every artifact Agent M produces carries an identifier: a requirement its name, every other artifact
-one from the scheme `SRC-` · `UC-` · `ARC-` · `MOD-` · `TST-` · `ITM-` · `RES-`.
+one from the scheme `SRC-` · `UC-` · `ARC-` · `MOD-` · `TST-` · `ITM-` · `RES-` · `JOB-`.
 *Occasion:* an artifact that cannot be named cannot be referred to, and therefore cannot be traced
 to what justified it or to what checks it. PO, 2026-09-24: backlog items (`ITM-`) and resources
-(`RES-`) are artifacts too — jobs, pull requests and tests refer to them. A requirement is named by
+(`RES-`) are artifacts too — jobs, pull requests and tests refer to them; and "jobs need identifiers"
+(`JOB-`). A requirement is named by
 its name in capitals (`THE NAME IS THE ID AND IT SURVIVES`); the `REQ-` prefix of the first version
 was never used.
 *Check:* `tests/test_identifiers.py`
@@ -110,7 +111,7 @@ have to meet?" is the question an audit or a bug report asks, and a release tag
 **A REQUIREMENT SHOWS WHAT TRACES TO IT** *(PO A. Maier, 2026-09-24)*
 For each requirement, the browser lists its sources and every use case, architecture element, module
 and test that names it, as derived from the version shown.
-*Occasion:* the matrix of UC-009 answers "what is missing?"; a reader deciding whether to change one
+*Occasion:* the coverage view answers "what is missing?"; a reader deciding whether to change one
 requirement needs the other direction — everything that hangs on it.
 *Check:* `tests/test_spec_browser.py`
 

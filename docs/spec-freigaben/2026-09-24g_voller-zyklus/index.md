@@ -9,7 +9,7 @@ the SPEC, the existing use cases and the relevant book chapters; **integrated by
 draft read in full, cross-checked, two duplicates dropped (entries 06 and 08 say which), the entries
 assembled from the current SPEC so that only the intended lines change.
 
-**Size:** about 115 new requirements, 7 extended under their existing names, 1 withdrawn and renamed, and the preamble corrected (entry 12). Each
+**Size:** about 115 new requirements, 7 extended under their existing names, 1 withdrawn and renamed, the preamble corrected (entry 12), and Agent M's licence (entry 13). Each
 entry is a block you can accept, edit or strike; the rationale of each entry carries the open questions
 of its drafting group.
 
@@ -25,6 +25,10 @@ of its drafting group.
 | 6 | instance and product each declare resources, independently | 10, two new rules |
 | 7 | groups live in files of their own (`docs/groups/`), not in the SPEC's sections; regrouping is committed directly | 01 (rules replaced), 05 (a SPEC edit no longer includes regrouping) |
 | 8 | test results are kept permanently in the repository — on the branch `test-results`, append-only | 07, two new rules |
+| 9 | refactoring needs no failing test first | 06 two new rules, one narrowed; 08 default Definition of Done |
+| 10 | products have their own licence; Agent M is MIT | 06 two new rules; 13 (new entry, §0) |
+| 11 | jobs have identifiers (`JOB-`) and records in their product repository, `docs/jobs/` | 01, 08 two new rules, 07 one new rule |
+| 12 | UC-009 merged into UC-020 | use cases only |
 
 Interpretations by the main agent, correct them in the edit field if they are not what you meant:
 "groups should have new files" → one group file per kind of artifact; "a permanent location in the
@@ -52,3 +56,4 @@ trigger CI again).
 | 10 | `SPEC.md` | ## 15. Product resources | — | — |
 | 11 | `SPEC.md` | ## 7. Configuration and secrets | — | — |
 | 12 | `SPEC.md` | # Agent M — Specification | ## 0. Hard product rules | — |
+| 13 | `SPEC.md` | ## 0. Hard product rules | — | — |

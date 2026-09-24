@@ -81,3 +81,15 @@ items stuck in *waiting*, the work-in-progress limit — and has no merge author
 **Source of the Scrum Guide statements:** the Scrum Guide 2020 (Schwaber and Sutherland), cited by the
 book as `Scrum2020`; quoted from the guide by the main agent, not from the book. Check them against the
 guide before accepting, if in doubt.
+
+**Decided by the PO on 2026-09-24 (questions 1 and 3):** *"jobs need identifiers and they live in the
+respective product repo where the job and phase dashboard is located; probably in a subfolder
+thereof."* — prefix `JOB-` (entry 01), `A JOB IS RECORDED IN ITS PRODUCT REPOSITORY` in `docs/jobs/`,
+`A JOB IDENTIFIER IS NEVER REUSED`; entry 07 keeps the two record commits of a job from starting CI.
+`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED` still holds: the dashboards compute states from the
+records and the runtimes and keep nothing of their own. A job running in a browser tab has its start
+record written by the start click and its end record by the click that saves or discards its result;
+a tab closed in between leaves a job without end, which the job dashboard shows as *ended without
+record*.
+
+**Refactoring (entry 06 question 3):** the default Definition of Done names the refactoring case.

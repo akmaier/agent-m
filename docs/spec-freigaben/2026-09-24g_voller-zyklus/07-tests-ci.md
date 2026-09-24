@@ -83,6 +83,15 @@ default branch through a pull request like any other code.
 *Check:* `tests/test_ci_schedule.py` — the generated configuration triggers exactly the levels the
 schedule names for each event.
 
+**A JOB RECORD STARTS NO CI RUN** *(PO A. Maier, 2026-09-24)*
+The generated CI configuration starts no run for a commit that changes only job records under
+`docs/jobs/`.
+*Occasion:* every job writes its record twice, at its start and at its end (`A JOB IS RECORDED IN ITS
+PRODUCT REPOSITORY`). A test run for each of those commits would test nothing new and double the CI
+load of every job.
+*Check:* `tests/test_ci_schedule.py` — the generated configuration ignores a push touching only
+`docs/jobs/`; counter-proof: a push also touching code starts a run.
+
 **A RELEASE RUNS EVERY TEST AT EVERY LEVEL** *(PO A. Maier, 2026-09-24)*
 A release is tagged only after every test of the product, at every level, has run on the release
 candidate's commit.

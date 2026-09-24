@@ -24,7 +24,7 @@ realises:
 architecture decisions it follows, which code files belong to it and which tests guard it — and where
 any of these links is missing. Everything is computed from the repository; nothing is stored.
 
-This is the V-model's pairing (book ch. 6 §4) one level below UC-009: UC-009 pairs requirements with
+This is the V-model's pairing (book ch. 6 §4) one level below UC-020: UC-020 pairs requirements with
 use cases; this view pairs modules with the specification above them and the tests beside them.
 
 ## Actors

@@ -27,6 +27,8 @@ realises:
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A PRODUCT DECLARES ITS LICENCE
+  - A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S
 ---
 # UC-022 Derive the system architecture from requirements and use cases
 
@@ -94,7 +96,9 @@ relationships … and the principles guiding its design and evolution" (book ch.
 7. **The due diligence.** For every reuse candidate and each alternative, Agent M reads from the
    package registry and the source repository: whether the package exists, its licence, the dates of
    its releases, its open and closed issues, and its adoption (dependents or downloads). Each fact is
-   stored with the address it was read from and the date (book ch. 6 §5).
+   stored with the address it was read from and the date (book ch. 6 §5). Beside each candidate's
+   licence stands the product's own, read from its `LICENSE` file; a candidate whose licence is not
+   known to be compatible with it is marked.
 8. The review panel shows the candidates grouped by class, each beside the existing artifact it
    refers to; the reuse candidates side by side in a due-diligence table; and a component diagram
    computed from the existing and proposed modules' interfaces. The author may move a candidate to
@@ -150,6 +154,9 @@ sequenceDiagram
 - **7b. The registry cannot be read from the browser.** Agent M names the reason and offers a
   participant that can *reach the web* — a CI, CLI or sandboxed agent — to fetch the facts; until
   then the reuse decision is shown without due diligence and cannot be written.
+- **7d. The product has no `LICENSE` file.** Every candidate's licence is marked *not checked*, and
+  the panel says that the product's licence decides which libraries it may reuse; the author adds the
+  file by a commit of their own.
 - **7c. The licence is missing, unknown or restrictive.** The table says so in the candidate's row; the
   author decides, with a folded explanation of what a licence permits.
 - **8a. The author rejects every alternative of a reuse decision.** The decision is rewritten as

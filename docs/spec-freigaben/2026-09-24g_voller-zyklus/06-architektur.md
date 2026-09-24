@@ -59,6 +59,22 @@ resolution, adoption and update frequency: reuse "buys dependencies", and a prov
 the architecture.
 *Check:* `tests/test_reuse_due_diligence.py`
 
+**A PRODUCT DECLARES ITS LICENCE** *(PO A. Maier, 2026-09-24)*
+Every managed product states its own licence in a `LICENSE` file at the root of its repository.
+*Occasion:* PO, 2026-09-24: "products can have their own license". Agent M's own MIT licence puts no
+condition on the licence of what is built with it; a product's licence is the product's decision, and
+the due diligence of every library it reuses has to be read against it.
+*Check:* `tests/test_reuse_due_diligence.py`
+
+**A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S** *(PO A. Maier, 2026-09-24)*
+The due diligence marks every candidate whose licence is not known to be compatible with the product's
+licence.
+*Occasion:* a copyleft library in a product under a permissive licence, or a licence forbidding
+commercial use, changes what the product may be. The compatibility table is data, and a candidate the
+table does not know is marked, not passed.
+*Check:* `tests/test_reuse_due_diligence.py` — a GPL-3.0 candidate for an MIT product is marked;
+counter-proof: an MIT candidate is not.
+
 **DUE DILIGENCE IS FETCHED, NOT RECALLED** *(PO A. Maier, 2026-09-24)*
 Every fact in a due-diligence record is read from the candidate's package registry or source
 repository and names the address and the date it was read.
@@ -76,13 +92,30 @@ architecture: the list is part of the decision, not a report afterwards.
 *Check:* `tests/review-core.test.mjs`
 
 **AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST** *(Vibe Coding, ch. 13 §5)*
-The first commit of an implementation job contains only tests, and the product's CI run on that
-commit is red.
+The first commit of an implementation job that adds or changes behaviour contains only tests, and the
+product's CI run on that commit is red.
 *Occasion:* the book makes test-driven development "a software process that the agent itself can
 follow": the agent "cannot claim completion until the test passes". The red run is also the
 counter-proof of `SOFTWARE_MAINTENANCE.md` §4.0a rule 5 — a test that passes before the code exists
 checks nothing.
 *Check:* `tests/test_implementation_job.py` — reads the job branch's first commit and its CI result.
+
+**A REFACTORING JOB BEGINS WITHOUT A FAILING TEST** *(PO A. Maier, 2026-09-24; Vibe Coding, ch. 13 §5)*
+A job declared as refactoring starts without a failing test, and the product's CI run is green on
+every one of its commits.
+*Occasion:* PO, 2026-09-24: refactoring "must be possible without failing a test first". Refactoring
+changes structure, not behaviour — the third step of red, green, refactor, done "with the tests kept
+green" (ch. 13 §5). A red test would have to be invented, and an invented test checks nothing.
+*Check:* `tests/test_implementation_job.py` — a refactoring job with a red run on any commit is
+refused; counter-proof: green on every commit passes.
+
+**A REFACTORING JOB CHANGES NO EXPECTED RESULT** *(PO A. Maier, 2026-09-24)*
+A refactoring job changes the expected result of no test.
+*Occasion:* without a failing test at the start, the existing tests are the only evidence that
+behaviour stayed the same; a refactoring that edits an expectation has changed behaviour and is an
+implementation job. Moving or renaming a test is allowed; its expectation is not touched.
+*Check:* `tests/test_implementation_job.py` — a refactoring pull request that changes an asserted
+value fails; counter-proof: one that only moves a test passes.
 
 **AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES** *(Vibe Coding, ch. 12 §6, ch. 10 §3)*
 The pull request of an implementation job changes only code files and tests that name one of the

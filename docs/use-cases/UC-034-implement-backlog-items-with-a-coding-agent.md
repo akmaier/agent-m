@@ -31,6 +31,7 @@ realises:
   - THE LOCAL BRIDGE REQUIRES A TOKEN
   - NO SECRET IN THE REPOSITORY
   - ONE CLICK PER DECISION
+  - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 ---
 # UC-034 Implement backlog items with a coding agent
 
@@ -81,7 +82,8 @@ person in the loop where the workflow says so (book ch. 11 §2, §8).
    - the gates the job will meet.
 
    The author may pick another holder of the role. They press **Start jobs**: one click.
-4. Agent M queues one job per item, and hands each to its participant through that participant's
+4. Agent M queues one job per item, commits its start record under `docs/jobs/` of the product, and
+   hands each to its participant through that participant's
    route: the bridge for CLI and sandboxed agents, a workflow for CI agents. The job definition comes
    from the repository's single definition (`ONE DEFINITION, THREE DRIVERS`).
 5. The coding agent works in a branch named after the item:
