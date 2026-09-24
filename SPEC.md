@@ -494,8 +494,8 @@ of it.
 *Check:* `tests/test_proposal_shows_current.py`
 
 **EVOLUTION ENTERS THROUGH THE SPECIFICATION** *(PO A. Maier, 2026-09-23)*
-A GitHub issue that changes behaviour becomes a specification change first and a code change
-second.
+An issue that changes behaviour — on GitHub or on the product's GitLab server — becomes a
+specification change first and a code change second.
 *Occasion:* this is the whole argument of the book's evolution chapter made mechanical. A code
 change that precedes its requirement leaves the specification describing a product that no longer
 exists, and the next reader believes the specification.
