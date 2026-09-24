@@ -14,6 +14,7 @@ realises:
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A REQUIREMENT NAMES WHAT IT CONSTRAINS
 ---
 # UC-004 Register a requirement source
 
@@ -43,7 +44,9 @@ with which authority — before any requirement is written.
    approval.
 
 Each field carries a folded explanation: what counts as a source, and the difference between
-*normative*, *advisory* and *informational*, with an example of each.
+*normative*, *advisory* and *informational*, with an example of each. It also says that a source can
+impose rules on the product **and** on the way the product is developed — IEC 62304, registered as
+a *standard*, *normative*, is the example: it is a source of rules, not a way of working (UC-002).
 
 ```mermaid
 sequenceDiagram

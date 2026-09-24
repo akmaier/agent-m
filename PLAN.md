@@ -127,6 +127,13 @@ round.
 
 ## 6. Process models are data, profiles are overlays
 
+> **Superseded on 2026-09-24 in part.** The table below mixed process models, practices and a
+> standard. By the book's own classification there are five process models (waterfall, V-model,
+> reuse-oriented, Scrum, Kanban); DevOps, prototyping, incremental delivery and the scaling layers
+> are practices; IEC 62304 is a requirement source whose process rules add to the model. See SPEC
+> §5 and queue `docs/spec-freigaben/2026-09-24c_modell-und-quelle`. The text below is kept as the
+> design history.
+
 The book's catalogue becomes a set of declarative model definitions:
 
 | Model | Manages well | Accepts |

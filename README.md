@@ -51,17 +51,17 @@ downstream floats free of what justified it:
 Software **evolution** re-enters the cycle through GitHub Issues: an issue becomes a requirement
 change first, and only then a code change — never the other way round.
 
-## Choosing a process model
+## How the product is developed — and which rules it must meet
 
-Agent M does not impose one way of working. It carries the model catalogue from the book and lets
-you pick per product, because each model manages a different risk well and accepts a different one:
+Agent M keeps two things apart that are easily mixed up:
 
-**Waterfall** · **V-model** · **reuse-oriented** · **incremental / prototyping** ·
-**agile** · **Kanban** · **Scrum** · **DevOps** · **disciplined agile delivery at scale**
-
-The model determines which stages exist, in what order, and where the gates sit. On top of it you
-can lay a **profile** — for example IEC 62304 safety class A, B or C — which adds required
-artifacts and evidence without replacing the underlying flow.
+- **The process model** says *how* the team of people and agents works: roles, stages, order, and
+  where someone must approve. Agent M carries the book's five models — *plan-driven*: waterfall,
+  V-model, reuse-oriented; *agile*: Scrum, Kanban — and practices you can add to any of them:
+  DevOps, prototyping, incremental delivery, scaling layers.
+- **Requirement sources** say *what must hold*: of the product, or of the way it is built. A standard
+  such as IEC 62304 is a source. Its process rules — documented verification, risk management — do
+  not replace your model; they add gates and artifacts to it.
 
 ## Where the work runs
 

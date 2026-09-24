@@ -17,6 +17,7 @@ realises:
   - EVERY ARTIFACT NAMES ITS ORIGIN
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
   - ONE CLICK PER DECISION
+  - A REQUIREMENT NAMES WHAT IT CONSTRAINS
 ---
 # UC-005 Derive requirements from a source
 
@@ -41,7 +42,8 @@ five-field form, for the author to approve or reject one by one.
 2. The run panel shows which destination will receive the text, and what exactly is sent; the
    author presses **Run** — that click is the decision, there is no separate confirmation.
 3. Agent M sends the text with the requirement prompt from the repository's single definition.
-4. The endpoint returns candidates, each with name, source, rule, occasion and check.
+4. The endpoint returns candidates, each with name, source, rule, occasion, check, and whether it
+   constrains the **product** or the **development process**.
 5. Agent M flags candidates whose rule contains a conjunction, and candidates without a check.
 6. Agent M records Agent M version, model and date on every candidate.
 7. Agent M writes the candidates as SPEC change entries in a new queue under
@@ -70,6 +72,8 @@ sequenceDiagram
 - **4a. A candidate has no source that is registered.** It is not proposed; Agent M lists it as
   a hint to register the source first (UC-004).
 - **5a. The author splits a flagged candidate.** Each part becomes an entry of its own.
+- **5b. A candidate constrains the process.** It is marked as such; once accepted, it adds its gates
+  and artifacts to the product's workflow (UC-002, step 7).
 
 ## Postcondition
 
