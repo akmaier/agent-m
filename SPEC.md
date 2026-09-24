@@ -541,7 +541,7 @@ exists, and the next reader believes the specification.
 **THE GATE IS RECORDED** *(PO A. Maier, 2026-09-23)*
 Every passed gate records who decided, when, and on which text.
 *Occasion:* an unrecorded approval is indistinguishable from no approval three months later, and
-it is precisely the evidence a regulated profile (§5) has to produce.
+it is precisely the evidence a normative process requirement — IEC 62304, for instance — asks for.
 *Check:* `tests/test_gate_record.py`
 
 **THE REPLACED TEXT STAYS REACHABLE** *(PO A. Maier, 2026-09-23; after "DER ERSETZTE TEXT BLEIBT
