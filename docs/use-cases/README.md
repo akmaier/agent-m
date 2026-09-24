@@ -21,6 +21,7 @@ flowchart LR
         UC002[UC-002 Choose a process model]
         UC003[UC-003 Configure a model endpoint]
         UC014[UC-014 Set up an instance]
+        UC017[UC-017 Configure participants]
     end
     subgraph s1 [1 Sources]
         UC004[UC-004 Register a source in the library]
@@ -45,7 +46,7 @@ flowchart LR
         UC013[UC-013 Release a version]
     end
 
-    Author --- UC014 & UC001 & UC002 & UC003 & UC004 & UC015 & UC016 & UC005 & UC007 & UC013
+    Author --- UC014 & UC017 & UC001 & UC002 & UC003 & UC004 & UC015 & UC016 & UC005 & UC007 & UC013
     Reviewer --- UC006 & UC008 & UC009
     Contributor --- UC012
     UC005 & UC007 --- Endpoint

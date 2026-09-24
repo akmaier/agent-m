@@ -16,6 +16,9 @@ realises:
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A ROLE NAMES THE CAPABILITIES IT NEEDS
+  - A PARTICIPANT DECLARES ITS CAPABILITIES
+  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
 ---
 # UC-002 Choose how the product is developed
 
@@ -53,9 +56,13 @@ and its process requirements show up here as additions to whatever model the aut
    For each: the risk it manages well, the risk it accepts, an example project it suits, and the
    book chapter that explains it.
 3. The author selects one model.
-4. Agent M shows the model's roles and, for each, whether a person, an agent or either may fill it —
-   for Scrum, for example, *Product Owner* (a person), *Scrum Master* (either), *Developers*
-   (either). The author assigns people to the roles that need a person.
+4. Agent M shows the model's roles; for each, whether a person, an agent or either may fill it, and
+   which capabilities it needs. For Scrum, for example: *Product Owner* — a person; *Scrum Master* —
+   either; *Developers* — either, needing *write to the repository* and *run code and tests*. The
+   author assigns participants from the instance's list (UC-017): people, model endpoints, CI agents,
+   CLI agents or sandboxed agents — several to one role where the role allows it. Agent M offers only
+   participants that have every capability the role needs, and shows for each where it processes
+   data.
 5. Agent M shows the model's stages, their order, which stages pair for verification, and each gate
    with what it checks.
 6. The author may add **practices**: DevOps, prototyping, incremental delivery, a scaling layer. Each
@@ -77,7 +84,7 @@ sequenceDiagram
     M-->>A: process model vs rules, five models with risks
     A->>M: choose model
     M-->>A: roles, stages, gates
-    A->>M: assign people to roles, add practices
+    A->>M: assign participants to roles, add practices
     M-->>A: gates and artifacts added by process requirements
     A->>M: Save
     M->>G: commit declaration (author's token)
@@ -88,6 +95,12 @@ sequenceDiagram
 - **3a. The author's organisation runs a process of its own.** It is added as a data file in the
   catalogue's format, with roles, stages and gates; Agent M's code is not changed.
 - **4a. A role that needs a person has none.** *Save* stays disabled, and the role is named.
+- **4b. No participant has the capabilities a role needs** — for example only a model endpoint is
+  configured, and *Developers* must run tests. Agent M names the missing capability and links to
+  UC-017 to add a participant that has it.
+- **4c. An assigned participant processes data where a linked source does not permit it.** Agent M
+  says which source and which role; the assignment stays possible, and that source's content is never
+  given to that participant.
 - **7a. The product has no process requirements yet.** The view says so; once requirements from a
   standard are accepted (UC-005, UC-006), their additions appear here without the model changing.
 - **7b. A process requirement needs a gate the model does not have** — for example, documented
