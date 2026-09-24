@@ -46,3 +46,21 @@ it (`docs/architecture/`).
    proposed as a requirement; UC-018 only asks before discarding.
 
 **Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.
+
+**Decided by the PO on 2026-09-24 — where an instance keeps its products.** *"agent-m is designed to be
+run by a single user. products/ can simply have a README.md indicating that the number and name of the
+products will not be visible here, but only in clone or forks"*; *"Why would we need to store a list of
+products [in] folders that are exactly the products?"*; *"Each product is of course also a repository.
+That makes the browser's local storage the better choice."*
+
+- `THE INSTANCE LISTS ITS PRODUCTS IN A FILE` is withdrawn; its occasion ("the same in every browser")
+  does not hold for a single-user tool.
+- The dashboard keeps product addresses in `localStorage`; a local clone keeps checked-out products as
+  ignored folders under `products/`; nothing in the instance repository names a product.
+- Feasibility: the dashboard cannot read a local folder or an ignored file (git never pushes it), which
+  is why the browser's list and the local folders are two places, not one — each holds only addresses,
+  and a product folder is a clone that knows its own.
+- Changed with it: `ADDING A PRODUCT CREATES ITS LAYOUT` (entry 04) no longer writes into the instance.
+- Impact list: UC-001 (accepted — steps 5 and 5b, diagram, postcondition), UC-014 (alternative flow 1a),
+  `docs/products.md`, `docs/assets/review-app.mjs`, `tests/test_products_register.py`,
+  `.gitignore`. The code follows after acceptance, by pull request.

@@ -10,7 +10,8 @@ realises:
   - EVERY STEP EXPLAINS ITSELF
   - ADDING A PRODUCT CREATES ITS LAYOUT
   - A MANAGED PRODUCT NEEDS NO PAGES SITE
-  - THE INSTANCE LISTS ITS PRODUCTS IN A FILE
+  - THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
+  - NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY
   - ONE REVIEW LAYOUT FOR EVERY PRODUCT
   - THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
   - EVERY PRODUCT HAS ITS OWN VERSION LINE
@@ -68,11 +69,13 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
    - writes the missing review layout into the product repository's default branch
      (`docs/use-cases/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md` skeleton, a
      `CHANGELOG.md`), skipping whatever already exists;
-   - adds the product to `docs/products.md` of the instance repository;
-   - shows both commits as links, and offers to switch to the new product.
+   - adds the product's address to the list in this browser's `localStorage` — nothing is written to
+     the instance repository;
+   - shows the commit as a link, and offers to switch to the new product.
 
 Every step carries a folded **What is this?** explanation for newcomers: what a repository is, why
-the key has to be extended, what the two commits contain, how to undo them.
+the key has to be extended, what the commit contains, how to undo it, and why the product list lives
+in this browser only.
 
 ```mermaid
 sequenceDiagram
@@ -80,7 +83,6 @@ sequenceDiagram
     participant D as Dashboard (instance Pages)
     participant G as GitHub token list
     participant P as Product repository
-    participant I as Instance repository
     A->>D: + Add product, type owner/name
     D-->>A: Step A, which token, what to add
     A->>G: Edit token, add product repository, Update
@@ -89,8 +91,8 @@ sequenceDiagram
     D-->>A: reachable
     A->>D: Step C, Add product
     D->>P: commit missing layout
-    D->>I: commit entry in docs/products.md
-    D-->>A: two commit links
+    D->>D: add address to the list in localStorage
+    D-->>A: commit link
 ```
 
 ## Alternative flows
@@ -105,8 +107,11 @@ sequenceDiagram
 - **2a. The product repository does not exist yet.** Agent M says so and links GitHub's page for a
   new repository, with a folded explanation of the choices there; the author returns and continues
   at step 2.
-- **5b. The product already has the complete layout.** Only the entry in `docs/products.md` is
-  written.
+- **5b. The product already has the complete layout.** Nothing is committed; only the address is
+  added to the list in this browser.
+- **1a. The author works in another browser or on another computer.** Its product list is empty, as it
+  has no token either; each product is added again with *+ Add product* — for a product that already
+  has its layout, that is *Check* and *Add product* (5b).
 - **3c. The product is on a GitLab server.** Step A becomes **Create a key for this project**: a
   button opens the project's *Settings → Access tokens* page on that server; underneath, what to set
   there — name `Agent M`, role **Developer**, scope **`api`**, an expiry date — then *Create project
@@ -120,7 +125,7 @@ sequenceDiagram
 ## Postcondition
 
 - The product repository contains the review layout; it has no Pages site.
-- The instance lists the product in `docs/products.md`.
+- This browser lists the product; the instance repository names no product.
 - The one token from UC-014 now reaches the instance and this product, and nothing else.
 - Clicks: *+ Add product*, *Open your tokens on GitHub*, on GitHub *Edit* and *Update*, *Check*,
   *Add product*. If the token already reaches the product: *+ Add product*, *Check*, *Add product*.

@@ -123,11 +123,38 @@ the instance's dashboard, never through a site of its own.
 product's code; the tool stays with the tool.
 *Check:* no automatic check; at review.
 
-**THE INSTANCE LISTS ITS PRODUCTS IN A FILE** *(PO A. Maier, 2026-09-23)*
-An instance names the product repositories it manages in `docs/products.md` of its own repository.
-*Occasion:* the list is then the same in every browser, changes by commit like everything else, and
-a reviewer sees which products an instance manages without any settings.
-*Check:* `tests/test_products_register.py`
+**THE INSTANCE LISTS ITS PRODUCTS IN A FILE** *(PO A. Maier, 2026-09-23 — withdrawn 2026-09-24)*
+*Withdrawn:* Agent M is run by a single user, and the products an instance manages are that user's
+own business; a list committed to the fork also collides with every sync of the fork. Replaced by
+`THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER`, `NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY`
+and `A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER`. The name is not reused.
+
+**THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER** *(PO A. Maier, 2026-09-24)*
+The dashboard keeps the addresses of the products it manages in the browser's `localStorage`, beside
+the tokens that reach them.
+*Occasion:* PO, 2026-09-24: "Each product is of course also a repository. That makes the browser's
+local storage the better choice." A product is known by its address (`A PRODUCT IS NAMED BY ITS
+ADDRESS`); its content lives in its own repository. Another browser starts with an empty list, as it
+starts without tokens.
+*Check:* `tests/review-core.test.mjs` — adding a product stores its address in `localStorage` and
+commits nothing to the instance repository; counter-proof: after a clear, the list is empty.
+
+**NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY** *(PO A. Maier, 2026-09-24)*
+No file committed to the instance repository names a product the instance manages.
+*Occasion:* PO, 2026-09-24: the number and names of the products "will not be visible here". A fork
+that commits nothing about its products can be synced with Agent M without conflict, and a public
+fork does not publish which products its owner works on.
+*Check:* `tests/test_products_folder.py` — the instance repository's committed files contain no
+address of a product in the fixture list; counter-proof: a fixture that commits one fails.
+
+**A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER** *(PO A. Maier, 2026-09-24)*
+In a local clone of Agent M, each product checked out is a clone of its repository in its own folder
+under `products/`, which git ignores except for `products/README.md`.
+*Occasion:* PO, 2026-09-24, as in the process repository: the folders are the list — each is a
+repository and knows its own address — so no second list is kept that could drift from them.
+`products/README.md` says that the products are not visible in the repository.
+*Check:* `tests/test_products_folder.py` — `products/README.md` is tracked; a folder created under
+`products/` is ignored by git.
 
 **ONE CLICK PER DECISION** *(PO A. Maier, 2026-09-24)*
 A decision a person makes on the dashboard — accept, save, add a product, release — takes one click

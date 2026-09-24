@@ -93,8 +93,9 @@ sequenceDiagram
 - **3a. Pages is not turned on.** The address answers 404; nothing else is affected.
 - **4a. Actions are not enabled.** Approval commits for SPEC changes are recorded but never written
   into the SPEC; the dashboard shows such entries as *approved*, never *in SPEC*, and says why.
-- **1a. The person later wants Agent M's improvements.** They use GitHub's *Sync fork*; their
-  product list and settings are not part of Agent M's own files and are not overwritten.
+- **1a. The person later wants Agent M's improvements.** They use GitHub's *Sync fork*. The fork
+  commits nothing about its products — the list lives in the browser — so the sync does not collide
+  with it and overwrites nothing of the person's.
 
 - **7a. The person uses a second browser or computer later.** The token lives only in the browser it
   was stored in; the dashboard there opens *Finish setting up* again. The same token can be pasted,

@@ -29,6 +29,7 @@ of its drafting group.
 | 10 | products have their own licence; Agent M is MIT | 06 two new rules; 13 (new entry, §0) |
 | 11 | jobs have identifiers (`JOB-`) and records in their product repository, `docs/jobs/` | 01, 08 two new rules, 07 one new rule |
 | 12 | UC-009 merged into UC-020 | use cases only |
+| 13 | the dashboard keeps its products in the browser's local storage; a local clone holds them as ignored folders under `products/`; nothing in the instance repository names a product | 05 one withdrawn, three new rules; 04 one rule changed |
 
 Interpretations by the main agent, correct them in the edit field if they are not what you meant:
 "groups should have new files" → one group file per kind of artifact; "a permanent location in the

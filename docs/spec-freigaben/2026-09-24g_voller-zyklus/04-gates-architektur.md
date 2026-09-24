@@ -77,9 +77,10 @@ committed to the default branch under their own account when they save it.
 adds a click and no control.
 *Check:* `tests/review-core.test.mjs`
 
-**ADDING A PRODUCT CREATES ITS LAYOUT** *(PO A. Maier, 2026-09-24)*
+**ADDING A PRODUCT CREATES ITS LAYOUT** *(PO A. Maier, 2026-09-24, changed 2026-09-24)*
 When a person adds a product, Agent M writes the missing review layout into the product's default
-branch and the product's entry into the instance's `docs/products.md`, without a pull request.
+branch without a pull request.
 *Occasion:* PO, 2026-09-24: two merges in one setup "is a bit much. Both need to be automated."
-The layout is empty folders and a SPEC skeleton; there is nothing in it to review.
+The layout is empty folders and a SPEC skeleton; there is nothing in it to review. The product is
+not written into the instance repository (`NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY`).
 *Check:* `tests/review-core.test.mjs`
