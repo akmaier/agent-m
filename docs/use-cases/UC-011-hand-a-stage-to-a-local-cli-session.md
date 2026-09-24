@@ -1,6 +1,6 @@
 ---
 id: UC-011
-title: Hand a stage to a local CLI session
+title: Hand a job to a local CLI session
 stage: runtime
 actors:
   - Author
@@ -13,15 +13,15 @@ realises:
   - ONE DEFINITION, THREE DRIVERS
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 ---
-# UC-011 Hand a stage to a local CLI session
+# UC-011 Hand a job to a local CLI session
 
-**Goal.** The author hands a stage to a coding agent (`claude` or `codex`) already running and
+**Goal.** The author hands a job to a coding agent (`claude` or `codex`) already running and
 authenticated on a machine they control.
 
 ## Actors
 
 - **Author** — runs the bridge and the CLI session.
-- **Local CLI session** — performs the stage with its own tools and credentials.
+- **Local CLI session** — performs the job with its own tools and credentials.
 
 ## Precondition
 
@@ -32,7 +32,7 @@ authenticated on a machine they control.
 ## Main flow
 
 1. The author enters the bridge address and the session token on the Agent M site.
-2. The site sends the stage definition and inputs to the bridge, with the token.
+2. The site sends the job definition and inputs to the bridge, with the token.
 3. The bridge checks the token and hands the task to the CLI session.
 4. The CLI session commits the artifacts to the default branch, where they are open; a code change
    goes to a branch with a pull request instead.
@@ -45,7 +45,7 @@ sequenceDiagram
     participant B as Bridge (127.0.0.1)
     participant C as CLI session
     A->>M: bridge address and token
-    M->>B: stage and inputs with token
+    M->>B: job and inputs with token
     B->>B: check token
     B->>C: task
     C-->>B: artifacts committed (open)

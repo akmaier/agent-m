@@ -26,7 +26,7 @@ to roles (UC-002).
 |---|---|---|---|
 | **Person** | a colleague's GitHub or GitLab account | the dashboard | all, and decisions |
 | **Model endpoint** | NHR hub, an OpenAI or Anthropic endpoint | the browser (UC-003) | draft text |
-| **CI agent** | an agent run inside a GitHub Actions workflow | a workflow (UC-010) | read, write, run code and tests |
+| **CI agent** | an agent run inside a GitHub Actions or GitLab CI job — on GitHub's machines, or on a **self-hosted runner** on the person's own machine or VM | a workflow (UC-010) | read, write, run code and tests |
 | **CLI agent** | Claude Code or Codex on the author's machine | the local bridge (UC-011) | read, write, run code and tests, tools |
 | **Sandboxed agent** | a CLI agent inside a VM or container | the bridge through a tunnel (UC-011) | as CLI agent, isolated |
 
@@ -48,7 +48,13 @@ to roles (UC-002).
    - **Person:** the account on GitHub or on the GitLab server;
    - **Model endpoint:** which configured endpoint and model (the key itself is set up in UC-003 and
      stays in the browser);
-   - **CI agent:** which workflow and model; the key is named as an Actions secret, never entered here;
+   - **CI agent:** which workflow and model, and where it runs — on GitHub's machines, or on a
+     **self-hosted runner** the person installed on a machine or VM they control. The key is named
+     as an Actions secret, never entered here. A folded explanation says why: a workflow runs on its
+     runner, not in this browser, so nothing stored here — no token, no SSH key — reaches it. To let
+     a workflow use a CLI or sandboxed agent, the runner is installed **on that agent's machine**;
+     the workflow's job then runs there and reaches the agent locally, with no inbound SSH and no key
+     stored on GitHub;
    - **CLI agent / sandboxed agent:** the bridge address (for a sandbox, the tunnel's local address)
      and which agent runs there.
 4. Agent M presets the capabilities typical for the type — draft text, read the repository, write to
@@ -84,6 +90,9 @@ sequenceDiagram
   missing — and saves nothing until the author decides to save untested.
 - **5a. A participant processes data outside places that some sources permit.** Agent M lists those
   sources; the participant can be saved, but will never be given their content.
+- **3b. The author wants a workflow to use an agent behind SSH without a self-hosted runner.** Agent M
+  explains the alternative and its cost: the SSH key as an Actions secret on GitHub, and a host that
+  GitHub's machines can reach from the internet. It recommends the runner.
 - **7a. The author changes a participant that products already use.** Agent M lists the products and
   roles; if a capability is removed that a role needs, those assignments are shown as invalid until
   reassigned.

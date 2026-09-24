@@ -15,7 +15,7 @@ realises:
 ---
 # UC-003 Configure a model endpoint
 
-**Goal.** The author connects Agent M to a language model so that stages can run in the browser.
+**Goal.** The author connects Agent M to a language model so that jobs can run in the browser.
 
 ## Actors
 

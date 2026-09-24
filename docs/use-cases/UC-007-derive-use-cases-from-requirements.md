@@ -24,7 +24,7 @@ own file, for review in UC-008.
 
 ## Actors
 
-- **Author** — starts the stage and chooses what it covers.
+- **Author** — starts the job and chooses what it covers.
 - **Model endpoint** — drafts the use cases.
 - **GitHub** — receives the proposal.
 
@@ -35,7 +35,7 @@ own file, for review in UC-008.
 
 ## Main flow
 
-1. The author selects the requirements the stage should cover, by default all that no use case
+1. The author selects the requirements the job should cover, by default all that no use case
    realises yet.
 2. The run panel shows the destination and the content to be sent; the author presses **Run**.
 3. Agent M sends the requirements with the use-case prompt from the single definition.

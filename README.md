@@ -26,14 +26,14 @@ After a minute your dashboard is at `https://<your-github-name>.github.io/agent-
 explanation behind every step if you are new to GitHub.
 
 > **Status:** the review dashboard is live — use cases and SPEC changes are reviewed and accepted
-> there. The generating stages (requirements, use cases, architecture …) are specified in
+> there. The generating jobs (requirements, use cases, architecture …) are specified in
 > [`SPEC.md`](SPEC.md) and not built yet. The design is in [`PLAN.md`](PLAN.md).
 
 ---
 
 ## What it does
 
-The cycle is nine stages. Each one consumes the identifiers of the stage before it, so nothing
+The cycle has nine steps. Each one consumes the identifiers of the step before it, so nothing
 downstream floats free of what justified it:
 
 | Stage | Produces | Identifier |
@@ -55,7 +55,7 @@ change first, and only then a code change — never the other way round.
 
 Agent M keeps two things apart that are easily mixed up:
 
-- **The process model** says *how* the team of people and agents works: roles, stages, order, and
+- **The process model** says *how* the team of people and agents works: roles, phases, order, and
   where someone must approve. Agent M carries the book's five models — *plan-driven*: waterfall,
   V-model, reuse-oriented; *agile*: Scrum, Kanban — and practices you can add to any of them:
   DevOps, prototyping, incremental delivery, scaling layers.
@@ -70,7 +70,7 @@ The same prompts and schemas, three drivers:
 - **In your browser.** The Pages site calls the model endpoint you configured. Configuration, API
   key and GitHub token live in the browser's `localStorage` — never in a cookie, a URL or a
   repository. The GitHub token goes only to GitHub's API.
-- **In GitHub Actions.** The same stage runs server-side against a repository secret; its results
+- **In GitHub Actions.** The same job runs server-side against a repository secret; its results
   appear on the dashboard as open, for you to accept. Useful for long runs.
 - **Through a local CLI session.** A loopback bridge in front of `claude` or `codex` lets the page
   hand a coding task to the agent already running on your machine.

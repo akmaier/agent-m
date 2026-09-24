@@ -9,7 +9,7 @@ realises:
   - A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
   - AGENT M CARRIES THE BOOK'S CATALOGUE
   - THE CATALOGUE IS DATA
-  - THE MODEL DETERMINES THE STAGES AND THE GATES
+  - THE MODEL DETERMINES THE PHASES AND THE GATES
   - A GATE NAMES WHAT IT CHECKS
   - A PRACTICE IS NOT A MODEL
   - A PROCESS REQUIREMENT ADDS TO THE MODEL
@@ -29,7 +29,7 @@ which order, and where someone has to approve before the work continues.
 
 | | The **process model** — chosen here | The **rules to be met** — not chosen here |
 |---|---|---|
-| answers | *how* the team works: roles, stages, order, gates | *what* has to hold: of the product, or of the way it is built |
+| answers | *how* the team works: roles, phases, order, gates | *what* has to hold: of the product, or of the way it is built |
 | comes from | the author's decision, from the book's catalogue | requirement sources (UC-004), as requirements (UC-005) |
 | examples | V-model, Scrum, Kanban | "exports are PDF" (product); IEC 62304 class B: "unit verification is documented" (process) |
 | effect | defines the workflow | a process requirement **adds** gates and artifacts to the chosen workflow, never replaces it |
@@ -63,7 +63,7 @@ and its process requirements show up here as additions to whatever model the aut
    CLI agents or sandboxed agents — several to one role where the role allows it. Agent M offers only
    participants that have every capability the role needs, and shows for each where it processes
    data.
-5. Agent M shows the model's stages, their order, which stages pair for verification, and each gate
+5. Agent M shows the model's phases, their order, which phases pair for verification, and each gate
    with what it checks.
 6. The author may add **practices**: DevOps, prototyping, incremental delivery, a scaling layer. Each
    says what it adds and to which models it fits; none of them replaces the model.
@@ -83,7 +83,7 @@ sequenceDiagram
     A->>M: How this product is developed
     M-->>A: process model vs rules, five models with risks
     A->>M: choose model
-    M-->>A: roles, stages, gates
+    M-->>A: roles, phases, gates
     A->>M: assign participants to roles, add practices
     M-->>A: gates and artifacts added by process requirements
     A->>M: Save
@@ -93,7 +93,7 @@ sequenceDiagram
 ## Alternative flows
 
 - **3a. The author's organisation runs a process of its own.** It is added as a data file in the
-  catalogue's format, with roles, stages and gates; Agent M's code is not changed.
+  catalogue's format, with roles, phases and gates; Agent M's code is not changed.
 - **4a. A role that needs a person has none.** *Save* stays disabled, and the role is named.
 - **4b. No participant has the capabilities a role needs** — for example only a model endpoint is
   configured, and *Developers* must run tests. Agent M names the missing capability and links to
