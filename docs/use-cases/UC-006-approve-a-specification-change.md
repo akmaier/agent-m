@@ -15,14 +15,15 @@ realises:
   - A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
   - A RULE IS CHECKABLE
   - NO STATE IN THE SPECIFICATION
-  - ACCEPTANCE IS A COMMIT IN GITHUB
   - AN APPROVAL NAMES THE EXACT TEXT
-  - AN ACCEPTED SPEC CHANGE IS WRITTEN BY A WORKFLOW
   - A STALE APPROVAL IS NOT APPLIED
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
   - ONE CLICK PER DECISION
   - EDITS ARE PREPARED ON THE DASHBOARD
+  - ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
+  - AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL
+  - WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
 ---
 # UC-006 Approve a specification change
 
@@ -48,11 +49,12 @@ the proposal beside the text it would replace, and the decision is written exact
 3. The reviewer checks that each rule is a single checkable statement and states a target rather
    than a current condition.
 4. The reviewer presses **Accept** — one click.
-5. The dashboard computes the blob SHA of the proposal and of the SPEC section it showed, and
-   commits an approval record naming both, under the reviewer's own account.
-6. The dashboard shows the entry as *approved* while the workflow runs.
-7. The apply workflow checks both SHAs, replaces the section with the proposal byte for byte, and
-   appends the decision to the queue's `entscheidungen.md`.
+5. The dashboard checks, on the commit it writes on, that the proposal and the SPEC section still have
+   the SHAs it showed.
+6. In **one** commit under the reviewer's own account, it adds the approval record, replaces the SPEC
+   section with the proposal byte for byte, and appends the decision to the queue's
+   `entscheidungen.md`.
+7. The dashboard shows the entry as *in SPEC*.
 8. The dashboard shows the entry as applied.
 
 ```mermaid
@@ -60,13 +62,11 @@ sequenceDiagram
     actor R as Reviewer
     participant D as Dashboard (Pages)
     participant G as GitHub
-    participant W as Apply workflow
     R->>D: open entry
     D-->>R: current section, proposal, diff, rationale
     R->>D: Accept
-    D->>G: commit approval record (reviewer's token)
-    G->>W: push event
-    W->>G: SPEC section replaced, decision logged
+    D->>G: check SHAs on the current commit
+    D->>G: one commit: record, SPEC section, decision (reviewer's token)
     D-->>R: entry applied
 ```
 
@@ -80,9 +80,11 @@ sequenceDiagram
   clipboard.
 - **3b. The change touches an existing requirement.** The dashboard lists the artifacts that
   reference its name before the reviewer decides.
-- **7a. The proposal or the SPEC section changed after the record was committed.** The workflow
-  writes nothing and fails visibly; the dashboard shows the entry as stale, and the reviewer
-  decides again on the current text.
+- **5a. The proposal or the SPEC section changed since the reviewer opened it.** Nothing is written;
+  the dashboard shows the new state, and the reviewer decides again on the current text.
+- **4c. The instance's own SPEC, without a token.** The record is committed on GitHub's page; the
+  instance's workflow then writes the section, applying the same checks. For a product, a token is
+  required — no product carries the workflow.
 - **4a. The reviewer rejects.** No record is committed; the entry stays open until it is removed
   from the queue by a commit.
 

@@ -6,7 +6,6 @@ actors:
   - Reviewer
   - GitHub
 realises:
-  - ACCEPTANCE IS A COMMIT IN GITHUB
   - AN APPROVAL NAMES THE EXACT TEXT
   - STATUS IS DERIVED FROM THE RECORDS
   - EDITS ARE PREPARED ON THE DASHBOARD
@@ -16,6 +15,8 @@ realises:
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
   - ONE CLICK PER DECISION
+  - ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
+  - A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 ---
 # UC-008 Review and accept a use case
 
@@ -64,6 +65,9 @@ sequenceDiagram
   the reviewer presses *Commit changes*; if the prefill does not arrive, the dashboard shows the
   record with a copy button and the exact path. Editing opens GitHub's editor with the text on the
   clipboard.
+- **3c. The product is on a GitLab server and no token for it is stored.** The dashboard reads, but
+  offers no *Accept* or *Save*: GitLab has no page that could be prefilled with the record. It links
+  to the step that stores the project's token instead.
 - **4a. The reviewer has no write access.** The commit is refused; the dashboard says so and offers
   the GitHub path, where the commit becomes a pull request that counts once a maintainer merges it.
 - **5a. The file is edited after acceptance.** Its SHA changes, no record names it, and the

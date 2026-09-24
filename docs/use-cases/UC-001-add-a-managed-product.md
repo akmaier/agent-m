@@ -19,10 +19,13 @@ realises:
   - THE TOKEN LINK IS PREFILLED
   - THE REPOSITORY CHOICE IS SPELLED OUT
   - A TOKEN IS SCOPED TO WHAT IT WRITES
-  - THE TOKEN IS SENT ONLY TO GITHUB
   - THE SHARED PAGES ORIGIN IS DISCLOSED
   - THE PAGE STATES WHAT IT SENDS WHERE
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+  - A PRODUCT IS NAMED BY ITS ADDRESS
+  - GITLAB PRODUCTS ARE SUPPORTED
+  - A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+  - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 ---
 # UC-001 Add a managed product
 
@@ -38,13 +41,16 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
 ## Precondition
 
 - The author has an Agent M instance with its token stored in this browser (UC-014).
-- The product repository exists on GitHub and the author can write to it.
+- The product repository exists on GitHub or on a GitLab server, and the author can write to it.
 
 ## Main flow
 
 1. On the instance's dashboard, the author opens the product selector and chooses **+ Add product**.
    A panel opens on the same page.
-2. The author types the product repository, for example `alice/thesis-tool`.
+2. The author pastes the address of the product repository, as it appears in the browser — for
+   example `https://github.com/alice/thesis-tool` or
+   `https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool`. Agent M recognises the server and
+   whether it is GitHub or GitLab, and shows which of the two routes below applies.
 3. **Step A · Let your key reach the product.** The key from UC-014 covers only the instance. The
    panel shows a button **Open your tokens on GitHub** and, underneath, exactly what to do there,
    with the names filled in:
@@ -101,6 +107,15 @@ sequenceDiagram
   at step 2.
 - **5b. The product already has the complete layout.** Only the entry in `docs/products.md` is
   written.
+- **3c. The product is on a GitLab server.** Step A becomes **Create a key for this project**: a
+  button opens the project's *Settings → Access tokens* page on that server; underneath, what to set
+  there — name `Agent M`, role **Developer**, scope **`api`**, an expiry date — then *Create project
+  access token* and copy it. Step B is the familiar notice, paste field and *Store and check*; the
+  token is stored for this project only and is sent only to that server. Then Step C as above. Each
+  GitLab product has its own token; the instance's GitHub token is not involved there.
+- **3d. The GitLab server offers no project access tokens, or the author is not *Maintainer*.**
+  Agent M says which of the two it is, and explains that a personal token would reach every project
+  of the author on that server; the author decides.
 
 ## Postcondition
 
