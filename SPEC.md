@@ -370,6 +370,52 @@ hold before the next stage opens.
 *Occasion:* an unnamed gate is a pause, not a check. The point of a phase gate is that somebody
 can say afterwards what was verified at it.
 *Check:* `tests/test_gate_definition.py`
+
+**PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE** *(PO A. Maier, 2026-09-24)*
+An instance lists its participants — people and agents — in `docs/participants.md` of its own
+repository, and a product assigns its roles from that list.
+*Occasion:* the same people and the same agents work on several products. Configuring them inside
+each product's process choice would repeat the setup and let the copies drift apart.
+*Check:* `tests/test_participants.py`
+
+**A PARTICIPANT HAS ONE OF FIVE TYPES** *(PO A. Maier, 2026-09-24)*
+A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
+agent in a virtual machine or container.
+*Occasion:* PO, 2026-09-24: participants "can be different human users or agent models … from an
+endpoint model all the way to a full agent that lives in a virtual machine or cli environment". The
+five types differ in how Agent M reaches them — the dashboard, the browser, a workflow, the local
+bridge, the bridge through a tunnel.
+*Check:* `tests/test_participants.py`
+
+**A PARTICIPANT DECLARES ITS CAPABILITIES** *(PO A. Maier, 2026-09-24)*
+Each participant states which of these it can do: draft text, read the repository, write to the
+repository, run code and tests, use tools, reach the web.
+*Occasion:* an endpoint model drafts text and nothing else; a CLI agent can run the test suite. A
+role that must run tests cannot be filled by the first, and the difference must be data, not a
+person's memory.
+*Check:* `tests/test_participants.py`
+
+**A ROLE NAMES THE CAPABILITIES IT NEEDS** *(PO A. Maier, 2026-09-24)*
+A role in a process model names the capabilities its holder must have, and only a participant with
+all of them can be assigned to it.
+*Occasion:* assigning a participant that cannot do the work fails late — at the first stage that
+needs the missing capability. Checking at assignment fails early, with the reason.
+*Check:* `tests/test_model_roles.py`
+
+**A PARTICIPANT DECLARES WHERE IT PROCESSES DATA** *(PO A. Maier, 2026-09-24)*
+Each participant that is not a person states where the data given to it is processed — for example
+"this machine", "NHR@FAU, Erlangen", "a provider in the USA".
+*Occasion:* whatever a participant receives leaves the author's control to that place. The author
+can only decide what may go there if the place is written down.
+*Check:* `tests/test_participants.py`
+
+**RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS** *(PO A. Maier, 2026-09-24)*
+Content of a source whose licence is restricted is given only to participants whose processing place
+the source's register entry permits.
+*Occasion:* a bought norm or an internal document sent to an external model may breach its licence
+or its owner's rules. The register entry names the permitted places; Agent M refuses to send it
+anywhere else, and says why.
+*Check:* `tests/review-core.test.mjs`
 ## 6. Runtimes
 
 **ONE DEFINITION, THREE DRIVERS** *(PO A. Maier, 2026-09-23)*
