@@ -31,7 +31,7 @@ operates no server, no account system and no database.
 the reader's interest in it is a liability. GitHub Pages plus the reader's own repository has no
 such tail.
 *Check:* `tests/test_no_backend.py` — the built site contains no call to an origin other than the
-configured endpoint, the GitHub API, and the local bridge.
+configured endpoint, the GitHub API, the GitLab servers of the listed products, and the local bridge.
 
 **ARTIFACTS ARE MARKDOWN** *(Vibe Coding, ch. 9 §6)*
 Every artifact Agent M produces is Markdown, with diagrams written as Mermaid inside it.

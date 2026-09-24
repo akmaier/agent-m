@@ -2,3 +2,4 @@
 
 Append-only.
 
+| 2026-09-24 12:10 UTC | 1 | uebernommen | approval:spec-2026-09-24b_gitlab-produkte-01-80bdf1be55c1.md |
