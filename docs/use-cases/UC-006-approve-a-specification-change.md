@@ -34,7 +34,8 @@ the proposal beside the text it would replace, and the decision is written exact
 
 - **Reviewer** — has write access to the product repository.
 - **GitHub** — hosts the dashboard, the web editor, and the commit that records the decision.
-- **Apply workflow** — a GitHub Actions workflow that writes approved proposals into `SPEC.md`.
+- **Apply workflow** — the instance's GitHub Actions workflow; it writes an accepted change of the
+  instance's own SPEC when the approval record was committed without the dashboard (4c).
 
 ## Precondition
 
@@ -55,7 +56,6 @@ the proposal beside the text it would replace, and the decision is written exact
    section with the proposal byte for byte, and appends the decision to the queue's
    `entscheidungen.md`.
 7. The dashboard shows the entry as *in SPEC*.
-8. The dashboard shows the entry as applied.
 
 ```mermaid
 sequenceDiagram

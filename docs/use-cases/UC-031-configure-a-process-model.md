@@ -13,7 +13,6 @@ realises:
   - A GATE NAMES WHAT IT CHECKS
   - A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
-  - A MERGE IS DECIDED BY THE REVIEW ROLE
   - PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - DIAGRAMS ARE MERMAID IN MARKDOWN
@@ -35,7 +34,7 @@ What a definition contains:
 | **Transitions** | which phase follows which: in sequence, as alternatives, or back to an earlier phase | Concept → Requirements → Design → Implementation → Testing → Validation & Verification → Operation & Maintenance |
 | **Verification pairs** | which later phase checks which earlier one | Concept ↔ Operation & Maintenance; Requirements ↔ Validation & Verification; Design ↔ Testing |
 | **Gates** | between which phases; which artifacts must exist; which condition must hold | before Implementation: every `REQ-` has an `ARC-`, and the design is accepted |
-| **Roles** | name; person, agent or either; capabilities needed; which one is the review role that decides merges | Tester: agent or person; *read the repository*, *run code and tests*; review role: *Quality lead* |
+| **Roles** | name; person, agent or either; capabilities needed | Tester: agent or person; *read the repository*, *run code and tests* |
 | **Flow control** (pulled only) | a time box with its length, or a work-in-progress limit | Scrum: sprint of 2 weeks; Kanban: WIP 3 |
 | **Progress measure** | plan entries per phase, remaining items per time box, or items per state over time | plan entries per phase |
 
@@ -72,7 +71,6 @@ Doing, Review, Done.
    - a verification pair naming a missing phase;
    - a gate without artifacts or without a condition;
    - a role without capabilities, or a phase without a role;
-   - no review role, or more than one;
    - a gate that checks an artifact kind no earlier phase produces;
    - for *pulled* work, neither a time box nor a WIP limit, or both;
    - a progress measure that does not fit the kind of work.

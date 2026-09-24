@@ -19,9 +19,10 @@ realises:
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
   - A PARTICIPANT DECLARES ITS CAPABILITIES
   - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
-  - A MERGE IS DECIDED BY THE REVIEW ROLE
-  - A PHASE MAY HAVE A BRANCH OF ITS OWN
-  - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A PHASE BRANCH IS SET
+  - A PRODUCT DECLARES ITS DEFINITION OF DONE
+  - THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
+  - A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
+  - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
 ---
 # UC-002 Choose how the product is developed
 
@@ -60,22 +61,29 @@ and its process requirements show up here as additions to whatever model the aut
    book chapter that explains it.
 3. The author selects one model.
 4. Agent M shows the model's roles; for each, whether a person, an agent or either may fill it, and
-   which capabilities it needs. For Scrum, for example: *Product Owner* — a person; *Scrum Master* —
-   either; *Developers* — either, needing *write to the repository* and *run code and tests*. The
+   which capabilities it needs. For Scrum, for example (book ch. 7 §5): *Product Owner* — a person,
+   who orders the backlog and decides what is released; *Scrum Master* — either, who watches the
+   process and removes obstacles, and approves nothing; *Developers* — either, needing *write to the
+   repository* and *run code and tests*, who turn items into a done increment. The
    author assigns participants from the instance's list (UC-017): people, model endpoints, CI agents,
    CLI agents or sandboxed agents — several to one role where the role allows it. Agent M offers only
    participants that have every capability the role needs, and shows for each where it processes
-   data. One role is marked as the **review role**: its holder decides every merge of a pull request
-   (UC-024, UC-034) — in Scrum the Scrum Master, a person or an agent.
-5. Agent M shows the model's phases, their order, which phases pair for verification, and each gate
-   with what it checks. For each phase, the author may set a **branch of its own** — for a sprint, for
-   example; the phase's work is then merged into that branch, and merging it into the default branch
-   is the gate at the end of the phase. Preset is *none*: work merges into the default branch.
+   data.
+5. Agent M shows the model's phases, the transitions between them, which phases pair for verification, and each gate
+   with what it checks. For a phase, or for the model's time box — a sprint —, the author may set a
+   **branch of its own**; the work is then merged into that branch, and merging it into the default
+   branch is the gate at its end, decided in Scrum by the Product Owner after the review of the
+   increment (UC-041). Preset is *none*: work merges into the default branch.
 6. The author may add **practices**: DevOps, prototyping, incremental delivery, a scaling layer. Each
    says what it adds and to which models it fits; none of them replaces the model.
 7. Agent M shows, in the same workflow view, what the product's **process requirements** add: extra
    gates and artifacts, each marked with the requirement and the source it comes from.
-8. The author presses **Save** — one click. Agent M commits the declaration to the product
+8. Agent M shows the product's **Definition of Done** — the conditions a pull request must meet before
+   it is merged. It is preset to the rules every implementation job already follows: CI green, the
+   first commit held only failing tests, only the job's modules changed, every gate before the merge
+   recorded. The author may add conditions, for example *reviewed by a second developer*. A folded
+   explanation says that in Scrum the Developers meet the Definition of Done, whoever presses merge.
+9. The author presses **Save** — one click. Agent M commits the declaration to the product
    repository.
 
 Every choice carries a folded **What is this?** for people new to software processes, with a pointer
@@ -90,7 +98,7 @@ sequenceDiagram
     M-->>A: process model vs rules, five models with risks
     A->>M: choose model
     M-->>A: roles, phases, gates
-    A->>M: assign participants to roles, add practices
+    A->>M: assign participants to roles, branches, Definition of Done, practices
     M-->>A: gates and artifacts added by process requirements
     A->>M: Save
     M->>G: commit declaration (author's token)
@@ -117,6 +125,7 @@ sequenceDiagram
 
 ## Postcondition
 
-- The product declares exactly one process model, its role assignment, and zero or more practices.
+- The product declares exactly one process model, its role assignment, its Definition of Done, and
+  zero or more practices.
 - The workflow Agent M offers for the product follows from the model, the practices and the
   product's process requirements — and from nothing else.

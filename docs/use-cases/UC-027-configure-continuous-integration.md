@@ -74,8 +74,7 @@ workflow or a GitLab CI pipeline — so that every commit is checked the way the
    pull request that contains the schedule file and the generated configuration together, so the
    two never disagree on the default branch.
 6. CI runs on that pull request with the new configuration. The dashboard shows the pull request
-   and its CI outcome; once green, the author merges it — or Agent M does, if the author ticked
-   *merge when green*.
+   and its CI outcome; once green, the author merges it with one click.
 7. From then on, every run the configuration starts leaves a result record (UC-028); the schedule
    page shows the last run per occasion.
 

@@ -36,10 +36,10 @@ explanation behind every step if you are new to GitHub.
 The cycle has nine steps. Each one consumes the identifiers of the step before it, so nothing
 downstream floats free of what justified it:
 
-| Stage | Produces | Identifier |
+| Step | Produces | Identifier |
 |---|---|---|
 | 1 Sources | who or what a requirement may legitimately come from, and with what authority | `SRC-…` |
-| 2 Requirements | one testable statement per requirement, with source, occasion and guarding test | `REQ-…` |
+| 2 Requirements | one testable statement per requirement, with source, occasion and guarding test | its name, in capitals |
 | 3 Use cases | Mermaid diagrams and use-case descriptions, each naming the requirements it realises | `UC-…` |
 | 4 Architecture | decisions and library choices as ADRs, each naming the use cases that force them | `ARC-…` |
 | 5 Implementation | modules mapped to architecture decisions | `MOD-…` |

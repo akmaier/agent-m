@@ -53,9 +53,31 @@ listed rules change — the diff on the dashboard shows exactly that.
 
 **Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.
 
-**Consistency note (main agent, 2026-09-24).** `A JOB STOPS AT EVERY GATE` lets only a *person's*
-decision pass a gate, while the PO decided that the review role deciding a merge may be an agent. The
-occasion of `A JOB STOPS AT EVERY GATE` therefore says that the merge is *not* one of those gates; the
-gates from the model and from process requirements stay with a person. If the merge should count as
-a gate with an agent allowed to pass it, the rule text of `A JOB STOPS AT EVERY GATE` has to change
-instead — please say so in the edit field.
+**Corrected after the PO's question of 2026-09-24** — *"Is this really how SCRUM works? Doesn't this
+happen in sprint review?"* The earlier draft had the Scrum Master decide every merge
+(`A MERGE IS DECIDED BY THE REVIEW ROLE`). The book (ch. 7 §5) gives the Scrum Master no approval
+authority — the role "protects and coaches the process", "removes obstacles" — and the Scrum Guide it
+cites ties an item's completion to the **Definition of Done**, which the Developers meet; the Sprint
+Review inspects the increment at the end of the sprint and adapts the backlog. Also, the accepted
+SPEC already says who merges is not restricted (`CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST
+WITH GREEN CI`). The draft rule is therefore dropped — it was never in the SPEC, so no withdrawal note is
+needed — and replaced by:
+
+- `A PRODUCT DECLARES ITS DEFINITION OF DONE`, `THE DEFAULT DEFINITION OF DONE IS THE JOB RULES`,
+  `A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS` — this also answers open question 2
+  above;
+- `A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT`, `A SPRINT ENDS WITH A RETROSPECTIVE` — the two Scrum
+  events the drafts were missing (new UC-041);
+- the branch rules renamed to name phases *and* time boxes, since a sprint is a time box, not a phase in
+  the book's vocabulary; the merge of a sprint branch into `main` is decided by the Product Owner after
+  the review.
+
+The occasion of `A JOB STOPS AT EVERY GATE` now points to the Definition of Done instead of the dropped
+rule, which removes the contradiction noted in the earlier version of this rationale.
+
+The Scrum Master stays a role a person or an agent may hold: it watches the process — overdue reviews,
+items stuck in *waiting*, the work-in-progress limit — and has no merge authority.
+
+**Source of the Scrum Guide statements:** the Scrum Guide 2020 (Schwaber and Sutherland), cited by the
+book as `Scrum2020`; quoted from the guide by the main agent, not from the book. Check them against the
+guide before accepting, if in doubt.

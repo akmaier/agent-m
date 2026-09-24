@@ -7,7 +7,7 @@ without errors.
 their own definitions (`THE CATALOGUE IS DATA`), a broken one, such as a gate that checks an
 artifact no phase produces, would otherwise surface only when a job reaches that gate.
 *Check:* `tests/test_model_validation.py`. Each rule has a definition that breaks it and must be
-rejected: an unknown phase in the order, a verification pair naming a phase the model lacks, a gate
+rejected: a transition naming a phase the model lacks, a verification pair naming a phase the model lacks, a gate
 without artifacts or condition, a role without capabilities, a phase without a role, a missing
 declaration of whether work is planned or pulled from a backlog. Each book model in the shipped
 catalogue must pass.
@@ -83,9 +83,9 @@ A job that reaches a gate of the product's workflow waits in the state *waiting 
 a person's decision at that gate is recorded.
 *Occasion:* the book calls this human-in-the-loop: the agent pauses at a high-impact checkpoint and
 asks a person (ch. 11 §8). Gates come from the model and from process requirements
-(`A PROCESS REQUIREMENT ADDS TO THE MODEL`). The merge of a pull request is not one of these gates: it
-is decided by the holder of the review role, who may be an agent (`A MERGE IS DECIDED BY THE REVIEW
-ROLE`).
+(`A PROCESS REQUIREMENT ADDS TO THE MODEL`). Merging a job's pull request is not a gate of its own;
+it follows the product's Definition of Done (`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE
+HOLDS`), which includes every gate recorded before it.
 *Check:* `tests/test_job_gate.py`. A fixture job reaching a gate does not proceed while no gate
 record exists. It does not proceed on a record written by the job's own participant when that
 participant is not a person. It proceeds once a person's record exists.
@@ -137,26 +137,65 @@ measured.
 *Check:* `tests/test_job_cost.py`. A job whose runtime reports neither cost nor usage shows
 "unknown", never zero.
 
-**A MERGE IS DECIDED BY THE REVIEW ROLE** *(PO A. Maier, 2026-09-24)*
-The pull request of an implementation job is merged by the holder of the model's review role — in
-Scrum the Scrum Master — who may be a person or an agent.
-*Occasion:* PO, 2026-09-24: "The review gate is the scrum master; it can be human or an agent." The
-gate before merge belongs to a role, like every other gate, so that the process model — not the
-implementing job — decides who merges.
-*Check:* `tests/test_job_gate.py` — a merge by a participant not holding the review role is refused;
-counter-proof: by its holder it proceeds.
+**A PRODUCT DECLARES ITS DEFINITION OF DONE** *(PO A. Maier, 2026-09-24; Vibe Coding, ch. 7 §5, after the Scrum Guide)*
+A product declares, in a data file of its own repository, the conditions an implementation job's
+pull request must meet before it counts as done.
+*Occasion:* PO, 2026-09-24, asked whether a Scrum Master deciding each merge is really how Scrum
+works. It is not: in Scrum, work belongs to the increment when it meets the Definition of Done, and
+the Developers are accountable for meeting it; the Scrum Master coaches the process and removes
+obstacles (ch. 7 §5). Written down, the Definition of Done is the same check for a person and an
+agent.
+*Check:* `tests/test_definition_of_done.py`
 
-**A PHASE MAY HAVE A BRANCH OF ITS OWN** *(PO A. Maier, 2026-09-24)*
-A product may assign a phase — a sprint, for example — a branch of its own, into which the phase's
-work is merged; merging that branch into the default branch is then the gate at the end of the
-phase.
+**THE DEFAULT DEFINITION OF DONE IS THE JOB RULES** *(PO A. Maier, 2026-09-24)*
+Without a declaration, a pull request is done when its CI run is green, the job's first commit held
+only failing tests, it changes only the job's modules, and every gate the workflow places before the
+merge is recorded.
+*Occasion:* these conditions already bind every implementation job (`AN IMPLEMENTATION JOB BEGINS
+WITH A FAILING TEST`, `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`, `A JOB STOPS AT EVERY GATE`);
+the default names them in one place, and a product adds its own — a review by a second developer, for
+example.
+*Check:* `tests/test_definition_of_done.py`
+
+**A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS** *(PO A. Maier, 2026-09-24)*
+An implementation job's pull request is merged only when every condition of the product's Definition
+of Done holds, checked in the product's CI.
+*Occasion:* who merges stays open (`CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN
+CI`: an agent may merge its own change); what must hold does not. Checked in CI, the condition holds
+whoever presses merge.
+*Check:* `tests/test_definition_of_done.py` — a pull request missing one condition is not mergeable;
+counter-proof: with all conditions met it is.
+
+**A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT** *(Vibe Coding, ch. 7 §5)*
+A time box of a product is closed only after a review of its increment is recorded: what was done,
+who took part, and the feedback, which enters the backlog as items.
+*Occasion:* the book: "at the end of the sprint, the review checks what was actually achieved", and
+the backlog is adapted from it (ch. 7 §5). Without a record, the inspection that Scrum rests on
+leaves no trace, and the feedback is lost with the meeting.
+*Check:* `tests/test_time_box_close.py`
+
+**A SPRINT ENDS WITH A RETROSPECTIVE** *(Vibe Coding, ch. 7 §5)*
+A time box of a product is closed only after its retrospective is recorded: what the team — people
+and agents — will change in how it works.
+*Occasion:* the book: "the retrospective reflects on how the team itself should improve before the
+next cycle". A change it decides for the process model goes through its configuration (UC-031); a
+change for the agents' instructions through their definition.
+*Check:* `tests/test_time_box_close.py`
+
+**A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN** *(PO A. Maier, 2026-09-24)*
+A product may give a phase or a time box — a sprint, for example — a branch of its own, into which
+its work is merged; merging that branch into the default branch is then the gate at its end, decided
+by the role the model names for that gate — in Scrum the Product Owner, after the review of the
+increment.
 *Occasion:* PO, 2026-09-24: "an entire scrum phase can be assigned an additional branch in git; then
-the merge is the gate at the end of the phase, but this is optional." It lets a team review a whole
-sprint's result at once, the way the sprint review does (ch. 7 §5).
+the merge is the gate at the end of the phase, but this is optional." A sprint is a time box, not a
+phase in the book's sense (ch. 6: a phase groups activities), so both are named. Releasing the
+increment is the Product Owner's decision; the review informs it.
 *Check:* `tests/test_phase_branch.py`
 
-**WORK MERGES INTO THE DEFAULT BRANCH UNLESS A PHASE BRANCH IS SET** *(PO A. Maier, 2026-09-24)*
-Without a phase branch, the work of every job is merged into the default branch.
-*Occasion:* PO, 2026-09-24: "it should be main by default." A phase branch is extra ceremony that a
-small product does not need.
+**WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET** *(PO A. Maier, 2026-09-24)*
+Without a branch for the current phase or time box, the work of every job is merged into the default
+branch.
+*Occasion:* PO, 2026-09-24: "it should be main by default." A branch per sprint is extra ceremony
+that a small product does not need.
 *Check:* `tests/test_phase_branch.py`

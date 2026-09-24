@@ -7,7 +7,6 @@ actors:
   - Coding agent
   - CI
   - Gate keeper
-  - Review role
 realises:
   - AGILE IMPLEMENTATION STARTS FROM THE BACKLOG
   - A PLAN COVERS THE WHOLE SPECIFICATION
@@ -18,9 +17,9 @@ realises:
   - AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST
   - A JOB STOPS AT EVERY GATE
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
-  - A MERGE IS DECIDED BY THE REVIEW ROLE
-  - A PHASE MAY HAVE A BRANCH OF ITS OWN
-  - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A PHASE BRANCH IS SET
+  - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
+  - A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
+  - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
   - A PROCESS REQUIREMENT ADDS TO THE MODEL
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
@@ -36,16 +35,15 @@ realises:
 # UC-034 Implement backlog items with a coding agent
 
 **Goal.** Agent M hands ready backlog items to coding agents, one job per item. Each job writes the
-failing tests first, then the implementation, and opens a pull request that the review role merges
-on green CI.
+failing tests first, then the implementation, and opens a pull request that is merged once the
+product's Definition of Done holds.
 Every gate of the model, and every gate added by a process requirement, stops the job until a person
 decides. This is the book's execution loop, "reason, act, observe", run inside a process with a
 person in the loop where the workflow says so (book ch. 11 §2, §8).
 
 ## Actors
 
-- **Author**: starts the jobs. In Scrum, this is usually the Scrum Master or the Product Owner.
-- **Review role**: decides each merge. In Scrum, the Scrum Master; a person or an agent (UC-002).
+- **Author**: starts the jobs.
 - **Coding agent**: a participant assigned to the role that implements, typically *Developers*
   (UC-002). It needs *read the repository*, *write to the repository* and *run code and tests*. It
   is one of these (UC-017):
@@ -100,9 +98,10 @@ person in the loop where the workflow says so (book ch. 11 §2, §8).
    **waiting for a person**. The gate keeper sees the gate on the job dashboard (UC-036), with what
    it checks and the artifacts to look at. They press **Pass gate**: one click. Agent M commits the
    gate record (who, when, on which text), and the job continues.
-8. With CI green and no gate left, the holder of the review role merges the pull request — into the
-   default branch, or into the phase branch if the current phase has one (UC-031). The item counts as
-   done. For an item
+8. When the product's Definition of Done holds — CI green, no gate left, and whatever the product
+   added (UC-002, step 8) — the pull request is merged: by the coding agent, or by a person, as the
+   author chose when starting the jobs. It goes into the default branch, or into the sprint's branch
+   if the product set one. The item counts as done. For an item
    from an issue, the issue is closed with a link (UC-033, step 6).
 
 ```mermaid
@@ -113,7 +112,6 @@ sequenceDiagram
     participant G as Product repository
     participant CI as CI
     actor K as Gate keeper
-    actor R as Review role
     A->>M: select ready items
     M->>M: sprint, acceptance, WIP limit checked
     M-->>A: participant, data destination, gates per item
@@ -129,7 +127,7 @@ sequenceDiagram
     K->>M: Pass gate
     M->>G: commit gate record
     M->>C: continue
-    R->>G: merge on green CI (default or phase branch)
+    C->>G: merge once the Definition of Done holds
     M-->>A: item done
 ```
 
@@ -161,11 +159,10 @@ sequenceDiagram
 - **7a. The gate keeper rejects.** The gate record states the rejection and its reason. The job ends,
   and the item returns to *ready* with the reason attached.
 - **7b. The coding agent itself writes a gate record.** It does not count. Only a person's decision
-  passes a gate (`A JOB STOPS AT EVERY GATE`). The merge is not such a gate: it belongs to the review
-  role, which may be an agent.
-- **8a. The phase has a branch of its own.** The item's pull request targets the phase branch. At the
-  phase's end, the review role merges the phase branch into the default branch — the gate at the end
-  of the phase (UC-031).
+  passes a gate (`A JOB STOPS AT EVERY GATE`).
+- **8a. The sprint has a branch of its own.** The item's pull request targets that branch. At the
+  sprint's end, the Product Owner merges it into the default branch after the review of the increment
+  (UC-041).
 
 ## Postcondition
 

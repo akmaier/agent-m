@@ -64,6 +64,7 @@ Terms: a **job** is one run (derive requirements, run a test battery, implement 
 | [UC-032](UC-032-maintain-the-backlog.md) | Maintain the backlog |
 | [UC-034](UC-034-implement-backlog-items-with-a-coding-agent.md) | Implement backlog items with a coding agent |
 | [UC-035](UC-035-follow-progress-on-the-process-dashboard.md) | Follow progress on the process dashboard |
+| [UC-041](UC-041-close-a-sprint.md) | Close a sprint with review and retrospective |
 
 ## 6 · Tests
 
@@ -114,7 +115,7 @@ flowchart LR
     Q --> R[2 Requirements<br/>UC-005 UC-006]
     R --> U[3 Use cases<br/>UC-007 UC-008 UC-009]
     U --> A[4 Architecture<br/>UC-022 UC-023 UC-025]
-    A --> I[5 Implementation<br/>UC-024 UC-032 UC-034]
+    A --> I[5 Implementation<br/>UC-024 UC-032 UC-034 UC-041]
     I --> T[6 Tests<br/>UC-026 UC-027 UC-028 UC-029]
     T --> REL[Release and audit<br/>UC-013 UC-030]
     REL --> E[Evolution<br/>UC-012 UC-033 UC-038 UC-039]

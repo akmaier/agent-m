@@ -98,6 +98,7 @@ sequenceDiagram
 ## Postcondition
 
 - The release is recoverable by its tag and described in the changelog.
-- The tagged commit is exactly the one on which the complete suite ran green at every level; the
-  evidence per requirement is kept with the release.
+- The tagged commit is exactly the one on which the complete suite ran at every level — green, or
+  accepted with its limitations recorded (3a); the evidence per requirement is kept with the
+  release.
 - No other product's version changed.

@@ -104,9 +104,9 @@ sequenceDiagram
 - **6a. An item is added during a running sprint.** It goes to the product backlog, not into the
   sprint. Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what
   it removes or adds (`SOFTWARE_MAINTENANCE.md`: sprint scope is fixed at planning).
-- **6b. The sprint ends.** Agent M shows which selected items are done and which are not. The
-  Product Owner chooses, for each unfinished item, whether it goes back to the backlog or into the
-  next sprint.
+- **6b. The sprint ends.** The sprint is closed with the review of its increment and the
+  retrospective (UC-041); there the Product Owner also decides, for each unfinished item, whether it
+  goes back to the backlog or into the next sprint.
 - **7a. The WIP limit is reached.** **Pull** is disabled for the next item, and the panel names the
   items in progress and which of them wait for review. Book ch. 7 §4: with agents, the limit guards
   review capacity, not headcount.

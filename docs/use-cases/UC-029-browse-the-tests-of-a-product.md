@@ -73,8 +73,9 @@ sequenceDiagram
   broken, with the identifier; the test is not moved to another group.
 - **5a. A test was removed.** It stays in the history of the commits where it existed, marked as
   removed at the commit that removed it; its identifier is not given to another test.
-- **5b. The CI server no longer keeps older results.** The history shows those commits as *no longer
-  available* and keeps the release rows, whose reports are in the repository.
+- **5b. The CI server no longer keeps the logs of older runs.** The outcomes stay in the history —
+  they are read from the result records on the branch `test-results` (UC-028) — and only the link to
+  the full log is marked *no longer available*.
 - **1b. The product repository is private and no token reaching it is stored.** The page says so and
   shows nothing.
 

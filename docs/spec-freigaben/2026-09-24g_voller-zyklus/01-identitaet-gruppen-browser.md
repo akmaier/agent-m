@@ -1,11 +1,13 @@
 ## 1. Identity and traceability
 
 **EVERY ARTIFACT HAS AN IDENTIFIER** *(PO A. Maier, 2026-09-23, extended 2026-09-24)*
-Every artifact Agent M produces carries an identifier from the scheme `SRC-` · `REQ-` · `UC-` ·
-`ARC-` · `MOD-` · `TST-` · `ITM-` · `RES-`.
+Every artifact Agent M produces carries an identifier: a requirement its name, every other artifact
+one from the scheme `SRC-` · `UC-` · `ARC-` · `MOD-` · `TST-` · `ITM-` · `RES-`.
 *Occasion:* an artifact that cannot be named cannot be referred to, and therefore cannot be traced
 to what justified it or to what checks it. PO, 2026-09-24: backlog items (`ITM-`) and resources
-(`RES-`) are artifacts too — jobs, pull requests and tests refer to them.
+(`RES-`) are artifacts too — jobs, pull requests and tests refer to them. A requirement is named by
+its name in capitals (`THE NAME IS THE ID AND IT SURVIVES`); the `REQ-` prefix of the first version
+was never used.
 *Check:* `tests/test_identifiers.py`
 
 **THE NAME IS THE ID AND IT SURVIVES** *(SOFTWARE_MAINTENANCE.md, "Der Name ist die ID")*
@@ -52,8 +54,8 @@ structure than a pile of wishes" (ch. 8 §3.2); a flat list of a hundred items o
 *Check:* `tests/test_groups.py`
 
 **A GROUP CARRIES NO IDENTIFIER** *(PO A. Maier, 2026-09-24)*
-A group is named by its title and carries no identifier from the scheme `SRC-` · `REQ-` · `UC-` ·
-`ARC-` · `MOD-` · `TST-`.
+A group is named by its title and carries no identifier of the kind `EVERY ARTIFACT HAS AN IDENTIFIER`
+gives artifacts.
 *Occasion:* a group has no rule, no flow and no check of its own. Given an identifier, a use case
 could "realise" a heading and a test could "guard" a chapter, and the derived matrix would report
 coverage that nobody verified.

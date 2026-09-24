@@ -50,7 +50,8 @@ specification first, and only then into code.
 5. **Bug:** the author chooses a participant for the **fix** — a CLI, sandboxed or CI agent that can
    run tests. The job first writes a regression test that fails on the reported behaviour, then fixes
    code or test until it passes, on a branch; the pull request links the issue and the requirement it
-   restores. It is merged on green CI, and the issue is closed with a link to the fix.
+   restores. It is merged once the product's Definition of Done holds (UC-002, step 8), and the issue
+   is closed with a link to the fix.
 6. **Change:** Agent M drafts the changed requirements against the existing ones (as in UC-005), with
    an impact list, and writes them as a queue under `docs/spec-freigaben/` naming the issue. After the
    author accepts them (UC-006), the downstream jobs — use cases, architecture, code, tests — become

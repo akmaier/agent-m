@@ -42,3 +42,10 @@ you prefer.
    proposed as a requirement; UC-018 only asks before discarding.
 
 **Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.
+
+**Corrected by the main agent on 2026-09-24, after reading the SPEC and all use cases:**
+`EVERY ARTIFACT HAS AN IDENTIFIER` named a `REQ-` prefix, but every requirement in every SPEC and use case
+is identified by its name (`THE NAME IS THE ID AND IT SURVIVES`); no `REQ-` identifier exists anywhere.
+The rule now says so. `A GROUP CARRIES NO IDENTIFIER` referred to the old list of prefixes; it now points
+to the rule instead of repeating the list. Impact: README.md of Agent M (its table named `REQ-…`) and
+UC-026 (its level table) — both corrected.

@@ -21,14 +21,17 @@ for a run; "stage" is not used any more. Replaced by `THE MODEL DETERMINES THE P
 The name is not reused.
 
 **THE MODEL DETERMINES THE PHASES AND THE GATES** *(Vibe Coding, ch. 6–7; PO A. Maier, 2026-09-24)*
-A model definition names its phases, their order, which phases pair for verification, and where the
-gates sit; Agent M derives the workflow from that definition together with the product's process
+A model definition names its phases, the transitions between them, which phases pair for
+verification, and where the gates sit; Agent M derives the workflow from that definition together with the product's process
 requirements.
 *Occasion:* this is the difference between offering process models and merely naming them. The
 V-model's contribution is precisely that a decomposition step is paired with the check that will
-verify it; if the pairing is not in the data, the model is decoration. Process requirements add to
-it (`A PROCESS REQUIREMENT ADDS TO THE MODEL`).
-*Check:* `tests/test_workflow_from_model.py`
+verify it; if the pairing is not in the data, the model is decoration. Transitions rather than a
+single order, because the book's reuse-oriented model runs discovery and evaluation side by side,
+returns from requirements refinement to the specification, and chooses between configuring, adapting
+and developing (ch. 6 §5). Process requirements add to it (`A PROCESS REQUIREMENT ADDS TO THE MODEL`).
+*Check:* `tests/test_workflow_from_model.py` — each of the five catalogue models, the reuse-oriented
+one included, yields its workflow.
 
 **AGENT M CARRIES THE BOOK'S CATALOGUE** *(Vibe Coding, ch. 6–7, 14; corrected 2026-09-24)*
 The shipped catalogue contains the book's process models — waterfall, V-model, reuse-oriented, Scrum

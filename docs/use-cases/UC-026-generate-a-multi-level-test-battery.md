@@ -37,7 +37,7 @@ Which level checks what follows the book (ch. 13 §4, §6, §7):
 | **unit** | one function, class or small module in isolation | a module (`MOD-`) | automated, external services mocked |
 | **component** | the interface between units that work together | an architecture element (`ARC-`) and its modules | automated, misuse, misunderstanding and timing cases |
 | **system** | the integrated product along a use case | a use case (`UC-`) | automated, end to end |
-| **release** | a release candidate against the specification | a requirement (`REQ-` name) | automated or manual, written by someone other than the implementer |
+| **release** | a release candidate against the specification | a requirement (by its name) | automated or manual, written by someone other than the implementer |
 | **user** | the product in real use: alpha, beta, acceptance | a requirement or acceptance criterion | manual, outcome entered by a person |
 
 Test-driven development (ch. 13 §5) is the way the implementing job uses these tests, not a level of
@@ -99,8 +99,8 @@ its own.
       failed, and removes the fault — the **counter-proof**;
    4. opens a pull request containing the tests and the counter-proof records, naming the Agent M
       version, the participant, the model and the date.
-9. CI runs on the pull request (UC-027); once it is green, the pull request is merged — by the
-   author or by the agent.
+9. CI runs on the pull request (UC-027); once the product's Definition of Done holds (UC-002,
+   step 8), the pull request is merged — by the author or by the agent.
 
 ```mermaid
 sequenceDiagram
