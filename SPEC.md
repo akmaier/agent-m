@@ -176,6 +176,14 @@ list is part of the proposal rather than a result reported afterwards.
 beforehand, had anyone looked. It was noticed afterwards.
 *Check:* `tests/test_impact_list.py` — a change proposal touching an existing identifier carries
 the derived reference list.
+
+**A REQUIREMENT NAMES WHAT IT CONSTRAINS** *(PO A. Maier, 2026-09-24)*
+Every requirement states whether it constrains the product or the development process.
+*Occasion:* a requirement source may impose rules on either. "The export is a PDF" constrains the
+product; "every change to a safety-relevant unit is verified and the verification is recorded"
+constrains how the product is developed. Only the second kind changes the workflow (§5), so Agent M
+has to know which is which.
+*Check:* `tests/test_requirement_fields.py`
 ## 4. Use cases and models
 
 **A USE CASE REALISES NAMED REQUIREMENTS** *(PO A. Maier, 2026-09-23)*
