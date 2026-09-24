@@ -23,7 +23,9 @@ flowchart LR
         UC014[UC-014 Set up an instance]
     end
     subgraph s1 [1 Sources]
-        UC004[UC-004 Register a requirement source]
+        UC004[UC-004 Register a source in the library]
+        UC015[UC-015 Link sources to a product]
+        UC016[UC-016 A source gets a new version]
     end
     subgraph s2 [2 Requirements]
         UC005[UC-005 Derive requirements]
@@ -43,7 +45,7 @@ flowchart LR
         UC013[UC-013 Release a version]
     end
 
-    Author --- UC014 & UC001 & UC002 & UC003 & UC004 & UC005 & UC007 & UC013
+    Author --- UC014 & UC001 & UC002 & UC003 & UC004 & UC015 & UC016 & UC005 & UC007 & UC013
     Reviewer --- UC006 & UC008 & UC009
     Contributor --- UC012
     UC005 & UC007 --- Endpoint

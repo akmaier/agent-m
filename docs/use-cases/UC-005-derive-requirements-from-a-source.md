@@ -32,13 +32,14 @@ five-field form, for the author to approve or reject one by one.
 
 ## Precondition
 
-- The source is registered (UC-004).
+- The source is in the library (UC-004) and linked to the product (UC-015).
 - A runtime is available: a configured endpoint (UC-003), GitHub Actions (UC-010) or the local
   bridge (UC-011).
 
 ## Main flow
 
-1. The author selects a source and provides its relevant text or excerpt.
+1. The author selects one of the product's linked sources and, optionally, the part to work on. Agent M
+   reads exactly the linked version, and checks its hash.
 2. The run panel shows which destination will receive the text, and what exactly is sent; the
    author presses **Run** — that click is the decision, there is no separate confirmation.
 3. Agent M sends the text with the requirement prompt from the repository's single definition.
@@ -69,8 +70,10 @@ sequenceDiagram
 ## Alternative flows
 
 - **2a. The author does not press Run.** Nothing is sent.
-- **4a. A candidate has no source that is registered.** It is not proposed; Agent M lists it as
-  a hint to register the source first (UC-004).
+- **4a. A candidate points to a rule from a source the product does not link.** It is not proposed;
+  Agent M lists it as a hint to link the source first (UC-015).
+- **1a. The file's hash differs from the one recorded for the linked version.** Nothing is sent;
+  Agent M says that the content changed and that a new version must be registered (UC-016).
 - **5a. The author splits a flagged candidate.** Each part becomes an entry of its own.
 - **5b. A candidate constrains the process.** It is marked as such; once accepted, it adds its gates
   and artifacts to the product's workflow (UC-002, step 7).

@@ -1,77 +1,114 @@
 ---
 id: UC-004
-title: Register a requirement source
+title: Register a requirement source in the library
 stage: 1 sources
 actors:
   - Author
+  - Fetch workflow
 realises:
+  - THE INSTANCE KEEPS THE SOURCE REGISTER
+  - A SOURCE IS FILES, AN ARCHIVE OR A REPOSITORY
+  - A SOURCE DECLARES ITS LICENCE
+  - RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE
+  - A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+  - A STANDARD IS REGISTERED BY ITS DESIGNATION
+  - AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
   - THE SOURCE MODEL IS GENERIC
   - A SOURCE DECLARES ITS AUTHORITY
   - A LIVING SOURCE IS PINNED
   - THE SOURCE KIND IS ONE OF A CLOSED SET
   - EVERY ARTIFACT HAS AN IDENTIFIER
-  - ARTIFACTS ARE MARKDOWN
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
-  - A REQUIREMENT NAMES WHAT IT CONSTRAINS
 ---
-# UC-004 Register a requirement source
+# UC-004 Register a requirement source in the library
 
-**Goal.** The author records who or what may legitimately impose requirements on the product, and
-with which authority — before any requirement is written.
+**Goal.** The author adds a source of rules — a law, a norm, a set of documents, a repository — to
+the instance's library once, so that any product can link to it later (UC-015), and so that it is
+always clear which version was used.
+
+**Where things end up:**
+
+| | stored in | public? |
+|---|---|---|
+| the register entry: name, kind, authority, licence, versions, identifiers, hashes | the instance, `docs/sources/SRC-<slug>.md` | yes — the instance is a public fork |
+| content that may be republished (EU law, openly licensed guides) | the instance, `docs/sources/SRC-<slug>/<version>/` | yes |
+| restricted content (a bought norm, internal documents) | a repository the author names, public or private | as that repository |
 
 ## Actors
 
-- **Author** — knows the stakeholders, standards and documents behind the product.
+- **Author** — knows the sources behind the products.
+- **Fetch workflow** — a workflow of the instance that downloads EU legal texts.
 
 ## Precondition
 
-- The product is managed by Agent M (UC-001).
+- The author has an instance with its token stored in this browser (UC-014).
 
 ## Main flow
 
-1. The author starts a new source.
-2. Agent M asks for a name, a kind from the closed set (organisation, person, standard,
-   regulation, document, system, measurement) and an authority (normative, advisory,
-   informational).
-3. The author enters them, plus a location and a contact where they exist.
-4. If the source is maintained elsewhere, Agent M asks for the state that was read — a commit, a
-   version, or a retrieval date.
-5. Agent M assigns the identifier `SRC-<slug>`.
-6. The author presses **Save** — one click. Agent M commits the source as a Markdown file to the
-   product repository under the author's account; it is the author's own input and needs no second
-   approval.
-
-Each field carries a folded explanation: what counts as a source, and the difference between
-*normative*, *advisory* and *informational*, with an example of each. It also says that a source can
-impose rules on the product **and** on the way the product is developed — IEC 62304, registered as
-a *standard*, *normative*, is the example: it is a source of rules, not a way of working (UC-002).
+1. The author opens **Library** on the dashboard and chooses **+ Register source**.
+2. Agent M asks what the source is, with one sentence and an example for each:
+   - **An EU legal text** — paste its EUR-Lex or ELI address;
+   - **A standard** — for example IEC 62304;
+   - **Documents** — PDF, Word, Markdown files, or a zip file containing them;
+   - **A repository** — the address of a repository, public or private, on GitHub or GitLab.
+3. The author fills in the fields common to all: name, kind, authority (*normative*, *advisory*,
+   *informational*), and licence (*may be republished* or *restricted*). Each field has a folded
+   explanation with an example.
+4. The route-specific part:
+   - **EU legal text:** Agent M recognises the CELEX number or ELI from the address (for the AI Act,
+     `32024R1689`) and fills in the identifier.
+   - **Standard:** the author enters the full designation, with edition and amendments —
+     `IEC 62304:2006+AMD1:2015`. A folded explanation shows where to find it on the norm's cover page
+     and why the amendment matters. Licence is preset to *restricted*.
+   - **Documents:** the author selects the files or the zip. The browser computes the SHA-256 of each
+     file. If the licence is *restricted*, the author chooses the repository where the files go.
+   - **Repository:** the author pastes its address; Agent M reads its current commit with the stored
+     token and pins it.
+5. Before saving, Agent M states what becomes public: the register entry always; the content only if
+   it may be republished.
+6. The author presses **Save** — one click. Agent M commits the register entry, and the content where
+   it belongs, under the author's account.
+7. For an EU legal text, the fetch workflow then downloads the official text from the EU's
+   publication repository, stores it with retrieval date, the repository's version identifier and
+   its SHA-256, and completes the register entry. The library shows the source as *fetched*.
 
 ```mermaid
 sequenceDiagram
     actor A as Author
-    participant M as Agent M
-    participant G as GitHub
-    A->>M: new source
-    M-->>A: ask kind and authority
-    A->>M: name, kind, authority, location
-    M-->>A: ask pinned state (living source)
-    A->>M: commit, version or date
-    A->>M: Save
-    M->>G: commit SRC-slug as Markdown (author's token)
+    participant D as Dashboard
+    participant I as Instance repository
+    participant R as Named repository
+    participant W as Fetch workflow
+    participant E as EU publication repository
+    A->>D: Register source, choose route, fill in fields
+    D->>D: SHA-256 of selected files
+    D-->>A: what becomes public
+    A->>D: Save
+    D->>I: commit register entry, public content
+    D->>R: commit restricted content
+    I->>W: push event (EU legal text)
+    W->>E: fetch official text
+    W->>I: commit text, date, version, hash
 ```
 
 ## Alternative flows
 
-- **2a. The kind fits none of the seven.** The author picks the closest and explains in the
-  description; the set is not extended ad hoc.
-- **4a. The author cannot name a state.** The retrieval date is recorded; Agent M marks the source
-  as pinned by date only.
-- **5a. A source with the same slug exists.** Agent M proposes a different slug; a withdrawn
-  identifier is never reused.
+- **4a. The author has only a printed or local copy of a norm and does not want to upload it.** The
+  author selects the file anyway; the browser computes its SHA-256 without sending it anywhere, and
+  only designation and hash are recorded, with a note where the copy is kept.
+- **4b. The licence is unknown.** The source is treated as *restricted* until someone records a
+  licence.
+- **4c. The named repository is not reachable with the stored token.** Agent M says so and shows how
+  to extend the token, as in UC-001.
+- **7a. The fetch fails** (the EU repository is unreachable, or the address names no text). The
+  register entry shows the error and a **Fetch again** button; nothing is guessed.
+- **1a. The source is already in the library.** Agent M offers to add a new version instead (UC-016).
 
 ## Postcondition
 
-- The source exists with identifier, kind, authority and, for a living source, a pinned state.
-- Requirements can now name it (UC-005).
+- The library lists the source with kind, authority, licence and at least one version, each version
+  with identifier, date and the SHA-256 of every file read.
+- No restricted content is in the public instance repository.
+- Products can now link to the source (UC-015).
