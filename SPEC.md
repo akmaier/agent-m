@@ -314,8 +314,8 @@ verified here. A design built on an unverified mechanism fails late and expensiv
 ## 7. Configuration and secrets
 
 **CONFIGURATION LIVES IN THE BROWSER** *(PO A. Maier, 2026-09-23)*
-Endpoint, model, model API key and GitHub token are stored in the browser of the person using the
-site; Agent M has no other store for them.
+Endpoint, model, model API key and the repository tokens are stored in the browser of the person
+using the site; Agent M has no other store for them.
 *Occasion:* the Product Owner's requirement — no API key is exposed to the repository. With no
 server (§0) the browser is the only place left, which makes the property structural rather than a
 promise.
@@ -336,8 +336,8 @@ credential that has been in a URL must be assumed to have leaked.
 *Check:* `tests/test_no_credential_in_url.py`
 
 **A TOKEN IS SCOPED TO WHAT IT WRITES** *(PO A. Maier, 2026-09-23)*
-The GitHub token Agent M asks for carries write access only to the repositories of the products it
-manages.
+Every repository token Agent M asks for carries write access only to the repositories of the
+instance and the products it manages.
 *Occasion:* each managed product is its own repository, so the page needs cross-repository access.
 An account-wide token to edit one product's requirements is more authority than the task needs,
 and the reader is the one who bears the consequence.
@@ -366,11 +366,16 @@ server (§0 `NO SERVER`). A pasted token needs none, and the person decides its 
 GitHub's own page.
 *Check:* no automatic check; at review.
 
-**THE TOKEN IS SENT ONLY TO GITHUB** *(PO A. Maier, 2026-09-23)*
-The GitHub token leaves the browser only as the authorisation header of requests to GitHub's API
-and to GitHub's raw file host.
-*Occasion:* a credential that can reach a third origin can leak there; the model endpoint in
-particular never needs it.
+**THE TOKEN IS SENT ONLY TO GITHUB** *(PO A. Maier, 2026-09-23 — withdrawn 2026-09-24)*
+*Withdrawn:* products may live on GitLab servers, whose tokens go to those servers. Replaced by
+`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`. The name is not reused.
+
+**A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT** *(PO A. Maier, 2026-09-24)*
+Each repository token leaves the browser only as the authorisation header of requests to the API of
+the server that issued it.
+*Occasion:* a credential that can reach another origin can leak there. A GitHub token never goes to
+a GitLab server, a GitLab token never to GitHub or to another GitLab, and no token to the model
+endpoint.
 *Check:* `tests/review-core.test.mjs`
 
 **THE SHARED PAGES ORIGIN IS DISCLOSED** *(PO A. Maier, 2026-09-23)*
@@ -396,6 +401,15 @@ repository to select.
 with prefilled permissions the page defaults to *All repositories* (measured 2026-09-24), the
 broadest choice and the one `A TOKEN IS SCOPED TO WHAT IT WRITES` rules out.
 *Check:* `tests/test_token_scope_documented.py`
+
+**A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN** *(PO A. Maier, 2026-09-24)*
+For a product on a GitLab server, Agent M guides the person to create a project access token for
+that one project, with role *Developer* and scope `api`, and to paste it into Agent M.
+*Occasion:* a GitLab personal access token with `api` scope reaches every project of its owner,
+which `A TOKEN IS SCOPED TO WHAT IT WRITES` rules out. A project access token reaches one project.
+It costs one token per GitLab product; where the server does not offer project access tokens, the
+person is told so, and why a personal token is broader.
+*Check:* `tests/review-core.test.mjs`
 ## 8. Versioning
 
 **CALENDAR VERSIONS** *(PO A. Maier, 2026-09-23)*
