@@ -258,6 +258,70 @@ product; "every change to a safety-relevant unit is verified and the verificatio
 constrains how the product is developed. Only the second kind changes the workflow (§5), so Agent M
 has to know which is which.
 *Check:* `tests/test_requirement_fields.py`
+
+**DERIVATION SEES THE EXISTING REQUIREMENTS** *(PO A. Maier, 2026-09-24)*
+When requirements are derived, every requirement of the product — in its SPEC and in its open change
+queues — is part of the input the deriving participant receives.
+*Occasion:* PO, 2026-09-24: "Any derivation of new requirements should also have the old ones in
+context and modify them instead of duplicating them." A model that sees only the source text cannot
+know what is already specified.
+*Check:* `tests/test_derivation_context.py`
+
+**NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY** *(PO A. Maier, 2026-09-24)*
+If the existing requirements do not fit into the deriving participant's context, the run stops and
+says so before anything is sent.
+*Occasion:* a deduplication that silently misses part of the SPEC produces exactly the duplicates it
+exists to prevent, and looks as if it worked.
+*Check:* `tests/test_derivation_context.py`
+
+**A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT** *(PO A. Maier, 2026-09-24)*
+Every derived candidate is classified as a new requirement, a change to a named existing requirement,
+a duplicate of one, or a conflict with one.
+*Occasion:* only a new requirement becomes a new entry; the other three touch something that exists,
+and each needs a different treatment.
+*Check:* `tests/test_derivation_classes.py`
+
+**EXACT DUPLICATES ARE FOUND WITHOUT A MODEL** *(PO A. Maier, 2026-09-24)*
+A candidate whose name or normalised rule text equals an existing requirement's is classified as a
+duplicate deterministically, before any model classification.
+*Occasion:* what can be decided without a model is decided without one (SOFTWARE_MAINTENANCE.md
+§4.0a rule 3): reproducible, fast, and it cannot be argued with.
+*Check:* `tests/test_derivation_classes.py`
+
+**THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED** *(PO A. Maier, 2026-09-24)*
+How often the model classifies a candidate correctly is measured as a rate on a fixed set of
+examples, and every classification is shown to a person, who can change it.
+*Occasion:* "states the same rule in other words" is a judgement a model makes stochastically. Its
+quality is a number over many cases, not a verdict on one (§4.0a rule 4).
+*Check:* `tests/test_derivation_classes.py` — the rate is reported, not gated.
+
+**A CHANGE IS PROPOSED UNDER THE EXISTING NAME** *(PO A. Maier, 2026-09-24)*
+A candidate that changes an existing requirement is proposed as a change to that requirement, under
+its name, with its current text beside it and its impact list.
+*Occasion:* a changed rule under a new name leaves the old one standing, and the SPEC then contains
+both — the duplication this pass exists to prevent.
+*Check:* `tests/test_derivation_classes.py`
+
+**A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT** *(PO A. Maier, 2026-09-24)*
+A candidate that restates an existing requirement is proposed as an additional source of that
+requirement, never as a new requirement.
+*Occasion:* when a second source demands the same thing, that is valuable — the requirement now has
+two reasons — but it is still one requirement.
+*Check:* `tests/test_derivation_classes.py`
+
+**A CONFLICT IS DECIDED BY A PERSON** *(PO A. Maier, 2026-09-24)*
+A candidate that contradicts an existing requirement is shown beside it, with both sources and their
+authority, and is neither applied nor dropped until a person decides.
+*Occasion:* a normative source contradicting an advisory one, or two laws pulling in different
+directions, is a decision with consequences, not a formatting question.
+*Check:* `tests/test_derivation_classes.py`
+
+**CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES** *(PO A. Maier, 2026-09-24)*
+Candidates of one run that state the same rule are merged into one candidate, naming every passage
+they came from, before they are compared with the existing requirements.
+*Occasion:* a long source states the same obligation in several places; a model extracting from it
+produces the same candidate several times.
+*Check:* `tests/test_derivation_classes.py`
 ## 4. Use cases and models
 
 **A USE CASE REALISES NAMED REQUIREMENTS** *(PO A. Maier, 2026-09-23)*
