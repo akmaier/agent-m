@@ -551,12 +551,15 @@ Each use case is a single Markdown file named `docs/use-cases/UC-<nnn>-<slug>.md
 one separately editable and separately acceptable.
 *Check:* `tests/test_usecase_fields.py`
 
-**ACCEPTANCE IS A COMMIT IN GITHUB** *(PO A. Maier, 2026-09-23, reworded 2026-09-24)*
-A use case or a SPEC change is accepted by a commit, made under the accepting person's own GitHub
-account, that adds an approval record to `docs/approvals/`.
-*Occasion:* git already records who decided, when, and on which text. Whether the commit is made
-by the dashboard with the person's token or in GitHub's web interface changes nothing about that
-record.
+**ACCEPTANCE IS A COMMIT IN GITHUB** *(PO A. Maier, 2026-09-23, reworded 2026-09-24 — withdrawn 2026-09-24)*
+*Withdrawn:* the accepting commit of a GitLab product is made on its GitLab server. Replaced by
+`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`. The name is not reused.
+
+**ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON** *(PO A. Maier, 2026-09-24)*
+A use case or a SPEC change is accepted by a commit, made under the accepting person's own account on
+the server that hosts the repository, that adds an approval record to `docs/approvals/`.
+*Occasion:* git already records who decided, when, and on which text — on GitHub and on GitLab
+alike.
 *Check:* `tests/test_approval_records.py`
 
 **AN APPROVAL NAMES THE EXACT TEXT** *(PO A. Maier, 2026-09-23)*
@@ -607,19 +610,32 @@ the reviewed text.
 through GitHub's login redirect, which answered HTTP 500.
 *Check:* `tests/review-core.test.mjs`
 
-**AN ACCEPTED SPEC CHANGE IS WRITTEN BY A WORKFLOW** *(PO A. Maier, 2026-09-23)*
-Once an approval record for a SPEC change is committed, a GitHub Actions workflow replaces the
-anchored SPEC section with the approved proposal text byte for byte.
-*Occasion:* the reviewer approves a proposal file; copying it into the SPEC by hand would reopen
-the question of whether the approved text arrived verbatim.
+**AN ACCEPTED SPEC CHANGE IS WRITTEN BY A WORKFLOW** *(PO A. Maier, 2026-09-23 — withdrawn 2026-09-24)*
+*Withdrawn:* the workflow exists only in the instance repository, so an accepted SPEC change of a
+product was never written. Replaced by `AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL`. The
+name is not reused.
+
+**AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL** *(PO A. Maier, 2026-09-24)*
+With a stored token, accepting a SPEC change commits the approval record and the replaced SPEC
+section together, in one commit, with the approved proposal text byte for byte.
+*Occasion:* one commit, one decision: the SPEC can never show an approval without its change or a
+change without its approval. It works the same on every server, and no product needs a workflow.
+*Check:* `tests/review-core.test.mjs`
+
+**WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE** *(PO A. Maier, 2026-09-24)*
+When an approval record for the instance's own SPEC is committed without the dashboard, the
+instance's workflow writes the approved section byte for byte.
+*Occasion:* the no-token route through GitHub's web interface stays usable for the instance's own
+SPEC, which is the only repository that carries the workflow.
 *Check:* `tests/test_apply_approvals.py`
 
-**A STALE APPROVAL IS NOT APPLIED** *(PO A. Maier, 2026-09-23)*
-The workflow writes nothing when the proposal or the current SPEC section differs from the blob
-SHAs named in the approval record.
+**A STALE APPROVAL IS NOT APPLIED** *(PO A. Maier, 2026-09-23, reworded 2026-09-24)*
+Nothing is written when the proposal or the current SPEC section differs from the blob SHAs named in
+the approval record.
 *Occasion:* the reviewer decided on one proposal beside one current text. If either changed after
-the decision, the decision does not cover the new state.
-*Check:* `tests/test_apply_approvals.py`
+the decision, the decision does not cover the new state. This holds for the dashboard and for the
+workflow alike.
+*Check:* `tests/test_apply_approvals.py` · `tests/review-core.test.mjs`
 
 **AN INSTANCE IS A FORK OF AGENT M** *(PO A. Maier, 2026-09-23)*
 A person or team runs Agent M as their own fork, and the fork's Pages site is the dashboard for the
@@ -655,3 +671,26 @@ for someone new to GitHub.
 *Occasion:* PO, 2026-09-24: users "might be new to GitHub". The explanation stays folded for
 those who do not need it.
 *Check:* `tests/test_step_explanations.py`
+
+**A PRODUCT IS NAMED BY ITS ADDRESS** *(PO A. Maier, 2026-09-24)*
+A product is identified by the web address of its repository, on `github.com` or on a GitLab server.
+*Occasion:* `owner/name` is ambiguous as soon as there is more than one server, and GitLab projects
+sit in nested groups (`group/subgroup/project`). The address is what a person copies from the
+browser anyway.
+*Check:* `tests/review-core.test.mjs`
+
+**GITLAB PRODUCTS ARE SUPPORTED** *(PO A. Maier, 2026-09-24)*
+Agent M reads and writes products on any GitLab server whose API accepts requests from the instance's
+Pages address.
+*Occasion:* products at the author's institution often live on a self-hosted GitLab. Measured
+2026-09-24: `gitlab.com`, `gitlab.rrze.fau.de` and `gitos.rrze.fau.de` answer a cross-origin
+preflight from `https://akmaier.github.io` with `Access-Control-Allow-Origin: *`, allow the headers
+`authorization` and `private-token`, and allow `POST`/`PUT`.
+*Check:* `tests/review-core.test.mjs`
+
+**A GITLAB PRODUCT IS WRITTEN WITH A TOKEN** *(PO A. Maier, 2026-09-24)*
+Accepting and editing in a GitLab product require a stored token; there is no web-interface fallback.
+*Occasion:* GitLab's new-file page reportedly ignores prefilled content (GitLab work item 594214 —
+reported, not measured here), so the route that works without a token on GitHub does not exist
+there. The dashboard says so instead of offering a route that fails.
+*Check:* `tests/review-core.test.mjs`
