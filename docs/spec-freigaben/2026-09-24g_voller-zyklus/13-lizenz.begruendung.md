@@ -10,3 +10,8 @@ changes.
 
 **Follows after acceptance:** the `LICENSE` file (MIT, copyright holder as the PO names it — proposed:
 *Andreas Maier*), the README's licence paragraph, and `tests/test_licence.py`.
+
+**Consistency fix by the main agent, 2026-09-25:** the check of `NO SERVER` listed only the endpoint,
+the GitHub API, GitLab servers and the bridge. The pending rules also read package registries (due
+diligence, entry 06) and resource hosts such as Hugging Face (entry 10) from the browser — calls the
+old check would have failed. The rule is unchanged; only its check names these origins.

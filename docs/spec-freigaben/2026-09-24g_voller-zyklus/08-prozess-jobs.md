@@ -97,7 +97,8 @@ start, and, once it has ended, its end state and results.
 *Occasion:* PO, 2026-09-24: "jobs need identifiers and they live in the respective product repo …
 probably in a subfolder thereof". Read only from the runtimes, a job that ran in another browser or
 on a bridge that is switched off is invisible, and CI servers delete their logs; the record keeps it.
-The start is written by the click that starts the job, the end by the job itself.
+The start is written by the click that starts the job; the end is written by the job itself, in the
+same commit as its result where the result is a commit.
 *Check:* `tests/test_job_record.py`
 
 **A JOB IDENTIFIER IS NEVER REUSED** *(PO A. Maier, 2026-09-24)*

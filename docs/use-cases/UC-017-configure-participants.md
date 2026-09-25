@@ -76,7 +76,7 @@ sequenceDiagram
     D-->>A: explanation, preset capabilities
     A->>D: name, connection, capabilities, processing place
     A->>D: Test (CLI or sandboxed agent)
-    D->>B: harmless request with session token
+    D->>B: harmless request with bridge token
     B-->>D: agent answered
     A->>D: Save
     D->>I: commit docs/participants.md (no key)
@@ -84,8 +84,8 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **3a. The endpoint is not configured yet.** A link leads to UC-003; afterwards the author returns
-  here.
+- **3a. The endpoint is not configured yet.** The endpoint's fields of UC-003 — address, model, key —
+  open in place, with UC-003's test request; the author does not leave this page.
 - **6a. The bridge does not answer.** Agent M names the reason — not running, wrong address, token
   missing — and saves nothing until the author decides to save untested.
 - **5a. A participant processes data outside places that some sources permit.** Agent M lists those

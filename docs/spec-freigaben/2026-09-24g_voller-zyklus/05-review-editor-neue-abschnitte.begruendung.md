@@ -64,3 +64,9 @@ That makes the browser's local storage the better choice."*
 - Impact list: UC-001 (accepted — steps 5 and 5b, diagram, postcondition), UC-014 (alternative flow 1a),
   `docs/products.md`, `docs/assets/review-app.mjs`, `tests/test_products_register.py`,
   `.gitignore`. The code follows after acceptance, by pull request.
+
+**Comfort review by the main agent, 2026-09-25:** three rules that save round trips without giving up a
+check — accepting several reviewed files in one commit (each record still names its shown text),
+accepting a queue's entries in their order (the dependency "05 before 06–10" is handled by the dashboard,
+not by the reviewer's memory), and collecting a person's SPEC edits of a day in one queue. `ONE CLICK PER
+DECISION` stays as it is: a batch is several decisions that each got their reading.

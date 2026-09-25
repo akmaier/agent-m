@@ -73,7 +73,7 @@ process, where mails live in a local ticket database (`scripts/ticket_db.py`) an
 
 1. The author opens **Mail** on the dashboard and presses **Read mailbox**. The first time, Agent M
    first asks where the private tracker is (alternative flow 1a).
-2. The dashboard sends the connection, the session token and the `Message-ID`s already recorded to
+2. The dashboard sends the connection, the bridge token and the `Message-ID`s already recorded to
    the bridge. The bridge reads `INBOX` read-only — nothing is marked as read, moved or flagged — and
    returns the mails whose `Message-ID` is not yet recorded, then forgets the password.
 3. Agent M records each new mail as a report in the private tracker. A mail whose `In-Reply-To` or
@@ -119,7 +119,7 @@ sequenceDiagram
     participant T as Private tracker
     participant I as Issue tracker
     A->>D: Read mailbox
-    D->>B: connection, session token, known Message-IDs
+    D->>B: connection, bridge token, known Message-IDs
     B->>S: read INBOX, read-only
     B-->>D: new mails
     D->>T: record reports, attach known threads
@@ -140,6 +140,9 @@ sequenceDiagram
   explanation: **a private repository** — the author names or creates one, and Agent M checks with the
   server that its visibility is *private*; or **a folder on the bridge's machine** — the bridge writes
   the reports there and nowhere else. The choice is kept in this browser with the mailbox connection.
+- **1c. The stored token does not reach the private repository.** Agent M shows the same two steps as
+  UC-001 Step A — open the token on GitHub, add the repository, *Update* — and checks again; nothing is
+  written before the check succeeds.
 - **1b. The named repository is public or internal.** Agent M refuses it, says why — every mail would
   be published, and the history keeps it after deletion — and writes nothing.
 - **2a. The bridge does not answer.** Nothing is read; Agent M names the reason (UC-037, 5a).

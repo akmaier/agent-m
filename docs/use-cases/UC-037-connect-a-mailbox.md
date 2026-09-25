@@ -47,7 +47,7 @@ running the instance under an owner used for nothing else (UC-014, step 1).
 ## Precondition
 
 - The author has an instance with its token stored in this browser (UC-014).
-- The local bridge runs on the author's machine, bound to loopback, and its session token is stored
+- The local bridge runs on the author's machine, bound to loopback, and its bridge token is stored
   in this browser (UC-011).
 
 ## Main flow
@@ -74,7 +74,7 @@ running the instance under an owner used for nothing else (UC-014, step 1).
 5. The author enters the password and presses **Store and test** — one click. Agent M:
    - stores server, ports, account, the allowed processing places and password in `localStorage`, under the instance's key; no
      cookie, nothing in the URL, nothing in any repository;
-   - sends one test request to the bridge with the session token, carrying the connection;
+   - sends one test request to the bridge with the bridge token, carrying the connection;
    - the bridge opens an encrypted connection to the IMAP server and logs in, selects `INBOX`
      read-only and counts the mails; then opens an encrypted connection to the SMTP server, logs in and
      disconnects without sending anything; then forgets the password;
@@ -96,7 +96,7 @@ sequenceDiagram
     D-->>A: notice for any place outside the EU
     A->>D: password, Store and test
     D->>L: store connection
-    D->>B: test, connection and session token
+    D->>B: test, connection and bridge token
     B->>S: IMAP login over TLS, read-only count
     B->>S: SMTP login over TLS, no mail
     B-->>D: both work, password forgotten

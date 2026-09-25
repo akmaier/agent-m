@@ -18,6 +18,9 @@ realises:
   - A TOKEN IS SCOPED TO WHAT IT WRITES
   - ONE CLICK PER DECISION
   - ONE GITHUB TOKEN SERVES EVERY FEATURE
+  - SETTINGS MOVE TO ANOTHER BROWSER WITHOUT THEIR SECRETS
+  - AGENT M IS MIT-LICENSED
+  - A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER
 ---
 # UC-014 Get your own Agent M
 
@@ -44,14 +47,18 @@ their own settings, their own list of products.
 3. **Step 2 · Turn on the dashboard.** Now that the owner is known, a button opens exactly
    `github.com/<owner>/agent-m/settings/pages`; the page says what to choose there — *Deploy from a
    branch*, `main`, `/docs`, *Save*. GitHub lets no one but the owner switch this on.
-4. **Step 3 · Turn on the workflows.** A button opens `github.com/<owner>/agent-m/actions`; the person
-   presses *I understand my workflows, go ahead and enable them*. GitHub disables workflows on every
-   fork until its owner does.
+4. **Step 3 · Turn on the workflows — optional now.** The instance's workflows are needed only to fetch
+   EU legal texts (UC-004) and to write an accepted change of the instance's own SPEC without a token
+   (UC-006, 4c); the page says so and offers **Later**. When a feature first needs them, the dashboard
+   shows this step again. A button opens `github.com/<owner>/agent-m/actions`; the person presses *I
+   understand my workflows, go ahead and enable them*. GitHub disables workflows on every fork until
+   its owner does.
 5. **Step 4 · Open your dashboard.** A button opens `https://<owner>.github.io/agent-m/` — with a
    folded note that GitHub needs about a minute after Step 2 before the address answers.
 
 The fork's README carries the same three steps as text, for people who start on GitHub rather than
-on the dashboard.
+on the dashboard. Agent M's MIT licence, shown with a folded explanation, is what allows the fork and
+leaves the licence of every product to the person.
 
 6. On the person's own dashboard, the setup continues: because no token is stored yet, it shows
    **Finish setting up your instance** at the top of its start page; the person presses **Set up
@@ -91,15 +98,22 @@ sequenceDiagram
 ## Alternative flows
 
 - **3a. Pages is not turned on.** The address answers 404; nothing else is affected.
-- **4a. Actions are not enabled.** Approval commits for SPEC changes are recorded but never written
-  into the SPEC; the dashboard shows such entries as *approved*, never *in SPEC*, and says why.
+- **4a. Actions are not enabled.** Everything done on the dashboard with a token works as usual. Only an
+  approval of the instance's own SPEC committed on GitHub's page without a token is recorded but not
+  written; the dashboard shows it as *approved*, not *in SPEC*, says why, and offers step 3. EU legal
+  texts are registered but not fetched until step 3 is done.
 - **1a. The person later wants Agent M's improvements.** They use GitHub's *Sync fork*. The fork
   commits nothing about its products — the list lives in the browser — so the sync does not collide
   with it and overwrites nothing of the person's.
 
+- **1b. The person also works in a local clone** — for CLI agents on their machine. They clone their
+  fork; products they check out go into their own folders under `products/`, which git ignores, so no
+  product ever reaches the fork. `products/README.md` says so.
 - **7a. The person uses a second browser or computer later.** The token lives only in the browser it
-  was stored in; the dashboard there opens *Finish setting up* again. The same token can be pasted,
-  or a new one created.
+  was stored in; the dashboard there opens *Finish setting up* again, with **Import settings** beside
+  it. In the first browser, *Settings → Export* saved a file with the products, endpoints, bridge
+  address and mailbox server — no token, key or password. Imported, only the secrets are entered again,
+  each at its own notice; the same token can be pasted, or a new one created.
 - **6a. The person only wants to read public repositories.** They can skip the setup; the dashboard
   reads without a token, and accepting then goes through GitHub's own pages.
 

@@ -121,6 +121,15 @@ acceptance step is a decision — accept, accept with known limitations, or reje
 recorded like every other gate (`THE GATE IS RECORDED`).
 *Check:* `tests/review-core.test.mjs`
 
+**ACCEPTING THE RELEASE TEST REPORT RELEASES** *(PO A. Maier, 2026-09-25)*
+Accepting a release test report on the dashboard also commits the changelog entry and sets the release
+tag on the tested commit, as part of the same click.
+*Occasion:* the acceptance is the release decision (ch. 13 §7: accept, accept with limitations, or
+reject). A separate *Release* click after it decides nothing new, and is one more place to stop halfway
+with an accepted report and no release.
+*Check:* `tests/test_release_run.py` — after accepting a green report the tag exists on the tested
+commit; counter-proof: rejecting it sets no tag.
+
 **THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE** *(PO A. Maier, 2026-09-24)*
 The audit view of a release lists every requirement valid at that release with the tests guarding
 it, their outcomes on the release commit, and the acceptance of the release test report — including

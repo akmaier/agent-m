@@ -12,6 +12,7 @@ realises:
   - BROWSER REACHABILITY IS MEASURED, NOT ASSUMED
   - ONE DEFINITION, THREE DRIVERS
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - THE BRIDGE IS PAIRED ONCE
 ---
 # UC-011 Hand a job to a local CLI session
 
@@ -31,7 +32,9 @@ authenticated on a machine they control.
 
 ## Main flow
 
-1. The author enters the bridge address and the session token on the Agent M site.
+1. **Once:** the author starts the bridge for the first time; it prints a token and keeps it across
+   restarts. The author enters the bridge address and that token on the Agent M site, which stores
+   them in this browser. After that, handing a job over needs neither again.
 2. The site sends the job definition and inputs to the bridge, with the token.
 3. The bridge checks the token and hands the task to the CLI session.
 4. The CLI session commits the artifacts to the default branch, where they are open; a code change
@@ -58,6 +61,8 @@ sequenceDiagram
 - **1a. The author works from another machine.** The author opens an SSH tunnel or port forward
   that ends on the bridge's loopback address, and uses the forwarded address; the bridge's bind
   does not change.
+- **1b. The author suspects the token has leaked.** They start the bridge with *pair anew*; it prints a
+  new token, the old one is rejected from then on, and the new one is entered once as in step 1.
 - **3a. The token is missing or wrong.** The bridge refuses the request; nothing reaches the CLI
   session.
 - **2a. The browser blocks the call.** The site names the reason and points to UC-010.

@@ -21,6 +21,7 @@ realises:
   - EVERY STEP EXPLAINS ITSELF
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
   - A JOB IDENTIFIER IS NEVER REUSED
+  - A RECORD IS EVIDENCE, NOT A PROPOSAL
 ---
 # UC-036 Inspect running jobs
 
@@ -57,7 +58,7 @@ agents run on their own, and a person watches the whole and can step in.
 ## Precondition
 
 - The instance manages at least one product (UC-001).
-- The browser has the tokens for the products' servers, and the session tokens of the bridges it
+- The browser has the tokens for the products' servers, and the bridge tokens of the bridges it
   should read.
 
 ## Main flow
@@ -67,7 +68,7 @@ agents run on their own, and a person watches the whole and can step in.
      started, with its inputs, participant, runtime, start and, once ended, its end state;
    - for the jobs that have not ended, their live state: the Actions runs and GitLab pipelines of Agent M's job workflows in each product, each with the
      token of that product's server only;
-   - the job list of each configured bridge, with its session token;
+   - the job list of each configured bridge, with its bridge token;
    - the jobs of this browser tab.
 2. Agent M shows one list across products, newest first, grouped by state. *Waiting for a person*
    comes first. Each row shows:

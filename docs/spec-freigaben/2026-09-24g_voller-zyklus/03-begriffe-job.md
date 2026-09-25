@@ -29,11 +29,20 @@ the bind: the bridge stays invisible on the network, and the tunnel brings its o
 *Check:* `tests/test_bridge_tunnel.py` — the bridge answers through a forwarded loopback port and
 on no non-loopback interface.
 
-**THE LOCAL BRIDGE REQUIRES A TOKEN** *(PO A. Maier, 2026-09-23)*
-The bridge rejects any request that does not carry the session token it printed at startup.
+**THE LOCAL BRIDGE REQUIRES A TOKEN** *(PO A. Maier, 2026-09-23, reworded 2026-09-25)*
+The bridge rejects any request that does not carry the token it was paired with.
 *Occasion:* loopback is not a permission boundary between programs on the same machine. Any local
 process, including a page from an unrelated site, can reach a loopback port.
 *Check:* `tests/test_bridge_token.py`
+
+**THE BRIDGE IS PAIRED ONCE** *(PO A. Maier, 2026-09-25)*
+The bridge keeps its token across restarts, in a file outside every repository that only its user can
+read, until the person pairs it anew.
+*Occasion:* a token printed at every start has to be copied into the dashboard after every restart of
+the machine — the step people give up on. Kept like a CLI's own login, the pairing survives; the file
+permission keeps other users of the machine out, and *pair anew* replaces a token that may have leaked.
+*Check:* `tests/test_bridge_token.py` — after a restart the stored token is accepted and the file is
+readable by its owner only; counter-proof: after *pair anew* the old token is rejected.
 
 **AN UNSUPPORTED ENDPOINT SAYS SO** *(PO A. Maier, 2026-09-23)*
 When a configured endpoint cannot be called from the browser, Agent M names the reason and the

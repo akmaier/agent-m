@@ -163,6 +163,31 @@ once its inputs are complete, and everything that follows from it is done by Age
 a decision and its effect is a place to get lost.
 *Check:* no automatic check; at review of each use case.
 
+**SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier, 2026-09-25)*
+A reviewer who has opened several reviewed files may accept all of them with one click, in one commit
+that holds one approval record per file, each naming the text shown.
+*Occasion:* forty use cases are forty decisions, but not forty round trips: the reviewer reads each one,
+ticks it, and commits once. Each record still names exactly the text that was shown
+(`AN APPROVAL NAMES THE EXACT TEXT`), so nothing unread is accepted.
+*Check:* `tests/review-core.test.mjs` — a batch writes one record per ticked file, and none for a file
+that was not opened; counter-proof: a file changed after it was shown is left out and named.
+
+**A QUEUE IS ACCEPTED IN ITS ORDER** *(PO A. Maier, 2026-09-25)*
+Entries of one queue accepted together are written in the order of the queue's index, in one commit,
+and an entry whose anchor another entry creates is offered only together with or after that entry.
+*Occasion:* queue 2026-09-24g needs entry 05 before 06–10, because 05 creates their headings; a
+reviewer should not have to know that. Accepted in order in one commit, the SPEC never holds half a
+queue.
+*Check:* `tests/review-core.test.mjs` — accepting 05 and 06 together yields one commit with both
+sections; counter-proof: 06 alone is not offered while its anchor is missing, and the dashboard names
+05.
+
+**A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE** *(PO A. Maier, 2026-09-25)*
+A SPEC edit saved on the dashboard is added to the person's newest queue of the same day that has no
+accepted entry yet, and opens a new queue only if there is none.
+*Occasion:* ten wording fixes in an afternoon are one review, not ten queues to open one by one.
+*Check:* `tests/review-core.test.mjs`
+
 **EVERY STEP EXPLAINS ITSELF** *(PO A. Maier, 2026-09-24)*
 Every step that asks something of the person carries an explanation that can be expanded, written
 for someone new to GitHub.

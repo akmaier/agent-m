@@ -19,6 +19,7 @@ realises:
   - RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
   - THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
   - A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
+  - ACCEPTING THE RELEASE TEST REPORT RELEASES
 ---
 # UC-013 Release a version
 
@@ -51,10 +52,11 @@ and referred to later.
      "typically by a team independent of feature development").
 3. The job dashboard (UC-036) shows the run. When it ends, the release panel shows every level with
    its result, every model-dependent check as a rate against the running version, and every
-   requirement with the evidence that guards it (the audit view, UC-030).
-4. If every level is green, the author presses **Release** — one click. Agent M commits the changelog
-   entry and sets the tag `vYYYY.MINOR.PATCH` on the release candidate's commit — the one that was
-   tested, not a later one.
+   requirement with the evidence that guards it (the audit view, UC-030), above the release test
+   report with **Accept and release**.
+4. If every level is green, the author presses **Accept and release** — one click. Agent M commits the
+   release test report, its approval record and the changelog entry in one commit, and sets the tag
+   `vYYYY.MINOR.PATCH` on the release candidate's commit — the one that was tested, not a later one.
 
 Folded explanations say what each level checks, why release tests run with a different participant,
 and why a released version is never changed afterwards.
@@ -71,14 +73,14 @@ sequenceDiagram
     M->>C: complete suite, every level, on that commit
     C-->>M: results per level, rates, evidence per requirement
     M-->>A: release panel
-    A->>M: Release
-    M->>G: commit changelog entry
+    A->>M: Accept and release
+    M->>G: commit report, approval, changelog entry
     M->>G: tag vYYYY.MINOR.PATCH on the tested commit
 ```
 
 ## Alternative flows
 
-- **3a. A level is red.** *Release* stays disabled; the panel names the failing tests and the
+- **3a. A level is red.** *Accept and release* asks first for the reason of every failing test; the panel names them and the
   requirements they guard. The author either fixes (UC-012) and starts a new candidate `-rc.N+1`, or —
   as the book's conditional acceptance allows (ch. 13 §7) — accepts the release test report **with
   known limitations**: the failing tests and the reason are recorded in the approval (UC-028, UC-030),

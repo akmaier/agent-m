@@ -4,7 +4,7 @@ title: Derive use cases from requirements
 stage: 3 use cases
 actors:
   - Author
-  - Model endpoint
+  - Deriving participant
   - GitHub
 realises:
   - A USE CASE REALISES NAMED REQUIREMENTS
@@ -25,21 +25,25 @@ own file, for review in UC-008.
 ## Actors
 
 - **Author** — starts the job and chooses what it covers.
-- **Model endpoint** — drafts the use cases.
+- **Deriving participant** — a model endpoint or agent from the instance's list (UC-017) that can
+  *draft text*; it drafts the use cases.
 - **GitHub** — receives the proposal.
 
 ## Precondition
 
 - The product has accepted requirements.
-- A runtime is available (UC-003, UC-010 or UC-011).
+- At least one participant that can *draft text* is configured (UC-017).
 
 ## Main flow
 
 1. The author selects the requirements the job should cover, by default all that no use case
    realises yet.
-2. The run panel shows the destination and the content to be sent; the author presses **Run**.
-3. Agent M sends the requirements with the use-case prompt from the single definition.
-4. The endpoint returns use cases, each with actors, precondition, main flow, alternative flows,
+2. The author chooses the participant. The run panel shows the destination and the content to be
+   sent; the author presses **Run**.
+3. Agent M sends the requirements, **every existing use case of the product**, and the use-case prompt
+   from the single definition — so that a goal already covered becomes a change, not a second use case
+   (6a).
+4. The participant returns use cases, each with actors, precondition, main flow, alternative flows,
    postcondition, a Mermaid diagram, and the names of the requirements it realises.
 5. Agent M checks every realised name against the product's requirements and assigns
    identifiers `UC-<nnn>`.
@@ -50,12 +54,12 @@ own file, for review in UC-008.
 sequenceDiagram
     actor A as Author
     participant M as Agent M
-    participant E as Model endpoint
+    participant E as Deriving participant
     participant G as GitHub
     A->>M: select requirements
     M-->>A: destination and content
     A->>M: Run
-    M->>E: requirements with use-case prompt
+    M->>E: requirements, existing use cases, use-case prompt
     E-->>M: drafted use cases
     M->>M: check realised names, assign UC ids
     M->>G: commit one file per use case (open)

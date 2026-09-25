@@ -24,6 +24,8 @@ realises:
   - ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
   - AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL
   - WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
+  - A QUEUE IS ACCEPTED IN ITS ORDER
+  - SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 ---
 # UC-006 Approve a specification change
 
@@ -85,6 +87,10 @@ sequenceDiagram
 - **4c. The instance's own SPEC, without a token.** The record is committed on GitHub's page; the
   instance's workflow then writes the section, applying the same checks. For a product, a token is
   required — no product carries the workflow.
+- **4d. The reviewer accepts several entries of one queue.** They tick the entries they have read;
+  **Accept ticked** writes them in the order of the queue's index, in one commit, each with its record.
+  An entry whose heading another entry creates is offered only together with or after that entry, and
+  the dashboard names it.
 - **4a. The reviewer rejects.** No record is committed; the entry stays open until it is removed
   from the queue by a commit.
 

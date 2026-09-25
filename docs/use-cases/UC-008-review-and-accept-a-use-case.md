@@ -17,6 +17,7 @@ realises:
   - ONE CLICK PER DECISION
   - ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
   - A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
+  - SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 ---
 # UC-008 Review and accept a use case
 
@@ -70,6 +71,9 @@ sequenceDiagram
   to the step that stores the project's token instead.
 - **4a. The reviewer has no write access.** The commit is refused; the dashboard says so and offers
   the GitHub path, where the commit becomes a pull request that counts once a maintainer merges it.
+- **3d. The reviewer has read several use cases.** Each one read gets a tick; **Accept ticked** writes
+  one commit with one record per ticked file, each naming the text that was shown. A file that changed
+  after it was shown is left out and named.
 - **5a. The file is edited after acceptance.** Its SHA changes, no record names it, and the
   dashboard shows it as changed since acceptance — without anyone resetting a status.
 

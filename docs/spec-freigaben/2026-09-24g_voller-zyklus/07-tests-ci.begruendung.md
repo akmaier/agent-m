@@ -52,3 +52,7 @@ word if you choose the first.
     directly and let the dashboard show "configuration pending" until the pull request is merged?
 
 **Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.
+
+**Comfort review by the main agent, 2026-09-25:** a release took three clicks — start the candidate,
+accept the report, release. `ACCEPTING THE RELEASE TEST REPORT RELEASES` makes it two; UC-013 and UC-028
+changed accordingly.

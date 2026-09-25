@@ -1,12 +1,23 @@
 ## 7. Configuration and secrets
 
-**CONFIGURATION LIVES IN THE BROWSER** *(PO A. Maier, 2026-09-23)*
-Endpoint, model, model API key and the repository tokens are stored in the browser of the person
-using the site; Agent M has no other store for them.
+**CONFIGURATION LIVES IN THE BROWSER** *(PO A. Maier, 2026-09-23, extended 2026-09-25)*
+Endpoint, model, model API key, the repository tokens, the list of products, the bridge's address and
+token, and the mailbox connection are stored in the browser of the person using the site; Agent M has
+no other store for them.
 *Occasion:* the Product Owner's requirement — no API key is exposed to the repository. With no
 server (§0) the browser is the only place left, which makes the property structural rather than a
 promise.
 *Check:* `tests/test_config_client_side.py`
+
+**SETTINGS MOVE TO ANOTHER BROWSER WITHOUT THEIR SECRETS** *(PO A. Maier, 2026-09-25)*
+The dashboard exports its settings as a file and imports them from one, and the file contains no
+token, key or password.
+*Occasion:* everything lives in one browser (`CONFIGURATION LIVES IN THE BROWSER`); a second computer
+would otherwise start from nothing — every product, endpoint and mailbox server typed again. Without
+secrets, the file can be mailed or kept anywhere; after the import, only the secrets are entered, each
+at its own notice.
+*Check:* `tests/review-core.test.mjs` — an export with stored tokens, keys and a mailbox password
+contains none of them; counter-proof: an import restores products and addresses.
 
 **CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE** *(PO A. Maier, 2026-09-23)*
 Configuration is written to `localStorage`; Agent M sets no cookie carrying configuration or

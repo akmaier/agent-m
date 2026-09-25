@@ -80,7 +80,7 @@ the review point (ch. 12 §10).
    or sprint if the product set one (UC-002, step 5). The run panel shows the destination and what is
    sent; the author presses **Start job** — one click.
 5. Agent M commits the job's start record `docs/jobs/JOB-<id>.md` — part of the author's click — and
-   hands the job over: through the local bridge with its session token, or by starting the workflow
+   hands the job over: through the local bridge with its bridge token, or by starting the workflow
    on the self-hosted runner. The job writes its end record when it ends. The participant creates a branch named after the job.
 6. **Red.** The participant writes tests for the modules' specified behaviour. Each test names the
    requirement it guards and the module it exercises. It commits them — tests only — and pushes; CI

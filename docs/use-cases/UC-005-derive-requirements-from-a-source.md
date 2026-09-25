@@ -4,7 +4,7 @@ title: Derive requirements from a source
 stage: 2 requirements
 actors:
   - Author
-  - Model endpoint
+  - Deriving participant
   - GitHub
 realises:
   - A REQUIREMENT HAS A REGISTERED SOURCE
@@ -38,14 +38,15 @@ five-field form, for the author to approve or reject one by one.
 ## Actors
 
 - **Author** — decides which candidates become requirements.
-- **Model endpoint** — drafts the candidates.
+- **Deriving participant** — a model endpoint or agent from the instance's list (UC-017) that can
+  *draft text*; it drafts the candidates.
 - **GitHub** — receives the proposal.
 
 ## Precondition
 
 - The source is in the library (UC-004) and linked to the product (UC-015).
-- A runtime is available: a configured endpoint (UC-003), GitHub Actions (UC-010) or the local
-  bridge (UC-011).
+- At least one participant that can *draft text* is configured (UC-017); it runs in the browser, in
+  GitHub Actions (UC-010) or behind the local bridge (UC-011).
 
 ## Main flow
 

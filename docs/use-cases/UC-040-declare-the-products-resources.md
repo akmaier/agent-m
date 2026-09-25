@@ -112,7 +112,7 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
    presets *this machine* for a bridge on the author's machine and asks otherwise, with examples
    (*NHR@FAU, Erlangen*).
 7. The author presses **Check**. Agent M reaches the resource by its route: a read on the host for a
-   repository, data or model; through the bridge, with its session token, a harmless request — for a
+   repository, data or model; through the bridge, with its bridge token, a harmless request — for a
    SLURM cluster the partition list, for an endpoint the list of served models — and shows what
    answered. For an endpoint or agent, the served identifier becomes its pin.
 8. The author presses **Save** — one click. Agent M commits the entry to `docs/resources.md` of the
@@ -135,7 +135,7 @@ sequenceDiagram
     H-->>D: pin, licence, maintenance history
     A->>D: licence, maintainer, secret name, processing place
     A->>D: Check
-    D->>B: harmless request with session token
+    D->>B: harmless request with bridge token
     B-->>D: partitions or served models
     A->>D: Save
     D->>P: commit docs/resources.md (no secret, no restricted content)

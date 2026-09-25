@@ -85,7 +85,7 @@ of a local database, and the neutral issue lives in the product's tracker.
 5. The author presses **Send** on one draft — one click; the confirmation is part of the button's
    dialog, which repeats recipient and subject. The dashboard computes the SHA-256 of the mail as shown
    and sends it with a single-use confirmation carrying that hash to the bridge.
-6. The bridge checks the session token, the confirmation and the hash, logs in over TLS, sends the
+6. The bridge checks the bridge token, the confirmation and the hash, logs in over TLS, sends the
    mail, stores a copy in the mailbox's *Sent* folder, forgets the password, and returns the new mail's
    `Message-ID`.
 7. Agent M records the reply in the report — `Message-ID`, date, text — and moves the draft out of the

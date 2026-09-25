@@ -30,6 +30,7 @@ of its drafting group.
 | 11 | jobs have identifiers (`JOB-`) and records in their product repository, `docs/jobs/` | 01, 08 two new rules, 07 one new rule |
 | 12 | UC-009 merged into UC-020 | use cases only |
 | 13 | the dashboard keeps its products in the browser's local storage; a local clone holds them as ignored folders under `products/`; nothing in the instance repository names a product | 05 one withdrawn, three new rules; 04 one rule changed |
+| — | consistency and comfort review by the main agent, 2026-09-25: `NO SERVER`'s check names registries and resource hosts (13); configuration in the browser extended, settings move without secrets (11); records are evidence, not proposals (04); the bridge is paired once (03); several files accepted in one click, a queue in its order, a person's edits in one queue (05); accepting the release report releases (07) | 03, 04, 05, 07, 11, 13 |
 
 Interpretations by the main agent, correct them in the edit field if they are not what you meant:
 "groups should have new files" → one group file per kind of artifact; "a permanent location in the

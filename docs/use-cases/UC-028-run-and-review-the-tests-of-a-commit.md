@@ -22,6 +22,8 @@ realises:
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - ACCEPTING THE RELEASE TEST REPORT RELEASES
+  - A RECORD IS EVIDENCE, NOT A PROPOSAL
 ---
 # UC-028 Run and review the tests of a commit
 
@@ -92,10 +94,11 @@ sequenceDiagram
   level** on it, whatever the schedule's other columns say; model-dependent tests run their fixed
   number of times. User-level tests appear as a checklist for the people assigned to them, who enter
   each outcome. No tag is set while any test has not run.
-- **1b. The release candidate's complete run has finished.** Agent M writes the release test report —
-  every test, its level, its outcome or rate, the guarded identifiers, the commit — to
-  `docs/tests/releases/v<version>.md`, and shows it to the reviewer with **Accept**. Accepting commits
-  an approval record naming the report's blob SHA (UC-008 mechanics) and lets UC-013 set the tag. If
+- **1b. The release candidate's complete run has finished.** Agent M composes the release test
+  report — every test, its level, its outcome or rate, the guarded identifiers, the commit — and shows
+  it to the reviewer with **Accept and release**. That one click commits the report to
+  `docs/tests/releases/v<version>.md` together with an approval record naming its blob SHA, and
+  releases (UC-013, step 4). If
   tests failed or a rate is worse than the last release's, the report says so first, and *Accept*
   asks for the reason of every failing test and every worse rate; the reasons go into the approval as
   the release's known limitations (UC-013, 3a).
