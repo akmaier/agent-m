@@ -299,7 +299,7 @@ was meant to prevent, and looks as if it worked.
 
 *(not yet approved — proposal of queue 2026-09-24g)*
 
-## 14. Issues and mail
+## 14. Issues, mail and personal data
 
 *(not yet approved — proposal of queue 2026-09-24g)*
 

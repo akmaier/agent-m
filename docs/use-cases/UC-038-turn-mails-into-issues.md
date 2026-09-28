@@ -34,6 +34,14 @@ realises:
   - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
+  - EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE RECORDED MAILS
+  - A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER
+  - AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS
+  - REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE PRIVATE TRACKER
+  - A SURROGATE IS THE SAME WITHIN A REPORT
+  - THE SURROGATE MAPPING STAYS IN THE PRIVATE TRACKER
+  - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
 ---
 # UC-038 Turn mails into issues
 
@@ -76,7 +84,8 @@ process, where mails live in a local ticket database (`scripts/ticket_db.py`) an
 2. The dashboard sends the connection, the bridge token and the `Message-ID`s already recorded to
    the bridge. The bridge reads `INBOX` read-only — nothing is marked as read, moved or flagged — and
    returns the mails whose `Message-ID` is not yet recorded, then forgets the password.
-3. Agent M records each new mail as a report in the private tracker. A mail whose `In-Reply-To` or
+3. Agent M records each new mail as a report in the private tracker, under its identifier `MAIL-` and
+   the first sixteen hex digits of the SHA-256 of its `Message-ID`. A mail whose `In-Reply-To` or
    `References` names a recorded mail is attached to that report and its issue at once, without a
    participant; it is shown under that issue (UC-039 uses it).
 4. The remaining mails are listed with sender, subject and date — visible only in this browser. The
@@ -94,17 +103,23 @@ process, where mails live in a local ticket database (`scripts/ticket_db.py`) an
      what was expected, version, error message — no names, addresses, signatures or greetings;
    - **possible duplicates** — open issues that may describe the same thing, each with a reason.
 6. Agent M checks every neutral text without a model: each address and name from the mail's headers,
-   and each address and phone number in its body, is searched for; a hit is marked in the text.
+   each address and phone number in its body, and every name, address, phone number and account known
+   from all recorded mails is searched for; a hit is marked in the text. Attachments, logs and data the
+   author wants in the issue are pseudonymised — each personal datum replaced by a surrogate such as
+   *user1* or *user1@example.org*, the same one throughout the report — unless the product switched
+   pseudonymisation off (UC-042); the mapping is kept in the private tracker only.
 7. The review panel shows, per mail, the mail in full on the left and the proposal on the right, with
    the text editable. The author decides with one click:
    - **Create issue** — possible only when the check of step 6 finds nothing;
    - **Add to #n** — the mail describes an existing issue;
    - **Not an issue** — the mail stays a report without an issue.
 8. On **Create issue**, Agent M creates the issue in the product's tracker with the author's token,
-   labelled `defect` or `change`; the issue names no report and no private tracker. It writes the
+   labelled `defect` or `change`; the issue lists the mail's `MAIL-` identifier and names neither the
+   reporter nor the private tracker. It writes the
    issue's address into the report, and asks the bridge to set `\Flagged` on the mail in the mailbox —
    the issue is open.
-9. On **Add to #n**, Agent M writes issue #n into the report — the mail is now a further report of that
+9. On **Add to #n**, Agent M adds the mail's `MAIL-` identifier to issue #n, writes issue #n into the
+   report — the mail is now a further report of that
    issue, whose reporter will also be answered (UC-039) — and flags the mail.
 10. For an issue of kind *change*, the dashboard offers **Propose SPEC change** (UC-012); a *defect*
     goes to implementation directly.
@@ -155,7 +170,11 @@ sequenceDiagram
 - **4b. The author does not press Propose.** Nothing is sent to any participant; the author can still
   decide each mail by hand in step 7, with an empty proposal.
 - **5a. The mail has attachments.** They are stored with the report. Their text is sent to the
-  participant only if the author ticks it for that mail in step 4.
+  participant only if the author ticks it for that mail in step 4. An attachment reaches the issue only
+  pseudonymised (step 6), and only if the author adds it there.
+- **6b. The product has switched pseudonymisation off** (UC-042). Report data goes into the issue
+  unchanged; the panel says so above the data. The issue text itself is still checked and stays
+  neutral.
 - **5b. The participant finds no matching product.** The proposal says so; the author picks the
   product or chooses *Not an issue*.
 - **6a. The check finds personal data in the neutral text.** The hit is marked; **Create issue** stays

@@ -30,6 +30,8 @@ realises:
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
   - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
+  - AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS
+  - A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER
 ---
 # UC-039 Close or defer an issue and reply
 
@@ -67,8 +69,8 @@ of a local database, and the neutral issue lives in the product's tracker.
 
 ## Main flow
 
-1. The author opens **Mail → Replies**. Agent M reads the state of every issue that has reports and
-   lists three groups: **to answer** — closed issues with a report that has no reply yet, whoever
+1. The author opens **Mail → Replies**. Agent M reads the state of every issue that lists `MAIL-`
+   identifiers, finds each identifier's report in the private tracker, and lists three groups: **to answer** — closed issues with a report that has no reply yet, whoever
    closed them; **answer received** — deferred issues with a new mail in the thread; **open**.
 2. The author opens a closed issue under *to answer*. The panel shows the neutral issue, what solved
    it (the closing pull request or commit and the release that contains it, where known), and one line

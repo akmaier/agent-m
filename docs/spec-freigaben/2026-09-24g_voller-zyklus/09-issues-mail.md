@@ -1,4 +1,4 @@
-## 14. Issues and mail
+## 14. Issues, mail and personal data
 
 **THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE** *(PO A. Maier, 2026-09-24)*
 Before a mailbox password is stored, Agent M states that every GitHub Pages site under the same
@@ -191,3 +191,103 @@ for transferring personal data, and the EU AI Act.
 *Occasion:* PO, 2026-09-24: US processing "will not comply with EU AI ACT". The person may still choose
 it; the choice is then an informed one, and its record says so.
 *Check:* `tests/test_settings_disclosure.py`
+
+**NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY** *(PO A. Maier, 2026-09-28)*
+No file, commit message, issue, comment or label that Agent M writes outside the private tracker
+contains personal data taken from a recorded mail.
+*Occasion:* PO, 2026-09-28: "nothing in the repository should have personal information from an e-mail
+introduced by accident." A repository and its history are copied, forked and kept; personal data that
+reached one cannot be taken back. The other rules of this section are the ways this one is kept.
+*Check:* `tests/test_mail_privacy.py` — after a full run on test mails — issue, backlog item, SPEC
+proposal, regression test, job record, reply —, no write outside the private tracker contains any name,
+address, phone number or account from those mails; counter-proof: a planted address in a job record is
+found.
+
+**EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE RECORDED MAILS** *(PO A. Maier, 2026-09-28)*
+Before Agent M writes text to a repository or an issue tracker other than the private tracker, it
+searches the text for every name, mail address, phone number and account found in the recorded mails,
+and writes nothing while one is found.
+*Occasion:* a check against the people actually known is deterministic and cannot be talked out of a hit
+(`SOFTWARE_MAINTENANCE.md` §4.0a rule 3). It catches what the drafting participant and the person both
+missed, at the last point before the data would leave.
+*Check:* `tests/test_mail_privacy.py` — a write containing a recorded reporter's name is refused and the
+hit named; counter-proof: the same write with a surrogate passes.
+
+**A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL** *(PO A. Maier, 2026-09-28)*
+A job that writes to a repository is given the neutral issue and pseudonymised report data, never the
+text or attachments of a mail.
+*Occasion:* only the participant that proposes an issue (UC-038) or drafts a reply (UC-039) reads mails,
+and neither writes anywhere — a person decides. A coding agent that fixes the bug never needs to know
+who reported it.
+*Check:* `tests/test_mail_privacy.py` — the inputs of an implementation job started from a mail's issue
+contain no text of the mail.
+
+**A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER** *(PO A. Maier, 2026-09-28)*
+Every recorded mail has the identifier `MAIL-` followed by the first sixteen hexadecimal digits of the
+SHA-256 of its `Message-ID`, or of its bytes when it has none.
+*Occasion:* PO, 2026-09-28: mails "should receive a unique identifier (maybe as hash) that can be tracked
+in the issue". A `Message-ID` often contains a host or a user name, so it is never written itself; the
+hash cannot be turned back into it, and only the private tracker links it to the mail.
+*Check:* `tests/test_mail_import.py` — the identifier is stable across two readings of the same mail;
+counter-proof: two mails with different `Message-ID`s get different identifiers.
+
+**AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS** *(PO A. Maier, 2026-09-28)*
+An issue created from a mail, and every issue a further report is added to, lists the `MAIL-`
+identifiers of its reports.
+*Occasion:* PO, 2026-09-28: the identifier is tracked in the issue "such that this information can be
+used once the issue was solved to reply to the original mail". Whoever closes the issue — in Agent M or
+elsewhere — leaves the link to every reporter in place.
+*Check:* `tests/test_mail_replies.py` — closing an issue with two listed identifiers offers two replies,
+found through the identifiers alone.
+
+**REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE PRIVATE TRACKER** *(PO A. Maier, 2026-09-28)*
+Attachments, logs, screenshots' text and data files from a mail that go into an issue or a repository
+have every personal datum replaced by a surrogate.
+*Occasion:* PO, 2026-09-28: "bug report data should have personal information replaced with surrogates
+such that we don't share personal information by accident". A log from a reporter's machine carries their
+user name, paths and addresses; the bug is usually reproducible with *user1* and *user1@example.org*.
+*Check:* `tests/test_mail_privacy.py` — a fixture log with name, address, phone number, IP address and
+home-directory path yields surrogates for each; counter-proof: the technical content around them is
+unchanged.
+
+**A SURROGATE IS THE SAME WITHIN A REPORT** *(PO A. Maier, 2026-09-28)*
+Within one report, the same personal datum is always replaced by the same surrogate.
+*Occasion:* a log in which one user becomes three different surrogates no longer shows what happened;
+consistency keeps the data useful for reproducing the bug.
+*Check:* `tests/test_mail_privacy.py`
+
+**THE SURROGATE MAPPING STAYS IN THE PRIVATE TRACKER** *(PO A. Maier, 2026-09-28)*
+The mapping from surrogates back to personal data is kept only in the private tracker.
+*Occasion:* the mapping is the key that makes surrogates personal data again; it belongs where the
+mail itself is.
+*Check:* `tests/test_mail_privacy.py` — no write outside the private tracker contains a mapping entry.
+
+**PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF** *(PO A. Maier, 2026-09-28)*
+Pseudonymisation of report data applies to every product whose settings do not switch it off.
+*Occasion:* PO, 2026-09-28: "These requirements are very important in the EU; for the US it might not
+matter as much; I would enable the anonymization layer by default but have an option to disable the
+feature." The setting belongs to the product, in its own repository, where everyone working on it can
+see which rule applies.
+*Check:* `tests/test_mail_privacy.py` — a product without the setting gets surrogates; counter-proof: a
+product that switched it off gets the original data.
+
+**SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS** *(PO A. Maier, 2026-09-28)*
+Before a product's pseudonymisation is switched off, the dashboard states that report data will then
+enter the product's issues and repository unchanged, that this is advisable only on a protected,
+non-public data space, and — for a repository its server reports as public — that the data will be
+published.
+*Occasion:* PO, 2026-09-28: surrogates are needed "unless the repository is on a protected non-public
+data space". Switching off is the person's decision; the notice makes it an informed one, as for mail
+processed outside the EU (`A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT`). Switching off
+pseudonymisation does not switch off `NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY` for issue texts,
+which stay neutral.
+*Check:* `tests/test_settings_disclosure.py`
+
+**A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT** *(PO A. Maier, 2026-09-28)*
+A repository managed by Agent M names a person only by their account on its server, or by name if the
+person is listed as consenting in the repository's `docs/collaborators.md`.
+*Occasion:* PO, 2026-09-28: "What can be in the repo are git(hub) usernames and names of collaborators
+(if they agreed; i.e. like co-authors on a paper for example)." Commits already carry accounts; a name
+beyond that is a decision of its bearer, written down where it can be checked.
+*Check:* `tests/test_collaborators.py` — a name in a generated artifact that is neither an account nor
+in `docs/collaborators.md` is reported; counter-proof: a listed collaborator's name passes.

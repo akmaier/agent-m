@@ -19,6 +19,54 @@ at its own notice.
 *Check:* `tests/review-core.test.mjs` — an export with stored tokens, keys and a mailbox password
 contains none of them; counter-proof: an import restores products and addresses.
 
+**EVERY SETTING IS REACHED FROM ONE PAGE** *(PO A. Maier, 2026-09-28)*
+Every setting Agent M uses — kept in this browser, in the instance repository or in a product's
+repository — is reached from one settings page.
+*Occasion:* PO, 2026-09-28: settings "such as access tokens, workspace configuration and other user
+settings … We should be able to handle this centrally." They were set up in seven use cases (UC-001,
+UC-003, UC-011, UC-014, UC-017, UC-037, UC-038); none showed them together, so a person could not see
+what is stored where, nor change it.
+*Check:* `tests/test_settings_page.py` — every key the dashboard writes to `localStorage` appears on the
+page; counter-proof: a fixture key without a place on the page fails.
+
+**A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN** *(PO A. Maier, 2026-09-28)*
+Each setting kept in the browser is shown with a test of whether it still works and a control that
+clears it.
+*Occasion:* "does my token still work?" and "remove the mailbox from this browser" are the two questions a
+settings page must answer on the spot (`A CLEAR IS A REAL CLEAR`).
+*Check:* `tests/test_settings_page.py`
+
+**A STORED SECRET IS SHOWN ONLY MASKED** *(PO A. Maier, 2026-09-28)*
+A stored token, key or password is shown only with its last four characters.
+*Occasion:* a settings page is looked at over shoulders and in screen shares; the last characters are
+enough to tell two tokens apart.
+*Check:* `tests/test_settings_page.py` — no stored secret appears in the rendered page in full.
+
+**A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE** *(PO A. Maier, 2026-09-28)*
+For each stored token, the settings page shows the expiry date recorded when it was stored, and the
+dashboard warns from fourteen days before it.
+*Occasion:* the prefilled GitHub token expires after 90 days (`THE TOKEN LINK IS PREFILLED`), and an
+expired token stops everything at once. Measured 2026-09-28: GitHub sends a token's expiry in a response
+header that its API does not expose to web pages (`Access-Control-Expose-Headers` omits it), so the date
+is the one the person set — preset to the prefilled 90 days — and entered when storing.
+*Check:* `tests/test_settings_page.py`
+
+**AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED** *(PO A. Maier, 2026-09-28)*
+When a server refuses a stored token, the dashboard names that token and links the page on which it is
+renewed with the same permissions and repositories.
+*Occasion:* "401" teaches nothing. GitHub's *Regenerate token* keeps a fine-grained token's
+permissions and repository selection; only the new value has to be pasted.
+*Check:* `tests/review-core.test.mjs` — a refused request yields the token's name and the renewal link.
+
+**A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY** *(PO A. Maier, 2026-09-28)*
+Settings that govern how a product is developed — its process model, Definition of Done, test
+schedule, pseudonymisation and collaborators — are kept in files of the product's repository, never only
+in a browser.
+*Occasion:* they bind everyone who works on the product and every agent that runs for it; a setting in one
+person's browser would bind no one else.
+*Check:* `tests/test_settings_page.py` — changing a product setting on the page commits to the product
+repository; counter-proof: `localStorage` holds no product setting.
+
 **CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE** *(PO A. Maier, 2026-09-23)*
 Configuration is written to `localStorage`; Agent M sets no cookie carrying configuration or
 credentials.

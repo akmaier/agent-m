@@ -36,3 +36,29 @@ listed rules change — the diff on the dashboard shows exactly that.
    so that it is the same in every browser?
 
 **Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.
+
+**PO decision of 2026-09-28 — personal data from mail** (quoted in the rules). Built in as eleven new
+rules; the section heading becomes "Issues, mail and personal data" (entry 05 and the index changed with
+it). How they fit together:
+
+1. **Structure first:** mails live only in the private tracker (`MAIL STAYS IN THE PRIVATE TRACKER`); no
+   participant that writes to a repository ever receives one; the issue is neutral.
+2. **A deterministic last check:** every write outside the private tracker is searched for the people
+   known from the recorded mails.
+3. **Report data:** attachments and logs are pseudonymised by default — consistent surrogates, mapping
+   only in the private tracker; a product may switch it off after a notice.
+4. **The link back:** each mail gets `MAIL-<hash>`; the issue lists them, so replies can be found when
+   it is closed, wherever it was closed.
+5. **Names:** accounts always; names only of collaborators who consented, listed in
+   `docs/collaborators.md`.
+
+Interpretations by the main agent — correct them in the edit field if needed:
+- "protected non-public data space" is not detected automatically: the person decides by switching
+  pseudonymisation off for a product; the notice names the condition, and warns separately for a public
+  repository. Switching off is allowed for any repository, as the PO asked for an option to disable.
+- Switching pseudonymisation off affects report *data*; issue *texts* stay neutral in every case.
+- A `MAIL-` identifier is a pseudonym, not anonymous data: whoever holds the private tracker can link it
+  to the mail. Anyone else cannot.
+
+Impact: UC-012, UC-038, UC-039, UC-040 changed; new UC-042 (settings, including the collaborators list
+and the pseudonymisation switch).

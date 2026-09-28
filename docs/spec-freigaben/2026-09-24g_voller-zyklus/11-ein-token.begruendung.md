@@ -18,3 +18,11 @@ were already created need *Edit → Permissions* on GitHub once; the dashboard w
   (entry 09) there. Extended under its name; impact: UC-001, UC-003, UC-014 realise it, unchanged.
 - New `SETTINGS MOVE TO ANOTHER BROWSER WITHOUT THEIR SECRETS` — so that the browser-only design does not
   make a second computer expensive.
+
+**PO question of 2026-09-28 — "Do we have a usecase for the user to edit and access settings such as
+access tokens, workspace configuration and other user settings? We should be able to handle this
+centrally."** No: settings were made in seven use cases and shown together nowhere. Six new rules give
+them one page (new UC-042): every setting reached from it; browser settings tested and cleared in place;
+secrets only masked; token expiry warned of in advance — measured: the browser cannot read GitHub's
+expiry header, so the date is recorded when the token is stored —; expired tokens named with their
+renewal link; product settings kept in the product's repository.

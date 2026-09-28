@@ -31,6 +31,7 @@ realises:
   - EVERY STEP EXPLAINS ITSELF
   - THE INSTANCE DECLARES ITS OWN RESOURCES
   - INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT
+  - A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
 ---
 # UC-040 Declare the product's resources
 
@@ -101,7 +102,8 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
    - **endpoint / agent:** the author enters the base address (`http://gpu01:8000/v1`) and the route
      by which jobs reach it; the identifier of the served model is recorded at the check in step 7.
 4. The author confirms or enters the **licence** (for repository, data, model) and the
-   **maintainer** (for repository, data, model, agent) — a person, a group, or *unknown*. For a
+   **maintainer** (for repository, data, model, agent) — an account, an organisation, a collaborator who
+   consented to be named (UC-042), or *unknown*. For a
    licence that does not permit redistribution, Agent M states: "Only the address and the pin are
    written to the product repository; the content stays where it is."
 5. If the resource needs a credential, the author says where it is held: as a **CI secret** — the

@@ -81,8 +81,8 @@ is granted.
 `docs/resources.md`; counter-proof: a fixture that adds a file from the resource fails.
 
 **A RESOURCE NAMES ITS MAINTAINER** *(Vibe Coding, ch. 6 §5)*
-Every resource of kind `repository`, `data`, `model` or `agent` records who maintains it, or states
-that this is unknown.
+Every resource of kind `repository`, `data`, `model` or `agent` records who maintains it — by account,
+by organisation, or by the name of a consenting collaborator — or states that this is unknown.
 *Occasion:* due diligence looks at "maintenance history" and ownership (ch. 6 §5); the PEAKS box
 there shows a stack that stalled when its one maintainer left — a bus factor of one. A private
 repository of binaries often has exactly one maintainer, and the entry makes that visible.

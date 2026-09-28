@@ -31,6 +31,8 @@ of its drafting group.
 | 12 | UC-009 merged into UC-020 | use cases only |
 | 13 | the dashboard keeps its products in the browser's local storage; a local clone holds them as ignored folders under `products/`; nothing in the instance repository names a product | 05 one withdrawn, three new rules; 04 one rule changed |
 | — | consistency and comfort review by the main agent, 2026-09-25: `NO SERVER`'s check names registries and resource hosts (13); configuration in the browser extended, settings move without secrets (11); records are evidence, not proposals (04); the bridge is paired once (03); several files accepted in one click, a queue in its order, a person's edits in one queue (05); accepting the release report releases (07) | 03, 04, 05, 07, 11, 13 |
+| 14 | no personal data from a mail enters a repository: neutral issues, a deterministic check of every write against the people of the recorded mails, pseudonymised report data (on by default, may be switched off per product after a notice), mails named by `MAIL-<hash>` in their issues, persons named only by account or with consent | 09 eleven new rules, heading renamed; 10 one rule changed |
+| 15 | one settings page for everything — browser, instance, products — with tests, masked secrets, expiry warnings and renewal links | 11 six new rules; new UC-042 |
 
 Interpretations by the main agent, correct them in the edit field if they are not what you meant:
 "groups should have new files" → one group file per kind of artifact; "a permanent location in the
@@ -54,7 +56,7 @@ trigger CI again).
 | 06 | `SPEC.md` | ## 11. Architecture and implementation | — | — |
 | 07 | `SPEC.md` | ## 12. Tests and continuous integration | — | — |
 | 08 | `SPEC.md` | ## 13. Process execution and jobs | — | — |
-| 09 | `SPEC.md` | ## 14. Issues and mail | — | — |
+| 09 | `SPEC.md` | ## 14. Issues, mail and personal data | — | — |
 | 10 | `SPEC.md` | ## 15. Product resources | — | — |
 | 11 | `SPEC.md` | ## 7. Configuration and secrets | — | — |
 | 12 | `SPEC.md` | # Agent M — Specification | ## 0. Hard product rules | — |

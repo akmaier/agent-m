@@ -40,3 +40,6 @@ listed rules change — the diff on the dashboard shows exactly that.
    breaks), or keep the old slug?
 
 **Decided by the PO on 2026-09-24** — see the table on the queue's index page; the questions below that it answers are settled, the others stay open.
+
+**Changed on 2026-09-28 with the PO's rule on personal data** (entry 09, `A PERSON IS NAMED BY ACCOUNT
+OR WITH CONSENT`): a maintainer is recorded by account, organisation or consenting collaborator's name.
