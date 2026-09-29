@@ -477,15 +477,23 @@ runs. A model encoded as branching logic makes the next model a refactor.
 *Check:* `tests/test_catalogue_is_data.py` — no model or practice name appears in Agent M's
 implementation.
 
-**THE MODEL DETERMINES THE STAGES AND THE GATES** *(Vibe Coding, ch. 6–7; reworded 2026-09-24)*
-A model definition names its stages, their order, which stages pair for verification, and where the
-gates sit; Agent M derives the workflow from that definition together with the product's process
+**THE MODEL DETERMINES THE STAGES AND THE GATES** *(Vibe Coding, ch. 6–7; reworded 2026-09-24 — withdrawn 2026-09-24)*
+*Withdrawn:* the PO chose the book's word "phase" for the parts of a process model (ch. 6) and "job"
+for a run; "stage" is not used any more. Replaced by `THE MODEL DETERMINES THE PHASES AND THE GATES`.
+The name is not reused.
+
+**THE MODEL DETERMINES THE PHASES AND THE GATES** *(Vibe Coding, ch. 6–7; PO A. Maier, 2026-09-24)*
+A model definition names its phases, the transitions between them, which phases pair for
+verification, and where the gates sit; Agent M derives the workflow from that definition together with the product's process
 requirements.
 *Occasion:* this is the difference between offering process models and merely naming them. The
 V-model's contribution is precisely that a decomposition step is paired with the check that will
-verify it; if the pairing is not in the data, the model is decoration. Process requirements add to
-it (`A PROCESS REQUIREMENT ADDS TO THE MODEL`).
-*Check:* `tests/test_workflow_from_model.py`
+verify it; if the pairing is not in the data, the model is decoration. Transitions rather than a
+single order, because the book's reuse-oriented model runs discovery and evaluation side by side,
+returns from requirements refinement to the specification, and chooses between configuring, adapting
+and developing (ch. 6 §5). Process requirements add to it (`A PROCESS REQUIREMENT ADDS TO THE MODEL`).
+*Check:* `tests/test_workflow_from_model.py` — each of the five catalogue models, the reuse-oriented
+one included, yields its workflow.
 
 **AGENT M CARRIES THE BOOK'S CATALOGUE** *(Vibe Coding, ch. 6–7, 14; corrected 2026-09-24)*
 The shipped catalogue contains the book's process models — waterfall, V-model, reuse-oriented, Scrum
@@ -517,7 +525,7 @@ A process model names the roles of the work and, for each role, whether a person
 either may fill it.
 *Occasion:* the process model answers how a product is developed — in Agent M by a team of people
 and agents. Who decides, who builds and who checks is the first thing a team of agents needs to
-know, and the one thing a list of stages does not say.
+know, and the one thing a list of phases does not say.
 *Check:* `tests/test_model_roles.py`
 
 **A PRACTICE IS NOT A MODEL** *(PO A. Maier, 2026-09-24)*
@@ -530,7 +538,7 @@ that has no answer.
 
 **A GATE NAMES WHAT IT CHECKS** *(PO A. Maier, 2026-09-23)*
 Every gate in a model definition names the artifacts that must exist and the condition that must
-hold before the next stage opens.
+hold before the next phase opens.
 *Occasion:* an unnamed gate is a pause, not a check. The point of a phase gate is that somebody
 can say afterwards what was verified at it.
 *Check:* `tests/test_gate_definition.py`
@@ -562,7 +570,7 @@ person's memory.
 **A ROLE NAMES THE CAPABILITIES IT NEEDS** *(PO A. Maier, 2026-09-24)*
 A role in a process model names the capabilities its holder must have, and only a participant with
 all of them can be assigned to it.
-*Occasion:* assigning a participant that cannot do the work fails late — at the first stage that
+*Occasion:* assigning a participant that cannot do the work fails late — at the first job that
 needs the missing capability. Checking at assignment fails early, with the reason.
 *Check:* `tests/test_model_roles.py`
 
