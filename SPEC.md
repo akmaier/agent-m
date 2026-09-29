@@ -791,9 +791,18 @@ has accepted it.
 *Check:* `tests/review-core.test.mjs` — a file without an approval record naming its current text
 is shown as open.
 
-**A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN** *(PO A. Maier, 2026-09-23)*
-A use case or a SPEC change proposal may be written directly to the default branch, where it counts
-as open until an approval record names its text.
+**A RECORD IS EVIDENCE, NOT A PROPOSAL** *(PO A. Maier, 2026-09-25)*
+Approval records, gate records, job records and test result records are written once as evidence of
+what happened and are never shown for acceptance.
+*Occasion:* `A GENERATED ARTIFACT IS A PROPOSAL` would otherwise make every job record and every test
+result an open item waiting for a click that decides nothing. A record states a fact; its protection is
+that it is never rewritten (`A RESULT RECORD IS NEVER REWRITTEN`), not that someone accepts it.
+*Check:* `tests/review-core.test.mjs` — a job record without approval is not listed as open;
+counter-proof: a use case without approval is.
+
+**A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN** *(PO A. Maier, 2026-09-23, extended 2026-09-24)*
+A use case, an architecture decision, a module or a SPEC change proposal may be written directly to
+the default branch, where it counts as open until an approval record names its text.
 *Occasion:* for these artifacts the approval record is the gate. A pull request in front of it
 added a second click that controlled nothing: a merged use case was still open, and an unmerged one
 could not be reviewed on the dashboard at all.
@@ -860,11 +869,12 @@ committed to the default branch under their own account when they save it.
 adds a click and no control.
 *Check:* `tests/review-core.test.mjs`
 
-**ADDING A PRODUCT CREATES ITS LAYOUT** *(PO A. Maier, 2026-09-24)*
+**ADDING A PRODUCT CREATES ITS LAYOUT** *(PO A. Maier, 2026-09-24, changed 2026-09-24)*
 When a person adds a product, Agent M writes the missing review layout into the product's default
-branch and the product's entry into the instance's `docs/products.md`, without a pull request.
+branch without a pull request.
 *Occasion:* PO, 2026-09-24: two merges in one setup "is a bit much. Both need to be automated."
-The layout is empty folders and a SPEC skeleton; there is nothing in it to review.
+The layout is empty folders and a SPEC skeleton; there is nothing in it to review. The product is
+not written into the instance repository (`NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY`).
 *Check:* `tests/review-core.test.mjs`
 ## 10. Review on GitHub Pages
 
