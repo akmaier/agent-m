@@ -310,24 +310,18 @@ proposal, regression test, job record, reply note —, no write contains any nam
 address, phone number or account from those mails; counter-proof: a planted address in a job record is
 found.
 
-**EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE MAILS READ** *(PO A. Maier, 2026-09-29)*
-Before Agent M writes text to a repository or an issue tracker, it searches the text for every name,
-mail address, phone number and account found in the mails read so far, and writes nothing while one is
-found.
-*Occasion:* a check against the people actually known is deterministic and cannot be talked out of a hit
-(`SOFTWARE_MAINTENANCE.md` §4.0a rule 3). It catches what the drafting participant and the person both
-missed, at the last point before the data would leave.
-*Check:* `tests/test_mail_privacy.py` — a write containing a reporter's name is refused and the hit named;
-counter-proof: the same write with a surrogate passes.
-
-**THE SEARCH LIST HOLDS ONLY HASHES** *(PO A. Maier, 2026-09-29)*
-The list of names, addresses, phone numbers and accounts the search uses is kept in the browser as salted
-hashes, never as the data itself.
-*Occasion:* the browser's storage can be read by every Pages site of the same owner (`THE SHARED PAGES
-ORIGIN IS DISCLOSED`); a plain list of every reporter would be exactly the data the search protects. A
-text is checked by hashing its words and word groups the same way.
-*Check:* `tests/test_mail_privacy.py` — the stored list contains no address in clear; counter-proof: a
-text with a listed address is still found.
+**A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE** *(PO A. Maier, 2026-09-29)*
+Before Agent M writes text drawn from a mail — an issue's text, report data — to an issue tracker or a
+repository, it searches the text for every name, mail address, phone number and account found in that
+mail, and writes nothing while one is found.
+*Occasion:* PO, 2026-09-29: "I don't think, we need to store everyone encountered. It is enough to test
+for the persons in the mail at hand." Only a text drawn from a mail can carry its people; every other
+write is kept free of mail data by construction — jobs that write never receive a mail (`A PARTICIPANT
+THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL`), a reply note holds an identifier and a date. A check
+against the people of the mail at hand is deterministic, fast, and needs no list kept anywhere
+(`SOFTWARE_MAINTENANCE.md` §4.0a rule 3).
+*Check:* `tests/test_mail_privacy.py` — an issue text containing the sender's name, or a name from the
+mail's signature, is refused and the hit named; counter-proof: the same text with a surrogate passes.
 
 **A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL** *(PO A. Maier, 2026-09-28)*
 A job that writes to a repository is given the neutral issue and pseudonymised report data, never the

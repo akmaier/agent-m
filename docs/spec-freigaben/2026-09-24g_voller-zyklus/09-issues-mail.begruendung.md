@@ -117,3 +117,11 @@ where the provider permits it — measured: Microsoft Graph and the Gmail API do
 **Follows for the setup (UC-037):** the API route needs an app registration with Microsoft or Google
 whose return address is the instance's dashboard; institutions may restrict such registrations for their
 users. The dashboard guides through it step by step.
+
+**Simplified after the PO's objection of 2026-09-29** — *"This can get very slow … I don't think, we need to
+store everyone encountered. It is enough to test for the persons in the mail at hand."* `EVERY WRITE IS
+SEARCHED FOR THE PEOPLE OF THE MAILS READ` checked every write against a growing list of everyone ever
+read, which needed `THE SEARCH LIST HOLDS ONLY HASHES` to keep that list safe in the browser. Both are
+replaced by `A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE`: only texts drawn from a mail are
+checked, against the people of that mail. Writes not drawn from a mail cannot contain mail data, because
+no writing job ever receives a mail. Nothing about reporters is stored in the browser any more.

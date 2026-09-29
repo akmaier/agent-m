@@ -22,8 +22,7 @@ realises:
   - A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL
   - A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE
   - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
-  - EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE MAILS READ
-  - THE SEARCH LIST HOLDS ONLY HASHES
+  - A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
   - REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE MAILBOX
   - A SURROGATE IS THE SAME WITHIN A REPORT
   - THE SURROGATE MAPPING IS NEVER STORED
@@ -99,10 +98,9 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    - **neutral issue** — a title and a text with the technical content: what was done, what happened,
      what was expected, version, error message — no names, addresses, signatures or greetings;
    - **possible duplicates** — open issues that may describe the same thing, each with a reason.
-6. Agent M checks every neutral text without a model: each address and name from the mail's headers,
-   each address and phone number in its body, and every name, address, phone number and account known
-   from the mails read so far — kept in the browser as salted hashes only — is searched for; a hit is
-   marked in the text. Attachments, logs and data the author wants in the issue are pseudonymised — each
+6. Agent M checks every neutral text without a model against the people of this mail: each address and
+   name from its headers, each name, address, phone number and account in its body and signature is
+   searched for; a hit is marked in the text. Attachments, logs and data the author wants in the issue are pseudonymised — each
    personal datum replaced by a surrogate such as *user1* or *user1@example.org*, the same one throughout
    the mail, derived from the mail itself and stored nowhere — unless the product switched
    pseudonymisation off (UC-042).
@@ -135,7 +133,7 @@ sequenceDiagram
     A->>D: choose participant, Propose
     D->>P: mails, products, open issue titles
     P-->>D: product, kind, neutral text, duplicates
-    D->>D: search for known people (hashes), pseudonymise report data
+    D->>D: search for this mail's people, pseudonymise report data
     A->>D: Create issue, Add to #n, or Not an issue
     D->>I: neutral issue with MAIL identifier, label defect or change
 ```
