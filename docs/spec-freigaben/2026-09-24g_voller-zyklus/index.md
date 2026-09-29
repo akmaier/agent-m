@@ -38,6 +38,7 @@ of its drafting group.
 | 18 | mail from the Pages site where the provider allows it: Microsoft 365 and Gmail through their web APIs with the provider's sign-in (no password); every other server through the bridge; replies wait as drafts in the mailbox's *Drafts* folder, and replies sent from a mail program are noted too | 09, eight new rules, one split |
 | 19 | the personal-data check tests a text drawn from a mail against the people of that mail only; no list of everyone ever read is kept | 09, two rules replaced by one |
 | 20 | secrets are hidden in password fields with a *Show* control; the settings export includes tokens, keys and passwords, after a notice | 11, two rules replaced, one new |
+| 21 | an export may be locked with a passphrase | 11, one new rule |
 
 Interpretations by the main agent, correct them in the edit field if they are not what you meant:
 "groups should have new files" → one group file per kind of artifact; "a permanent location in the

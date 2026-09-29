@@ -112,7 +112,8 @@ sequenceDiagram
 - **7a. The person uses a second browser or computer later.** The token lives only in the browser it
   was stored in; the dashboard there opens *Finish setting up* again, with **Import settings** beside
   it. In the first browser, *Settings → Export* saved a file with every setting — products, endpoints,
-  bridge, mailbox, and their tokens, keys and passwords. Imported, the second browser works like the
+  bridge, mailbox, and their tokens, keys and passwords, locked with a passphrase if the person chose one.
+  Imported, the second browser works like the
   first; without the file, the same token can be pasted, or a new one created.
 - **6a. The person only wants to read public repositories.** They can skip the setup; the dashboard
   reads without a token, and accepting then goes through GitHub's own pages.

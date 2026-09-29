@@ -19,6 +19,16 @@ copy: Agent M writes it to no repository (`NO SECRET IN THE REPOSITORY`) and put
 *Check:* `tests/review-core.test.mjs` — an import of an export restores every setting, secrets included;
 counter-proof: no export is ever committed or sent anywhere by the dashboard.
 
+**AN EXPORT CAN BE LOCKED WITH A PASSPHRASE** *(PO A. Maier, 2026-09-29)*
+The person may protect an export with a passphrase of their choice; the file is then encrypted in the
+browser with a key derived from that passphrase and can be imported only with it.
+*Occasion:* PO, 2026-09-29: "passphrase is a good option". An export holds every token and password;
+locked, a file that is mailed, synced or lost gives nothing away. The browser's own cryptography does the
+work (key derivation and authenticated encryption of the Web Crypto API), so no library is added. A
+forgotten passphrase cannot be recovered; the dashboard says so before saving.
+*Check:* `tests/review-core.test.mjs` — a locked export contains no stored secret in clear and imports
+with the passphrase; counter-proof: a wrong passphrase imports nothing.
+
 **AN EXPORT STATES THAT IT CONTAINS SECRETS** *(PO A. Maier, 2026-09-29)*
 Before an export is saved, the dashboard states that the file contains every token, key and password it
 holds, and what each of them grants.

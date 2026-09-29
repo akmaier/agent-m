@@ -37,5 +37,5 @@ exporting including secrets is useful."*
 - New, by the main agent: `AN EXPORT STATES THAT IT CONTAINS SECRETS` — the file now opens repositories and
   mail; the notice is one line before saving. Strike it if not wanted.
 
-**Open for the PO:** should the export optionally be protected with a passphrase the person chooses (the
-browser's own encryption, no library)? Not proposed as a rule.
+**Decided by the PO on 2026-09-29:** *"passphrase is a good option, yes please"* — `AN EXPORT CAN BE LOCKED
+WITH A PASSPHRASE`, optional, done with the browser's Web Crypto API.

@@ -27,6 +27,7 @@ realises:
   - A STORED SECRET IS HIDDEN UNTIL SHOWN
   - SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
   - AN EXPORT STATES THAT IT CONTAINS SECRETS
+  - AN EXPORT CAN BE LOCKED WITH A PASSPHRASE
 ---
 # UC-042 Manage settings in one place
 
@@ -83,7 +84,9 @@ on the instance or product, so they are changed by a commit.
    has agreed to be named*; **Save** commits `docs/collaborators.md`.
 6. At the bottom, **Export settings** saves a file with every browser setting, tokens, keys and
    passwords included, after a one-line notice that the file opens the person's repositories and mail to
-   whoever holds it; **Import settings** reads such a file and restores everything; **Clear everything in this browser** removes all of
+   whoever holds it — optionally locked with a passphrase the person chooses, without which the file
+   cannot be read and which cannot be recovered; **Import settings** reads such a file, asking for the
+   passphrase if it is locked, and restores everything; **Clear everything in this browser** removes all of
    Agent M's entries from `localStorage`.
 
 Every section and every line carries a folded **What is this?**: what the setting is for, where it is
