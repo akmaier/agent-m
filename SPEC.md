@@ -19,7 +19,7 @@ guards it. One statement per requirement — an "and" in the rule means it is tw
 ---
 ## 0. Hard product rules
 
-These four hold for every version of Agent M. A change to any of them is a change to what the
+These five hold for every version of Agent M. A change to any of them is a change to what the
 product is.
 
 **NO SERVER** *(PO A. Maier, 2026-09-23)*
@@ -29,7 +29,8 @@ operates no server, no account system and no database.
 the reader's interest in it is a liability. GitHub Pages plus the reader's own repository has no
 such tail.
 *Check:* `tests/test_no_backend.py` — the built site contains no call to an origin other than the
-configured endpoint, the GitHub API, the GitLab servers of the listed products, and the local bridge.
+configured endpoints, the repository servers of the instance and its products, the local bridge, and
+the package registries and resource hosts the page names before it calls them.
 
 **ARTIFACTS ARE MARKDOWN** *(Vibe Coding, ch. 9 §6)*
 Every artifact Agent M produces is Markdown, with diagrams written as Mermaid inside it.
@@ -51,6 +52,13 @@ because the artifacts were going to be Markdown anyway — so it is stated as a 
 left to good intentions.
 *Check:* `tests/test_self_sufficient.py` — no artifact references a file or service that exists
 only inside Agent M.
+
+**AGENT M IS MIT-LICENSED** *(PO A. Maier, 2026-09-24)*
+Agent M is published under the MIT licence, stated in a `LICENSE` file at the root of its repository.
+*Occasion:* PO, 2026-09-24: "I want MIT license for agent m; that should allow virtually any product
+license." Every reader forks Agent M; without a licence, default copyright forbids exactly that reuse.
+MIT puts no condition on the licence of the products built with it.
+*Check:* `tests/test_licence.py` — the root `LICENSE` is the MIT text.
 ## 1. Identity and traceability
 
 **EVERY ARTIFACT HAS AN IDENTIFIER** *(PO A. Maier, 2026-09-23, extended 2026-09-24)*
