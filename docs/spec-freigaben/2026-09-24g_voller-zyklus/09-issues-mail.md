@@ -80,7 +80,9 @@ of the folders the mailbox connection names — `INBOX` unless others are named.
 *Occasion:* with the mailbox as the only store (`MAIL STAYS IN THE MAILBOX`), the identifier in the issue
 must lead back to the mail. IMAP delivers the `Message-ID` headers of a folder in one read-only request;
 hashing them is cheap. Mails the person has filed into other folders are found once those folders are
-named.
+named. PO, 2026-09-29: a mail deleted from the mailbox can no longer be answered, and the dashboard says
+*not found in the mailbox* — "this is acceptable; it's also the proof that the issue does not store
+personal information".
 *Check:* `tests/test_bridge_mail.py` — a mail moved to a named folder is found; counter-proof: an
 identifier with no matching mail yields *not found in the mailbox*, never a guess.
 

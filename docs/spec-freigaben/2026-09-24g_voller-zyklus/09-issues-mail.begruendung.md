@@ -94,6 +94,6 @@ What a duplicate second reply is now prevented by: `CLOSING AN ISSUE PREPARES IT
 only for mails without a reply note in the issue, and `EVERY OUTGOING MAIL IS RELEASED BY A PERSON` binds
 each send to one click on the mail shown.
 
-**Open for the PO:** a mail deleted from the mailbox can no longer be answered — the identifier in the
-issue then leads nowhere, and the dashboard says so. Acceptable, or should Agent M ask the person to keep
-reported mails (for example in a folder the connection names)?
+**Decided by the PO on 2026-09-29:** a mail deleted from the mailbox can no longer be answered; the
+dashboard says *not found in the mailbox*. *"this is acceptable; it's also the proof that the issue does
+not store personal information."* Added to the occasion of `A MAIL IS FOUND AGAIN BY ITS IDENTIFIER`.
