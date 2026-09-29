@@ -591,7 +591,7 @@ anywhere else, and says why.
 ## 6. Runtimes
 
 **ONE DEFINITION, THREE DRIVERS** *(PO A. Maier, 2026-09-23)*
-The prompts, schemas and stage definitions exist exactly once, as data in the repository; the
+The prompts, schemas and job definitions exist exactly once, as data in the repository; the
 browser, the GitHub Actions workflow and the local bridge are drivers over that one definition.
 *Occasion:* three independently maintained copies of one rule were the root cause of an entire
 measurement complex in the process repository — each copy knew phrases the others lacked, and
@@ -600,7 +600,7 @@ nobody could say which was right. Three runtimes make that failure three times a
 place.
 
 **A RUNTIME IS INTERCHANGEABLE** *(PO A. Maier, 2026-09-23)*
-The same stage, given the same inputs, produces the same kind of artifact in all three runtimes.
+The same job, given the same inputs, produces the same kind of artifact in all three runtimes.
 *Occasion:* if runtimes differ in what they produce, the choice of runtime becomes a hidden
 product decision and a reader cannot move between them.
 *Check:* `tests/test_runtime_parity.py`
@@ -619,11 +619,20 @@ the bind: the bridge stays invisible on the network, and the tunnel brings its o
 *Check:* `tests/test_bridge_tunnel.py` — the bridge answers through a forwarded loopback port and
 on no non-loopback interface.
 
-**THE LOCAL BRIDGE REQUIRES A TOKEN** *(PO A. Maier, 2026-09-23)*
-The bridge rejects any request that does not carry the session token it printed at startup.
+**THE LOCAL BRIDGE REQUIRES A TOKEN** *(PO A. Maier, 2026-09-23, reworded 2026-09-25)*
+The bridge rejects any request that does not carry the token it was paired with.
 *Occasion:* loopback is not a permission boundary between programs on the same machine. Any local
 process, including a page from an unrelated site, can reach a loopback port.
 *Check:* `tests/test_bridge_token.py`
+
+**THE BRIDGE IS PAIRED ONCE** *(PO A. Maier, 2026-09-25)*
+The bridge keeps its token across restarts, in a file outside every repository that only its user can
+read, until the person pairs it anew.
+*Occasion:* a token printed at every start has to be copied into the dashboard after every restart of
+the machine — the step people give up on. Kept like a CLI's own login, the pairing survives; the file
+permission keeps other users of the machine out, and *pair anew* replaces a token that may have leaked.
+*Check:* `tests/test_bridge_token.py` — after a restart the stored token is accepted and the file is
+readable by its owner only; counter-proof: after *pair anew* the old token is rejected.
 
 **AN UNSUPPORTED ENDPOINT SAYS SO** *(PO A. Maier, 2026-09-23)*
 When a configured endpoint cannot be called from the browser, Agent M names the reason and the
