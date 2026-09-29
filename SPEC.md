@@ -657,13 +657,92 @@ verified here. A design built on an unverified mechanism fails late and expensiv
 *Check:* `tests/test_measurement_present.py` — a released runtime has a dated measurement file.
 ## 7. Configuration and secrets
 
-**CONFIGURATION LIVES IN THE BROWSER** *(PO A. Maier, 2026-09-23)*
-Endpoint, model, model API key and the repository tokens are stored in the browser of the person
-using the site; Agent M has no other store for them.
+**CONFIGURATION LIVES IN THE BROWSER** *(PO A. Maier, 2026-09-23, extended 2026-09-25)*
+Endpoint, model, model API key, the repository tokens, the list of products, the bridge's address and
+token, and the mailbox connection are stored in the browser of the person using the site; Agent M has
+no other store for them.
 *Occasion:* the Product Owner's requirement — no API key is exposed to the repository. With no
 server (§0) the browser is the only place left, which makes the property structural rather than a
 promise.
 *Check:* `tests/test_config_client_side.py`
+
+**SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS** *(PO A. Maier, 2026-09-29)*
+The dashboard exports all its browser settings — tokens, keys and passwords included — as one file, and
+imports them from such a file.
+*Occasion:* PO, 2026-09-29: "I want to be able to move from one browser store to another, so exporting
+including secrets is useful." Everything lives in one browser (`CONFIGURATION LIVES IN THE BROWSER`);
+with the secrets in the file, a second computer is set up by one import. The file is the person's own
+copy: Agent M writes it to no repository (`NO SECRET IN THE REPOSITORY`) and puts it in no URL.
+*Check:* `tests/review-core.test.mjs` — an import of an export restores every setting, secrets included;
+counter-proof: no export is ever committed or sent anywhere by the dashboard.
+
+**AN EXPORT CAN BE LOCKED WITH A PASSPHRASE** *(PO A. Maier, 2026-09-29)*
+The person may protect an export with a passphrase of their choice; the file is then encrypted in the
+browser with a key derived from that passphrase and can be imported only with it.
+*Occasion:* PO, 2026-09-29: "passphrase is a good option". An export holds every token and password;
+locked, a file that is mailed, synced or lost gives nothing away. The browser's own cryptography does the
+work (key derivation and authenticated encryption of the Web Crypto API), so no library is added. A
+forgotten passphrase cannot be recovered; the dashboard says so before saving.
+*Check:* `tests/review-core.test.mjs` — a locked export contains no stored secret in clear and imports
+with the passphrase; counter-proof: a wrong passphrase imports nothing.
+
+**AN EXPORT STATES THAT IT CONTAINS SECRETS** *(PO A. Maier, 2026-09-29)*
+Before an export is saved, the dashboard states that the file contains every token, key and password it
+holds, and what each of them grants.
+*Occasion:* a file with the GitHub token and a mailbox password opens the person's repositories and mail
+to whoever holds it; the person decides where to keep it knowing that.
+*Check:* `tests/test_settings_disclosure.py`
+
+**EVERY SETTING IS REACHED FROM ONE PAGE** *(PO A. Maier, 2026-09-28)*
+Every setting Agent M uses — kept in this browser, in the instance repository or in a product's
+repository — is reached from one settings page.
+*Occasion:* PO, 2026-09-28: settings "such as access tokens, workspace configuration and other user
+settings … We should be able to handle this centrally." They were set up in seven use cases (UC-001,
+UC-003, UC-011, UC-014, UC-017, UC-037, UC-038); none showed them together, so a person could not see
+what is stored where, nor change it.
+*Check:* `tests/test_settings_page.py` — every key the dashboard writes to `localStorage` appears on the
+page; counter-proof: a fixture key without a place on the page fails.
+
+**A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN** *(PO A. Maier, 2026-09-28)*
+Each setting kept in the browser is shown with a test of whether it still works and a control that
+clears it.
+*Occasion:* "does my token still work?" and "remove the mailbox from this browser" are the two questions a
+settings page must answer on the spot (`A CLEAR IS A REAL CLEAR`).
+*Check:* `tests/test_settings_page.py`
+
+**A STORED SECRET IS HIDDEN UNTIL SHOWN** *(PO A. Maier, 2026-09-29)*
+A stored token, key or password is displayed in a password field with a *Show* control that reveals it
+in full.
+*Occasion:* PO, 2026-09-29: "It's ok to use password fields, but they should have a 'show' button that
+allows to check whether the token is the correct one." Hidden by default for screen shares; shown on
+request to compare it with the token on GitHub's page or to copy it.
+*Check:* `tests/test_settings_page.py` — a stored secret is rendered hidden; counter-proof: after *Show*
+it appears in full.
+
+**A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE** *(PO A. Maier, 2026-09-28)*
+For each stored token, the settings page shows the expiry date recorded when it was stored, and the
+dashboard warns from fourteen days before it.
+*Occasion:* the prefilled GitHub token expires after 90 days (`THE TOKEN LINK IS PREFILLED`), and an
+expired token stops everything at once. Measured 2026-09-28: GitHub sends a token's expiry in a response
+header that its API does not expose to web pages (`Access-Control-Expose-Headers` omits it), so the date
+is the one the person set — preset to the prefilled 90 days — and entered when storing.
+*Check:* `tests/test_settings_page.py`
+
+**AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED** *(PO A. Maier, 2026-09-28)*
+When a server refuses a stored token, the dashboard names that token and links the page on which it is
+renewed with the same permissions and repositories.
+*Occasion:* "401" teaches nothing. GitHub's *Regenerate token* keeps a fine-grained token's
+permissions and repository selection; only the new value has to be pasted.
+*Check:* `tests/review-core.test.mjs` — a refused request yields the token's name and the renewal link.
+
+**A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY** *(PO A. Maier, 2026-09-28)*
+Settings that govern how a product is developed — its process model, Definition of Done, test
+schedule, pseudonymisation and collaborators — are kept in files of the product's repository, never only
+in a browser.
+*Occasion:* they bind everyone who works on the product and every agent that runs for it; a setting in one
+person's browser would bind no one else.
+*Check:* `tests/test_settings_page.py` — changing a product setting on the page commits to the product
+repository; counter-proof: `localStorage` holds no product setting.
 
 **CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE** *(PO A. Maier, 2026-09-23)*
 Configuration is written to `localStorage`; Agent M sets no cookie carrying configuration or
@@ -754,6 +833,18 @@ which `A TOKEN IS SCOPED TO WHAT IT WRITES` rules out. A project access token re
 It costs one token per GitLab product; where the server does not offer project access tokens, the
 person is told so, and why a personal token is broader.
 *Check:* `tests/review-core.test.mjs`
+
+**ONE GITHUB TOKEN SERVES EVERY FEATURE** *(PO A. Maier, 2026-09-24)*
+On GitHub, Agent M asks a person for one fine-grained token that carries every permission its
+features need on the repositories the person selects — *Contents* and *Issues* read and write,
+*Actions* read and write, *Metadata* read.
+*Occasion:* PO, 2026-09-24: "Better to keep it in one token; otherwise users are overwhelmed."
+Issues from mail need *Issues*, starting a CI run needs *Actions*; a second and a third token would
+triple the setup that UC-014 just made manageable. The scope stays limited by the repository
+selection (`A TOKEN IS SCOPED TO WHAT IT WRITES`), and a GitLab product keeps its project token
+(`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`).
+*Check:* `tests/test_token_scope_documented.py` — the prefilled link asks for exactly these
+permissions.
 ## 8. Versioning
 
 **CALENDAR VERSIONS** *(PO A. Maier, 2026-09-23)*
