@@ -12,3 +12,4 @@ Append-only.
 | 2026-09-29 16:10 UTC | 8 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-08-6fd85b8dd3e5.md |
 | 2026-09-29 16:41 UTC | 10 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-10-51519e6e8ff5.md |
 | 2026-09-29 16:49 UTC | 9 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-09-fc8eb5dda29a.md |
+| 2026-09-29 16:54 UTC | 12 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-12-94658f0de4b5.md |
