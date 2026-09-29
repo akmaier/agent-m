@@ -31,7 +31,7 @@ What a definition contains:
 | Part | Content | Example (V-model, book ch. 6 §4) |
 |---|---|---|
 | **Kind of work** | *planned*: the whole accepted SPEC runs through every phase; or *pulled*: items are pulled from a backlog | planned |
-| **Phases** | name, the role that does the phase, the artifacts it produces (`REQ-` `UC-` `ARC-` `MOD-` `TST-`) | Concept, Requirements, Design, Implementation, Testing, Validation & Verification, Operation & Maintenance |
+| **Phases** | name, the role that does the phase, the artifacts it produces (requirements, `UC-` `ARC-` `MOD-` `TST-`) | Concept, Requirements, Design, Implementation, Testing, Validation & Verification, Operation & Maintenance |
 | **Transitions** | which phase follows which: in sequence, as alternatives, or back to an earlier phase | Concept → Requirements → Design → Implementation → Testing → Validation & Verification → Operation & Maintenance |
 | **Verification pairs** | which later phase checks which earlier one | Concept ↔ Operation & Maintenance; Requirements ↔ Validation & Verification; Design ↔ Testing |
 | **Gates** | between which phases; which artifacts must exist; which condition must hold; who decides — a role (person or agent) or an automated check | before Implementation: every requirement has an `ARC-`, and the design is accepted; decided by the role *Architect* |

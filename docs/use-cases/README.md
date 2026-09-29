@@ -10,8 +10,10 @@ Review them on the dashboard: **https://akmaier.github.io/agent-m/** — or on y
 **Withdrawn:** UC-009 *Inspect traceability coverage* — merged into UC-020 on 2026-09-24 (PO decision);
 its text stays in the git history, and the number is not reused.
 
-Terms: a **job** is one run (derive requirements, run a test battery, implement a backlog item); a
-**phase** is a part of a process model; the nine **steps** of the cycle are the areas below.
+Terms: a **job** is one run (derive requirements, run a test battery, implement a backlog item); every
+job has an identifier `JOB-…` and a record under `docs/jobs/` of its product, written by the click that
+starts it and completed by the job when it ends (UC-036). A **phase** is a part of a process model; the
+nine **steps** of the cycle are the areas below.
 
 ## Setup — instance, products, participants, process
 

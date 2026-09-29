@@ -21,6 +21,7 @@ realises:
   - AGENT M IS MIT-LICENSED
   - A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER
   - SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
+  - A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
 ---
 # UC-014 Get your own Agent M
 
@@ -72,8 +73,10 @@ leaves the licence of every product to the person.
    press *Generate token*, copy it.
 8. **Step B · Give the key to Agent M.** The dashboard states that everything stored in this browser
    can be read by every other Pages site of the same owner; the person ticks *I have read this*,
-   pastes the token and presses **Store and check**. Agent M stores it in `localStorage` and checks
-   that it reaches the instance.
+   pastes the token, confirms its expiry date — preset to the 90 days of the prefilled link, to be
+   corrected if they changed it on GitHub — and presses **Store and check**. Agent M stores both in
+   `localStorage` and checks that the token reaches the instance; it will warn fourteen days before the
+   token expires (UC-042).
 9. The dashboard shows the instance, ready: its own use cases, and **+ Add product** (UC-001).
 
 Both steps carry a folded *What is this?* for people new to GitHub.

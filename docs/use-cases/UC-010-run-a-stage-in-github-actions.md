@@ -5,13 +5,15 @@ stage: runtime
 actors:
   - Author
   - GitHub Actions
-  - Model endpoint
+  - CI agent
 realises:
   - ONE DEFINITION, THREE DRIVERS
   - A RUNTIME IS INTERCHANGEABLE
   - A GENERATED ARTIFACT IS A PROPOSAL
   - NO SECRET IN THE REPOSITORY
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A JOB RECORD STARTS NO CI RUN
 ---
 # UC-010 Run a job in GitHub Actions
 
@@ -22,7 +24,7 @@ endpoint does not accept browser calls.
 
 - **Author** — starts the run.
 - **GitHub Actions** — executes the job with a repository secret.
-- **Model endpoint** — does the drafting.
+- **CI agent** — the participant (UC-017) whose workflow runs the job, calling its model endpoint.
 
 ## Precondition
 
@@ -31,10 +33,13 @@ endpoint does not accept browser calls.
 
 ## Main flow
 
-1. The author starts the job from the dashboard or from GitHub's Actions page.
+1. The author starts the job from the dashboard or from GitHub's Actions page. The start writes the
+   job's record `docs/jobs/JOB-<id>.md` in the product repository — from the dashboard as part of the
+   author's click.
 2. The workflow reads the job definition and prompt — the same files the browser uses.
 3. The workflow calls the endpoint with the secret.
-4. The workflow commits the resulting artifacts to the default branch, where they are open.
+4. The workflow commits the resulting artifacts to the default branch, where they are open, together
+   with the job's end record.
 5. The author reviews them on the dashboard, as in UC-006 or UC-008.
 
 ```mermaid

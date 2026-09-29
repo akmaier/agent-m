@@ -4,7 +4,7 @@ title: Maintain the backlog
 stage: 5 implementation
 actors:
   - Product Owner
-  - Model endpoint
+  - Drafting participant
   - GitHub
 realises:
   - AGILE IMPLEMENTATION STARTS FROM THE BACKLOG
@@ -32,7 +32,8 @@ under the work-in-progress limit in Kanban (book ch. 7 §4–5).
 
 - **Product Owner**: the person the product assigned to the role that orders the backlog (UC-002).
   In Scrum, this is the Product Owner role.
-- **Model endpoint**: optionally drafts items from accepted requirements and use cases.
+- **Drafting participant**: a model endpoint or agent (UC-017) that can *draft text*; optionally drafts
+  items from accepted requirements and use cases.
 - **GitHub**: holds the product repository (or the product's GitLab server).
 
 ## Precondition
@@ -79,7 +80,7 @@ sprint or a WIP limit is, and a pointer to book ch. 7.
 sequenceDiagram
     actor O as Product Owner
     participant M as Agent M
-    participant E as Model endpoint
+    participant E as Drafting participant
     participant G as Product repository
     O->>M: Backlog
     M->>G: read items, order, SPEC, approvals, pull requests

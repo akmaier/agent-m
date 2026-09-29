@@ -13,6 +13,7 @@ realises:
   - ONE DEFINITION, THREE DRIVERS
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
   - THE BRIDGE IS PAIRED ONCE
+  - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 ---
 # UC-011 Hand a job to a local CLI session
 
@@ -35,11 +36,13 @@ authenticated on a machine they control.
 1. **Once:** the author starts the bridge for the first time; it prints a token and keeps it across
    restarts. The author enters the bridge address and that token on the Agent M site, which stores
    them in this browser. After that, handing a job over needs neither again.
-2. The site sends the job definition and inputs to the bridge, with the token.
+2. The author's click commits the job's start record `docs/jobs/JOB-<id>.md` in the product repository;
+   the site sends the job definition and inputs to the bridge, with the token.
 3. The bridge checks the token and hands the task to the CLI session.
 4. The CLI session commits the artifacts to the default branch, where they are open; a code change
    goes to a branch with a pull request instead.
-5. The bridge reports what was committed; the site shows the new artifacts for review.
+5. The CLI session writes the job's end record with its last commit; the bridge reports what was
+   committed, and the site shows the new artifacts for review.
 
 ```mermaid
 sequenceDiagram
