@@ -4,7 +4,7 @@ title: Inspect running jobs
 stage: 7 operation
 actors:
   - Author
-  - Gate keeper
+  - Gate decider
   - Runtimes
 realises:
   - ONE DASHBOARD SHOWS EVERY JOB
@@ -22,6 +22,8 @@ realises:
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
   - A JOB IDENTIFIER IS NEVER REUSED
   - A RECORD IS EVIDENCE, NOT A PROPOSAL
+  - A GATE NAMES WHO DECIDES IT
+  - A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS
 ---
 # UC-036 Inspect running jobs
 
@@ -33,15 +35,16 @@ at a glance what runs, what waits, and what failed. From there, the author can:
 - make the decision a waiting job needs.
 
 A job is one execution: deriving requirements, generating tests, implementing a backlog item,
-running a test battery. A job never continues past a gate without a person. This page is where the
-person sees that a gate is waiting. It is the book's human-above-the-loop view (book ch. 11 §8):
+running a test battery. A job never continues past a gate before the gate's decider — a person, an
+agent or a CI check — has decided. This page is where a person sees which gates wait, and decides
+those that are theirs. It is the book's human-above-the-loop view (book ch. 11 §8):
 agents run on their own, and a person watches the whole and can step in.
 
 | State | Meaning |
 |---|---|
 | **queued** | handed to a route, not yet picked up |
 | **running** | the participant is working |
-| **waiting for a person** | stopped at a gate, or at a question only a person may answer |
+| **waiting at a gate** | stopped at a gate until its decider — a person, an agent or a CI check — decides, or at a question for the author |
 | **done** | finished; its result is linked |
 | **failed** | ended with an error; the reason and log are linked |
 | **cancelled** | stopped by a person; wrote nothing afterwards |
@@ -49,7 +52,7 @@ agents run on their own, and a person watches the whole and can step in.
 ## Actors
 
 - **Author**: watches, cancels, retries.
-- **Gate keeper**: the person who decides at a gate.
+- **Gate decider**: whoever the gate names — a person or an agent holding its role, or a CI check.
 - **Runtimes**: where jobs run, and where their state is read from:
   - the browser tab, for model-endpoint jobs;
   - GitHub Actions or GitLab CI, for CI agents and self-hosted runners;
@@ -70,7 +73,7 @@ agents run on their own, and a person watches the whole and can step in.
      token of that product's server only;
    - the job list of each configured bridge, with its bridge token;
    - the jobs of this browser tab.
-2. Agent M shows one list across products, newest first, grouped by state. *Waiting for a person*
+2. Agent M shows one list across products, newest first, grouped by state. *Waiting at a gate*
    comes first. Each row shows:
    - the job's identifier, for example `JOB-20260924-1432-7f3a`;
    - the product and what the job works on, for example `ITM-014` or *derive requirements from
@@ -88,9 +91,10 @@ agents run on their own, and a person watches the whole and can step in.
    - its log, streamed while it runs, read from the runtime that holds it;
    - its cost, as reported: for example *Actions: 14 min* or *endpoint: 182 k tokens · €0.41 at the
      declared price*, or *unknown*.
-5. For a job **waiting for a person**, the detail view shows the gate: what it checks, the artifacts
-   to examine, and who may decide. The gate keeper presses **Pass gate** or **Reject** (with a
-   reason): one click. Agent M commits the gate record under the gate keeper's account, and the job
+5. For a job **waiting at a gate**, the detail view shows the gate: what it checks, the artifacts to
+   examine, and its decider. A CI check or an agent decides by itself and the view shows its progress;
+   a person presses **Pass gate** or **Reject** (with a reason): one click, and Agent M commits the gate
+   record under their account. Either way, the job
    continues or ends (UC-034, step 7).
 6. For a **queued**, **running** or **waiting** job, the author may press **Cancel**: one click.
    - Agent M stops the job at its runtime: cancels the workflow run, or tells the bridge to end the
@@ -106,7 +110,7 @@ Every state, and every kind of runtime, carries a folded **What is this?**.
 ```mermaid
 sequenceDiagram
     actor A as Author
-    actor K as Gate keeper
+    actor K as Person deciding a gate
     participant D as Jobs dashboard
     participant R as Runtimes (Actions, GitLab CI, bridge, tab)
     participant G as Product repository
@@ -117,7 +121,7 @@ sequenceDiagram
     A->>D: open job
     D->>R: stream log
     K->>D: Pass gate
-    D->>G: commit gate record (gate keeper's token)
+    D->>G: commit gate record (person's token)
     D->>R: continue job
     A->>D: Cancel or Retry
     D->>R: stop job, or start a new one
@@ -137,10 +141,11 @@ sequenceDiagram
   says so, and links the job's commits and pull request, which remain.
 - **4b. The runtime reports usage but the participant declares no price.** The cost shows the usage
   (tokens, minutes) and *price unknown*. No money figure is computed (`NO COST IS GUESSED`).
-- **5a. The person at the gate is not allowed to decide it.** The gate requires a role they do not
+- **5a. The person at the gate does not hold its deciding role.** The gate requires a role they do not
   hold. **Pass gate** is disabled, and the role and its holders are named.
-- **5b. The gate record would be written by an agent.** Not possible: only a person's click writes
-  it (`A JOB STOPS AT EVERY GATE`).
+- **5b. The gate's decider is the agent that did the work.** Its record does not pass the gate (`A GATE
+  IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`); the view names the other holders of the
+  role.
 - **6a. The runtime does not confirm the cancel in time.** The job is shown as *cancelling* inside
   the running state. If the job later pushes anyway, Agent M flags the commit as written after the
   cancel, and offers to revert it.

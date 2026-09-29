@@ -6,7 +6,7 @@ actors:
   - Author
   - Coding agent
   - CI
-  - Gate keeper
+  - Gate decider
 realises:
   - AGILE IMPLEMENTATION STARTS FROM THE BACKLOG
   - A PLAN COVERS THE WHOLE SPECIFICATION
@@ -32,6 +32,8 @@ realises:
   - NO SECRET IN THE REPOSITORY
   - ONE CLICK PER DECISION
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A GATE NAMES WHO DECIDES IT
+  - A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS
 ---
 # UC-034 Implement backlog items with a coding agent
 
@@ -52,7 +54,8 @@ person in the loop where the workflow says so (book ch. 11 §2, §8).
   - a sandboxed agent reached through the bridge over a tunnel;
   - a CI agent in a workflow, on a self-hosted runner where it needs the CLI.
 - **CI**: the product's continuous integration, which runs the tests on every push.
-- **Gate keeper**: the person assigned to decide at a gate, for example the *Security reviewer* from
+- **Gate decider**: whoever the gate names — a person or an agent holding its role, or an automated
+  check in CI —, for example the *Security reviewer* from
   UC-031.
 
 ## Precondition
@@ -97,9 +100,14 @@ person in the loop where the workflow says so (book ch. 11 §2, §8).
    up to the retry limit of the job definition.
 7. When the job reaches a gate of the workflow, for example *Security review* before Testing, or a
    *documented unit verification* added by an IEC 62304 process requirement, it stops in the state
-   **waiting for a person**. The gate keeper sees the gate on the job dashboard (UC-036), with what
-   it checks and the artifacts to look at. They press **Pass gate**: one click. Agent M commits the
-   gate record (who, when, on which text), and the job continues.
+   **waiting at a gate** and Agent M hands the gate to its decider:
+   - an **automated check** runs in CI; its result is the decision;
+   - an **agent** holding the deciding role receives the artifacts and records its decision with its
+     reasoning;
+   - a **person** sees the gate on the job dashboard (UC-036), with what it checks and the artifacts to
+     look at, and presses **Pass gate**: one click.
+
+   Agent M commits the gate record — who or what decided, when, on which text — and the job continues.
 8. When the product's Definition of Done holds — CI green, no gate left, and whatever the product
    added (UC-002, step 8) — the pull request is merged: by the coding agent, or by a person, as the
    author chose when starting the jobs. It goes into the default branch, or into the sprint's branch
@@ -113,7 +121,7 @@ sequenceDiagram
     participant C as Coding agent
     participant G as Product repository
     participant CI as CI
-    actor K as Gate keeper
+    participant K as Gate decider
     A->>M: select ready items
     M->>M: sprint, acceptance, WIP limit checked
     M-->>A: participant, data destination, gates per item
@@ -125,7 +133,7 @@ sequenceDiagram
     C->>G: implementation, pull request
     G->>CI: run
     CI-->>C: green
-    C-->>M: gate reached, waiting for a person
+    C-->>M: gate reached, waiting at a gate
     K->>M: Pass gate
     M->>G: commit gate record
     M->>C: continue
@@ -148,7 +156,7 @@ sequenceDiagram
 - **4a. The bridge or the runner does not answer.** The job stays *queued*. Agent M says which route
   is down, and the author may cancel or reassign the job (UC-036).
 - **5a. The tests pass before any implementation.** Either the behaviour already exists or the tests
-  check nothing. The job stops in *waiting for a person*, and the author decides whether the item is
+  check nothing. The job stops in *waiting at a gate* for the author, who decides whether the item is
   already done or the tests must be rewritten.
 - **5b. The agent finds that the item contradicts the specification or leaves a case open.** It
   stops and proposes a specification change instead of guessing (UC-012, change). The item goes back
@@ -156,12 +164,13 @@ sequenceDiagram
 - **6a. CI stays red after the retry limit.** The job ends as *failed*, with the last CI log linked.
   The item is *blocked*, and the author may retry with the same or another participant (UC-036).
 - **6b. Two jobs touch the same files.** The later push is rebased onto the default branch. On a
-  conflict the job stops in *waiting for a person* and names the other item (book ch. 7, Brooks's
+  conflict the job stops in *waiting at a gate* for the author and names the other item (book ch. 7, Brooks's
   law: more agents add coordination work).
-- **7a. The gate keeper rejects.** The gate record states the rejection and its reason. The job ends,
+- **7a. The gate's decider rejects.** The gate record states the rejection and its reason. The job ends,
   and the item returns to *ready* with the reason attached.
-- **7b. The coding agent itself writes a gate record.** It does not count. Only a person's decision
-  passes a gate (`A JOB STOPS AT EVERY GATE`).
+- **7b. The coding agent itself writes a gate record** for a gate that checks its own work. It does not
+  count, even if the agent holds the deciding role (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK
+  IT CHECKS`); another holder of the role, a CI check or a person decides.
 - **8a. The sprint has a branch of its own.** The item's pull request targets that branch. At the
   sprint's end, the Product Owner merges it into the default branch after the review of the increment
   (UC-041).
@@ -170,5 +179,5 @@ sequenceDiagram
 
 - Each started item has a pull request with failing-then-passing tests. It is either merged on green
   CI with every gate recorded, or waits, or failed with a reason.
-- No job has continued past a gate without a person's recorded decision.
+- No job has continued past a gate without its decider's recorded decision.
 - The dashboards show the new state without anyone setting it (UC-035, UC-036).

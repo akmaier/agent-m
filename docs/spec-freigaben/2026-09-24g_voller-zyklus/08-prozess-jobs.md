@@ -78,17 +78,39 @@ A job is handed only to a participant that the product has assigned to the role 
 that a participant that was never assigned as a Developer is never given code to write.
 *Check:* `tests/test_job_assignment.py`
 
-**A JOB STOPS AT EVERY GATE** *(PO A. Maier, 2026-09-24; Vibe Coding, ch. 11 §8)*
-A job that reaches a gate of the product's workflow waits in the state *waiting for a person* until
-a person's decision at that gate is recorded.
-*Occasion:* the book calls this human-in-the-loop: the agent pauses at a high-impact checkpoint and
-asks a person (ch. 11 §8). Gates come from the model and from process requirements
-(`A PROCESS REQUIREMENT ADDS TO THE MODEL`). Merging a job's pull request is not a gate of its own;
-it follows the product's Definition of Done (`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE
-HOLDS`), which includes every gate recorded before it.
-*Check:* `tests/test_job_gate.py`. A fixture job reaching a gate does not proceed while no gate
-record exists. It does not proceed on a record written by the job's own participant when that
-participant is not a person. It proceeds once a person's record exists.
+**A JOB STOPS AT EVERY GATE** *(PO A. Maier, 2026-09-24, corrected 2026-09-29; Vibe Coding, ch. 11 §8)*
+A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
+decision of that gate's decider is recorded.
+*Occasion:* a gate is a checkpoint the work does not pass by itself (ch. 6: a phase gate says afterwards
+what was verified). PO, 2026-09-29: "Job gates can also be assigned to CI, Agents and the like" — who
+decides is part of the gate (`A GATE NAMES WHO DECIDES IT`); a gate decided by a CI check or an agent
+is passed as soon as that decision is recorded, and only a gate that names a person waits for one — the
+book's human-in-the-loop checkpoint (ch. 11 §8). Gates come from the model and from process
+requirements (`A PROCESS REQUIREMENT ADDS TO THE MODEL`). Merging a job's pull request is not a gate of
+its own; it follows the product's Definition of Done (`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION
+OF DONE HOLDS`), which includes every gate recorded before it.
+*Check:* `tests/test_job_gate.py`. A fixture job reaching a gate does not proceed while no decision of
+the gate's decider is recorded, nor on a record by anyone else. It proceeds on the decider's record — a
+person's, an agent's or a CI check's, as the gate names.
+
+**A GATE NAMES WHO DECIDES IT** *(PO A. Maier, 2026-09-29)*
+Every gate names its decider: a role of the model, held by a person or an agent as the role allows, or
+an automated check whose result decides.
+*Occasion:* PO, 2026-09-29: "Job gates can also be assigned to CI, Agents and the like." A security scan
+is decided by CI, a documented review by an agent, a release sign-off that a process requirement such as
+IEC 62304 demands by a person — the gate says which, as a role says who may hold it (`A PROCESS MODEL
+ORGANISES PEOPLE AND AGENTS`).
+*Check:* `tests/test_model_validation.py` — a gate without a decider is rejected; counter-proof: a gate
+decided by a role and one decided by a named CI check both pass validation.
+
+**A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS** *(PO A. Maier, 2026-09-29; Vibe Coding, ch. 12 §2, ch. 13 §6)*
+A gate's decision recorded by the participant that did the work the gate checks does not pass it.
+*Occasion:* an agent that implements a change and also decides the review of that change reviews its own
+assumptions — the reason the book separates finding problems from fixing them, and release testing from
+feature development (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). Another agent, a CI check or a
+person may decide.
+*Check:* `tests/test_job_gate.py` — the implementing agent's own record leaves the job waiting;
+counter-proof: a second agent holding the deciding role passes it.
 
 **A JOB IS RECORDED IN ITS PRODUCT REPOSITORY** *(PO A. Maier, 2026-09-24)*
 Every job has a record `docs/jobs/JOB-<id>.md` in the repository of the product it works on — the
@@ -131,7 +153,7 @@ declared measure. A definition naming an unknown measure fails validation.
 
 **ONE DASHBOARD SHOWS EVERY JOB** *(PO A. Maier, 2026-09-24)*
 The job dashboard of an instance lists every job of every product it manages. Each job appears with
-its state (queued, running, waiting for a person, done, failed or cancelled), its participant, where
+its state (queued, running, waiting at a gate, done, failed or cancelled), its participant, where
 it runs, what it works on, its elapsed time and a link to its log.
 *Occasion:* PO, 2026-09-24: "There should be dashboard that shows all running stages which allows
 to inspect their status". Jobs run in several places at once: CI, a CLI agent, a sandbox. Without

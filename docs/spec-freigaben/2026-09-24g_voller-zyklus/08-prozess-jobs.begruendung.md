@@ -93,3 +93,19 @@ a tab closed in between leaves a job without end, which the job dashboard shows 
 record*.
 
 **Refactoring (entry 06 question 3):** the default Definition of Done names the refactoring case.
+
+**Corrected after the PO's objection of 2026-09-29** — *"Job gates can also be assigned to CI, Agents and
+the like. So why should they stop?"* `A JOB STOPS AT EVERY GATE` let only a person's decision pass a gate.
+That was stricter than the participant model (roles filled by people or agents) and than the book, whose
+human-in-the-loop checkpoint is one kind of gate, not every gate. Now:
+
+- `A JOB STOPS AT EVERY GATE` — waits for the decision of the gate's **decider**, whoever that is; a gate
+  decided by CI or an agent passes as soon as that decision is recorded. The job state is renamed
+  *waiting at a gate* (also in `ONE DASHBOARD SHOWS EVERY JOB`).
+- `A GATE NAMES WHO DECIDES IT` — a role (person or agent, as the role allows) or an automated check.
+- `A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS` — proposed by the main agent, not asked
+  for by the PO: it keeps the gate from becoming the implementer's self-approval. Strike it if gates may be
+  decided by the implementing agent.
+
+A gate that must be decided by a person stays possible: its deciding role is one a person must hold.
+Impact: UC-031 (gates name their decider), UC-034, UC-035, UC-036 (states and flows).

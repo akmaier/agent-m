@@ -64,7 +64,7 @@ inspection (ch. 7 §5).
    Gates added by process requirements are marked with their requirement and source.
 4. A panel **Blocked** lists every item or plan entry that cannot move, each with its reason:
    - a failed job;
-   - a job waiting for a person, with the person or role it waits for;
+   - a job waiting at a gate, with the role or check that decides it;
    - a requirement not yet accepted;
    - the WIP limit.
 5. A panel **Who works on what** lists each participant of the product with its role and its current

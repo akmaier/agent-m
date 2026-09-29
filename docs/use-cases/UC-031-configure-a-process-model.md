@@ -18,6 +18,7 @@ realises:
   - DIAGRAMS ARE MERMAID IN MARKDOWN
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A GATE NAMES WHO DECIDES IT
 ---
 # UC-031 Configure a process model
 
@@ -33,7 +34,7 @@ What a definition contains:
 | **Phases** | name, the role that does the phase, the artifacts it produces (`REQ-` `UC-` `ARC-` `MOD-` `TST-`) | Concept, Requirements, Design, Implementation, Testing, Validation & Verification, Operation & Maintenance |
 | **Transitions** | which phase follows which: in sequence, as alternatives, or back to an earlier phase | Concept → Requirements → Design → Implementation → Testing → Validation & Verification → Operation & Maintenance |
 | **Verification pairs** | which later phase checks which earlier one | Concept ↔ Operation & Maintenance; Requirements ↔ Validation & Verification; Design ↔ Testing |
-| **Gates** | between which phases; which artifacts must exist; which condition must hold | before Implementation: every `REQ-` has an `ARC-`, and the design is accepted |
+| **Gates** | between which phases; which artifacts must exist; which condition must hold; who decides — a role (person or agent) or an automated check | before Implementation: every requirement has an `ARC-`, and the design is accepted; decided by the role *Architect* |
 | **Roles** | name; person, agent or either; capabilities needed | Tester: agent or person; *read the repository*, *run code and tests* |
 | **Flow control** (pulled only) | a time box with its length, or a work-in-progress limit | Scrum: sprint of 2 weeks; Kanban: WIP 3 |
 | **Progress measure** | plan entries per phase, remaining items per time box, or items per state over time | plan entries per phase |
@@ -63,13 +64,13 @@ Doing, Review, Done.
    above, and next to it a live Mermaid diagram of the phases, pairs and gates.
 3. The author edits the model. In this example they add a gate *Security review* between
    Implementation and Testing. The gate checks that a person has accepted the threat model `ARC-`
-   artifact. The gate is filled by the role *Security reviewer*: a person, with *read the
+   artifact. The gate is decided by the role *Security reviewer* — a person or an agent, with *read the
    repository*.
 4. While the author types, Agent M validates the definition and lists each error beside the field
    that causes it, for example:
    - a transition naming a phase that is not defined, or a phase no transition reaches;
    - a verification pair naming a missing phase;
-   - a gate without artifacts or without a condition;
+   - a gate without artifacts, without a condition, or without a decider;
    - a role without capabilities, or a phase without a role;
    - a gate that checks an artifact kind no earlier phase produces;
    - for *pulled* work, neither a time box nor a WIP limit, or both;
