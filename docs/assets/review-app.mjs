@@ -106,7 +106,7 @@ async function loadAll() {
       const current = sec.error ? "" : sectionText(sec);
       const proposalBlob = await gitBlobSha(proposalText);
       const sectionBlob = sec.error ? "" : await gitBlobSha(current);
-      const status = deriveSpecStatus({ queue: dir, nr: en.nr, proposalPath: prop?.path, proposalText,
+      const status = deriveSpecStatus({ queue: dir, nr: en.nr, anchor: en.anchor, bis: en.bis, proposalPath: prop?.path, proposalText,
         proposalBlob, sectionBlob, specText, decisions, records: state.records });
       return { ...en, nn, dir, proposalPath: prop?.path, proposalText, rationale, current, error: sec.error,
         proposalBlob, sectionBlob, targetPath, status, decision: decisions.get(en.nr) };

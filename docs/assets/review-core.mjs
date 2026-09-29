@@ -236,11 +236,18 @@ export function deriveUseCaseStatus(file, currentBlob, records) {
   return mine.length ? "changed" : "open";
 }
 
-export function deriveSpecStatus({ queue, nr, proposalPath, proposalText, proposalBlob, sectionBlob,
+// An accepted entry counts as applied while the SPEC section at its anchor is still its text. Only that
+// section is compared: an entry may carry headings that later entries of its queue fill (queue
+// 2026-09-24g, entry 05), and filling them must not turn the entry into "superseded".
+export function deriveSpecStatus({ queue, nr, anchor, bis, proposalPath, proposalText, proposalBlob, sectionBlob,
   specText, decisions, records }) {
   const d = decisions.get(nr);
   if (d && d.decision === "uebernommen") {
-    return specText.includes(proposalText.replace(/\n+$/, "")) ? "applied" : "superseded";
+    const inSpec = extractSection(specText, anchor, bis);
+    const own = bis ? { lines: proposalText.split("\n"), from: 0, to: proposalText.split("\n").length }
+      : extractSection(proposalText, anchor, null);
+    if (inSpec.error || own.error) return "superseded";
+    return sectionText(inSpec) === sectionText(own) ? "applied" : "superseded";
   }
   const mine = records.filter((r) => r.kind === "spec" && r.queue === queue && Number(r.entry) === nr
     && r.proposal === proposalPath);

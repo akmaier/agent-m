@@ -86,7 +86,7 @@ test("STATUS IS DERIVED FROM THE RECORDS: use cases", () => {
 });
 
 test("STATUS IS DERIVED FROM THE RECORDS: SPEC proposals", () => {
-  const base = { queue: "q", nr: 1, proposalPath: "q/01-a.md", proposalText: "## 9. G\nnew\n",
+  const base = { queue: "q", nr: 1, anchor: "## 9. G", bis: null, proposalPath: "q/01-a.md", proposalText: "## 9. G\nnew\n",
     proposalBlob: "p".repeat(40), sectionBlob: "s".repeat(40), specText: "## 9. G\nold\n", decisions: new Map(), records: [] };
   const rec = (o = {}) => specRecord({ queue: "q", entry: 1, proposal: "q/01-a.md", blob: "p".repeat(40),
     target: "SPEC.md", anchor: "## 9. G", section: "s".repeat(40), ...o });
@@ -97,6 +97,22 @@ test("STATUS IS DERIVED FROM THE RECORDS: SPEC proposals", () => {
   const done = new Map([[1, { decision: "uebernommen" }]]);
   assert.equal(deriveSpecStatus({ ...base, decisions: done, specText: "x\n## 9. G\nnew\n" }), "applied");
   assert.equal(deriveSpecStatus({ ...base, decisions: done }), "superseded");
+});
+
+test("an applied entry is judged by its own section, not by headings later entries filled", () => {
+  // Queue 2026-09-24g entry 05 replaced §10 and added placeholder headings §11–§15, which entries
+  // 06–10 then filled. §10 stayed exactly as accepted, so the entry is applied, not superseded.
+  const done = new Map([[5, { decision: "uebernommen" }]]);
+  const base = { queue: "q", nr: 5, anchor: "## 10. R", bis: null, proposalPath: "q/05-a.md",
+    proposalBlob: "p".repeat(40), sectionBlob: "s".repeat(40), decisions: done, records: [],
+    proposalText: "## 10. R\nrule A\n\n## 11. X\n\n*(not yet approved)*\n" };
+  assert.equal(deriveSpecStatus({ ...base, specText: "## 9. G\nx\n## 10. R\nrule A\n\n## 11. X\n\nrule B\n" }), "applied");
+  // Counter-proof: §10 itself was changed after the acceptance.
+  assert.equal(deriveSpecStatus({ ...base, specText: "## 10. R\nrule C\n\n## 11. X\n\nrule B\n" }), "superseded");
+  // An entry with an end anchor (the preamble, entry 12) is compared as a whole, up to that anchor.
+  const pre = { ...base, anchor: "# T", bis: "## 0. H", proposalText: "# T\n\nnew preamble\n" };
+  assert.equal(deriveSpecStatus({ ...pre, specText: "# T\n\nnew preamble\n## 0. H\nrule\n" }), "applied");
+  assert.equal(deriveSpecStatus({ ...pre, specText: "# T\n\nolder preamble\n## 0. H\nrule\n" }), "superseded");
 });
 
 test("THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ · THE TOKEN IS SENT ONLY TO GITHUB", async () => {
