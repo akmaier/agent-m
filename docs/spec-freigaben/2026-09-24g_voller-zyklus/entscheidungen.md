@@ -7,3 +7,4 @@ Append-only.
 | 2026-09-29 15:49 UTC | 3 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-03-ce019c27ea19.md |
 | 2026-09-29 15:57 UTC | 4 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-04-b6bd52ad79b7.md |
 | 2026-09-29 16:00 UTC | 5 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-05-759b718fbd7f.md |
+| 2026-09-29 16:01 UTC | 6 | uebernommen | approval:spec-2026-09-24g_voller-zyklus-06-81781aa5a7af.md |
