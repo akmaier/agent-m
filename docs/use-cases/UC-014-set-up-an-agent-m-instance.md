@@ -18,9 +18,9 @@ realises:
   - A TOKEN IS SCOPED TO WHAT IT WRITES
   - ONE CLICK PER DECISION
   - ONE GITHUB TOKEN SERVES EVERY FEATURE
-  - SETTINGS MOVE TO ANOTHER BROWSER WITHOUT THEIR SECRETS
   - AGENT M IS MIT-LICENSED
   - A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER
+  - SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
 ---
 # UC-014 Get your own Agent M
 
@@ -111,9 +111,9 @@ sequenceDiagram
   product ever reaches the fork. `products/README.md` says so.
 - **7a. The person uses a second browser or computer later.** The token lives only in the browser it
   was stored in; the dashboard there opens *Finish setting up* again, with **Import settings** beside
-  it. In the first browser, *Settings → Export* saved a file with the products, endpoints, bridge
-  address and mailbox server — no token, key or password. Imported, only the secrets are entered again,
-  each at its own notice; the same token can be pasted, or a new one created.
+  it. In the first browser, *Settings → Export* saved a file with every setting — products, endpoints,
+  bridge, mailbox, and their tokens, keys and passwords. Imported, the second browser works like the
+  first; without the file, the same token can be pasted, or a new one created.
 - **6a. The person only wants to read public repositories.** They can skip the setup; the dashboard
   reads without a token, and accepting then goes through GitHub's own pages.
 

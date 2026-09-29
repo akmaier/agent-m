@@ -26,3 +26,16 @@ them one page (new UC-042): every setting reached from it; browser settings test
 secrets only masked; token expiry warned of in advance — measured: the browser cannot read GitHub's
 expiry header, so the date is recorded when the token is stored —; expired tokens named with their
 renewal link; product settings kept in the product's repository.
+
+**Changed after the PO's objection of 2026-09-29** — *"This is too restrictive and we must be able to export
+and change it. It's ok to use password fields, but they should have a 'show' button that allows to check
+whether the token is the correct one. Also I want to be able to move from one browser store to another, so
+exporting including secrets is useful."*
+- `SETTINGS MOVE TO ANOTHER BROWSER WITHOUT THEIR SECRETS` → `SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR
+  SECRETS`.
+- `A STORED SECRET IS SHOWN ONLY MASKED` → `A STORED SECRET IS HIDDEN UNTIL SHOWN`.
+- New, by the main agent: `AN EXPORT STATES THAT IT CONTAINS SECRETS` — the file now opens repositories and
+  mail; the notice is one line before saving. Strike it if not wanted.
+
+**Open for the PO:** should the export optionally be protected with a passphrase the person chooses (the
+browser's own encryption, no library)? Not proposed as a rule.

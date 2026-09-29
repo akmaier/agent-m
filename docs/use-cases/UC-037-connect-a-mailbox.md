@@ -170,7 +170,8 @@ sequenceDiagram
   nothing is stored. On the web-API route it links the provider's page where the app's access is
   withdrawn. Issues and their mail identifiers are not touched.
 - **1a. The author uses another browser or computer.** No mailbox is connected there; *Import settings*
-  (UC-042) brings the route, servers and folders, and only the password or the sign-in is needed again.
+  (UC-042) brings the whole connection, password or sign-in token included. A provider's sign-in token
+  that has expired meanwhile is renewed by signing in once more (3b).
 - **4a. The author does not tick the notice.** The password field stays disabled; nothing is stored.
 
 ## Postcondition

@@ -9,15 +9,22 @@ server (§0) the browser is the only place left, which makes the property struct
 promise.
 *Check:* `tests/test_config_client_side.py`
 
-**SETTINGS MOVE TO ANOTHER BROWSER WITHOUT THEIR SECRETS** *(PO A. Maier, 2026-09-25)*
-The dashboard exports its settings as a file and imports them from one, and the file contains no
-token, key or password.
-*Occasion:* everything lives in one browser (`CONFIGURATION LIVES IN THE BROWSER`); a second computer
-would otherwise start from nothing — every product, endpoint and mailbox server typed again. Without
-secrets, the file can be mailed or kept anywhere; after the import, only the secrets are entered, each
-at its own notice.
-*Check:* `tests/review-core.test.mjs` — an export with stored tokens, keys and a mailbox password
-contains none of them; counter-proof: an import restores products and addresses.
+**SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS** *(PO A. Maier, 2026-09-29)*
+The dashboard exports all its browser settings — tokens, keys and passwords included — as one file, and
+imports them from such a file.
+*Occasion:* PO, 2026-09-29: "I want to be able to move from one browser store to another, so exporting
+including secrets is useful." Everything lives in one browser (`CONFIGURATION LIVES IN THE BROWSER`);
+with the secrets in the file, a second computer is set up by one import. The file is the person's own
+copy: Agent M writes it to no repository (`NO SECRET IN THE REPOSITORY`) and puts it in no URL.
+*Check:* `tests/review-core.test.mjs` — an import of an export restores every setting, secrets included;
+counter-proof: no export is ever committed or sent anywhere by the dashboard.
+
+**AN EXPORT STATES THAT IT CONTAINS SECRETS** *(PO A. Maier, 2026-09-29)*
+Before an export is saved, the dashboard states that the file contains every token, key and password it
+holds, and what each of them grants.
+*Occasion:* a file with the GitHub token and a mailbox password opens the person's repositories and mail
+to whoever holds it; the person decides where to keep it knowing that.
+*Check:* `tests/test_settings_disclosure.py`
 
 **EVERY SETTING IS REACHED FROM ONE PAGE** *(PO A. Maier, 2026-09-28)*
 Every setting Agent M uses — kept in this browser, in the instance repository or in a product's
@@ -36,11 +43,14 @@ clears it.
 settings page must answer on the spot (`A CLEAR IS A REAL CLEAR`).
 *Check:* `tests/test_settings_page.py`
 
-**A STORED SECRET IS SHOWN ONLY MASKED** *(PO A. Maier, 2026-09-28)*
-A stored token, key or password is shown only with its last four characters.
-*Occasion:* a settings page is looked at over shoulders and in screen shares; the last characters are
-enough to tell two tokens apart.
-*Check:* `tests/test_settings_page.py` — no stored secret appears in the rendered page in full.
+**A STORED SECRET IS HIDDEN UNTIL SHOWN** *(PO A. Maier, 2026-09-29)*
+A stored token, key or password is displayed in a password field with a *Show* control that reveals it
+in full.
+*Occasion:* PO, 2026-09-29: "It's ok to use password fields, but they should have a 'show' button that
+allows to check whether the token is the correct one." Hidden by default for screen shares; shown on
+request to compare it with the token on GitHub's page or to copy it.
+*Check:* `tests/test_settings_page.py` — a stored secret is rendered hidden; counter-proof: after *Show*
+it appears in full.
 
 **A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE** *(PO A. Maier, 2026-09-28)*
 For each stored token, the settings page shows the expiry date recorded when it was stored, and the

@@ -9,11 +9,9 @@ actors:
 realises:
   - EVERY SETTING IS REACHED FROM ONE PAGE
   - A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
-  - A STORED SECRET IS SHOWN ONLY MASKED
   - A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
   - AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
   - A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
-  - SETTINGS MOVE TO ANOTHER BROWSER WITHOUT THEIR SECRETS
   - CONFIGURATION LIVES IN THE BROWSER
   - CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
   - A CLEAR IS A REAL CLEAR
@@ -26,6 +24,9 @@ realises:
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A STORED SECRET IS HIDDEN UNTIL SHOWN
+  - SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
+  - AN EXPORT STATES THAT IT CONTAINS SECRETS
 ---
 # UC-042 Manage settings in one place
 
@@ -61,7 +62,7 @@ on the instance or product, so they are changed by a commit.
    - ✗ *refused* — the server or the bridge refused it at the last use;
    - — *not set*.
 
-   Secrets are shown masked, with their last four characters only.
+   Secrets are shown in password fields, hidden, each with **Show** to reveal it in full.
 2. **This browser.** Each line has **Test**, **Change** and **Clear**:
    - *Test* sends one harmless request — to the token's own server, the endpoint, the bridge — and
      shows the answer;
@@ -80,8 +81,9 @@ on the instance or product, so they are changed by a commit.
 5. **Collaborators** (per product) lists the people who agreed to be named in the repository, each with
    name, account and the date they agreed. **+ Collaborator** takes the three and a tick *this person
    has agreed to be named*; **Save** commits `docs/collaborators.md`.
-6. At the bottom, **Export settings** saves a file with every browser setting except tokens, keys and
-   passwords; **Import settings** reads such a file; **Clear everything in this browser** removes all of
+6. At the bottom, **Export settings** saves a file with every browser setting, tokens, keys and
+   passwords included, after a one-line notice that the file opens the person's repositories and mail to
+   whoever holds it; **Import settings** reads such a file and restores everything; **Clear everything in this browser** removes all of
    Agent M's entries from `localStorage`.
 
 Every section and every line carries a folded **What is this?**: what the setting is for, where it is
@@ -98,7 +100,7 @@ sequenceDiagram
     P->>D: Settings
     D->>L: read browser settings
     D->>S: read instance and product settings
-    D-->>P: one line per setting, state, secrets masked
+    D-->>P: one line per setting, state, secrets hidden with Show
     P->>D: Test
     D->>S: harmless request with that token only
     D->>B: harmless request with the bridge token
@@ -137,4 +139,5 @@ sequenceDiagram
 - The person has seen every setting Agent M uses, where it is kept, and whether it works.
 - Browser settings changed or cleared here are changed or cleared in `localStorage` itself; repository
   settings changed here are commits under the person's account.
-- No secret was shown in full, written to a repository, or put into an exported file.
+- No secret was shown in full except on **Show**, written to a repository, or put into a URL; an export
+  holds them only after the notice.
