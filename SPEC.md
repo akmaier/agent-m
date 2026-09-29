@@ -885,10 +885,10 @@ branch.
 machinery stay outside the published tree.
 *Check:* `tests/test_pages_layout.py`
 
-**ONE REVIEW LAYOUT FOR EVERY PRODUCT** *(PO A. Maier, 2026-09-23)*
+**ONE REVIEW LAYOUT FOR EVERY PRODUCT** *(PO A. Maier, 2026-09-23, extended 2026-09-24)*
 Agent M and every managed product use the same layout below `docs/`: use cases in
-`docs/use-cases/`, SPEC change queues in `docs/spec-freigaben/`, approval records in
-`docs/approvals/`.
+`docs/use-cases/`, architecture decisions and modules in `docs/architecture/`, SPEC change queues in
+`docs/spec-freigaben/`, approval records in `docs/approvals/`.
 *Occasion:* products will adopt this structure later. One layout means one dashboard serves all of
 them, and a reviewer who knows one product knows where to look in the next.
 *Check:* `tests/test_pages_layout.py`
@@ -903,9 +903,10 @@ one separately editable and separately acceptable.
 *Withdrawn:* the accepting commit of a GitLab product is made on its GitLab server. Replaced by
 `ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`. The name is not reused.
 
-**ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON** *(PO A. Maier, 2026-09-24)*
-A use case or a SPEC change is accepted by a commit, made under the accepting person's own account on
-the server that hosts the repository, that adds an approval record to `docs/approvals/`.
+**ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON** *(PO A. Maier, 2026-09-24, extended 2026-09-24)*
+A use case, an architecture decision, a module or a SPEC change is accepted by a commit, made under
+the accepting person's own account on the server that hosts the repository, that adds an approval
+record to `docs/approvals/`.
 *Occasion:* git already records who decided, when, and on which text — on GitHub and on GitLab
 alike.
 *Check:* `tests/test_approval_records.py`
@@ -1000,11 +1001,38 @@ the instance's dashboard, never through a site of its own.
 product's code; the tool stays with the tool.
 *Check:* no automatic check; at review.
 
-**THE INSTANCE LISTS ITS PRODUCTS IN A FILE** *(PO A. Maier, 2026-09-23)*
-An instance names the product repositories it manages in `docs/products.md` of its own repository.
-*Occasion:* the list is then the same in every browser, changes by commit like everything else, and
-a reviewer sees which products an instance manages without any settings.
-*Check:* `tests/test_products_register.py`
+**THE INSTANCE LISTS ITS PRODUCTS IN A FILE** *(PO A. Maier, 2026-09-23 — withdrawn 2026-09-24)*
+*Withdrawn:* Agent M is run by a single user, and the products an instance manages are that user's
+own business; a list committed to the fork also collides with every sync of the fork. Replaced by
+`THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER`, `NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY`
+and `A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER`. The name is not reused.
+
+**THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER** *(PO A. Maier, 2026-09-24)*
+The dashboard keeps the addresses of the products it manages in the browser's `localStorage`, beside
+the tokens that reach them.
+*Occasion:* PO, 2026-09-24: "Each product is of course also a repository. That makes the browser's
+local storage the better choice." A product is known by its address (`A PRODUCT IS NAMED BY ITS
+ADDRESS`); its content lives in its own repository. Another browser starts with an empty list, as it
+starts without tokens.
+*Check:* `tests/review-core.test.mjs` — adding a product stores its address in `localStorage` and
+commits nothing to the instance repository; counter-proof: after a clear, the list is empty.
+
+**NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY** *(PO A. Maier, 2026-09-24)*
+No file committed to the instance repository names a product the instance manages.
+*Occasion:* PO, 2026-09-24: the number and names of the products "will not be visible here". A fork
+that commits nothing about its products can be synced with Agent M without conflict, and a public
+fork does not publish which products its owner works on.
+*Check:* `tests/test_products_folder.py` — the instance repository's committed files contain no
+address of a product in the fixture list; counter-proof: a fixture that commits one fails.
+
+**A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER** *(PO A. Maier, 2026-09-24)*
+In a local clone of Agent M, each product checked out is a clone of its repository in its own folder
+under `products/`, which git ignores except for `products/README.md`.
+*Occasion:* PO, 2026-09-24, as in the process repository: the folders are the list — each is a
+repository and knows its own address — so no second list is kept that could drift from them.
+`products/README.md` says that the products are not visible in the repository.
+*Check:* `tests/test_products_folder.py` — `products/README.md` is tracked; a folder created under
+`products/` is ignored by git.
 
 **ONE CLICK PER DECISION** *(PO A. Maier, 2026-09-24)*
 A decision a person makes on the dashboard — accept, save, add a product, release — takes one click
@@ -1012,6 +1040,31 @@ once its inputs are complete, and everything that follows from it is done by Age
 *Occasion:* PO, 2026-09-24: "Too much clicking kills our user experience." Each extra step between
 a decision and its effect is a place to get lost.
 *Check:* no automatic check; at review of each use case.
+
+**SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier, 2026-09-25)*
+A reviewer who has opened several reviewed files may accept all of them with one click, in one commit
+that holds one approval record per file, each naming the text shown.
+*Occasion:* forty use cases are forty decisions, but not forty round trips: the reviewer reads each one,
+ticks it, and commits once. Each record still names exactly the text that was shown
+(`AN APPROVAL NAMES THE EXACT TEXT`), so nothing unread is accepted.
+*Check:* `tests/review-core.test.mjs` — a batch writes one record per ticked file, and none for a file
+that was not opened; counter-proof: a file changed after it was shown is left out and named.
+
+**A QUEUE IS ACCEPTED IN ITS ORDER** *(PO A. Maier, 2026-09-25)*
+Entries of one queue accepted together are written in the order of the queue's index, in one commit,
+and an entry whose anchor another entry creates is offered only together with or after that entry.
+*Occasion:* queue 2026-09-24g needs entry 05 before 06–10, because 05 creates their headings; a
+reviewer should not have to know that. Accepted in order in one commit, the SPEC never holds half a
+queue.
+*Check:* `tests/review-core.test.mjs` — accepting 05 and 06 together yields one commit with both
+sections; counter-proof: 06 alone is not offered while its anchor is missing, and the dashboard names
+05.
+
+**A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE** *(PO A. Maier, 2026-09-25)*
+A SPEC edit saved on the dashboard is added to the person's newest queue of the same day that has no
+accepted entry yet, and opens a new queue only if there is none.
+*Occasion:* ten wording fixes in an afternoon are one review, not ten queues to open one by one.
+*Check:* `tests/review-core.test.mjs`
 
 **EVERY STEP EXPLAINS ITSELF** *(PO A. Maier, 2026-09-24)*
 Every step that asks something of the person carries an explanation that can be expanded, written
@@ -1042,3 +1095,92 @@ Accepting and editing in a GitLab product require a stored token; there is no we
 reported, not measured here), so the route that works without a token on GitHub does not exist
 there. The dashboard says so instead of offering a route that fails.
 *Check:* `tests/review-core.test.mjs`
+
+**A SPEC EDIT IS SAVED AS A PROPOSAL** *(PO A. Maier, 2026-09-24)*
+Saving a change to a product's SPEC on the dashboard — typed or drafted by a participant — writes an entry to a change queue under `docs/spec-freigaben/` instead of writing the
+SPEC.
+*Occasion:* PO, 2026-09-24: specifications must be modifiable using "a text editor in the dashboard".
+The editor must not become a way around `A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN`;
+the saved edit waits beside the current text until accepted (UC-006).
+*Check:* `tests/review-core.test.mjs` — a save from the editor leaves `SPEC.md` byte-identical.
+
+**A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE** *(PO A. Maier, 2026-09-24)*
+Saving an edit writes nothing when the file or SPEC section on the default branch differs from the
+version the edit started from.
+*Occasion:* two people, or a person and a workflow, editing the same use case would otherwise
+overwrite each other without either noticing. The blob SHA taken when the editor opens is the
+comparison.
+*Check:* `tests/review-core.test.mjs`
+
+**A REFUSED SAVE KEEPS THE EDIT** *(PO A. Maier, 2026-09-24)*
+When a save is refused, the edited text stays in the editor, shown beside the newer version.
+*Occasion:* a refusal that discards the edit punishes the person for someone else's commit. With both
+texts side by side, merging the two is a reading task, not a rewriting task.
+*Check:* `tests/review-core.test.mjs`
+
+**AN EDITED FILE KEEPS ITS IDENTIFIER** *(PO A. Maier, 2026-09-24)*
+Saving is refused for a use case, architecture element, module or test whose identifier differs from
+the one it was opened with.
+*Occasion:* `THE NAME IS THE ID AND IT SURVIVES`. A renumbered use case silently breaks every
+reference to the old number, and its old approval records then point at nothing.
+*Check:* `tests/review-core.test.mjs`
+
+**A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED** *(PO A. Maier, 2026-09-24)*
+An edit that changes a requirement's name is proposed as the withdrawal of the old name together with
+a new requirement under the new name.
+*Occasion:* a requirement's name is its identifier and is never reused. Renaming in place would make
+the old name vanish without the withdrawal note that `THE NAME IS THE ID AND IT SURVIVES` requires.
+*Check:* `tests/review-core.test.mjs`
+
+**A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT** *(PO A. Maier, 2026-09-24)*
+Text that a participant drafts from a person's instruction is shown as a difference against the
+current text before the person can save it.
+*Occasion:* PO, 2026-09-24: specifications and use cases must be modifiable by "a prompt to an LLM or
+agent". A model asked to add error handling may also reword three unrelated steps; only the
+difference makes that visible.
+*Check:* `tests/review-core.test.mjs`
+
+**A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES** *(PO A. Maier, 2026-09-24)*
+A change to requirements that a participant drafts from a person's instruction is subject to
+`DERIVATION SEES THE EXISTING REQUIREMENTS`, `NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`,
+`A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT` and `EXACT DUPLICATES ARE FOUND WITHOUT A
+MODEL`, as a derivation from a source is.
+*Occasion:* "split this requirement" produces new requirements just as a derivation does, and can
+duplicate an existing one just as easily. The rules exist once; this makes them apply to the second
+way in.
+*Check:* `tests/test_derivation_context.py` · `tests/test_derivation_classes.py`
+
+**A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS** *(PO A. Maier, 2026-09-24)*
+A participant asked to change a use case receives, besides the use case, every requirement it
+realises and every other use case of the product.
+*Occasion:* a model that sees one use case cannot know that the flow it is asked to add already
+exists in another (UC-007 alternative flow 6a), nor which requirements the use case must go on
+realising.
+*Check:* `tests/test_prompted_change_context.py`
+
+**NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY** *(PO A. Maier, 2026-09-24)*
+If a use case, its requirements and the product's other use cases do not fit into the participant's
+context, nothing is sent and the dashboard says what does not fit.
+*Occasion:* the same failure as for requirements: a context cut to fit produces the duplicate it
+was meant to prevent, and looks as if it worked.
+*Check:* `tests/test_prompted_change_context.py`
+
+## 11. Architecture and implementation
+
+*(not yet approved — proposal of queue 2026-09-24g)*
+
+## 12. Tests and continuous integration
+
+*(not yet approved — proposal of queue 2026-09-24g)*
+
+## 13. Process execution and jobs
+
+*(not yet approved — proposal of queue 2026-09-24g)*
+
+## 14. Issues, mail and personal data
+
+*(not yet approved — proposal of queue 2026-09-24g)*
+
+## 15. Product resources
+
+*(not yet approved — proposal of queue 2026-09-24g)*
