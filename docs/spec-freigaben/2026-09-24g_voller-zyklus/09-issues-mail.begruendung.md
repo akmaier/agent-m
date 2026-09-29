@@ -62,3 +62,38 @@ Interpretations by the main agent — correct them in the edit field if needed:
 
 Impact: UC-012, UC-038, UC-039, UC-040 changed; new UC-042 (settings, including the collaborators list
 and the pseudonymisation switch).
+
+**Reworked after the PO's objections of 2026-09-29** — *"No; The issue has to record which mail it is
+related to. Closing the issue creates a reply in the mail dashboard; this is then sent from the
+dashboard."* · *"no; we have issues for this. We don't need double accounting here."* · *"What is not
+clear to me is exactly what the 'private tracker' is. The tracker should be based on github / gitlab
+issues and not all repositories will have a private branch or tracker."*
+
+The new design has two stores and no third:
+- **The mailbox** is the only place mail content lives (`MAIL STAYS IN THE MAILBOX`). The bridge finds a
+  mail again by hashing the `Message-ID`s of the named folders (`A MAIL IS FOUND AGAIN BY ITS
+  IDENTIFIER`).
+- **The product's issues** are the only record of handling (`THE ISSUE IS THE ONLY RECORD OF A MAIL'S
+  HANDLING`): the `MAIL-` identifiers of its reports, a comment per sent reply (identifier and date only),
+  and the label `waiting-for-reporter`.
+
+Dropped: `THE PRIVATE TRACKER IS NOT PUBLIC`, `A SECOND REPLY NEEDS A SECOND CONFIRMATION`, `THE MAILBOX
+FLAG MARKS WHAT IS OPEN`, and the private tracker in every other rule — none of them was ever in the SPEC,
+so no withdrawal notes are needed. Renamed and reworded: `A MAIL IS RECORDED ONCE` → `A MAIL ALREADY
+DECIDED IS NOT PROPOSED AGAIN`; `A DUPLICATE MAIL ADDS A REPORT, NOT AN ISSUE` → `A DUPLICATE MAIL IS
+ADDED TO THE EXISTING ISSUE`; `EVERY REPORT OF A CLOSED ISSUE IS OFFERED A REPLY` → `CLOSING AN ISSUE
+PREPARES ITS REPLIES`; `AN ANSWER ENDS THE DEFERRAL` → `AN ISSUE WAITING FOR A REPORTER IS LABELLED` and
+`A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE`; the surrogate mapping is no longer stored but derived again
+from the mail (`THE SURROGATE MAPPING IS NEVER STORED`).
+
+New by the main agent, following from the design: `THE SEARCH LIST HOLDS ONLY HASHES` — the last check
+of every write needs the names and addresses of the reporters; kept in the browser in clear, they would be
+readable by every Pages site of the owner, so the browser keeps salted hashes only.
+
+What a duplicate second reply is now prevented by: `CLOSING AN ISSUE PREPARES ITS REPLIES` offers a draft
+only for mails without a reply note in the issue, and `EVERY OUTGOING MAIL IS RELEASED BY A PERSON` binds
+each send to one click on the mail shown.
+
+**Open for the PO:** a mail deleted from the mailbox can no longer be answered — the identifier in the
+issue then leads nowhere, and the dashboard says so. Acceptable, or should Agent M ask the person to keep
+reported mails (for example in a folder the connection names)?

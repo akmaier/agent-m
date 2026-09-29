@@ -39,36 +39,68 @@ sent.
 **READING THE MAILBOX CHANGES NOTHING IN IT** *(PO A. Maier, 2026-09-24)*
 Reading mails for issues neither marks a mail as read nor moves, deletes or flags it.
 *Occasion:* the mailbox is the person's working tool; reading it for Agent M must not change what
-they see there. Taken over from `ticket_db.ingest` (read-only select, `BODY.PEEK`). Flags are set only
-by `THE MAILBOX FLAG MARKS WHAT IS OPEN`.
+they see there. Taken over from `ticket_db.ingest` (read-only select, `BODY.PEEK`). Agent M sets no
+flags either: how a mail was handled is recorded in its issue (`THE ISSUE IS THE ONLY RECORD OF A MAIL'S
+HANDLING`).
 *Check:* `tests/test_bridge_mail.py` — a read against a test server issues no `STORE`, `COPY`,
 `MOVE`, `EXPUNGE` and no non-peek `FETCH`.
 
-**A MAIL IS RECORDED ONCE** *(PO A. Maier, 2026-09-24)*
-A mail whose `Message-ID` is already in the private tracker is not recorded again.
-*Occasion:* reading the mailbox twice must not produce a second report or a second proposal for the
-same mail. Taken over from `ticket_db.py` (`UNIQUE(service, message_id)`; a mail without an ID is
-keyed by the SHA-256 of its bytes).
-*Check:* `tests/test_mail_import.py`
+**MAIL STAYS IN THE MAILBOX** *(PO A. Maier, 2026-09-29)*
+The text of a mail, its sender, its reply address and its attachments are kept only in the mailbox;
+Agent M writes them to no repository, issue tracker or file.
+*Occasion:* PO, 2026-09-29: the tracker is the product's GitHub or GitLab issues, and "not all
+repositories will have a private branch or tracker". The mailbox already holds every mail, with the
+protection its owner chose; a second copy anywhere else would be one more place for personal data to
+leak from. The dashboard shows a mail while it is open and forgets it with the tab.
+*Check:* `tests/test_mail_privacy.py` — after a full run on test mails, no write of Agent M contains a
+sender address, a sender name, the body of a mail as a whole or one of its attachments; counter-proof: a
+planted body in a job record is found.
 
-**MAIL STAYS IN THE PRIVATE TRACKER** *(PO A. Maier, 2026-09-24)*
-The text of a mail, its sender, its reply address and its attachments are written only to the private
-tracker.
-*Occasion:* PO decision 2026-09-24 — mails carry personal data; the private tracker keeps the report
-and whom to answer, the product's tracker gets a neutral issue. Mirrors `SOFTWARE_MAINTENANCE.md`
-§0.5: personal data stays local.
-*Check:* `tests/test_mail_privacy.py` — after a full run on test mails, no write to the product or the
-instance repository contains a sender address, a sender name, the body of a mail as a whole, or
-one of its attachments. (A technical detail such as an error message may reach the issue through the
-neutral text the person confirmed.)
+**THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING** *(PO A. Maier, 2026-09-29)*
+Which mails an issue concerns, which of them were answered, and whether the issue waits for a reporter
+are recorded only in the product's issue tracker.
+*Occasion:* PO, 2026-09-29: "we have issues for this. We don't need double accounting here." Mailbox
+flags, a tracker of reports and a list of replies would each be a second account of the same state, and
+would disagree with the issue sooner or later.
+*Check:* `tests/test_mail_replies.py` — the mail dashboard's groups are computed from issues and the
+mailbox alone; counter-proof: clearing the browser's storage changes none of them.
 
-**THE PRIVATE TRACKER IS NOT PUBLIC** *(PO A. Maier, 2026-09-24)*
-Agent M accepts as private tracker only a repository whose visibility is private, or a folder on the
-bridge's machine.
-*Occasion:* PO decision 2026-09-24 names exactly these two places. A public repository — the instance
-is a public fork — would publish every mail, and the history would keep it after deletion.
-*Check:* `tests/test_mail_privacy.py` — a repository reported as public or internal is refused before
-anything is written; counter-proof with a private one.
+**A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER** *(PO A. Maier, 2026-09-28)*
+Every mail Agent M handles has the identifier `MAIL-` followed by the first sixteen hexadecimal digits
+of the SHA-256 of its `Message-ID`, or of its bytes when it has none.
+*Occasion:* PO, 2026-09-28: mails "should receive a unique identifier (maybe as hash) that can be tracked
+in the issue". A `Message-ID` often contains a host or a user name, so it is never written itself; the
+hash cannot be turned back into it, and only the mailbox, which holds the mail, links it back.
+*Check:* `tests/test_mail_import.py` — the identifier is stable across two readings of the same mail;
+counter-proof: two mails with different `Message-ID`s get different identifiers.
+
+**A MAIL IS FOUND AGAIN BY ITS IDENTIFIER** *(PO A. Maier, 2026-09-29)*
+To show or answer a mail an issue lists, the bridge finds it in the mailbox by hashing the `Message-ID`s
+of the folders the mailbox connection names — `INBOX` unless others are named.
+*Occasion:* with the mailbox as the only store (`MAIL STAYS IN THE MAILBOX`), the identifier in the issue
+must lead back to the mail. IMAP delivers the `Message-ID` headers of a folder in one read-only request;
+hashing them is cheap. Mails the person has filed into other folders are found once those folders are
+named.
+*Check:* `tests/test_bridge_mail.py` — a mail moved to a named folder is found; counter-proof: an
+identifier with no matching mail yields *not found in the mailbox*, never a guess.
+
+**AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS** *(PO A. Maier, 2026-09-28)*
+An issue created from a mail, and every issue a further report is added to, lists the `MAIL-`
+identifiers of its reports.
+*Occasion:* PO, 2026-09-28: the identifier is tracked in the issue "such that this information can be
+used once the issue was solved to reply to the original mail". Whoever closes the issue — in Agent M or
+elsewhere — leaves the link to every reporter in place.
+*Check:* `tests/test_mail_replies.py` — closing an issue with two listed identifiers offers two replies,
+found through the identifiers alone.
+
+**A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN** *(PO A. Maier, 2026-09-29)*
+A mail that an issue lists, or that the person marked *not an issue* in this browser, is not proposed
+again.
+*Occasion:* reading the mailbox twice must not produce a second proposal for the same mail. The issues
+say which mails became issues; for the rest — a thank-you, spam — the browser keeps their identifiers
+only, which say nothing about their senders.
+*Check:* `tests/test_mail_import.py` — a second reading proposes no listed and no marked mail;
+counter-proof: an unmarked new mail is proposed.
 
 **THE PRODUCT ISSUE CARRIES NO PERSONAL DATA** *(PO A. Maier, 2026-09-24)*
 An issue created from a mail contains no name, mail address, phone number or signature of anyone
@@ -97,18 +129,18 @@ request for changed behaviour.
 improving and adapting (ch. 14, *Software Maintenance: Types and Cost Dynamics*).
 *Check:* `tests/test_mail_import.py`
 
-**A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL** *(PO A. Maier, 2026-09-24)*
-A mail whose `In-Reply-To` or `References` names a mail already in the private tracker is attached to
-that mail's report, before any participant sees it.
+**A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL** *(PO A. Maier, 2026-09-24, reworded 2026-09-29)*
+A mail whose `In-Reply-To` or `References` names a mail that an issue lists is attached to that issue —
+its identifier added to the issue's list — before any participant sees it.
 *Occasion:* what can be decided without a model is decided without one (`SOFTWARE_MAINTENANCE.md`
 §4.0a rule 3). A reporter's answer to a question must land at their issue, not become a new one.
 *Check:* `tests/test_mail_import.py`
 
-**A DUPLICATE MAIL ADDS A REPORT, NOT AN ISSUE** *(PO A. Maier, 2026-09-24)*
-A mail the person confirms as describing an existing issue is recorded as a further report of that
-issue instead of creating a new one.
+**A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE** *(PO A. Maier, 2026-09-29)*
+A mail the person confirms as describing an existing issue adds its identifier to that issue instead of
+creating a new one.
 *Occasion:* several people report the same fault; each must be answered when it is solved — "keeping
-track who to reply". Same pattern as `A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT`.
+track who to reply" —, and the issue's list of identifiers is what keeps track.
 *Check:* `tests/test_mail_import.py`
 
 **EVERY OUTGOING MAIL IS RELEASED BY A PERSON** *(PO A. Maier, 2026-09-24)*
@@ -121,13 +153,6 @@ not the one released.
 *Check:* `tests/test_bridge_mail.py` — sending mocked: without confirmation, with a reused one, or
 with a body changed after the preview, zero SMTP calls.
 
-**A SECOND REPLY NEEDS A SECOND CONFIRMATION** *(PO A. Maier, 2026-09-24)*
-When the private tracker already records a reply to a report, another reply to it is sent only after
-an additional confirmation that names the earlier reply.
-*Occasion:* taken over from `SOFTWARE_MAINTENANCE.md` §6.1 (`already_replied`, enforced on the server
-side), where accidental second answers had been sent.
-*Check:* `tests/test_bridge_mail.py`
-
 **A REPLY IS THREADED ON THE REPORTER'S MAIL** *(PO A. Maier, 2026-09-24)*
 A reply to a report carries that report's `Message-ID` in `In-Reply-To` and `References`, wherever the
 reporter stands among the recipients.
@@ -138,25 +163,42 @@ reporter stands among the recipients.
 
 **A REPLY GOES TO ONE REPORTER** *(PO A. Maier, 2026-09-24)*
 A reply to one report has no reporter of another report among its recipients.
-*Occasion:* several people often report the same fault (`A DUPLICATE MAIL ADDS A REPORT, NOT AN
+*Occasion:* several people often report the same fault (`A DUPLICATE MAIL IS ADDED TO THE EXISTING
 ISSUE`). One mail to all of them would give each reporter the others' addresses — personal data
 disclosed by the tool meant to keep it private.
 *Check:* `tests/test_mail_replies.py` — an issue with three reports yields three mails, each with one
 reporter.
 
-**EVERY REPORT OF A CLOSED ISSUE IS OFFERED A REPLY** *(PO A. Maier, 2026-09-24)*
-For every report whose issue is closed and which has no reply yet, the dashboard offers a reply draft.
-*Occasion:* "keeping track who to reply once the issue was solved". An issue is often closed
-elsewhere — by a merged pull request —, so the offer is derived from the issue's state, not from a
-click in Agent M.
+**CLOSING AN ISSUE PREPARES ITS REPLIES** *(PO A. Maier, 2026-09-29)*
+When an issue that lists mails is closed, the mail dashboard offers a reply draft for every listed mail
+that has no sent reply noted in the issue.
+*Occasion:* PO, 2026-09-29: "Closing the issue creates a reply in the mail dashboard; this is then sent
+from the dashboard." An issue is often closed elsewhere — by a merged pull request —, so the drafts are
+derived from the issue's state, not from a click in Agent M.
+*Check:* `tests/test_mail_replies.py` — a closed issue listing two mails yields two drafts; counter-proof:
+with a reply noted for one, one draft.
+
+**A SENT REPLY IS NOTED IN THE ISSUE** *(PO A. Maier, 2026-09-29)*
+When a reply is sent, the issue receives a comment naming the mail's identifier and the date, and
+nothing of the reply's text or recipient.
+*Occasion:* the note is the issue's own record that this reporter was answered
+(`THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING`); the reply itself is in the mailbox's *Sent*
+folder, threaded on the reporter's mail.
+*Check:* `tests/test_mail_replies.py` — after sending, the issue has one comment with the identifier and
+date and no address; counter-proof: no draft is offered for that mail again.
+
+**AN ISSUE WAITING FOR A REPORTER IS LABELLED** *(PO A. Maier, 2026-09-29)*
+An issue for which a question has been sent to a reporter carries the label `waiting-for-reporter` until
+a person removes it.
+*Occasion:* "defer issues until a reply is received" — the issue tracker already has labels; deferral
+is a state of the issue, readable by everyone working on it, not a note elsewhere.
 *Check:* `tests/test_mail_replies.py`
 
-**AN ANSWER ENDS THE DEFERRAL** *(PO A. Maier, 2026-09-24)*
-An issue counts as deferred only while no mail has arrived in the thread of one of its reports since
-it was deferred.
-*Occasion:* "defer issues until a reply is received". Derived rather than stored, the deferral ends by
-itself when the answer is read — as `STATUS IS DERIVED FROM THE RECORDS` does for approvals — and no
-write to the product's tracker is needed.
+**A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE** *(PO A. Maier, 2026-09-29)*
+A mail answering an issue labelled `waiting-for-reporter` is shown under that issue in the mail
+dashboard as *answer received*.
+*Occasion:* the answer arrives in the mailbox, not in the tracker; showing it at the issue lets the
+person decide the next step — remove the label, ask again, close — without searching the mailbox.
 *Check:* `tests/test_mail_replies.py`
 
 **A CLOSED ISSUE IS REOPENED ONLY BY A PERSON** *(PO A. Maier, 2026-09-24)*
@@ -165,15 +207,6 @@ A closed issue returns to open only by a person's click.
 reporter's "thank you" in the thread of a solved issue must not reopen it; the mail is shown, the
 person decides.
 *Check:* `tests/test_mail_replies.py`
-
-**THE MAILBOX FLAG MARKS WHAT IS OPEN** *(PO A. Maier, 2026-09-24)*
-The original mail of a report whose issue is open or deferred carries the IMAP flag `\Flagged`; the
-original mail of a report whose issue is closed does not.
-*Occasion:* taken over from `SOFTWARE_MAINTENANCE.md` §9 (option A): in common mail clients
-`\Flagged` is the follow-up flag, so the mailbox itself shows what is still to do. Standard IMAP has
-no "completed" mark; *no flag* means done.
-*Check:* `tests/test_bridge_mail.py` — IMAP mocked: open → `+FLAGS`, closed → `-FLAGS`, repeated sync
-is a no-op.
 
 **THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED** *(PO A. Maier, 2026-09-24)*
 Each mailbox connection names the processing places to which its mails may be given, and a
@@ -193,25 +226,34 @@ it; the choice is then an informed one, and its record says so.
 *Check:* `tests/test_settings_disclosure.py`
 
 **NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY** *(PO A. Maier, 2026-09-28)*
-No file, commit message, issue, comment or label that Agent M writes outside the private tracker
-contains personal data taken from a recorded mail.
+No file, commit message, issue, comment or label that Agent M writes contains personal data taken from
+a mail.
 *Occasion:* PO, 2026-09-28: "nothing in the repository should have personal information from an e-mail
 introduced by accident." A repository and its history are copied, forked and kept; personal data that
 reached one cannot be taken back. The other rules of this section are the ways this one is kept.
 *Check:* `tests/test_mail_privacy.py` — after a full run on test mails — issue, backlog item, SPEC
-proposal, regression test, job record, reply —, no write outside the private tracker contains any name,
+proposal, regression test, job record, reply note —, no write contains any name,
 address, phone number or account from those mails; counter-proof: a planted address in a job record is
 found.
 
-**EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE RECORDED MAILS** *(PO A. Maier, 2026-09-28)*
-Before Agent M writes text to a repository or an issue tracker other than the private tracker, it
-searches the text for every name, mail address, phone number and account found in the recorded mails,
-and writes nothing while one is found.
+**EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE MAILS READ** *(PO A. Maier, 2026-09-29)*
+Before Agent M writes text to a repository or an issue tracker, it searches the text for every name,
+mail address, phone number and account found in the mails read so far, and writes nothing while one is
+found.
 *Occasion:* a check against the people actually known is deterministic and cannot be talked out of a hit
 (`SOFTWARE_MAINTENANCE.md` §4.0a rule 3). It catches what the drafting participant and the person both
 missed, at the last point before the data would leave.
-*Check:* `tests/test_mail_privacy.py` — a write containing a recorded reporter's name is refused and the
-hit named; counter-proof: the same write with a surrogate passes.
+*Check:* `tests/test_mail_privacy.py` — a write containing a reporter's name is refused and the hit named;
+counter-proof: the same write with a surrogate passes.
+
+**THE SEARCH LIST HOLDS ONLY HASHES** *(PO A. Maier, 2026-09-29)*
+The list of names, addresses, phone numbers and accounts the search uses is kept in the browser as salted
+hashes, never as the data itself.
+*Occasion:* the browser's storage can be read by every Pages site of the same owner (`THE SHARED PAGES
+ORIGIN IS DISCLOSED`); a plain list of every reporter would be exactly the data the search protects. A
+text is checked by hashing its words and word groups the same way.
+*Check:* `tests/test_mail_privacy.py` — the stored list contains no address in clear; counter-proof: a
+text with a listed address is still found.
 
 **A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL** *(PO A. Maier, 2026-09-28)*
 A job that writes to a repository is given the neutral issue and pseudonymised report data, never the
@@ -222,25 +264,7 @@ who reported it.
 *Check:* `tests/test_mail_privacy.py` — the inputs of an implementation job started from a mail's issue
 contain no text of the mail.
 
-**A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER** *(PO A. Maier, 2026-09-28)*
-Every recorded mail has the identifier `MAIL-` followed by the first sixteen hexadecimal digits of the
-SHA-256 of its `Message-ID`, or of its bytes when it has none.
-*Occasion:* PO, 2026-09-28: mails "should receive a unique identifier (maybe as hash) that can be tracked
-in the issue". A `Message-ID` often contains a host or a user name, so it is never written itself; the
-hash cannot be turned back into it, and only the private tracker links it to the mail.
-*Check:* `tests/test_mail_import.py` — the identifier is stable across two readings of the same mail;
-counter-proof: two mails with different `Message-ID`s get different identifiers.
-
-**AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS** *(PO A. Maier, 2026-09-28)*
-An issue created from a mail, and every issue a further report is added to, lists the `MAIL-`
-identifiers of its reports.
-*Occasion:* PO, 2026-09-28: the identifier is tracked in the issue "such that this information can be
-used once the issue was solved to reply to the original mail". Whoever closes the issue — in Agent M or
-elsewhere — leaves the link to every reporter in place.
-*Check:* `tests/test_mail_replies.py` — closing an issue with two listed identifiers offers two replies,
-found through the identifiers alone.
-
-**REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE PRIVATE TRACKER** *(PO A. Maier, 2026-09-28)*
+**REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE MAILBOX** *(PO A. Maier, 2026-09-29)*
 Attachments, logs, screenshots' text and data files from a mail that go into an issue or a repository
 have every personal datum replaced by a surrogate.
 *Occasion:* PO, 2026-09-28: "bug report data should have personal information replaced with surrogates
@@ -256,11 +280,14 @@ Within one report, the same personal datum is always replaced by the same surrog
 consistency keeps the data useful for reproducing the bug.
 *Check:* `tests/test_mail_privacy.py`
 
-**THE SURROGATE MAPPING STAYS IN THE PRIVATE TRACKER** *(PO A. Maier, 2026-09-28)*
-The mapping from surrogates back to personal data is kept only in the private tracker.
-*Occasion:* the mapping is the key that makes surrogates personal data again; it belongs where the
-mail itself is.
-*Check:* `tests/test_mail_privacy.py` — no write outside the private tracker contains a mapping entry.
+**THE SURROGATE MAPPING IS NEVER STORED** *(PO A. Maier, 2026-09-29)*
+The mapping from surrogates back to personal data is written nowhere; the same surrogates are derived
+again from the mail whenever they are needed.
+*Occasion:* the mapping is the key that makes surrogates personal data again. Derived in order of
+appearance from the mail, it gives the same surrogates every time, so there is nothing to keep — and
+nothing that can leak.
+*Check:* `tests/test_mail_privacy.py` — two pseudonymisations of the same mail give the same surrogates;
+no write contains a mapping entry.
 
 **PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF** *(PO A. Maier, 2026-09-28)*
 Pseudonymisation of report data applies to every product whose settings do not switch it off.

@@ -100,7 +100,7 @@ Terms: a **job** is one run (derive requirements, run a test battery, implement 
 | [UC-019](UC-019-change-a-specification-or-use-case-by-prompt.md) | Change a specification or a use case by prompt |
 | [UC-033](UC-033-move-an-issue-into-the-backlog.md) | Move an issue into the backlog |
 | [UC-038](UC-038-turn-mails-into-issues.md) | Turn mails into issues |
-| [UC-039](UC-039-close-or-defer-an-issue-and-reply.md) | Close or defer an issue and reply |
+| [UC-039](UC-039-close-or-defer-an-issue-and-reply.md) | Reply to the mails of an issue |
 
 ## Release and audit
 

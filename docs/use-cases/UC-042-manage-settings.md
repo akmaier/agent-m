@@ -26,6 +26,7 @@ realises:
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - THE SEARCH LIST HOLDS ONLY HASHES
 ---
 # UC-042 Manage settings in one place
 
@@ -35,7 +36,7 @@ changes it, or removes it, without hunting through the use cases in which it was
 
 | Kept in | Settings | First set up in |
 |---|---|---|
-| **this browser** | GitHub token; GitLab project token per product; model endpoints with their keys; bridge address and token; mailbox connection with its allowed processing places; private tracker; list of products | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038 |
+| **this browser** | GitHub token; GitLab project token per product; model endpoints with their keys; bridge address and token; mailbox connection with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the search list of people from mails (salted hashes only); list of products | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038 |
 | **the instance repository** | participants; source library; process models; the instance's resources | UC-017, UC-004, UC-031, UC-040 |
 | **each product's repository** | process model and roles; Definition of Done; test schedule; linked sources; resources; **pseudonymisation**; **collaborators** who agreed to be named | UC-002, UC-027, UC-015, UC-040, this use case |
 
@@ -119,7 +120,8 @@ sequenceDiagram
   project token, the project's *Access tokens* page.
 - **2a. The person clears the bridge token.** Mail, local agents and compute resources stop working in
   this browser; the page says so before clearing. Pairing anew is UC-011, 1b.
-- **2b. The person clears the mailbox connection.** As UC-037, 6a; the private tracker is not touched.
+- **2b. The person clears the mailbox connection.** As UC-037, 6a; issues and their mail identifiers are
+  not touched.
 - **4a. The person switches pseudonymisation back on.** Saved without a notice. Data already written
   while it was off stays in the repository's history; the page says so, and that removing it needs a
   rewrite of that history.

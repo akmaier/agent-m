@@ -22,6 +22,8 @@ realises:
   - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
+  - MAIL STAYS IN THE MAILBOX
 ---
 # UC-037 Connect a mailbox
 
@@ -58,7 +60,9 @@ running the instance under an owner used for nothing else (UC-014, step 1).
 2. The author enters the mail address, the IMAP server and the SMTP server with their ports. Agent M
    presets the usual encryption for each port — `993` implicit TLS for IMAP, `587` STARTTLS or `465`
    implicit TLS for SMTP — and the account name as the address; the author corrects what differs. A
-   folded explanation says where a mail provider usually lists these settings.
+   folded explanation says where a mail provider usually lists these settings. The **folders** Agent M
+   reads are preset to `INBOX`; the author adds the folders into which they file reported mails, so that
+   an issue's mails are found again when it is answered (UC-039).
 3. **The notice.** Before the password field is enabled, Agent M shows: *"The password is stored in
    this browser. Every GitHub Pages site under `<owner>.github.io` can read it — here: the sites of
    `<owner>`. With it, anyone can read all mail in this mailbox and send mail in its name. It goes to
@@ -119,7 +123,7 @@ sequenceDiagram
   same list and the same notice as in step 4. A mail already handed to a participant is not recalled.
 - **6a. The author presses Disconnect.** Agent M asks once for confirmation, then removes server,
   account and password from `localStorage` — not only from the form — and confirms that nothing is
-  stored. The bridge holds nothing to remove. The private tracker (UC-038) is not touched.
+  stored. The bridge holds nothing to remove. The issues and their mail identifiers are not touched.
 - **1a. The author uses another browser or computer.** No mailbox is connected there; the author
   connects it again in that browser.
 - **3a. The author does not tick the notice.** The password field stays disabled; nothing is stored.

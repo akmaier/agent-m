@@ -34,6 +34,7 @@ of its drafting group.
 | 14 | no personal data from a mail enters a repository: neutral issues, a deterministic check of every write against the people of the recorded mails, pseudonymised report data (on by default, may be switched off per product after a notice), mails named by `MAIL-<hash>` in their issues, persons named only by account or with consent | 09 eleven new rules, heading renamed; 10 one rule changed |
 | 15 | one settings page for everything — browser, instance, products — with tests, masked secrets, expiry warnings and renewal links | 11 six new rules; new UC-042 |
 | 16 | gates may be decided by CI checks and agents, not only by people: each gate names its decider; a job waits only until that decider has decided; the participant whose work a gate checks does not decide it (proposed by the main agent) | 08 one rule corrected, two new |
+| 17 | no private tracker, no double accounting: the mailbox is the only store of mail content, the product's issues the only record of handling (`MAIL-` identifiers, a comment per reply, label `waiting-for-reporter`); closing an issue prepares its replies; no second-reply confirmation, no mailbox flags | 09 reworked |
 
 Interpretations by the main agent, correct them in the edit field if they are not what you meant:
 "groups should have new files" → one group file per kind of artifact; "a permanent location in the

@@ -8,58 +8,54 @@ actors:
   - Local bridge
   - Mail server
   - Participant
-  - Private tracker
   - Issue tracker
 realises:
-  - THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
-  - THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST
-  - THE MAIL SERVER IS REACHED ONLY OVER TLS
   - READING THE MAILBOX CHANGES NOTHING IN IT
-  - A MAIL IS RECORDED ONCE
-  - MAIL STAYS IN THE PRIVATE TRACKER
-  - THE PRIVATE TRACKER IS NOT PUBLIC
+  - MAIL STAYS IN THE MAILBOX
+  - THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
+  - A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER
+  - AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS
+  - A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN
   - THE PRODUCT ISSUE CARRIES NO PERSONAL DATA
   - A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK
   - AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
   - A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL
-  - A DUPLICATE MAIL ADDS A REPORT, NOT AN ISSUE
-  - THE MAILBOX FLAG MARKS WHAT IS OPEN
-  - THE PAGE STATES WHAT IT SENDS WHERE
-  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE
+  - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
+  - EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE MAILS READ
+  - THE SEARCH LIST HOLDS ONLY HASHES
+  - REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE MAILBOX
+  - A SURROGATE IS THE SAME WITHIN A REPORT
+  - THE SURROGATE MAPPING IS NEVER STORED
+  - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
   - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
   - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
+  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
+  - THE PAGE STATES WHAT IT SENDS WHERE
   - A GENERATED ARTIFACT IS A PROPOSAL
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - EVOLUTION ENTERS THROUGH THE SPECIFICATION
   - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
-  - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
-  - EVERY WRITE IS SEARCHED FOR THE PEOPLE OF THE RECORDED MAILS
-  - A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER
-  - AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS
-  - REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE PRIVATE TRACKER
-  - A SURROGATE IS THE SAME WITHIN A REPORT
-  - THE SURROGATE MAPPING STAYS IN THE PRIVATE TRACKER
-  - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
 ---
 # UC-038 Turn mails into issues
 
-**Goal.** Mails that report a fault or ask for a change become issues of the right product — with
-the technical content and nothing personal — while Agent M keeps, in a private place, who wrote,
-in which thread, and where to answer. A participant the author chooses proposes; the author decides
-each mail with one click.
+**Goal.** Mails that report a fault or ask for a change become issues of the right product — with the
+technical content and nothing personal —, and each issue keeps a pseudonymous link back to its mails,
+so that every reporter can be answered once the issue is solved. A participant the author chooses
+proposes; the author decides each mail with one click.
 
 This is the book's change identification (ch. 14, *Evolution Processes and Change Identification*):
-requests arrive in user language, and the work is to filter them into change proposals. The split
-into a private record and a neutral issue is taken over from the process repository's support
-process, where mails live in a local ticket database (`scripts/ticket_db.py`) and never in git
-(`SOFTWARE_MAINTENANCE.md` §0.5).
+requests arrive in user language, and the work is to filter them into change proposals.
 
 | Where | What it holds | Who can read it |
 |---|---|---|
-| **Private tracker** — a private repository, or a folder on the bridge's machine | one **report** per mail: the mail as received, sender, reply address, thread (`Message-ID`, `In-Reply-To`, `References`), attachments, the issue it belongs to, replies sent | the author, and whoever the author gave access to that private place |
-| **Product's issue tracker** — GitHub or GitLab issues of the product | one **issue**: neutral title and text, *defect* or *change* | whoever can read the product repository — often everyone |
+| **The mailbox** | the mails themselves: text, sender, reply address, attachments — as always | the owner of the mailbox |
+| **The product's issue tracker** — GitHub or GitLab issues | one **issue** per concern: neutral title and text, *defect* or *change*, pseudonymised report data, and the list of `MAIL-` identifiers of its mails | whoever can read the product repository — often everyone |
+
+Nothing else is kept: no copy of a mail, no list of reporters, no flags in the mailbox.
 
 ## Actors
 
@@ -68,7 +64,6 @@ process, where mails live in a local ticket database (`scripts/ticket_db.py`) an
 - **Local bridge** — reads the mailbox (UC-037); hands the mails to a CLI agent if one is chosen.
 - **Mail server** — holds the mailbox.
 - **Participant** — a model endpoint or CLI agent (UC-017) that proposes the issue.
-- **Private tracker** — holds the reports.
 - **Issue tracker** — the product's issues on GitHub or on its GitLab server.
 
 ## Precondition
@@ -79,22 +74,22 @@ process, where mails live in a local ticket database (`scripts/ticket_db.py`) an
 
 ## Main flow
 
-1. The author opens **Mail** on the dashboard and presses **Read mailbox**. The first time, Agent M
-   first asks where the private tracker is (alternative flow 1a).
-2. The dashboard sends the connection, the bridge token and the `Message-ID`s already recorded to
-   the bridge. The bridge reads `INBOX` read-only — nothing is marked as read, moved or flagged — and
-   returns the mails whose `Message-ID` is not yet recorded, then forgets the password.
-3. Agent M records each new mail as a report in the private tracker, under its identifier `MAIL-` and
-   the first sixteen hex digits of the SHA-256 of its `Message-ID`. A mail whose `In-Reply-To` or
-   `References` names a recorded mail is attached to that report and its issue at once, without a
-   participant; it is shown under that issue (UC-039 uses it).
+1. The author opens **Mail** on the dashboard and presses **Read mailbox**.
+2. The dashboard sends the connection and the bridge token to the bridge. The bridge reads the named
+   folders read-only — nothing is marked as read, moved or flagged — and returns the mails, then forgets
+   the password. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
+   SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
+   list.
+3. Mails that an issue already lists, or that the author marked *not an issue* in this browser, are
+   left out. A mail whose `In-Reply-To` or `References` names a listed mail is attached to that issue
+   at once, without a participant — its identifier added to the issue — and shown there (UC-039).
 4. The remaining mails are listed with sender, subject and date — visible only in this browser. The
    author picks the participant for the proposals; Agent M offers only participants whose processing
    place the mailbox allows (UC-037, step 4), and marks a place outside the EU as not compliant with
-   the GDPR and the EU AI Act. The panel states where that participant processes
-   data and exactly what it receives: the mail text, the list of the instance's products with their
-   one-line descriptions, and the titles and numbers of their open issues. The author presses
-   **Propose** — one click for all listed mails.
+   the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
+   it receives: the mail text, the list of the instance's products with their one-line descriptions,
+   and the titles and numbers of their open issues. The author presses **Propose** — one click for all
+   listed mails.
 5. For each mail, the participant returns a proposal:
    - **product** — which managed product the mail concerns;
    - **kind** — *defect* (the product does not do what its SPEC says) or *change* (the reporter wants
@@ -104,23 +99,20 @@ process, where mails live in a local ticket database (`scripts/ticket_db.py`) an
    - **possible duplicates** — open issues that may describe the same thing, each with a reason.
 6. Agent M checks every neutral text without a model: each address and name from the mail's headers,
    each address and phone number in its body, and every name, address, phone number and account known
-   from all recorded mails is searched for; a hit is marked in the text. Attachments, logs and data the
-   author wants in the issue are pseudonymised — each personal datum replaced by a surrogate such as
-   *user1* or *user1@example.org*, the same one throughout the report — unless the product switched
-   pseudonymisation off (UC-042); the mapping is kept in the private tracker only.
+   from the mails read so far — kept in the browser as salted hashes only — is searched for; a hit is
+   marked in the text. Attachments, logs and data the author wants in the issue are pseudonymised — each
+   personal datum replaced by a surrogate such as *user1* or *user1@example.org*, the same one throughout
+   the mail, derived from the mail itself and stored nowhere — unless the product switched
+   pseudonymisation off (UC-042).
 7. The review panel shows, per mail, the mail in full on the left and the proposal on the right, with
    the text editable. The author decides with one click:
    - **Create issue** — possible only when the check of step 6 finds nothing;
    - **Add to #n** — the mail describes an existing issue;
-   - **Not an issue** — the mail stays a report without an issue.
+   - **Not an issue** — the mail is marked in this browser by its identifier and not proposed again.
 8. On **Create issue**, Agent M creates the issue in the product's tracker with the author's token,
-   labelled `defect` or `change`; the issue lists the mail's `MAIL-` identifier and names neither the
-   reporter nor the private tracker. It writes the
-   issue's address into the report, and asks the bridge to set `\Flagged` on the mail in the mailbox —
-   the issue is open.
-9. On **Add to #n**, Agent M adds the mail's `MAIL-` identifier to issue #n, writes issue #n into the
-   report — the mail is now a further report of that
-   issue, whose reporter will also be answered (UC-039) — and flags the mail.
+   labelled `defect` or `change`, listing the mail's `MAIL-` identifier; the issue names no reporter.
+9. On **Add to #n**, Agent M adds the mail's identifier to the list in issue #n. That reporter will also
+   be answered when #n is closed (UC-039).
 10. For an issue of kind *change*, the dashboard offers **Propose SPEC change** (UC-012); a *defect*
     goes to implementation directly.
 
@@ -131,74 +123,58 @@ sequenceDiagram
     participant B as Local bridge
     participant S as Mail server
     participant P as Participant
-    participant T as Private tracker
     participant I as Issue tracker
     A->>D: Read mailbox
-    D->>B: connection, bridge token, known Message-IDs
-    B->>S: read INBOX, read-only
-    B-->>D: new mails
-    D->>T: record reports, attach known threads
+    D->>B: connection, bridge token
+    B->>S: read named folders, read-only
+    B-->>D: mails
+    D->>I: read issues and the MAIL identifiers they list
+    D->>I: attach replies in known threads
     A->>D: choose participant, Propose
     D->>P: mails, products, open issue titles
     P-->>D: product, kind, neutral text, duplicates
-    D->>D: search text for names, addresses, phone numbers
-    A->>D: Create issue
-    D->>I: neutral issue, label defect or change
-    D->>T: report names the issue
-    D->>B: flag the mail
-    B->>S: set Flagged
+    D->>D: search for known people (hashes), pseudonymise report data
+    A->>D: Create issue, Add to #n, or Not an issue
+    D->>I: neutral issue with MAIL identifier, label defect or change
 ```
 
 ## Alternative flows
 
-- **1a. No private tracker is set yet.** Agent M asks for one of two places, each with a folded
-  explanation: **a private repository** — the author names or creates one, and Agent M checks with the
-  server that its visibility is *private*; or **a folder on the bridge's machine** — the bridge writes
-  the reports there and nowhere else. The choice is kept in this browser with the mailbox connection.
-- **1c. The stored token does not reach the private repository.** Agent M shows the same two steps as
-  UC-001 Step A — open the token on GitHub, add the repository, *Update* — and checks again; nothing is
-  written before the check succeeds.
-- **1b. The named repository is public or internal.** Agent M refuses it, says why — every mail would
-  be published, and the history keeps it after deletion — and writes nothing.
 - **2a. The bridge does not answer.** Nothing is read; Agent M names the reason (UC-037, 5a).
 - **4a. The chosen participant is a CLI agent.** The dashboard hands the job to the bridge; the mails
   go to the agent on the same machine and do not travel further than that agent's own processing
   place, which the panel states.
+- **4b. The author does not press Propose.** Nothing is sent to any participant; the author can still
+  decide each mail by hand in step 7, with an empty proposal.
 - **4c. No participant processes data at a place this mailbox allows.** Agent M says so and links to
   the mailbox's processing places (UC-037, 4a); nothing is sent. The author can still decide each
   mail by hand in step 7.
-- **4b. The author does not press Propose.** Nothing is sent to any participant; the author can still
-  decide each mail by hand in step 7, with an empty proposal.
-- **5a. The mail has attachments.** They are stored with the report. Their text is sent to the
-  participant only if the author ticks it for that mail in step 4. An attachment reaches the issue only
-  pseudonymised (step 6), and only if the author adds it there.
-- **6b. The product has switched pseudonymisation off** (UC-042). Report data goes into the issue
-  unchanged; the panel says so above the data. The issue text itself is still checked and stays
-  neutral.
+- **5a. The mail has attachments.** Their text is sent to the participant only if the author ticks it
+  for that mail in step 4. An attachment reaches the issue only pseudonymised (step 6), and only if the
+  author adds it there.
 - **5b. The participant finds no matching product.** The proposal says so; the author picks the
   product or chooses *Not an issue*.
 - **6a. The check finds personal data in the neutral text.** The hit is marked; **Create issue** stays
   disabled until the author has edited it out. The finding also counts towards the measured rate of
   the participant (SPEC `THE PRODUCT ISSUE CARRIES NO PERSONAL DATA`).
+- **6b. The product has switched pseudonymisation off** (UC-042). Report data goes into the issue
+  unchanged; the panel says so above the data. The issue text itself is still checked and stays
+  neutral.
 - **7a. The author changes the proposal** — another product, another kind, another duplicate. The
   author's choice is what is written; the participant's proposal is not kept as the decision.
-- **7b. The mail mixes several concerns.** The author splits it: **Create issue** once per concern,
-  each from the same report; the report names all resulting issues.
+- **7b. The mail mixes several concerns.** The author splits it: **Create issue** once per concern;
+  each issue lists the same identifier.
 - **8a. The issue cannot be created** — the token does not reach the product, or lacks the permission
-  to create issues. Agent M says which, links the token step of UC-001, and records nothing as an
-  issue; the report stays undecided.
-- **8b. Setting the flag fails** — the mail was moved or the server refused. The issue and the report
-  stand; Agent M notes that the flag is missing and sets it at the next flag sync (UC-039, step 8).
+  to create issues. Agent M says which and links the token step of UC-001; nothing is written.
 - **3a. A mail in a known thread belongs to a closed issue.** It is attached and shown under that
-  issue; the issue stays closed until the author reopens it (UC-039, alternative flow 7a).
+  issue; the issue stays closed until the author reopens it (UC-039, 7a).
+- **1a. The author reads from another browser.** Mails that became issues are left out there too — the
+  issues say so. Marks *not an issue* made in the first browser move with *Export settings* (UC-042).
 
 ## Postcondition
 
-- Every new mail is a report in the private tracker, exactly once; the mailbox itself is unchanged
-  except for the flags of mails that became or joined an issue.
-- Each created issue carries neutral technical text, a product, and the label `defect` or `change`;
-  no name, address or signature from the mail reached the product's tracker, the instance, or any
-  repository other than the private tracker.
-- Each report names the issue it belongs to, so that the reporter can be answered when it is solved
-  (UC-039).
+- Every created issue carries neutral technical text, a product, the label `defect` or `change`, and the
+  `MAIL-` identifiers of its mails; no name, address or signature from a mail reached any repository or
+  issue tracker.
+- The mails are unchanged in the mailbox; nothing about them is stored anywhere else.
 - Clicks per reading: *Read mailbox*, *Propose*, then one decision per mail.
