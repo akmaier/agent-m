@@ -1,10 +1,47 @@
 ## 14. Issues, mail and personal data
 
+**A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE** *(PO A. Maier, 2026-09-29)*
+The dashboard reaches a mailbox directly through its provider's web API — Microsoft Graph for
+Microsoft 365, the Gmail API for Gmail — and any other mailbox through the local bridge over IMAP and SMTP.
+*Occasion:* PO, 2026-09-29, asked for mail access from the GitHub Pages site itself. Browsers let no web
+page open a raw TCP connection, so IMAP and SMTP cannot be spoken from a page; an HTTP API can, where
+its server permits the page's origin. Measured 2026-09-29: Microsoft Graph answers the preflight from
+`https://akmaier.github.io` with `Access-Control-Allow-Origin: *` and the Gmail API with that origin
+itself; FAU's Exchange (`groupware.fau.de`) answers `401` without any `Access-Control-*` header, and is
+not Microsoft 365. Libraries that promise IMAP in the browser (`emailjs-imap-client`) rely on a relay
+server for exactly this reason — which is what the bridge is, on the person's own machine.
+*Check:* `tests/test_mail_routes.py` — a Microsoft 365 and a Gmail fixture are read with no bridge
+request; counter-proof: an IMAP fixture is read only through the bridge.
+
+**AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN** *(PO A. Maier, 2026-09-29)*
+A mailbox reached through its provider's web API is authorised by that provider's sign-in in the
+browser; Agent M asks for no mailbox password.
+*Occasion:* the provider's sign-in gives the dashboard a revocable token for the mailbox; the password
+itself never reaches Agent M. That is safer than a stored password, and the provider's own page shows
+and withdraws the access.
+*Check:* `tests/test_mail_routes.py` — the API route stores no password; counter-proof: the IMAP route
+asks for one.
+
+**THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING** *(PO A. Maier, 2026-09-29)*
+The provider sign-in asks for no permission beyond reading mails, writing drafts and sending mail.
+*Occasion:* a mailbox token reaches as far as the mailbox itself; `A TOKEN IS SCOPED TO WHAT IT WRITES`
+applied to mail — no calendar, no contacts, no settings of the account.
+*Check:* `tests/test_mail_routes.py` — the requested scopes are exactly the documented list.
+
+**THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER** *(PO A. Maier, 2026-09-29)*
+A mailbox token from a provider sign-in leaves the browser only as the authorisation of requests to that
+provider's API.
+*Occasion:* the same boundary as `A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT` for repository tokens:
+a mailbox token that reached another origin could be used to read every mail.
+*Check:* `tests/review-core.test.mjs` — a request to any other origin carries no mailbox token;
+counter-proof: the request to the provider carries it.
+
 **THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE** *(PO A. Maier, 2026-09-24)*
 Before a mailbox password is stored, Agent M states that every GitHub Pages site under the same
 `<owner>.github.io` can read it, and what it grants: reading every mail of the mailbox and sending
 mail in its name.
-*Occasion:* PO decision 2026-09-24 — the password is kept in the browser's store and the shared
+*Occasion:* only the bridge route needs a password (`A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API
+OR THROUGH THE BRIDGE`). PO decision 2026-09-24 — the password is kept in the browser's store and the shared
 origin is an accepted risk (measured 2026-09-23: seven Pages sites share `https://akmaier.github.io`).
 A mailbox password reaches further than a repository token, so the notice of
 `THE SHARED PAGES ORIGIN IS DISCLOSED` is not enough; the notice recommends an owner used for nothing
@@ -44,6 +81,7 @@ flags either: how a mail was handled is recorded in its issue (`THE ISSUE IS THE
 HANDLING`).
 *Check:* `tests/test_bridge_mail.py` — a read against a test server issues no `STORE`, `COPY`,
 `MOVE`, `EXPUNGE` and no non-peek `FETCH`.
+On the web-API routes, a read issues no request that modifies a message (`tests/test_mail_routes.py`).
 
 **MAIL STAYS IN THE MAILBOX** *(PO A. Maier, 2026-09-29)*
 The text of a mail, its sender, its reply address and its attachments are kept only in the mailbox;
@@ -75,11 +113,11 @@ hash cannot be turned back into it, and only the mailbox, which holds the mail, 
 counter-proof: two mails with different `Message-ID`s get different identifiers.
 
 **A MAIL IS FOUND AGAIN BY ITS IDENTIFIER** *(PO A. Maier, 2026-09-29)*
-To show or answer a mail an issue lists, the bridge finds it in the mailbox by hashing the `Message-ID`s
+To show or answer a mail an issue lists, Agent M finds it in the mailbox by hashing the `Message-ID`s
 of the folders the mailbox connection names — `INBOX` unless others are named.
 *Occasion:* with the mailbox as the only store (`MAIL STAYS IN THE MAILBOX`), the identifier in the issue
-must lead back to the mail. IMAP delivers the `Message-ID` headers of a folder in one read-only request;
-hashing them is cheap. Mails the person has filed into other folders are found once those folders are
+must lead back to the mail. IMAP and both web APIs deliver the `Message-ID` headers of a folder without
+reading the mails; hashing them is cheap. Mails the person has filed into other folders are found once those folders are
 named. PO, 2026-09-29: a mail deleted from the mailbox can no longer be answered, and the dashboard says
 *not found in the mailbox* — "this is acceptable; it's also the proof that the issue does not store
 personal information".
@@ -145,13 +183,21 @@ creating a new one.
 track who to reply" —, and the issue's list of identifiers is what keeps track.
 *Check:* `tests/test_mail_import.py`
 
-**EVERY OUTGOING MAIL IS RELEASED BY A PERSON** *(PO A. Maier, 2026-09-24)*
-The bridge sends a mail only with a single-use confirmation from a person's click that names the
-SHA-256 of the complete mail shown to them — recipients, subject, body and attachments.
+**EVERY OUTGOING MAIL IS RELEASED BY A PERSON** *(PO A. Maier, 2026-09-24, reworded 2026-09-29)*
+Agent M sends a mail only as the direct result of a person's click on the complete mail shown to them —
+recipients, subject, body and attachments.
 *Occasion:* taken over from `SOFTWARE_MAINTENANCE.md` §0.1 ("kein Auto-Reply") and §6.1 (explicit
-click with confirmation, single-use nonce). Binding the confirmation to the hash makes the gate
-structural: a participant can draft a mail, never send one, and a mail changed after the preview is
-not the one released.
+click with confirmation). A participant can draft a mail, never send one. A draft the person sends from
+their own mail program is their own click, outside Agent M.
+*Check:* `tests/test_mail_routes.py` — on both routes, no send request is made without the click;
+counter-proof: with it, exactly one.
+
+**THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN** *(PO A. Maier, 2026-09-24, split 2026-09-29)*
+The bridge sends a mail only with a single-use confirmation that names the SHA-256 of the complete mail
+shown to the person.
+*Occasion:* taken over from `SOFTWARE_MAINTENANCE.md` §6.1 (single-use nonce). The bridge is a separate
+program; binding the confirmation to the hash makes the gate structural there too: a mail changed after
+the preview is not the one released, and a repeated request sends nothing.
 *Check:* `tests/test_bridge_mail.py` — sending mocked: without confirmation, with a reused one, or
 with a body changed after the preview, zero SMTP calls.
 
@@ -172,20 +218,46 @@ disclosed by the tool meant to keep it private.
 reporter.
 
 **CLOSING AN ISSUE PREPARES ITS REPLIES** *(PO A. Maier, 2026-09-29)*
-When an issue that lists mails is closed, the mail dashboard offers a reply draft for every listed mail
+When an issue that lists mails is closed, the mail dashboard offers to draft a reply for every listed mail
 that has no sent reply noted in the issue.
 *Occasion:* PO, 2026-09-29: "Closing the issue creates a reply in the mail dashboard; this is then sent
-from the dashboard." An issue is often closed elsewhere — by a merged pull request —, so the drafts are
+from the dashboard." An issue is often closed elsewhere — by a merged pull request —, so the offer is
 derived from the issue's state, not from a click in Agent M.
-*Check:* `tests/test_mail_replies.py` — a closed issue listing two mails yields two drafts; counter-proof:
-with a reply noted for one, one draft.
+*Check:* `tests/test_mail_replies.py` — a closed issue listing two mails yields two offers; counter-proof:
+with a reply noted for one, one offer.
+
+**A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER** *(PO A. Maier, 2026-09-29)*
+A reply drafted for a mail an issue lists is stored as a draft in the mailbox's *Drafts* folder, as a
+reply to that mail, and nowhere else.
+*Occasion:* PO, 2026-09-29: "Once the issue is closed, the replies can be stored in the draft folder.
+This is where the send dashboard will find them." The draft holds the reporter's address and the
+quoted mail — personal data that belongs in the mailbox (`MAIL STAYS IN THE MAILBOX`). The person can
+review and send it from the dashboard or from their own mail program.
+*Check:* `tests/test_mail_replies.py` — after drafting, the draft is in *Drafts* with `In-Reply-To`
+set, and no write outside the mailbox contains its text.
+
+**THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS** *(PO A. Maier, 2026-09-29)*
+The send dashboard shows every draft in the *Drafts* folder that replies to a mail an issue lists.
+*Occasion:* the drafts folder is the list of what is waiting to be sent; the dashboard reads it instead
+of keeping a list of its own (`THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING`).
+*Check:* `tests/test_mail_replies.py` — a draft replying to a listed mail is shown; counter-proof: an
+unrelated draft of the person is not.
+
+**A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO** *(PO A. Maier, 2026-09-29)*
+A reply to a listed mail found in the *Sent* folder is noted in the issue, whether it was sent from the
+dashboard or from a mail program.
+*Occasion:* with drafts in the mailbox, the person may send from wherever they read mail; the issue must
+still know that the reporter was answered, or it would offer the reply again.
+*Check:* `tests/test_mail_replies.py` — a reply placed in *Sent* by hand is noted at the next reading;
+counter-proof: an unrelated sent mail is not.
 
 **A SENT REPLY IS NOTED IN THE ISSUE** *(PO A. Maier, 2026-09-29)*
 When a reply is sent, the issue receives a comment naming the mail's identifier and the date, and
 nothing of the reply's text or recipient.
 *Occasion:* the note is the issue's own record that this reporter was answered
 (`THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING`); the reply itself is in the mailbox's *Sent*
-folder, threaded on the reporter's mail.
+folder, threaded on the reporter's mail. For a reply sent from a mail program, the note is written at
+the next reading of the mailbox (`A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO`).
 *Check:* `tests/test_mail_replies.py` — after sending, the issue has one comment with the identifier and
 date and no address; counter-proof: no draft is offered for that mail again.
 

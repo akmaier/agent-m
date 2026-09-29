@@ -5,7 +5,7 @@ stage: evolution
 actors:
   - Author
   - Reporter
-  - Local bridge
+  - Mail provider or local bridge
   - Mail server
   - Participant
   - Issue tracker
@@ -39,6 +39,7 @@ realises:
   - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 ---
 # UC-038 Turn mails into issues
 
@@ -61,23 +62,24 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 - **Author** — decides which mail becomes which issue.
 - **Reporter** — sent the mail; not a user of Agent M.
-- **Local bridge** — reads the mailbox (UC-037); hands the mails to a CLI agent if one is chosen.
+- **Mail provider or local bridge** — the route to the mailbox (UC-037): the provider's web API for
+  Microsoft 365 and Gmail, the bridge over IMAP otherwise; the bridge also hands mails to a CLI agent if
+  one is chosen.
 - **Mail server** — holds the mailbox.
 - **Participant** — a model endpoint or CLI agent (UC-017) that proposes the issue.
 - **Issue tracker** — the product's issues on GitHub or on its GitLab server.
 
 ## Precondition
 
-- A mailbox is connected in this browser (UC-037), and the bridge runs.
+- A mailbox is connected in this browser (UC-037); on the IMAP route, the bridge runs.
 - The instance manages at least one product (UC-001), and the stored token may create issues in it.
 - At least one participant that can draft text is configured (UC-017).
 
 ## Main flow
 
 1. The author opens **Mail** on the dashboard and presses **Read mailbox**.
-2. The dashboard sends the connection and the bridge token to the bridge. The bridge reads the named
-   folders read-only — nothing is marked as read, moved or flagged — and returns the mails, then forgets
-   the password. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
+2. Agent M reads the named folders — through the provider's web API, or on the IMAP route through the
+   bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
    SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
    list.
 3. Mails that an issue already lists, or that the author marked *not an issue* in this browser, are
@@ -85,7 +87,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    at once, without a participant — its identifier added to the issue — and shown there (UC-039).
 4. The remaining mails are listed with sender, subject and date — visible only in this browser. The
    author picks the participant for the proposals; Agent M offers only participants whose processing
-   place the mailbox allows (UC-037, step 4), and marks a place outside the EU as not compliant with
+   place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
    it receives: the mail text, the list of the instance's products with their one-line descriptions,
    and the titles and numbers of their open issues. The author presses **Propose** — one click for all
@@ -120,13 +122,13 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 sequenceDiagram
     actor A as Author
     participant D as Dashboard
-    participant B as Local bridge
+    participant B as Provider API or bridge
     participant S as Mail server
     participant P as Participant
     participant I as Issue tracker
     A->>D: Read mailbox
-    D->>B: connection, bridge token
-    B->>S: read named folders, read-only
+    D->>B: read named folders
+    B->>S: read-only
     B-->>D: mails
     D->>I: read issues and the MAIL identifiers they list
     D->>I: attach replies in known threads
@@ -140,14 +142,15 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **2a. The bridge does not answer.** Nothing is read; Agent M names the reason (UC-037, 5a).
+- **2a. The mailbox cannot be reached** — the bridge does not answer, or the provider's sign-in has
+  expired. Nothing is read; Agent M names the reason (UC-037, 7a or 3b).
 - **4a. The chosen participant is a CLI agent.** The dashboard hands the job to the bridge; the mails
   go to the agent on the same machine and do not travel further than that agent's own processing
   place, which the panel states.
 - **4b. The author does not press Propose.** Nothing is sent to any participant; the author can still
   decide each mail by hand in step 7, with an empty proposal.
 - **4c. No participant processes data at a place this mailbox allows.** Agent M says so and links to
-  the mailbox's processing places (UC-037, 4a); nothing is sent. The author can still decide each
+  the mailbox's processing places (UC-037, 6a); nothing is sent. The author can still decide each
   mail by hand in step 7.
 - **5a. The mail has attachments.** Their text is sent to the participant only if the author ticks it
   for that mail in step 4. An attachment reaches the issue only pseudonymised (step 6), and only if the

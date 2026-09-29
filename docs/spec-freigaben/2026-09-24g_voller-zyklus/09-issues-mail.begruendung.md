@@ -97,3 +97,23 @@ each send to one click on the mail shown.
 **Decided by the PO on 2026-09-29:** a mail deleted from the mailbox can no longer be answered; the
 dashboard says *not found in the mailbox*. *"this is acceptable; it's also the proof that the issue does
 not store personal information."* Added to the occasion of `A MAIL IS FOUND AGAIN BY ITS IDENTIFIER`.
+
+**Mail access from the Pages site — PO decision of 2026-09-29, after measurement.** The PO asked to run mail
+access on the GitHub Pages site, without the bridge, and to keep replies as drafts in the mailbox. Browsers
+let no web page open raw TCP connections, so IMAP and SMTP are out of reach of any page (the
+`emailjs-imap-client` library, too, needs a relay server for browsers). HTTP mail APIs are reachable
+where the provider permits it — measured: Microsoft Graph and the Gmail API do, FAU's Exchange
+(`groupware.fau.de`, on-premise) does not. The PO: *"OK. Then we settle with this."*
+
+- **Two routes:** the provider's web API with its own sign-in (Microsoft 365, Gmail) — no password,
+  least scopes, token only to the provider — and the bridge over IMAP/SMTP for every other server. The
+  password rules now apply to the bridge route only (the first one says so in its occasion).
+- **Drafts in the mailbox:** replies are drafted into the *Drafts* folder; the send dashboard lists the
+  drafts of listed mails; a reply sent from the person's own mail program is noted in the issue too.
+- **Sending:** `EVERY OUTGOING MAIL IS RELEASED BY A PERSON` holds on both routes; its hash-bound
+  single-use confirmation is split off as `THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN`,
+  because only a separate program needs it.
+
+**Follows for the setup (UC-037):** the API route needs an app registration with Microsoft or Google
+whose return address is the instance's dashboard; institutions may restrict such registrations for their
+users. The dashboard guides through it step by step.

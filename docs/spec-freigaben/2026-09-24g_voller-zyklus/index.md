@@ -35,6 +35,7 @@ of its drafting group.
 | 15 | one settings page for everything — browser, instance, products — with tests, masked secrets, expiry warnings and renewal links | 11 six new rules; new UC-042 |
 | 16 | gates may be decided by CI checks and agents, not only by people: each gate names its decider; a job waits only until that decider has decided; the participant whose work a gate checks does not decide it (proposed by the main agent) | 08 one rule corrected, two new |
 | 17 | no private tracker, no double accounting: the mailbox is the only store of mail content, the product's issues the only record of handling (`MAIL-` identifiers, a comment per reply, label `waiting-for-reporter`); closing an issue prepares its replies; no second-reply confirmation, no mailbox flags | 09 reworked |
+| 18 | mail from the Pages site where the provider allows it: Microsoft 365 and Gmail through their web APIs with the provider's sign-in (no password); every other server through the bridge; replies wait as drafts in the mailbox's *Drafts* folder, and replies sent from a mail program are noted too | 09, eight new rules, one split |
 
 Interpretations by the main agent, correct them in the edit field if they are not what you meant:
 "groups should have new files" → one group file per kind of artifact; "a permanent location in the
