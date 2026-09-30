@@ -23,7 +23,8 @@ import {
   browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
   PASSPHRASE_NOTICE, exportSettings, readSettingsFile, mergeSettings, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
-  addCollaborator, removeCollaborator, saveCollaborators, diffHtml, reviewedId, recordsForId, lastAccepted,
+  addCollaborator, removeCollaborator, saveCollaborators, gitlabRole, jumpHostProblem, addRemoteSession, nextFreePort,
+  probeLocalPort, diffHtml, reviewedId, recordsForId, lastAccepted,
 } from "./review-core.mjs";
 
 const API = "https://api.github.com";
@@ -265,7 +266,7 @@ function acceptPanel(record, path, what, item) {
     ${gitlabTokenNeeded("Accepting")}
     <details class="explain"><summary>What is this?</summary><div>Accepting is a commit under your own account that adds an
       approval record naming exactly this text. On ${h(SERVER)} the dashboard makes that commit with the project access token
-      you create for ${h(T.product.repo)} (role Developer, scope api); it is stored in this browser and sent only to that
+      you create for ${h(T.product.repo)} (role Maintainer, scope api); it is stored in this browser and sent only to that
       project's API.</div></details>
   </section>`;
   }
@@ -656,7 +657,7 @@ either text changed in the meantime, nothing is written and the entry shows as *
 a maintainer merges it.
 
 **Products on GitLab** are read and written through their own server's API, with a project access
-token you create for each of them (role Developer, scope api) and store in this browser. It is sent
+token you create for each of them (role Maintainer, scope api) and store in this browser. It is sent
 only to that project's API. Without it, a GitLab product is read-only here: GitLab has no page that
 could be prefilled with a record, so there is no route without the token. The acceptance is one commit
 there too; GitLab refuses it if a file it changes was changed after the dashboard checked it.
@@ -677,7 +678,7 @@ addresses; the instance repository names no product.
 
 const shownSecrets = new Set(); // keys revealed by Show on this page; any other view hides them again
 // This page's last answers about the tokens: the GitHub token, and each GitLab project token by its address.
-const tokenState = { ok: null, refused: false, gitlab: {} };
+const tokenState = { ok: null, refused: false, gitlab: {}, sessions: {} };
 
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a 401 anywhere marks the token that was used as refused —
 // the GitHub token, or the project token of the GitLab product (`product`) — and the line at the top of every
@@ -757,8 +758,8 @@ function viewSettings() {
     <section class="panel">
       <h3>Clear everything in this browser</h3>
       <p><button class="btn" id="token-clear">Clear everything Agent M stored</button></p>
-      <details class="explain"><summary>What is this?</summary><div>Removes the GitHub token, its date, the product list and every
-        GitLab project token from this browser's storage. Nothing in any repository changes.</div></details>
+      <details class="explain"><summary>What is this?</summary><div>Removes the GitHub token, its date, the product list, every
+        GitLab project token, the jump host and the remote sessions with their bridge tokens from this browser's storage. Nothing in any repository changes.</div></details>
     </section>`;
   renderBrowserSettings();
   wireSettings();
@@ -769,12 +770,13 @@ function renderBrowserSettings() {
   const box = document.getElementById("browser-settings");
   box.innerHTML = browserSettingsHtml({ entries: store.entries(), shown: [...shownSecrets], tokenState });
   const say = (key, text) => { box.querySelector(`[data-result="${key}"]`).textContent = text; };
+  wireRemoteSettings(box, say);
   box.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => {
     const k = b.dataset.show;
     if (shownSecrets.has(k)) shownSecrets.delete(k); else shownSecrets.add(k);
     renderBrowserSettings();
   }));
-  box.querySelectorAll("[data-change]").forEach((b) => b.addEventListener("click", () => {
+  box.querySelectorAll('[data-change="agent-m.github-token"]').forEach((b) => b.addEventListener("click", () => {
     document.getElementById("token-change").hidden = false;
     document.getElementById("ack").focus();
   }));
@@ -882,6 +884,122 @@ function renderBrowserSettings() {
   }));
 }
 
+// THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS: set, tested, cleared here; the commands are copied from the page
+// (THE DASHBOARD WRITES THE TUNNEL COMMANDS). A web page cannot open SSH: Test asks each session's local port whether the
+// forward, and through it the reverse tunnel, answers.
+function wireRemoteSettings(box, say) {
+  const J = "agent-m.jump-host", R = "agent-m.remote-sessions";
+  const one = (attr, v) => [...box.querySelectorAll(`[${attr}]`)].find((x) => x.getAttribute(attr) === v);
+  const sessionSay = (name, text) => { const el = one("data-result-session", name); if (el) el.textContent = text; };
+  box.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(b.dataset.copy);
+    b.textContent = "Copied ✓";
+  }));
+  const testSession = async (sess) => {
+    const up = await probeLocalPort(sess.port);
+    tokenState.sessions[sess.name] = up ? { up: today() } : { down: true };
+    return up ? `${sess.name}: something answers at localhost:${sess.port} — the tunnel is up.`
+      : `${sess.name}: nothing answers at localhost:${sess.port} — start the reverse tunnel on the machine behind NAT and the forward here.`;
+  };
+  box.querySelector(`[data-change="${J}"]`)?.addEventListener("click", () => {
+    const j = store.getJumpHost() || {}, form = box.querySelector("[data-jump-form]");
+    const v = (k, d = "") => h(j[k] ?? d);
+    form.innerHTML = `<p><label>Host name <input data-j="host" value="${v("host")}" placeholder="jump.example.org" spellcheck="false"></label>
+      <label>SSH user <input data-j="user" value="${v("user")}" placeholder="agentm" spellcheck="false"></label></p>
+      <p><label>Ports from <input data-j="portFrom" type="number" value="${v("portFrom", 20001)}"></label>
+      <label>to <input data-j="portTo" type="number" value="${v("portTo", 20010)}"></label></p>
+      <p><label>Key file on the machine behind NAT <input data-j="reverseKey" value="${v("reverseKey")}" placeholder="~/.ssh/id_ed25519" spellcheck="false"></label>
+      <label>Key file on your machine <input data-j="forwardKey" value="${v("forwardKey")}" placeholder="~/.ssh/id_ed25519" spellcheck="false"></label></p>
+      <p class="muted small">The names of the key files only — the keys stay in <code>~/.ssh</code>. Empty: ssh uses its default key.</p>
+      <p><button class="btn primary" data-jump-save>Store</button></p>`;
+    form.querySelector("[data-jump-save]").addEventListener("click", () => {
+      const get = (k) => form.querySelector(`[data-j="${k}"]`).value.trim();
+      const next = { host: get("host"), user: get("user"), portFrom: Number(get("portFrom")), portTo: Number(get("portTo")),
+        reverseKey: get("reverseKey"), forwardKey: get("forwardKey") };
+      const bad = jumpHostProblem(next);
+      if (bad) { say(J, bad); return; }
+      const outside = store.getRemoteSessions().filter((x) => x.port < next.portFrom || x.port > next.portTo);
+      if (outside.length) { say(J, `The range must keep the ports of ${outside.map((x) => `${x.name} (${x.port})`).join(", ")} — or clear those sessions first.`); return; }
+      store.setJumpHost(next);
+      renderBrowserSettings();
+      say(J, "Stored. The commands below are written from it.");
+    });
+  });
+  box.querySelector(`[data-clear="${J}"]`)?.addEventListener("click", () => {
+    if (!confirm("Clear the jump host from this browser? The remote sessions stay, but no tunnel command can be written until it is set again.")) return;
+    store.clearJumpHost();
+    renderBrowserSettings();
+  });
+  box.querySelector(`[data-test="${J}"]`)?.addEventListener("click", async () => {
+    const bad = jumpHostProblem(store.getJumpHost());
+    if (bad) { say(J, bad); return; }
+    const list = store.getRemoteSessions();
+    say(J, list.length ? "Asking each session's local port…" : "The settings are complete. Add a remote session to test a tunnel.");
+    if (!list.length) return;
+    const lines = [];
+    for (const x of list) lines.push(await testSession(x));
+    renderBrowserSettings();
+    say(J, `The settings are complete. ${lines.join(" ")}`);
+  });
+  box.querySelector("[data-add-session]")?.addEventListener("click", () => {
+    const form = box.querySelector("[data-session-form]"), jump = store.getJumpHost();
+    let free = "";
+    try { free = nextFreePort(jump, store.getRemoteSessions()); } catch (e) { say(R, e.message); return; }
+    form.innerHTML = `<p><label>Name <input data-s="name" placeholder="lab-pc" spellcheck="false"></label>
+      <label>Port on the jump host <input data-s="port" type="number" value="${h(free)}"></label>
+      <label>Bridge port on that machine <input data-s="bridgePort" type="number" placeholder="the port the bridge listens on"></label></p>
+      <p><label>Bridge token <input data-s="token" type="password" autocomplete="off" spellcheck="false"
+        placeholder="the token the bridge printed when paired"></label></p>
+      <p class="muted small">The port is the lowest free one of ${h(jump.portFrom)}–${h(jump.portTo)}; change it only if you need another.
+        Storing the token needs the tick “I have read this” at the top of the page.</p>
+      <p><button class="btn primary" data-session-save>Add</button></p>`;
+    form.querySelector("[data-session-save]").addEventListener("click", () => {
+      const get = (k) => form.querySelector(`[data-s="${k}"]`).value.trim();
+      if (get("token") && !canStore(document.getElementById("ack").checked)) {
+        say(R, "Tick “I have read this” at the top of the page first — the bridge token is stored in this browser.");
+        document.getElementById("ack").focus();
+        return;
+      }
+      try {
+        store.setRemoteSessions(addRemoteSession(store.getJumpHost(), store.getRemoteSessions(),
+          { name: get("name"), port: get("port") === "" ? null : Number(get("port")), bridgePort: Number(get("bridgePort")), token: get("token") }));
+      } catch (e) { say(R, e.message); return; }
+      renderBrowserSettings();
+      say(R, "Added. Run the two commands, then press Test.");
+    });
+  });
+  box.querySelectorAll("[data-test-session]").forEach((b) => b.addEventListener("click", async () => {
+    const x = store.getRemoteSessions().find((y) => y.name === b.dataset.testSession);
+    if (!x) return;
+    sessionSay(x.name, `Asking localhost:${x.port}…`);
+    const line = await testSession(x);
+    renderBrowserSettings();
+    sessionSay(x.name, line);
+  }));
+  box.querySelector(`[data-test="${R}"]`)?.addEventListener("click", async () => {
+    say(R, "Asking each session's local port…");
+    const lines = [];
+    for (const x of store.getRemoteSessions()) lines.push(await testSession(x));
+    renderBrowserSettings();
+    say(R, lines.join(" "));
+  });
+  box.querySelectorAll("[data-clear-session]").forEach((b) => b.addEventListener("click", () => {
+    const name = b.dataset.clearSession;
+    if (!confirm(`Clear the remote session ${name} and its bridge token from this browser? Its port becomes free again.`)) return;
+    store.clearRemoteSession(name);
+    shownSecrets.delete(`${R} ${name}`);
+    delete tokenState.sessions[name];
+    renderBrowserSettings();
+  }));
+  box.querySelector(`[data-clear="${R}"]`)?.addEventListener("click", () => {
+    if (!confirm("Clear every remote session and its bridge token from this browser?")) return;
+    store.clearRemoteSessions();
+    for (const k of [...shownSecrets]) if (k.startsWith(`${R} `)) shownSecrets.delete(k);
+    tokenState.sessions = {};
+    renderBrowserSettings();
+  });
+}
+
 function wireSettings() {
   const ack = document.getElementById("ack"), input = document.getElementById("token-input");
   const expires = document.getElementById("token-expires"), save = document.getElementById("token-save");
@@ -902,9 +1020,9 @@ function wireSettings() {
     document.getElementById("token-msg").textContent = "Stored. Press Test to check it; reload to read with it.";
   });
   document.getElementById("token-clear").addEventListener("click", () => {
-    if (!confirm("Clear everything Agent M stored in this browser — the GitHub token, its date, the product list and every GitLab project token?")) return;
+    if (!confirm("Clear everything Agent M stored in this browser — the GitHub token, its date, the product list, every GitLab project token, the jump host and the remote sessions with their bridge tokens?")) return;
     store.clear();
-    Object.assign(tokenState, { ok: null, refused: false, gitlab: {} });
+    Object.assign(tokenState, { ok: null, refused: false, gitlab: {}, sessions: {} });
     shownSecrets.clear();
     loadProducts();
     renderProductSelector();
@@ -1005,7 +1123,7 @@ async function loadProductSettings() {
           ${canWrite ? `<td><button class="btn small" data-remove-collaborator="${h(c.account)}">Remove</button></td>` : ""}</tr>`).join("")}
       </tbody></table>` : ""}
       ${canWrite ? `<p><label>Name <input id="coll-name" autocomplete="off"></label>
-        <label>Account <input id="coll-account" placeholder="github-login" autocomplete="off" spellcheck="false"></label>
+        <label>Account <input id="coll-account" placeholder="${GITLAB ? "gitlab-username" : "github-login"}" autocomplete="off" spellcheck="false"></label>
         <label>Agreed on <input type="date" id="coll-agreed" value="${h(today())}"></label></p>
       <p><label><input type="checkbox" id="coll-consent"> This person has agreed to be named.</label></p>
       <p><button class="btn primary" id="coll-add">+ Collaborator and save</button></p>` : ""}
@@ -1045,7 +1163,7 @@ async function loadProductSettings() {
     let list;
     try {
       list = addCollaborator(people, { name: document.getElementById("coll-name").value, account: document.getElementById("coll-account").value,
-        agreed: document.getElementById("coll-agreed").value, consent: document.getElementById("coll-consent").checked });
+        agreed: document.getElementById("coll-agreed").value, consent: document.getElementById("coll-consent").checked, gitlab: GITLAB });
     } catch (e) { cOut.textContent = e.message; return; }
     commitPeople(ev, list, `Added ${list.at(-1).name} (@${list.at(-1).account})`);
   });
@@ -1060,9 +1178,10 @@ const EXPLAIN = {
     address as your browser shows it, <code>https://github.com/owner/name</code> — or, for a project on a GitLab server,
     that project's address, with all its groups (<code>group/subgroup/project</code>). The product's requirements and use
     cases will live in that repository; this dashboard only shows them.`,
-  gitlabToken: `A <em>project access token</em> is a key GitLab creates for one project only. With role <em>Developer</em> and
+  gitlabToken: `A <em>project access token</em> is a key GitLab creates for one project only. With role <em>Maintainer</em> and
     scope <em>api</em> it lets this page make commits in that project — accepting and editing — and nowhere else on the
-    server. You choose its expiry date; you can revoke it on the same page at any time, and it stops working immediately.<br><br>
+    server. <em>Maintainer</em>, because GitLab protects a project's default branch against pushes by Developers unless the
+    project changes that; a Maintainer token can also change the project's settings, but still only in this one project. You choose its expiry date; you can revoke it on the same page at any time, and it stops working immediately.<br><br>
     <strong>Why a project token?</strong> A personal token with scope api would reach every project you can reach on the
     server. Each GitLab product therefore gets its own token; the GitHub key of your instance is not involved.`,
   gitlabStore: `The token is saved in this browser only (its <code>localStorage</code>), under this product's address — never in
@@ -1107,15 +1226,16 @@ async function checkReach(repo) {
   } catch (e) { noteRefusal(e, null); return { ok: false, error: errorText(e, null) }; }
 }
 
-// A GitLab project read with its own project token (or none): reachable, and with which role the token acts.
-const GITLAB_ROLES = { 10: "Guest", 15: "Planner", 20: "Reporter", 30: "Developer", 40: "Maintainer", 50: "Owner" };
+// A GitLab project read with its own project token (or none): reachable, and with which role the token acts — below
+// Maintainer it cannot write to a protected default branch (gitlabRole).
 async function checkGitLab(p, tok) {
   try {
     const r = await gitlabProject({ product: p, token: tok });
     if (!r || !r.path_with_namespace) return { ok: false, error: `${p.host} did not answer as a GitLab server.` };
     const level = r.permissions?.project_access?.access_level ?? r.permissions?.group_access?.access_level ?? null;
-    return { ok: true, priv: r.visibility !== "public", branch: r.default_branch, role: GITLAB_ROLES[level] || null,
-      canWrite: level !== null && level >= 30, tokenUsed: Boolean(tok) };
+    const role = gitlabRole(level);
+    return { ok: true, priv: r.visibility !== "public", branch: r.default_branch, role: role.role, canWrite: role.canWrite,
+      note: role.note, tokenUsed: Boolean(tok) };
   } catch (e) {
     noteRefusal(e, p);
     if (e instanceof TypeError) {
@@ -1131,7 +1251,7 @@ const reachOf = (p) => (isGitLab(p) ? checkGitLab(p, store.getGitLabToken(p.addr
 
 const reachLine = ([r, x]) => !x.ok ? `✗ ${h(r)}: ${h(x.error)}`
   : "role" in x ? `✓ ${h(r)} reachable${x.tokenUsed ? (x.role ? ` — the token acts as ${h(x.role)}` : "") +
-      (x.canWrite ? "" : " — this role cannot commit; the token needs role Developer") : " — without a token: read-only here"}`
+      (x.canWrite ? "" : ` — ${h(x.note)}`) : " — without a token: read-only here"}`
   : `✓ ${h(r)} reachable${x.priv ? "" : " — public, so write access is confirmed only by the first write"}`;
 
 // What is wrong with a pasted GitLab token and its date, or null.

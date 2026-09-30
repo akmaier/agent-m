@@ -5,8 +5,9 @@ import unittest
 from artifact_checks import DOCS
 
 # The only origins the site may call (§0 NO SERVER). github.com is navigation, not a call:
-# links there open GitHub's own editor.
-ALLOWED = {"api.github.com", "raw.githubusercontent.com", "github.com"}
+# links there open GitHub's own editor. localhost is the local bridge, which §0's check names — reached on this
+# machine, directly or through the forward of a tunnel (§6 A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL).
+ALLOWED = {"api.github.com", "raw.githubusercontent.com", "github.com", "localhost"}
 
 
 def foreign_origins(text: str) -> set[str]:

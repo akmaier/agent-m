@@ -292,3 +292,55 @@ UC-010, renamed from `…-run-a-stage-…` and therefore *open* by path, was fou
 in addition the lines queue 2026-09-30 added to it (`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT` in `realises`,
 alternative flow 2a). In Chrome, the dashboard served from 127.0.0.1 with `?ref=6547338…#uc/UC-010` showed the panel
 *Changed since it was last accepted* above the text with exactly the `area`/`stage` pair marked.
+
+## 7. Jump host and remote sessions; GitLab role Maintainer; collaborators by server — branch `feat/jump-host-settings` (on `main` at `7187591`)
+
+SPEC §6 `EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE`, `THE DASHBOARD WRITES THE TUNNEL COMMANDS`, `A REVERSE
+TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK`; §7 `THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`, `A STORED SECRET IS HIDDEN
+UNTIL SHOWN`, `A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN`, `SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS`,
+`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN` (role Maintainer, queue 2026-09-30c); §14 `A PERSON IS NAMED BY ACCOUNT OR WITH
+CONSENT` (GitLab user names).
+
+Same method and script as §6 (known positive red first; both suites green before and after). The new tests were red against the
+unchanged `docs/assets/` before the implementation (the store exported no `JUMP_HOST_KEY`; 8 Python failures).
+
+| Mutation | In | Red |
+|---|---|---|
+| a new session takes the highest free port | `review-core.mjs` | `JumpHostAndRemoteSessions` test_each_session_has_its_commands_test_and_clear; `ReverseTunnelOnLoopback` test_the_generated_reverse_command_names_the_loopback_address; review-core.test.mjs "EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE — the lowest free port; a full range refuses and says so"; review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| a full range gives a port outside it instead of refusing | `review-core.mjs` | review-core.test.mjs "EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE — the lowest free port; a full range refuses and says so" |
+| a hand-chosen port may be shared | `review-core.mjs` | review-core.test.mjs "EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE — the lowest free port; a full range refuses and says so" |
+| the reverse tunnel binds all interfaces | `review-core.mjs` | `JumpHostAndRemoteSessions` test_each_session_has_its_commands_test_and_clear; `ReverseTunnelOnLoopback` test_the_generated_reverse_command_names_the_loopback_address; review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| the reverse tunnel has no bind address (ssh's default) | `review-core.mjs` | `JumpHostAndRemoteSessions` test_each_session_has_its_commands_test_and_clear; `ReverseTunnelOnLoopback` test_the_generated_reverse_command_names_the_loopback_address; review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| the forward uses another port than the reverse tunnel | `review-core.mjs` | `JumpHostAndRemoteSessions` test_each_session_has_its_commands_test_and_clear; review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| the bind check accepts any address | `review-core.mjs` | `ReverseTunnelOnLoopback` test_counter_proof_any_other_bind_address_fails; review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| the bind check accepts a forward to another host | `review-core.mjs` | review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| the bind check ignores -g | `review-core.mjs` | review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| tunnelCommands writes a command without running the bind check | `review-core.mjs` | **none — green** ⁴ |
+| without ExitOnForwardFailure | `review-core.mjs` | review-core.test.mjs "THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other" |
+| the jump host name is not checked | `review-core.mjs` | review-core.test.mjs "the jump host's settings are checked — a host, user or key name that could change the command is refused" |
+| a key file may be anything (key contents) | `review-core.mjs` | review-core.test.mjs "the jump host's settings are checked — a host, user or key name that could change the command is refused" |
+| the probe sends a mode that reads the answer (cors) | `review-core.mjs` | review-core.test.mjs "a remote session is tested by asking whether anything answers at its local port — no token, nothing else" |
+| a bridge token is rendered in clear | `review-core.mjs` | `JumpHostAndRemoteSessions` test_the_bridge_token_is_hidden_until_shown |
+| the bridge tokens are not declared secret (export notice) | `review-core.mjs` | review-core.test.mjs "THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS — stored under their keys, exported and imported, cleared by a clear" |
+| import adds a session whose port is used here | `review-core.mjs` | review-core.test.mjs "THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS — stored under their keys, exported and imported, cleared by a clear" ³ |
+| store: remote sessions not in the export | `settings-store.mjs` | review-core.test.mjs "THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS — stored under their keys, exported and imported, cleared by a clear" |
+| sessions row without Clear | `review-core.mjs` | `TestedAndCleared` test_each_browser_setting_has_test_and_clear |
+| the GitLab steps ask for role Developer again | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Maintainer, scope api, expiry" |
+| a Developer token counts as able to write | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer is shown as unable to write to a protected default branch" |
+| GitLab account names checked with GitHub's syntax | `review-core.mjs` | review-core.test.mjs "A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — a GitLab product accepts GitLab user names, a GitHub product GitHub's" |
+| GitLab account names ending in .git accepted | `review-core.mjs` | review-core.test.mjs "A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — a GitLab product accepts GitLab user names, a GitHub product GitHub's" |
+
+³ Green in the first run: the import test had no session whose port was taken here. A browser with a session on 20001 importing
+`lab-pc` on 20001 was added to the test; re-run: red, as listed.
+
+⁴ Green, and left so: `tunnelCommands` runs the bind check on every command it writes, but every value that enters a command
+(host, user, key file names, ports, session name) is checked before (`jumpHostProblem`, `addRemoteSession`), and with checked
+values the command cannot carry another bind address. The check is a second guard that no valid input reaches; the rule itself
+is checked by `tunnelBindProblems` on the written commands and on the counter-examples (`0.0.0.0`, `*`, empty, `-g`,
+`GatewayPorts`, another destination) — mutations of that function are red above.
+
+**In Chrome** (dashboard served from 127.0.0.1, no GitHub token): *Set the jump host* stored it; *+ Remote session* offered 20001,
+then 20002; both commands per session appeared as in the tests, the bridge token in a password field. *Test all* with a stand-in
+HTTP listener on 127.0.0.1:20001 and none on 20002: "something answers at localhost:20001", "nothing answers at localhost:20002".
+*Clear everything* left `localStorage` empty. Not measured: the same probe from the HTTPS Pages origin, where Chrome's rules for
+requests to the local network apply (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`) — it belongs to the bridge's measurement.
