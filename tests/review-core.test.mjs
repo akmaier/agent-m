@@ -288,3 +288,159 @@ test("UC-001: extending the token names the token, adds the product, keeps the i
   const name = new URL(tokenLinkUrl("reader/agent-m")).searchParams.get("name");
   assert.ok(s.includes(name), "the steps must name the token exactly as the setup link created it");
 });
+
+// ---------------------------------------------------------------- one commit per decision (queue 2026-09-24g, entry 05)
+// AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL · A STALE APPROVAL IS NOT APPLIED ·
+// SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER (UC-006 4–7, 4d, 5a; UC-008 3d)
+
+import {
+  acceptItems, planAcceptance, createReviewSession, decisionRow, replaceSection, sectionForEntry, missingNeeds,
+} from "../docs/assets/review-core.mjs";
+
+const QD = "docs/spec-freigaben/2026-09-24g_x";
+const WHEN = new Date("2026-09-29T16:03:00Z");
+const B_SPEC = "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nold ten\n";
+const B_P05 = "## 10. R\n\nnew ten\n\n## 11. X\n\n*(not yet approved)*\n";
+const B_P06 = "## 11. X\n\nrule of eleven\n";
+const B_INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n" +
+  "| 05 | `SPEC.md` | ## 10. R | — | — |\n| 06 | `SPEC.md` | ## 11. X | — | — |\n";
+const B_UC1 = "---\nid: UC-001\n---\n# one\n", B_UC2 = "---\nid: UC-002\n---\n# two\n";
+
+function batchRepo(over = {}) {
+  return { "SPEC.md": B_SPEC, [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/06-b.md`]: B_P06,
+    [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
+    "docs/use-cases/UC-001-a.md": B_UC1, "docs/use-cases/UC-002-b.md": B_UC2, ...over };
+}
+
+// What the dashboard showed: the proposal and the section beside it, each by its blob SHA.
+async function specItem(nr, proposalText, shownSection, anchor) {
+  const nn = String(nr).padStart(2, "0");
+  return { kind: "spec", queue: QD, qname: "2026-09-24g_x", nr, nn, proposalPath: `${QD}/${nn}-${nr === 5 ? "a" : "b"}.md`,
+    proposalBlob: await gitBlobSha(proposalText), sectionBlob: await gitBlobSha(shownSection), targetPath: "SPEC.md",
+    anchor, bis: null, needs: [] };
+}
+const ucItem = async (id, path, text) => ({ kind: "use-case", id, path, blob: await gitBlobSha(text) });
+
+function readerOf(files, seen = []) {
+  return async (head, path) => { seen.push(head); return path in files ? files[path] : null; };
+}
+
+const treeOf = (calls) => Object.fromEntries(calls.find(([m, p]) => m === "POST" && p.endsWith("/git/trees"))[3].tree.map((f) => [f.path, f.content]));
+
+test("decisionRow is the row tools/apply_approvals.py writes", () => {
+  assert.equal(decisionRow(7, "spec-q-07-a99553a7b6f9.md", WHEN), "| 2026-09-29 16:03 UTC | 7 | uebernommen | approval:spec-q-07-a99553a7b6f9.md |\n");
+});
+
+test("replaceSection writes the proposal byte for byte and keeps the file's final newline", () => {
+  assert.equal(replaceSection(B_SPEC, "## 10. R", null, "## 10. R\n\nnew\n"), "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nnew\n");
+  assert.equal(replaceSection(B_SPEC, "## 9. G", null, "## 9. G\nnine\n"), "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\nnine\n## 10. R\n\nold ten\n");
+  assert.throws(() => replaceSection(B_SPEC, "## 11. X", null, "x\n"), /0 times/);
+});
+
+test("AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — one commit: record, section, decision row", async () => {
+  const files = batchRepo(), heads = [];
+  const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
+  const { calls, fetchMock } = fakeGitHub();
+  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    items: [it], readAt: readerOf(files, heads), now: WHEN }));
+  const rec = `docs/approvals/spec-2026-09-24g_x-05-${it.proposalBlob.slice(0, 12)}.md`;
+  assert.equal(res.commit.sha, "c1");
+  assert.deepEqual(res.leftOut, []);
+  assert.equal(calls.filter(([m, p]) => m === "POST" && p.endsWith("/git/commits")).length, 1, "exactly one commit");
+  assert.ok(heads.length && heads.every((h) => h === "c0"), "every check reads the commit that is written on");
+  const tree = treeOf(calls);
+  assert.deepEqual(Object.keys(tree).sort(), [`${QD}/entscheidungen.md`, "SPEC.md", rec].sort());
+  assert.equal(tree["SPEC.md"], "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n" + B_P05);
+  assert.equal(tree[`${QD}/entscheidungen.md`], "# Decisions\n\nAppend-only.\n\n" +
+    `| 2026-09-29 16:03 UTC | 5 | uebernommen | approval:${rec.split("/").pop()} |\n`);
+  assert.equal(tree[rec], recordText(specRecord({ queue: QD, entry: 5, proposal: `${QD}/05-a.md`, blob: it.proposalBlob,
+    target: "SPEC.md", anchor: "## 10. R", section: it.sectionBlob })));
+});
+
+test("A STALE APPROVAL IS NOT APPLIED — dashboard: proposal or section changed on the commit written on", async () => {
+  const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
+  for (const [over, why] of [[{ [`${QD}/05-a.md`]: B_P05 + "edited\n" }, /proposal changed/],
+    [{ "SPEC.md": B_SPEC.replace("old ten", "changed meanwhile") }, /SPEC section changed/]]) {
+    const { calls, fetchMock } = fakeGitHub();
+    const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+      items: [it], readAt: readerOf(batchRepo(over)), now: WHEN }));
+    assert.equal(res.commit, null);
+    assert.deepEqual(res.leftOut.map((l) => l.label), ["2026-09-24g_x 05"]);
+    assert.match(res.leftOut[0].reason, why);
+    assert.ok(!calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
+  }
+});
+
+test("SEVERAL FILES ARE ACCEPTED IN ONE CLICK — one record per ticked file, none for a file not opened", async () => {
+  const s = createReviewSession();
+  const u1 = await ucItem("UC-001", "docs/use-cases/UC-001-a.md", B_UC1), u2 = await ucItem("UC-002", "docs/use-cases/UC-002-b.md", B_UC2);
+  s.show(u1); s.show(u2);
+  assert.equal(s.tick("uc:docs/use-cases/UC-003-c.md", true), false, "a file that was not opened cannot be ticked");
+  assert.equal(s.tick(s.key(u1), true), true);
+  assert.equal(s.tick(s.key(u2), true), true);
+  assert.deepEqual(s.items().map((i) => i.id), ["UC-001", "UC-002"]);
+  const { calls, fetchMock } = fakeGitHub();
+  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    items: s.items(), readAt: readerOf(batchRepo()), now: WHEN }));
+  const tree = treeOf(calls);
+  assert.deepEqual(Object.keys(tree).sort(), [approvalPath("UC-001", u1.blob), approvalPath("UC-002", u2.blob)]);
+  assert.equal(tree[approvalPath("UC-002", u2.blob)], recordText(useCaseRecord(u2.path, u2.blob)));
+  assert.deepEqual(res.accepted, ["UC-001", "UC-002"]);
+  // Counter-proof: UC-002 changed after it was shown — it is left out and named, UC-001 is still written.
+  const g = fakeGitHub();
+  const res2 = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    items: s.items(), readAt: readerOf(batchRepo({ "docs/use-cases/UC-002-b.md": B_UC2 + "edited\n" })), now: WHEN }));
+  assert.deepEqual(Object.keys(treeOf(g.calls)), [approvalPath("UC-001", u1.blob)]);
+  assert.deepEqual(res2.leftOut.map((l) => l.label), ["UC-002"]);
+  assert.match(res2.leftOut[0].reason, /changed after it was shown/);
+});
+
+test("A QUEUE IS ACCEPTED IN ITS ORDER — 05 and 06 together: one commit with both sections, rows in index order", async () => {
+  const entries = [{ nr: 5, anchor: "## 10. R", bis: null, proposalText: B_P05 }, { nr: 6, anchor: "## 11. X", bis: null, proposalText: B_P06 }];
+  const shown06 = sectionForEntry({ specText: B_SPEC, entries, nr: 6 });
+  assert.deepEqual(shown06.needs, [5], "06 needs 05, which creates its heading");
+  assert.equal(shown06.current, "## 11. X\n\n*(not yet approved)*\n", "06 is shown beside the heading 05 creates");
+  assert.deepEqual(sectionForEntry({ specText: B_SPEC, entries, nr: 5 }).needs, []);
+  const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
+  const i06 = { ...(await specItem(6, B_P06, shown06.current, "## 11. X")), needs: [5] };
+  const { calls, fetchMock } = fakeGitHub();
+  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    items: [i06, i05], readAt: readerOf(batchRepo()), now: WHEN }));        // ticked in reverse order
+  assert.deepEqual(res.leftOut, []);
+  assert.equal(calls.filter(([m, p]) => m === "POST" && p.endsWith("/git/commits")).length, 1);
+  const tree = treeOf(calls);
+  assert.equal(tree["SPEC.md"], "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nnew ten\n\n" + B_P06);
+  const rows = tree[`${QD}/entscheidungen.md`].split("\n").filter((l) => l.startsWith("| 2026"));
+  assert.deepEqual(rows.map((r) => r.split("|")[2].trim()), ["5", "6"]);
+  assert.equal(Object.keys(tree).filter((p) => p.startsWith("docs/approvals/")).length, 2);
+});
+
+test("A QUEUE IS ACCEPTED IN ITS ORDER — counter-proof: 06 alone is not offered while its anchor is missing, and 05 is named", async () => {
+  const i06 = { ...(await specItem(6, B_P06, "## 11. X\n\n*(not yet approved)*\n", "## 11. X")), needs: [5] };
+  const gaps = missingNeeds([i06]);
+  assert.equal(gaps.length, 1);
+  assert.match(gaps[0].message, /entry 05/);
+  assert.doesNotMatch(gaps[0].message, /times/);
+  const { calls, fetchMock } = fakeGitHub();
+  await withFetch(fetchMock, () => assert.rejects(acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    items: [i06], readAt: readerOf(batchRepo()), now: WHEN }), /entry 05/));
+  assert.equal(calls.length, 0, "nothing is read or written");
+  assert.deepEqual(missingNeeds([i06, await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R")]), []);
+  // And if 05 is ticked but left out as stale, 06 is left out too, naming 05 — not "anchor found 0 times".
+  const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
+  const plan = await planAcceptance({ items: [i05, i06], now: WHEN,
+    read: async (p) => batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" })[p] ?? null });
+  assert.deepEqual(plan.files, []);
+  assert.deepEqual(plan.leftOut.map((l) => l.label), ["2026-09-24g_x 05", "2026-09-24g_x 06"]);
+  assert.match(plan.leftOut[1].reason, /entry 05/);
+  assert.doesNotMatch(plan.leftOut[1].reason, /times/);
+});
+
+test("an entry already written in the queue's decisions is not written twice", async () => {
+  const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
+  const name = approvalPath("spec-2026-09-24g_x-05", it.proposalBlob).split("/").pop();
+  const plan = await planAcceptance({ items: [it], now: WHEN, read: async (p) => batchRepo({
+    [`${QD}/entscheidungen.md`]: `# D\n\n${decisionRow(5, name, WHEN)}` })[p] ?? null });
+  assert.deepEqual(plan.files, []);
+  assert.match(plan.leftOut[0].reason, /already/);
+});

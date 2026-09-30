@@ -306,11 +306,14 @@ export function stepHtml({ title, body, explain }) {
 // THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Every write needs the click event that caused it;
 // `isTrusted` is set by the browser for real user input only and cannot be set by a script.
 // All files go into ONE commit, fast-forward only — nobody else's work is ever overwritten.
+// `files` may be a function of the branch head: it then computes the files from that very commit, so
+// that every check it makes is made on the commit the new one is written on (A STALE APPROVAL IS NOT
+// APPLIED). A later commit on the branch makes the fast-forward fail, and nothing is written.
 export async function commitFiles({ repo, branch, files, message, token, click }) {
   if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
   if (!token) throw new Error("writing needs a stored token");
   if (!REPO_RE.test(repo) || repo.includes("..")) throw new Error(`not a repository: ${repo}`);
-  if (!files.length) throw new Error("nothing to write");
+  if (typeof files !== "function" && !files.length) throw new Error("nothing to write");
   const api = `https://api.github.com/repos/${repo}`;
   const call = async (method, path, body) => {
     const r = await fetch(api + path, { method, credentials: "omit", cache: "no-store",
@@ -328,6 +331,8 @@ export async function commitFiles({ repo, branch, files, message, token, click }
   };
   const ref = encodeURIComponent(branch).replace(/%2F/g, "/");
   const head = (await call("GET", `/git/ref/heads/${ref}`)).object.sha;
+  if (typeof files === "function") files = await files(head);
+  if (!files.length) throw new Error("nothing to write");
   for (const f of files) {
     if (!f.expectBlob) continue;
     let current = null;
@@ -339,9 +344,168 @@ export async function commitFiles({ repo, branch, files, message, token, click }
   const baseTree = (await call("GET", `/git/commits/${head}`)).tree.sha;
   const tree = await call("POST", "/git/trees", { base_tree: baseTree,
     tree: files.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })) });
+  if (typeof message === "function") message = message();
   const commit = await call("POST", "/git/commits", { message, tree: tree.sha, parents: [head] });
   await call("PATCH", `/git/refs/heads/${ref}`, { sha: commit.sha, force: false });
   return { sha: commit.sha, url: commit.html_url || `https://github.com/${repo}/commit/${commit.sha}` };
+}
+
+// ---------------------------------------------------------------- accepting (UC-006 4–7, 4d, 5a · UC-008 3d)
+//
+// AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL: with a token, one commit holds the approval
+// record, the replaced SPEC section (the proposal byte for byte) and the decision row — the same bytes
+// tools/apply_approvals.py writes without a token, which then finds the row and skips the record.
+// SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER · A STALE APPROVAL IS NOT
+// APPLIED: every ticked item names the text that was shown; one that changed is left out and named.
+
+// The row tools/apply_approvals.py appends to a queue's entscheidungen.md.
+export function decisionRow(nr, recordName, now = new Date()) {
+  return `| ${now.toISOString().slice(0, 16).replace("T", " ")} UTC | ${Number(nr)} | uebernommen | approval:${recordName} |\n`;
+}
+
+const APPLIED_RE = /\|\s*approval:([^\s|]+)\s*\|/g; // as applied_records() in tools/apply_approvals.py
+
+// Replace a section with the proposal, as tools/apply_approvals.py does, keeping the file's final newline.
+export function replaceSection(text, anchor, bis, proposal) {
+  const s = extractSection(text, anchor, bis);
+  if (s.error) throw new Error(s.error);
+  const out = [...s.lines.slice(0, s.from), ...proposal.replace(/\n+$/, "").split("\n"), ...s.lines.slice(s.to)].join("\n");
+  return text.endsWith("\n") && !out.endsWith("\n") ? out + "\n" : out;
+}
+
+const pad2 = (n) => String(n).padStart(2, "0");
+
+// The SPEC section an entry replaces, and the entries of its queue that must be written before it
+// because they create its anchor (queue 2026-09-24g: entry 05 creates the headings of 06–10).
+// entries: [{ nr, anchor, bis, proposalText }] of one queue. -> { current, needs } or { error, needs: [] }
+export function sectionForEntry({ specText, entries, nr, _seen = [] }) {
+  const e = entries.find((x) => x.nr === nr);
+  const own = extractSection(specText, e.anchor, e.bis);
+  if (!own.error) return { current: sectionText(own), needs: [], spec: specText };
+  const creator = entries.find((c) => c.nr !== nr && !_seen.includes(c.nr) && c.anchor.trim() !== e.anchor.trim()
+    && !extractSection(c.proposalText || "", e.anchor, null).error);
+  if (!creator) return { error: own.error, needs: [] };
+  const before = sectionForEntry({ specText, entries, nr: creator.nr, _seen: [..._seen, nr] });
+  if (before.error) return { error: own.error, needs: [] };
+  let spec;
+  try { spec = replaceSection(before.spec, creator.anchor, creator.bis, creator.proposalText); } catch { return { error: own.error, needs: [] }; }
+  const after = extractSection(spec, e.anchor, e.bis);
+  if (after.error) return { error: after.error, needs: [] };
+  return { current: sectionText(after), needs: [...before.needs, creator.nr], spec };
+}
+
+export const itemLabel = (it) => (it.kind === "spec" ? `${it.qname} ${it.nn}` : it.id);
+
+export function needsMessage(it, missing) {
+  const names = missing.map((n) => `entry ${pad2(n)}`).join(", ");
+  return `${itemLabel(it)}: its heading “${it.anchor}” is created by ${names} of this queue — accept it together with or after ${names}.`;
+}
+
+// Ticked SPEC entries whose anchor another entry of their queue creates, without that entry ticked.
+export function missingNeeds(items) {
+  const out = [];
+  for (const it of items) {
+    if (it.kind !== "spec" || !it.needs?.length) continue;
+    const have = new Set(items.filter((x) => x.kind === "spec" && x.queue === it.queue).map((x) => Number(x.nr)));
+    const missing = it.needs.filter((n) => !have.has(Number(n)));
+    if (missing.length) out.push({ item: it, missing, message: needsMessage(it, missing) });
+  }
+  return out;
+}
+
+// What the reviewer was shown, and what they ticked. Only a shown item can be ticked, and its tick
+// accepts exactly the text that was shown (AN APPROVAL NAMES THE EXACT TEXT).
+export function createReviewSession() {
+  const shown = new Map(), ticked = new Set();
+  const key = (it) => (it.kind === "spec" ? `spec:${it.queue}:${Number(it.nr)}` : `uc:${it.path}`);
+  return {
+    key,
+    show(it) { shown.set(key(it), it); return key(it); },
+    wasShown: (k) => shown.has(k),
+    get: (k) => shown.get(k),
+    isTicked: (k) => ticked.has(k),
+    tick(k, on) {
+      if (!shown.has(k)) return false;
+      if (on) ticked.add(k); else ticked.delete(k);
+      return true;
+    },
+    untick(labels) { for (const k of [...ticked]) if (labels.includes(itemLabel(shown.get(k)))) ticked.delete(k); },
+    items: () => [...ticked].map((k) => shown.get(k)),
+  };
+}
+
+// The files of one acceptance commit, computed from the commit it is written on.
+// read(path) -> text or null on that commit. -> { files, accepted, leftOut: [{ label, reason }] }
+export async function planAcceptance({ items, read, now = new Date() }) {
+  const texts = new Map(), files = new Map(), accepted = [], leftOut = [];
+  const get = async (p) => { if (!texts.has(p)) texts.set(p, await read(p)); return texts.get(p); };
+  const out = (it, reason) => leftOut.push({ label: itemLabel(it), reason });
+  for (const it of items.filter((x) => x.kind === "use-case")) {
+    const text = await get(it.path);
+    if (text === null) { out(it, "the file no longer exists"); continue; }
+    if (await gitBlobSha(text) !== it.blob) { out(it, "the file changed after it was shown — open it again"); continue; }
+    files.set(approvalPath(it.id, it.blob), recordText(useCaseRecord(it.path, it.blob)));
+    accepted.push(itemLabel(it));
+  }
+  const specItems = items.filter((x) => x.kind === "spec");
+  for (const q of [...new Set(specItems.map((x) => x.queue))]) {
+    const idx = parseQueueIndex((await get(`${q}/index.md`)) ?? "");
+    const pos = (it) => idx.entries.findIndex((e) => e.nr === Number(it.nr));
+    const ordered = specItems.filter((x) => x.queue === q).sort((a, b) => pos(a) - pos(b) || a.nr - b.nr);
+    const decPath = `${q}/entscheidungen.md`;
+    const decText = (await get(decPath)) ?? "";
+    const applied = new Set([...decText.matchAll(APPLIED_RE)].map((m) => m[1]));
+    const rows = [], written = new Set();
+    for (const it of ordered) {
+      const en = idx.entries.find((e) => e.nr === Number(it.nr));
+      if (!en) { out(it, "the entry is no longer in the queue's index"); continue; }
+      if (en.anchor !== it.anchor || (en.bis ?? null) !== (it.bis ?? null)) { out(it, "the queue's index changed after it was shown"); continue; }
+      const recPath = approvalPath(`spec-${it.qname}-${it.nn}`, it.proposalBlob), recName = recPath.split("/").pop();
+      if (applied.has(recName)) { out(it, "already written into the SPEC"); continue; }
+      const prop = await get(it.proposalPath);
+      if (prop === null) { out(it, "the proposal no longer exists"); continue; }
+      if (await gitBlobSha(prop) !== it.proposalBlob) { out(it, "the proposal changed after it was shown — open it again"); continue; }
+      const spec = await get(it.targetPath);
+      const sec = extractSection(spec ?? "", it.anchor, it.bis);
+      if (sec.error) {
+        const missing = (it.needs || []).filter((n) => !written.has(Number(n)));
+        out(it, missing.length ? `${needsMessage(it, missing).replace(/^[^:]*: /, "")} It is not written in this commit.`
+          : `${sec.error} in ${it.targetPath}`);
+        continue;
+      }
+      if (await gitBlobSha(sectionText(sec)) !== it.sectionBlob) { out(it, "the SPEC section changed after it was shown — open it again"); continue; }
+      texts.set(it.targetPath, replaceSection(spec, it.anchor, it.bis, prop));
+      files.set(it.targetPath, texts.get(it.targetPath));
+      files.set(recPath, recordText(specRecord({ queue: it.queue, entry: it.nr, proposal: it.proposalPath, blob: it.proposalBlob,
+        target: it.targetPath, anchor: it.anchor, section: it.sectionBlob })));
+      rows.push(decisionRow(it.nr, recName, now));
+      written.add(Number(it.nr));
+      accepted.push(itemLabel(it));
+    }
+    if (rows.length) files.set(decPath, (decText && !decText.endsWith("\n") ? decText + "\n" : decText) + rows.join(""));
+  }
+  return { files: [...files].map(([path, content]) => ({ path, content })), accepted, leftOut };
+}
+
+// One click: check the order, then plan and commit on the same head. readAt(head, path) -> text | null.
+// -> { commit, accepted, leftOut }; commit is null when everything was left out (nothing written).
+export async function acceptItems({ repo, branch, token, click, items, readAt, now = new Date() }) {
+  if (!items.length) throw new Error("nothing ticked");
+  const gaps = missingNeeds(items);
+  if (gaps.length) throw new Error(gaps.map((g) => g.message).join(" "));
+  let plan = null;
+  try {
+    const commit = await commitFiles({ repo, branch, token, click,
+      message: () => `accept ${plan.accepted.join(", ")} (Agent M dashboard)`,
+      files: async (head) => {
+        plan = await planAcceptance({ items, read: (p) => readAt(head, p), now });
+        return plan.files;
+      } });
+    return { commit, accepted: plan.accepted, leftOut: plan.leftOut };
+  } catch (e) {
+    if (plan && !plan.files.length) return { commit: null, accepted: [], leftOut: plan.leftOut };
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------- adding a product (UC-001)
