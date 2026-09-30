@@ -28,6 +28,7 @@ realises:
   - WHAT A PERSON DECIDES IS NOT SENT BACK
   - THE CORRECTION LOOP HAS A FIXED LIMIT
   - THE ROUNDS ARE COUNTED AND SHOWN
+  - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
 ---
 # UC-026 Generate a multi-level test battery
 
@@ -35,6 +36,8 @@ realises:
 the level that fits each of them — unit, component, system, release, user — each with its expected
 result written down before it runs, each shown to fail on a planted fault, and none duplicating a
 test the product already has.
+This is also the test part of a run (UC-043), where it starts by itself once the selected modules are
+implemented; started here, it covers what the author picks.
 
 Which level checks what follows the book (ch. 13 §4, §6, §7):
 

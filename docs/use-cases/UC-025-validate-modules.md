@@ -17,12 +17,15 @@ realises:
   - A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION
   - THE NAME IS THE ID AND IT SURVIVES
   - DIAGRAMS ARE MERMAID IN MARKDOWN
+  - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
+  - A RUN ENDS WITH THE VALIDATION OF ITS MODULES
 ---
 # UC-025 Validate modules against specification and tests
 
 **Goal.** The reviewer sees, for every module, which requirements and use cases it realises, which
 architecture decisions it follows, which code files belong to it and which tests guard it — and where
 any of these links is missing. Everything is computed from the repository; nothing is stored.
+A run (UC-043) ends with this view for the modules it built.
 
 This is the V-model's pairing (book ch. 6 §4) one level below UC-020: UC-020 pairs requirements with
 use cases; this view pairs modules with the specification above them and the tests beside them.

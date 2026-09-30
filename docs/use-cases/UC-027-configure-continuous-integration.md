@@ -20,6 +20,8 @@ realises:
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
   - A JOB RECORD STARTS NO CI RUN
+  - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
+  - A RUN SETS UP CI BEFORE IT IMPLEMENTS
 ---
 # UC-027 Configure continuous integration
 
@@ -27,6 +29,8 @@ realises:
 turns that decision into the CI configuration of the product's own server — a GitHub Actions
 workflow or a GitLab CI pipeline — so that every commit is checked the way the book describes
 (ch. 12 §5) and a release candidate is checked completely.
+A run (UC-043) generates the CI configuration by itself if the product has none, using the saved
+schedule or the book's default.
 
 ## Actors
 

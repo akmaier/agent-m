@@ -30,12 +30,16 @@ realises:
   - A REFACTORING JOB BEGINS WITHOUT A FAILING TEST
   - A REFACTORING JOB CHANGES NO EXPECTED RESULT
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
+  - A RUN FOLLOWS THE MODULES' INTERFACES
 ---
 # UC-024 Implement modules from the architecture
 
 **Goal.** An accepted module becomes code: Agent M hands an implementation job to a coding
 participant, which writes failing tests first, then the code, on a branch; the pull request is merged
 once the product's Definition of Done holds (UC-002, step 8). Every code file and every test says which module it belongs to.
+This is also the implementation part of a run (UC-043), where one job per module starts by itself, in
+the order of the modules' interfaces; started here, it is one job for the modules the author picks.
 
 The job follows test-driven development as an agent process (book ch. 13 §5): red — a failing test for
 the specified behaviour; green — the minimal code that passes it; refactor — with the tests kept green.

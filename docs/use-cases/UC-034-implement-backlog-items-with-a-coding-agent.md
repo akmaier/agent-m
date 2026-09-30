@@ -34,6 +34,9 @@ realises:
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
   - A GATE NAMES WHO DECIDES IT
   - A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS
+  - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
+  - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
+  - A RUN HAS LIMITS FIXED AT ITS START
 ---
 # UC-034 Implement backlog items with a coding agent
 
@@ -43,6 +46,9 @@ product's Definition of Done holds.
 Every gate of the model, and every gate added by a process requirement, stops the job until a person
 decides. This is the book's execution loop, "reason, act, observe", run inside a process with a
 person in the loop where the workflow says so (book ch. 11 §2, §8).
+In a product that works from a backlog, starting the selected items is a run (UC-043): the items'
+jobs start by themselves up to the limits fixed at the start, and the author clicks only where a gate
+names a person.
 
 ## Actors
 
