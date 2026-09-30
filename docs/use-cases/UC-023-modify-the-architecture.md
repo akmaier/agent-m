@@ -1,7 +1,7 @@
 ---
 id: UC-023
 title: Modify the architecture
-stage: 4 architecture
+area: 4 architecture
 actors:
   - Author
   - Reviewer

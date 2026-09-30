@@ -47,9 +47,11 @@ def use_case_problems(name: str, text: str) -> list[str]:
         return p
     if m and fields.get("id") != f"UC-{m.group(1)}":
         p.append(f"{name}: id {fields.get('id')!r} does not match the file name")
-    for key in ("title", "stage"):
+    for key in ("title", "area"):
         if not fields.get(key) or not isinstance(fields[key], str):
             p.append(f"{name}: missing {key}")
+    if "stage" in fields:
+        p.append(f"{name}: key 'stage' is now 'area'")
     for key in ("actors", "realises"):
         if not isinstance(fields.get(key), list) or not fields[key]:
             p.append(f"{name}: {key} must be a non-empty list")
@@ -67,6 +69,13 @@ def record_fields(text: str) -> dict:
     return {m.group(1): m.group(2).strip() for m in re.finditer(r"^([a-z]+):[ \t]*(.*)$", text, re.M)}
 
 
+def renamed_use_case(path: str, root: Path = ROOT) -> bool:
+    """A record names a use case's file as it was called when accepted. A use case keeps its ID when its
+    file is renamed, so a record whose file is gone still names an existing use case if its ID does."""
+    m = re.match(r"^docs/use-cases/(UC-\d{3})-[^/]+\.md$", path)
+    return bool(m) and any((root / "docs" / "use-cases").glob(f"{m.group(1)}-*.md"))
+
+
 def record_problems(name: str, text: str, root: Path = ROOT) -> list[str]:
     r = record_fields(text)
     p = []
@@ -82,7 +91,7 @@ def record_problems(name: str, text: str, root: Path = ROOT) -> list[str]:
         if k in need and r.get(k) and not HEX40.match(r[k]):
             p.append(f"{name}: {k} is not a 40-digit blob SHA")
     path = r.get("file") if kind == "use-case" else r.get("proposal")
-    if path and not (root / path).is_file():
+    if path and not (root / path).is_file() and not renamed_use_case(path, root):
         p.append(f"{name}: {path} does not exist")
     if r.get("blob") and r["blob"][:12] not in name:
         p.append(f"{name}: file name does not carry the blob prefix")

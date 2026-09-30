@@ -712,3 +712,25 @@ test("the settings export is saved as a file only — never committed, fetched o
   // Counter-proof: an export that is committed is caught.
   assert.match(body("async function saveExport(ev) {\n  const t = await exportSettings(x);\n  await commitFiles({ files: [t] });\n}\n"), LEAK);
 });
+
+// ---------------------------------------------------------------- the use-case key is `area` (was `stage`)
+
+test("the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere", () => {
+  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const STAGE = /\bstages?\b/i;
+  assert.doesNotMatch(app, STAGE);
+  assert.match(app, /fields\.area\b/);
+  assert.match(app, /<th>Area<\/th>/);
+  assert.equal(parseFrontMatter("---\nid: UC-001\narea: setup\n---\n").fields.area, "setup");
+  // Counter-proof: the old column is caught.
+  assert.match("<td>${h(u.fields.stage)}</td>", STAGE);
+});
+
+test("status 'approved' is described truly for both routes — the dashboard's own commit and the workflow", () => {
+  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const line = app.match(/^\s*approved: \["approved", "([^"]+)"\],$/m)?.[1];
+  assert.ok(line, "the label of status approved");
+  assert.doesNotMatch(line, /^Approval committed — the workflow writes it into the SPEC$/);
+  assert.match(line, /workflow/, "names the route without a token");
+  assert.match(line, /not (yet )?(written|in)/i, "says what the status means: approved, not yet in the SPEC");
+});

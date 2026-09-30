@@ -1,7 +1,7 @@
 ---
 id: UC-002
 title: Choose how the product is developed
-stage: setup
+area: setup
 actors:
   - Author
 realises:

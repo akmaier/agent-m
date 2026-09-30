@@ -1,7 +1,7 @@
 ---
 id: UC-011
 title: Hand a job to a local CLI session
-stage: runtime
+area: runtime
 actors:
   - Author
   - Local CLI session

@@ -1,7 +1,7 @@
 ---
 id: UC-028
 title: Run and review the tests of a commit
-stage: 6 tests
+area: 6 tests
 actors:
   - Reviewer
   - Running participant

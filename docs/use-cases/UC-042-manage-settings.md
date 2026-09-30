@@ -1,7 +1,7 @@
 ---
 id: UC-042
 title: Manage settings in one place
-stage: setup
+area: setup
 actors:
   - Person
   - Repository servers

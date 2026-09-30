@@ -1,7 +1,7 @@
 ---
 id: UC-033
 title: Move an issue into the backlog
-stage: evolution
+area: evolution
 actors:
   - Product Owner
   - Contributor

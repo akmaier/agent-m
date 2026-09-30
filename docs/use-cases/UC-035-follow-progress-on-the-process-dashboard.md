@@ -1,7 +1,7 @@
 ---
 id: UC-035
 title: Follow progress on the process dashboard
-stage: 5 implementation
+area: 5 implementation
 actors:
   - Author
   - Stakeholder

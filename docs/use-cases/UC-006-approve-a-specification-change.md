@@ -1,7 +1,7 @@
 ---
 id: UC-006
 title: Approve a specification change
-stage: 2 requirements
+area: 2 requirements
 actors:
   - Reviewer
   - GitHub

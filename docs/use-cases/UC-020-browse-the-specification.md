@@ -1,7 +1,7 @@
 ---
 id: UC-020
 title: Browse the specification
-stage: 2 requirements
+area: 2 requirements
 actors:
   - Reader
   - GitHub

@@ -1,7 +1,7 @@
 ---
 id: UC-013
 title: Release a version
-stage: release
+area: release
 actors:
   - Author
   - GitHub

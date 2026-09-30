@@ -1,7 +1,7 @@
 ---
 id: UC-024
 title: Implement modules from the architecture
-stage: 5 implementation
+area: 5 implementation
 actors:
   - Author
   - Coding participant

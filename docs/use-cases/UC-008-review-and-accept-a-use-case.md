@@ -1,7 +1,7 @@
 ---
 id: UC-008
 title: Review and accept a use case
-stage: 3 use cases
+area: 3 use cases
 actors:
   - Reviewer
   - GitHub

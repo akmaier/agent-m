@@ -1,7 +1,7 @@
 ---
 id: UC-004
 title: Register a requirement source in the library
-stage: 1 sources
+area: 1 sources
 actors:
   - Author
   - Fetch workflow

@@ -1,7 +1,7 @@
 ---
 id: UC-027
 title: Configure continuous integration
-stage: 6 tests
+area: 6 tests
 actors:
   - Author
   - Product repository

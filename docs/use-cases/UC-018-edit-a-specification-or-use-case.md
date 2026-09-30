@@ -1,7 +1,7 @@
 ---
 id: UC-018
 title: Edit a specification or a use case in the dashboard
-stage: evolution
+area: evolution
 actors:
   - Author
   - GitHub

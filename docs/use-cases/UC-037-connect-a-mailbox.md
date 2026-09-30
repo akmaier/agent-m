@@ -1,7 +1,7 @@
 ---
 id: UC-037
 title: Connect a mailbox
-stage: setup
+area: setup
 actors:
   - Author
   - Mail provider

@@ -1,7 +1,7 @@
 ---
 id: UC-010
 title: Run a job in GitHub Actions
-stage: runtime
+area: runtime
 actors:
   - Author
   - GitHub Actions

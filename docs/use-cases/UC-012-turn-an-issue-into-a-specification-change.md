@@ -1,7 +1,7 @@
 ---
 id: UC-012
 title: Handle an issue — bug fix or specification change
-stage: evolution
+area: evolution
 actors:
   - Contributor
   - Author

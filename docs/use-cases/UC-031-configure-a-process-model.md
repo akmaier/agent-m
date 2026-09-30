@@ -1,7 +1,7 @@
 ---
 id: UC-031
 title: Configure a process model
-stage: setup
+area: setup
 actors:
   - Author
   - GitHub

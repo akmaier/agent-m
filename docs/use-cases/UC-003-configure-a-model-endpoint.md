@@ -1,7 +1,7 @@
 ---
 id: UC-003
 title: Configure a model endpoint
-stage: setup
+area: setup
 actors:
   - Author
   - Model endpoint

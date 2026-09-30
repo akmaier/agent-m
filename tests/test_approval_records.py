@@ -24,8 +24,18 @@ class ApprovalRecords(unittest.TestCase):
             "x-" + "a" * 12 + ".md": good.replace("kind: use-case", "kind: other"),
             "y-" + "a" * 12 + ".md": good.replace(uc, "UC-999-missing.md"),
             "z-" + "a" * 12 + ".md": good.replace("a" * 40, "a" * 39),
+            "w-" + "a" * 12 + ".md": good.replace(uc, uc[:7] + "renamed-away.md").replace("UC-", "UC-9", 1),
         }.items():
             self.assertTrue(record_problems(name, text), name)
+
+    def test_a_record_of_a_renamed_use_case_stays_valid(self):
+        # A record names the file as it was called when it was accepted; a use case keeps its ID when
+        # its file is renamed (UC-010: run-a-stage → run-a-job), so the record still names that use case.
+        uc = sorted((DOCS / "use-cases").glob("UC-*.md"))[0].name
+        old_name = uc[:7] + "an-earlier-name.md"
+        self.assertEqual(record_problems("UC-x-" + "a" * 12 + ".md", GOOD_UC.format(f=old_name)), [])
+        # Counter-proof: no use case with that ID exists any more.
+        self.assertTrue(record_problems("UC-x-" + "a" * 12 + ".md", GOOD_UC.format(f="UC-999-an-earlier-name.md")))
 
 
 if __name__ == "__main__":

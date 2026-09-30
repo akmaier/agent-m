@@ -1,7 +1,7 @@
 ---
 id: UC-022
 title: Derive the system architecture from requirements and use cases
-stage: 4 architecture
+area: 4 architecture
 actors:
   - Author
   - Deriving participant

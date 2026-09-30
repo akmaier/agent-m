@@ -1,7 +1,7 @@
 ---
 id: UC-030
 title: Audit the tests of a release
-stage: release
+area: release
 actors:
   - Auditor
   - Release approver

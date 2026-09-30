@@ -1,7 +1,7 @@
 ---
 id: UC-036
 title: Inspect running jobs
-stage: 7 operation
+area: 7 operation
 actors:
   - Author
   - Gate decider

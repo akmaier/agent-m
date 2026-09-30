@@ -1,7 +1,7 @@
 ---
 id: UC-025
 title: Validate modules against specification and tests
-stage: 4 architecture
+area: 4 architecture
 actors:
   - Reviewer
   - Product repository
