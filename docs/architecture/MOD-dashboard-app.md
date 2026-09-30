@@ -1,0 +1,111 @@
+---
+id: MOD-dashboard-app
+title: Renders the dashboard pages and turns a person's click into one call of the write path
+realises:
+  - EVERY STEP EXPLAINS ITSELF
+  - ONE CLICK PER DECISION
+  - EVERY SETTING IS REACHED FROM ONE PAGE
+  - A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+  - A STORED SECRET IS HIDDEN UNTIL SHOWN
+  - A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
+  - THE SHARED PAGES ORIGIN IS DISCLOSED
+  - AN EXPORT STATES THAT IT CONTAINS SECRETS
+  - THE TOKEN LINK IS PREFILLED
+  - THE REPOSITORY CHOICE IS SPELLED OUT
+  - ONE GITHUB TOKEN SERVES EVERY FEATURE
+  - A TOKEN IS SCOPED TO WHAT IT WRITES
+  - A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+  - THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
+  - THE PAGE STATES WHAT IT SENDS WHERE
+  - EDITS ARE PREPARED ON THE DASHBOARD
+  - A REFUSED SAVE KEEPS THE EDIT
+  - ADDING A PRODUCT CREATES ITS LAYOUT
+  - AN INSTANCE IS A FORK OF AGENT M
+  - THE PAGES ROOT IS DOCS
+  - ONE REVIEW LAYOUT FOR EVERY PRODUCT
+  - A MANAGED PRODUCT NEEDS NO PAGES SITE
+  - NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY
+  - THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW
+  - A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
+  - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+  - A REGROUPING IS COMMITTED DIRECTLY
+  - SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS
+  - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
+  - A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
+  - THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE
+  - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
+  - ONE DASHBOARD SHOWS EVERY JOB
+  - PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
+  - UC-001
+  - UC-008
+  - UC-014
+  - UC-020
+  - UC-035
+  - UC-036
+  - UC-042
+follows:
+  - ARC-001
+  - ARC-002
+  - ARC-003
+  - ARC-005
+uses:
+  - MOD-review-core.deriveStatus
+  - MOD-review-core.planAcceptance
+  - MOD-review-core.reviewSession
+  - MOD-review-core.lineDiff
+  - MOD-review-core.lastAcceptedRecord
+  - MOD-review-core.checkIdentifierKept
+  - MOD-spec-queue.sectionForEntry
+  - MOD-spec-queue.deriveSpecStatus
+  - MOD-spec-queue.proposeEdit
+  - MOD-traceability.linkGraph
+  - MOD-traceability.tracesTo
+  - MOD-traceability.coverageGaps
+  - MOD-traceability.moduleRows
+  - MOD-traceability.architectureImpact
+  - MOD-traceability.componentDiagram
+  - MOD-groups.hierarchy
+  - MOD-groups.applyMoves
+  - MOD-git-host.readSnapshot
+  - MOD-git-host.commitFiles
+  - MOD-git-host.webLinks
+  - MOD-git-host.tokenRefusal
+  - MOD-settings-store.browserStore
+  - MOD-settings-store.settingKeys
+  - MOD-settings-store.exportSettings
+  - MOD-settings-store.readSettingsFile
+  - MOD-settings-store.mergeSettings
+  - MOD-job-records.jobState
+  - MOD-run-engine.runPlan
+  - MOD-process-model.progress
+  - MOD-bridge-tunnel.tunnelCommands
+  - MOD-bridge-server.bridgeClient
+  - MOD-job-definitions.disclosure
+provides: []
+---
+# MOD-dashboard-app Renders the dashboard pages and turns a person's click into one call of the write path
+
+## Responsibility
+
+The UI layer of the dashboard: the views, the forms, the folded explanations, and the wiring from a
+click to one call of `MOD-git-host.commitFiles` or a participant driver. It holds no logic that a
+test could check without a browser — that lives in the core modules it calls — and it never touches
+storage or `fetch` directly (the repository checks already enforce both).
+
+**Current state.** `docs/assets/review-app.mjs` is this module, plus the HTML builders now in
+`review-core.mjs`: `stepHtml`, `diffHtml`, `prerequisitesHtml`, `impactHtml`, `browserSettingsHtml`,
+`secretFieldHtml`, `tokenBannerHtml`, the guidance texts (`TOKEN_GUIDANCE`, `tokenLinkUrl`,
+`repositoryChoiceSteps`, `extendTokenSteps`, `gitlabTokenSteps`, `gitlabNoProjectTokens`,
+`sharedOriginNotice`, `exportNotice`, `pseudonymisationOffNotice`), `missingLayout`, `addProduct`,
+the product-settings helpers (`parseProductSettings`, `setProductSetting`, `savePseudonymisation`,
+`parseCollaborators`, `formatCollaborators`, `addCollaborator`, `saveCollaborators`) and
+`expiryWarning`. `index.html` and `style.css` belong to it. `ADDING A PRODUCT CREATES ITS LAYOUT`
+includes `docs/architecture/` (UC-001 step 5); `missingLayout` does not write it yet.
+
+## Interfaces
+
+None: it is the page. Its entry points are the views of `docs/index.html` (use cases, architecture, SPEC changes, specification browser, tests, jobs, progress, mail, settings), each routed by the URL fragment.
+
+Uses, as declared above: `MOD-review-core.deriveStatus`, `MOD-review-core.planAcceptance`, `MOD-review-core.reviewSession`, `MOD-review-core.lineDiff`, `MOD-review-core.lastAcceptedRecord`, `MOD-review-core.checkIdentifierKept`, `MOD-spec-queue.sectionForEntry`, `MOD-spec-queue.deriveSpecStatus`, `MOD-spec-queue.proposeEdit`, `MOD-traceability.linkGraph`, `MOD-traceability.tracesTo`, `MOD-traceability.coverageGaps`, `MOD-traceability.moduleRows`, `MOD-traceability.architectureImpact`, `MOD-traceability.componentDiagram`, `MOD-groups.hierarchy`, `MOD-groups.applyMoves`, `MOD-git-host.readSnapshot`, `MOD-git-host.commitFiles`, `MOD-git-host.webLinks`, `MOD-git-host.tokenRefusal`, `MOD-settings-store.browserStore`, `MOD-settings-store.settingKeys`, `MOD-settings-store.exportSettings`, `MOD-settings-store.readSettingsFile`, `MOD-settings-store.mergeSettings`, `MOD-job-records.jobState`, `MOD-run-engine.runPlan`, `MOD-process-model.progress`, `MOD-bridge-tunnel.tunnelCommands`, `MOD-bridge-server.bridgeClient`, `MOD-job-definitions.disclosure`.
+
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
