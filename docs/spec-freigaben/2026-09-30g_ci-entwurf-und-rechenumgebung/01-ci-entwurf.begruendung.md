@@ -31,3 +31,11 @@ still decided by a person, now at UC-006 rather than in the editor.
 `docs/`, `tests/`, `tools/` and `SPEC.md`): `SPEC.md`, UC-019. UC-019 alternative flow 6b and its
 postcondition are updated in the same commit as this queue, and open for review on the dashboard. The check
 file `tests/test_prompted_change_context.py` does not exist yet; it follows with the implementation.
+
+**Format corrected after acceptance (PO, 2026-09-30).** This entry was first anchored on the rule's bold
+first line, `**A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT** *(PO A. Maier, 2026-09-24)*`, up to
+`## 11.` — unlike every other entry, which begins at a heading, as the index column says. At the PO's request
+it now has the usual form: anchor `## 10. Review on GitHub Pages`, the whole §10 as it stands. No word of the
+SPEC changed: the accepted text is contained unchanged in the new proposal, and the SPEC is as the PO
+accepted it on 2026-09-30 at 17:50 UTC. The first form stays in the git history
+(`git show fe95907:docs/spec-freigaben/2026-09-30g_ci-entwurf-und-rechenumgebung/01-ci-entwurf.md`).

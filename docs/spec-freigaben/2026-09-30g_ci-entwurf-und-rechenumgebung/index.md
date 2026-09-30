@@ -13,5 +13,5 @@ question 4 → option b).
 
 | Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |
 |---|---|---|---|---|
-| 01 | `SPEC.md` | **A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT** *(PO A. Maier, 2026-09-24)* | ## 11. Architecture and implementation | — |
+| 01 | `SPEC.md` | ## 10. Review on GitHub Pages | — | — |
 | 02 | `SPEC.md` | ## 15. Product resources | — | — |
