@@ -29,8 +29,9 @@ operates no server, no account system and no database.
 the reader's interest in it is a liability. GitHub Pages plus the reader's own repository has no
 such tail.
 *Check:* `tests/test_no_backend.py` — the built site contains no call to an origin other than the
-configured endpoints, the repository servers of the instance and its products, the local bridge, and
-the package registries and resource hosts the page names before it calls them.
+configured endpoints, the repository servers of the instance and its products, the mail provider's API
+and sign-in, the local bridge, the jump host's HTTPS address, and the package registries and resource
+hosts the page names before it calls them.
 
 **ARTIFACTS ARE MARKDOWN** *(Vibe Coding, ch. 9 §6)*
 Every artifact Agent M produces is Markdown, with diagrams written as Mermaid inside it.
@@ -738,9 +739,12 @@ configuration. A reader facing an opaque error will conclude the tool is broken.
 **BROWSER REACHABILITY IS MEASURED, NOT ASSUMED** *(PO A. Maier, 2026-09-23)*
 Before a runtime is released, the browser behaviour it depends on is measured on current browsers
 and the result is recorded in `docs/measurements/`.
-*Occasion:* the two mechanisms this design rests on — cross-origin calls to model endpoints, and
-Private Network Access preflights or SSH for the local bridge — are documented and neither is
-verified here. A design built on an unverified mechanism fails late and expensively.
+*Occasion:* the mechanisms this design rests on — cross-origin calls to model endpoints, a page's calls
+to the local bridge (governed from Chrome 142, Edge 143 and Firefox 153 by a Local Network Access
+permission, which replaced Chrome's Private Network Access preflights, and blocked by Safari as mixed
+content), the route over HTTPS through the jump host, and SSH — are documented and not verified here
+(documentation read 2026-09-30: `docs/measurements/2026-09-30_architecture-open-points.md`). A design built on an unverified mechanism fails late
+and expensively.
 *Check:* `tests/test_measurement_present.py` — a released runtime has a dated measurement file.
 
 **AGENT M WORKS WITHOUT A LOCAL INSTALLATION** *(PO A. Maier, 2026-09-30)*
@@ -762,15 +766,17 @@ WHERE`). Such a job is billed per call to the agent's provider; the dashboard sa
 *Check:* `tests/test_runtime_levels.py` — the generated job workflow reads the key only from the named
 secret; counter-proof: a workflow with the key written into it fails.
 
-**THE BRIDGE IS ONE FILE PER PLATFORM** *(PO A. Maier, 2026-09-30, extended 2026-09-30)*
-The local bridge is delivered as one file for each of Windows, macOS and Linux — an executable, a disk
-image or an installer —, and needs no other runtime installed.
+**THE BRIDGE IS ONE FILE PER PLATFORM** *(PO A. Maier, 2026-09-30, extended 2026-09-30, narrowed 2026-09-30)*
+The local bridge is delivered as one file for each of Windows on x86-64, macOS and Linux — an executable,
+a disk image or an installer —, and needs no other runtime installed.
 *Occasion:* PO, 2026-09-30: "Single binary is very appealing because it is easy to install on windows and
 Mac clients. Otherwise, you need to be a computer scientist to operate the local backend." Measured
 2026-09-30: `deno compile` embeds a program into one executable for Windows, macOS (x86-64, ARM64) and
 Linux, cross-compiled from any one host. PO, 2026-09-30, on ARC-011: an installer counts as the one file —
 the build that gives the bridge its tray icon and window (`THE BRIDGE RUNS AS AN APP`) is documented to
-yield a folder or an `.msi` installer on Windows, not a single executable.
+yield a folder or an `.msi` installer on Windows, not a single executable. PO, 2026-09-30: Windows on ARM
+"is not really a platform that is used for AI agents; i would defer that at present" — `deno desktop` has
+no target for it (`docs/measurements/2026-09-30_architecture-open-points.md`, point 1).
 *Check:* `tests/test_bridge_release.py` — the release build yields one file per platform, and each starts,
 after installation where it is an installer, on a machine without Node or Deno.
 
@@ -791,11 +797,14 @@ file they may trust.
 *Check:* `tests/test_bridge_release.py` — the release refuses to publish a file whose signature or
 notarisation cannot be verified.
 
-**THE BRIDGE RUNS AS AN APP** *(PO A. Maier, 2026-09-30)*
-The bridge is started by a double click and runs with an icon in the menu bar or the system tray, from
-which it is paused, quit and opened; it needs no command line.
+**THE BRIDGE RUNS AS AN APP** *(PO A. Maier, 2026-09-30, extended 2026-09-30)*
+The bridge is started by a double click and runs with an icon in the menu bar or the system tray — or,
+where the system shows no tray icon, with its window open —, from which it is paused, quit and opened; it
+needs no command line.
 *Occasion:* the person may never have used a terminal; everything the bridge asks of them — pairing,
-tunnel settings, which agents to use — happens in its own window.
+tunnel settings, which agents to use — happens in its own window. PO, 2026-09-30: where the tray fails,
+the window takes its place — documented for KDE Plasma 6 on Wayland (Deno issue #36502), and a tray that
+cannot be created fails without an error, so the bridge checks for it (`docs/measurements/2026-09-30_architecture-open-points.md`, point 1).
 *Check:* no automatic check; at review.
 
 **THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW** *(PO A. Maier, 2026-09-30)*
