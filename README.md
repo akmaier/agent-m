@@ -82,8 +82,8 @@ it. One Agent M instance manages several products in parallel; each keeps its ow
 
 ## Licence
 
-Not yet chosen. Until a `LICENSE` file is added, default copyright applies and the contents are
-not licensed for reuse.
+Agent M is published under the MIT licence — see [`LICENSE`](LICENSE). Products built with it may
+carry any licence of their own.
 
 ---
 

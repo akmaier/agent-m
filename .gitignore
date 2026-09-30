@@ -15,3 +15,7 @@ config.local.*
 .venv/
 __pycache__/
 *.pyc
+
+# Product clones in a local checkout (SPEC §10 A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER)
+/products/*
+!/products/README.md
