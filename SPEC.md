@@ -893,6 +893,15 @@ selection (`A TOKEN IS SCOPED TO WHAT IT WRITES`), and a GitLab product keeps it
 (`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`).
 *Check:* `tests/test_token_scope_documented.py` — the prefilled link asks for exactly these
 permissions.
+
+**THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS** *(PO A. Maier, 2026-09-30)*
+The jump host's name, SSH user and port range, and for each remote session its name, port and bridge
+token, are kept in the browser's settings.
+*Occasion:* PO, 2026-09-30: "We need to be able to configure the keys for this in the settings as well as
+the hostname and the port range that the CLI sessions will use." They are what the dashboard needs to
+reach a session and to write its tunnel commands (`THE DASHBOARD WRITES THE TUNNEL COMMANDS`); like every
+browser setting they are tested, cleared and exported on the settings page.
+*Check:* `tests/test_settings_page.py`
 ## 8. Versioning
 
 **CALENDAR VERSIONS** *(PO A. Maier, 2026-09-23)*
