@@ -19,6 +19,10 @@ realises:
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
+  - A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF
+  - AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
+  - AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
 ---
 # UC-041 Close a sprint with review and retrospective
 
@@ -36,6 +40,9 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
 
 ## Actors
 
+- **Closer** — whoever the Product Owner assigned the close to when the sprint started (UC-032): the
+  Product Owner themselves by default, another person, or an agent or model endpoint from the
+  instance's participants (UC-017). An agent closes by itself when the sprint ends (alternative flow 1a).
 - **Product Owner** — leads the review, decides what happens with unfinished items and, if the sprint
   has a branch of its own, whether its increment is merged into the default branch.
 - **Scrum team** — the Developers (people and agents) and the Scrum Master, who keeps both events
@@ -99,6 +106,21 @@ sequenceDiagram
 
 ## Alternative flows
 
+- **1a. The close is assigned to an agent.** When the sprint's end date is reached, the agent's job
+  starts by itself — no click. It does steps 2–6 in the Product Owner's place:
+  - the **review** from what the repository and the issue tracker hold — the increment, the items not
+    done, issues and mails that arrived during the sprint as feedback —, naming each source, and stating
+    that no stakeholder took part unless their feedback is recorded somewhere it read;
+  - the **unfinished items**: each goes into the next sprint if it is still ready and fits the next
+    sprint's selection, otherwise back to the backlog, with the reason recorded;
+  - the **retrospective** from the sprint's numbers — failed and retried jobs, correction rounds, time
+    waiting at gates, flaky tests, cost where known — with its findings recorded at once, and every change
+    it recommends to the process model, the Definition of Done or an agent's instructions written as a
+    proposal that a person accepts (UC-031, UC-002, UC-017); nothing of the process changes by itself.
+
+  The job records the close under the agent's name, like any job (UC-036). Merging a sprint branch
+  (step 7) stays with the role the model names for that gate — the Product Owner, unless the product
+  configured another decider (UC-002).
 - **2a. No item is done.** The review still happens and is recorded; the increment is empty, and the
   review says so. The retrospective is where the reason belongs.
 - **3a. There are no stakeholders this time.** The review is held by the team and the Product Owner;

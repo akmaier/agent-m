@@ -20,6 +20,7 @@ realises:
   - THE PAGE STATES WHAT IT SENDS WHERE
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
 ---
 # UC-032 Maintain the backlog
 
@@ -66,7 +67,8 @@ under the work-in-progress limit in Kanban (book ch. 7 §4–5).
    Agent M commits the new order.
 6. **Scrum:** the Product Owner chooses **Plan sprint**. Agent M shows the ready items from the top.
    Items that are *waiting for acceptance* are shown but cannot be selected. The Product Owner sets
-   the sprint goal, the dates (the length comes from the model) and the selection, and presses
+   the sprint goal, the dates (the length comes from the model), the selection, and who closes the
+   sprint — themselves by default, or a participant such as an agent (UC-041) —, and presses
    **Start sprint**: one click. Agent M commits the sprint to `docs/backlog/sprints/`. From now on,
    implementation jobs start only for the selected items (UC-034).
 7. **Kanban:** there is no sprint. The board shows the columns of the model, for example Backlog,
