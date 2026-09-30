@@ -16,6 +16,10 @@ import {
   specRecord, newFileUrl, editUrl, blobUrl, parseQueueIndex,
   parseDecisions, deriveUseCaseStatus, deriveSpecStatus, acceptItems, createReviewSession, sectionForEntry,
   missingNeeds, itemLabel, needsMessage,
+  browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
+  PASSPHRASE_NOTICE, exportSettings, readSettingsFile, mergeSettings, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
+  pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
+  addCollaborator, removeCollaborator, saveCollaborators,
 } from "./review-core.mjs";
 
 const API = "https://api.github.com";
@@ -313,9 +317,10 @@ async function runAccept(ev, items, b, out) {
     out.textContent = "Reloading…";
     await reloadAndRoute();
   } catch (e) {
+    noteRefusal(e);
     out.textContent = /403|404/.test(e.message)
       ? `Your token cannot write to ${T.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
-      : e.message;
+      : errorText(e);
     b.disabled = false;
   }
 }
@@ -372,7 +377,7 @@ function wireCommon(root, original) {
         files: [{ path: b.dataset.editSave, content: text, expectBlob: b.dataset.editBlob || null }] });
       out.innerHTML = `Saved — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>. Reloading…`;
       await reloadAndRoute();
-    } catch (e) { out.textContent = e.message; b.disabled = false; }
+    } catch (e) { noteRefusal(e); out.textContent = errorText(e); b.disabled = false; }
   });
   ed.querySelector("[data-edit-commit]")?.addEventListener("click", async (ev) => {
     const text = ta.value.endsWith("\n") ? ta.value : ta.value + "\n";
@@ -417,7 +422,8 @@ async function viewUseCases() {
     ${token() ? "" : `<section class="panel setup-banner"><h3>Finish setting up your instance</h3>
       <p>This browser has no key for <strong>${h(T.instance)}</strong> yet. Without one you can read and review;
       accepting and editing then go through GitHub's own pages, and products cannot be added.</p>
-      <p><a class="btn primary" href="#setup">Set up now</a></p></section>`}
+      <p><a class="btn primary" href="#setup">Set up now</a> <a class="btn" href="#settings">Import settings</a>
+        <span class="muted small">— from a file exported in another browser (Settings → Export settings).</span></p></section>`}
     <section class="head"><h2>Use cases</h2><p>${counts(state.useCases)}</p></section>
     ${batchBar()}
     <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th><th>Stage</th><th>Realises</th><th>Status</th></tr></thead>
@@ -575,57 +581,323 @@ addresses; the instance repository names no product.
 `)}</article>`;
 }
 
-// ---------------------------------------------------------------- settings (SPEC §7)
+// ---------------------------------------------------------------- settings (SPEC §7, UC-042)
+//
+// EVERY SETTING IS REACHED FROM ONE PAGE: this browser's settings (browserSettingsHtml, one row per stored
+// key), the selected product's settings in its repository (docs/settings.md, docs/collaborators.md), and
+// export and import of everything this browser keeps. Browser settings change in localStorage through the
+// store; product settings change only by a commit on a click (commitFiles).
+
+const shownSecrets = new Set(); // keys revealed by Show on this page; any other view hides them again
+const tokenState = { ok: null, refused: false }; // this page's last answer from GitHub about the token
+
+// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a 401 anywhere marks the token refused, and the
+// line at the top of every view says which token and where it is renewed.
+function noteRefusal(e) {
+  if (tokenRefusal(e)) {
+    tokenState.refused = true;
+    tokenState.ok = null;
+    showBanner();
+    if (document.getElementById("browser-settings")) renderBrowserSettings();
+  }
+  return e;
+}
+const errorText = (e) => tokenRefusal(e) ? `${tokenRefusal(e).text} Renew it with the link at the top of the page.` : e.message;
+function showBanner() {
+  const el = document.getElementById("token-banner");
+  if (el) el.innerHTML = token() ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: tokenState.refused }) : "";
+}
+const today = () => new Date().toISOString().slice(0, 10);
 
 function viewSettings() {
   const owner = T.instance.split("/")[0];
   const stored = token();
   main().innerHTML = `
     <section class="head"><h2>Settings</h2>
-      <p class="muted">Stored only in this browser. Nothing here is sent anywhere until a page reads from GitHub.</p></section>
+      <p class="muted">Every setting Agent M uses: what this browser keeps, what the product <strong>${h(T.repo)}</strong>
+      keeps in its repository, and a file to move this browser's settings to another one.</p></section>
     <section class="panel notice">
       <h3>Before you store anything</h3>
       <p>${h(sharedOriginNotice(owner))}</p>
       <label><input type="checkbox" id="ack"> I have read this.</label>
     </section>
     <section class="panel">
-      <h3>GitHub token</h3>
-      <p>Status: <strong id="token-status">${stored ? `stored (…${h(stored.slice(-4))})` : "none stored"}</strong></p>
-      <p><a class="btn" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
-      <ol class="choices">${repositoryChoiceSteps(T.instance, null).map((s) => `<li>${h(s)}</li>`).join("")}</ol>
-      <details class="explain"><summary>What is this?</summary><pre class="guidance">${h(TOKEN_GUIDANCE)}</pre></details>
-      <p><input type="password" id="token-input" autocomplete="off" spellcheck="false" disabled
-        placeholder="github_pat_…" aria-label="GitHub token"></p>
-      <p>
-        <button class="btn primary" id="token-save" disabled>Store token</button>
-        <button class="btn" id="token-test" ${stored ? "" : "disabled"}>Test: read ${h(T.instance)}</button>
-        <button class="btn" id="token-clear">Clear everything Agent M stored</button>
-      </p>
+      <h3>This browser</h3>
+      <div id="browser-settings"></div>
+      <div id="token-change" ${stored ? "hidden" : ""}>
+        <h4>${stored ? "Change the GitHub token" : "Store a GitHub token"}</h4>
+        <p><a class="btn" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
+        <ol class="choices">${repositoryChoiceSteps(T.instance, null).map((x) => `<li>${h(x)}</li>`).join("")}</ol>
+        <details class="explain"><summary>What is this?</summary><pre class="guidance">${h(TOKEN_GUIDANCE)}</pre></details>
+        <p><input type="password" id="token-input" autocomplete="off" spellcheck="false" disabled
+          placeholder="github_pat_…" aria-label="GitHub token"></p>
+        <p><label>Expires on <input type="date" id="token-expires" value="${h(defaultExpiry())}" disabled></label>
+          <span class="muted small">Preset to the ${TOKEN_DAYS} days of the prefilled link — correct it if you chose another date on GitHub.
+          The dashboard warns ${EXPIRY_WARN_DAYS} days before.</span></p>
+        <p><button class="btn primary" id="token-save" disabled>Store token</button></p>
+      </div>
       <p id="token-msg" class="muted"></p>
+      <details class="explain"><summary>What is this?</summary><div>These settings belong to you on this computer. They are kept
+        in this browser's <code>localStorage</code> only — never in a cookie, an address or a repository — and every other
+        GitHub Pages site of ${h(owner)} can read them. <em>Clear</em> removes an entry from the browser's storage itself.</div></details>
+    </section>
+    <section class="panel" id="product-settings"><h3>Product · ${h(T.repo)}</h3><p class="muted">Reading its settings…</p></section>
+    <section class="panel">
+      <h3>Export and import</h3>
+      <p class="notice">${h(exportNotice(store.entries()))}</p>
+      <p><label>Passphrase (optional) <input type="password" id="export-pass" autocomplete="new-password"></label>
+        <label>Repeat it <input type="password" id="export-pass2" autocomplete="new-password"></label></p>
+      <p class="muted small">${h(PASSPHRASE_NOTICE)}</p>
+      <p><button class="btn primary" id="export-go">Export settings</button></p>
+      <p><label>Settings file <input type="file" id="import-file" accept=".json,application/json"></label>
+        <label>Passphrase, if the file is locked <input type="password" id="import-pass" autocomplete="off"></label></p>
+      <p><button class="btn" id="import-go" disabled>Import settings</button>
+        <span class="muted small">Tick “I have read this” at the top first — an import stores tokens in this browser.</span></p>
+      <p id="io-msg" class="muted"></p>
+      <details class="explain"><summary>What is this?</summary><div><em>Export</em> saves one file, on this computer only, with
+        everything listed under “This browser” — the token itself included — so that another browser is set up by one
+        <em>Import</em>. Agent M writes the file to no repository and puts it in no address. Locked with a passphrase, it is
+        encrypted in this browser (PBKDF2 and AES-GCM of the Web Crypto API). An import keeps what this browser already has and
+        adds only what is missing, and lists both.</div></details>
+    </section>
+    <section class="panel">
+      <h3>Clear everything in this browser</h3>
+      <p><button class="btn" id="token-clear">Clear everything Agent M stored</button></p>
+      <details class="explain"><summary>What is this?</summary><div>Removes the token, its date and the product list from this
+        browser's storage. Nothing in any repository changes.</div></details>
     </section>`;
-  const ack = document.getElementById("ack"), input = document.getElementById("token-input");
-  const save = document.getElementById("token-save"), msg = document.getElementById("token-msg");
-  ack.addEventListener("change", () => { input.disabled = !canStore(ack.checked); save.disabled = !canStore(ack.checked); });
-  save.addEventListener("click", () => {
-    if (!canStore(ack.checked) || !input.value.trim()) return;
-    store.setToken(input.value);
-    input.value = "";
-    viewSettings();
-    document.getElementById("token-msg").textContent = "Stored. Reload to read with it.";
-  });
-  document.getElementById("token-test").addEventListener("click", async () => {
+  renderBrowserSettings();
+  wireSettings();
+  loadProductSettings();
+}
+
+function renderBrowserSettings() {
+  const box = document.getElementById("browser-settings");
+  box.innerHTML = browserSettingsHtml({ entries: store.entries(), shown: [...shownSecrets], tokenState });
+  const say = (key, text) => { box.querySelector(`[data-result="${key}"]`).textContent = text; };
+  box.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.show;
+    if (shownSecrets.has(k)) shownSecrets.delete(k); else shownSecrets.add(k);
+    renderBrowserSettings();
+  }));
+  box.querySelectorAll("[data-change]").forEach((b) => b.addEventListener("click", () => {
+    document.getElementById("token-change").hidden = false;
+    document.getElementById("ack").focus();
+  }));
+  box.querySelector(`[data-test="agent-m.github-token"]`)?.addEventListener("click", async () => {
+    say("agent-m.github-token", `Reading ${T.instance}…`);
     try {
       await fetchText(`${API}/repos/${T.instance}`, {}, token());
-      msg.textContent = `The token can read ${T.instance}.`;
-    } catch (e) { msg.textContent = `The token cannot read ${T.instance}: ${e.message}`; }
+      Object.assign(tokenState, { ok: today(), refused: false });
+      showBanner();
+      renderBrowserSettings();
+      say("agent-m.github-token", `GitHub accepted the token: it can read ${T.instance}.`);
+    } catch (e) {
+      noteRefusal(e);
+      renderBrowserSettings();
+      say("agent-m.github-token", `The token cannot read ${T.instance}: ${errorText(e)}`);
+    }
   });
-  document.getElementById("token-clear").addEventListener("click", () => {
-    store.clear();
+  box.querySelector(`[data-test="agent-m.products"]`)?.addEventListener("click", async () => {
+    say("agent-m.products", "Checking each product…");
+    const res = await Promise.all(state.products.map(async (p) => [p.repo, await checkReach(p.repo)]));
+    box.querySelector(`[data-result="agent-m.products"]`).innerHTML = res.map(reachLine).join("<br>");
+  });
+  box.querySelector(`[data-clear="agent-m.github-token"]`)?.addEventListener("click", () => {
+    if (!confirm("Clear the GitHub token from this browser? Without it, accepting and editing go through GitHub's own pages, " +
+      "products cannot be added, and private repositories cannot be read.")) return;
+    store.clearToken();
+    Object.assign(tokenState, { ok: null, refused: false });
+    shownSecrets.clear();
+    showBanner();
+    viewSettings();
+    document.getElementById("token-msg").textContent = token() ? "Clearing failed — the token is still stored." : "The token is gone from this browser.";
+  });
+  box.querySelector(`[data-clear="agent-m.products"]`)?.addEventListener("click", () => {
+    if (!confirm("Clear the product list of this browser? The products' repositories do not change; add them again to see them here.")) return;
+    store.clearProducts();
     loadProducts();
     renderProductSelector();
+    renderBrowserSettings();
+  });
+  box.querySelectorAll("[data-remove-product]").forEach((b) => b.addEventListener("click", () => {
+    if (!confirm(`Remove ${b.dataset.removeProduct} from this browser's list? Its repository does not change.`)) return;
+    store.removeProduct(b.dataset.removeProduct);
+    loadProducts();
+    renderProductSelector();
+    renderBrowserSettings();
+  }));
+}
+
+function wireSettings() {
+  const ack = document.getElementById("ack"), input = document.getElementById("token-input");
+  const expires = document.getElementById("token-expires"), save = document.getElementById("token-save");
+  const msg = document.getElementById("token-msg"), importGo = document.getElementById("import-go");
+  ack.addEventListener("change", () => {
+    input.disabled = expires.disabled = save.disabled = importGo.disabled = !canStore(ack.checked);
+  });
+  save.addEventListener("click", () => {
+    const v = input.value.trim(), exp = expires.value;
+    if (!canStore(ack.checked) || !v) return;
+    if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { msg.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) { msg.textContent = "Enter the date the token expires — GitHub showed it when you created the token."; return; }
+    store.setToken(v, exp);
+    input.value = "";
+    Object.assign(tokenState, { ok: null, refused: false });
+    showBanner();
+    viewSettings();
+    document.getElementById("token-msg").textContent = "Stored. Press Test to check it; reload to read with it.";
+  });
+  document.getElementById("token-clear").addEventListener("click", () => {
+    if (!confirm("Clear everything Agent M stored in this browser — the token, its date and the product list?")) return;
+    store.clear();
+    Object.assign(tokenState, { ok: null, refused: false });
+    shownSecrets.clear();
+    loadProducts();
+    renderProductSelector();
+    showBanner();
     viewSettings();
     document.getElementById("token-msg").textContent = token() ? "Clearing failed — token still stored." : "Nothing stored any more.";
   });
+  document.getElementById("export-go").addEventListener("click", saveExport);
+  importGo.addEventListener("click", async () => {
+    const out = document.getElementById("io-msg"), file = document.getElementById("import-file").files[0];
+    if (!canStore(ack.checked)) return;
+    if (!file) { out.textContent = "Choose the settings file first."; return; }
+    try {
+      const settings = await readSettingsFile(await file.text(), document.getElementById("import-pass").value);
+      const m = mergeSettings(store.entries(), settings);
+      store.putEntries(m.put);
+      loadProducts();
+      renderProductSelector();
+      showBanner();
+      viewSettings();
+      document.getElementById("io-msg").innerHTML = `Imported.<br>Added: ${h(m.added.join(", ") || "nothing — this browser had everything")}.` +
+        `${m.kept.length ? `<br>Kept as this browser had them: ${h(m.kept.join(", "))}.` : ""}` +
+        `${m.ignored.length ? `<br>Not known to this dashboard, not stored: ${h(m.ignored.join(", "))}.` : ""}`;
+    } catch (e) { out.textContent = e.message; }
+  });
+}
+
+// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS: the file is handed to the browser's download,
+// on this computer only — never committed, never sent, never put into an address.
+async function saveExport() {
+  const out = document.getElementById("io-msg");
+  const p1 = document.getElementById("export-pass").value, p2 = document.getElementById("export-pass2").value;
+  if (p1 !== p2) { out.textContent = "The two passphrases differ — nothing was saved."; return; }
+  out.textContent = p1 ? "Locking the file…" : "Saving…";
+  const text = await exportSettings(store.entries(), { passphrase: p1 });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  a.download = `agent-m-settings-${today()}${p1 ? "-locked" : ""}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  out.textContent = p1 ? "Saved, locked with your passphrase." : "Saved. The file holds your token in clear — keep it like a password.";
+}
+
+// UC-042 4–5: the selected product's settings, read from its repository at the loaded commit and changed
+// only by a commit on a click. Without a token the section is read-only (UC-042 3a).
+async function loadProductSettings() {
+  const box = document.getElementById("product-settings");
+  if (!box) return;
+  if (!state.commit) {
+    // Opened directly on #settings, the page renders before the repository is read; start() calls again.
+    if (state.loadError) box.innerHTML = `<h3>Product · ${h(T.repo)}</h3><p class="warn">${h(T.repo)} could not be read
+      (${h(errorText(state.loadError))}), so its settings cannot be shown.</p>`;
+    return;
+  }
+  const entry = (p) => state.tree.find((e) => e.path === p) || null;
+  const sEntry = entry(PRODUCT_SETTINGS_PATH), cEntry = entry(COLLABORATORS_PATH);
+  let settingsText = null, collText = null, reach;
+  try {
+    [settingsText, collText, reach] = await Promise.all([sEntry ? raw(sEntry.path) : null, cEntry ? raw(cEntry.path) : null, checkReach(T.repo)]);
+  } catch (e) {
+    noteRefusal(e);
+    box.innerHTML = `<h3>Product · ${h(T.repo)}</h3><p class="warn">${h(errorText(e))}</p>`;
+    return;
+  }
+  if (!document.body.contains(box)) return;
+  const on = pseudonymisationOn(settingsText), people = parseCollaborators(collText);
+  const isPublic = reach.ok ? !reach.priv : false, canWrite = Boolean(token());
+  const address = `https://github.com/${T.repo}`;
+  box.innerHTML = `
+    <h3>Product · ${h(T.repo)}</h3>
+    <p class="muted small">Kept in <code>${h(T.repo)}</code> itself, so they bind everyone who works on it. Saving is one commit under your account.
+      ${canWrite ? "" : `Read-only: this browser has no token. <a href="#add/${h(encodeURIComponent(address))}">Give your token access to it</a> (UC-001).`}</p>
+    <div class="setting">
+      <h4>Pseudonymisation — <span class="state">${on ? "on (the default)" : "off"}</span></h4>
+      <p class="muted small">Kept in <code>${h(PRODUCT_SETTINGS_PATH)}</code>${sEntry ? "" : " (not written yet — on is the default)"}.</p>
+      ${!canWrite ? "" : on ? `
+      <p><button class="btn" id="pseudo-off">Switch off…</button></p>
+      <div id="pseudo-confirm" hidden>
+        <p class="notice">${h(pseudonymisationOffNotice({ repo: T.repo, isPublic }))}</p>
+        <p><label><input type="checkbox" id="pseudo-ack"> I have read this.</label></p>
+        <p><button class="btn primary" id="pseudo-save" disabled>Save: pseudonymisation off</button></p>
+      </div>` : `
+      <p class="muted small">${h(PSEUDONYMISATION_ON_NOTE)}</p>
+      <p><button class="btn primary" id="pseudo-on">Switch on and save</button></p>`}
+      <p class="result muted" id="pseudo-msg"></p>
+      <details class="explain"><summary>What is this?</summary><div>With pseudonymisation on, report data from mails reaches this
+        product's issues and repository only with names, addresses and other details replaced by stand-ins. Switch it off only
+        where the repository is a protected, non-public data space.</div></details>
+    </div>
+    <div class="setting">
+      <h4>Collaborators — ${people.length ? `${people.length} named` : "none named"}</h4>
+      <p class="muted small">Kept in <code>${h(COLLABORATORS_PATH)}</code>. A person is named in this repository only by their
+        account, or by name if they are listed here as having agreed.</p>
+      ${people.length ? `<table class="list"><thead><tr><th>Name</th><th>Account</th><th>Agreed on</th>${canWrite ? "<th></th>" : ""}</tr></thead><tbody>
+        ${people.map((c) => `<tr><td>${h(c.name)}</td><td>@${h(c.account)}</td><td>${h(c.agreed)}</td>
+          ${canWrite ? `<td><button class="btn small" data-remove-collaborator="${h(c.account)}">Remove</button></td>` : ""}</tr>`).join("")}
+      </tbody></table>` : ""}
+      ${canWrite ? `<p><label>Name <input id="coll-name" autocomplete="off"></label>
+        <label>Account <input id="coll-account" placeholder="github-login" autocomplete="off" spellcheck="false"></label>
+        <label>Agreed on <input type="date" id="coll-agreed" value="${h(today())}"></label></p>
+      <p><label><input type="checkbox" id="coll-consent"> This person has agreed to be named.</label></p>
+      <p><button class="btn primary" id="coll-add">+ Collaborator and save</button></p>` : ""}
+      <p class="result muted" id="coll-msg"></p>
+      <details class="explain"><summary>What is this?</summary><div>Commits already name people by their account. A name
+        beyond that is its bearer's decision, like being a co-author: it is written down here, with the date they agreed,
+        where everyone can check it. Removing someone takes them off this list with one commit; earlier commits keep the
+        name in the repository's history, and files that still name them have to be changed by hand.</div></details>
+    </div>`;
+  if (!canWrite) return;
+  const commitSetting = async (ev, off, out) => {
+    ev.currentTarget.disabled = true;
+    out.textContent = "Committing…";
+    try {
+      const c = await savePseudonymisation({ repo: T.repo, branch: T.ref, token: token(), click: ev, current: settingsText,
+        currentBlob: sEntry?.sha, off, acknowledged: off ? document.getElementById("pseudo-ack").checked : false });
+      flash = `Pseudonymisation ${off ? "off" : "on"} — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>.`;
+      await reloadAndRoute();
+    } catch (e) { noteRefusal(e); out.textContent = errorText(e); ev.target.disabled = false; }
+  };
+  const out = document.getElementById("pseudo-msg");
+  document.getElementById("pseudo-off")?.addEventListener("click", () => { document.getElementById("pseudo-confirm").hidden = false; });
+  document.getElementById("pseudo-ack")?.addEventListener("change", (ev) => { document.getElementById("pseudo-save").disabled = !ev.target.checked; });
+  document.getElementById("pseudo-save")?.addEventListener("click", (ev) => commitSetting(ev, true, out));
+  document.getElementById("pseudo-on")?.addEventListener("click", (ev) => commitSetting(ev, false, out));
+  const cOut = document.getElementById("coll-msg");
+  const commitPeople = async (ev, list, what) => {
+    ev.currentTarget.disabled = true;
+    cOut.textContent = "Committing…";
+    try {
+      const c = await saveCollaborators({ repo: T.repo, branch: T.ref, token: token(), click: ev, list, currentBlob: cEntry?.sha });
+      flash = `${h(what)} — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>.`;
+      await reloadAndRoute();
+    } catch (e) { noteRefusal(e); cOut.textContent = errorText(e); ev.target.disabled = false; }
+  };
+  document.getElementById("coll-add").addEventListener("click", (ev) => {
+    let list;
+    try {
+      list = addCollaborator(people, { name: document.getElementById("coll-name").value, account: document.getElementById("coll-account").value,
+        agreed: document.getElementById("coll-agreed").value, consent: document.getElementById("coll-consent").checked });
+    } catch (e) { cOut.textContent = e.message; return; }
+    commitPeople(ev, list, `Added ${list.at(-1).name} (@${list.at(-1).account})`);
+  });
+  box.querySelectorAll("[data-remove-collaborator]").forEach((b) => b.addEventListener("click", (ev) => {
+    commitPeople(ev, removeCollaborator(people, b.dataset.removeCollaborator),
+      `Removed @${b.dataset.removeCollaborator}; earlier commits keep the name in the history`);
+  }));
 }
 
 const EXPLAIN = {
@@ -642,7 +914,7 @@ const EXPLAIN = {
     to every repository you own. Choosing the two repositories named above limits it to what Agent M actually needs.`,
   store: `The token is saved in this browser only (its <code>localStorage</code>), never in a cookie, never in an
     address, never in any repository. It is sent only to GitHub's API, as a header. Another computer or browser
-    does not have it. “Clear everything” in Settings removes it.`,
+    does not have it — <em>Export settings</em> in Settings moves it there. Settings shows it, tests it and clears it.`,
   extend: `Your key was created for this instance only, on purpose: it can write nowhere else. A new product has to
     be added to it once. GitHub lets you change which repositories an existing key reaches; the key's text stays
     the same, so there is nothing to copy into Agent M. You can remove the product from the key again the same way.`,
@@ -663,7 +935,7 @@ async function checkReach(repo) {
   try {
     const r = JSON.parse(await fetchText(`${API}/repos/${repo}`, {}, token()));
     return { ok: true, priv: r.private, branch: r.default_branch };
-  } catch (e) { return { ok: false, error: e.message }; }
+  } catch (e) { noteRefusal(e); return { ok: false, error: errorText(e) }; }
 }
 
 const reachLine = ([r, x]) => x.ok
@@ -684,8 +956,11 @@ function storeKeyStep() {
   return stepHtml({ title: "Step B · Give the key to Agent M",
     body: `<p class="notice">${h(sharedOriginNotice(T.instance.split("/")[0]))}</p>
       <p><label><input type="checkbox" id="key-ack"> I have read this.</label></p>
-      <p><input type="password" id="key-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" disabled aria-label="GitHub token">
-      <button class="btn" id="key-store" disabled>Store and check</button></p>
+      <p><input type="password" id="key-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" disabled aria-label="GitHub token"></p>
+      <p><label>Expires on <input type="date" id="key-expires" value="${h(defaultExpiry())}" disabled></label>
+        <span class="muted small">Preset to the ${TOKEN_DAYS} days of the prefilled link — correct it if you changed it on GitHub.
+        Agent M warns ${EXPIRY_WARN_DAYS} days before.</span></p>
+      <p><button class="btn" id="key-store" disabled>Store and check</button></p>
       <p id="key-check" class="muted"></p>`,
     explain: EXPLAIN.store });
 }
@@ -693,12 +968,16 @@ function storeKeyStep() {
 function wireStoreKey(reposToCheck, onStored) {
   const ack = document.getElementById("key-ack"), tok = document.getElementById("key-token");
   const btn = document.getElementById("key-store"), out = document.getElementById("key-check");
-  ack.addEventListener("change", () => { tok.disabled = btn.disabled = !canStore(ack.checked); });
+  const expires = document.getElementById("key-expires");
+  ack.addEventListener("change", () => { tok.disabled = expires.disabled = btn.disabled = !canStore(ack.checked); });
   btn.addEventListener("click", async () => {
-    const v = tok.value.trim();
+    const v = tok.value.trim(), exp = expires.value;
     if (!canStore(ack.checked)) return;
     if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { out.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
-    store.setToken(v);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) { out.textContent = "Enter the date the token expires — GitHub showed it when you created the token."; return; }
+    store.setToken(v, exp);
+    Object.assign(tokenState, { ok: null, refused: false });
+    showBanner();
     tok.value = "";
     const res = await Promise.all(reposToCheck().map(async (r) => [r, await checkReach(r)]));
     out.innerHTML = res.map(reachLine).join("<br>");
@@ -787,9 +1066,10 @@ function wireAddGo(parsed) {
         : "nothing was missing in the product"}; ${h(parsed.address)} is now in this browser's product list.
         <a class="btn primary" href="?repo=${encodeURIComponent(repo)}">Open ${h(repo)} →</a>`;
     } catch (e) {
+      noteRefusal(e);
       out.textContent = /403|404/.test(e.message)
         ? `Your key cannot write to ${repo} yet (${e.message}). Do Step A — add the product to your key on GitHub — and click again.`
-        : e.message;
+        : errorText(e);
       b.disabled = false;
     }
   });
@@ -829,6 +1109,9 @@ async function route() {
     else if (kind === "setup") viewSetup();
     else if (kind === "uc" && a) await viewUseCase(decodeURIComponent(a));
     else await viewUseCases();
+    // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
+    document.getElementById("token-banner").innerHTML = token()
+      ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: tokenState.refused }) : "";
     if (flash) {
       main().insertAdjacentHTML("afterbegin", `<section class="panel notice flash"><p>${flash}</p></section>`);
       flash = null;
@@ -852,16 +1135,21 @@ async function start() {
     document.getElementById("repo-line").innerHTML =
       `<a href="https://github.com/${h(T.repo)}" target="_blank" rel="noopener">${h(T.repo)}</a> · ${h(T.ref)} · <code>${h(state.commit.slice(0, 12))}</code>`;
   } catch (e) {
-    if (early) return;
+    noteRefusal(e);
+    state.loadError = e;
+    if (early) { loadProductSettings(); return; }
+    const refused = tokenRefusal(e);
     const limited = /403|429/.test(e.message), missing = /404/.test(e.message);
     main().innerHTML = `<p class="warn">Could not read ${h(T.repo)} @ ${h(T.ref)}: ${h(e.message)}</p>
       ${limited ? `<p class="muted">Without a token GitHub allows 60 API calls per hour and network; this page uses two per load. A token in <a href="#settings">Settings</a> raises that.</p>` : ""}
       ${missing && !token() ? `<p class="muted">A private repository cannot be read without a token — add one in <a href="#settings">Settings</a>.</p>` : ""}
-      ${missing && token() ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}`;
+      ${missing && token() ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}
+      ${refused ? `<p>${h(refused.text)} <a class="btn small" href="${h(refused.renewUrl)}" target="_blank" rel="noopener">Renew ↗</a></p>
+        <p class="muted small">${h(refused.renew)} <a href="#settings">Settings</a></p>` : ""}`;
     addEventListener("hashchange", route);
     return;
   }
-  if (!early) { addEventListener("hashchange", route); route(); }
+  if (!early) { addEventListener("hashchange", route); route(); } else loadProductSettings();
 }
 
 start();

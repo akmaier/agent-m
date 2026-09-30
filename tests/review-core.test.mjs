@@ -542,3 +542,173 @@ test("an entry already written in the queue's decisions is not written twice", a
   assert.deepEqual(plan.files, []);
   assert.match(plan.leftOut[0].reason, /already/);
 });
+
+// ---------------------------------------------------------------- settings in one place (UC-042)
+// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS · AN EXPORT CAN BE LOCKED WITH A PASSPHRASE ·
+// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED · A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY ·
+// PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
+
+import {
+  exportSettings, readSettingsFile, mergeSettings, PBKDF2_ITERATIONS, tokenRefusal, parseProductSettings,
+  setProductSetting, pseudonymisationOn, savePseudonymisation, parseCollaborators, formatCollaborators,
+  addCollaborator, removeCollaborator, saveCollaborators,
+} from "../docs/assets/review-core.mjs";
+import { TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY } from "../docs/assets/settings-store.mjs";
+
+const SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop";
+const FULL = { [TOKEN_KEY]: SECRET, [TOKEN_EXPIRY_KEY]: "2026-12-29",
+  [PRODUCTS_KEY]: JSON.stringify(["https://github.com/alice/thesis", "https://github.com/alice/other"]) };
+
+test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — an import of an export restores every setting", async () => {
+  const st = fakeStorage(), s = createStore(st);
+  s.setToken(SECRET, "2026-12-29");
+  s.addProduct("https://github.com/alice/thesis");
+  const file = await exportSettings(s.entries(), { now: WHEN });
+  assert.ok(file.includes(SECRET), "an open export carries the token itself");
+  const into = fakeStorage(), t = createStore(into);
+  const m = mergeSettings(t.entries(), await readSettingsFile(file));
+  t.putEntries(m.put);
+  assert.deepEqual(t.entries(), s.entries());
+  assert.equal(t.getToken(), SECRET);
+  assert.equal(t.getTokenExpiry(), "2026-12-29");
+  assert.deepEqual(t.getProducts(), ["https://github.com/alice/thesis"]);
+  // Counter-proof: a file of another format imports nothing.
+  await assert.rejects(readSettingsFile(JSON.stringify({ format: "something-else", settings: FULL })), /not an Agent M settings file/);
+});
+
+test("AN EXPORT CAN BE LOCKED WITH A PASSPHRASE — no secret in clear, imports with it, a wrong one imports nothing", async () => {
+  const file = await exportSettings(FULL, { passphrase: "correct horse", now: WHEN });
+  for (const v of Object.values(FULL)) assert.ok(!file.includes(v), `in clear: ${v}`);
+  assert.ok(!file.includes("SECRETVALUE"));
+  const locked = JSON.parse(file).locked;
+  assert.ok(locked.iterations >= 600000 && locked.iterations === PBKDF2_ITERATIONS, "a high iteration count, stored in the file");
+  assert.ok(locked.salt && locked.iv && locked.data, "salt, iv and ciphertext stored");
+  const other = JSON.parse(await exportSettings(FULL, { passphrase: "correct horse", now: WHEN })).locked;
+  assert.notEqual(other.salt, locked.salt, "a random salt per export");
+  assert.notEqual(other.iv, locked.iv, "a random IV per export");
+  assert.deepEqual(await readSettingsFile(file, "correct horse"), FULL);
+  await assert.rejects(readSettingsFile(file), (e) => e.locked === true);
+  await assert.rejects(readSettingsFile(file, "wrong horse"), (e) => e.wrongPassphrase === true && /nothing was imported/.test(e.message));
+  const tampered = JSON.parse(file);
+  tampered.locked.data = tampered.locked.data.slice(0, -4) + (tampered.locked.data.endsWith("AAAA") ? "BBBB" : "AAAA");
+  await assert.rejects(readSettingsFile(JSON.stringify(tampered), "correct horse"), (e) => e.wrongPassphrase === true);
+});
+
+test("UC-042 6a — an import keeps what this browser has and adds only what is missing, listing both", () => {
+  const current = { [TOKEN_KEY]: "github_pat_mine", [TOKEN_EXPIRY_KEY]: "2026-10-01",
+    [PRODUCTS_KEY]: JSON.stringify(["https://github.com/alice/thesis"]) };
+  const m = mergeSettings(current, { ...FULL, "agent-m.unknown": "x" });
+  assert.deepEqual(m.put, { [PRODUCTS_KEY]: JSON.stringify(["https://github.com/alice/thesis", "https://github.com/alice/other"]) });
+  assert.deepEqual(m.added, ["product https://github.com/alice/other"]);
+  assert.deepEqual(m.kept, ["GitHub token", "product https://github.com/alice/thesis"]);
+  assert.deepEqual(m.ignored, ["agent-m.unknown"]);
+  // A kept token keeps its own expiry date; the file's date belongs to the file's token.
+  assert.ok(!(TOKEN_EXPIRY_KEY in m.put));
+  // Into an empty browser, everything is added.
+  const e = mergeSettings({}, FULL);
+  assert.deepEqual(e.put, FULL);
+  assert.deepEqual(e.kept, []);
+});
+
+test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a refused request yields the token's name and the renewal link", async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('{"message":"Bad credentials"}', { status: 401, statusText: "Unauthorized" });
+  let err;
+  try { await fetchText("https://api.github.com/repos/a/b", {}, "github_pat_old"); } catch (e) { err = e; } finally { globalThis.fetch = realFetch; }
+  const r = tokenRefusal(err);
+  assert.equal(r.token, "GitHub token");
+  assert.match(r.text, /GitHub token/);
+  assert.equal(r.renewUrl, "https://github.com/settings/personal-access-tokens");
+  assert.match(r.renew, /Regenerate token/);
+  assert.match(r.renew, /permissions and repositories/);
+  // Also for a refused write (commitFiles sets .status).
+  assert.ok(tokenRefusal(Object.assign(new Error("GET /git/ref/heads/main: 401 Bad credentials"), { status: 401 })));
+  // Counter-proof: a missing repository or a missing permission is not an expired token.
+  assert.equal(tokenRefusal(Object.assign(new Error("404 Not Found — https://api.github.com/repos/a/b"), { status: 404 })), null);
+  assert.equal(tokenRefusal(Object.assign(new Error("403 Forbidden"), { status: 403 })), null);
+});
+
+const SETTINGS_OFF = "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n";
+
+test("PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF — docs/settings.md, one line per setting", () => {
+  assert.equal(pseudonymisationOn(null), true, "no file: on");
+  assert.equal(pseudonymisationOn("# Settings\n"), true, "no setting: on");
+  assert.equal(pseudonymisationOn(SETTINGS_OFF), false);
+  assert.deepEqual(parseProductSettings(SETTINGS_OFF), { pseudonymisation: "off" });
+  const created = setProductSetting(null, "pseudonymisation", "off", "alice/thesis");
+  assert.match(created, /^# Settings of alice\/thesis\n/);
+  assert.deepEqual(parseProductSettings(created), { pseudonymisation: "off" });
+  // Switching back on removes the line; everything else of the file stays as it was.
+  const on = setProductSetting(SETTINGS_OFF, "pseudonymisation", null, "alice/thesis");
+  assert.equal(on, "# Settings of alice/thesis\n\nintro\n\n");
+  assert.equal(pseudonymisationOn(on), true);
+  assert.equal(setProductSetting(on, "pseudonymisation", "off", "alice/thesis"), "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n");
+});
+
+test("A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY — switching off commits docs/settings.md on a click, after the notice", async () => {
+  const st = fakeStorage();
+  createStore(st).setToken("github_pat_t");
+  const before = [...st.mem.entries()];
+  const { calls, fetchMock } = fakeGitHub({ "docs/settings.md": "b0" });
+  const base = { repo: "alice/thesis", branch: "main", token: "github_pat_t", current: null, currentBlob: null, off: true };
+  await withFetch(fetchMock, async () => {
+    await assert.rejects(savePseudonymisation({ ...base, click, acknowledged: false }), /I have read this/);
+    await assert.rejects(savePseudonymisation({ ...base, click: { isTrusted: false }, acknowledged: true }), /click/);
+  });
+  assert.equal(calls.length, 0, "nothing sent without the acknowledgement and a real click");
+  const r = await withFetch(fetchMock, () => savePseudonymisation({ ...base, click, acknowledged: true }));
+  assert.equal(r.sha, "c1");
+  assert.equal(pseudonymisationOn(treeOf(calls)["docs/settings.md"]), false);
+  assert.deepEqual(Object.keys(treeOf(calls)), ["docs/settings.md"]);
+  assert.deepEqual([...st.mem.entries()], before, "localStorage holds no product setting");
+  // Switching back on needs no acknowledgement (UC-042 4a).
+  const g = fakeGitHub({ "docs/settings.md": "b0" });
+  await withFetch(g.fetchMock, () => savePseudonymisation({ ...base, click, off: false, acknowledged: false,
+    current: SETTINGS_OFF, currentBlob: "b0" }));
+  assert.equal(pseudonymisationOn(treeOf(g.calls)["docs/settings.md"]), true);
+});
+
+const PEOPLE = [{ name: "Jane Doe", account: "jdoe", agreed: "2026-09-30" }, { name: "Max Müller", account: "max-m", agreed: "2026-10-01" }];
+
+test("A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — docs/collaborators.md parses and formats losslessly", () => {
+  const text = formatCollaborators(PEOPLE, "alice/thesis");
+  assert.match(text, /^# Collaborators of alice\/thesis\n/);
+  assert.match(text, /\| Jane Doe \| @jdoe \| 2026-09-30 \|/);
+  assert.deepEqual(parseCollaborators(text), PEOPLE);
+  assert.deepEqual(parseCollaborators(null), []);
+  assert.deepEqual(parseCollaborators(formatCollaborators([], "alice/thesis")), []);
+});
+
+test("+ Collaborator needs the tick 'this person has agreed to be named'; Remove takes one off", () => {
+  const add = { name: "Ann Lee", account: "annlee", agreed: "2026-09-30" };
+  assert.throws(() => addCollaborator(PEOPLE, { ...add, consent: false }), /agreed to be named/);
+  const more = addCollaborator(PEOPLE, { ...add, consent: true });
+  assert.deepEqual(more.at(-1), add);
+  assert.throws(() => addCollaborator(more, { ...add, consent: true }), /already listed/);
+  for (const bad of [{ account: "not an account" }, { agreed: "30.09.2026" }, { name: "" }, { name: "A | B" }]) {
+    assert.throws(() => addCollaborator(PEOPLE, { ...add, ...bad, consent: true }), Error, JSON.stringify(bad));
+  }
+  assert.deepEqual(removeCollaborator(more, "annlee"), PEOPLE);
+});
+
+test("collaborators are saved by one commit of docs/collaborators.md, on a click", async () => {
+  const { calls, fetchMock } = fakeGitHub();
+  await withFetch(fetchMock, () => assert.rejects(saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t",
+    click: { isTrusted: false }, list: PEOPLE, currentBlob: null }), /click/));
+  assert.equal(calls.length, 0);
+  await withFetch(fetchMock, () => saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t",
+    click, list: PEOPLE, currentBlob: null }));
+  assert.deepEqual(parseCollaborators(treeOf(calls)["docs/collaborators.md"]), PEOPLE);
+});
+
+test("the settings export is saved as a file only — never committed, fetched or put into an address", () => {
+  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const body = (src) => (src.match(/async function saveExport\([\s\S]*?\n}\n/) || [""])[0];
+  const LEAK = /commitFiles|fetchText|location|data:|encodeURIComponent|URLSearchParams/;
+  const b = body(app);
+  assert.ok(b.includes("exportSettings(") && b.includes("new Blob("), "saveExport writes the export into a Blob");
+  assert.doesNotMatch(b, LEAK);
+  assert.equal(app.split("exportSettings(").length - 1, 1, "exportSettings is called only in saveExport");
+  // Counter-proof: an export that is committed is caught.
+  assert.match(body("async function saveExport(ev) {\n  const t = await exportSettings(x);\n  await commitFiles({ files: [t] });\n}\n"), LEAK);
+});
