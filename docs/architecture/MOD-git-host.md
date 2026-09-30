@@ -13,9 +13,14 @@ realises:
   - A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
   - AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
   - A RESULT RECORD IS NEVER REWRITTEN
+  - ONE GITHUB TOKEN SERVES EVERY FEATURE
+  - A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
   - NO SERVER
   - UC-001
   - UC-008
+  - UC-010
+  - UC-014
 follows:
   - ARC-001
   - ARC-003
@@ -38,6 +43,7 @@ provides:
   - pullRequests
   - workflows
   - tags
+  - requiredPermissions
 ---
 # MOD-git-host Talks to GitHub and GitLab servers — the only code that sends a repository token
 
@@ -53,7 +59,8 @@ as the authorisation header of requests to the API of the server that issued it.
 `gitlabProject`, `gitlabSnapshot`, `gitlabReadFile`, `commitFilesGitLab`, `writeFiles`, `writeRoute`,
 `saveReviewedFile`, `tokenRefusal`, `gitlabWriteRefusal`, `gitlabRole`, and the reads of `addProduct`.
 The snapshot read for GitHub lives in `review-app.mjs` (`loadSnapshot`) and moves here.
-`appendRecords`, `issues`, `pullRequests`, `workflows` and `tags` do not exist yet.
+`appendRecords`, `issues`, `pullRequests`, `workflows`, `tags` and `requiredPermissions` do not exist
+yet; the permission list lives today in the token guidance of the page (`TOKEN_GUIDANCE`, `tokenLinkUrl`).
 
 ## Interfaces
 
@@ -63,7 +70,7 @@ The snapshot read for GitHub lives in `review-app.mjs` (`loadSnapshot`) and move
 - `readFile({ product, commit, path, token }) -> text | null` — one file's exact text at a commit.
 - `readBlob({ product, blob, token }) -> text` — a text by its blob SHA; refused unless it hashes to that SHA.
 - `commitsTouching({ product, commit, path, token, limit }) -> [{ sha, date, author }]` — the newest commits that touch a path at a commit (for the last accepted record and a requirement's history).
-- `commitFiles({ product, branch, files, message, token, click }) -> { sha, url, changedMeanwhile? }` — the one write path: refuses without a trusted click event (browser) or a job credential (CI, bridge); all files in one commit; `files` may be a function of the branch head so checks run on the commit written on; fast-forward only on GitHub, `last_commit_id` on GitLab; a file with `expectBlob` that changed is refused.
+- `commitFiles({ product, branch, files, message, token, click }) -> { sha, url, changedMeanwhile? }` — the one write path: refuses without a trusted click event (browser) or a job credential — in CI the person's token from the named secret, never the workflow's built-in token; in the bridge the agent's own git login; all files in one commit; `files` may be a function of the branch head so checks run on the commit written on; fast-forward only on GitHub, `last_commit_id` on GitLab; a file with `expectBlob` that changed is refused.
 - `appendRecords({ product, branch, files, token }) -> { sha }` — adds new files to an append-only branch (`test-results`), refusing any file that already exists; never force.
 - `webLinks(product, ref) -> { file(path), newFile(path, record), edit(path) }` — navigation and prefill links; a prefilled value is at most a record (`MAX_URL_VALUE` 1 000 characters), never a text.
 - `tokenRefusal(error, product) -> { token, renewUrl, renew, text } | null` — a 401 turned into the name of the refused token and its renewal page.
@@ -72,5 +79,6 @@ The snapshot read for GitHub lives in `review-app.mjs` (`loadSnapshot`) and move
 - `pullRequests({ product, token }) -> { list(filter), get(n), merge(n, click) }` — pull or merge requests and their CI status.
 - `workflows({ product, token }) -> { dispatch(name, inputs), runs(filter), cancel(id), log(id) }` — GitHub Actions workflow dispatch or a GitLab pipeline trigger, and their live state.
 - `tags({ product, token }) -> { list(), create(name, commit, click) }` — release tags; creating an existing tag is refused.
+- `requiredPermissions(host) -> { github: [{ permission, access, why }] } | { gitlab: { role, scope, why } }` — the one list the prefilled token link, the settings page, the CI secret setup and their tests read: on GitHub *Contents*, *Issues* and *Pull requests* read and write, *Actions* and *Workflows* read and write, *Metadata* read (`ONE GITHUB TOKEN SERVES EVERY FEATURE`) — *Pull requests* because a hosted job opens and merges its pull requests with this token, *Workflows* because a job may write the CI configuration; on GitLab a project access token with role *Maintainer* and scope `api` (`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`).
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*

@@ -36,6 +36,9 @@ realises:
   - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
   - ONE DASHBOARD SHOWS EVERY JOB
   - PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
+  - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
+  - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
   - UC-001
   - UC-008
   - UC-014
@@ -43,6 +46,7 @@ realises:
   - UC-035
   - UC-036
   - UC-042
+  - UC-044
 follows:
   - ARC-001
   - ARC-002
@@ -70,6 +74,7 @@ uses:
   - MOD-git-host.commitFiles
   - MOD-git-host.webLinks
   - MOD-git-host.tokenRefusal
+  - MOD-git-host.requiredPermissions
   - MOD-settings-store.browserStore
   - MOD-settings-store.settingKeys
   - MOD-settings-store.exportSettings
@@ -79,7 +84,9 @@ uses:
   - MOD-run-engine.runPlan
   - MOD-process-model.progress
   - MOD-bridge-tunnel.tunnelCommands
+  - MOD-bridge-tunnel.webServerConfig
   - MOD-bridge-server.bridgeClient
+  - MOD-participant-ci.secretSetup
   - MOD-job-definitions.disclosure
 provides: []
 ---
@@ -99,13 +106,16 @@ storage or `fetch` directly (the repository checks already enforce both).
 `sharedOriginNotice`, `exportNotice`, `pseudonymisationOffNotice`), `missingLayout`, `addProduct`,
 the product-settings helpers (`parseProductSettings`, `setProductSetting`, `savePseudonymisation`,
 `parseCollaborators`, `formatCollaborators`, `addCollaborator`, `saveCollaborators`) and
-`expiryWarning`. `index.html` and `style.css` belong to it. `ADDING A PRODUCT CREATES ITS LAYOUT`
+`expiryWarning`. `index.html` and `style.css` belong to it. The settings page also shows, for each jump
+host, the tunnel commands and the proposed web-server block (ARC-013 decision 6), and for each product the
+CI secrets a hosted job needs (UC-010) with their pages; the job list shows the seven job states of `ONE
+DASHBOARD SHOWS EVERY JOB` as `MOD-job-records.jobState` derives them. `ADDING A PRODUCT CREATES ITS LAYOUT`
 includes `docs/architecture/` (UC-001 step 5); `missingLayout` does not write it yet.
 
 ## Interfaces
 
 None: it is the page. Its entry points are the views of `docs/index.html` (use cases, architecture, SPEC changes, specification browser, tests, jobs, progress, mail, settings), each routed by the URL fragment.
 
-Uses, as declared above: `MOD-review-core.deriveStatus`, `MOD-review-core.planAcceptance`, `MOD-review-core.reviewSession`, `MOD-review-core.lineDiff`, `MOD-review-core.lastAcceptedRecord`, `MOD-review-core.checkIdentifierKept`, `MOD-spec-queue.sectionForEntry`, `MOD-spec-queue.deriveSpecStatus`, `MOD-spec-queue.proposeEdit`, `MOD-traceability.linkGraph`, `MOD-traceability.tracesTo`, `MOD-traceability.coverageGaps`, `MOD-traceability.moduleRows`, `MOD-traceability.architectureImpact`, `MOD-traceability.componentDiagram`, `MOD-groups.hierarchy`, `MOD-groups.applyMoves`, `MOD-git-host.readSnapshot`, `MOD-git-host.commitFiles`, `MOD-git-host.webLinks`, `MOD-git-host.tokenRefusal`, `MOD-settings-store.browserStore`, `MOD-settings-store.settingKeys`, `MOD-settings-store.exportSettings`, `MOD-settings-store.readSettingsFile`, `MOD-settings-store.mergeSettings`, `MOD-job-records.jobState`, `MOD-run-engine.runPlan`, `MOD-process-model.progress`, `MOD-bridge-tunnel.tunnelCommands`, `MOD-bridge-server.bridgeClient`, `MOD-job-definitions.disclosure`.
+Uses, as declared above: `MOD-review-core.deriveStatus`, `MOD-review-core.planAcceptance`, `MOD-review-core.reviewSession`, `MOD-review-core.lineDiff`, `MOD-review-core.lastAcceptedRecord`, `MOD-review-core.checkIdentifierKept`, `MOD-spec-queue.sectionForEntry`, `MOD-spec-queue.deriveSpecStatus`, `MOD-spec-queue.proposeEdit`, `MOD-traceability.linkGraph`, `MOD-traceability.tracesTo`, `MOD-traceability.coverageGaps`, `MOD-traceability.moduleRows`, `MOD-traceability.architectureImpact`, `MOD-traceability.componentDiagram`, `MOD-groups.hierarchy`, `MOD-groups.applyMoves`, `MOD-git-host.readSnapshot`, `MOD-git-host.commitFiles`, `MOD-git-host.webLinks`, `MOD-git-host.tokenRefusal`, `MOD-git-host.requiredPermissions`, `MOD-settings-store.browserStore`, `MOD-settings-store.settingKeys`, `MOD-settings-store.exportSettings`, `MOD-settings-store.readSettingsFile`, `MOD-settings-store.mergeSettings`, `MOD-job-records.jobState`, `MOD-run-engine.runPlan`, `MOD-process-model.progress`, `MOD-bridge-tunnel.tunnelCommands`, `MOD-bridge-tunnel.webServerConfig`, `MOD-bridge-server.bridgeClient`, `MOD-participant-ci.secretSetup`, `MOD-job-definitions.disclosure`.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
