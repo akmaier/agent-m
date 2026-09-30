@@ -17,7 +17,7 @@ realises:
 ---
 # UC-011 Hand a job to a local CLI session
 
-**Goal.** The author hands a job to a coding agent (`claude` or `codex`) already running and
+**Goal.** The author hands a job to a coding agent (`opencode`, `claude` or `codex`) already running and
 authenticated on a machine they control.
 
 ## Actors
