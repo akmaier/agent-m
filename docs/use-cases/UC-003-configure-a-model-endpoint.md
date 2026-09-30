@@ -21,6 +21,7 @@ realises:
 
 - **Author** — owns the API key.
 - **Model endpoint** — an OpenAI-compatible or Anthropic endpoint, hosted or self-hosted.
+- **Local bridge** — reaches a model server on its own machine (UC-011, UC-044).
 
 ## Precondition
 
@@ -52,6 +53,11 @@ sequenceDiagram
 - **4a. The endpoint refuses calls from a browser.** Agent M names the reason (for example a
   missing cross-origin permission or opt-in header) and the runtimes that would work instead —
   GitHub Actions (UC-010) or the local bridge (UC-011).
+- **2a. The endpoint is a model server on a computer of the author's** — Ollama, vLLM, LiteLLM. The author
+  names it as reached through the bridge on that machine: the bridge calls it there, so no cross-origin
+  setting of the server (such as `OLLAMA_ORIGINS`) is needed, and the browser only talks to the bridge —
+  directly, or in Safari over the jump host's HTTPS address (UC-044, 6a 5). Step 4's test request goes
+  through the bridge.
 - **4b. The key is wrong.** Agent M shows the endpoint's error message; the key stays stored until
   the author changes or clears it.
 - **6. The author clears the configuration.** Agent M removes the entries from `localStorage`,

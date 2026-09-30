@@ -62,9 +62,12 @@ double-clicking it, and copying one token. Nobody types a command.
 1. On the dashboard, the person opens **Settings → This computer → Get the Agent M Bridge**. The page
    explains the two levels with the table above, recognises the operating system, and offers the one file
    for it — on Windows an installer —, signed by the publisher of the release, with its size and checksum.
-2. The person downloads the file and double-clicks it; on Windows the installer puts the app in place first. The system shows the publisher's name, not a
-   warning, because the file is signed (and, on macOS, notarised). The bridge starts; its icon appears in
-   the menu bar or tray, and its window opens.
+2. The person downloads the file and double-clicks it; on Windows the installer puts the app in place
+   first. The system shows the publisher's name, because the file is signed (and, on macOS, notarised). On
+   Windows, SmartScreen may still warn about a newly signed release until it has been downloaded often
+   enough; a folded **Why this warning?** on the download page says so, shows the publisher's name to look
+   for, and names **More info → Run anyway**. The bridge starts; its icon appears in the menu bar or tray —
+   where the system shows no tray icon, its window stays open instead — and its window opens.
 3. **Agents.** The window lists the supported coding agents: for each installed one its version and *ready*;
    for each missing one **How to install**, which opens the vendor's instructions for this system, and
    **Check again**. A folded explanation says that the agent will use its own login on this computer, so no

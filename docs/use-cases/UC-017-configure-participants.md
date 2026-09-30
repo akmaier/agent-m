@@ -28,7 +28,7 @@ to roles (UC-002).
 | Type | Example | Reached through | Typical capabilities |
 |---|---|---|---|
 | **Person** | a colleague's GitHub or GitLab account | the dashboard | all, and decisions |
-| **Model endpoint** | NHR hub, an OpenAI or Anthropic endpoint | the browser (UC-003) | draft text |
+| **Model endpoint** | NHR hub, an OpenAI or Anthropic endpoint; a local model server such as Ollama | the browser (UC-003); a local model server through the bridge on its machine (UC-011) | draft text |
 | **CI agent** | an agent run inside a GitHub Actions or GitLab CI job — on GitHub's machines, or on a **self-hosted runner** on the person's own machine or VM | a workflow (UC-010) | read, write, run code and tests |
 | **CLI agent** | Claude Code or Codex on the author's machine | the local bridge (UC-011) | read, write, run code and tests, tools |
 | **Sandboxed agent** | a CLI agent inside a VM or container | the bridge through a tunnel (UC-011) | as CLI agent, isolated |
