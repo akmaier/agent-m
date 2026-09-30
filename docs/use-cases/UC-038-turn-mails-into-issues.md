@@ -8,6 +8,7 @@ actors:
   - Mail provider or local bridge
   - Mail server
   - Participant
+  - Checking participants
   - Issue tracker
 realises:
   - READING THE MAILBOX CHANGES NOTHING IN IT
@@ -23,9 +24,9 @@ realises:
   - A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE
   - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
   - A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
-  - REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE MAILBOX
-  - A SURROGATE IS THE SAME WITHIN A REPORT
-  - THE SURROGATE MAPPING IS NEVER STORED
+  - REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS
+  - A REWRITTEN TEXT IS CHECKED BY THREE LLMS
+  - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
   - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
   - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
   - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
@@ -53,7 +54,7 @@ requests arrive in user language, and the work is to filter them into change pro
 | Where | What it holds | Who can read it |
 |---|---|---|
 | **The mailbox** | the mails themselves: text, sender, reply address, attachments — as always | the owner of the mailbox |
-| **The product's issue tracker** — GitHub or GitLab issues | one **issue** per concern: neutral title and text, *defect* or *change*, pseudonymised report data, and the list of `MAIL-` identifiers of its mails | whoever can read the product repository — often everyone |
+| **The product's issue tracker** — GitHub or GitLab issues | one **issue** per concern: neutral title and text, *defect* or *change*, report data rewritten without persons, and the list of `MAIL-` identifiers of its mails | whoever can read the product repository — often everyone |
 
 Nothing else is kept: no copy of a mail, no list of reporters, no flags in the mailbox.
 
@@ -66,13 +67,16 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
   one is chosen.
 - **Mail server** — holds the mailbox.
 - **Participant** — a model endpoint or CLI agent (UC-017) that proposes the issue.
+- **Checking participants** — three LLM participants with three different models (UC-017) that each read
+  the rewritten texts for any mention of a person.
 - **Issue tracker** — the product's issues on GitHub or on its GitLab server.
 
 ## Precondition
 
 - A mailbox is connected in this browser (UC-037); on the IMAP route, the bridge runs.
 - The instance manages at least one product (UC-001), and the stored token may create issues in it.
-- At least one participant that can draft text is configured (UC-017).
+- At least one participant that can draft text is configured (UC-017), and three LLM participants with
+  three different models check the rewritten texts.
 
 ## Main flow
 
@@ -89,8 +93,9 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    place the mailbox allows (UC-037, step 6), and marks a place outside the EU as not compliant with
    the GDPR and the EU AI Act. The panel states where that participant processes data and exactly what
    it receives: the mail text, the list of the instance's products with their one-line descriptions,
-   and the titles and numbers of their open issues. The author presses **Propose** — one click for all
-   listed mails.
+   and the titles and numbers of their open issues — and the three checking participants, where each
+   processes data and that each receives only the rewritten texts. The author presses **Propose** — one
+   click for all listed mails.
 5. For each mail, the participant returns a proposal:
    - **product** — which managed product the mail concerns;
    - **kind** — *defect* (the product does not do what its SPEC says) or *change* (the reporter wants
@@ -100,10 +105,13 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
    - **possible duplicates** — open issues that may describe the same thing, each with a reason.
 6. Agent M checks every neutral text without a model against the people of this mail: each address and
    name from its headers, each name, address, phone number and account in its body and signature is
-   searched for; a hit is marked in the text. Attachments, logs and data the author wants in the issue are pseudonymised — each
-   personal datum replaced by a surrogate such as *user1* or *user1@example.org*, the same one throughout
-   the mail, derived from the mail itself and stored nowhere — unless the product switched
-   pseudonymisation off (UC-042).
+   searched for; a hit is marked in the text. Attachments, logs and error messages the author wants in the
+   issue are rewritten by the participant without any person, keeping their technical content — "the
+   user's home folder" instead of a path with a user name — unless the product switched this off
+   (UC-042). Then the three checking participants each read the neutral text and the rewritten report
+   data for any mention of a person; a finding of any one of them goes back to the rewriting participant
+   as a compiler-like message, and it corrects the text, within the round limit (UC-019, step 7). What
+   is still found after the last round is marked in the text.
 7. The review panel shows, per mail, the mail in full on the left and the proposal on the right, with
    the text editable. The author decides with one click:
    - **Create issue** — possible only when the check of step 6 finds nothing;
@@ -133,7 +141,9 @@ sequenceDiagram
     A->>D: choose participant, Propose
     D->>P: mails, products, open issue titles
     P-->>D: product, kind, neutral text, duplicates
-    D->>D: search for this mail's people, pseudonymise report data
+    D->>D: search for this mail's people
+    D->>P: rewrite report data without persons
+    D->>P: three LLMs check the rewritten texts, findings back
     A->>D: Create issue, Add to #n, or Not an issue
     D->>I: neutral issue with MAIL identifier, label defect or change
 ```
@@ -151,7 +161,7 @@ sequenceDiagram
   the mailbox's processing places (UC-037, 6a); nothing is sent. The author can still decide each
   mail by hand in step 7.
 - **5a. The mail has attachments.** Their text is sent to the participant only if the author ticks it
-  for that mail in step 4. An attachment reaches the issue only pseudonymised (step 6), and only if the
+  for that mail in step 4. An attachment reaches the issue only rewritten without persons (step 6), and only if the
   author adds it there.
 - **5b. The participant finds no matching product.** The proposal says so; the author picks the
   product or chooses *Not an issue*.
@@ -161,6 +171,10 @@ sequenceDiagram
 - **6b. The product has switched pseudonymisation off** (UC-042). Report data goes into the issue
   unchanged; the panel says so above the data. The issue text itself is still checked and stays
   neutral.
+- **6c. Fewer than three LLM participants are at places this mailbox allows.** The participant's texts
+  cannot be written; Agent M names what is missing and links UC-017 and the mailbox's places (UC-037, 6a).
+  The author may still write the issue text by hand (4b) — covered by the search for the mail's people —
+  and adds no report data.
 - **7a. The author changes the proposal** — another product, another kind, another duplicate. The
   author's choice is what is written; the participant's proposal is not kept as the decision.
 - **7b. The mail mixes several concerns.** The author splits it: **Create issue** once per concern;

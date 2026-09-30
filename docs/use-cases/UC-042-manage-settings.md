@@ -75,7 +75,8 @@ on the instance or product, so they are changed by a commit.
 3. **Instance** and **product** sections show each setting as a short summary with **Edit**, which
    opens the owning use case's form in place. Saving is one click and commits to that repository under
    the person's account.
-4. **Pseudonymisation** (per product) shows *on* — the default — or *off*. Switching it off shows, before
+4. **Pseudonymisation** (per product) — report data from mails rewritten without persons (UC-038) —
+   shows *on* — the default — or *off*. Switching it off shows, before
    saving: report data from mails will then enter this product's issues and repository unchanged; this
    is advisable only on a protected, non-public data space; and, when the server reports the repository
    as public, that the data will be published. The person ticks *I have read this* and presses **Save**;

@@ -50,9 +50,9 @@ specification first, and only then into code.
    - **not reproducible** — it says what it tried.
 4. The author confirms or corrects the class — one click.
 5. **Bug:** the author chooses a participant for the **fix** — a CLI, sandboxed or CI agent that can
-   run tests. For an issue from a mail, the job receives the neutral issue and the pseudonymised report
-   data, never the mail (UC-038). The job first writes a regression test that fails on the reported
-   behaviour — with surrogates, never the reporter's data, in its fixtures —, then fixes
+   run tests. For an issue from a mail, the job receives the neutral issue and the report data rewritten
+   without persons, never the mail (UC-038). The job first writes a regression test that fails on the
+   reported behaviour — with invented data, never the reporter's, in its fixtures —, then fixes
    code or test until it passes, on a branch; the pull request links the issue and the requirement it
    restores. It is merged once the product's Definition of Done holds (UC-002, step 8), and the issue
    is closed with a link to the fix.
