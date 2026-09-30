@@ -15,6 +15,8 @@ realises:
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
+  - A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
 ---
 # UC-017 Configure the participants of the instance
 
@@ -54,9 +56,13 @@ to roles (UC-002).
      runner, not in this browser, so nothing stored here — no token, no SSH key — reaches it. To let
      a workflow use a CLI or sandboxed agent, the runner is installed **on that agent's machine**;
      the workflow's job then runs there and reaches the agent locally, with no inbound SSH and no key
-     stored on GitHub;
+     stored on GitHub — which also works for a machine behind NAT, because the runner only connects
+     out. The runner is registered to a **private** repository only: Agent M reads the repository's
+     visibility and refuses a public one, with the reason — on a public repository, a pull request from
+     any fork could run its own code on that machine;
    - **CLI agent / sandboxed agent:** the bridge address (for a sandbox, the tunnel's local address)
-     and which agent runs there.
+     and which agent runs there; for a machine behind NAT, the remote session reached through the
+     jump host (UC-011, 1c).
 4. Agent M presets the capabilities typical for the type — draft text, read the repository, write to
    the repository, run code and tests, use tools, reach the web — and the author adjusts them.
 5. The author states where the participant processes data. Agent M presets it where it can tell

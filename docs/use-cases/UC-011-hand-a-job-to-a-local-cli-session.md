@@ -14,6 +14,12 @@ realises:
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
   - THE BRIDGE IS PAIRED ONCE
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
+  - A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
+  - EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE
+  - THE DASHBOARD WRITES THE TUNNEL COMMANDS
+  - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
+  - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
 ---
 # UC-011 Hand a job to a local CLI session
 
@@ -64,6 +70,19 @@ sequenceDiagram
 - **1a. The author works from another machine.** The author opens an SSH tunnel or port forward
   that ends on the bridge's loopback address, and uses the forwarded address; the bridge's bind
   does not change.
+- **1c. The CLI session runs on a machine behind NAT**, which accepts no incoming connection.
+  1. In Settings, the author has named a **jump host** both machines can reach — hostname, SSH user,
+     and the **port range** the sessions may use (UC-042). They add the session with **+ Remote
+     session**; Agent M gives it the lowest free port of the range.
+  2. The dashboard shows two commands, filled in from the settings: the **reverse tunnel** to run on
+     the NAT machine (`ssh -N -R 127.0.0.1:<port>:127.0.0.1:<bridge port> <user>@<jump host>`, with
+     keep-alive options, and how to keep it running as a service), and the **forward** to run on the
+     author's machine (`ssh -N -L <port>:127.0.0.1:<port> <user>@<jump host>`). Each names the SSH key
+     file it uses; the keys stay in `~/.ssh` of the two machines.
+  3. With both running, the dashboard reaches the session at `localhost:<port>`, and pairing and jobs
+     work as in the main flow. The tunnel's end on the jump host listens on its loopback only.
+  4. If the author would rather have no tunnel, a **self-hosted runner** on that machine works without
+     any incoming connection (UC-010, UC-017) — registered to a private repository only.
 - **1b. The author suspects the token has leaked.** They start the bridge with *pair anew*; it prints a
   new token, the old one is rejected from then on, and the new one is entered once as in step 1.
 - **3a. The token is missing or wrong.** The bridge refuses the request; nothing reaches the CLI
