@@ -703,6 +703,125 @@ and the result is recorded in `docs/measurements/`.
 Private Network Access preflights or SSH for the local bridge — are documented and neither is
 verified here. A design built on an unverified mechanism fails late and expensively.
 *Check:* `tests/test_measurement_present.py` — a released runtime has a dated measurement file.
+
+**AGENT M WORKS WITHOUT A LOCAL INSTALLATION** *(PO A. Maier, 2026-09-30)*
+Every job that needs no resource on the person's own network can run with nothing installed on the
+person's computer — in the browser, or in the product's CI on the server's own machines.
+*Occasion:* PO, 2026-09-30: users "will not be coding experts" — "We will need both levels." The first
+level is the one a newcomer meets: the dashboard, jobs in GitHub Actions or GitLab CI, mail through
+Microsoft 365 or Gmail. Installing something is the second level, needed only for local agents, IMAP
+mailboxes and machines on the person's own network.
+*Check:* `tests/test_runtime_levels.py` — every job kind whose definition names no local resource is
+runnable on the hosted-CI route; counter-proof: a job needing a compute resource is not offered there.
+
+**A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET** *(PO A. Maier, 2026-09-30)*
+A job on the server's own machines authenticates its coding agent with a key stored as a CI secret of the
+repository, which the dashboard names and whose settings page it opens, and never asks for.
+*Occasion:* on the first level there is no machine of the person's where a login could live; the CI
+secret is the server's own store for it (`NO SECRET IN THE REPOSITORY`, `THE PAGE STATES WHAT IT SENDS
+WHERE`). Such a job is billed per call to the agent's provider; the dashboard says so before it starts.
+*Check:* `tests/test_runtime_levels.py` — the generated job workflow reads the key only from the named
+secret; counter-proof: a workflow with the key written into it fails.
+
+**THE BRIDGE IS ONE FILE PER PLATFORM** *(PO A. Maier, 2026-09-30)*
+The local bridge is delivered as one executable file for each of Windows, macOS and Linux, and needs no
+other runtime installed.
+*Occasion:* PO, 2026-09-30: "Single binary is very appealing because it is easy to install on windows and
+Mac clients. Otherwise, you need to be a computer scientist to operate the local backend." Measured
+2026-09-30: `deno compile` embeds a program into one executable for Windows, macOS (x86-64, ARM64) and
+Linux, cross-compiled from any one host.
+*Check:* `tests/test_bridge_release.py` — the release build yields one file per platform, and each starts
+on a machine without Node or Deno.
+
+**THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE** *(PO A. Maier, 2026-09-30)*
+The bridge is compiled from the same JavaScript modules and job definitions the dashboard uses.
+*Occasion:* `ONE DEFINITION, THREE DRIVERS`: a bridge in a second language would hold a second copy of the
+job logic, which would drift from the first. Compiled from the same modules, the bridge and the browser
+cannot disagree about what a job is.
+*Check:* `tests/test_single_definition.py` — the bridge's build imports the dashboard's modules; no job
+definition exists twice.
+
+**THE BRIDGE IS SIGNED BY ITS PUBLISHER** *(PO A. Maier, 2026-09-30)*
+Every released bridge file is signed by the publisher of the Agent M release — for macOS with an Apple
+Developer ID and notarised, for Windows with a code-signing certificate.
+*Occasion:* PO, 2026-09-30: "I sign personally." An unsigned download is blocked or shown with a warning by
+both systems — for a non-expert, that ends the installation. The signature also tells the person which
+file they may trust.
+*Check:* `tests/test_bridge_release.py` — the release refuses to publish a file whose signature or
+notarisation cannot be verified.
+
+**THE BRIDGE RUNS AS AN APP** *(PO A. Maier, 2026-09-30)*
+The bridge is started by a double click and runs with an icon in the menu bar or the system tray, from
+which it is paused, quit and opened; it needs no command line.
+*Occasion:* the person may never have used a terminal; everything the bridge asks of them — pairing,
+tunnel settings, which agents to use — happens in its own window.
+*Check:* no automatic check; at review.
+
+**THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW** *(PO A. Maier, 2026-09-30)*
+The bridge shows the token it is paired with in its own window, with a button that copies it.
+*Occasion:* `THE BRIDGE IS PAIRED ONCE` keeps the token; the person has to bring it into the dashboard once.
+A copy button is the whole instruction.
+*Check:* no automatic check; at review.
+
+**THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT** *(PO A. Maier, 2026-09-30)*
+A bridge's own settings — its jump host, its port, its pairing token — are set in its window or read from
+a settings file exported by the dashboard.
+*Occasion:* a bridge behind NAT must know its jump host before any connection to it exists, so it cannot
+be configured only from the dashboard. An export from the dashboard (`SETTINGS ARE EXPORTED AND IMPORTED
+WITH THEIR SECRETS`) saves typing.
+*Check:* `tests/test_bridge_settings.py`
+
+**THE BRIDGE FINDS THE INSTALLED AGENTS** *(PO A. Maier, 2026-09-30)*
+The bridge lists each supported coding-agent CLI that is installed on its machine, with its version, and
+offers only those as participants.
+*Occasion:* measured 2026-09-30 from their documentation: Claude Code runs a task with `claude -p` and
+reports result and cost as JSON; Codex with `codex exec`; opencode through `opencode serve`, an HTTP
+interface. Offering an agent that is not there would fail at the first job.
+*Check:* `tests/test_bridge_agents.py` — with fixture executables on the path, exactly those are listed.
+
+**THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT** *(PO A. Maier, 2026-09-30)*
+For a supported agent that is not installed, the bridge shows the vendor's installation instructions for
+its platform and checks again when the person says it is done.
+*Occasion:* PO, 2026-09-30: "CLI for the users is ok. It's easy to install." The bridge links the vendor's
+own instructions rather than installing on its own, so the person keeps control over what is installed.
+*Check:* no automatic check; at review.
+
+**A LOCAL AGENT USES THE PERSON'S OWN LOGIN** *(PO A. Maier, 2026-09-30)*
+The bridge runs a coding agent with the login that agent already has on the machine; Agent M asks for no
+key for it.
+*Occasion:* on the second level the person's subscription does the work — no API key to create, no billing
+per call, and the key never passes through Agent M (`NO SECRET IN THE REPOSITORY`).
+*Check:* `tests/test_bridge_agents.py` — the command the bridge starts carries no key and no key
+environment variable.
+
+**THE BRIDGE OPENS ITS TUNNELS ITSELF** *(PO A. Maier, 2026-09-30)*
+A bridge whose settings name a jump host opens the SSH connection they call for — the reverse tunnel on the
+machine behind NAT, the forward on the person's machine — and keeps it open; the person types no SSH
+command.
+*Occasion:* the reverse tunnel of `A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL` asked the person
+to run and keep alive an `ssh` command; for a non-expert, the bridge does it. The commands the dashboard
+writes (`THE DASHBOARD WRITES THE TUNNEL COMMANDS`) remain for machines without a bridge. The tunnel's end
+stays on the jump host's loopback (`A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK`).
+*Check:* `tests/test_bridge_tunnel.py` — two bridges and a test SSH server: the dashboard's request reaches
+the far bridge without any command typed; counter-proof: with the far bridge's tunnel closed, nothing
+answers.
+
+**THE BRIDGE CREATES ITS OWN SSH KEY** *(PO A. Maier, 2026-09-30)*
+A bridge that opens tunnels creates its own SSH key pair on first use, keeps the private key on its machine
+only, and shows the public key to be added on the jump host.
+*Occasion:* creating and placing a key pair is the step non-experts get wrong most often; the bridge does
+the first part and says exactly what to do with the second. The private key never leaves the machine —
+not into the dashboard, not into an export.
+*Check:* `tests/test_bridge_tunnel.py` — the private key file is readable by its owner only and appears in
+no export; counter-proof: an export containing it fails the test.
+
+**THE BRIDGE IS UPDATED ONLY BY THE PERSON'S CHOICE** *(PO A. Maier, 2026-09-30)*
+The bridge offers a newer release and installs it only after the person's click, and only when its
+signature is valid.
+*Occasion:* a program that replaces itself silently could be replaced by anyone who controls the download;
+the signature (`THE BRIDGE IS SIGNED BY ITS PUBLISHER`) and the click keep the person in control.
+*Check:* `tests/test_bridge_release.py` — an update with an invalid signature is refused; counter-proof: a
+valid one is installed after the click.
 ## 7. Configuration and secrets
 
 **CONFIGURATION LIVES IN THE BROWSER** *(PO A. Maier, 2026-09-23, extended 2026-09-25)*
