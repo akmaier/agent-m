@@ -1927,6 +1927,66 @@ branch.
 *Occasion:* PO, 2026-09-24: "it should be main by default." A branch per sprint is extra ceremony
 that a small product does not need.
 *Check:* `tests/test_phase_branch.py`
+
+**A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION** *(PO A. Maier, 2026-09-30)*
+A person can start one run over any selection of the product's accepted work — one module, several or
+all, or, in a model that works from a backlog, backlog items — and Agent M carries it out as jobs in the
+phases, order, roles and gates of the product's declared process model.
+*Occasion:* PO, 2026-09-30: "I want to be able to implement any subset including all at once using the
+process model configured in UC-031 … In the first pass, i probably want to implement all of them using a
+process model autonomously." The model already names its phases, the artifacts each produces, the roles
+that do them and the gates between them (`THE MODEL DETERMINES THE PHASES AND THE GATES`); starting every
+job of it by hand would repeat that knowledge click by click.
+*Check:* `tests/test_process_run.py` — a V-model fixture with three accepted modules yields, from one
+start, the jobs of every phase for all three in the model's order.
+
+**A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS** *(PO A. Maier, 2026-09-30)*
+Within a run, each job starts by itself as soon as the jobs it depends on are done, until the run is
+finished, waits at a gate its model gives to a person, or reaches one of its limits.
+*Occasion:* PO, 2026-09-30: "it reads like i have to click everything step by step and that would be very
+labor intensive". A person is needed where the model says so (`A JOB STOPS AT EVERY GATE`), not between
+jobs that only follow from one another.
+*Check:* `tests/test_process_run.py` — a fixture run of five jobs without a person's gate needs one start
+and no further click; counter-proof: with a gate decided by a person, it waits there and nowhere else.
+
+**A RUN FOLLOWS THE MODULES' INTERFACES** *(PO A. Maier, 2026-09-30)*
+Within a run, a module is implemented only after every module whose interfaces it uses.
+*Occasion:* an implementation job is given the interfaces — not the code — of the modules it uses
+(UC-024); they must exist before it starts, or it would build against a guess. Modules without a
+dependency between them run side by side.
+*Check:* `tests/test_process_run.py` — for modules A → B → C and D, C starts after B and B after A, while D
+runs alongside; counter-proof: a cycle in the interfaces is refused before the run starts, and named.
+
+**A RUN SETS UP CI BEFORE IT IMPLEMENTS** *(PO A. Maier, 2026-09-30)*
+A run whose product has no CI configuration generated from its test schedule creates it before its first
+implementation job.
+*Occasion:* every implementation job begins with a red CI run and ends on a green one (`AN IMPLEMENTATION
+JOB BEGINS WITH A FAILING TEST`); without CI the first job could prove neither.
+*Check:* `tests/test_process_run.py`
+
+**A RUN HAS LIMITS FIXED AT ITS START** *(PO A. Maier, 2026-09-30)*
+Before a run starts, it states how many jobs may run at once, its cost limit and its correction-round
+limit, and it stops starting jobs when one of them is reached.
+*Occasion:* autonomy without limits is spending without limits. The work-in-progress limit of the model
+(`NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT`) caps parallel jobs; the cost limit counts only costs
+the runtimes report (`NO COST IS GUESSED`); the round limit is that of the correction loop (`THE
+CORRECTION LOOP HAS A FIXED LIMIT`).
+*Check:* `tests/test_process_run.py` — a run whose reported cost reaches its limit starts no further job
+and says why; counter-proof: below the limit it continues.
+
+**A RUN IS A JOB THAT NAMES ITS JOBS** *(PO A. Maier, 2026-09-30)*
+A run is recorded as a job whose record lists every job it started, and each of those jobs names the run.
+*Occasion:* the job dashboard and the job records already exist (`ONE DASHBOARD SHOWS EVERY JOB`, `A JOB IS
+RECORDED IN ITS PRODUCT REPOSITORY`); a run needs no second kind of record, only the link in both
+directions, so that "what did the run of Tuesday do" has one answer.
+*Check:* `tests/test_job_record.py`
+
+**A RUN ENDS WITH THE VALIDATION OF ITS MODULES** *(PO A. Maier, 2026-09-30)*
+When a run ends, the dashboard shows for its selection what each module realises, which code and tests
+belong to it, and every gap.
+*Occasion:* after an autonomous pass the question is what exists now and what is missing — the module
+validation of UC-025, limited to what the run touched (`MODULE GAPS ARE REPORTED, NOT FORBIDDEN`).
+*Check:* `tests/test_process_run.py`
 ## 14. Issues, mail and personal data
 
 **A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE** *(PO A. Maier, 2026-09-29)*
