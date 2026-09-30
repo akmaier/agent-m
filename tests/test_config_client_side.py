@@ -5,7 +5,8 @@ from pathlib import Path
 
 from jsrun import ASSETS, js
 
-STORAGE_ACCESS = re.compile(r"\b(?:globalThis|window|self)\s*\.\s*(?:localStorage|sessionStorage|indexedDB)\b|\b(?:localStorage|sessionStorage|indexedDB)\s*[.\[]")
+# Browser storage: localStorage, sessionStorage, IndexedDB and Cache Storage (`caches`, where the texts of files read are kept).
+STORAGE_ACCESS = re.compile(r"\b(?:globalThis|window|self)\s*\.\s*(?:localStorage|sessionStorage|indexedDB|caches)\b|\b(?:localStorage|sessionStorage|indexedDB|caches)\s*[.\[]")
 FAKE = "const mem = new Map(); const fake = { getItem: k => mem.has(k) ? mem.get(k) : null, setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), get length() { return mem.size; }, key: i => [...mem.keys()][i] ?? null };"
 
 
@@ -24,6 +25,9 @@ class ConfigClientSide(unittest.TestCase):
         self.assertTrue(STORAGE_ACCESS.search("globalThis.sessionStorage['k']"))
         self.assertTrue(STORAGE_ACCESS.search("indexedDB.open('x')"))
         self.assertTrue(STORAGE_ACCESS.search("storage = globalThis.localStorage;"))
+        self.assertTrue(STORAGE_ACCESS.search("await caches.open('x')"))
+        self.assertTrue(STORAGE_ACCESS.search("const s = globalThis.caches ?? null;"))
+        self.assertFalse(STORAGE_ACCESS.search("const headersCache = new Map(); acceptedCache.has(k)"))
         self.assertFalse(STORAGE_ACCESS.search("saved in this browser (its <code>localStorage</code>)"))
 
 
