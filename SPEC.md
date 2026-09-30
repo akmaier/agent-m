@@ -1987,6 +1987,40 @@ belong to it, and every gap.
 *Occasion:* after an autonomous pass the question is what exists now and what is missing — the module
 validation of UC-025, limited to what the run touched (`MODULE GAPS ARE REPORTED, NOT FORBIDDEN`).
 *Check:* `tests/test_process_run.py`
+
+**CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT** *(PO A. Maier, 2026-09-30)*
+The Product Owner may assign closing a sprint — its review, its retrospective and the decisions on its
+unfinished items — to a participant of the product, a person or an agent.
+*Occasion:* PO, 2026-09-30: "we should be able to run this automatically. So product owner should be able
+to assign the task to an agent or model." Most of a sprint's close is reading what the repository already
+holds — merged items, failed jobs, waiting times, flaky tests, cost — which an agent does as well as a
+person, every sprint, without being reminded.
+*Check:* `tests/test_time_box_close.py` — a sprint whose close is assigned to an agent fixture is closed
+with a review and a retrospective recorded by that agent.
+
+**A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF** *(PO A. Maier, 2026-09-30)*
+When closing a sprint is assigned to an agent, its job starts by itself when the sprint's time box ends.
+*Occasion:* the point of assigning it is that nobody has to remember; the time box's end date is already
+recorded with the sprint (UC-032).
+*Check:* `tests/test_time_box_close.py`
+
+**AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM** *(PO A. Maier, 2026-09-30)*
+A review recorded by an agent names the sources of its feedback — issues, mails, job records, test
+results — and states that no stakeholder took part unless one did.
+*Occasion:* the book's review inspects the increment together with stakeholders (ch. 7 §5). An agent can
+gather what stakeholders wrote, but it must not present its own reading as their voice.
+*Check:* `tests/test_time_box_close.py` — a review by an agent without stakeholder input says so; counter-
+proof: a review listing a stakeholder names where their feedback is recorded.
+
+**AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF** *(PO A. Maier, 2026-09-30)*
+A change to the process model, the Definition of Done or a participant's instructions that an agent's
+retrospective recommends is proposed for a person's acceptance and not applied by the agent.
+*Occasion:* these three govern how the agents themselves work; an agent that could change them after its
+own sprint would decide on its own rules — the reasoning of `A GATE IS NOT DECIDED BY THE PARTICIPANT
+WHOSE WORK IT CHECKS`, one level up. The retrospective's findings are recorded at once; only the changes
+wait.
+*Check:* `tests/test_time_box_close.py` — after an agent's retrospective, the model, the Definition of Done
+and the participants are byte-identical, and the proposed changes are open for acceptance.
 ## 14. Issues, mail and personal data
 
 **A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE** *(PO A. Maier, 2026-09-29)*
