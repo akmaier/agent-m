@@ -67,8 +67,8 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
    next step.
 5. **Step C · Add the product** — one click. Agent M:
    - writes the missing review layout into the product repository's default branch
-     (`docs/use-cases/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md` skeleton, a
-     `CHANGELOG.md`), skipping whatever already exists;
+     (`docs/use-cases/`, `docs/architecture/`, `docs/approvals/`, `docs/spec-freigaben/`, a `SPEC.md`
+     skeleton, a `CHANGELOG.md`), skipping whatever already exists;
    - adds the product's address to the list in this browser's `localStorage` — nothing is written to
      the instance repository;
    - shows the commit as a link, and offers to switch to the new product.

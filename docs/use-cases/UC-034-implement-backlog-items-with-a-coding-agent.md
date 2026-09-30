@@ -43,8 +43,8 @@ realises:
 **Goal.** Agent M hands ready backlog items to coding agents, one job per item. Each job writes the
 failing tests first, then the implementation, and opens a pull request that is merged once the
 product's Definition of Done holds.
-Every gate of the model, and every gate added by a process requirement, stops the job until a person
-decides. This is the book's execution loop, "reason, act, observe", run inside a process with a
+Every gate of the model, and every gate added by a process requirement, stops the job until the gate's
+decider — a person, an agent or a CI check, as the gate names — has decided. This is the book's execution loop, "reason, act, observe", run inside a process with a
 person in the loop where the workflow says so (book ch. 11 §2, §8).
 In a product that works from a backlog, starting the selected items is a run (UC-043): the items'
 jobs start by themselves up to the limits fixed at the start, and the author clicks only where a gate

@@ -42,9 +42,10 @@ authenticated on a machine they control.
 
 ## Main flow
 
-1. **Once:** the author starts the bridge for the first time; it prints a token and keeps it across
-   restarts. The author enters the bridge address and that token on the Agent M site, which stores
-   them in this browser. After that, handing a job over needs neither again.
+1. **Once:** the author pairs the bridge (UC-044, step 4): the bridge's window shows its pairing token
+   with **Copy**; the author pastes it on the settings page and presses **Pair**, and the dashboard
+   stores the bridge's address and token in this browser. The bridge keeps the token across restarts;
+   after that, handing a job over needs neither again.
 2. The author's click commits the job's start record `docs/jobs/JOB-<id>.md` in the product repository;
    the site sends the job definition and inputs to the bridge, with the token.
 3. The bridge checks the token and hands the task to the CLI session.
@@ -59,7 +60,7 @@ sequenceDiagram
     participant M as Agent M (browser)
     participant B as Bridge (127.0.0.1)
     participant C as CLI session
-    A->>M: bridge address and token
+    A->>M: paste pairing token, Pair (once)
     M->>B: job and inputs with token
     B->>B: check token
     B->>C: task
@@ -88,8 +89,9 @@ sequenceDiagram
   types nothing (UC-044, 6a); the commands above are for a machine without the bridge.
   4. If the author would rather have no tunnel, a **self-hosted runner** on that machine works without
      any incoming connection (UC-010, UC-017) — registered to a private repository only.
-- **1b. The author suspects the token has leaked.** They start the bridge with *pair anew*; it prints a
-  new token, the old one is rejected from then on, and the new one is entered once as in step 1.
+- **1b. The author suspects the token has leaked.** They press **Pair anew** in the bridge's window; it
+  shows a new token, the old one is rejected from then on, and the new one is pasted once as in step 1
+  (UC-044, 4b).
 - **3a. The token is missing or wrong.** The bridge refuses the request; nothing reaches the CLI
   session.
 - **2a. The browser blocks the call.** The site names the reason and points to UC-010.
