@@ -123,7 +123,7 @@ flowchart LR
    maintained for Node only (below); whether they run inside the compiled bridge is the first open
    measurement, and the fallback is named.
 3. **One participant rewrites; the loop corrects.** The participant the author picks for the
-   proposals (UC-038 step 4) runs the job `propose-issue-from-mail` (MOD-job-definitions): it returns
+   proposals (UC-038 step 4) runs the job `propose-issue-from-mail`, a job definition of MOD-mail-flow: it returns
    the proposal — product, kind, a neutral title and text, possible duplicates — and every piece of
    report data the author ticked, rewritten without any person and keeping its technical content: a
    path with a user name becomes "the user's home folder", a name is left out, never replaced by a
@@ -138,7 +138,8 @@ flowchart LR
 
    A finding of either kind goes back to the rewriting participant as a compiler-like finding, and it
    corrects the texts, within the round limit (`A DRAFT THAT FAILS A CHECK GOES BACK TO ITS
-   PARTICIPANT`). What is still found after the last round is marked in the review panel (UC-038 6a).
+   PARTICIPANT`). Both kinds are a check MOD-mail-flow supplies to the one loop; the loop itself knows
+   nothing about mail (ARC-008). What is still found after the last round is marked in the review panel (UC-038 6a).
    A finding may quote a person: it goes only to the rewriting participant, which read the mail
    already, and to the dashboard, which forgets it with the tab; the job's recorded rounds name the
    text, the line and the rule, not the person.
@@ -168,7 +169,7 @@ flowchart LR
 7. **No mail content leaves the flow into repositories.** The only way from a mail to an issue or a
    repository is the gate of decision 5. Jobs that write to a repository receive the neutral issue and
    the report data as the issue holds it, never a mail (`A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER
-   RECEIVES A MAIL`; MOD-job-definitions enforces the input shape).
+   RECEIVES A MAIL`; MOD-mail-flow gives them the issue and nothing from the mail).
 
 ### Due diligence (read 2026-09-30; the person-detection candidate read 2026-10-01)
 
@@ -263,4 +264,4 @@ maintainers' statements on Deno are those of measurement §5. The JSR packages w
 - A checker processes a text that may still hold a person; it is therefore held to the mailbox's places
   like the participant that reads the mail.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 8b299337b2e61b80cb4a4415ff4e7c865d7a2dfe — SPEC queue 2026-09-30k as accepted: the deterministic pseudonymisation layer replaced by rewriting without persons, checked by three LLMs; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 8b299337b2e61b80cb4a4415ff4e7c865d7a2dfe — SPEC queue 2026-09-30k as accepted: the deterministic pseudonymisation layer replaced by rewriting without persons, checked by three LLMs; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 2e6d8e4752b55b0707ec5e69c229914cb5d15fe8 — the mail's rewriting and checking kept inside the mail modules, at the PO's request; open until accepted.*
