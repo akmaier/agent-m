@@ -311,6 +311,118 @@ export function deriveSpecStatus({ queue, nr, anchor, bis, proposalPath, proposa
   return mine.length ? "stale" : "open";
 }
 
+// ---------------------------------------------------------------- differences (one diff for every view)
+
+// Line diff by longest common subsequence: [[" " | "+" | "-", line]].
+export function lineDiff(a, b) {
+  const x = a.replace(/\n$/, "").split("\n"), y = b.replace(/\n$/, "").split("\n");
+  const n = x.length, m = y.length;
+  const L = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && x[i] === y[j]) { out.push([" ", x[i]]); i++; j++; }
+    else if (j < m && (i === n || L[i][j + 1] >= L[i + 1][j])) { out.push(["+", y[j]]); j++; }
+    else { out.push(["-", x[i]]); i++; }
+  }
+  return out;
+}
+
+// Only the lines that differ.
+export const changedLines = (a, b) => lineDiff(a, b).filter(([k]) => k !== " ");
+
+export function diffHtml(a, b) {
+  const d = lineDiff(a, b);
+  if (!d.some(([k]) => k !== " ")) return `<p class="muted">No difference.</p>`;
+  return `<pre class="diff">${d.map(([k, l]) => `<span class="d${k === "+" ? "add" : k === "-" ? "del" : "ctx"}">${esc(k)} ${esc(l)}</span>`).join("\n")}</pre>`;
+}
+
+// ---------------------------------------------------------------- the last accepted text (UC-008 2a, SPEC §10)
+//
+// A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT: the text named by the most recent approval record for the same
+// identifier, matched by identifier and not by path, so that a renamed file (UC-010) still finds what was accepted before.
+// AN APPROVAL NAMES THE EXACT TEXT: that text is read from the server by the blob SHA the record names, and refused unless it
+// hashes to that SHA.
+//
+// "Most recent" is the record committed last. How that is found without loading the history of the repository: for each
+// record of the identifier, the server's list of commits is asked for the newest commit that touches that record's path, at
+// the commit the dashboard has pinned (GitHub: GET /repos/{o}/{r}/commits?path=<record>&sha=<pinned>&per_page=1, its
+// commit.committer.date; GitLab: GET /projects/:id/repository/commits?path=<record>&ref_name=<pinned>&per_page=1, its
+// committed_date). A record is never edited after it is added (docs/approvals/README.md), so that commit is the one that added
+// it. One request per record, and none when the identifier has only one record. Two records committed in the same second
+// cannot be ordered this way; the dashboard then says so instead of guessing.
+
+const REVIEWED_ID = /^([A-Z]+-\d{3,})-[^/]*\.md$/;
+const HEX40 = /^[0-9a-f]{40}$/;
+
+// The identifier of a reviewed file from its path (docs/use-cases/UC-010-<slug>.md -> UC-010), or null.
+export function reviewedId(path) {
+  const m = REVIEWED_ID.exec(String(path ?? "").split("/").pop());
+  return m ? m[1] : null;
+}
+
+// Every approval record of that identifier, whatever path it names (not the records of SPEC changes).
+export const recordsForId = (records, id) => records.filter((r) => r.kind !== "spec" && r.file && reviewedId(r.file) === id);
+
+const b64text = (s) => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s+/g, "")), (c) => c.charCodeAt(0)));
+
+// The exact text of a blob, read by its SHA from the product's server; refused unless it hashes to that SHA.
+// GitHub: product absent or a github.com product (repo); GitLab: a GitLab product (its own project token).
+export async function readBlob({ product = null, repo = null, blob, token = null }) {
+  if (!HEX40.test(String(blob))) throw new Error(`not a blob SHA: ${blob}`);
+  let text;
+  if (isGitLab(product)) {
+    text = await fetchText(`${gitlabApiBase(product)}/repository/blobs/${blob}/raw`, {}, gitlabAuth(product, token));
+  } else {
+    const r = repo ?? product?.repo;
+    if (!REPO_RE.test(r) || r.includes("..")) throw new Error(`not a repository: ${r}`);
+    const j = JSON.parse(await fetchText(`https://api.github.com/repos/${r}/git/blobs/${blob}`,
+      { headers: { Accept: "application/vnd.github+json" } }, token));
+    text = j.encoding === "base64" ? b64text(j.content) : String(j.content ?? "");
+  }
+  if (await gitBlobSha(text) !== blob) throw new Error(`the text read for blob ${blob.slice(0, 12)} does not match that blob SHA`);
+  return text;
+}
+
+// When the record at `path` was committed: the date of the newest commit touching it at `commit` -> ISO string.
+export async function recordCommittedAt({ product = null, repo = null, commit, path, token = null }) {
+  const q = (ref) => `path=${encodeURIComponent(path)}&${ref}=${encodeURIComponent(commit)}&per_page=1`;
+  if (isGitLab(product)) {
+    const list = JSON.parse(await fetchText(`${gitlabApiBase(product)}/repository/commits?${q("ref_name")}`, {}, gitlabAuth(product, token)));
+    if (!list.length) throw new Error(`${path}: no commit found`);
+    return list[0].committed_date;
+  }
+  const r = repo ?? product?.repo;
+  const list = JSON.parse(await fetchText(`https://api.github.com/repos/${r}/commits?${q("sha")}`,
+    { headers: { Accept: "application/vnd.github+json" } }, token));
+  if (!list.length) throw new Error(`${path}: no commit found`);
+  return list[0].commit.committer.date;
+}
+
+// The last accepted text of identifier `id`: { record, text, committedAt, count } or null when it has no record.
+// records: parsed records, each with `_path`, its own path in docs/approvals/.
+export async function lastAccepted({ product = null, repo = null, commit, token = null, records, id }) {
+  const mine = recordsForId(records, id);
+  if (!mine.length) return null;
+  let record = mine[0], committedAt = null;
+  if (mine.length > 1) {
+    const dated = await Promise.all(mine.map(async (r) =>
+      ({ r, at: await recordCommittedAt({ product, repo, commit, path: r._path, token }) })));
+    const t = (d) => Date.parse(d.at);
+    if (dated.some((d) => Number.isNaN(t(d)))) throw new Error(`the commit date of an approval record of ${id} could not be read`);
+    dated.sort((a, b) => t(b) - t(a));
+    if (t(dated[0]) === t(dated[1])) {
+      throw new Error(`two approval records of ${id} were committed at the same time (${dated[0].at}), so which is the last cannot be told: ` +
+        `${dated[0].r._path}, ${dated[1].r._path}`);
+    }
+    ({ r: record, at: committedAt } = dated[0]);
+  }
+  const text = await readBlob({ product, repo, blob: record.blob, token });
+  return { record, text, committedAt, count: mine.length };
+}
+
 // ---------------------------------------------------------------- guided token setup (SPEC §7)
 
 // The prefilled link's expiry; the date a token is stored with is preset to it (A TOKEN'S EXPIRY IS WARNED OF

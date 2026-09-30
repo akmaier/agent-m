@@ -23,7 +23,7 @@ import {
   browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
   PASSPHRASE_NOTICE, exportSettings, readSettingsFile, mergeSettings, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
-  addCollaborator, removeCollaborator, saveCollaborators,
+  addCollaborator, removeCollaborator, saveCollaborators, diffHtml, reviewedId, recordsForId, lastAccepted,
 } from "./review-core.mjs";
 
 const API = "https://api.github.com";
@@ -208,26 +208,39 @@ const LABEL = {
 };
 const badge = (s) => `<span class="badge b-${s}" title="${h(LABEL[s]?.[1])}">${h(LABEL[s]?.[0] ?? s)}</span>`;
 
-function lineDiff(a, b) {
-  const x = a.replace(/\n$/, "").split("\n"), y = b.replace(/\n$/, "").split("\n");
-  const n = x.length, m = y.length;
-  const L = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
-    L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
-  const out = [];
-  let i = 0, j = 0;
-  while (i < n || j < m) {
-    if (i < n && j < m && x[i] === y[j]) { out.push([" ", x[i]]); i++; j++; }
-    else if (j < m && (i === n || L[i][j + 1] >= L[i + 1][j])) { out.push(["+", y[j]]); j++; }
-    else { out.push(["-", x[i]]); i++; }
+// A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT (UC-008 2a): read once per identifier and pinned commit, then kept
+// in memory for this page — the text a record names never changes.
+const acceptedCache = new Map();
+function lastAcceptedOf(id) {
+  const key = `${id}@${state.commit}`;
+  if (!acceptedCache.has(key)) {
+    acceptedCache.set(key, lastAccepted({ ...(GITLAB ? { product: T.product } : { repo: T.repo }), commit: state.commit, token: token(),
+      records: state.records, id }).catch((e) => { acceptedCache.delete(key); throw e; }));
   }
-  return out;
+  return acceptedCache.get(key);
 }
 
-function diffHtml(a, b) {
-  const d = lineDiff(a, b);
-  if (!d.some(([k]) => k !== " ")) return `<p class="muted">No difference.</p>`;
-  return `<pre class="diff">${d.map(([k, l]) => `<span class="d${k === "+" ? "add" : k === "-" ? "del" : "ctx"}">${h(k)} ${h(l)}</span>`).join("\n")}</pre>`;
+async function fillAcceptedDiff(u, id) {
+  const box = document.getElementById("accepted-diff");
+  if (!box) return;
+  try {
+    const last = await lastAcceptedOf(id);
+    if (!document.body.contains(box) || !last) return;
+    const r = last.record, name = r._path.split("/").pop();
+    box.innerHTML = `<h3>Changed since it was last accepted</h3>
+      <p class="muted small">Difference between the text accepted in
+        <a href="${h(webFileUrl(T.product, T.ref, r._path))}" target="_blank" rel="noopener">${h(name)}</a>
+        (blob <code>${h(r.blob.slice(0, 12))}</code>${r.file !== u.path ? `, then named <code>${h(r.file.split("/").pop())}</code>` : ""}${last.committedAt
+          ? `, committed ${h(last.committedAt)} — the last of ${last.count} records of ${h(id)}` : ""}) and the text below.</p>
+      ${diffHtml(last.text, u.text)}
+      <details class="explain"><summary>What is this?</summary><div>The approval record names the accepted text by its git blob
+        SHA, so ${h(SERVER)} still holds it; the dashboard reads it by that SHA and shows only what changed since. Records are
+        matched by the use case's identifier, so a file renamed since is compared too. With several records, the one committed
+        last is used.</div></details>`;
+  } catch (e) {
+    noteRefusal(e);
+    if (document.body.contains(box)) box.innerHTML = `<h3>Changed since it was last accepted</h3><p class="warn">The last accepted text could not be read: ${h(errorText(e))}</p>`;
+  }
 }
 
 // ---------------------------------------------------------------- actions
@@ -497,7 +510,10 @@ async function viewUseCases() {
 async function viewUseCase(id) {
   const u = state.useCases.find((x) => x.fields.id === id);
   if (!u) { main().innerHTML = `<p class="warn">No use case ${h(id)} on ${h(T.ref)}.</p>`; return; }
-  const approved = state.records.filter((r) => r.kind === "use-case" && r.file === u.path);
+  const ucId = u.fields.id || reviewedId(u.path);
+  // Every record of this identifier, also those naming an earlier path of a renamed file.
+  const approved = recordsForId(state.records, ucId);
+  const showDiff = u.status !== "accepted" && approved.length > 0;
   const idx = state.useCases.indexOf(u);
   const prev = state.useCases[idx - 1], next = state.useCases[idx + 1];
   main().innerHTML = `
@@ -512,6 +528,8 @@ async function viewUseCase(id) {
         <a href="${h(webFileUrl(T.product, T.ref, u.path))}" target="_blank" rel="noopener">file on ${h(SERVER)} ↗</a></p>
       ${u.treeBlob !== u.blob ? `<p class="warn">The SHA computed from the shown text differs from ${h(SERVER)}'s tree. Do not accept; reload.</p>` : ""}
     </section>
+    ${showDiff ? `<section class="panel accepted-diff" id="accepted-diff"><h3>Changed since it was last accepted</h3>
+      <p class="muted">Reading the last accepted text…</p></section>` : ""}
     <div class="cols">
       <article class="md doc">${md(u.body)}</article>
       <aside>
@@ -521,7 +539,7 @@ async function viewUseCase(id) {
         </section>
         ${approved.length ? `<section class="panel"><h3>Approval records</h3><ul class="names">${approved.map((r) =>
           `<li><a href="${h(webFileUrl(T.product, T.ref, r._path))}" target="_blank" rel="noopener">${h(r._path.split("/").pop())}</a>
-           ${r.blob === u.blob ? "— current text" : "— an earlier text"}</li>`).join("")}</ul></section>` : ""}
+           ${r.blob === u.blob ? "— current text" : "— an earlier text"}${r.file !== u.path ? ", under an earlier file name" : ""}</li>`).join("")}</ul></section>` : ""}
         <section class="panel"><button class="btn" data-toggle-edit>Edit…</button></section>
         ${u.status === "accepted" ? "" : acceptPanel(useCaseRecord(u.path, u.blob), approvalPath(u.fields.id, u.blob), u.fields.id, ucItem(u))}
         ${batchBar()}
@@ -529,6 +547,7 @@ async function viewUseCase(id) {
     </div>
     ${editPanel(u.path, u.text, u.blob)}`;
   wireCommon(main(), u.text);
+  if (showDiff) fillAcceptedDiff(u, ucId);
   await renderMermaid(main());
 }
 
