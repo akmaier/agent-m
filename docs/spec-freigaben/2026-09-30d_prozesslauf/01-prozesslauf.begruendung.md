@@ -22,3 +22,7 @@ field:
 - **Single steps stay:** UC-024 to UC-027 remain startable for one module or one test set.
 
 Impact: new UC-043; UC-024, UC-025, UC-026, UC-027 and UC-034 name the run.
+
+**Confirmed by the PO on 2026-09-30:** *"I agree that modules must be accepted first."* — a run does not derive
+the architecture; it builds accepted modules only. *"Yes, process model configuration wins. I agree."* — where
+the model's phases and gates prescribe another order than the default one above, the model's order holds.
