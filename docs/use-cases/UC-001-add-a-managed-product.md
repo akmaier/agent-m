@@ -1,7 +1,7 @@
 ---
 id: UC-001
 title: Add a managed product
-stage: setup
+area: setup
 actors:
   - Author
   - GitHub

@@ -1,7 +1,7 @@
 ---
 id: UC-021
 title: Group artifacts into a hierarchy
-stage: 2 requirements
+area: 2 requirements
 actors:
   - Author
   - GitHub

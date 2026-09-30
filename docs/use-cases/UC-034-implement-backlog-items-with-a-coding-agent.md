@@ -1,7 +1,7 @@
 ---
 id: UC-034
 title: Implement backlog items with a coding agent
-stage: 5 implementation
+area: 5 implementation
 actors:
   - Author
   - Coding agent

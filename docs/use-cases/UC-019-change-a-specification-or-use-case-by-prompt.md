@@ -1,7 +1,7 @@
 ---
 id: UC-019
 title: Change a specification or a use case by prompt
-stage: evolution
+area: evolution
 actors:
   - Author
   - Drafting participant

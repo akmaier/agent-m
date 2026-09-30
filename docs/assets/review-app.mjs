@@ -175,7 +175,7 @@ const LABEL = {
   open: ["open", "Not accepted yet"],
   accepted: ["accepted", "An approval record names exactly this text"],
   changed: ["changed", "Accepted earlier, edited since — the current text is not accepted"],
-  approved: ["approved", "Approval committed — the workflow writes it into the SPEC"],
+  approved: ["approved", "Approval recorded, not yet written into the SPEC — the apply workflow writes it after an approval committed on GitHub's page; accepted here with a token, record and SPEC section are one commit"],
   stale: ["stale", "Approved on a text that has changed since — decide again"],
   applied: ["in SPEC", "Accepted and present in the SPEC word for word"],
   superseded: ["superseded", "Accepted once, since replaced by a later change"],
@@ -414,7 +414,7 @@ async function viewUseCases() {
       ${tickCell(session.key(ucItem(u)), u.status !== "accepted")}
       <td><a href="#uc/${h(u.fields.id)}">${h(u.fields.id)}</a></td>
       <td><a href="#uc/${h(u.fields.id)}">${h(u.fields.title)}</a></td>
-      <td>${h(u.fields.stage)}</td>
+      <td>${h(u.fields.area)}</td>
       <td>${Array.isArray(u.fields.realises) ? u.fields.realises.length : 0}</td>
       <td>${badge(u.status)}</td>
     </tr>`).join("");
@@ -426,7 +426,7 @@ async function viewUseCases() {
         <span class="muted small">— from a file exported in another browser (Settings → Export settings).</span></p></section>`}
     <section class="head"><h2>Use cases</h2><p>${counts(state.useCases)}</p></section>
     ${batchBar()}
-    <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th><th>Stage</th><th>Realises</th><th>Status</th></tr></thead>
+    <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th><th>Area</th><th>Realises</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody></table>
     ${state.overview ? `<section class="md overview">${md(state.overview)}</section>` : ""}`;
   wireAccept(main());
@@ -445,7 +445,7 @@ async function viewUseCase(id) {
       ${next ? `· <a href="#uc/${h(next.fields.id)}">${h(next.fields.id)} →</a>` : ""}</p>
     <section class="head">
       <h2>${h(u.fields.id)} ${h(u.fields.title)} ${badge(u.status)}</h2>
-      <p class="meta">Stage <strong>${h(u.fields.stage)}</strong> ·
+      <p class="meta">Area <strong>${h(u.fields.area)}</strong> ·
         Actors: ${(u.fields.actors || []).map(h).join(", ")} ·
         blob <code>${h(u.blob.slice(0, 12))}</code> ·
         <a href="${h(blobUrl(T.repo, T.ref, u.path))}" target="_blank" rel="noopener">file on GitHub ↗</a></p>

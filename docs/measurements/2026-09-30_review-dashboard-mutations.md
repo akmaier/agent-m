@@ -138,3 +138,22 @@ with an invalid token stored, the line at the top named the GitHub token as refu
 ✗ refused, the stored token was in a password field and in full after *Show*; without a token, the product section read
 `akmaier/agent-m` and showed pseudonymisation *on (the default)*, no collaborators, read-only. Not run in a browser: a
 commit of `docs/settings.md` or `docs/collaborators.md` (no token was used), the export download and the import.
+
+## 4. The use-case key `area` (was `stage`), branch `feat/rename-stage-to-area` (on `main` at `52c4859`)
+
+Front-matter key `stage:` → `area:` in every `docs/use-cases/UC-*.md`; UC-010 and UC-011 renamed to `…-a-job-…`; the
+check, the dashboard column and the label of status *approved* follow. A record in `docs/approvals/` names a use case
+by the file name it had when accepted, so `tests/artifact_checks.py` `record_problems` now accepts a missing path
+when a use case with the same ID exists (`renamed_use_case`). Same method as §3.
+
+| Mutation | In | Red |
+|---|---|---|
+| the check reads `stage` again instead of `area` | `artifact_checks.py` | `test_usecase_fields` test_counter_proof; `test_usecase_fields` test_every_use_case_is_complete |
+| the check does not report a `stage` key | `artifact_checks.py` | `test_usecase_fields` test_the_old_key_stage_is_named |
+| a use case with `stage:` instead of `area:` (UC-042) | `UC-042-manage-settings.md` | `test_usecase_fields` test_every_use_case_is_complete |
+| a README link still naming the old UC-010 file | `README.md` | **none — green.** No check reads the links of `docs/use-cases/README.md`; none was added (CLAUDE.md §6a.4, no unrequested check). The links were changed by hand and read back. |
+| the dashboard column reads fields.stage | `review-app.mjs` | `review-core.test.mjs` "the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere" |
+| the column header says Stage | `review-app.mjs` | `review-core.test.mjs` "the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere" |
+| the old label of status approved | `review-app.mjs` | `review-core.test.mjs` "status 'approved' is described truly for both routes — the dashboard's own commit and the workflow" |
+| a record of a renamed use case is refused (old check) | `artifact_checks.py` | `test_approval_records` test_a_record_of_a_renamed_use_case_stays_valid; `test_approval_records` test_every_record_is_well_formed |
+| renamed_use_case accepts any ID | `artifact_checks.py` | `test_approval_records` test_a_record_of_a_renamed_use_case_stays_valid; `test_approval_records` test_counter_proof |

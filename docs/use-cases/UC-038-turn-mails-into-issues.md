@@ -1,7 +1,7 @@
 ---
 id: UC-038
 title: Turn mails into issues
-stage: evolution
+area: evolution
 actors:
   - Author
   - Reporter

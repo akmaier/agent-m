@@ -1,7 +1,7 @@
 ---
 id: UC-029
 title: Browse the tests of a product
-stage: 6 tests
+area: 6 tests
 actors:
   - Reviewer
 realises:

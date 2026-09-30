@@ -1,7 +1,7 @@
 ---
 id: UC-040
 title: Declare the product's resources
-stage: 4 architecture
+area: 4 architecture
 actors:
   - Author
   - Resource host

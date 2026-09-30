@@ -1,7 +1,7 @@
 ---
 id: UC-015
 title: Link requirement sources to a product
-stage: 1 sources
+area: 1 sources
 actors:
   - Author
 realises:

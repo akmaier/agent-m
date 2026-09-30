@@ -1,7 +1,7 @@
 ---
 id: UC-017
 title: Configure the participants of the instance
-stage: setup
+area: setup
 actors:
   - Author
   - GitHub

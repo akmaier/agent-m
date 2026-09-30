@@ -1,7 +1,7 @@
 ---
 id: UC-039
 title: Reply to the mails of an issue
-stage: evolution
+area: evolution
 actors:
   - Author
   - Reporter

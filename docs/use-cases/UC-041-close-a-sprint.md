@@ -1,7 +1,7 @@
 ---
 id: UC-041
 title: Close a sprint with review and retrospective
-stage: 5 implementation
+area: 5 implementation
 actors:
   - Product Owner
   - Scrum team

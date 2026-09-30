@@ -1,7 +1,7 @@
 ---
 id: UC-007
 title: Derive use cases from requirements
-stage: 3 use cases
+area: 3 use cases
 actors:
   - Author
   - Deriving participant

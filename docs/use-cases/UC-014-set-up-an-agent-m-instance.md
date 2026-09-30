@@ -1,7 +1,7 @@
 ---
 id: UC-014
 title: Get your own Agent M
-stage: setup
+area: setup
 actors:
   - Person
   - GitHub

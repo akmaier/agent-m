@@ -1,7 +1,7 @@
 ---
 id: UC-005
 title: Derive requirements from a source
-stage: 2 requirements
+area: 2 requirements
 actors:
   - Author
   - Deriving participant

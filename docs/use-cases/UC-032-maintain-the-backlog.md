@@ -1,7 +1,7 @@
 ---
 id: UC-032
 title: Maintain the backlog
-stage: 5 implementation
+area: 5 implementation
 actors:
   - Product Owner
   - Drafting participant

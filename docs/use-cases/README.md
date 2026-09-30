@@ -84,8 +84,8 @@ nine **steps** of the cycle are the areas below.
 
 | ID | Use case |
 |---|---|
-| [UC-010](UC-010-run-a-stage-in-github-actions.md) | Run a job in GitHub Actions |
-| [UC-011](UC-011-hand-a-stage-to-a-local-cli-session.md) | Hand a job to a local CLI session |
+| [UC-010](UC-010-run-a-job-in-github-actions.md) | Run a job in GitHub Actions |
+| [UC-011](UC-011-hand-a-job-to-a-local-cli-session.md) | Hand a job to a local CLI session |
 
 ## Operation — jobs
 

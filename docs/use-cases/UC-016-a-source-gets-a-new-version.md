@@ -1,7 +1,7 @@
 ---
 id: UC-016
 title: A source gets a new version
-stage: 1 sources
+area: 1 sources
 actors:
   - Author
   - Fetch workflow

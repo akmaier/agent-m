@@ -1,7 +1,7 @@
 ---
 id: UC-026
 title: Generate a multi-level test battery
-stage: 6 tests
+area: 6 tests
 actors:
   - Author
   - Test-writing participant
