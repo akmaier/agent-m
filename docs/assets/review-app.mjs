@@ -2,15 +2,16 @@
 //
 // Reads one pinned commit of the product — on GitHub (two API calls, then immutable raw files) or on a
 // GitLab server (its REST API v4, at the same pinned commit) — and renders use cases and SPEC change
-// proposals. With a stored token, a person's click commits an edit or an acceptance (writeFiles in
-// review-core.mjs); an accepted SPEC change is written in the same commit as its approval record. Without a
-// token, GitHub's own pages are opened, prefilled; a GitLab product without its project token is read-only
-// and links to the step that stores it. Every read goes through fetchText (GET only), and each token only to
+// proposals. A page load reads only the commit and its tree; each view then reads the files it shows, each by its blob
+// SHA and kept in this browser by that SHA, so that a file is read again only when it changed. With a stored token, a
+// person's click commits an edit or an acceptance (writeFiles in review-core.mjs); an accepted SPEC change is written in
+// the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
+// without its project token is read-only and links to the step that stores it. Every read goes through fetchText (GET only), and each token only to
 // the API of the server that issued it.
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
-import { browserStore } from "./settings-store.mjs";
+import { browserStore, fileTexts } from "./settings-store.mjs";
 import {
   fetchText, gitBlobSha, deriveTarget, parseProductAddress, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
   tokenLinkUrl, repositoryChoiceSteps, stepHtml, addProduct, writeFiles, writeRoute, isGitLab, gitlabAuth,
@@ -18,14 +19,14 @@ import {
   gitlabWriteRefusal, webFileUrl,
   tokenListUrl, extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, newFileUrl, editUrl, parseQueueIndex,
-  parseDecisions, deriveUseCaseStatus, deriveSpecStatus, acceptItems, createReviewSession, sectionForEntry,
+  parseDecisions, acceptItems, createReviewSession, sectionForEntry, readByBlob, recordIndex, statusByNames, specStatusByNames,
   missingNeeds, itemLabel, needsMessage,
   browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
   PASSPHRASE_NOTICE, exportSettings, readSettingsFile, mergeSettings, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
   addCollaborator, removeCollaborator, saveCollaborators, gitlabRole, jumpHostProblem, addRemoteSession, nextFreePort,
   probeLocalPort, diffHtml, reviewedId, recordsForId, lastAccepted,
-  ARCHITECTURE_FILE, parseArchitecture, deriveReviewedStatus, reviewedRecord, architecturePrerequisites, prerequisitesHtml,
+  ARCHITECTURE_FILE, parseArchitecture, reviewedRecord, architecturePrerequisites, prerequisitesHtml,
   moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile,
 } from "./review-core.mjs";
 
@@ -45,29 +46,46 @@ const ghToken = () => store.getToken();
 // The token that writes to the product shown: the GitHub token, or — for a GitLab product — its own project token
 // (A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN). Never the other one.
 const token = () => (GITLAB ? store.getGitLabToken(T.product.address)?.token || null : store.getToken());
-const state = { commit: null, tree: [], useCases: [], arch: [], records: [], queues: [], spec: "", overview: "", products: [] };
+// The pinned commit and its tree (every file with its blob SHA). Everything else is read by the view that shows it (`once`).
+const state = { commit: null, tree: [], byPath: new Map(), records: null, archCtx: { spec: "", useCases: [] }, products: [] };
+// The texts of files read before, by blob SHA (settings-store.mjs; cleared by "Clear everything").
+const kept = fileTexts();
 // What this page has shown the reviewer and what they ticked (SEVERAL FILES ARE ACCEPTED IN ONE CLICK).
 // Kept in memory only: a reload starts without ticks.
 const session = createReviewSession();
 let flash = null; // the outcome of the last acceptance, shown once above the next view
 
 // ---------------------------------------------------------------- loading
+//
+// A page load reads the commit the branch points at and that commit's tree — two requests. The tree names every file with its
+// blob SHA. Each view then reads what it shows, once per commit (`once`): a file by its blob SHA, from the texts this browser
+// kept (readByBlob checks each against its SHA) or else from the server. The status of a reviewed file comes from the names of
+// the approval records in the tree (statusByNames); a record is read where its content decides.
+
+let memo = new Map(); // what this page has read or derived at state.commit
+function once(key, f) {
+  if (!memo.has(key)) memo.set(key, f().catch((e) => { memo.delete(key); throw e; }));
+  return memo.get(key);
+}
 
 async function loadSnapshot() {
+  const before = state.commit;
   if (GITLAB) {
     // GITLAB PRODUCTS ARE SUPPORTED: its default branch unless ?ref= names one, resolved to one commit.
     if (!T.refGiven) T.ref = (await gitlabProject({ product: T.product, token: token() })).default_branch || T.ref;
     const snap = await gitlabSnapshot({ product: T.product, ref: T.ref, token: token() });
     state.commit = snap.commit;
     state.tree = snap.tree;
-    return;
+  } else {
+    const [owner, name] = T.repo.split("/");
+    const commitJson = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/commits/${encodeURIComponent(T.ref)}`,
+      { headers: { Accept: "application/vnd.github+json" } }, token()));
+    state.commit = commitJson.sha;
+    const tree = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/git/trees/${state.commit}?recursive=1`, {}, token()));
+    state.tree = tree.tree.filter((e) => e.type === "blob");
   }
-  const [owner, name] = T.repo.split("/");
-  const commitJson = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/commits/${encodeURIComponent(T.ref)}`,
-    { headers: { Accept: "application/vnd.github+json" } }, token()));
-  state.commit = commitJson.sha;
-  const tree = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/git/trees/${state.commit}?recursive=1`, {}, token()));
-  state.tree = tree.tree.filter((e) => e.type === "blob");
+  state.byPath = new Map(state.tree.map((e) => [e.path, e]));
+  if (state.commit !== before) { memo = new Map(); state.records = null; verified.clear(); }
 }
 
 // Without a token, files come from GitHub's raw host (public repositories). With a token, they come
@@ -104,76 +122,115 @@ function loadProducts() {
 }
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
-async function loadAll() {
-  await loadSnapshot();
-  const ucFiles = paths(/^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/);
-  // ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE: docs/architecture/ARC-<nnn>-<slug>.md and MOD-<slug>.md.
-  const archFiles = paths(ARCHITECTURE_FILE);
-  const recFiles = paths(/^docs\/approvals\/[^/]+\.md$/).filter((e) => !e.path.endsWith("README.md"));
-  const queueIdx = paths(/^docs\/spec-freigaben\/[^/]+\/index\.md$/);
-  const overview = paths(/^docs\/use-cases\/README\.md$/)[0];
+// The product's key among the texts this browser keeps: its server and repository.
+const REPO_KEY = `${T.product.host}/${T.product.repo}`;
 
-  const [ucTexts, archTexts, recTexts, spec, ov] = await Promise.all([
-    Promise.all(ucFiles.map((e) => raw(e.path))),
-    Promise.all(archFiles.map((e) => raw(e.path))),
-    Promise.all(recFiles.map((e) => raw(e.path))),
-    paths(/^SPEC\.md$/).length ? raw("SPEC.md") : Promise.resolve(""),
-    overview ? raw(overview.path) : Promise.resolve(""),
-  ]);
-  state.spec = spec;
-  state.overview = ov;
-  state.records = recTexts.map((t, i) => ({ ...parseRecord(t), _path: recFiles[i].path }));
-
-  state.useCases = await Promise.all(ucFiles.map(async (e, i) => {
-    const text = ucTexts[i];
-    const blob = await gitBlobSha(text);
-    const { fields, body } = parseFrontMatter(text);
-    return { path: e.path, text, blob, treeBlob: e.sha, fields, body,
-      status: deriveUseCaseStatus(e.path, blob, state.records) };
-  }));
-
-  state.arch = await Promise.all(archFiles.map(async (e, i) => {
-    const text = archTexts[i];
-    const blob = await gitBlobSha(text);
-    return { path: e.path, text, blob, treeBlob: e.sha, arch: parseArchitecture(e.path, text),
-      status: deriveReviewedStatus(e.path, blob, state.records) };
-  }));
-  state.arch.sort((a, b) => a.path.localeCompare(b.path));
-
-  state.queues = await Promise.all(queueIdx.map(async (e) => {
-    const dir = e.path.replace(/\/index\.md$/, "");
-    const [idxText, decText] = await Promise.all([raw(e.path),
-      paths(new RegExp(`^${esc(dir)}/entscheidungen\\.md$`)).length ? raw(`${dir}/entscheidungen.md`) : ""]);
-    const idx = parseQueueIndex(idxText);
-    const decisions = parseDecisions(decText);
-    const loaded = await Promise.all(idx.entries.map(async (en) => {
-      const nn = String(en.nr).padStart(2, "0");
-      const files = paths(new RegExp(`^${esc(dir)}/${nn}-[^/]+\\.md$`));
-      const prop = files.find((f) => !f.path.endsWith(".begruendung.md"));
-      const why = files.find((f) => f.path.endsWith(".begruendung.md"));
-      const [proposalText, rationale] = await Promise.all([prop ? raw(prop.path) : "", why ? raw(why.path) : ""]);
-      const targetPath = specTarget(idx.target || en.file);
-      const specText = targetPath === "SPEC.md" ? state.spec : (paths(new RegExp(`^${esc(targetPath)}$`)).length ? await raw(targetPath) : "");
-      return { ...en, nn, dir, proposalPath: prop?.path, proposalText, rationale, targetPath, specText };
-    }));
-    // A QUEUE IS ACCEPTED IN ITS ORDER: an entry whose heading another entry of the queue creates is
-    // shown beside the section that entry creates, and names it (`needs`). An accepted entry is shown beside the
-    // text it wrote, found where it wrote it — its proposal may have rewritten its anchor.
-    const entries = await Promise.all(loaded.map(async (en) => {
-      const sec = sectionForEntry({ specText: en.specText, nr: en.nr, accepted: decisions.get(en.nr)?.decision === "uebernommen",
-        entries: loaded.filter((x) => x.targetPath === en.targetPath) });
-      const current = sec.error ? "" : sec.current;
-      const proposalBlob = await gitBlobSha(en.proposalText);
-      const sectionBlob = sec.error ? "" : await gitBlobSha(current);
-      const status = deriveSpecStatus({ queue: dir, nr: en.nr, anchor: en.anchor, bis: en.bis, proposalPath: en.proposalPath,
-        proposalText: en.proposalText, proposalBlob, sectionBlob, specText: en.specText, decisions, records: state.records });
-      const { specText, ...rest } = en;
-      return { ...rest, current, error: sec.error, needs: sec.needs, proposalBlob, sectionBlob, status, decision: decisions.get(en.nr) };
-    }));
-    return { dir, name: dir.split("/").pop(), intro: idxText.split("\n| Nr")[0], entries };
-  }));
-  state.queues.sort((a, b) => b.name.localeCompare(a.name));
+// A file of the pinned commit, by its blob SHA — "" for a file the tree does not hold.
+function fileText(path) {
+  const e = state.byPath.get(path);
+  if (!e) return Promise.resolve("");
+  return once(`file:${path}`, () => readByBlob({ sha: e.sha, key: `${REPO_KEY}/${e.sha}`, cache: kept, read: () => raw(path) }));
 }
+
+// The approval records named in the tree, and those read so far (each parsed, with its own path).
+const recIndex = () => (state.records ??= recordIndex(state.tree.map((e) => e.path)));
+const readRecords = (list) => Promise.all(list.map((p) => once(`record:${p}`, async () => ({ ...parseRecord(await fileText(p)), _path: p }))));
+// STATUS IS DERIVED FROM THE RECORDS: from their names in the tree; verify — for a file that is opened — from their content.
+const statusOf = (path, blob, ids = [], verify = false) => statusByNames({ index: recIndex(), path, blob, ids, read: readRecords, verify });
+// Every record of an identifier: those named by it, and any whose name follows no known form.
+const recordsOf = async (id) => recordsForId(await readRecords([...(recIndex().byId.get(id) || []).map((n) => n.path),
+  ...recIndex().unknown]), id);
+// The status a file was shown with when it was opened (verified from its records), by path — a list shows it too.
+const verified = new Map();
+
+// ONE USE CASE, ONE FILE. The use cases of the tree, in its order, without reading one.
+const ucEntries = () => paths(/^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/);
+async function loadUseCase(e, verify = false) {
+  const text = await fileText(e.path);
+  const blob = await gitBlobSha(text);
+  const { fields, body } = parseFrontMatter(text);
+  const st = await statusOf(e.path, blob, [fields.id], verify);
+  if (verify) verified.set(e.path, st.status);
+  return { path: e.path, text, blob, treeBlob: e.sha, fields, body, status: st.status };
+}
+const useCases = () => once("use-cases", () => Promise.all(ucEntries().map((e) => loadUseCase(e))));
+
+// ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE: docs/architecture/ARC-<nnn>-<slug>.md and MOD-<slug>.md.
+const archEntries = () => paths(ARCHITECTURE_FILE).sort((a, b) => a.path.localeCompare(b.path));
+async function loadArch(e, verify = false) {
+  const text = await fileText(e.path);
+  const blob = await gitBlobSha(text);
+  const arch = parseArchitecture(e.path, text);
+  const st = await statusOf(e.path, blob, [arch.id], verify);
+  if (verify) verified.set(e.path, st.status);
+  // The records of its identifier: read when the file is opened, counted by their names in a list.
+  const records = verify ? await recordsOf(arch.id) : null;
+  const named = (recIndex().byId.get(arch.id) || []).length
+    + (recIndex().unknown.length ? recordsForId(await readRecords(recIndex().unknown), arch.id).length : 0);
+  return { path: e.path, text, blob, treeBlob: e.sha, arch, status: st.status, records, named };
+}
+const archFiles = () => once("architecture", () => Promise.all(archEntries().map((e) => loadArch(e))));
+
+const specFile = () => fileText("SPEC.md");
+
+// ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS: the SPEC's requirements, and the use cases the files name — each with its status
+// and the record that accepts its current text, from the tree's names. No use case is read; the record is read and checked
+// on the commit an acceptance is written on (review-core.mjs architectureRefusal).
+async function loadArchContext(files) {
+  const want = new Set(files.flatMap((f) => f.arch.useCases));
+  const [spec, useCases] = await Promise.all([specFile(), Promise.all(ucEntries().filter((e) => want.has(reviewedId(e.path)))
+    .map(async (e) => {
+      const st = await statusOf(e.path, e.sha);
+      return { id: reviewedId(e.path), path: e.path, blob: e.sha, status: st.status, record: st.status === "accepted" ? st.record : null };
+    }))]);
+  state.archCtx = { spec, useCases };
+}
+
+// The SPEC change queues: each with its index and its decisions — what the list needs to name every queue and entry.
+const queueHeads = () => once("queues", async () => {
+  const heads = await Promise.all(paths(/^docs\/spec-freigaben\/[^/]+\/index\.md$/).map(async (e) => {
+    const dir = e.path.replace(/\/index\.md$/, "");
+    const [idxText, decText] = await Promise.all([fileText(e.path), fileText(`${dir}/entscheidungen.md`)]);
+    const idx = parseQueueIndex(idxText), decisions = parseDecisions(decText);
+    // Every entry accepted: its entries are read when the queue is opened.
+    const accepted = idx.entries.length > 0 && idx.entries.every((en) => decisions.get(en.nr)?.decision === "uebernommen");
+    return { dir, name: dir.split("/").pop(), intro: idxText.split("\n| Nr")[0], idx, decisions, accepted };
+  }));
+  return heads.sort((a, b) => b.name.localeCompare(a.name));
+});
+
+// The entries of one queue: each proposal beside the SPEC section it replaces, with its status.
+const queueEntries = (q) => once(`queue:${q.dir}`, async () => {
+  const { dir, idx, decisions } = q;
+  const loaded = await Promise.all(idx.entries.map(async (en) => {
+    const nn = String(en.nr).padStart(2, "0");
+    const files = paths(new RegExp(`^${esc(dir)}/${nn}-[^/]+\\.md$`));
+    const prop = files.find((f) => !f.path.endsWith(".begruendung.md"));
+    const why = files.find((f) => f.path.endsWith(".begruendung.md"));
+    const targetPath = specTarget(idx.target || en.file);
+    const [proposalText, specText] = await Promise.all([prop ? fileText(prop.path) : "", fileText(targetPath)]);
+    return { ...en, nn, dir, proposalPath: prop?.path, rationalePath: why?.path, proposalText, targetPath, specText };
+  }));
+  // A QUEUE IS ACCEPTED IN ITS ORDER: an entry whose heading another entry of the queue creates is
+  // shown beside the section that entry creates, and names it (`needs`). An accepted entry is shown beside the
+  // text it wrote, found where it wrote it — its proposal may have rewritten its anchor.
+  return Promise.all(loaded.map(async (en) => {
+    const sec = sectionForEntry({ specText: en.specText, nr: en.nr, accepted: decisions.get(en.nr)?.decision === "uebernommen",
+      entries: loaded.filter((x) => x.targetPath === en.targetPath) });
+    const current = sec.error ? "" : sec.current;
+    const proposalBlob = await gitBlobSha(en.proposalText);
+    const sectionBlob = sec.error ? "" : await gitBlobSha(current);
+    const status = await specStatusByNames({ index: recIndex(), read: readRecords, entry: { queue: dir, nr: en.nr, anchor: en.anchor,
+      bis: en.bis, proposalPath: en.proposalPath, proposalText: en.proposalText, proposalBlob, sectionBlob, specText: en.specText, decisions } });
+    const { specText, ...rest } = en;
+    return { ...rest, current, error: sec.error, needs: sec.needs, proposalBlob, sectionBlob, status, decision: decisions.get(en.nr) };
+  }));
+});
+// The queues whose accepted entries a person opened on this page stay open in the list.
+const openQueues = new Set();
+
+// A view renders only while it is still the one asked for: reading may take long enough for the person to have moved on.
+let routeSeq = 0;
 
 // The queue index names its target relative to the process repository ("products/<name>/SPEC.md").
 // In the product repository the same file is at the root.
@@ -224,13 +281,15 @@ const LABEL = {
 const badge = (s) => `<span class="badge b-${s}" title="${h(LABEL[s]?.[1])}">${h(LABEL[s]?.[0] ?? s)}</span>`;
 
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT (UC-008 2a): read once per identifier and pinned commit, then kept
-// in memory for this page — the text a record names never changes.
+// in memory for this page — the text a record names never changes — and kept in this browser by its blob SHA. The records are
+// those of the identifier, read here: their content, not their names, says which text was accepted.
 const acceptedCache = new Map();
 function lastAcceptedOf(id) {
   const key = `${id}@${state.commit}`;
   if (!acceptedCache.has(key)) {
-    acceptedCache.set(key, lastAccepted({ ...(GITLAB ? { product: T.product } : { repo: T.repo }), commit: state.commit, token: token(),
-      records: state.records, id }).catch((e) => { acceptedCache.delete(key); throw e; }));
+    acceptedCache.set(key, recordsOf(id).then((records) => lastAccepted({ ...(GITLAB ? { product: T.product } : { repo: T.repo }),
+      commit: state.commit, token: token(), records, id, cache: kept, repoKey: REPO_KEY }))
+      .catch((e) => { acceptedCache.delete(key); throw e; }));
   }
   return acceptedCache.get(key);
 }
@@ -353,7 +412,7 @@ function editPanel(path, text, blob) {
 }
 
 async function reloadAndRoute() {
-  await loadAll();
+  await loadSnapshot();
   await route();
 }
 
@@ -496,8 +555,14 @@ const specItem = (q, e) => ({ kind: "spec", queue: e.dir, qname: q.name, nr: e.n
   proposalBlob: e.proposalBlob, sectionBlob: e.sectionBlob, targetPath: e.targetPath, anchor: e.anchor, bis: e.bis, needs: e.needs });
 const specAcceptable = (e) => Boolean(!e.error && e.proposalPath && ["open", "stale"].includes(e.status));
 
+// The use cases read for the list: the text of each, its status from the records' names — or, once opened on this page, from
+// the records themselves.
 async function viewUseCases() {
-  const rows = state.useCases.map((u) => `
+  const seq = routeSeq;
+  const [read, overview] = await Promise.all([useCases(), fileText("docs/use-cases/README.md")]);
+  if (seq !== routeSeq) return;
+  const list = read.map((u) => ({ ...u, status: verified.get(u.path) ?? u.status }));
+  const rows = list.map((u) => `
     <tr>
       ${tickCell(session.key(ucItem(u)), u.status !== "accepted")}
       <td><a href="#uc/${h(u.fields.id)}">${h(u.fields.id)}</a></td>
@@ -516,28 +581,34 @@ async function viewUseCases() {
       accepting and editing then go through GitHub's own pages, and products cannot be added.</p>
       <p><a class="btn primary" href="#setup">Set up now</a> <a class="btn" href="#settings">Import settings</a>
         <span class="muted small">— from a file exported in another browser (Settings → Export settings).</span></p></section>`}
-    <section class="head"><h2>Use cases</h2><p>${counts(state.useCases)}</p></section>
+    <section class="head"><h2>Use cases</h2><p>${counts(list)}</p></section>
     ${batchBar()}
     <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th><th>Area</th><th>Realises</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody></table>
-    ${state.overview ? `<section class="md overview">${md(state.overview)}</section>` : ""}`;
+    ${overview ? `<section class="md overview">${md(overview)}</section>` : ""}`;
   wireAccept(main());
   await renderMermaid(main());
 }
 
+// One use case: its text, and its records — read here, so that its status is what their content says, not their names.
 async function viewUseCase(id) {
-  const u = state.useCases.find((x) => x.fields.id === id);
-  if (!u) { main().innerHTML = `<p class="warn">No use case ${h(id)} on ${h(T.ref)}.</p>`; return; }
+  const seq = routeSeq;
+  const entries = ucEntries();
+  // By the identifier in its file name; a use case whose front matter names another one is found among all of them.
+  const e = entries.find((x) => reviewedId(x.path) === id) ?? (await useCases()).find((x) => x.fields.id === id);
+  if (!e) { main().innerHTML = `<p class="warn">No use case ${h(id)} on ${h(T.ref)}.</p>`; return; }
+  const u = await once(`use-case:${e.path}`, () => loadUseCase(state.byPath.get(e.path), true));
   const ucId = u.fields.id || reviewedId(u.path);
   // Every record of this identifier, also those naming an earlier path of a renamed file.
-  const approved = recordsForId(state.records, ucId);
+  const approved = await recordsOf(ucId);
+  if (seq !== routeSeq) return;
   const showDiff = u.status !== "accepted" && approved.length > 0;
-  const idx = state.useCases.indexOf(u);
-  const prev = state.useCases[idx - 1], next = state.useCases[idx + 1];
+  const idx = entries.findIndex((x) => x.path === u.path);
+  const prev = reviewedId(entries[idx - 1]?.path), next = reviewedId(entries[idx + 1]?.path);
   main().innerHTML = `
     <p class="crumbs"><a href="#uc">← all use cases</a>
-      ${prev ? `· <a href="#uc/${h(prev.fields.id)}">← ${h(prev.fields.id)}</a>` : ""}
-      ${next ? `· <a href="#uc/${h(next.fields.id)}">${h(next.fields.id)} →</a>` : ""}</p>
+      ${prev ? `· <a href="#uc/${h(prev)}">← ${h(prev)}</a>` : ""}
+      ${next ? `· <a href="#uc/${h(next)}">${h(next)} →</a>` : ""}</p>
     <section class="head">
       <h2>${h(u.fields.id)} ${h(u.fields.title)} ${badge(u.status)}</h2>
       <p class="meta">Area <strong>${h(u.fields.area)}</strong> ·
@@ -571,18 +642,21 @@ async function viewUseCase(id) {
 
 // ---------------------------------------------------------------- architecture (SPEC §11; UC-022 step 8, 10; UC-023 steps 4–5)
 
-// The use cases as architecture rests on them: each with its status and the record that accepts its current text.
-const ucStates = () => state.useCases.map((u) => ({ id: u.fields.id || reviewedId(u.path), path: u.path, blob: u.blob, status: u.status,
-  record: state.records.find((r) => r.kind === "use-case" && r.file === u.path && r.blob === u.blob)?._path ?? null }));
-const prerequisitesOf = (f) => architecturePrerequisites({ arch: f.arch, specText: state.spec, useCases: ucStates() });
-// A change to an accepted decision or module: accepted before under its identifier, not in this text.
-const isArchChange = (f) => f.status !== "accepted" && recordsForId(state.records, f.arch.id).length > 0;
+// What an architecture file rests on — the SPEC and the use cases it names — as loadArchContext read it for the view shown.
+const prerequisitesOf = (f) => architecturePrerequisites({ arch: f.arch, specText: state.archCtx.spec, useCases: state.archCtx.useCases });
+// A change to an accepted decision or module: accepted before under its identifier, not in this text — by the records read
+// when the file is opened, by their names in a list.
+const isArchChange = (f) => f.status !== "accepted" && (f.records ? f.records.length : f.named) > 0;
 const archItem = (f, extra = {}) => ({ kind: f.arch.kind, id: f.arch.id, path: f.path, blob: f.blob,
   requires: prerequisitesOf(f).useCases, changed: isArchChange(f), ...extra });
 
 async function viewArchitecture() {
+  const seq = routeSeq;
+  const files = (await archFiles()).map((f) => ({ ...f, status: verified.get(f.path) ?? f.status }));
+  await loadArchContext(files);
+  if (seq !== routeSeq) return;
   const table = (kind, head, cols) => {
-    const list = state.arch.filter((f) => f.arch.kind === kind);
+    const list = files.filter((f) => f.arch.kind === kind);
     if (!list.length) return `<p class="muted">None yet.</p>`;
     return `<table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th>${head}<th>Status</th></tr></thead><tbody>
       ${list.map((f) => { const open = prerequisitesOf(f).open; return `<tr>
@@ -593,9 +667,9 @@ async function viewArchitecture() {
         ${cols(f)}<td>${badge(f.status)}</td></tr>`; }).join("")}
       </tbody></table>`;
   };
-  const mods = state.arch.filter((f) => f.arch.kind === "module");
+  const mods = files.filter((f) => f.arch.kind === "module");
   main().innerHTML = `
-    <section class="head"><h2>Architecture</h2><p>${counts(state.arch)}</p>
+    <section class="head"><h2>Architecture</h2><p>${counts(files)}</p>
       <p class="muted">Architecture decisions (<code>ARC-&lt;nnn&gt;</code>) and modules (<code>MOD-&lt;slug&gt;</code>) in
       <code>docs/architecture/</code>, each accepted like a use case, once everything it names is accepted.</p>
       <details class="explain"><summary>What is this?</summary><div>A <em>decision</em> states its context, the decision, the
@@ -618,11 +692,12 @@ async function viewArchitecture() {
   await renderMermaid(main());
 }
 
-// The files every impact list reads: module headers of the code at the pinned commit, read once per commit.
+// The files every impact list reads: module headers of the code at the pinned commit, read once per commit — every code file
+// of the tree, each kept in this browser by its blob SHA.
 const headersCache = new Map();
 function headersAt() {
   if (!headersCache.has(state.commit)) {
-    headersCache.set(state.commit, moduleHeaders({ paths: state.tree.map((e) => e.path), read: raw })
+    headersCache.set(state.commit, moduleHeaders({ paths: state.tree.map((e) => e.path), read: fileText })
       .catch((e) => { headersCache.delete(state.commit); throw e; }));
   }
   return headersCache.get(state.commit);
@@ -633,10 +708,10 @@ async function fillImpact(f) {
   const box = document.getElementById("impact"), acc = document.getElementById("arc-accept");
   if (!box) return;
   try {
-    const [last, headers] = await Promise.all([lastAcceptedOf(f.arch.id), headersAt()]);
+    const [last, headers, all] = await Promise.all([lastAcceptedOf(f.arch.id), headersAt(), archFiles()]);
     if (!document.body.contains(box) || !last) return;
     const imp = impactList({ before: parseArchitecture(last.record.file, last.text), after: f.arch,
-      modules: state.arch.map((x) => x.arch), headers });
+      modules: all.map((x) => x.arch), headers });
     box.innerHTML = impactHtml(imp);
     if (acc) {
       acc.innerHTML = acceptPanel(reviewedRecord(f.path, f.blob), approvalPath(f.arch.id, f.blob), f.arch.id,
@@ -650,12 +725,21 @@ async function fillImpact(f) {
   }
 }
 
+// One architecture file: its text, its records — read here, so that its status is what their content says —, the SPEC and the
+// use cases it names; every module and the code's headers only for a change, whose impact list needs them.
 async function viewArchitectureFile(id) {
-  const f = state.arch.find((x) => x.arch.id === id);
-  if (!f) { main().innerHTML = `<p class="warn">No architecture file ${h(id)} on ${h(T.ref)}.</p>`; return; }
-  const a = f.arch, pre = prerequisitesOf(f), approved = recordsForId(state.records, a.id);
+  const seq = routeSeq;
+  const entries = archEntries();
+  const e = entries.find((x) => reviewedId(x.path) === id) ?? (await archFiles()).find((x) => x.arch.id === id);
+  if (!e) { main().innerHTML = `<p class="warn">No architecture file ${h(id)} on ${h(T.ref)}.</p>`; return; }
+  const f = await once(`architecture:${e.path}`, () => loadArch(state.byPath.get(e.path), true));
+  await loadArchContext([f]);
+  if (seq !== routeSeq) return;
+  const a = f.arch, pre = prerequisitesOf(f), approved = f.records;
   const change = isArchChange(f);
-  const idx = state.arch.indexOf(f), prev = state.arch[idx - 1], next = state.arch[idx + 1];
+  const idx = entries.findIndex((x) => x.path === f.path);
+  const prev = entries[idx - 1] && { arch: { id: reviewedId(entries[idx - 1].path) } };
+  const next = entries[idx + 1] && { arch: { id: reviewedId(entries[idx + 1].path) } };
   const nameState = (n) => { const o = pre.open.find((x) => x.name === n); return o ? ` <span class="warn small">${h(o.reason)}</span>` : " ✓"; };
   const accept = f.status === "accepted" ? ""
     : pre.open.length ? prerequisitesHtml(pre.open)
@@ -703,17 +787,33 @@ async function viewArchitectureFile(id) {
   await renderMermaid(main());
 }
 
-async function viewSpec() {
-  const all = state.queues.flatMap((q) => q.entries);
+// Every queue with its index and decisions; the entries of a queue with an entry still undecided, and of each queue opened on this
+// page. A queue whose entries are all accepted is named with their number and opened on request: only then are its proposals
+// read, to show whether each still stands in the SPEC.
+async function viewSpec(open = null) {
+  const seq = routeSeq;
+  if (open) openQueues.add(open);
+  const queues = await Promise.all((await queueHeads()).map(async (q) =>
+    ({ ...q, entries: q.accepted && !openQueues.has(q.name) ? null : await queueEntries(q) })));
+  if (seq !== routeSeq) return;
+  const all = queues.flatMap((q) => q.entries || []);
+  const folded = queues.filter((q) => !q.entries), foldedEntries = folded.reduce((n, q) => n + q.idx.entries.length, 0);
   main().innerHTML = `
-    <section class="head"><h2>SPEC changes</h2><p>${counts(all)}</p>
+    <section class="head"><h2>SPEC changes</h2><p>${counts(all)}${folded.length ? ` · ${foldedEntries} accepted
+      ${foldedEntries === 1 ? "entry" : "entries"} in ${folded.length} closed ${folded.length === 1 ? "queue" : "queues"}` : ""}</p>
     <p class="muted">Each entry proposes the text of one SPEC section. ${token()
       ? "Accepting it commits the approval and writes the proposal into the SPEC byte for byte, in one commit."
       : GITLAB ? `Accepting on GitLab needs this project's token — <a href="${h(tokenStepLink())}">store it</a>.`
       : "Accept it here; the workflow writes it into <code>SPEC.md</code> byte for byte once your approval commit arrives."}</p></section>
     ${batchBar()}
-    ${state.queues.map((q) => `
-      <section class="queue">
+    ${queues.map((q) => !q.entries ? `
+      <section class="queue closed" id="queue-${h(q.name)}">
+        <h3>${h(q.name)}</h3>
+        <p class="muted">All ${q.idx.entries.length} ${q.idx.entries.length === 1 ? "entry is" : "entries are"} accepted, by the decisions
+          of this queue. Their proposals are read when you open the queue, which shows whether each still stands in the SPEC.
+          <a class="btn small" href="#spec/${h(q.name)}">Open the queue</a></p>
+      </section>` : `
+      <section class="queue" id="queue-${h(q.name)}">
         <h3>${h(q.name)}</h3>
         <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>Nr</th><th>Section</th><th>Status</th></tr></thead><tbody>
         ${q.entries.map((e) => `<tr>${tickCell(session.key(specItem(q, e)), specAcceptable(e))}
@@ -733,10 +833,16 @@ function entryNote(e) {
   return e.error ? ` <span class="warn">${h(e.error)}</span>` : "";
 }
 
+// One entry: its queue's entries (an entry may need another of its queue), and its rationale.
 async function viewSpecEntry(qname, nn) {
-  const q = state.queues.find((x) => x.name === qname);
-  const e = q?.entries.find((x) => x.nn === nn);
+  const seq = routeSeq;
+  const q = (await queueHeads()).find((x) => x.name === qname);
+  const e = q && (await queueEntries(q)).find((x) => x.nn === nn);
+  if (seq !== routeSeq) return;
   if (!e) { main().innerHTML = `<p class="warn">No entry ${h(qname)}/${h(nn)}.</p>`; return; }
+  openQueues.add(q.name);
+  const rationale = e.rationalePath ? await fileText(e.rationalePath) : "";
+  if (seq !== routeSeq) return;
   const waits = e.needs.length > 0 && ["open", "stale"].includes(e.status) && Boolean(e.proposalPath);
   const canAccept = specAcceptable(e) && !waits;
   const rec = canAccept ? specRecord({ queue: e.dir, entry: e.nr, proposal: e.proposalPath, blob: e.proposalBlob,
@@ -765,7 +871,7 @@ async function viewSpecEntry(qname, nn) {
       <section><h3>Proposed</h3><div class="md doc">${md(e.proposalText)}</div></section>
     </div>
     <section class="panel"><h3>Difference</h3>${diffHtml(e.current, e.proposalText)}</section>
-    ${e.rationale ? `<section class="panel md rationale"><h3>Rationale</h3>${md(e.rationale.replace(/^# .*\n/, ""))}</section>` : ""}
+    ${rationale ? `<section class="panel md rationale"><h3>Rationale</h3>${md(rationale.replace(/^# .*\n/, ""))}</section>` : ""}
     <section class="panel"><button class="btn" data-toggle-edit>Edit proposal…</button></section>
     ${rec ? acceptPanel(rec, approvalPath(`spec-${q.name}-${e.nn}`, e.proposalBlob), `entry ${e.nn}`, item) : waitPanel}
     ${batchBar()}
@@ -915,7 +1021,8 @@ function viewSettings() {
       <h3>Clear everything in this browser</h3>
       <p><button class="btn" id="token-clear">Clear everything Agent M stored</button></p>
       <details class="explain"><summary>What is this?</summary><div>Removes the GitHub token, its date, the product list, every
-        GitLab project token, the jump host and the remote sessions with their bridge tokens from this browser's storage. Nothing in any repository changes.</div></details>
+        GitLab project token, the jump host and the remote sessions with their bridge tokens from this browser's storage, and the
+        texts of repository files this page kept so as not to read them again. Nothing in any repository changes.</div></details>
     </section>`;
   renderBrowserSettings();
   wireSettings();
@@ -1175,16 +1282,19 @@ function wireSettings() {
     viewSettings();
     document.getElementById("token-msg").textContent = "Stored. Press Test to check it; reload to read with it.";
   });
-  document.getElementById("token-clear").addEventListener("click", () => {
-    if (!confirm("Clear everything Agent M stored in this browser — the GitHub token, its date, the product list, every GitLab project token, the jump host and the remote sessions with their bridge tokens?")) return;
+  document.getElementById("token-clear").addEventListener("click", async () => {
+    if (!confirm("Clear everything Agent M stored in this browser — the GitHub token, its date, the product list, every GitLab project token, the jump host, the remote sessions with their bridge tokens, and the kept texts of repository files?")) return;
     store.clear();
+    // A CLEAR IS A REAL CLEAR: the file texts kept by blob SHA go too.
+    const textsGone = await kept.clear();
     Object.assign(tokenState, { ok: null, refused: false, gitlab: {}, sessions: {} });
     shownSecrets.clear();
     loadProducts();
     renderProductSelector();
     showBanner();
     viewSettings();
-    document.getElementById("token-msg").textContent = Object.keys(store.entries()).length ? "Clearing failed — something is still stored." : "Nothing stored any more.";
+    document.getElementById("token-msg").textContent = Object.keys(store.entries()).length || !textsGone
+      ? "Clearing failed — something is still stored." : "Nothing stored any more.";
   });
   document.getElementById("export-go").addEventListener("click", saveExport);
   importGo.addEventListener("click", async () => {
@@ -1237,7 +1347,7 @@ async function loadProductSettings() {
   const sEntry = entry(PRODUCT_SETTINGS_PATH), cEntry = entry(COLLABORATORS_PATH);
   let settingsText = null, collText = null, reach;
   try {
-    [settingsText, collText, reach] = await Promise.all([sEntry ? raw(sEntry.path) : null, cEntry ? raw(cEntry.path) : null,
+    [settingsText, collText, reach] = await Promise.all([sEntry ? fileText(sEntry.path) : null, cEntry ? fileText(cEntry.path) : null,
       GITLAB ? checkGitLab(T.product, token()) : checkReach(T.repo)]);
   } catch (e) {
     noteRefusal(e);
@@ -1642,12 +1752,15 @@ function renderProductSelector() {
 // ---------------------------------------------------------------- routing
 
 async function route() {
+  routeSeq += 1;
   const [kind, a, b] = location.hash.replace(/^#/, "").split("/");
   document.querySelectorAll(".tabs a").forEach((t) => t.classList.toggle("active",
     t.getAttribute("href") === `#${kind || "uc"}`));
+  // The views of the repository read what they show first.
+  if (state.commit && ["", "uc", "arc", "spec"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
-    if (kind === "spec" && a) await viewSpecEntry(decodeURIComponent(a), b);
-    else if (kind === "spec") await viewSpec();
+    if (kind === "spec" && a && b) await viewSpecEntry(decodeURIComponent(a), b);
+    else if (kind === "spec") await viewSpec(a ? decodeURIComponent(a) : null);
     else if (kind === "how") viewHow();
     else if (kind === "settings") viewSettings();
     else if (kind === "add") await viewAddProduct(a ? decodeURIComponent(a) : "");
@@ -1666,7 +1779,7 @@ async function route() {
       flash = null;
     }
   } catch (e) {
-    main().innerHTML = `<p class="warn">${h(e.message)}</p>`;
+    main().innerHTML = `<p class="warn">${h(errorText(noteRefusal(e)))}</p>`;
   }
   window.scrollTo(0, 0);
 }
@@ -1680,7 +1793,7 @@ async function start() {
     route();
   }
   try {
-    await loadAll();
+    await loadSnapshot();
     document.getElementById("repo-line").innerHTML =
       `<a href="${h(T.product.address)}" target="_blank" rel="noopener">${h(GITLAB ? T.product.address : T.repo)}</a> · ${h(T.ref)} · <code>${h(state.commit.slice(0, 12))}</code>`;
   } catch (e) {
