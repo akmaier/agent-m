@@ -114,7 +114,7 @@ sequenceDiagram
   has its layout, that is *Check* and *Add product* (5b).
 - **3c. The product is on a GitLab server.** Step A becomes **Create a key for this project**: a
   button opens the project's *Settings → Access tokens* page on that server; underneath, what to set
-  there — name `Agent M`, role **Developer**, scope **`api`**, an expiry date — then *Create project
+  there — name `Agent M`, role **Maintainer**, scope **`api`**, an expiry date — then *Create project
   access token* and copy it. Step B is the familiar notice, paste field and *Store and check*; the
   token is stored for this project only and is sent only to that server. Then Step C as above. Each
   GitLab product has its own token; the instance's GitHub token is not involved there.
