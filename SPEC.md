@@ -656,6 +656,45 @@ on 2026-08-24: the tunnel end listened on `127.0.0.1`/`[::1]` only.
 *Check:* `tests/test_bridge_tunnel.py` — the generated reverse-tunnel command names the loopback address;
 counter-proof: a command with `0.0.0.0` or an empty bind address fails.
 
+**A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST** *(PO A. Maier, 2026-09-30)*
+The dashboard can reach a bridge through an HTTPS address of the jump host, served with a certificate the
+browsers trust, whose web server forwards the requests to the end of the bridge's reverse tunnel on the
+jump host's loopback.
+*Occasion:* PO, 2026-09-30: "don't we have the route via a server like lme245? … Safari needs the server
+tunnel variant?" Measured 2026-09-30 from documentation (`docs/measurements/2026-09-30_architecture-open-points.md`,
+point 3): Chrome from 142, Edge from 143 and Firefox from 153 let an HTTPS page call `http://127.0.0.1`
+after one local-network prompt; Safari blocks it as mixed content. An HTTPS address with a valid
+certificate on a server the person controls is an ordinary web address for every browser; behind a
+certificate the browser does not trust — a self-signed one — a request made by a page fails without any
+way to proceed, so the certificate is part of the route: one issued for the host's name by an authority the
+browsers trust, such as Let's Encrypt, free and renewed automatically, or the institution's own. The pattern is
+the support cockpit's (`SOFTWARE_MAINTENANCE.md` §6.1a); the server is the person's own, like the jump host
+(`NO SERVER`). Whether all four browsers reach a bridge this way is measured before release (`BROWSER
+REACHABILITY IS MEASURED, NOT ASSUMED`).
+*Check:* `tests/test_bridge_tunnel.py` — through a test HTTPS proxy in front of a reverse tunnel, the
+dashboard's request reaches the bridge; counter-proofs: with the tunnel closed, the proxy answers with an
+error and no bridge is reached; behind a certificate the test browser does not trust, the request fails and
+the settings page names the certificate as a possible cause.
+
+**THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN** *(PO A. Maier, 2026-09-30)*
+The jump host's web server forwards a request to a bridge's tunnel only when the request carries the web
+server's own login over TLS.
+*Occasion:* PO, 2026-09-30, option (a): a login at the server in addition to the bridge's token (`THE LOCAL
+BRIDGE REQUIRES A TOKEN`) — "Ohne Authentifizierung kein Proxy" (`SOFTWARE_MAINTENANCE.md` §6.1a). The page
+sends the login as Basic authentication in the `Authorization` header; the bridge's token travels in a
+header of its own.
+*Check:* `tests/test_bridge_tunnel.py` — a request without the login is answered `401` and reaches no
+bridge; counter-proof: with the login and the bridge's token it is answered by the bridge.
+
+**THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE** *(PO A. Maier, 2026-09-30)*
+The jump host's web server allows cross-origin requests to a bridge only from the instance's Pages origin.
+*Occasion:* before each such request the browser asks the server whether the page may send it (a
+preflight), and sends no login with that question; the server answers it for the Pages origin only, and the
+browser itself then refuses every other site's request. The login of the rule above still guards the
+request that follows.
+*Check:* `tests/test_bridge_tunnel.py` — a preflight from the Pages origin is allowed; counter-proof: one
+from any other origin is refused.
+
 **EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE** *(PO A. Maier, 2026-09-30)*
 Each CLI session reached through the jump host is given one port from the jump host's configured port
 range, and no two sessions share a port.
@@ -709,8 +748,8 @@ Every job that needs no resource on the person's own network can run with nothin
 person's computer — in the browser, or in the product's CI on the server's own machines.
 *Occasion:* PO, 2026-09-30: users "will not be coding experts" — "We will need both levels." The first
 level is the one a newcomer meets: the dashboard, jobs in GitHub Actions or GitLab CI, mail through
-Microsoft 365 or Gmail. Installing something is the second level, needed only for local agents, IMAP
-mailboxes and machines on the person's own network.
+Microsoft 365. Installing something is the second level, needed only for local agents, IMAP
+mailboxes — Gmail's included — and machines on the person's own network.
 *Check:* `tests/test_runtime_levels.py` — every job kind whose definition names no local resource is
 runnable on the hosted-CI route; counter-proof: a job needing a compute resource is not offered there.
 
@@ -723,15 +762,17 @@ WHERE`). Such a job is billed per call to the agent's provider; the dashboard sa
 *Check:* `tests/test_runtime_levels.py` — the generated job workflow reads the key only from the named
 secret; counter-proof: a workflow with the key written into it fails.
 
-**THE BRIDGE IS ONE FILE PER PLATFORM** *(PO A. Maier, 2026-09-30)*
-The local bridge is delivered as one executable file for each of Windows, macOS and Linux, and needs no
-other runtime installed.
+**THE BRIDGE IS ONE FILE PER PLATFORM** *(PO A. Maier, 2026-09-30, extended 2026-09-30)*
+The local bridge is delivered as one file for each of Windows, macOS and Linux — an executable, a disk
+image or an installer —, and needs no other runtime installed.
 *Occasion:* PO, 2026-09-30: "Single binary is very appealing because it is easy to install on windows and
 Mac clients. Otherwise, you need to be a computer scientist to operate the local backend." Measured
 2026-09-30: `deno compile` embeds a program into one executable for Windows, macOS (x86-64, ARM64) and
-Linux, cross-compiled from any one host.
-*Check:* `tests/test_bridge_release.py` — the release build yields one file per platform, and each starts
-on a machine without Node or Deno.
+Linux, cross-compiled from any one host. PO, 2026-09-30, on ARC-011: an installer counts as the one file —
+the build that gives the bridge its tray icon and window (`THE BRIDGE RUNS AS AN APP`) is documented to
+yield a folder or an `.msi` installer on Windows, not a single executable.
+*Check:* `tests/test_bridge_release.py` — the release build yields one file per platform, and each starts,
+after installation where it is an installer, on a machine without Node or Deno.
 
 **THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE** *(PO A. Maier, 2026-09-30)*
 The bridge is compiled from the same JavaScript modules and job definitions the dashboard uses.
@@ -1005,24 +1046,45 @@ setting, so a Developer token could write nothing on a project with default sett
 
 **ONE GITHUB TOKEN SERVES EVERY FEATURE** *(PO A. Maier, 2026-09-24)*
 On GitHub, Agent M asks a person for one fine-grained token that carries every permission its
-features need on the repositories the person selects — *Contents* and *Issues* read and write,
-*Actions* read and write, *Metadata* read.
+features need on the repositories the person selects — *Contents*, *Issues* and *Pull requests* read
+and write, *Actions* and *Workflows* read and write, *Metadata* read.
 *Occasion:* PO, 2026-09-24: "Better to keep it in one token; otherwise users are overwhelmed."
 Issues from mail need *Issues*, starting a CI run needs *Actions*; a second and a third token would
-triple the setup that UC-014 just made manageable. The scope stays limited by the repository
+triple the setup that UC-014 just made manageable. PO, 2026-09-30: a job on the server's machines writes
+with this token (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`); opening and merging its
+pull requests needs *Pull requests*, and a job that generates the CI configuration (UC-027) needs
+*Workflows*. The scope stays limited by the repository
 selection (`A TOKEN IS SCOPED TO WHAT IT WRITES`), and a GitLab product keeps its project token
 (`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`).
 *Check:* `tests/test_token_scope_documented.py` — the prefilled link asks for exactly these
 permissions.
 
-**THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS** *(PO A. Maier, 2026-09-30)*
-The jump host's name, SSH user and port range, and for each remote session its name, port and bridge
-token, are kept in the browser's settings.
+**THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS** *(PO A. Maier, 2026-09-30, extended 2026-09-30)*
+The jump host's name, SSH user, port range, HTTPS address and web-server login, and for each remote
+session its name, port and bridge token, are kept in the browser's settings.
 *Occasion:* PO, 2026-09-30: "We need to be able to configure the keys for this in the settings as well as
 the hostname and the port range that the CLI sessions will use." They are what the dashboard needs to
 reach a session and to write its tunnel commands (`THE DASHBOARD WRITES THE TUNNEL COMMANDS`); like every
-browser setting they are tested, cleared and exported on the settings page.
+browser setting they are tested, cleared and exported on the settings page. PO, 2026-09-30: the HTTPS
+address and the login are the route to a bridge that works in every browser (`A BRIDGE CAN BE REACHED OVER
+HTTPS THROUGH THE JUMP HOST`, `THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN`).
 *Check:* `tests/test_settings_page.py`
+
+**A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET** *(PO A. Maier, 2026-09-30)*
+A job on the server's own machines pushes, opens pull requests and merges them with the person's Agent M
+token stored as a CI secret of the product repository, never with the workflow's built-in token.
+*Occasion:* PO, 2026-09-30: "can't we use github secrets here?" Measured 2026-09-30 from GitHub's
+documentation (`docs/measurements/2026-09-30_architecture-open-points.md`, point 8): events caused with
+the workflow's `GITHUB_TOKEN` start no new workflow run, and pull requests it opens start their runs "in an
+approval-required state" — a run would stop at a click (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS
+JOBS`). GitHub's remedy is a personal access token or a GitHub App token stored as a secret; the PO chose
+the person's own token, so that it stays one token (`ONE GITHUB TOKEN SERVES EVERY FEATURE`). A secret
+cannot be read back, so the person stores the value twice — in the browser and as the secret —; the
+dashboard names the secret and opens its page, as for the agent's key (`A HOSTED JOB AUTHENTICATES ITS
+AGENT WITH A CI SECRET`). On GitLab the job token opens no merge request and its pushes start no
+pipeline; there the product's project access token is stored as a protected, masked CI/CD variable.
+*Check:* `tests/test_runtime_levels.py` — the generated job workflow authenticates its pushes and pull
+requests with the named secret; counter-proof: a workflow that uses `GITHUB_TOKEN` for them fails.
 ## 8. Versioning
 
 **CALENDAR VERSIONS** *(PO A. Maier, 2026-09-23)*
@@ -2159,17 +2221,23 @@ and the participants are byte-identical, and the proposed changes are open for a
 ## 14. Issues, mail and personal data
 
 **A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE** *(PO A. Maier, 2026-09-29)*
-The dashboard reaches a mailbox directly through its provider's web API — Microsoft Graph for
-Microsoft 365, the Gmail API for Gmail — and any other mailbox through the local bridge over IMAP and SMTP.
+The dashboard reaches a Microsoft 365 mailbox directly through Microsoft Graph, and any other mailbox —
+Gmail included — through the local bridge over IMAP and SMTP.
 *Occasion:* PO, 2026-09-29, asked for mail access from the GitHub Pages site itself. Browsers let no web
 page open a raw TCP connection, so IMAP and SMTP cannot be spoken from a page; an HTTP API can, where
 its server permits the page's origin. Measured 2026-09-29: Microsoft Graph answers the preflight from
 `https://akmaier.github.io` with `Access-Control-Allow-Origin: *` and the Gmail API with that origin
 itself; FAU's Exchange (`groupware.fau.de`) answers `401` without any `Access-Control-*` header, and is
 not Microsoft 365. Libraries that promise IMAP in the browser (`emailjs-imap-client`) rely on a relay
-server for exactly this reason — which is what the bridge is, on the person's own machine.
-*Check:* `tests/test_mail_routes.py` — a Microsoft 365 and a Gmail fixture are read with no bridge
-request; counter-proof: an IMAP fixture is read only through the bridge.
+server for exactly this reason — which is what the bridge is, on the person's own machine. PO,
+2026-09-30: Gmail through the bridge only. Measured 2026-09-30 from Google's documentation
+(`docs/measurements/2026-09-30_architecture-open-points.md`, point 6): every Gmail read scope is
+restricted and needs Google's verification for a public app, a browser-only app gets no refresh token,
+and the flow without Google's own library is strongly discouraged. Over IMAP, Gmail refuses the account
+password since 2025-03-14 but accepts an app password, which needs 2-Step Verification and is not offered
+for many work or school accounts (support.google.com/accounts/answer/185833, read 2026-09-30).
+*Check:* `tests/test_mail_routes.py` — a Microsoft 365 fixture is read with no bridge request;
+counter-proof: an IMAP fixture, a Gmail one included, is read only through the bridge.
 
 **AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN** *(PO A. Maier, 2026-09-29)*
 A mailbox reached through its provider's web API is authorised by that provider's sign-in in the
@@ -2181,10 +2249,17 @@ and withdraws the access.
 asks for one.
 
 **THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING** *(PO A. Maier, 2026-09-29)*
-The provider sign-in asks for no permission beyond reading mails, writing drafts and sending mail.
+The provider sign-in asks for no permission beyond the narrowest ones its provider offers for reading
+mail, creating drafts and sending mail.
 *Occasion:* a mailbox token reaches as far as the mailbox itself; `A TOKEN IS SCOPED TO WHAT IT WRITES`
-applied to mail — no calendar, no contacts, no settings of the account.
-*Check:* `tests/test_mail_routes.py` — the requested scopes are exactly the documented list.
+applied to mail — no calendar, no contacts, no settings of the account. PO, 2026-09-30: "We will need to
+be able to create new drafts in the mailbox." Measured 2026-09-30 (point 6 of the measurement above):
+Microsoft Graph has no permission for drafts alone — creating one needs `Mail.ReadWrite`, which also
+allows changing and deleting mail; the narrowest set is `Mail.ReadWrite`, `Mail.Send` and
+`offline_access`. That Agent M changes nothing it reads rests on `READING THE MAILBOX CHANGES NOTHING IN
+IT`, not on the permission.
+*Check:* `tests/test_mail_routes.py` — the requested scopes are exactly `Mail.ReadWrite`, `Mail.Send` and
+`offline_access`.
 
 **THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER** *(PO A. Maier, 2026-09-29)*
 A mailbox token from a provider sign-in leaves the browser only as the authorisation of requests to that
