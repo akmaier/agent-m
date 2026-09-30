@@ -1461,13 +1461,27 @@ a new requirement under the new name.
 the old name vanish without the withdrawal note that `THE NAME IS THE ID AND IT SURVIVES` requires.
 *Check:* `tests/review-core.test.mjs`
 
-**A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT** *(PO A. Maier, 2026-09-24)*
-Text that a participant drafts from a person's instruction is shown as a difference against the
-current text before the person can save it.
+**A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT** *(PO A. Maier, 2026-09-24, narrowed 2026-09-30)*
+Text that a participant returns to the dashboard from a person's instruction is shown as a difference
+against the current text before the person can save it.
 *Occasion:* PO, 2026-09-24: specifications and use cases must be modifiable by "a prompt to an LLM or
 agent". A model asked to add error handling may also reword three unrelated steps; only the
-difference makes that visible.
+difference makes that visible. PO, 2026-09-30: a CI agent's draft is written before anyone sees it on
+the dashboard; `A CI AGENT'S DRAFT ENTERS AS OPEN` covers that route.
 *Check:* `tests/review-core.test.mjs`
+
+**A CI AGENT'S DRAFT ENTERS AS OPEN** *(PO A. Maier, 2026-09-30)*
+A change that a CI agent drafts from a person's instruction is committed to the default branch only as
+an open use case or as an entry of a SPEC change queue.
+*Occasion:* PO, 2026-09-30, on UC-019 (queue 2026-09-24g, entry 05, open question 6): a job in GitHub
+Actions or GitLab CI reaches the repository only by commit, so its draft cannot wait in the dashboard's
+editor. The person reads the difference at review instead — a use case against its last accepted text
+(`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT`), a requirement beside the current SPEC
+section (`NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT`) — and nothing counts before an approval
+names it (`A GENERATED ARTIFACT IS A PROPOSAL`).
+*Check:* `tests/test_prompted_change_context.py` — a CI-agent fixture's prompted change yields an open
+use case or a queue entry and leaves `SPEC.md` byte-identical; counter-proof: neither is shown as
+accepted.
 
 **A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES** *(PO A. Maier, 2026-09-24)*
 A change to requirements that a participant drafts from a person's instruction is subject to
