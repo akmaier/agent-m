@@ -13,7 +13,13 @@ forced_by:
   - A RESULT RECORD IS NEVER REWRITTEN
   - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
   - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+  - ONE GITHUB TOKEN SERVES EVERY FEATURE
+  - A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+  - NO SECRET IN THE REPOSITORY
   - A RUN SETS UP CI BEFORE IT IMPLEMENTS
+  - UC-010
+  - UC-014
   - UC-027
   - UC-028
 ---
@@ -41,14 +47,20 @@ test suite" on every commit; ch. 13 §4: paid external calls are mocked and exer
    - GitHub: `.github/workflows/agent-m-tests.yml` with `push`, `pull_request`, `schedule` and
      `workflow_dispatch` triggers; each trigger's job runs exactly the levels of its column;
      `paths-ignore: ["docs/jobs/**"]` on `push` and `pull_request`, so a commit touching only job
-     records starts nothing (`A JOB RECORD STARTS NO CI RUN`);
+     records starts nothing (`A JOB RECORD STARTS NO CI RUN`); the `push` trigger excludes the branch
+     `test-results` (ARC-006);
    - GitLab: `.gitlab-ci.yml` with `rules:` on `$CI_PIPELINE_SOURCE` and `changes:` excluding
      `docs/jobs/**`, and the nightly run as a pipeline schedule created through the API (UC-027 3a) — the keywords
      `paths-ignore` and `rules:changes` read 2026-09-30 in GitHub's workflow syntax reference
      (`https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax`) and GitLab's CI/CD
      YAML reference (`https://docs.gitlab.com/ci/yaml/`);
    - the **engine workflow** (ARC-010) and the **job workflow** that runs CI-agent jobs (ARC-009),
-     which read their agent's key only from a named CI secret.
+     which read their agent's key only from a named CI secret, and push, open pull requests and merge
+     them only with the person's Agent M token from a second named CI secret — never with
+     `GITHUB_TOKEN` or `CI_JOB_TOKEN` (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`,
+     ARC-010 point 8). On GitHub the secret holds the one fine-grained token of `ONE GITHUB TOKEN SERVES
+     EVERY FEATURE`; on GitLab the product's project access token, as a protected, masked CI/CD variable.
+     The generated files name the secrets, never their values (`NO SECRET IN THE REPOSITORY`).
    Generation is deterministic: the same schedule gives byte-identical files, so a test can compare
    the committed configuration with a fresh generation (UC-027 1b).
 3. **Which test is which level** is read from each test's declaration (ARC-020: `Level:`, `Guards:`,
@@ -59,7 +71,12 @@ test suite" on every commit; ch. 13 §4: paid external calls are mocked and exer
    converts the runner's report (JUnit XML is the common format the step reads) into a result record
    — commit, levels, participant (the CI service and runner), date, each test's outcome — and commits
    it to the branch `test-results` as a new file, fast-forward only, with `concurrency` per product so
-   two runs append one after the other. The step never modifies or deletes a file on that branch.
+   two runs append one after the other. The step never modifies or deletes a file on that branch. It
+   pushes with the same named secret as the job workflows: on GitLab the job token may push only where
+   the project allows it — "This setting is turned off by default.", generally available in GitLab 18.4
+   (`https://docs.gitlab.com/ci/jobs/ci_job_token/`, read 2026-09-30) —, and one credential path on both
+   hosts is simpler than two. A push to `test-results` starts no pipeline, because the generated
+   configuration excludes that branch from its triggers (ARC-006: the branch "has no CI trigger").
 5. **The Definition of Done check** is a further generated step on pull requests of implementation
    jobs: it reads the product's declared Definition of Done (default: the job rules), the job record,
    the branch's first commit and its CI result, and fails when a condition does not hold, naming it.
@@ -75,6 +92,16 @@ test suite" on every commit; ch. 13 §4: paid external calls are mocked and exer
   delete them after their retention period.
 - **Result records in the default branch** — rejected: a commit per run on the default branch would
   start CI again and bury the history.
+- **The built-in token for the job workflows' pushes and pull requests** — rejected by `A HOSTED JOB
+  WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`: its events start no new run, and its pull requests
+  wait in "approval-required" (ARC-010); on GitLab the job token opens no merge request.
+- **The built-in token for the result-record step only** (on GitHub it would work, since that push
+  needs to start nothing) — not chosen: on GitLab it needs a project setting that is off by default,
+  and two credential paths for one kind of step are one more thing to get wrong.
+- **A GitHub App installation token** minted in the workflow — GitHub's other documented remedy, which
+  "will expire after 1 hour" (`https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app`,
+  read 2026-09-30) — not chosen: minting needs the App's private key, and a second credential beside the
+  person's token contradicts `ONE GITHUB TOKEN SERVES EVERY FEATURE`.
 
 ## Consequences
 
@@ -86,5 +113,21 @@ test suite" on every commit; ch. 13 §4: paid external calls are mocked and exer
   where the host offers branch protection against force pushes, the settings page recommends it.
 - Concurrent runs on one product serialise their result commits; a commit that loses the race is
   retried on the new head, which is safe because it only adds a new file.
+- The token a CI job writes with needs, per GitHub's permission table
+  (`https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens`,
+  read 2026-09-30, measurement point 8): *Contents* write to push through the git data API and to merge a
+  pull request, *Pull requests* write to open one, and *Workflows* write where it writes CI files (`A RUN
+  SETS UP CI BEFORE IT IMPLEMENTS`); dispatching a run needs *Actions*, as the occasion of `ONE GITHUB
+  TOKEN SERVES EVERY FEATURE` states. These are the permissions that requirement names.
+- **Open measurement 1 — *Workflows* on a push.** GitHub states the need for *Workflows* write only for
+  the releases endpoint ("also need the "Workflows" repository permission (write)") and that "The
+  GITHUB_TOKEN available to GitHub Actions cannot be authorized for this"
+  (`https://docs.github.com/en/rest/releases/releases`); whether a commit that changes
+  `.github/workflows/` through the git data API or `git push` needs it is not documented in what was read.
+  Measurement: update a workflow file with a fine-grained token without *Workflows*, and with it; record
+  both answers.
+- **Open measurement 2 — GitLab project access token and pipelines** (ARC-010, open measurement 1).
+- Which GitLab version runs on `gitlab.rrze.fau.de` and `gitos.rrze.fau.de` matters no longer for
+  pushing (the job token is not used to push), only for the features UC-027 uses there.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*

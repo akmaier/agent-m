@@ -16,6 +16,7 @@ realises:
   - A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
   - A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF
   - AGENT M WORKS WITHOUT A LOCAL INSTALLATION
+  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
   - UC-034
   - UC-043
 follows:
@@ -43,7 +44,10 @@ provides:
 The run engine of ARC-010: a pure function from a snapshot of records to the jobs to start next.
 Any runtime may call it — the engine workflow, the bridge, the browser — and they agree because
 nothing is remembered between calls. Queueing a job means committing its start record; that is done
-by the caller through MOD-git-host.
+by the caller through MOD-git-host — in the engine workflow with the person's Agent M token from its
+named CI secret, never with the built-in token, so that the jobs it starts and the pull requests they
+open run CI without a click (ARC-010 point 8). A job in the seventh state, *ended without record*, is
+treated as ended without a result: its dependants do not start.
 
 **Current state.** No code exists.
 
@@ -56,4 +60,4 @@ by the caller through MOD-git-host.
 
 Uses, as declared above: `MOD-job-records.parseJobRecord`, `MOD-job-records.jobState`, `MOD-process-model.deriveWorkflow`, `MOD-process-model.assignable`, `MOD-process-model.gateDecision`, `MOD-review-core.parseArchitecture`, `MOD-review-core.deriveStatus`, `MOD-resources.reachableRoutes`.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*

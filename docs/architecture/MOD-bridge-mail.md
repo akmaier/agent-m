@@ -9,6 +9,8 @@ realises:
   - A REPLY IS THREADED ON THE REPORTER'S MAIL
   - A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER
   - A MAIL IS FOUND AGAIN BY ITS IDENTIFIER
+  - A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
+  - THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
   - UC-037
   - UC-038
   - UC-039
@@ -27,11 +29,14 @@ provides:
 
 ## Responsibility
 
-The IMAP and SMTP route of ARC-014, inside the bridge. It is given the password with each request and
-forgets it with the request; it writes nothing to disk.
+The IMAP and SMTP route of ARC-014, inside the bridge, for every mailbox that is not Microsoft 365 —
+Gmail included, with an app password, since Gmail refuses the account password over IMAP. It is given
+the password with each request and forgets it with the request; it writes nothing to disk.
 
-**Current state.** No code exists; the IMAP and SMTP libraries are chosen in ARC-014, subject to the
-measurement named there.
+**Current state.** No code exists. ARC-014 chooses imapflow and nodemailer, whose maintainer supports
+Node only; whether they run in the compiled bridge is ARC-014's open measurement 1, and the fallback —
+a small IMAP client over `Deno.connectTls` and `@upyo/smtp` — is named there. The interfaces below do
+not depend on which is used.
 
 ## Interfaces
 
@@ -41,4 +46,4 @@ measurement named there.
 - `imapDraft(conn, mail) -> { uid }` — `APPEND` to the folder marked `\Drafts`, with `In-Reply-To` and `References` of the reporter's mail.
 - `smtpSend(conn, mail, confirmation) -> { sent }` — only with a single-use confirmation naming the SHA-256 of exactly this mail; a reused or mismatching one sends nothing; a copy goes to *Sent*.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*

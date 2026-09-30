@@ -62,7 +62,7 @@ identifiers marked *not an issue*.
 ## Interfaces
 
 - `mailId(mail) -> "MAIL-<16 hex>"` — the first sixteen hex digits of the SHA-256 of the `Message-ID`, or of the mail's bytes when it has none; the `Message-ID` itself is never written.
-- `mailbox(connection) -> mail interface` — the provider API for Microsoft 365 and Gmail, the bridge for every other server; the same interface either way.
+- `mailbox(connection) -> mail interface` — Microsoft Graph for Microsoft 365 (MOD-mail-api), the bridge over IMAP and SMTP for every other server, Gmail included with an app password (MOD-bridge-mail through `MOD-bridge-server.bridgeClient`); the same interface either way.
 - `pendingMails(mails, issues, notAnIssue) -> { attach, propose }` — leaves out mails an issue lists or the person marked; attaches a mail whose `In-Reply-To`/`References` names a listed mail to that issue without a model; the rest are proposed.
 - `issueFromDecision({ mail, proposal, people, pseudonymisation, click }) -> issue | { refused: hits }` — a neutral issue labelled `defect` or `change` listing the `MAIL-` identifier, only on the person's click and only when no person of this mail is found in the text; report data pseudonymised unless the product switched it off.
 - `replyOffers(issues, drafts, sent) -> { toAnswer, answerReceived, open, notesToWrite }` — derived from the issues and the mailbox's *Drafts* and *Sent* alone.
@@ -72,4 +72,4 @@ identifiers marked *not an issue*.
 
 Uses, as declared above: `MOD-mail-api.apiMailbox`, `MOD-bridge-server.bridgeClient`, `MOD-pseudonymiser.findPeople`, `MOD-pseudonymiser.pseudonymise`, `MOD-git-host.issues`.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*

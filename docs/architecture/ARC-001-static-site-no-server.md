@@ -8,6 +8,7 @@ forced_by:
   - A MANAGED PRODUCT NEEDS NO PAGES SITE
   - THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
   - THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
+  - A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST
   - UC-014
 ---
 # ARC-001 Agent M is a static site on the git server's Pages, with no server of its own
@@ -31,9 +32,10 @@ the other half: every tool reads and writes one shared store — here, the git r
    Pages address is its dashboard, and the dashboard derives its own repository from that address
    (`deriveTarget` in the current code).
 2. All behaviour runs in the reader's browser. The only servers contacted are those the SPEC
-   names: the git servers' APIs, the configured model endpoints, the mail providers' APIs, the
-   local bridge, and the package registries and resource hosts the page names before it calls
-   them.
+   names: the git servers' APIs, the configured model endpoints, the mail provider's API
+   (Microsoft Graph), the local bridge — on loopback, or at the HTTPS address of the reader's own
+   jump host that forwards to it (`A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST`,
+   ARC-012) —, and the package registries and resource hosts the page names before it calls them.
 3. Work that cannot run in a browser runs where the reader already has a runtime: in the product
    repository's own CI (ARC-015, ARC-009), or in the Agent M Bridge on the reader's computer
    (ARC-011). Neither is operated by the Agent M project.
@@ -49,7 +51,7 @@ flowchart LR
     GH["GitHub REST API"]
     GL["GitLab API v4"]
     EP["Model endpoints"]
-    MA["Mail provider APIs"]
+    MA["Microsoft Graph"]
     BR["Agent M Bridge on 127.0.0.1"]
     CI["Product CI<br/>(GitHub Actions, GitLab CI)"]
     B -->|token of that server| GH
@@ -86,4 +88,4 @@ flowchart LR
   (`THE SHARED PAGES ORIGIN IS DISCLOSED`). This is a consequence of this decision, not a defect of
   a later one.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
