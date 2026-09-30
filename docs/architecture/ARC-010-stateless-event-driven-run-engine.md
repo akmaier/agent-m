@@ -108,7 +108,7 @@ sequenceDiagram
     R-->>W: push touches docs/jobs/**
     W->>W: nextJobs(snapshot) — dependants of the finished module
     W->>R: commit next start records
-    Note over W,R: a gate decided by a person: nextJobs returns waiting;<br/>the person's gate record is the next event
+    Note over W,R: a gate decided by a person: nextJobs returns waiting,<br/>and the person's gate record is the next event
 ```
 
 ## Alternatives
