@@ -13,6 +13,7 @@ realises:
   - A RESOURCE'S TERMS ENTER AS A SOURCE
   - THE RESOURCE KIND IS ONE OF A CLOSED SET
   - A RESOURCE IS PINNED TO AN EXACT STATE
+  - A COMPUTE ENVIRONMENT IS PINNED IN THE JOB'S OWN FILES
   - A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
   - A RESOURCE DECLARES ITS LICENCE
   - A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED
@@ -66,7 +67,7 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
 | **repository** | `https://gitlab.rrze.fau.de/lme/speech-dlls` (private, binaries) | commit | the browser, with the token of its server |
 | **data** | a Hugging Face dataset, a folder on a group share | revision or SHA-256 of every file | the browser, or the job that downloads it |
 | **model** | a Hugging Face model, a checkpoint file | revision or SHA-256 of every file | the browser, or the job that downloads it |
-| **compute** | a SLURM cluster, a GPU workstation | — (open question: queue 2026-09-24g, rationale of entry 10, question 4) | the local bridge, or a self-hosted runner by label |
+| **compute** | a SLURM cluster, a GPU workstation | — the software environment on it (container image digest, module versions) is pinned in the product's job files, not here | the local bridge, or a self-hosted runner by label |
 | **endpoint** | a local vLLM or Ollama server the product calls | identifier of the served model | the product itself at runtime; jobs through bridge or runner |
 | **agent** | an agent service the product delegates to at runtime | identifier of the served model or version | as endpoint |
 

@@ -8,6 +8,8 @@ actors:
   - GitHub
 realises:
   - A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+  - A CI AGENT'S DRAFT ENTERS AS OPEN
+  - A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
   - A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
   - A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
   - NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
@@ -137,9 +139,13 @@ sequenceDiagram
 - **5a. The author does not press Run.** Nothing is sent.
 - **6a. The participant is a CLI or sandboxed agent** (UC-011). The request goes through the local
   bridge; the agent returns the draft to the dashboard and the flow continues at step 7.
-- **6b. The participant is a CI agent** (UC-010). The workflow commits the draft to the default
-  branch as an open use case or an open queue entry; the author reviews it in UC-008 or UC-006
-  instead of step 8. *(Open question for the PO — queue 2026-09-24g, rationale of entry 05, question 6.)*
+- **6b. The participant is a CI agent** (UC-010). The workflow runs the correction loop of step 7 from
+  the same definition, then commits the draft to the default branch — a use case as open, a change to
+  requirements as an entry of a new queue under `docs/spec-freigaben/`; `SPEC.md` is not touched. The
+  commit records what step 9 records. Instead of step 8, the author reviews it on the dashboard: a use
+  case in UC-008, shown against its last accepted text (UC-008, 2a); a queue entry in UC-006, beside the
+  current SPEC section, where a conflict with an existing requirement is decided. Nothing counts before
+  it is accepted.
 - **6c. The participant returns nothing usable** — no text, the unchanged text, or text that cannot
   be read as the artifact. That is a finding of the correction loop (step 7) like any other; if it is
   still so after the last round, the dashboard says which, shows the raw answer folded, and writes
@@ -164,7 +170,8 @@ sequenceDiagram
 
 ## Postcondition
 
-- Only what the author saved was written: a use case as open, or a queue entry beside the current
-  SPEC section; the SPEC itself is unchanged.
+- Only what the author saved — or, through a CI agent, what its workflow committed for review (6b) —
+  was written: a use case as open, or a queue entry beside the current SPEC section; the SPEC itself is
+  unchanged.
 - No requirement was duplicated: a restated rule became a duplicate, a changed rule kept its name.
 - The record of the change names the instruction and the participant that drafted it.
