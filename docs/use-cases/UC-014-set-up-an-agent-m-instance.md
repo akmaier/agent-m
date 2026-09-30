@@ -22,6 +22,7 @@ realises:
   - A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER
   - SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
   - A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
+  - AGENT M WORKS WITHOUT A LOCAL INSTALLATION
 ---
 # UC-014 Get your own Agent M
 
@@ -77,7 +78,9 @@ leaves the licence of every product to the person.
    corrected if they changed it on GitHub — and presses **Store and check**. Agent M stores both in
    `localStorage` and checks that the token reaches the instance; it will warn fourteen days before the
    token expires (UC-042).
-9. The dashboard shows the instance, ready: its own use cases, and **+ Add product** (UC-001).
+9. The dashboard shows the instance, ready: its own use cases, and **+ Add product** (UC-001). Nothing has
+   been installed on the person's computer, and nothing needs to be for Agent M's first level; the Agent M
+   Bridge app for local agents, IMAP mail and machines on their own network is optional (UC-044).
 
 Both steps carry a folded *What is this?* for people new to GitHub.
 

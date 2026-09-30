@@ -20,6 +20,9 @@ realises:
   - THE DASHBOARD WRITES THE TUNNEL COMMANDS
   - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
   - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
+  - THE BRIDGE OPENS ITS TUNNELS ITSELF
+  - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+  - THE BRIDGE FINDS THE INSTALLED AGENTS
 ---
 # UC-011 Hand a job to a local CLI session
 
@@ -33,8 +36,8 @@ authenticated on a machine they control.
 
 ## Precondition
 
-- The Agent M bridge runs on the author's machine, bound to loopback, and has printed a session
-  token.
+- The Agent M Bridge app is installed and paired on the author's machine (UC-044); it is bound to
+  loopback, and its bridge token is stored in this browser.
 - For current browsers, a dated measurement shows that the Pages site can reach the bridge.
 
 ## Main flow
@@ -81,6 +84,8 @@ sequenceDiagram
      file it uses; the keys stay in `~/.ssh` of the two machines.
   3. With both running, the dashboard reaches the session at `localhost:<port>`, and pairing and jobs
      work as in the main flow. The tunnel's end on the jump host listens on its loopback only.
+  With the Agent M Bridge on both machines, the two bridges open these tunnels themselves and the author
+  types nothing (UC-044, 6a); the commands above are for a machine without the bridge.
   4. If the author would rather have no tunnel, a **self-hosted runner** on that machine works without
      any incoming connection (UC-010, UC-017) — registered to a private repository only.
 - **1b. The author suspects the token has leaked.** They start the bridge with *pair anew*; it prints a

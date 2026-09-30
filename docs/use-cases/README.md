@@ -27,6 +27,7 @@ nine **steps** of the cycle are the areas below.
 | [UC-031](UC-031-configure-a-process-model.md) | Configure a process model |
 | [UC-037](UC-037-connect-a-mailbox.md) | Connect a mailbox |
 | [UC-042](UC-042-manage-settings.md) | Manage settings in one place |
+| [UC-044](UC-044-install-and-pair-the-bridge.md) | Install and pair the Agent M Bridge |
 
 ## 1 · Requirement sources
 
@@ -116,7 +117,7 @@ nine **steps** of the cycle are the areas below.
 
 ```mermaid
 flowchart LR
-    S[Setup<br/>UC-014 UC-042 UC-017 UC-001 UC-002 UC-003 UC-031 UC-037] --> Q[1 Sources<br/>UC-004 UC-015 UC-016]
+    S[Setup<br/>UC-014 UC-044 UC-042 UC-017 UC-001 UC-002 UC-003 UC-031 UC-037] --> Q[1 Sources<br/>UC-004 UC-015 UC-016]
     S --> RES[Resources<br/>UC-040]
     Q --> R[2 Requirements<br/>UC-005 UC-006]
     R --> U[3 Use cases<br/>UC-007 UC-008]

@@ -14,6 +14,8 @@ realises:
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
   - A JOB RECORD STARTS NO CI RUN
+  - AGENT M WORKS WITHOUT A LOCAL INSTALLATION
+  - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
 ---
 # UC-010 Run a job in GitHub Actions
 
@@ -28,7 +30,10 @@ endpoint does not accept browser calls.
 
 ## Precondition
 
-- The product repository holds the endpoint key as an Actions secret, not in any file.
+- The product repository holds the agent's or endpoint's key as an Actions secret, not in any file. The
+  dashboard names the secret and opens the repository's secrets page for it; it never asks for the value.
+  This is Agent M's first level: nothing is installed on the author's computer (UC-044 explains both
+  levels), and the calls are billed per use by the agent's provider — the run panel says so.
 - The job workflow of Agent M is installed in the product repository.
 
 ## Main flow

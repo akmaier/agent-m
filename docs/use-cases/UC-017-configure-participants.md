@@ -17,6 +17,7 @@ realises:
   - EVERY STEP EXPLAINS ITSELF
   - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
   - A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
+  - THE BRIDGE FINDS THE INSTALLED AGENTS
 ---
 # UC-017 Configure the participants of the instance
 
@@ -60,7 +61,8 @@ to roles (UC-002).
      out. The runner is registered to a **private** repository only: Agent M reads the repository's
      visibility and refuses a public one, with the reason — on a public repository, a pull request from
      any fork could run its own code on that machine;
-   - **CLI agent / sandboxed agent:** the bridge address (for a sandbox, the tunnel's local address)
+   - **CLI agent / sandboxed agent:** chosen from the agents the paired Agent M Bridge reports as installed
+     (UC-044) — or, without the app, the bridge address (for a sandbox, the tunnel's local address)
      and which agent runs there; for a machine behind NAT, the remote session reached through the
      jump host (UC-011, 1c).
 4. Agent M presets the capabilities typical for the type — draft text, read the repository, write to
