@@ -307,16 +307,23 @@ export function deriveReviewedStatus(file, currentBlob, records) {
   return mine.length ? "changed" : "open";
 }
 
-// An accepted entry counts as applied while the SPEC section at its anchor is still its text. Only that
+// Where an accepted entry's text stands in the SPEC: at the line it wrote there, its proposal's first line
+// (replaceSection puts the proposal at the anchor's place). Not at its anchor as it stood before acceptance —
+// the proposal may have rewritten that line (queue 2026-09-30g, entry 01) or renamed its heading. When the
+// proposal starts with its anchor, both are the same line.
+const writtenAnchor = (proposalText) => String(proposalText ?? "").split("\n")[0];
+
+// An accepted entry counts as applied while the SPEC holds its text at the place the entry wrote it. Only that
 // section is compared: an entry may carry headings that later entries of its queue fill (queue
 // 2026-09-24g, entry 05), and filling them must not turn the entry into "superseded".
 export function deriveSpecStatus({ queue, nr, anchor, bis, proposalPath, proposalText, proposalBlob, sectionBlob,
   specText, decisions, records }) {
   const d = decisions.get(nr);
   if (d && d.decision === "uebernommen") {
-    const inSpec = extractSection(specText, anchor, bis);
+    const written = writtenAnchor(proposalText);
+    const inSpec = extractSection(specText, written, bis);
     const own = bis ? { lines: proposalText.split("\n"), from: 0, to: proposalText.split("\n").length }
-      : extractSection(proposalText, anchor, null);
+      : extractSection(proposalText, written, null);
     if (inSpec.error || own.error) return "superseded";
     return sectionText(inSpec) === sectionText(own) ? "applied" : "superseded";
   }
@@ -1070,8 +1077,14 @@ const pad2 = (n) => String(n).padStart(2, "0");
 // The SPEC section an entry replaces, and the entries of its queue that must be written before it
 // because they create its anchor (queue 2026-09-24g: entry 05 creates the headings of 06–10).
 // entries: [{ nr, anchor, bis, proposalText }] of one queue. -> { current, needs } or { error, needs: [] }
-export function sectionForEntry({ specText, entries, nr, _seen = [] }) {
+// accepted: the entry is already written into the SPEC — its current text is read where it wrote it (writtenAnchor),
+// as deriveSpecStatus reads it.
+export function sectionForEntry({ specText, entries, nr, accepted = false, _seen = [] }) {
   const e = entries.find((x) => x.nr === nr);
+  if (accepted) {
+    const s = extractSection(specText, writtenAnchor(e.proposalText), e.bis);
+    return s.error ? { error: s.error, needs: [] } : { current: sectionText(s), needs: [], spec: specText };
+  }
   const own = extractSection(specText, e.anchor, e.bis);
   if (!own.error) return { current: sectionText(own), needs: [], spec: specText };
   const creator = entries.find((c) => c.nr !== nr && !_seen.includes(c.nr) && c.anchor.trim() !== e.anchor.trim()
