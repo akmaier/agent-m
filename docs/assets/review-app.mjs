@@ -157,9 +157,10 @@ async function loadAll() {
       return { ...en, nn, dir, proposalPath: prop?.path, proposalText, rationale, targetPath, specText };
     }));
     // A QUEUE IS ACCEPTED IN ITS ORDER: an entry whose heading another entry of the queue creates is
-    // shown beside the section that entry creates, and names it (`needs`).
+    // shown beside the section that entry creates, and names it (`needs`). An accepted entry is shown beside the
+    // text it wrote, found where it wrote it — its proposal may have rewritten its anchor.
     const entries = await Promise.all(loaded.map(async (en) => {
-      const sec = sectionForEntry({ specText: en.specText, nr: en.nr,
+      const sec = sectionForEntry({ specText: en.specText, nr: en.nr, accepted: decisions.get(en.nr)?.decision === "uebernommen",
         entries: loaded.filter((x) => x.targetPath === en.targetPath) });
       const current = sec.error ? "" : sec.current;
       const proposalBlob = await gitBlobSha(en.proposalText);
