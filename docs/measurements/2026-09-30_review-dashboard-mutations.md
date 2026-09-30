@@ -252,3 +252,43 @@ therefore writes existing files with `last_commit_id` = the head it read, new fi
 before the POST, and compares GitLab's reported parent with that head afterwards. A file that is only read (a use case being
 accepted, a proposal) and changed by a commit landing between that second read and GitLab's write is not refused — it is
 reported after the commit (`acceptItems` → `warning`).
+
+## 6. The last accepted text, branch `feat/diff-last-accepted` (on `main` at `60682d4`)
+
+SPEC §10 `A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT`, `AN APPROVAL NAMES THE EXACT TEXT`, `STATUS IS DERIVED FROM THE
+RECORDS` (UC-008 2a).
+
+Same method as §3, run by a script that first ran the known positive (`tokenLinkUrl` without `issues`: red) and asserted both
+suites green before the first and after the last mutation. The new tests were also run once against the unchanged
+`docs/assets/` of `main`: red (the core exported none of the new functions).
+
+| Mutation | In | Red |
+|---|---|---|
+| the first record of the identifier is compared, not the one committed last | `review-core.mjs` | review-core.test.mjs "A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT — with two records, the older text is not the one compared"; "… — a renamed file finds its records by identifier"; "… — GitLab: its commits and blob endpoints, its own token only" |
+| the record committed first is taken (sort ascending) | `review-core.mjs` | the same three |
+| records matched by path, not by identifier | `review-core.mjs` | review-core.test.mjs "reviewedId: a reviewed file's identifier from its path — the same for a renamed file"; "A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT — a renamed file finds its records by identifier"; "… — GitLab: its commits and blob endpoints, its own token only" |
+| SPEC records counted as records of the identifier (kind not checked, the proposal taken as file) ² | `review-core.mjs` | review-core.test.mjs "reviewedId: a reviewed file's identifier from its path — the same for a renamed file" |
+| the blob's hash is not checked against the record | `review-core.mjs` | review-core.test.mjs "the accepted text is the exact text its record names — a blob that does not hash to it is refused" |
+| a record's blob is used unchecked in the URL | `review-core.mjs` | the same |
+| commit dates read at the branch, not at the pinned commit | `review-core.mjs` | "A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT — with two records, the older text is not the one compared"; "… — GitLab: its commits and blob endpoints, its own token only" |
+| the author date is used instead of the commit date (GitHub) | `review-core.mjs` | "… — with two records, the older text is not the one compared"; "… — a renamed file finds its records by identifier" |
+| GitLab: the blob is read through the GitHub endpoint | `review-core.mjs` | "… — GitLab: its commits and blob endpoints, its own token only" |
+| diffHtml shows every line as unchanged | `review-core.mjs` | "… — one changed line shows exactly that line" |
+| the diff panel is placed below the text | `review-app.mjs` | "the dashboard shows the last accepted text above a changed use case, with the core's diff" |
+
+² The first form of this mutation (`r.kind !== "spec" && r.file` → `(r.file || r.proposal)`) stayed green, and rightly: the
+identifier was still read from `r.file`, so the mutant behaved exactly like the original. Replaced by the form above, which does
+change behaviour; the test's SPEC record was given a proposal whose file name looks like a use case's, so that the mutant can
+match it.
+
+**Against the real repository (read only, 2026-09-30).** `lastAccepted`, `changedLines` and the status derivation of
+`review-core.mjs`, under node 25 against `akmaier/agent-m` on GitHub (tree through the API, files from
+`raw.githubusercontent.com`), pinned to `6547338` — the state in which queue 2026-09-30's rationale 03 counts ten changed use
+cases: exactly ten use cases were not accepted and had records (UC-001–008, UC-010, UC-016), and each differed from its last
+accepted text by one line pair, `- stage: …` / `+ area: …`. UC-008 (two records) was compared with `UC-008-2c687fc8a047.md`,
+committed 2026-09-30T13:05:52Z, not with `UC-008-30feaff93c66.md` of 2026-09-24 — as `git log` of the local clone gives it.
+UC-010, renamed from `…-run-a-stage-…` and therefore *open* by path, was found by its identifier and compared with
+`UC-010-bf542f93115c.md` (2026-09-30T13:02:39Z), not `UC-010-b324416e500b.md` (2026-09-24). On `main` at `ba39a87`, UC-008 shows
+in addition the lines queue 2026-09-30 added to it (`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT` in `realises`,
+alternative flow 2a). In Chrome, the dashboard served from 127.0.0.1 with `?ref=6547338…#uc/UC-010` showed the panel
+*Changed since it was last accepted* above the text with exactly the `area`/`stage` pair marked.
