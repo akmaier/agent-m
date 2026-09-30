@@ -4,7 +4,7 @@
 runner, registered only to a private repository (entry 01), and a reverse SSH tunnel to a jump host, with
 jump host, port range and each session's bridge token as settings (entries 01 and 02).
 
-**Size:** 6 new requirements; no existing requirement changes.
+**Size:** 7 new requirements; no existing requirement changes. Entry 03 (added 2026-09-30): a changed file is shown against its last accepted text.
 
 **Zieldatei aller Einträge:** `products/agent-m/SPEC.md`
 
@@ -12,3 +12,4 @@ jump host, port range and each session's bridge token as settings (entries 01 an
 |---|---|---|---|---|
 | 01 | `SPEC.md` | ## 6. Runtimes | — | — |
 | 02 | `SPEC.md` | ## 7. Configuration and secrets | — | — |
+| 03 | `SPEC.md` | ## 10. Review on GitHub Pages | — | — |

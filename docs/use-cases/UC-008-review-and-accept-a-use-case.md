@@ -18,6 +18,7 @@ realises:
   - ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
   - A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
   - SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+  - A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 ---
 # UC-008 Review and accept a use case
 
@@ -74,6 +75,9 @@ sequenceDiagram
 - **3d. The reviewer has read several use cases.** Each one read gets a tick; **Accept ticked** writes
   one commit with one record per ticked file, each naming the text that was shown. A file that changed
   after it was shown is left out and named.
+- **2a. The use case changed since it was last accepted.** Above the text, the dashboard shows the
+  difference to the text the most recent approval record for this identifier names — also when the file
+  was renamed since. The reviewer reads only what changed and accepts as in step 3.
 - **5a. The file is edited after acceptance.** Its SHA changes, no record names it, and the
   dashboard shows it as changed since acceptance — without anyone resetting a status.
 
