@@ -110,3 +110,15 @@ p.notice { border: 1px solid var(--warn); background: var(--warn-bg); padding: .
 .setup-banner { border-color: var(--accent); }
 #key-token { font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .45rem .6rem; border: 1px solid var(--line);
   border-radius: 6px; background: var(--code); color: var(--fg); width: 100%; max-width: 28rem; }
+
+.banner-slot { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+.banner-slot:empty { display: none; }
+.token-banner p { margin: .3rem 0; }
+.setting { border-top: 1px solid var(--line); padding: .6rem 0; }
+.setting:first-child { border-top: none; }
+.setting h4 { margin: 0 0 .3rem; font-size: .95rem; }
+.setting .state { font-weight: 600; }
+input.secret, #token-expires, #key-expires, #export-pass, #export-pass2, #import-pass, #coll-name, #coll-account, #coll-agreed {
+  font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .35rem .5rem; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--code); color: var(--fg); max-width: 100%; }
+input.secret { width: 28rem; }

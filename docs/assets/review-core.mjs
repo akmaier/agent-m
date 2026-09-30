@@ -28,7 +28,7 @@ export async function fetchText(url, init = {}, token = null) {
     Object.assign(h, authHeaders(u.href, token));
   }
   const r = await fetch(u, { method: "GET", headers: h, credentials: "omit", cache: "no-store" });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`);
+  if (!r.ok) throw Object.assign(new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`), { status: r.status });
   return r.text();
 }
 
@@ -267,11 +267,15 @@ export function deriveSpecStatus({ queue, nr, anchor, bis, proposalPath, proposa
 
 // ---------------------------------------------------------------- guided token setup (SPEC §7)
 
+// The prefilled link's expiry; the date a token is stored with is preset to it (A TOKEN'S EXPIRY IS WARNED OF
+// IN ADVANCE).
+export const TOKEN_DAYS = 90;
+
 export function tokenLinkUrl(instance) {
   const q = new URLSearchParams({
     name: `Agent M · ${instance}`,
     description: `Agent M dashboard of ${instance}: commits, issues and runs you ask for by clicking.`,
-    expires_in: "90",
+    expires_in: String(TOKEN_DAYS),
     // ONE GITHUB TOKEN SERVES EVERY FEATURE. Parameter names as documented by GitHub ("Pre-filling
     // fine-grained personal access token details using URL parameters", docs.github.com).
     contents: "write",
@@ -556,4 +560,292 @@ export async function addProduct({ address, token, click, store }) {
     : null;
   store.addProduct(product.address);
   return { commit, product };
+}
+
+// ---------------------------------------------------------------- settings in one place (UC-042, SPEC §7)
+//
+// EVERY SETTING IS REACHED FROM ONE PAGE: the browser section of the settings page is this HTML, one
+// row per setting, each key of settings-store.mjs with its place (data-setting-key). The page inserts
+// it as it is, so tests/test_settings_page.py checks what the person sees.
+
+const K_TOKEN = "agent-m.github-token", K_EXPIRES = "agent-m.github-token-expires", K_PRODUCTS = "agent-m.products";
+
+export const BROWSER_SETTINGS = [
+  { key: K_TOKEN, label: "GitHub token", secret: true,
+    grants: "writes — commits, issues and workflow runs — to every repository it was given, under your account" },
+  { key: K_EXPIRES, label: "GitHub token expiry date", secret: false, partOf: K_TOKEN },
+  { key: K_PRODUCTS, label: "Products", secret: false },
+];
+const settingLabel = (k) => BROWSER_SETTINGS.find((s) => s.key === k)?.label ?? k;
+
+export const EXPIRY_WARN_DAYS = 14;
+const DAY = 864e5;
+const isoDay = (d) => d.toISOString().slice(0, 10);
+
+export function defaultExpiry(now = new Date()) {
+  return isoDay(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) + TOKEN_DAYS * DAY));
+}
+
+function daysUntil(date, now) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ""));
+  if (!m) return null;
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - today) / DAY);
+}
+
+export const RENEW_TEXT = "On GitHub's list of your tokens, open this one and press “Regenerate token”: the new value keeps the " +
+  "token's permissions and repositories. Then paste it under Settings → GitHub token → Change.";
+
+// A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE: from fourteen days before the date recorded with the token.
+export function expiryWarning(expires, now = new Date()) {
+  const days = daysUntil(expires, now);
+  if (days === null || days > EXPIRY_WARN_DAYS) return null;
+  const expired = days < 0;
+  return { days, expired, renewUrl: tokenListUrl(), renew: RENEW_TEXT,
+    text: expired ? `Your GitHub token expired on ${expires}.`
+      : `Your GitHub token expires on ${expires} (${days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`}).` };
+}
+
+// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: GitHub answers 401 to a token it no longer accepts
+// (expired, regenerated or deleted). 403 and 404 are a missing permission or repository, not this.
+export function tokenRefusal(e) {
+  const status = e?.status ?? Number((/(?:^|: )(\d{3})\b/.exec(e?.message || "") || [])[1]);
+  if (status !== 401) return null;
+  return { token: "GitHub token", renewUrl: tokenListUrl(), renew: RENEW_TEXT,
+    text: "GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub." };
+}
+
+// The line shown at the top of every view while the token is refused or expires within fourteen days.
+export function tokenBannerHtml({ expires, refused = false, now = new Date() }) {
+  const r = refused ? tokenRefusal({ status: 401 }) : expiryWarning(expires, now);
+  if (!r) return "";
+  return `<section class="panel notice token-banner"><p><strong>${esc(r.text)}</strong>
+    <a class="btn small" href="${esc(r.renewUrl)}" target="_blank" rel="noopener">Renew ↗</a></p>
+    <p class="small">${esc(r.renew)}</p></section>`;
+}
+
+// A STORED SECRET IS HIDDEN UNTIL SHOWN: a password field; Show re-renders it as text, in full.
+export function secretFieldHtml({ key, value, shown = false, label }) {
+  return `<input class="secret" type="${shown ? "text" : "password"}" readonly value="${esc(value)}" aria-label="${esc(label)}"
+      autocomplete="off" spellcheck="false"> <button class="btn small" data-show="${esc(key)}">${shown ? "Hide" : "Show"}</button>`;
+}
+
+function tokenStateLine(token, expires, tokenState, now) {
+  if (!token) return "— not set";
+  if (tokenState?.refused) return "✗ refused — GitHub did not accept it at the last use";
+  const w = expiryWarning(expires, now);
+  if (w) return `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(expires)}`;
+  if (tokenState?.ok) return `✓ works — tested ${esc(tokenState.ok)}`;
+  return "stored — not tested on this page yet";
+}
+
+// The browser section: one row per setting, each with Test and Clear (A BROWSER SETTING IS TESTED AND
+// CLEARED WHERE IT IS SHOWN). entries: { key: raw value } from the store; shown: keys revealed by Show.
+export function browserSettingsHtml({ entries = {}, shown = [], tokenState = null, now = new Date() }) {
+  const token = entries[K_TOKEN] || null, expires = entries[K_EXPIRES] || null;
+  let products = [];
+  try { products = JSON.parse(entries[K_PRODUCTS] || "[]"); } catch { products = []; }
+  if (!Array.isArray(products)) products = [];
+  const tokenRow = `<div class="setting" data-setting-row="github-token">
+    <h4 data-setting-key="${K_TOKEN}">GitHub token</h4>
+    <p class="state">${tokenStateLine(token, expires, tokenState, now)}</p>
+    ${token ? `<p>${secretFieldHtml({ key: K_TOKEN, value: token, shown: shown.includes(K_TOKEN), label: "Stored GitHub token" })}</p>` : ""}
+    <p data-setting-key="${K_EXPIRES}">Expires on: <strong>${expires ? esc(expires) : "—"}</strong>
+      <span class="muted small">— the date entered when the token was stored; the dashboard warns ${EXPIRY_WARN_DAYS} days before.</span></p>
+    <p><button class="btn" data-test="${K_TOKEN}" ${token ? "" : "disabled"}>Test</button>
+      <button class="btn" data-change="${K_TOKEN}">${token ? "Change" : "Store a token"}</button>
+      <button class="btn" data-clear="${K_TOKEN}" ${token ? "" : "disabled"}>Clear</button></p>
+    <p class="result muted" data-result="${K_TOKEN}"></p>
+    <details class="explain"><summary>What is this?</summary><div>The key that lets this page commit, open issues and start
+      runs for you in the repositories you gave it. Kept in this browser's <code>localStorage</code>, sent only to
+      https://api.github.com as a header. <em>Test</em> reads your instance with it; <em>Clear</em> removes it and its date
+      from this browser — accepting and editing then go through GitHub's own pages, products cannot be added, and private
+      repositories cannot be read.</div></details>
+  </div><!--/setting-->`;
+  const productRow = `<div class="setting" data-setting-row="products">
+    <h4 data-setting-key="${K_PRODUCTS}">Products</h4>
+    <p class="state">${products.length ? `${products.length} in this browser` : "— not set"}</p>
+    ${products.length ? `<ul class="names">${products.map((a) => `<li>${esc(a)}
+      <button class="btn small" data-remove-product="${esc(a)}">Remove</button></li>`).join("")}</ul>` : ""}
+    <p><button class="btn" data-test="${K_PRODUCTS}" ${products.length && token ? "" : "disabled"}>Test</button>
+      <button class="btn" data-clear="${K_PRODUCTS}" ${products.length ? "" : "disabled"}>Clear</button></p>
+    <p class="result muted" data-result="${K_PRODUCTS}"></p>
+    <details class="explain"><summary>What is this?</summary><div>The addresses of the products this dashboard manages, kept
+      in this browser only — the instance repository names none. <em>Test</em> checks that your token reaches each;
+      <em>Remove</em> and <em>Clear</em> take them off this browser's list and change nothing in their repositories.</div></details>
+  </div><!--/setting-->`;
+  return tokenRow + productRow;
+}
+
+// ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
+
+export const SETTINGS_FORMAT = "agent-m-settings";
+export const PBKDF2_ITERATIONS = 600000;
+export const PASSPHRASE_NOTICE = "A forgotten passphrase cannot be recovered: without it, nobody — you included — can read the file.";
+
+// AN EXPORT STATES THAT IT CONTAINS SECRETS: each stored secret by name, and what it grants.
+export function exportNotice(entries = {}) {
+  const secrets = BROWSER_SETTINGS.filter((s) => s.secret && entries[s.key]);
+  const what = secrets.length ? secrets.map((s) => `your ${s.label}, which ${s.grants}`).join("; ") : "no token, key or password (none is stored)";
+  return `The file contains every setting of this browser in full, including ${what}. It opens all of that to ` +
+    `whoever holds the file — keep it like a password, or lock it with a passphrase.`;
+}
+
+const b64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+async function passphraseKey(passphrase, salt, iterations) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base,
+    { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS · AN EXPORT CAN BE LOCKED WITH A PASSPHRASE.
+// entries: { key: raw value }. Locked: PBKDF2 (SHA-256, random salt) → AES-GCM (random IV); salt, IV and
+// iteration count are stored beside the ciphertext. -> the file's text (JSON).
+export async function exportSettings(entries, { passphrase = "", now = new Date() } = {}) {
+  const head = { format: SETTINGS_FORMAT, version: 1, exported: now.toISOString(),
+    note: "Contains the tokens, keys and passwords of an Agent M dashboard. Whoever holds it can use them." };
+  if (!passphrase) return JSON.stringify({ ...head, settings: entries }, null, 2) + "\n";
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await passphraseKey(passphrase, salt, PBKDF2_ITERATIONS);
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(entries)));
+  return JSON.stringify({ ...head, locked: { kdf: "PBKDF2", hash: "SHA-256", iterations: PBKDF2_ITERATIONS, salt: b64(salt),
+    cipher: "AES-GCM", iv: b64(iv), data: b64(data) } }, null, 2) + "\n";
+}
+
+// -> { key: raw value }. A locked file without passphrase throws { locked: true }; a wrong passphrase
+// throws { wrongPassphrase: true } — in both cases nothing has been read, so nothing can be imported.
+export async function readSettingsFile(text, passphrase = "") {
+  let f;
+  try { f = JSON.parse(text); } catch { f = null; }
+  if (!f || f.format !== SETTINGS_FORMAT) throw new Error("This is not an Agent M settings file.");
+  let settings = f.settings;
+  if (f.locked) {
+    if (!passphrase) throw Object.assign(new Error("This file is locked — enter its passphrase."), { locked: true });
+    try {
+      const L = f.locked;
+      const key = await passphraseKey(passphrase, unb64(L.salt), L.iterations);
+      settings = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(L.iv) }, key, unb64(L.data))));
+    } catch {
+      throw Object.assign(new Error("Wrong passphrase, or the file is damaged — nothing was imported."), { wrongPassphrase: true });
+    }
+  }
+  if (!settings || typeof settings !== "object") throw new Error("The file holds no settings.");
+  return Object.fromEntries(Object.entries(settings).filter(([, v]) => typeof v === "string"));
+}
+
+// UC-042 6a: what this browser has is kept; only what is missing is added; both are listed. A token that is
+// kept keeps its own expiry date. -> { put, added, kept, ignored }
+export function mergeSettings(current, incoming) {
+  const known = new Set(BROWSER_SETTINGS.map((s) => s.key));
+  const put = {}, added = [], kept = [], ignored = [];
+  const list = (v) => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch { return []; } };
+  for (const [k, v] of Object.entries(incoming)) {
+    if (!known.has(k)) { ignored.push(k); continue; }
+    if (k === K_EXPIRES) continue; // follows its token, below
+    if (k === K_PRODUCTS) {
+      const have = list(current[k]), fresh = list(v).filter((a) => !have.includes(a));
+      kept.push(...list(v).filter((a) => have.includes(a)).map((a) => `product ${a}`));
+      added.push(...fresh.map((a) => `product ${a}`));
+      if (fresh.length) put[k] = JSON.stringify([...have, ...fresh]);
+      continue;
+    }
+    if (current[k]) { kept.push(settingLabel(k)); continue; }
+    put[k] = v;
+    added.push(settingLabel(k));
+    if (k === K_TOKEN && incoming[K_EXPIRES]) put[K_EXPIRES] = incoming[K_EXPIRES];
+  }
+  return { put, added, kept, ignored };
+}
+
+// ---------------------------------------------------------------- product settings (UC-042 4–5, SPEC §14)
+//
+// A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: docs/settings.md, one line `- name: value` per setting; a
+// setting that is not listed has its default. PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF.
+
+export const PRODUCT_SETTINGS_PATH = "docs/settings.md";
+export const COLLABORATORS_PATH = "docs/collaborators.md";
+const SETTING_LINE = /^- ([a-z][a-z0-9-]*):[ \t]*(.+?)[ \t]*$/;
+
+export function parseProductSettings(text) {
+  const out = {};
+  for (const line of String(text || "").split("\n")) {
+    const m = SETTING_LINE.exec(line);
+    if (m) out[m[1]] = m[2];
+  }
+  return out;
+}
+
+export const pseudonymisationOn = (text) => parseProductSettings(text).pseudonymisation !== "off";
+
+// Set one setting's line (value null removes it); every other line of the file stays as it was.
+export function setProductSetting(text, name, value, product) {
+  let t = text || `# Settings of ${product}\n\nHow this product is developed, for everyone who works on it and every agent that runs for it.\n` +
+    "Changed on the Agent M dashboard (Settings). One line `- name: value` per setting; a setting not listed has its default.\n\n";
+  const lines = t.split("\n");
+  const at = lines.findIndex((l) => SETTING_LINE.exec(l)?.[1] === name);
+  if (at >= 0) {
+    if (value === null) lines.splice(at, 1); else lines[at] = `- ${name}: ${value}`;
+    return lines.join("\n");
+  }
+  if (value === null) return t;
+  if (!t.endsWith("\n")) t += "\n";
+  return `${t}- ${name}: ${value}\n`;
+}
+
+// SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS — shown before the switch can be saved.
+export function pseudonymisationOffNotice({ repo, isPublic }) {
+  return `With pseudonymisation off, report data from mails — the names, addresses and other details of the people ` +
+    `who write — enters the issues and the repository of ${repo} unchanged. This is advisable only on a protected, ` +
+    `non-public data space. Issue texts themselves stay neutral either way.` +
+    (isPublic ? ` GitHub reports ${repo} as public: the data will be published — anyone on the internet can read it.` : "");
+}
+
+export const PSEUDONYMISATION_ON_NOTE = "Data written while pseudonymisation was off stays in the repository's history; removing it " +
+  "needs a rewrite of that history.";
+
+// One click commits docs/settings.md to the product (A PERSON'S OWN INPUT IS COMMITTED DIRECTLY); switching
+// off needs the tick under the notice. current/currentBlob: the file as shown (null if absent).
+export async function savePseudonymisation({ repo, branch, token, click, current, currentBlob, off, acknowledged }) {
+  if (off && acknowledged !== true) throw new Error("Tick “I have read this” under the notice first.");
+  return commitFiles({ repo, branch, token, click, message: `settings: pseudonymisation ${off ? "off" : "on"} (Agent M dashboard)`,
+    files: [{ path: PRODUCT_SETTINGS_PATH, content: setProductSetting(current, "pseudonymisation", off ? "off" : null, repo),
+      expectBlob: currentBlob || null }] });
+}
+
+// A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT: docs/collaborators.md, one table row per person who agreed
+// to be named — name, account, date agreed.
+const ACCOUNT_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+
+export function parseCollaborators(text) {
+  const out = [];
+  for (const line of String(text || "").split("\n")) {
+    const m = /^\|\s*([^|]+?)\s*\|\s*@?([A-Za-z0-9-]+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/.exec(line);
+    if (m) out.push({ name: m[1], account: m[2], agreed: m[3] });
+  }
+  return out;
+}
+
+export function formatCollaborators(list, product) {
+  return `# Collaborators of ${product}\n\nPeople who agreed to be named in this repository, with the date they agreed. Anyone else is\n` +
+    "named only by their account. Changed on the Agent M dashboard (Settings).\n\n| Name | Account | Agreed on |\n|---|---|---|\n" +
+    list.map((c) => `| ${c.name} | @${c.account} | ${c.agreed} |\n`).join("");
+}
+
+export function addCollaborator(list, { name, account, agreed, consent }) {
+  if (consent !== true) throw new Error("Tick “this person has agreed to be named” — without it, a person is named only by account.");
+  const n = String(name ?? "").trim(), a = String(account ?? "").trim().replace(/^@/, ""), d = String(agreed ?? "").trim();
+  if (!n || /[|\n]/.test(n)) throw new Error("Enter the person's name (without “|”).");
+  if (!ACCOUNT_RE.test(a)) throw new Error(`“${a}” is not a GitHub account name.`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("Enter the date they agreed as YYYY-MM-DD.");
+  if (list.some((c) => c.account.toLowerCase() === a.toLowerCase())) throw new Error(`@${a} is already listed.`);
+  return [...list, { name: n, account: a, agreed: d }];
+}
+
+export const removeCollaborator = (list, account) => list.filter((c) => c.account !== account);
+
+export async function saveCollaborators({ repo, branch, token, click, list, currentBlob }) {
+  return commitFiles({ repo, branch, token, click, message: "collaborators: update (Agent M dashboard)",
+    files: [{ path: COLLABORATORS_PATH, content: formatCollaborators(list, repo), expectBlob: currentBlob || null }] });
 }
