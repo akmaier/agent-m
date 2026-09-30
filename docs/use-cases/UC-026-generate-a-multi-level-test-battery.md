@@ -22,6 +22,12 @@ realises:
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+  - A FINDING READS LIKE A COMPILER MESSAGE
+  - AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
+  - WHAT A PERSON DECIDES IS NOT SENT BACK
+  - THE CORRECTION LOOP HAS A FIXED LIMIT
+  - THE ROUNDS ARE COUNTED AND SHOWN
 ---
 # UC-026 Generate a multi-level test battery
 
@@ -84,9 +90,11 @@ its own.
    §4.0a rules 2 and 4). A case that would call a paid service carries the recorded or constructed
    response it uses instead, and is marked for the nightly run if it also needs the real call.
 6. Agent M checks the proposal without a model: a case with the same guarded identifier, input and
-   expected result as an existing test is a duplicate, whatever the participant said; flagged are
-   cases without an expected result, model-dependent cases judged on a single run, commit-level
-   cases that reach a paid service, and cases that guard nothing.
+   expected result as an existing test is a duplicate, whatever the participant said. Cases without an
+   expected result, model-dependent cases judged on a single run, commit-level cases that reach a paid
+   service, and cases that guard nothing are errors, sent back to the participant as compiler-like
+   findings until the proposal passes or the limit of rounds is reached; what is left is flagged in
+   step 7.
 7. The review panel shows the cases grouped by level and by what they guard, each beside the
    existing tests of the same identifier. The author reads the expected results — the book's point
    that a person checks the assertions reflect the requirement, not the code (ch. 13 §4) — and

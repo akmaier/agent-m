@@ -29,6 +29,12 @@ realises:
   - EVERY STEP EXPLAINS ITSELF
   - A PRODUCT DECLARES ITS LICENCE
   - A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S
+  - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+  - A FINDING READS LIKE A COMPILER MESSAGE
+  - AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
+  - WHAT A PERSON DECIDES IS NOT SENT BACK
+  - THE CORRECTION LOOP HAS A FIXED LIMIT
+  - THE ROUNDS ARE COUNTED AND SHOWN
 ---
 # UC-022 Derive the system architecture from requirements and use cases
 
@@ -92,7 +98,9 @@ relationships … and the principles guiding its design and evolution" (book ch.
 6. **The deduplication pass**, as for requirements (UC-005 step 6): candidates of this run that say the
    same are merged; a candidate whose name or normalised text equals an existing one is a duplicate
    without a model; Agent M checks every named requirement, use case, decision and module against the
-   product and assigns `ARC-<nnn>` to new decisions.
+   product and every candidate for its required parts, sends each finding back to the participant as a
+   compiler-like message until the candidates pass or the limit of rounds is reached, and assigns
+   `ARC-<nnn>` to new decisions.
 7. **The due diligence.** For every reuse candidate and each alternative, Agent M reads from the
    package registry and the source repository: whether the package exists, its licence, the dates of
    its releases, its open and closed issues, and its adoption (dependents or downloads). Each fact is

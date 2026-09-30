@@ -29,6 +29,12 @@ realises:
   - CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
   - A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
   - NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
+  - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+  - A FINDING READS LIKE A COMPILER MESSAGE
+  - AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
+  - WHAT A PERSON DECIDES IS NOT SENT BACK
+  - THE CORRECTION LOOP HAS A FIXED LIMIT
+  - THE ROUNDS ARE COUNTED AND SHOWN
 ---
 # UC-005 Derive requirements from a source
 
@@ -70,7 +76,10 @@ five-field form, for the author to approve or reject one by one.
    1. candidates of this run that state the same rule are merged into one, naming every passage;
    2. a candidate whose name or normalised rule equals an existing requirement's is classified as a
       duplicate without a model, whatever the model said;
-   3. Agent M flags candidates whose rule contains a conjunction, and candidates without a check.
+   3. Agent M sends back to the participant, as compiler-like findings, every candidate without one of
+      the five fields or without a check (errors), and every rule containing a conjunction (warning: split
+      or give a reason); the participant corrects, up to the limit of rounds the run panel states. What is
+      left after the last round is shown flagged in step 7; conflicts are never sent back.
 7. The review panel shows the candidates grouped by class, each beside the existing requirement it
    refers to. The author can move a candidate to another class — for example, from *new* to
    *duplicate of X* — and choose how each conflict is resolved.

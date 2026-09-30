@@ -31,6 +31,12 @@ realises:
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+  - A FINDING READS LIKE A COMPILER MESSAGE
+  - AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
+  - WHAT A PERSON DECIDES IS NOT SENT BACK
+  - THE CORRECTION LOOP HAS A FIXED LIMIT
+  - THE ROUNDS ARE COUNTED AND SHOWN
 ---
 # UC-019 Change a specification or a use case by prompt
 
@@ -75,19 +81,30 @@ same Markdown the author does.
 6. Agent M sends the instruction and the context with the change prompt from the repository's single
    definition. The participant returns the changed text; for requirements, each resulting requirement
    is classified as new, a change to a named requirement, a duplicate of one, or a conflict with one.
-7. Before showing anything, Agent M checks without a model:
-   - a returned requirement whose name or normalised rule equals an existing one is a duplicate,
-     whatever the participant said;
-   - a returned use case keeps its `id`; every name under `realises` matches a requirement;
-   - a requirement whose name changed is marked as withdrawal plus new requirement.
+7. **The correction loop.** Before showing anything, Agent M checks the draft without a model and
+   sends every finding back to the participant, which returns a corrected draft; this repeats until the
+   draft passes, or until the limit of rounds stated in the run panel (default 5), or until a round
+   changes nothing. Each finding reads like a compiler message — artifact and line, *error* or
+   *warning*, the rule by name, the correction expected:
+
+   ```text
+   UC-007:4: error: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] — keep UC-007.
+   UC-007:12: error: realises "EXPORT AS PDF" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.
+   SPEC:§3: error: "EXPORT IS A PDF" restates the existing requirement word for word but is classed new [EXACT DUPLICATES ARE FOUND WITHOUT A MODEL] — class it as duplicate of EXPORT IS A PDF.
+   SPEC:§3: warning: rule contains "and" [ONE STATEMENT PER REQUIREMENT] — split it, or keep it and give a one-line reason.
+   ```
+
+   Errors must be fixed; a warning may be kept with a one-line reason. Not sent back: a conflict with
+   an existing requirement, which the author decides in step 8, and a requirement whose name changed,
+   which Agent M itself proposes as withdrawal plus new requirement.
 8. The dashboard opens the editor of UC-018 with the draft, showing the difference against the
    current text line by line; for requirements, each one carries its class and stands beside the
    existing requirement it refers to. The author edits freely, or presses **Refine** with a
    follow-up instruction, which repeats steps 5–7 on the current draft.
 9. The author presses **Save** — one click — and UC-018 continues at step 5: the use case is
    committed as open, or a queue entry is written and the SPEC stays unchanged. The commit, or the
-   queue entry, records the instruction, the participant, the model, the Agent M version and the
-   date.
+   queue entry, records the instruction, the participant, the model, the Agent M version, the date,
+   and how many correction rounds the draft needed.
 
 ```mermaid
 sequenceDiagram
@@ -124,12 +141,17 @@ sequenceDiagram
   branch as an open use case or an open queue entry; the author reviews it in UC-008 or UC-006
   instead of step 8. *(Open question for the PO — queue 2026-09-24g, rationale of entry 05, question 6.)*
 - **6c. The participant returns nothing usable** — no text, the unchanged text, or text that cannot
-  be read as the artifact. The dashboard says which, shows the raw answer folded, and writes nothing.
-- **7a. The participant changed a use case's `id`.** Agent M restores the original identifier and
-  marks the place; a use case that should become two is split by keeping this one and adding another.
-- **7b. The participant dropped a name from `realises`** or added one that matches no requirement.
-  The difference highlights it; an unknown name is removed and marked, never turned into a
-  requirement (as in UC-007 4a).
+  be read as the artifact. That is a finding of the correction loop (step 7) like any other; if it is
+  still so after the last round, the dashboard says which, shows the raw answer folded, and writes
+  nothing.
+- **7a. The loop ends with findings left** — the limit is reached, or a round changed nothing. The
+  editor of step 8 opens with the draft and, beside it, the remaining findings in the same compiler
+  form and the number of rounds; the author fixes them by hand, presses **Refine**, or discards the
+  draft. A changed `id` is restored by Agent M before the editor opens; a use case that should become two
+  is split by keeping this one and adding another.
+- **7b. The participant dropped a name from `realises`.** The difference highlights it — a dropped name
+  is not an error, it may be intended; an added name that matches no requirement is an error of the loop
+  and is never turned into a requirement.
 - **8a. A returned requirement conflicts with an existing one.** It is shown beside it, with both
   sources and their authority. It is not written until the author decides; undecided conflicts stay
   in the panel.

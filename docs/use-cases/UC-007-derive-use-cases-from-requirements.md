@@ -16,6 +16,12 @@ realises:
   - ONE USE CASE, ONE FILE
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
   - ONE CLICK PER DECISION
+  - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+  - A FINDING READS LIKE A COMPILER MESSAGE
+  - AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
+  - WHAT A PERSON DECIDES IS NOT SENT BACK
+  - THE CORRECTION LOOP HAS A FIXED LIMIT
+  - THE ROUNDS ARE COUNTED AND SHOWN
 ---
 # UC-007 Derive use cases from requirements
 
@@ -45,7 +51,9 @@ own file, for review in UC-008.
    (6a).
 4. The participant returns use cases, each with actors, precondition, main flow, alternative flows,
    postcondition, a Mermaid diagram, and the names of the requirements it realises.
-5. Agent M checks every realised name against the product's requirements and assigns
+5. Agent M checks every draft without a model — the five parts of a use case, a Mermaid diagram, every
+   realised name against the product's requirements — and sends each finding back to the participant as
+   a compiler-like message, until the drafts pass or the limit of rounds is reached. Then it assigns
    identifiers `UC-<nnn>`.
 6. Agent M writes one file per use case under `docs/use-cases/` on the default branch; they appear
    on the dashboard as open, and each is accepted on its own (UC-008).
@@ -67,8 +75,8 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **4a. A drafted use case names a requirement that does not exist.** Agent M removes the name
-  and marks the use case for review; it does not invent a requirement.
+- **4a. A drafted use case still names a requirement that does not exist after the last round.**
+  Agent M removes the name and marks the use case for review; it does not invent a requirement.
 - **4b. A drafted use case realises no requirement.** It is proposed anyway and marked; it may
   point to a requirement that was never written down.
 - **6a. A use case with the same goal already exists.** Agent M proposes a change to that file
