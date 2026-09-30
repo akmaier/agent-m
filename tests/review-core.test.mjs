@@ -115,6 +115,49 @@ test("an applied entry is judged by its own section, not by headings later entri
   assert.equal(deriveSpecStatus({ ...pre, specText: "# T\n\nolder preamble\n## 0. H\nrule\n" }), "superseded");
 });
 
+// Queue 2026-09-30g entry 01: the anchor is a requirement's bold line, and the accepted proposal rewrote that very line
+// ("…, 2026-09-24)*" -> "…, 2026-09-24, narrowed 2026-09-30)*"). The anchor as it stood before acceptance is gone from the
+// SPEC; the entry's text stands where it was written, starting with the proposal's first line.
+const R_ANCHOR = "**A DRAFTED RULE** *(PO A. Maier, 2026-09-24)*", R_BIS = "## 11. A";
+const R_BEFORE = "# T\n\n## 10. R\n\n**AN EARLIER RULE** *(PO, 2026-09-23)*\nearlier.\n\n" +
+  `${R_ANCHOR}\nold text.\n*Check:* x\n\n**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n${R_BIS}\n\neleven\n`;
+const R_PROPOSAL = "**A DRAFTED RULE** *(PO A. Maier, 2026-09-24, narrowed 2026-09-30)*\nnew text.\n*Check:* x\n\n" +
+  "**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n";
+const R_AFTER = replaceSection(R_BEFORE, R_ANCHOR, R_BIS, R_PROPOSAL);
+
+test("an accepted entry whose proposal rewrites its own anchor line is applied while the SPEC holds its text", () => {
+  const done = new Map([[1, { decision: "uebernommen" }]]);
+  const base = { queue: "q", nr: 1, anchor: R_ANCHOR, bis: R_BIS, proposalPath: "q/01-a.md", proposalText: R_PROPOSAL,
+    proposalBlob: "p".repeat(40), sectionBlob: "s".repeat(40), decisions: done, records: [] };
+  assert.match(extractSection(R_AFTER, R_ANCHOR, R_BIS).error, /0 times/, "the anchor before acceptance is gone from the SPEC");
+  assert.equal(deriveSpecStatus({ ...base, specText: R_AFTER }), "applied");
+  // Counter-proof: the text the entry wrote changed after the acceptance, or its first line is gone — superseded.
+  assert.equal(deriveSpecStatus({ ...base, specText: R_AFTER.replace("new text.", "changed later.") }), "superseded");
+  assert.equal(deriveSpecStatus({ ...base, specText: R_AFTER.replace("narrowed 2026-09-30", "narrowed 2026-10-02") }), "superseded");
+  // Not accepted yet, the same entry is judged by its records as before.
+  assert.equal(deriveSpecStatus({ ...base, decisions: new Map(), specText: R_BEFORE }), "open");
+  // A heading-anchored entry whose first line is its anchor is applied as before; one that renames its heading is found
+  // under the new heading.
+  const h = { ...base, anchor: "## 11. A", bis: null, proposalText: "## 11. A\n\neleven, new\n" };
+  assert.equal(deriveSpecStatus({ ...h, specText: replaceSection(R_BEFORE, "## 11. A", null, h.proposalText) }), "applied");
+  assert.equal(deriveSpecStatus({ ...h, specText: R_BEFORE }), "superseded");
+  const renamed = { ...h, proposalText: "## 11. B\n\neleven, renamed\n" };
+  assert.equal(deriveSpecStatus({ ...renamed, specText: replaceSection(R_BEFORE, "## 11. A", null, renamed.proposalText) }), "applied");
+});
+
+test("the current text of an accepted entry is read where the entry wrote it, not at its anchor before acceptance", () => {
+  const entries = [{ nr: 1, anchor: R_ANCHOR, bis: R_BIS, proposalText: R_PROPOSAL }];
+  const shown = sectionForEntry({ specText: R_AFTER, entries, nr: 1, accepted: true });
+  assert.equal(shown.error, undefined);
+  assert.equal(shown.current, R_PROPOSAL);
+  assert.deepEqual(shown.needs, []);
+  // Counter-proof: an entry not yet accepted is still read at its anchor.
+  assert.equal(sectionForEntry({ specText: R_BEFORE, entries, nr: 1 }).current,
+    `${R_ANCHOR}\nold text.\n*Check:* x\n\n**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n`);
+  assert.match(sectionForEntry({ specText: R_AFTER.replace("narrowed 2026-09-30", "narrowed 2026-10-02"), entries, nr: 1,
+    accepted: true }).error, /0 times/, "its text gone from the SPEC: nothing to show, and the page says why");
+});
+
 test("fetchText reads with GET only; the GitHub token goes only to GitHub's API (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT)", async () => {
   await assert.rejects(fetchText("https://example.org/x"), /origin/);
   await assert.rejects(fetchText("https://api.github.com/x", { method: "PUT" }), /GET/);
