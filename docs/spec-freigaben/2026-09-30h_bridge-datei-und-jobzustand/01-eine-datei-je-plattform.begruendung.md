@@ -44,3 +44,9 @@ already requires that nothing else be installed. ARC-013 changes accordingly (UC
 *Impact list for the three rules:* new names, referenced by UC-011 (1c, 1d), UC-044 (6a, 4c) and UC-042 (settings
 table), updated in the same commit; architecture ARC-012, ARC-013, MOD-bridge-tunnel, MOD-bridge-server follow
 (UC-023).
+
+**Also added before acceptance (PO, 2026-09-30, "please fill this gap"):** `A BRIDGE CAN BE REACHED OVER HTTPS
+THROUGH THE JUMP HOST` names the certificate in its rule — "served with a certificate the browsers trust" —
+instead of only in its occasion, and its check gains the counter-proof with an untrusted certificate. The SSH
+side needs no certificate: the bridge's own key pair and the jump host's host key (`THE BRIDGE CREATES ITS OWN
+SSH KEY`).

@@ -119,11 +119,14 @@ sequenceDiagram
   4. On the person's own computer, a bridge there opens the matching forward the same way; without a bridge
      there, the dashboard's two commands (UC-011, 1c) remain.
   5. **Over HTTPS instead of a forward** — for every browser, Safari included: the jump host's web server
-     serves an HTTPS address that forwards to the tunnel's end on its loopback, only with the web server's
+     serves an HTTPS address, with a certificate for the host's name from an authority the browsers trust
+     (Let's Encrypt, free and renewed automatically, or the institution's own — a self-signed one does not
+     work), and forwards to the tunnel's end on its loopback, only with the web server's
      own login, and allows cross-origin requests from the instance's Pages address only. The person enters
      that address and login once in the dashboard's settings (UC-042); the dashboard sends the login to the
      web server and the bridge's token in a header of its own. No forward is needed on the person's
-     computer.
+     computer. **Test** on the settings page calls the address; if the browser refuses the connection, the
+     page names the certificate as a possible cause and says what the host needs.
 - **7a. A newer release exists.** The bridge shows it with its release notes; **Update** installs it only
   after the click, and only if its signature is valid.
 - **7b. The person quits the bridge.** Jobs running there end as *cancelled*; the dashboard shows the bridge

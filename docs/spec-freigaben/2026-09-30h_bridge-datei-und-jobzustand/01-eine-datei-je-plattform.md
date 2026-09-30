@@ -61,19 +61,24 @@ on 2026-08-24: the tunnel end listened on `127.0.0.1`/`[::1]` only.
 counter-proof: a command with `0.0.0.0` or an empty bind address fails.
 
 **A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST** *(PO A. Maier, 2026-09-30)*
-The dashboard can reach a bridge through an HTTPS address of the jump host, whose web server forwards the
-requests to the end of the bridge's reverse tunnel on the jump host's loopback.
+The dashboard can reach a bridge through an HTTPS address of the jump host, served with a certificate the
+browsers trust, whose web server forwards the requests to the end of the bridge's reverse tunnel on the
+jump host's loopback.
 *Occasion:* PO, 2026-09-30: "don't we have the route via a server like lme245? … Safari needs the server
 tunnel variant?" Measured 2026-09-30 from documentation (`docs/measurements/2026-09-30_architecture-open-points.md`,
 point 3): Chrome from 142, Edge from 143 and Firefox from 153 let an HTTPS page call `http://127.0.0.1`
 after one local-network prompt; Safari blocks it as mixed content. An HTTPS address with a valid
-certificate on a server the person controls is an ordinary web address for every browser. The pattern is
+certificate on a server the person controls is an ordinary web address for every browser; behind a
+certificate the browser does not trust — a self-signed one — a request made by a page fails without any
+way to proceed, so the certificate is part of the route: one issued for the host's name by an authority the
+browsers trust, such as Let's Encrypt, free and renewed automatically, or the institution's own. The pattern is
 the support cockpit's (`SOFTWARE_MAINTENANCE.md` §6.1a); the server is the person's own, like the jump host
 (`NO SERVER`). Whether all four browsers reach a bridge this way is measured before release (`BROWSER
 REACHABILITY IS MEASURED, NOT ASSUMED`).
 *Check:* `tests/test_bridge_tunnel.py` — through a test HTTPS proxy in front of a reverse tunnel, the
-dashboard's request reaches the bridge; counter-proof: with the tunnel closed, the proxy answers with an
-error and no bridge is reached.
+dashboard's request reaches the bridge; counter-proofs: with the tunnel closed, the proxy answers with an
+error and no bridge is reached; behind a certificate the test browser does not trust, the request fails and
+the settings page names the certificate as a possible cause.
 
 **THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN** *(PO A. Maier, 2026-09-30)*
 The jump host's web server forwards a request to a bridge's tunnel only when the request carries the web
