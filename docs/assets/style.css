@@ -124,3 +124,7 @@ input.secret, #token-expires, #key-expires, #export-pass, #export-pass2, #import
   font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .35rem .5rem; border: 1px solid var(--line);
   border-radius: 6px; background: var(--code); color: var(--fg); max-width: 100%; }
 input.secret { width: 28rem; }
+.remote-session { border-top: 1px dashed var(--line); padding: .5rem 0; }
+pre.cmd { white-space: pre-wrap; word-break: break-all; margin: .3rem 0; font-size: .8rem; }
+.jump-form input, .session-form input { font: inherit; font-family: ui-monospace, Menlo, monospace; padding: .3rem .45rem;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--code); color: var(--fg); max-width: 100%; }

@@ -469,8 +469,8 @@ export function extendTokenSteps(instance, product) {
   ];
 }
 
-// UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: one token for this one project, role Developer, scope
-// api. The page and the fields as GitLab documents them (doc/user/project/settings/project_access_tokens.md,
+// UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: one token for this one project, role Maintainer, scope
+// api — GitLab's default branch protection lets Developers push nothing (queue 2026-09-30c). The page and the fields as GitLab documents them (doc/user/project/settings/project_access_tokens.md,
 // "Create a project access token"; route /-/settings/access_tokens in config/routes/project.rb).
 export const gitlabTokenPageUrl = (product) => `${product.address}/-/settings/access_tokens`;
 
@@ -479,7 +479,7 @@ export function gitlabTokenSteps(product) {
     `The button opens Settings → Access tokens of ${product.repo} on ${product.host}; there, press “Add new token”.`,
     "Token name: Agent M.",
     `Expiration date: a date of your choice — ${TOKEN_DAYS} days from today is a good default. Enter the same date below.`,
-    "Select a role: Developer. Select scopes: api — nothing else.",
+    "Select a role: Maintainer — GitLab lets only Maintainers push to a protected default branch. Select scopes: api — nothing else.",
     "Press “Create project access token” and copy the token GitLab now shows — it starts with glpat- and is shown only once.",
   ];
 }
@@ -500,14 +500,27 @@ export function gitlabNoProjectTokens(product) {
     "this product only and sends it only to this project's API.";
 }
 
-// A write refused with 403: a Developer cannot push to a protected branch, and GitLab protects the default branch
-// against Developers by default ("Fully protected - Default value. Developers cannot push new commits, but
-// maintainers can." — doc/user/project/repository/branches/default.md).
+// A write refused with 403. What GitLab answers 403 for here: a push to a protected branch by a role it does not allow — the
+// default protection lets Maintainers push ("Fully protected - Default value. Developers cannot push new commits, but
+// maintainers can." — doc/user/project/repository/branches/default.md), but a project may allow no one —, and a token without
+// the scope the request needs (Gitlab::Auth::InsufficientScopeError → Bearer::Forbidden, lib/api/api_guard.rb). An expired or
+// revoked token is answered with 401 instead, and named by tokenRefusal.
 export function gitlabWriteRefusal(e, product) {
   if (e?.status !== 403) return null;
-  return `GitLab refused the write (403). A project token with role Developer cannot push to a protected branch, and GitLab ` +
-    `protects the default branch against Developers unless the project allows it: on ${product.address}, Settings → Repository → ` +
-    "Protected branches → “Allowed to push and merge”. Check that setting, and that the token has role Developer and scope api.";
+  return `GitLab refused the write (403). With a project token of role Maintainer and scope api this means that the branch is ` +
+    `protected even against Maintainers on ${product.address} — Settings → Repository → Protected branches → “Allowed to push and merge” — or ` +
+    "that the token lacks scope api or was created with a lower role. Check the setting, and the token's role and scopes on the " +
+    "project's Access tokens page.";
+}
+
+// The role a GitLab token acts with (GitLab's access levels), and whether it can write to a protected default branch: only
+// Maintainer (40) and Owner (50) can under GitLab's default protection.
+const GITLAB_ROLES = { 10: "Guest", 15: "Planner", 20: "Reporter", 30: "Developer", 40: "Maintainer", 50: "Owner" };
+export function gitlabRole(level) {
+  const role = GITLAB_ROLES[level] || null;
+  const canWrite = Number.isInteger(level) && level >= 40;
+  return { role, canWrite, note: canWrite ? "" : `${role ? `role ${role}` : "this token"} cannot write to a protected default branch — ` +
+    "the token needs role Maintainer" };
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -919,6 +932,7 @@ export async function addProduct({ address, token, click, store }) {
 
 const K_TOKEN = "agent-m.github-token", K_EXPIRES = "agent-m.github-token-expires", K_PRODUCTS = "agent-m.products";
 const K_GITLAB = "agent-m.gitlab-tokens";
+const K_JUMP = "agent-m.jump-host", K_SESSIONS = "agent-m.remote-sessions";
 
 export const BROWSER_SETTINGS = [
   { key: K_TOKEN, label: "GitHub token", secret: true,
@@ -927,7 +941,121 @@ export const BROWSER_SETTINGS = [
   { key: K_PRODUCTS, label: "Products", secret: false },
   { key: K_GITLAB, label: "GitLab project tokens", secret: true,
     grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
+  { key: K_JUMP, label: "Jump host", secret: false },
+  { key: K_SESSIONS, label: "remote sessions' bridge tokens", secret: true,
+    grants: "hand jobs to the CLI session behind each tunnel, which works there with that machine's own credentials" },
 ];
+
+// ---------------------------------------------------------------- jump host and remote sessions (UC-011 1c, UC-042; SPEC §6, §7)
+//
+// A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL: the machine behind NAT opens `ssh -R` to a jump host the person
+// names, the person's machine opens `ssh -L` to it, and the dashboard reaches the session at http://localhost:<port>.
+// EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE · THE DASHBOARD WRITES THE TUNNEL COMMANDS · A REVERSE TUNNEL
+// LISTENS ONLY ON THE JUMP HOST'S LOOPBACK. The bridge's own port on the NAT machine is a setting of each session
+// (`bridgePort`): no bridge exists in this repository yet, so there is no port convention to take it from.
+// Every value that enters a command is checked first, so that no setting can add an option or an address to it.
+
+const HOST_RE = /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/;
+const SSH_USER_RE = /^[A-Za-z_][A-Za-z0-9_.-]{0,31}$/;
+const KEY_FILE_RE = /^(?:~\/|\/)?[A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*$/;
+const SESSION_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
+export const KEEPALIVE_SECONDS = 30;
+const isPort = (p, min = 1) => Number.isInteger(p) && p >= min && p <= 65535;
+
+// What is wrong with a jump host's settings, or null.
+export function jumpHostProblem(j) {
+  if (!j || typeof j !== "object") return "No jump host is set.";
+  if (!HOST_RE.test(String(j.host ?? ""))) return "The jump host is a host name or an IPv4 address, such as jump.example.org.";
+  if (!SSH_USER_RE.test(String(j.user ?? ""))) return "The SSH user is a login name on the jump host, such as agentm.";
+  if (!isPort(j.portFrom, 1024) || !isPort(j.portTo, 1024)) return "The port range lies between 1024 and 65535.";
+  if (j.portFrom > j.portTo) return "The port range starts at its lower end.";
+  for (const [k, what] of [["reverseKey", "machine behind NAT"], ["forwardKey", "your machine"]]) {
+    const v = j[k] ?? "";
+    if (v && !KEY_FILE_RE.test(v)) return `The key file on the ${what} is a file name, such as ~/.ssh/id_ed25519 — its name only, never the key itself.`;
+  }
+  return null;
+}
+
+// The lowest port of the range that no session uses.
+export function nextFreePort(jump, sessions) {
+  const used = new Set(sessions.map((s) => s.port));
+  for (let p = jump.portFrom; p <= jump.portTo; p++) if (!used.has(p)) return p;
+  throw new Error(`No free port left in ${jump.portFrom}–${jump.portTo}: every port of the range has a session. Widen the range or ` +
+    "remove a session.");
+}
+
+// + Remote session: the list with the new session; its port is the lowest free one unless one of the range is chosen.
+export function addRemoteSession(jump, sessions, { name, port = null, bridgePort, token = "" }) {
+  const bad = jumpHostProblem(jump);
+  if (bad) throw new Error(`Set the jump host first. ${bad}`);
+  const n = String(name ?? "").trim(), t = String(token ?? "").trim(), bp = Number(bridgePort);
+  if (!SESSION_NAME_RE.test(n)) throw new Error("Name the session with letters, digits, '.', '_' or '-', such as lab-pc.");
+  if (sessions.some((s) => s.name === n)) throw new Error(`A session named ${n} already exists.`);
+  if (!isPort(bp)) throw new Error("The bridge port is the port the bridge listens on, on the machine behind NAT (1–65535).");
+  if (/\s/.test(t)) throw new Error("A bridge token has no spaces.");
+  let p;
+  if (port === null || port === undefined || port === "") p = nextFreePort(jump, sessions);
+  else {
+    p = Number(port);
+    if (!Number.isInteger(p) || p < jump.portFrom || p > jump.portTo) throw new Error(`The port lies in the jump host's range ${jump.portFrom}–${jump.portTo}.`);
+    const other = sessions.find((s) => s.port === p);
+    if (other) throw new Error(`Port ${p} is used by the session ${other.name}; each session has its own port.`);
+  }
+  return [...sessions, { name: n, port: p, bridgePort: bp, token: t }];
+}
+
+const LOOPBACK_BIND = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+// A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK: every -R and -L of a command binds its listening end to a loopback
+// address, explicitly, and forwards to 127.0.0.1; nothing switches on listening for other hosts. -> [] or the problems.
+export function tunnelBindProblems(cmd) {
+  const words = String(cmd).trim().split(/\s+/), out = [];
+  let forwards = 0;
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (w === "-g") out.push("-g lets other hosts connect to the forwarded port");
+    if (w === "-o" && /^GatewayPorts/i.test(words[i + 1] || "")) out.push("GatewayPorts is not set by a command of the dashboard");
+    if (w !== "-R" && w !== "-L") continue;
+    forwards++;
+    const spec = words[i + 1] || "", parts = spec.split(":");
+    if (parts.length !== 4) { out.push(`${w} ${spec}: no bind address — it must name 127.0.0.1`); continue; }
+    const [bind, , dest] = parts;
+    if (bind === "" || bind === "*" || bind === "0.0.0.0" || !LOOPBACK_BIND.has(bind)) out.push(`${w} ${spec}: binds ${bind || "(empty)"}, not the loopback address`);
+    if (dest !== "127.0.0.1") out.push(`${w} ${spec}: forwards to ${dest}, not to 127.0.0.1`);
+  }
+  if (!forwards) out.push("no -R or -L in the command");
+  return out;
+}
+
+// THE DASHBOARD WRITES THE TUNNEL COMMANDS: both ends of one session's tunnel, and the address the dashboard reaches it at.
+export function tunnelCommands(jump, session) {
+  const bad = jumpHostProblem(jump);
+  if (bad) throw new Error(bad);
+  if (!SESSION_NAME_RE.test(session?.name ?? "") || !isPort(session.port) || !isPort(session.bridgePort)) throw new Error("not a remote session");
+  const opts = `-N -o ServerAliveInterval=${KEEPALIVE_SECONDS} -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes`;
+  const key = (f) => (f ? ` -i ${f}` : "");
+  const to = `${jump.user}@${jump.host}`;
+  const reverse = `ssh ${opts}${key(jump.reverseKey)} -R 127.0.0.1:${session.port}:127.0.0.1:${session.bridgePort} ${to}`;
+  const forward = `ssh ${opts}${key(jump.forwardKey)} -L 127.0.0.1:${session.port}:127.0.0.1:${session.port} ${to}`;
+  for (const c of [reverse, forward]) {
+    const p = tunnelBindProblems(c);
+    if (p.length) throw new Error(`refused to write a tunnel command: ${p.join("; ")}`);
+  }
+  return { reverse, forward, url: `http://localhost:${session.port}` };
+}
+
+// Test of a remote session: does anything answer at its local port — the forward, and through it the tunnel? A request
+// without token or header, whose answer the page cannot read (no-cors): it tells only that a connection was made.
+export async function probeLocalPort(port) {
+  if (typeof port !== "number" || !isPort(port)) throw new Error(`not a port: ${port}`);
+  try {
+    await fetch(`http://localhost:${port}/`, { method: "GET", mode: "no-cors", credentials: "omit", cache: "no-store" });
+    return true;
+  } catch { return false; }
+}
+
+const parseJson = (raw, fallback) => { try { return JSON.parse(raw || "null") ?? fallback; } catch { return fallback; } };
+const sessionList = (raw) => { const l = parseJson(raw, []); return Array.isArray(l) ? l.filter((x) => x && typeof x.name === "string") : []; };
 
 // The GitLab project tokens of a raw store value: { address: { token, expires } }; anything malformed is left out.
 function gitlabTokenMap(raw) {
@@ -1082,13 +1210,71 @@ export function browserSettingsHtml({ entries = {}, shown = [], tokenState = nul
       <button class="btn" data-clear="${K_GITLAB}" ${n ? "" : "disabled"}>Clear all</button></p>
     <p class="result muted" data-result="${K_GITLAB}"></p>
     <details class="explain"><summary>What is this?</summary><div>Each GitLab product has its own project access token, created on
-      that project's Settings → Access tokens page with role Developer and scope api (<em>+ Add product</em> guides you). Kept in this
+      that project's Settings → Access tokens page with role Maintainer and scope api (<em>+ Add product</em> guides you). Kept in this
       browser's <code>localStorage</code> under the product's address and sent only to that project's API on its own server, as a
       header — never to GitHub, another GitLab or the model endpoint. <em>Test</em> reads the project with it; <em>Clear</em> removes it
       from this browser — the product can then still be read if it is public, but not accepted in or edited. A token is renewed by
       <em>Rotate</em> on the project's Access tokens page.</div></details>
   </div><!--/setting-->`;
-  return tokenRow + productRow + gitlabRow;
+  // THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS · THE DASHBOARD WRITES THE TUNNEL COMMANDS (UC-011 1c, UC-042).
+  const jump = parseJson(entries[K_JUMP], null), jumpBad = jump ? jumpHostProblem(jump) : "not set";
+  const jumpRow = `<div class="setting" data-setting-row="jump-host">
+    <h4 data-setting-key="${K_JUMP}">Jump host</h4>
+    <p class="state">${jump ? (jumpBad ? `✗ ${esc(jumpBad)}` : `${esc(jump.user)}@${esc(jump.host)} — ports ${esc(jump.portFrom)}–${esc(jump.portTo)}`)
+      : "— not set"}</p>
+    ${jump ? `<p class="small">SSH key file on the machine behind NAT: <code>${esc(jump.reverseKey || "ssh's default")}</code> · on your
+      machine: <code>${esc(jump.forwardKey || "ssh's default")}</code></p>` : ""}
+    <p><button class="btn" data-test="${K_JUMP}" ${jump ? "" : "disabled"}>Test</button>
+      <button class="btn" data-change="${K_JUMP}">${jump ? "Change" : "Set the jump host"}</button>
+      <button class="btn" data-clear="${K_JUMP}" ${jump ? "" : "disabled"}>Clear</button></p>
+    <div class="jump-form" data-jump-form></div>
+    <p class="result muted" data-result="${K_JUMP}"></p>
+    <details class="explain"><summary>What is this?</summary><div>A machine behind NAT accepts no incoming connection, so its CLI
+      session is reached through a host that both your machine and that one can reach by SSH — the <em>jump host</em>. Here you
+      name it, the SSH user, the port range the sessions may use there, and which key file each machine uses (its name only: the
+      keys stay in <code>~/.ssh</code> of the two machines, a web page cannot use them). Kept in this browser's
+      <code>localStorage</code>. <em>Test</em> checks the settings and asks each session's local port whether the tunnel is up — a
+      web page cannot open SSH itself; <em>Clear</em> removes the jump host, and no command can be written until it is set again.</div></details>
+  </div><!--/setting-->`;
+  const sessions = sessionList(entries[K_SESSIONS]);
+  const sessionLines = sessions.map((s) => {
+    let cmds = null;
+    try { cmds = jump && !jumpBad ? tunnelCommands(jump, s) : null; } catch { cmds = null; }
+    const showKey = `${K_SESSIONS} ${s.name}`, st = tokenState?.sessions?.[s.name];
+    const state = st?.up ? `✓ something answered at localhost:${esc(s.port)} — tested ${esc(st.up)}`
+      : st?.down ? `✗ nothing answered at localhost:${esc(s.port)} — start both commands` : "not tested on this page yet";
+    const copy = (c) => `<pre class="cmd">${esc(c)}</pre><button class="btn small" data-copy="${esc(c)}">Copy</button>`;
+    return `<div class="remote-session">
+      <p><strong>${esc(s.name)}</strong> — port ${esc(s.port)} on the jump host · bridge port ${esc(s.bridgePort)} · <span class="state">${state}</span></p>
+      <p>Bridge token: ${s.token ? secretFieldHtml({ key: showKey, value: s.token, shown: shown.includes(showKey), label: `Bridge token of ${s.name}` })
+        : "— none stored"}</p>
+      ${cmds ? `<p>1. On the machine behind NAT — keep it running, e.g. as a service or under <code>autossh</code>:</p>${copy(cmds.reverse)}
+      <p>2. On your machine:</p>${copy(cmds.forward)}
+      <p>3. The dashboard then reaches this session at <code>${esc(cmds.url)}</code>.</p>`
+        : `<p class="warn">No commands: set the jump host above first.</p>`}
+      <p><button class="btn" data-test-session="${esc(s.name)}">Test</button>
+        <button class="btn" data-clear-session="${esc(s.name)}">Clear</button></p>
+      <p class="result muted" data-result-session="${esc(s.name)}"></p>
+    </div>`;
+  }).join("");
+  const sessionsRow = `<div class="setting" data-setting-row="remote-sessions">
+    <h4 data-setting-key="${K_SESSIONS}">Remote sessions</h4>
+    <p class="state">${sessions.length ? `${sessions.length} in this browser` : "— not set"}</p>
+    ${sessionLines}
+    <p><button class="btn" data-add-session ${jump && !jumpBad ? "" : "disabled"}>+ Remote session</button>
+      <button class="btn" data-test="${K_SESSIONS}" ${sessions.length ? "" : "disabled"}>Test all</button>
+      <button class="btn" data-clear="${K_SESSIONS}" ${sessions.length ? "" : "disabled"}>Clear all</button></p>
+    <div class="session-form" data-session-form></div>
+    <p class="result muted" data-result="${K_SESSIONS}"></p>
+    <details class="explain"><summary>What is this?</summary><div>One line per CLI session on a machine behind NAT. Each gets its own
+      port from the jump host's range — the lowest free one unless you choose — and keeps the token its bridge printed when it was
+      paired. The two commands are written from these settings: the <em>reverse tunnel</em> runs on the machine behind NAT and opens
+      the port on the jump host's loopback address only (<code>127.0.0.1</code>), so only someone who can log in there reaches it; the
+      <em>forward</em> runs on your machine and brings that port to <code>localhost</code>. The bridge token is kept in this browser's
+      <code>localStorage</code>, hidden until <em>Show</em>, and is in no command. <em>Test</em> asks whether anything answers at the
+      session's local port; <em>Clear</em> removes the session and its token from this browser.</div></details>
+  </div><!--/setting-->`;
+  return tokenRow + productRow + gitlabRow + jumpRow + sessionsRow;
 }
 
 // ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
@@ -1169,6 +1355,17 @@ export function mergeSettings(current, incoming) {
       if (Object.keys(out).length > Object.keys(have).length) put[k] = JSON.stringify(out);
       continue;
     }
+    if (k === K_SESSIONS) {
+      const have = sessionList(current[k]), out = [...have];
+      for (const s of sessionList(v)) {
+        if (have.some((x) => x.name === s.name)) { kept.push(`remote session ${s.name}`); continue; }
+        if (out.some((x) => x.port === s.port)) { kept.push(`remote session ${s.name} not added: its port ${s.port} is used here`); continue; }
+        out.push(s);
+        added.push(`remote session ${s.name}`);
+      }
+      if (out.length > have.length) put[k] = JSON.stringify(out);
+      continue;
+    }
     if (k === K_PRODUCTS) {
       const have = list(current[k]), fresh = list(v).filter((a) => !have.includes(a));
       kept.push(...list(v).filter((a) => have.includes(a)).map((a) => `product ${a}`));
@@ -1242,11 +1439,15 @@ export async function savePseudonymisation({ repo, product = null, branch, token
 // A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT: docs/collaborators.md, one table row per person who agreed
 // to be named — name, account, date agreed.
 const ACCOUNT_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+// GitLab user names: letters, digits, '_', '-', '.'; not starting with '-', not ending in '.', '.git' or '.atom'
+// (NAMESPACE_FORMAT_REGEX_JS and NO_SUFFIX_REGEX of lib/gitlab/path_regex.rb, URL_MAX_LENGTH 255).
+const GITLAB_ACCOUNT_RE = /^(?:[A-Za-z0-9_.][A-Za-z0-9_.-]{0,254}[A-Za-z0-9_-]|[A-Za-z0-9_])$/;
+const accountOk = (a, gitlab) => (gitlab ? GITLAB_ACCOUNT_RE.test(a) && !/\.(git|atom)$/.test(a) : ACCOUNT_RE.test(a));
 
 export function parseCollaborators(text) {
   const out = [];
   for (const line of String(text || "").split("\n")) {
-    const m = /^\|\s*([^|]+?)\s*\|\s*@?([A-Za-z0-9-]+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/.exec(line);
+    const m = /^\|\s*([^|]+?)\s*\|\s*@?([A-Za-z0-9_.-]+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/.exec(line);
     if (m) out.push({ name: m[1], account: m[2], agreed: m[3] });
   }
   return out;
@@ -1258,11 +1459,12 @@ export function formatCollaborators(list, product) {
     list.map((c) => `| ${c.name} | @${c.account} | ${c.agreed} |\n`).join("");
 }
 
-export function addCollaborator(list, { name, account, agreed, consent }) {
+// gitlab: the product is on a GitLab server, whose user names differ from GitHub's.
+export function addCollaborator(list, { name, account, agreed, consent, gitlab = false }) {
   if (consent !== true) throw new Error("Tick “this person has agreed to be named” — without it, a person is named only by account.");
   const n = String(name ?? "").trim(), a = String(account ?? "").trim().replace(/^@/, ""), d = String(agreed ?? "").trim();
   if (!n || /[|\n]/.test(n)) throw new Error("Enter the person's name (without “|”).");
-  if (!ACCOUNT_RE.test(a)) throw new Error(`“${a}” is not a GitHub account name.`);
+  if (!accountOk(a, gitlab)) throw new Error(`“${a}” is not a ${gitlab ? "GitLab user" : "GitHub account"} name.`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("Enter the date they agreed as YYYY-MM-DD.");
   if (list.some((c) => c.account.toLowerCase() === a.toLowerCase())) throw new Error(`@${a} is already listed.`);
   return [...list, { name: n, account: a, agreed: d }];

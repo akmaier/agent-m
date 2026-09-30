@@ -46,7 +46,7 @@ class EverySettingOnOnePage(unittest.TestCase):
         # A key built any other way (a template, a variable) would escape the check above.
         src = STORE.read_text(encoding="utf-8")
         for call in re.findall(r"setItem\(([^,]+),", src):
-            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|k)$", call)
+            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|JUMP_HOST_KEY|REMOTE_SESSIONS_KEY|k)$", call)
         self.assertIn("KEYS.includes(k)", src, "putEntries writes only the named keys")
 
     def test_counter_proof_a_key_without_a_place_fails(self):
@@ -58,7 +58,7 @@ class TestedAndCleared(unittest.TestCase):
     def test_each_browser_setting_has_test_and_clear(self):
         html = page(full_entries())
         rows = re.findall(r'<div class="setting" data-setting-row="([^"]+)">(.*?)</div><!--/setting-->', html, re.S)
-        self.assertEqual(sorted(r for r, _ in rows), ["github-token", "gitlab-tokens", "products"])
+        self.assertEqual(sorted(r for r, _ in rows), ["github-token", "gitlab-tokens", "jump-host", "products", "remote-sessions"])
         for name, body in rows:
             self.assertIn("data-test=", body, name)
             self.assertIn("data-clear=", body, name)
@@ -203,6 +203,59 @@ class ProductSettingsInTheRepository(unittest.TestCase):
         calls, keys = v
         self.assertIn("PATCH /repos/alice/thesis/git/refs/heads/main", calls, "changing a product setting commits to the product")
         self.assertEqual(keys, ["agent-m.github-token"], "counter-proof: localStorage holds no product setting")
+
+
+
+JUMP = {"host": "jump.example.org", "user": "agentm", "portFrom": 20001, "portTo": 20010,
+        "reverseKey": "~/.ssh/agent-m-jump", "forwardKey": "~/.ssh/id_ed25519"}
+BRIDGE_SECRET = "bridgeSECRETtoken0123456789"
+
+
+def remote_entries(jump=JUMP) -> dict:
+    return js("const j = " + json.dumps(jump) + "; const s = core.addRemoteSession(j, [], { name: 'lab-pc', bridgePort: 8765, token: '"
+              + BRIDGE_SECRET + "' }); return { [store.JUMP_HOST_KEY]: JSON.stringify(j), [store.REMOTE_SESSIONS_KEY]: JSON.stringify(s) };")
+
+
+class JumpHostAndRemoteSessions(unittest.TestCase):
+    """SPEC §7 THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS (UC-042, UC-011 1c): tested, cleared, the bridge token hidden until
+    shown; §6 THE DASHBOARD WRITES THE TUNNEL COMMANDS — on the page, with copy buttons."""
+
+    def rows(self, html):
+        return dict(re.findall(r'<div class="setting" data-setting-row="([^"]+)">(.*?)</div><!--/setting-->', html, re.S))
+
+    def test_the_jump_host_is_shown_with_test_change_clear(self):
+        body = self.rows(page(remote_entries()))["jump-host"]
+        for must in ('data-setting-key="agent-m.jump-host"', "agentm@jump.example.org", "20001", "20010", "~/.ssh/agent-m-jump",
+                     "~/.ssh/id_ed25519", 'data-test="agent-m.jump-host"', 'data-change="agent-m.jump-host"', 'data-clear="agent-m.jump-host"'):
+            self.assertIn(must, body)
+
+    def test_each_session_has_its_commands_test_and_clear(self):
+        body = self.rows(page(remote_entries()))["remote-sessions"]
+        for must in ("lab-pc", 'data-test-session="lab-pc"', 'data-clear-session="lab-pc"', "http://localhost:20001",
+                     "-R 127.0.0.1:20001:127.0.0.1:8765 agentm@jump.example.org", "-L 127.0.0.1:20001:127.0.0.1:20001 agentm@jump.example.org",
+                     'data-add-session'):
+            self.assertIn(must, body)
+        self.assertEqual(len(re.findall(r'data-copy="ssh -N', body)), 2, "a copy button for each command")
+
+    def test_the_bridge_token_is_hidden_until_shown(self):
+        html = page(remote_entries())
+        holding = [t for t in re.findall(r"<input\b[^>]*>", html) if BRIDGE_SECRET in t]
+        self.assertEqual(len(holding), 1)
+        self.assertRegex(holding[0], r'type="password"')
+        self.assertNotIn(BRIDGE_SECRET, re.sub(r"<input\b[^>]*>", "", html), "not in a command, a copy button or a label")
+        self.assertIn('data-show="agent-m.remote-sessions lab-pc"', html)
+
+    def test_counter_proof_after_show_the_bridge_token_appears_in_full(self):
+        html = page(remote_entries(), shown=["agent-m.remote-sessions lab-pc"])
+        tag = [t for t in re.findall(r"<input\b[^>]*>", html) if BRIDGE_SECRET in t][0]
+        self.assertRegex(tag, r'type="text"')
+
+    def test_without_a_jump_host_no_command_is_written(self):
+        entries = remote_entries()
+        del entries["agent-m.jump-host"]
+        body = self.rows(page(entries))["remote-sessions"]
+        self.assertNotIn("ssh -N", body)
+        self.assertIn("jump host", body.lower())
 
 
 if __name__ == "__main__":

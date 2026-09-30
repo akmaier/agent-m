@@ -19,13 +19,19 @@
 // its product's address in one JSON map { address: { token, expires } }. A token is looked up only by the
 // address of the product it was stored for; review-core.mjs sends it only to that project's API
 // (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT). Removing the product removes its token.
+//
+// SPEC §7 THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS: the jump host { host, user, portFrom, portTo, reverseKey,
+// forwardKey } — key file NAMES only, never key contents — and the remote sessions [{ name, port, bridgePort, token }], each as
+// one JSON entry. Their rules (a port from the range, the tunnel commands) live in review-core.mjs.
 
 export const PREFIX = "agent-m.";
 export const TOKEN_KEY = PREFIX + "github-token";
 export const TOKEN_EXPIRY_KEY = PREFIX + "github-token-expires";
 export const PRODUCTS_KEY = PREFIX + "products";
 export const GITLAB_TOKENS_KEY = PREFIX + "gitlab-tokens";
-export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY];
+export const JUMP_HOST_KEY = PREFIX + "jump-host";
+export const REMOTE_SESSIONS_KEY = PREFIX + "remote-sessions";
+export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY, JUMP_HOST_KEY, REMOTE_SESSIONS_KEY];
 
 export function createStore(storage) {
   const safe = (f, fallback) => { try { return f(); } catch { return fallback; } };
@@ -79,6 +85,22 @@ export function createStore(storage) {
       if (Object.keys(map).length) storage.setItem(GITLAB_TOKENS_KEY, JSON.stringify(map));
       else storage.removeItem(GITLAB_TOKENS_KEY);
     },
+    getJumpHost() {
+      const j = safe(() => JSON.parse(storage.getItem(JUMP_HOST_KEY) || "null"), null);
+      return j && typeof j === "object" && !Array.isArray(j) ? j : null;
+    },
+    setJumpHost(j) { storage.setItem(JUMP_HOST_KEY, JSON.stringify(j)); },
+    clearJumpHost() { storage.removeItem(JUMP_HOST_KEY); },
+    getRemoteSessions() {
+      const list = safe(() => JSON.parse(storage.getItem(REMOTE_SESSIONS_KEY) || "[]"), []);
+      return Array.isArray(list) ? list.filter((x) => x && typeof x.name === "string" && Number.isInteger(x.port)) : [];
+    },
+    setRemoteSessions(list) {
+      if (list.length) storage.setItem(REMOTE_SESSIONS_KEY, JSON.stringify(list));
+      else storage.removeItem(REMOTE_SESSIONS_KEY);
+    },
+    clearRemoteSession(name) { this.setRemoteSessions(this.getRemoteSessions().filter((x) => x.name !== name)); },
+    clearRemoteSessions() { storage.removeItem(REMOTE_SESSIONS_KEY); },
     // Every stored setting as { key: raw value } — what an export holds.
     entries() {
       const out = {};

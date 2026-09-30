@@ -744,7 +744,7 @@ test("status 'approved' is described truly for both routes — the dashboard's o
 import {
   gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute,
   gitlabTokenPageUrl, gitlabTokenSteps, gitlabNoProjectTokens, gitlabWriteRefusal, webFileUrl, deriveTarget,
-  expiryWarning, tokenBannerHtml, exportNotice, authHeaders,
+  expiryWarning, tokenBannerHtml, exportNotice, authHeaders, gitlabRole,
 } from "../docs/assets/review-core.mjs";
 import { GITLAB_TOKENS_KEY } from "../docs/assets/settings-store.mjs";
 
@@ -1030,12 +1030,13 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; 
   assert.deepEqual(s2.getProducts(), []);
 });
 
-test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Developer, scope api, expiry", () => {
+test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Maintainer, scope api, expiry", () => {
   const p = parseProductAddress(GL_ADDR);
   assert.equal(gitlabTokenPageUrl(p), `${GL_ADDR}/-/settings/access_tokens`);
   const s = gitlabTokenSteps(p).join("\n");
-  for (const must of [/Agent M/, /Developer/, /\bapi\b/, /[Ee]xpir/, /Create project access token/, /glpat-/]) assert.match(s, must);
-  assert.doesNotMatch(s, /Maintainer role for the token|Owner/, "no broader role is asked for");
+  for (const must of [/Agent M/, /role: Maintainer/, /\bapi\b/, /[Ee]xpir/, /Create project access token/, /glpat-/]) assert.match(s, must);
+  assert.doesNotMatch(s, /Developer/, "the role the SPEC no longer prescribes is not asked for");
+  assert.doesNotMatch(s, /Owner/, "no broader role is asked for");
   // UC-001 3d: which of the two it is, and why a personal token is broader.
   const self = gitlabNoProjectTokens(p);
   assert.match(self, /Maintainer/);
@@ -1044,9 +1045,28 @@ test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's 
   const dotcom = gitlabNoProjectTokens(parseProductAddress("https://gitlab.com/alice/thesis"));
   assert.match(dotcom, /Premium or Ultimate/, "on gitlab.com the subscription decides");
   assert.doesNotMatch(self, /Premium/, "a self-managed server offers them with any licence");
-  // A refused write names the protected branch (GitLab's default protection lets Developers not push).
-  assert.match(gitlabWriteRefusal(Object.assign(new Error("403 Forbidden"), { status: 403 }), p), /protected/);
+  // A refused write (403) with a Maintainer token: the branch is protected even against Maintainers, or the token lacks scope api
+  // or has a lower role — what GitLab answers 403 for; an expired token is a 401 and named elsewhere (tokenRefusal).
+  const refusal = gitlabWriteRefusal(Object.assign(new Error("403 Forbidden"), { status: 403 }), p);
+  for (const must of [/protected/, /Maintainers/, /\bapi\b/, /Maintainer/]) assert.match(refusal, must);
+  assert.doesNotMatch(refusal, /Developer/);
+  assert.doesNotMatch(refusal, /expired/, "an expired token is answered with 401, not 403");
   assert.equal(gitlabWriteRefusal(Object.assign(new Error("400"), { status: 400 }), p), null);
+});
+
+test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer is shown as unable to write to a protected default branch", () => {
+  assert.deepEqual(gitlabRole(40), { role: "Maintainer", canWrite: true, note: "" });
+  assert.equal(gitlabRole(50).canWrite, true);
+  for (const level of [30, 20, 10, null]) {
+    const r = gitlabRole(level);
+    assert.equal(r.canWrite, false, String(level));
+    assert.match(r.note, /protected default branch/);
+    assert.match(r.note, /Maintainer/);
+  }
+  assert.equal(gitlabRole(30).role, "Developer");
+  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  assert.match(app, /gitlabRole\(/, "the settings page takes the role check from the core");
+  assert.doesNotMatch(app, /role Developer|role <em>Developer<\/em>|>= 30/, "the app names no Developer token any more");
 });
 
 test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project token by its product, renewed on its project's page", async () => {
@@ -1275,4 +1295,159 @@ test("the dashboard shows the last accepted text above a changed use case, with 
   assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "above the text");
   assert.match(app, /lastAccepted\(/);
   assert.doesNotMatch(app, /function (lineDiff|diffHtml)\(/, "one diff, in the core — not a second copy in the app");
+});
+
+// ---------------------------------------------------------------- jump host and remote sessions (queue 2026-09-30, entries 01, 02)
+// EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE · THE DASHBOARD WRITES THE TUNNEL COMMANDS · A REVERSE TUNNEL
+// LISTENS ONLY ON THE JUMP HOST'S LOOPBACK · THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS (UC-011 1c, UC-042)
+
+import {
+  jumpHostProblem, nextFreePort, addRemoteSession, tunnelCommands, tunnelBindProblems, probeLocalPort,
+} from "../docs/assets/review-core.mjs";
+import { JUMP_HOST_KEY, REMOTE_SESSIONS_KEY, KEYS } from "../docs/assets/settings-store.mjs";
+
+const JUMP = { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003,
+  reverseKey: "~/.ssh/agent-m-jump", forwardKey: "~/.ssh/id_ed25519" };
+const BRIDGE_TOKEN = "bridgeTOKEN-0123456789abcdef";
+
+test("EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE — the lowest free port; a full range refuses and says so", () => {
+  assert.equal(nextFreePort(JUMP, []), 20001);
+  let list = addRemoteSession(JUMP, [], { name: "lab-pc", bridgePort: 8765, token: BRIDGE_TOKEN });
+  assert.deepEqual(list, [{ name: "lab-pc", port: 20001, bridgePort: 8765, token: BRIDGE_TOKEN }]);
+  list = addRemoteSession(JUMP, list, { name: "gpu", bridgePort: 8765, token: "" });
+  assert.equal(list[1].port, 20002, "the next free one");
+  // A freed port is the lowest free port again.
+  const gap = addRemoteSession(JUMP, [list[1]], { name: "third", bridgePort: 8765 });
+  assert.equal(gap[1].port, 20001);
+  // A port chosen by hand must lie in the range and be free.
+  assert.throws(() => addRemoteSession(JUMP, list, { name: "x", port: 20002, bridgePort: 1 }), /20002.*gpu/);
+  assert.throws(() => addRemoteSession(JUMP, list, { name: "x", port: 20009, bridgePort: 1 }), /20001–20003/);
+  assert.equal(addRemoteSession(JUMP, list, { name: "x", port: 20003, bridgePort: 1 })[2].port, 20003);
+  assert.throws(() => addRemoteSession(JUMP, list, { name: "lab-pc", bridgePort: 1 }), /already/);
+  // Counter-proof: a range with no free port refuses a new session and says so.
+  const full = addRemoteSession(JUMP, list, { name: "x", bridgePort: 1 });
+  assert.throws(() => nextFreePort(JUMP, full), /No free port.*20001–20003/);
+  assert.throws(() => addRemoteSession(JUMP, full, { name: "y", bridgePort: 1 }), /No free port/);
+  const ports = full.map((s) => s.port);
+  assert.equal(new Set(ports).size, ports.length, "no two sessions share a port");
+});
+
+test("the jump host's settings are checked — a host, user or key name that could change the command is refused", () => {
+  assert.equal(jumpHostProblem(JUMP), null);
+  assert.equal(jumpHostProblem({ ...JUMP, host: "10.0.0.7" }), null);
+  for (const bad of [{ host: "" }, { host: "-oProxyCommand=x" }, { host: "a b" }, { host: "jump;rm -rf ~" }, { user: "" }, { user: "a b" },
+    { user: "-l" }, { portFrom: 20003, portTo: 20001 }, { portFrom: 80 }, { portTo: 70000 }, { portFrom: "x" },
+    { reverseKey: "-----BEGIN OPENSSH PRIVATE KEY-----" }, { forwardKey: "~/.ssh/id ed" }, { reverseKey: "-i" }, { forwardKey: "a\nb" }]) {
+    assert.ok(jumpHostProblem({ ...JUMP, ...bad }), JSON.stringify(bad));
+  }
+  assert.throws(() => addRemoteSession({ ...JUMP, host: "" }, [], { name: "a", bridgePort: 1 }), /host/i);
+  for (const bad of [{ name: "" }, { name: "a|b" }, { bridgePort: 0 }, { bridgePort: 70000 }, { token: "has space" }]) {
+    assert.throws(() => addRemoteSession(JUMP, [], { name: "a", bridgePort: 8765, ...bad }), Error, JSON.stringify(bad));
+  }
+});
+
+test("THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other", () => {
+  const s = addRemoteSession(JUMP, [], { name: "lab-pc", bridgePort: 8765, token: BRIDGE_TOKEN })[0];
+  const c = tunnelCommands(JUMP, s);
+  assert.equal(c.reverse, "ssh -N -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes " +
+    "-i ~/.ssh/agent-m-jump -R 127.0.0.1:20001:127.0.0.1:8765 agentm@jump.example.org");
+  assert.equal(c.forward, "ssh -N -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes " +
+    "-i ~/.ssh/id_ed25519 -L 127.0.0.1:20001:127.0.0.1:20001 agentm@jump.example.org");
+  assert.equal(c.url, "http://localhost:20001");
+  // A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK: the jump-host end is bound to 127.0.0.1 explicitly.
+  assert.match(c.reverse, / -R 127\.0\.0\.1:20001:/);
+  for (const cmd of [c.reverse, c.forward]) {
+    assert.deepEqual(tunnelBindProblems(cmd), []);
+    assert.doesNotMatch(cmd, /0\.0\.0\.0|\*|GatewayPorts|\s-g\s/);
+    assert.ok(!cmd.includes(BRIDGE_TOKEN), "no bridge token in a command");
+  }
+  // Without key file names the key option is left to ssh's defaults, and nothing else changes.
+  const bare = tunnelCommands({ ...JUMP, reverseKey: "", forwardKey: "" }, s);
+  assert.doesNotMatch(bare.reverse + bare.forward, / -i /);
+  assert.match(bare.reverse, / -R 127\.0\.0\.1:20001:127\.0\.0\.1:8765 agentm@jump\.example\.org$/);
+  // Counter-proof: every other bind address of either end is caught.
+  for (const bad of ["ssh -N -R 0.0.0.0:20001:127.0.0.1:8765 u@h", "ssh -N -R *:20001:127.0.0.1:8765 u@h",
+    "ssh -N -R :20001:127.0.0.1:8765 u@h", "ssh -N -R 20001:127.0.0.1:8765 u@h", "ssh -N -R 192.168.1.5:20001:127.0.0.1:8765 u@h",
+    "ssh -N -L 0.0.0.0:20001:127.0.0.1:20001 u@h", "ssh -N -L 20001:127.0.0.1:20001 u@h", "ssh -N -R 127.0.0.1:20001:10.0.0.2:8765 u@h",
+    "ssh -N -g -L 127.0.0.1:20001:127.0.0.1:20001 u@h", "ssh -N -o GatewayPorts=yes -R 127.0.0.1:20001:127.0.0.1:8765 u@h",
+    "ssh -N u@h"]) {
+    assert.ok(tunnelBindProblems(bad).length, bad);
+  }
+});
+
+test("THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS — stored under their keys, exported and imported, cleared by a clear", async () => {
+  const st = fakeStorage(), s = createStore(st);
+  assert.ok(KEYS.includes(JUMP_HOST_KEY) && KEYS.includes(REMOTE_SESSIONS_KEY));
+  s.setJumpHost(JUMP);
+  const sessions = addRemoteSession(JUMP, [], { name: "lab-pc", bridgePort: 8765, token: BRIDGE_TOKEN });
+  s.setRemoteSessions(sessions);
+  assert.deepEqual(s.getJumpHost(), JUMP);
+  assert.deepEqual(s.getRemoteSessions(), sessions);
+  assert.ok([...st.mem.keys()].every((k) => k.startsWith(PREFIX)));
+  // Exported with the bridge token, named in the notice; imported into an empty browser as they were.
+  const file = await exportSettings(s.entries(), { now: WHEN });
+  assert.ok(file.includes(BRIDGE_TOKEN));
+  assert.match(exportNotice(s.entries()), /bridge token/i);
+  const t = createStore(fakeStorage());
+  const m = mergeSettings(t.entries(), await readSettingsFile(file));
+  t.putEntries(m.put);
+  assert.deepEqual(t.getJumpHost(), JUMP);
+  assert.deepEqual(t.getRemoteSessions(), sessions);
+  // UC-042 6a: a session this browser has is kept; one whose port is taken here is not added, and both are listed.
+  const u = createStore(fakeStorage());
+  u.setJumpHost(JUMP);
+  u.setRemoteSessions([{ name: "lab-pc", port: 20003, bridgePort: 1, token: "mine" }, { name: "other", port: 20001, bridgePort: 1, token: "" }]);
+  const m2 = mergeSettings(u.entries(), await readSettingsFile(file));
+  u.putEntries(m2.put);
+  assert.deepEqual(u.getRemoteSessions().map((x) => [x.name, x.port, x.token]), [["lab-pc", 20003, "mine"], ["other", 20001, ""]]);
+  assert.ok(m2.kept.some((k) => /lab-pc/.test(k)));
+  // Counter-proof: a session that is new here but whose port a session of this browser uses is not added — no two share a port.
+  const w = createStore(fakeStorage());
+  w.setJumpHost(JUMP);
+  w.setRemoteSessions([{ name: "other", port: 20001, bridgePort: 1, token: "" }]);
+  const m3 = mergeSettings(w.entries(), await readSettingsFile(file));
+  w.putEntries(m3.put);
+  assert.deepEqual(w.getRemoteSessions().map((x) => x.name), ["other"]);
+  assert.ok(m3.kept.some((k) => /lab-pc.*20001/.test(k)), "and the page says why");
+  // A CLEAR IS A REAL CLEAR: clearing removes them from storage.
+  s.clearRemoteSession("lab-pc");
+  assert.deepEqual(s.getRemoteSessions(), []);
+  assert.equal(st.getItem(REMOTE_SESSIONS_KEY), null, "the last session cleared leaves no entry");
+  s.setRemoteSessions(sessions);
+  s.clear();
+  assert.equal(st.mem.size, 0);
+  assert.equal(s.getJumpHost(), null);
+});
+
+test("a remote session is tested by asking whether anything answers at its local port — no token, nothing else", async () => {
+  const seen = [];
+  const ok = await withFetch(async (u, init) => { seen.push([String(u), init]); return new Response(null, { status: 200 }); },
+    () => probeLocalPort(20001));
+  assert.equal(ok, true);
+  assert.equal(seen[0][0], "http://localhost:20001/");
+  assert.equal(seen[0][1].mode, "no-cors");
+  assert.equal(seen[0][1].credentials, "omit");
+  assert.deepEqual(seen[0][1].headers ?? {}, {}, "no token, no header");
+  const down = await withFetch(async () => { throw new TypeError("Failed to fetch"); }, () => probeLocalPort(20001));
+  assert.equal(down, false);
+  for (const bad of [0, 70000, "20001/../x", "1e3", null]) await assert.rejects(probeLocalPort(bad), /port/, String(bad));
+});
+
+// ---------------------------------------------------------------- collaborators by the account syntax of the product's server
+
+test("A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — a GitLab product accepts GitLab user names, a GitHub product GitHub's", () => {
+  const add = { name: "Ann Lee", agreed: "2026-09-30", consent: true };
+  // GitLab: letters, digits, '_', '-', '.'; not starting with '-', not ending in '.', '.git' or '.atom' (lib/gitlab/path_regex.rb).
+  for (const a of ["ann.lee", "ann_lee", "a", "_x", "ann-lee.2"]) {
+    assert.equal(addCollaborator([], { ...add, account: a, gitlab: true }).at(-1).account, a, a);
+  }
+  for (const a of ["-ann", "ann.", "ann.git", "ann.atom", "ann lee", "ann@x"]) {
+    assert.throws(() => addCollaborator([], { ...add, account: a, gitlab: true }), /GitLab/, a);
+  }
+  // GitHub stays as it was: no '.' or '_'.
+  for (const a of ["ann.lee", "ann_lee", "-ann"]) assert.throws(() => addCollaborator([], { ...add, account: a }), /GitHub/, a);
+  assert.equal(addCollaborator([], { ...add, account: "ann-lee" }).at(-1).account, "ann-lee");
+  // The file keeps such names: a GitLab name with '.' and '_' survives formatting and parsing.
+  const list = [{ name: "Ann Lee", account: "ann.lee_2", agreed: "2026-09-30" }];
+  assert.deepEqual(parseCollaborators(formatCollaborators(list, "grp/proj")), list);
 });
