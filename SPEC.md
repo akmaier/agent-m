@@ -605,6 +605,16 @@ nobody could say which was right. Three runtimes make that failure three times a
 *Check:* `tests/test_single_definition.py` — no prompt or schema text appears in more than one
 place.
 
+**A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY** *(PO A. Maier, 2026-09-30)*
+A self-hosted runner that runs Agent M jobs is registered only to a repository whose visibility is
+private, and Agent M starts no job on a runner of a public repository.
+*Occasion:* PO, 2026-09-30, for machines behind NAT: the runner connects out to GitHub and needs no
+incoming connection. GitHub advises self-hosted runners only for private repositories: on a public one,
+a pull request from any fork can run its own code on the runner's machine — here, the machine with the
+person's coding agent and its credentials.
+*Check:* `tests/review-core.test.mjs` — starting a job on a runner of a repository the API reports as
+public is refused; counter-proof: a private one is allowed.
+
 **A RUNTIME IS INTERCHANGEABLE** *(PO A. Maier, 2026-09-23)*
 The same job, given the same inputs, produces the same kind of artifact in all three runtimes.
 *Occasion:* if runtimes differ in what they produce, the choice of runtime becomes a hidden
@@ -624,6 +634,44 @@ SSH, that ends on the bridge's loopback address.
 the bind: the bridge stays invisible on the network, and the tunnel brings its own authentication.
 *Check:* `tests/test_bridge_tunnel.py` — the bridge answers through a forwarded loopback port and
 on no non-loopback interface.
+
+**A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL** *(PO A. Maier, 2026-09-30)*
+A bridge on a machine that accepts no incoming connection is reached through an SSH reverse tunnel that
+this machine opens to a jump host the person names, and through a forward from the person's own machine
+to that jump host.
+*Occasion:* PO, 2026-09-30: machines behind a local NAT "will not be able to accept ssh. So they have to
+build the tunnel from their side." Agent M runs no server (`NO SERVER`), so the tunnels meet on a host the
+person already controls — the pattern of the process repository's support cockpit
+(`SOFTWARE_MAINTENANCE.md` §6.1a). The bridge keeps its loopback bind and its token
+(`THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY`, `THE LOCAL BRIDGE REQUIRES A TOKEN`).
+*Check:* `tests/test_bridge_tunnel.py` — through a reverse and a forward tunnel over a test SSH server,
+the dashboard's request reaches the bridge; counter-proof: without the forward, nothing answers.
+
+**A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK** *(PO A. Maier, 2026-09-30)*
+The port a reverse tunnel opens on the jump host is bound to the jump host's loopback address only.
+*Occasion:* an SSH reverse forward bound to all interfaces would put the bridge on the jump host's
+network; bound to loopback (`GatewayPorts no`, SSH's default), it is reachable only by someone who can
+log in there — the same protection as the bridge's own loopback bind. Measured for the support cockpit
+on 2026-08-24: the tunnel end listened on `127.0.0.1`/`[::1]` only.
+*Check:* `tests/test_bridge_tunnel.py` — the generated reverse-tunnel command names the loopback address;
+counter-proof: a command with `0.0.0.0` or an empty bind address fails.
+
+**EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE** *(PO A. Maier, 2026-09-30)*
+Each CLI session reached through the jump host is given one port from the jump host's configured port
+range, and no two sessions share a port.
+*Occasion:* PO, 2026-09-30: the settings name "the port range that the CLI sessions will use". Several
+machines behind NAT tunnel to the same jump host; one port each keeps them apart, and a range the
+person chose fits the jump host's own rules.
+*Check:* `tests/review-core.test.mjs` — a new session gets the lowest free port of the range; a range
+with no free port refuses a new session and says so.
+
+**THE DASHBOARD WRITES THE TUNNEL COMMANDS** *(PO A. Maier, 2026-09-30)*
+For each remote session, the dashboard shows the complete commands for both ends of its tunnel, filled
+in from the settings.
+*Occasion:* an SSH reverse forward with the right bind address, port and keep-alive options is easy to get
+wrong by hand; generated from the settings, the two commands always match each other and the rules above.
+The dashboard cannot run them itself — a web page cannot open SSH.
+*Check:* `tests/review-core.test.mjs`
 
 **THE LOCAL BRIDGE REQUIRES A TOKEN** *(PO A. Maier, 2026-09-23, reworded 2026-09-25)*
 The bridge rejects any request that does not carry the token it was paired with.
