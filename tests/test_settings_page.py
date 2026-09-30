@@ -46,7 +46,7 @@ class EverySettingOnOnePage(unittest.TestCase):
         # A key built any other way (a template, a variable) would escape the check above.
         src = STORE.read_text(encoding="utf-8")
         for call in re.findall(r"setItem\(([^,]+),", src):
-            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|PRODUCTS_KEY|k)$", call)
+            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|k)$", call)
         self.assertIn("KEYS.includes(k)", src, "putEntries writes only the named keys")
 
     def test_counter_proof_a_key_without_a_place_fails(self):
@@ -58,7 +58,7 @@ class TestedAndCleared(unittest.TestCase):
     def test_each_browser_setting_has_test_and_clear(self):
         html = page(full_entries())
         rows = re.findall(r'<div class="setting" data-setting-row="([^"]+)">(.*?)</div><!--/setting-->', html, re.S)
-        self.assertEqual(sorted(r for r, _ in rows), ["github-token", "products"])
+        self.assertEqual(sorted(r for r, _ in rows), ["github-token", "gitlab-tokens", "products"])
         for name, body in rows:
             self.assertIn("data-test=", body, name)
             self.assertIn("data-clear=", body, name)
@@ -132,6 +132,55 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         html = page(full_entries(), now="2026-12-20")
         self.assertIn("expires on 2026-12-29", html)
         self.assertIn("⚠", html)
+
+
+GL_ADDR = "https://gitlab.example.org/grp/sub/proj"
+GL_SECRET = "glpat-GITLABSECRETvalue0123456789"
+
+
+def gitlab_entries(expires="2026-12-29") -> dict:
+    return js("return { [store.GITLAB_TOKENS_KEY]: JSON.stringify({ '" + GL_ADDR + "': { token: '" + GL_SECRET + "', expires: '"
+              + expires + "' } }), [store.PRODUCTS_KEY]: JSON.stringify(['" + GL_ADDR + "']) };")
+
+
+class GitLabTokensOnThePage(unittest.TestCase):
+    """UC-042: one line per GitLab project token — hidden with Show, Test, Change with its expiry date, Clear."""
+
+    def line(self, html):
+        rows = dict(re.findall(r'<div class="setting" data-setting-row="([^"]+)">(.*?)</div><!--/setting-->', html, re.S))
+        return rows["gitlab-tokens"]
+
+    def test_one_line_per_token_with_test_change_clear(self):
+        body = self.line(page(gitlab_entries()))
+        self.assertIn(f'data-setting-key="agent-m.gitlab-tokens"', body)
+        self.assertIn(GL_ADDR, body)
+        for control in (f'data-test-gitlab="{GL_ADDR}"', f'data-change-gitlab="{GL_ADDR}"', f'data-clear-gitlab="{GL_ADDR}"'):
+            self.assertIn(control, body, control)
+        self.assertIn("2026-12-29", body, "the expiry date recorded with the token")
+        self.assertIn(f"{GL_ADDR}/-/settings/access_tokens", body, "where it is renewed")
+
+    def test_the_token_is_hidden_until_shown(self):
+        html = page(gitlab_entries())
+        holding = [t for t in re.findall(r"<input\b[^>]*>", html) if GL_SECRET in t]
+        self.assertEqual(len(holding), 1)
+        self.assertRegex(holding[0], r'type="password"')
+        self.assertNotIn(GL_SECRET, re.sub(r"<input\b[^>]*>", "", html))
+        self.assertIn(f'data-show="agent-m.gitlab-tokens {GL_ADDR}"', html)
+        shown = page(gitlab_entries(), shown=[f"agent-m.gitlab-tokens {GL_ADDR}"])
+        tag = [t for t in re.findall(r"<input\b[^>]*>", shown) if GL_SECRET in t][0]
+        self.assertRegex(tag, r'type="text"')
+
+    def test_expiry_warned_and_refusal_named(self):
+        self.assertIn("⚠", self.line(page(gitlab_entries("2026-10-05"))))
+        refused = page(gitlab_entries(), state={"gitlab": {GL_ADDR: {"refused": True}}})
+        self.assertIn("refused", self.line(refused))
+
+    def test_counter_proof_no_token_no_line_but_the_setting_keeps_its_place(self):
+        body = self.line(page({}))
+        self.assertNotIn("data-test-gitlab=", body)
+        self.assertIn('data-setting-key="agent-m.gitlab-tokens"', body)
+        self.assertIn("data-test=", body)
+        self.assertIn("data-clear=", body)
 
 
 class ProductSettingsInTheRepository(unittest.TestCase):

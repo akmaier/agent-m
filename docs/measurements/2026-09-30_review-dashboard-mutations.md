@@ -157,3 +157,98 @@ when a use case with the same ID exists (`renamed_use_case`). Same method as §3
 | the old label of status approved | `review-app.mjs` | `review-core.test.mjs` "status 'approved' is described truly for both routes — the dashboard's own commit and the workflow" |
 | a record of a renamed use case is refused (old check) | `artifact_checks.py` | `test_approval_records` test_a_record_of_a_renamed_use_case_stays_valid; `test_approval_records` test_every_record_is_well_formed |
 | renamed_use_case accepts any ID | `artifact_checks.py` | `test_approval_records` test_a_record_of_a_renamed_use_case_stays_valid; `test_approval_records` test_counter_proof |
+
+## 5. GitLab products, branch `feat/gitlab-products` (on `main` at `6547338`)
+
+SPEC §10 `GITLAB PRODUCTS ARE SUPPORTED`, `A GITLAB PRODUCT IS WRITTEN WITH A TOKEN`, `A PRODUCT IS NAMED BY ITS ADDRESS`,
+`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`, `AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL`, `A STALE APPROVAL IS
+NOT APPLIED`, `SEVERAL FILES ARE ACCEPTED IN ONE CLICK`, `A QUEUE IS ACCEPTED IN ITS ORDER`, `THE DASHBOARD KEEPS ITS PRODUCTS IN
+THE BROWSER`, `ADDING A PRODUCT CREATES ITS LAYOUT`; §7 `A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`, `A TOKEN GOES ONLY TO
+THE SERVER THAT ISSUED IT`, `A STORED SECRET IS HIDDEN UNTIL SHOWN`, `A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN`,
+`AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED`, `SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS`.
+
+Same method as §3. The script first ran the known positive of this file's method (`tokenLinkUrl` without `issues`), which
+turned `test_token_scope_documented` and the JavaScript test of the prefilled link red, and asserted that both suites were
+green before the first and after the last mutation.
+
+| Mutation | In | Red |
+|---|---|---|
+| GitLab token sent anywhere on its server (prefix check → origin check) ¹ | `review-core.mjs` | review-core.test.mjs "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a GitLab token reaches its own project's API and nothing else" |
+| the GitHub token also sent to a GitLab product's API | `review-core.mjs` | `test_destination_disclosure` test_disclosed_destinations_match_where_the_token_may_go; review-core.test.mjs "fetchText reads with GET only; the GitHub token goes only to GitHub's API (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT)"; review-core.test.mjs "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a GitLab token reaches its own project's API and nothing else" |
+| fetchText reaches any origin when a GitLab product is named ¹ | `review-core.mjs` | review-core.test.mjs "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a GitLab token reaches its own project's API and nothing else" |
+| fetchText without the token-in-URL check | `review-core.mjs` | `test_no_credential_in_url` test_fetch_refuses_a_url_that_contains_the_token; review-core.test.mjs "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a GitLab token reaches its own project's API and nothing else" |
+| parseProductAddress refuses GitLab again | `review-core.mjs` | `test_settings_page` test_expiry_warned_and_refusal_named; `test_settings_page` test_one_line_per_token_with_test_change_clear; review-core.test.mjs "A PRODUCT IS NAMED BY ITS ADDRESS — the address as copied from the browser"; review-core.test.mjs "A PRODUCT IS NAMED BY ITS ADDRESS — GitLab addresses, nested groups, the server recognised from the address"; review-core.test.mjs "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a GitLab token reaches its own project's API and nothing else"; review-core.test.mjs "GITLAB PRODUCTS ARE SUPPORTED — reading: the pinned commit, every page of the tree, raw files at that commit"; review-core.test.mjs "GitLab writes: one commit with several actions — create where absent, update with last_commit_id where present"; review-core.test.mjs "A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing is sent; the route is the token step"; review-core.test.mjs "GitLab: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — a changed blob or a moved branch writes nothing"; review-core.test.mjs "GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, section and decision row in one commit, checked at the head"; review-core.test.mjs "GitLab: SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER — one commit"; review-core.test.mjs "GitLab: a commit GitLab wrote on a newer head than the one checked is reported with the files read that changed"; review-core.test.mjs "ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; the address stored; nothing to GitHub"; review-core.test.mjs "A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Developer, scope api, expiry"; review-core.test.mjs "AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project token by its product, renewed on its project's page"; review-core.test.mjs "the dashboard is opened on a GitLab product by its address; its files link to GitLab" |
+| parseProductAddress keeps what follows /-/ | `review-core.mjs` | review-core.test.mjs "A PRODUCT IS NAMED BY ITS ADDRESS — GitLab addresses, nested groups, the server recognised from the address" |
+| parseProductAddress accepts a credential in the address | `review-core.mjs` | review-core.test.mjs "A PRODUCT IS NAMED BY ITS ADDRESS — GitLab addresses, nested groups, the server recognised from the address" |
+| gitlabSnapshot reads only the first page | `review-core.mjs` | review-core.test.mjs "GITLAB PRODUCTS ARE SUPPORTED — reading: the pinned commit, every page of the tree, raw files at that commit" |
+| gitlabSnapshot reads the tree of the branch, not of the pinned commit | `review-core.mjs` | review-core.test.mjs "GITLAB PRODUCTS ARE SUPPORTED — reading: the pinned commit, every page of the tree, raw files at that commit" |
+| gitlabReadFile: a missing file throws instead of null | `review-core.mjs` | review-core.test.mjs "GITLAB PRODUCTS ARE SUPPORTED — reading: the pinned commit, every page of the tree, raw files at that commit" |
+| update without last_commit_id | `review-core.mjs` | review-core.test.mjs "GitLab writes: one commit with several actions — create where absent, update with last_commit_id where present"; review-core.test.mjs "GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, section and decision row in one commit, checked at the head" |
+| every action is an update | `review-core.mjs` | review-core.test.mjs "GitLab writes: one commit with several actions — create where absent, update with last_commit_id where present"; review-core.test.mjs "GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, section and decision row in one commit, checked at the head"; review-core.test.mjs "ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; the address stored; nothing to GitHub" |
+| no second read of the branch before the commit | `review-core.mjs` | review-core.test.mjs "GitLab: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — a changed blob or a moved branch writes nothing" |
+| expectBlob not compared on GitLab | `review-core.mjs` | review-core.test.mjs "GitLab: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — a changed blob or a moved branch writes nothing" |
+| the commit is forced | `review-core.mjs` | review-core.test.mjs "GitLab writes: one commit with several actions — create where absent, update with last_commit_id where present" |
+| the files are computed from the branch name, not the head | `review-core.mjs` | review-core.test.mjs "GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, section and decision row in one commit, checked at the head" |
+| a newer parent is not compared | `review-core.mjs` | review-core.test.mjs "GitLab: a commit GitLab wrote on a newer head than the one checked is reported with the files read that changed" |
+| warning names every changed file, not only those read | `review-core.mjs` | review-core.test.mjs "GitLab: a commit GitLab wrote on a newer head than the one checked is reported with the files read that changed" |
+| commitFilesGitLab without its click guard | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing is sent; the route is the token step" |
+| writeFiles accepts the GitHub token for a GitLab product | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing is sent; the route is the token step" |
+| writeRoute offers GitHub's web page for GitLab | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing is sent; the route is the token step" |
+| addProduct (GitLab) stores the address before the write | `review-core.mjs` | review-core.test.mjs "ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; the address stored; nothing to GitHub" |
+| token steps ask for role Maintainer | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Developer, scope api, expiry" |
+| token page path wrong | `review-core.mjs` | `test_settings_page` test_one_line_per_token_with_test_change_clear; review-core.test.mjs "A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Developer, scope api, expiry"; review-core.test.mjs "AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project token by its product, renewed on its project's page" |
+| 3d: gitlab.com treated as self-managed | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Developer, scope api, expiry" |
+| 403 on GitLab not explained | `review-core.mjs` | review-core.test.mjs "A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Developer, scope api, expiry" |
+| tokenRefusal ignores the GitLab product | `review-core.mjs` | review-core.test.mjs "AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project token by its product, renewed on its project's page" |
+| expiry warning names the GitHub token for GitLab | `review-core.mjs` | review-core.test.mjs "AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project token by its product, renewed on its project's page" |
+| GitLab token rendered in clear | `review-core.mjs` | `test_settings_page` test_the_token_is_hidden_until_shown |
+| GitLab line without Test | `review-core.mjs` | `test_settings_page` test_one_line_per_token_with_test_change_clear |
+| GitLab line without renewal link | `review-core.mjs` | `test_settings_page` test_one_line_per_token_with_test_change_clear |
+| GitLab line state ignores refusal | `review-core.mjs` | `test_settings_page` test_expiry_warned_and_refusal_named |
+| import overwrites a GitLab token this browser has | `review-core.mjs` | review-core.test.mjs "SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens included, merged per product" |
+| import drops GitLab tokens | `review-core.mjs` | review-core.test.mjs "SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens included, merged per product" |
+| export notice silent about GitLab tokens | `review-core.mjs` | review-core.test.mjs "SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens included, merged per product" |
+| deriveTarget ignores ?product= | `review-core.mjs` | review-core.test.mjs "the dashboard is opened on a GitLab product by its address; its files link to GitLab" |
+| webFileUrl links GitHub for GitLab | `review-core.mjs` | review-core.test.mjs "the dashboard is opened on a GitLab product by its address; its files link to GitLab" |
+| store: removing a product keeps its token | `settings-store.mjs` | review-core.test.mjs "GitLab tokens in the browser store: one per product, only for that product; removed with the product and by a clear" |
+| store: last cleared token leaves an empty map | `settings-store.mjs` | review-core.test.mjs "GitLab tokens in the browser store: one per product, only for that product; removed with the product and by a clear" |
+| store: token for one project returned for another | `settings-store.mjs` | review-core.test.mjs "GitLab tokens in the browser store: one per product, only for that product; removed with the product and by a clear"; review-core.test.mjs "SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens included, merged per product" |
+| store: GitLab tokens not in the export | `settings-store.mjs` | review-core.test.mjs "SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens included, merged per product" |
+
+¹ Green in the first run. Each is a second guard that the test reached only behind the first: the origin gate of `fetchText`
+was exercised only with a token, whose own check refused first; `authHeaders` (the only guard on the POST of a commit) was not
+asserted for another path on the same server. Negatives were added to "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — …"
+(a GitLab auth without token to another origin, another project and a non-project path; `authHeaders` for another project and
+`/api/v4/user` on the same server), and the two mutations were run again: both red, as listed.
+
+**Against a real server (read only, anonymous, no token).** `gitlab.com`, public project `gitlab-org/gitlab-test`:
+`gitlabProject`, `gitlabSnapshot` and `gitlabReadFile` of `review-core.mjs` under node 25 read default branch `master`, pinned
+commit `ddd0f15ae83993f5cb66a927a28673882e99100b`, 40 blobs; for 12 files the git blob SHA computed from the raw text equalled
+the tree's `id` (12/12); a missing path read as `null`. In Chrome, the dashboard served from 127.0.0.1 with
+`?product=https://gitlab.com/gitlab-org/gitlab-test` read the same commit (cross-origin, allowed by GitLab's
+`Access-Control-Allow-Origin: *`), showed *Read-only: no token for this GitLab project*, and stored nothing in
+`localStorage`. The GET responses carry `Access-Control-Expose-Headers` with `Link`, `X-Next-Page`, `X-Gitlab-Blob-Id` and
+others; the dashboard pages the tree without them (until a page is shorter than `per_page`). Nothing was written to any real
+GitLab project, and no token was used against one.
+
+**In Chrome against a mock of the GitLab API** (a page in the scratch directory that replaced `fetch` for one invented origin
+before loading the unchanged `review-app.mjs`): UC-001 3c — notice, paste, *Store and check* (the project read with
+`PRIVATE-TOKEN`, role shown as Developer), *Add product* — one commit with the one missing layout file, address in the list;
+UC-006 — *Accept* on a SPEC entry: one commit with `update SPEC.md` (`last_commit_id` = the head read) and `create` for the
+record and `entscheidungen.md`, the entry then *in SPEC*; no request carried `Authorization`. Without a token, on a readable
+project: no *Accept*, no *Save*, no GitHub link, a link to the token step. A refused token (401): the line at the top named
+the GitLab project token and linked `<project>/-/settings/access_tokens`; the settings line showed ✗ refused; the stored token
+was in a password field. The GitHub instance view (real GitHub, no token) was unchanged.
+
+**What GitLab guarantees for a commit, read in its source** (gitlab-org/gitlab and gitlab-org/gitaly on gitlab.com,
+2026-09-30): `POST /projects/:id/repository/commits` has no parameter that makes the write conditional on the branch still
+being at the commit the client read. `start_sha` on an existing branch is refused unless `force` is set
+(`app/services/commits/create_service.rb` `validate_branch_existence!`), and `force` replaces the branch history. Rails sets
+Gitaly's `expected_old_oid` to a head it reads itself (`app/models/repository.rb` `commit_files`). An `update` action with
+`last_commit_id` is refused when the file's last commit on the branch differs from its last commit at `last_commit_id`
+(`app/services/files/multi_service.rb` `validate_file_status!`, `files/base_service.rb` `file_has_changed?`); a `create` is
+refused when the path exists (`internal/gitaly/service/operations/commit_files.go`, `ErrEntryExists`). `commitFilesGitLab`
+therefore writes existing files with `last_commit_id` = the head it read, new files with `create`, reads the head again just
+before the POST, and compares GitLab's reported parent with that head afterwards. A file that is only read (a use case being
+accepted, a proposal) and changed by a commit landing between that second read and GitLab's write is not refused — it is
+reported after the commit (`acceptItems` → `warning`).

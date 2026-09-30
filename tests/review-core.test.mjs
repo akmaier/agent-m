@@ -115,7 +115,7 @@ test("an applied entry is judged by its own section, not by headings later entri
   assert.equal(deriveSpecStatus({ ...pre, specText: "# T\n\nolder preamble\n## 0. H\nrule\n" }), "superseded");
 });
 
-test("THE REVIEW DASHBOARD USES THE TOKEN ONLY TO READ · THE TOKEN IS SENT ONLY TO GITHUB", async () => {
+test("fetchText reads with GET only; the GitHub token goes only to GitHub's API (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT)", async () => {
   await assert.rejects(fetchText("https://example.org/x"), /origin/);
   await assert.rejects(fetchText("https://api.github.com/x", { method: "PUT" }), /GET/);
   await assert.rejects(fetchText("https://api.github.com/x", { method: "POST" }, "t"), /GET/);
@@ -282,8 +282,8 @@ test("A PRODUCT IS NAMED BY ITS ADDRESS — the address as copied from the brows
   for (const v of ["alice/thesis-tool", "http://github.com/alice/thesis-tool", "https://github.com/alice", "https://github.com/../evil", "javascript:alert(1)", ""]) {
     assert.ok(parseProductAddress(v).error, `refused: ${JSON.stringify(v)}`);
   }
-  // A GitLab address is recognised as such, and refused for now (GitLab support is a later task).
-  assert.match(parseProductAddress("https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool").error, /GitLab/);
+  // A GitLab address is a GitLab product (GITLAB PRODUCTS ARE SUPPORTED) — see the GitLab section below.
+  assert.equal(parseProductAddress("https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool").kind, "gitlab");
 });
 
 test("the browser store keeps product addresses beside the token, once each", () => {
@@ -733,4 +733,388 @@ test("status 'approved' is described truly for both routes — the dashboard's o
   assert.doesNotMatch(line, /^Approval committed — the workflow writes it into the SPEC$/);
   assert.match(line, /workflow/, "names the route without a token");
   assert.match(line, /not (yet )?(written|in)/i, "says what the status means: approved, not yet in the SPEC");
+});
+
+// ---------------------------------------------------------------- GitLab products (queue 2026-09-24b)
+// GITLAB PRODUCTS ARE SUPPORTED · A GITLAB PRODUCT IS WRITTEN WITH A TOKEN · A GITLAB PRODUCT USES A PROJECT
+// ACCESS TOKEN · A PRODUCT IS NAMED BY ITS ADDRESS · A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT (UC-001 3c/3d,
+// UC-008 3c, UC-018 4b, UC-006, UC-042). The GitLab server is a mock of the REST API v4 as GitLab documents it
+// (doc/api/repositories.md, repository_files.md, commits.md, branches.md); no request leaves this process.
+
+import {
+  gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute,
+  gitlabTokenPageUrl, gitlabTokenSteps, gitlabNoProjectTokens, gitlabWriteRefusal, webFileUrl, deriveTarget,
+  expiryWarning, tokenBannerHtml, exportNotice, authHeaders,
+} from "../docs/assets/review-core.mjs";
+import { GITLAB_TOKENS_KEY } from "../docs/assets/settings-store.mjs";
+
+const GL = "https://gitlab.example.org";
+const GL_ADDR = `${GL}/grp/sub/proj`;
+const GL_TOKEN = "glpat-projectTOKENvalue0123456789";
+const H0 = "a".repeat(40), H1 = "b".repeat(40), NEWC = "c".repeat(40);
+
+// A GitLab server with one project and branch "main" at H0. files: { path: text } at H0.
+// moveAt: after this many branch reads, the branch answers H1 (another commit arrived).
+// parent: the parent GitLab reports for the commit it wrote (default: the branch head).
+async function fakeGitLab({ files = {}, moveAt = null, parent = null, changed = [], postStatus = 201, postBody = null,
+  project = "grp/sub/proj", server = GL } = {}) {
+  const calls = [];
+  const base = `/api/v4/projects/${encodeURIComponent(project)}`;
+  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
+  let branchReads = 0;
+  const ok = (o, status = 200) => new Response(JSON.stringify(o), { status });
+  const fetchMock = async (u, init = {}) => {
+    const url = new URL(u), m = (init.method || "GET").toUpperCase(), h = init.headers || {};
+    calls.push({ origin: url.origin, method: m, path: url.pathname, query: Object.fromEntries(url.searchParams),
+      token: h["PRIVATE-TOKEN"], authorization: h.Authorization, body: init.body ? JSON.parse(init.body) : null });
+    if (url.origin !== server || !url.pathname.startsWith(base)) return ok({ message: "404 Project Not Found" }, 404);
+    const rest = url.pathname.slice(base.length);
+    if (rest === "" && m === "GET") return ok({ path_with_namespace: project, default_branch: "main", visibility: "private",
+      web_url: `${server}/${project}`, permissions: { project_access: { access_level: 30 } } });
+    if (rest === "/repository/branches/main" && m === "GET") {
+      branchReads += 1;
+      return ok({ name: "main", commit: { id: moveAt !== null && branchReads > moveAt ? H1 : H0 } });
+    }
+    if (rest.startsWith("/repository/commits/") && m === "GET") return ok({ id: H0 });
+    if (rest === "/repository/tree" && m === "GET") {
+      const all = [...new Set(Object.keys(files).flatMap((p) => p.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"))))]
+        .map((p) => ({ id: "t".repeat(40), path: p, type: "tree" }))
+        .concat(Object.keys(files).map((p) => ({ id: blobs[p], path: p, type: "blob" })));
+      const per = Number(url.searchParams.get("per_page") || 20), page = Number(url.searchParams.get("page") || 1);
+      return ok(all.slice((page - 1) * per, page * per));
+    }
+    if (rest.startsWith("/repository/files/") && m === "GET") {
+      const raw = rest.endsWith("/raw");
+      const p = decodeURIComponent(rest.slice("/repository/files/".length).replace(/\/raw$/, ""));
+      if (!(p in files)) return ok({ message: "404 File Not Found" }, 404);
+      return raw ? new Response(files[p], { status: 200 }) : ok({ file_path: p, blob_id: blobs[p], commit_id: H0, last_commit_id: "d".repeat(40) });
+    }
+    if (rest === "/repository/commits" && m === "POST") {
+      if (postStatus !== 201) return ok(postBody || { message: "refused" }, postStatus);
+      return ok({ id: NEWC, parent_ids: [parent || H0], web_url: `${server}/${project}/-/commit/${NEWC}` }, 201);
+    }
+    if (rest === "/repository/compare" && m === "GET") return ok({ diffs: changed.map((p) => ({ old_path: p, new_path: p })) });
+    return ok({ message: "unexpected" }, 500);
+  };
+  return { calls, fetchMock, blobs };
+}
+
+test("A PRODUCT IS NAMED BY ITS ADDRESS — GitLab addresses, nested groups, the server recognised from the address", () => {
+  const p = parseProductAddress("https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool");
+  assert.deepEqual(p, { address: "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool", host: "gitlab.rrze.fau.de",
+    repo: "fau-ai-taskforce/tools/thesis-tool", server: "https://gitlab.rrze.fau.de", kind: "gitlab" });
+  for (const v of ["https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool/", "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool.git",
+    "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool/-/tree/main", " https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool/-/blob/main/SPEC.md "]) {
+    assert.equal(parseProductAddress(v).address, "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool", v);
+  }
+  assert.equal(parseProductAddress("https://gitlab.com/alice/thesis").server, "https://gitlab.com");
+  assert.equal(parseProductAddress("https://git.example.org:8443/a/b").server, "https://git.example.org:8443");
+  // GitHub stays what it was.
+  assert.deepEqual(parseProductAddress("https://github.com/alice/thesis"), { address: "https://github.com/alice/thesis", host: "github.com", repo: "alice/thesis" });
+  // Counter-proof: no project path, a path that climbs, a credential in the address, plain http.
+  for (const v of ["https://gitlab.com/alice", "https://gitlab.com/alice/../bob", "https://gitlab.com/-/alice", "https://oauth2:glpat-x@gitlab.com/a/b",
+    "http://gitlab.com/a/b", "https://gitlab.com/a/b%2Fc"]) {
+    assert.ok(parseProductAddress(v).error, `refused: ${v}`);
+  }
+});
+
+test("A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a GitLab token reaches its own project's API and nothing else", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const auth = gitlabAuth(p, GL_TOKEN);
+  const api = gitlabApiBase(p);
+  assert.equal(api, `${GL}/api/v4/projects/grp%2Fsub%2Fproj`);
+  const seen = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (u, init) => { seen.push([String(u), init.method, { ...init.headers }]); return new Response("{}"); };
+  try {
+    // Known positive: the issuing server's API for this project gets the token, as PRIVATE-TOKEN, and nothing else does.
+    await fetchText(`${api}/repository/tree?ref=main`, {}, auth);
+    assert.deepEqual(seen.at(-1), [`${api}/repository/tree?ref=main`, "GET", { "PRIVATE-TOKEN": GL_TOKEN }]);
+    // Reading a public GitLab project without a token: the origin is reachable for this product, no header is sent.
+    await fetchText(`${api}/repository/tree?ref=main`, {}, gitlabAuth(p, null));
+    assert.deepEqual(seen.at(-1)[2], {});
+    const n = seen.length;
+    // Known negatives: every other destination is refused before a request is made.
+    for (const [url, a, why] of [
+      ["https://gitlab.other.org/api/v4/projects/grp%2Fsub%2Fproj", auth, /may only go|not allowed/],      // another GitLab
+      [`${GL}/api/v4/projects/grp%2Fother`, auth, /may only go|not allowed/],                               // another project, same server
+      [`${GL}/api/v4/user`, auth, /may only go|not allowed/],                                                // same server, outside the project
+      [`${GL}/grp/sub/proj/-/raw/main/SPEC.md`, auth, /may only go|not allowed/],                            // same server, not the API
+      ["https://api.github.com/repos/a/b", auth, /may only go|not allowed/],                                 // GitHub
+      ["https://models.example.org/v1/chat/completions", auth, /not allowed|may only go/],                   // a model endpoint
+      [`${api}/repository/tree?private_token=${GL_TOKEN}`, auth, /never placed in a URL/],                   // the token in the URL
+      [`${api}/repository/tree`, "github_pat_11GITHUBTOKEN", /not allowed|may only go/],                    // the GitHub token to GitLab
+      [`${api}/repository/tree`, null, /not allowed/],                                                       // GitLab without naming the product
+    ]) {
+      await assert.rejects(fetchText(url, {}, a), why, url);
+    }
+    // Without a token as well: naming a GitLab product opens that project's API, and no other origin or path.
+    for (const url of ["https://gitlab.other.org/api/v4/projects/grp%2Fsub%2Fproj", "https://models.example.org/v1/chat/completions",
+      `${GL}/api/v4/projects/grp%2Fother`, `${GL}/api/v4/user`]) {
+      await assert.rejects(fetchText(url, {}, gitlabAuth(p, null)), /not allowed/, url);
+    }
+    await assert.rejects(fetchText(`${api}/repository/commits`, { method: "POST" }, auth), /GET/);
+    await assert.rejects(fetchText(`${api}/x`, { headers: { "PRIVATE-TOKEN": "x" } }, auth), /header/);
+    assert.equal(seen.length, n, "no refused request reached the network");
+  } finally { globalThis.fetch = real; }
+  // authHeaders: the same rule for writes.
+  assert.deepEqual(authHeaders(`${api}/repository/commits`, auth), { "PRIVATE-TOKEN": GL_TOKEN });
+  assert.deepEqual(authHeaders("https://api.github.com/repos/a/b", auth), {});
+  assert.deepEqual(authHeaders(`https://gitlab.other.org/api/v4/projects/grp%2Fsub%2Fproj`, auth), {});
+  assert.deepEqual(authHeaders(`${GL}/api/v4/projects/grp%2Fother/repository/commits`, auth), {}, "another project on the same server");
+  assert.deepEqual(authHeaders(`${GL}/api/v4/user`, auth), {}, "the same server outside the project");
+  assert.deepEqual(authHeaders(`${api}/x`, "github_pat_t"), {});
+  assert.deepEqual(authHeaders("https://api.github.com/repos/a/b", "github_pat_t"), { Authorization: "Bearer github_pat_t" });
+});
+
+test("GITLAB PRODUCTS ARE SUPPORTED — reading: the pinned commit, every page of the tree, raw files at that commit", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const files = { "SPEC.md": "# S\n", "docs/use-cases/UC-001-a.md": B_UC1 };
+  for (let i = 0; i < 130; i++) files[`docs/approvals/r${String(i).padStart(3, "0")}.md`] = `kind: use-case\nn: ${i}\n`;
+  const g = await fakeGitLab({ files });
+  const snap = await withFetch(g.fetchMock, () => gitlabSnapshot({ product: p, ref: "main", token: GL_TOKEN }));
+  assert.equal(snap.commit, H0);
+  assert.equal(snap.tree.length, 132, "all blobs of every page, no directories");
+  assert.equal(snap.tree.find((e) => e.path === "docs/use-cases/UC-001-a.md").sha, await gitBlobSha(B_UC1), "tree entries carry the blob SHA");
+  const treeCalls = g.calls.filter((c) => c.path.endsWith("/repository/tree"));
+  assert.ok(treeCalls.length >= 2, "paged");
+  assert.ok(treeCalls.every((c) => c.query.ref === H0 && c.query.recursive === "true"), "the tree of the pinned commit, not of the branch");
+  const text = await withFetch(g.fetchMock, () => gitlabReadFile({ product: p, commit: H0, path: "docs/use-cases/UC-001-a.md", token: GL_TOKEN }));
+  assert.equal(text, B_UC1);
+  assert.equal(g.calls.at(-1).query.ref, H0);
+  assert.equal(await withFetch(g.fetchMock, () => gitlabReadFile({ product: p, commit: H0, path: "nope.md", token: GL_TOKEN })), null);
+  assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN && c.authorization === undefined), "only to its server, only its token");
+});
+
+test("GitLab writes: one commit with several actions — create where absent, update with last_commit_id where present", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const g = await fakeGitLab({ files: { "SPEC.md": B_SPEC } });
+  const r = await withFetch(g.fetchMock, () => commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
+    files: [{ path: "SPEC.md", content: "new\n" }, { path: "docs/approvals/x.md", content: "kind: spec\n" }] }));
+  const posts = g.calls.filter((c) => c.method === "POST");
+  assert.equal(posts.length, 1, "exactly one commit");
+  assert.equal(posts[0].path, `/api/v4/projects/${encodeURIComponent("grp/sub/proj")}/repository/commits`);
+  assert.deepEqual(posts[0].body, { branch: "main", commit_message: "m", actions: [
+    { action: "update", file_path: "SPEC.md", content: "new\n", encoding: "text", last_commit_id: H0 },
+    { action: "create", file_path: "docs/approvals/x.md", content: "kind: spec\n", encoding: "text" }] });
+  assert.equal(posts[0].body.force, undefined, "never force");
+  assert.equal(posts[0].body.start_sha, undefined);
+  assert.equal(r.sha, NEWC);
+  assert.equal(r.url, `${GL}/grp/sub/proj/-/commit/${NEWC}`);
+  assert.deepEqual(r.changedMeanwhile, []);
+  assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN), "every request to its server with its token");
+});
+
+test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing is sent; the route is the token step", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const g = await fakeGitLab({ files: { "SPEC.md": B_SPEC } });
+  const base = { product: p, branch: "main", message: "m", files: [{ path: "x.md", content: "x\n" }] };
+  await withFetch(g.fetchMock, async () => {
+    await assert.rejects(writeFiles({ ...base, token: null, click }), /token/);
+    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN }), /click/);
+    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN, click: { isTrusted: false } }), /click/);
+    await assert.rejects(writeFiles({ ...base, token: "github_pat_11GITHUBTOKEN", click }), /GitLab project token/);
+    await assert.rejects(commitFilesGitLab({ ...base, token: GL_TOKEN }), /click/, "the GitLab writer itself needs the click");
+    await assert.rejects(commitFilesGitLab({ ...base, token: null, click }), /token/, "and the token");
+  });
+  assert.equal(g.calls.length, 0);
+  assert.equal(writeRoute(p, null), "token-step");
+  assert.equal(writeRoute(p, GL_TOKEN), "commit");
+  const gh = parseProductAddress("https://github.com/alice/thesis");
+  assert.equal(writeRoute(gh, null), "github-web", "GitHub keeps its web-interface fallback");
+  assert.equal(writeRoute(gh, "github_pat_t"), "commit");
+});
+
+test("GitLab: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — a changed blob or a moved branch writes nothing", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const g = await fakeGitLab({ files: { "docs/use-cases/UC-001-a.md": "newer\n" } });
+  await withFetch(g.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "edit", token: GL_TOKEN, click,
+    files: [{ path: "docs/use-cases/UC-001-a.md", content: "mine\n", expectBlob: "older" }] }), /changed since/));
+  assert.ok(!g.calls.some((c) => c.method === "POST"), "nothing written");
+  // The branch moved between the read the files were computed from and the commit: nothing is written.
+  const m = await fakeGitLab({ files: { "SPEC.md": B_SPEC }, moveAt: 1 });
+  await withFetch(m.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
+    files: [{ path: "SPEC.md", content: "x\n" }] }), /moved on|reload/));
+  assert.ok(!m.calls.some((c) => c.method === "POST"), "nothing written");
+  // GitLab's own refusal (last_commit_id, or a file created meanwhile) is passed on, with its status.
+  const r = await fakeGitLab({ files: { "SPEC.md": B_SPEC }, postStatus: 400, postBody: { message: "The file has changed since you started editing it: SPEC.md" } });
+  await withFetch(r.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
+    files: [{ path: "SPEC.md", content: "x\n" }] }), (e) => e.status === 400 && /changed since you started editing/.test(e.message)));
+});
+
+test("GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, section and decision row in one commit, checked at the head", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const files = batchRepo(), heads = [];
+  const g = await fakeGitLab({ files });
+  const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
+  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [it],
+    readAt: readerOf(files, heads), now: WHEN }));
+  assert.deepEqual(res.leftOut, []);
+  assert.ok(heads.length && heads.every((h) => h === H0), "every check reads the commit the new one is written on");
+  const posts = g.calls.filter((c) => c.method === "POST");
+  assert.equal(posts.length, 1);
+  const acts = Object.fromEntries(posts[0].body.actions.map((a) => [a.file_path, a]));
+  const rec = `docs/approvals/spec-2026-09-24g_x-05-${it.proposalBlob.slice(0, 12)}.md`;
+  assert.deepEqual(Object.keys(acts).sort(), [`${QD}/entscheidungen.md`, "SPEC.md", rec].sort());
+  assert.equal(acts["SPEC.md"].content, "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n" + B_P05);
+  assert.equal(acts["SPEC.md"].action, "update");
+  assert.equal(acts["SPEC.md"].last_commit_id, H0);
+  assert.equal(acts[rec].action, "create");
+  assert.match(acts[`${QD}/entscheidungen.md`].content, /\| 5 \| uebernommen \| approval:/);
+  // A STALE APPROVAL IS NOT APPLIED — the proposal changed on the head: nothing is written.
+  const s = await fakeGitLab({ files: batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" }) });
+  const res2 = await withFetch(s.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [it],
+    readAt: readerOf(batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" })), now: WHEN }));
+  assert.equal(res2.commit, null);
+  assert.match(res2.leftOut[0].reason, /proposal changed/);
+  assert.ok(!s.calls.some((c) => c.method === "POST"), "nothing written");
+});
+
+test("GitLab: SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER — one commit", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const files = batchRepo();
+  const u1 = await ucItem("UC-001", "docs/use-cases/UC-001-a.md", B_UC1), u2 = await ucItem("UC-002", "docs/use-cases/UC-002-b.md", B_UC2);
+  const entries = [{ nr: 5, anchor: "## 10. R", bis: null, proposalText: B_P05 }, { nr: 6, anchor: "## 11. X", bis: null, proposalText: B_P06 }];
+  const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
+  const i06 = { ...(await specItem(6, B_P06, sectionForEntry({ specText: B_SPEC, entries, nr: 6 }).current, "## 11. X")), needs: [5] };
+  const g = await fakeGitLab({ files });
+  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click,
+    items: [u2, i06, u1, i05], readAt: readerOf(files), now: WHEN }));
+  assert.deepEqual(res.leftOut, []);
+  const posts = g.calls.filter((c) => c.method === "POST");
+  assert.equal(posts.length, 1, "one commit for all four");
+  const acts = posts[0].body.actions;
+  assert.equal(acts.filter((a) => a.file_path.startsWith("docs/approvals/")).length, 4, "one record per ticked file");
+  const spec = acts.find((a) => a.file_path === "SPEC.md").content;
+  assert.equal(spec, "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nnew ten\n\n" + B_P06);
+  const rows = acts.find((a) => a.file_path.endsWith("entscheidungen.md")).content.split("\n").filter((l) => l.startsWith("| 2026"));
+  assert.deepEqual(rows.map((r) => r.split("|")[2].trim()), ["5", "6"]);
+});
+
+test("GitLab: a commit GitLab wrote on a newer head than the one checked is reported with the files read that changed", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const files = batchRepo();
+  const u1 = await ucItem("UC-001", "docs/use-cases/UC-001-a.md", B_UC1);
+  // The branch did not move before the commit, but GitLab reports another parent: a commit arrived in between.
+  const g = await fakeGitLab({ files, parent: H1, changed: ["docs/use-cases/UC-001-a.md"] });
+  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [u1],
+    readAt: readerOf(files), now: WHEN }));
+  assert.equal(res.commit.sha, NEWC);
+  assert.deepEqual(res.commit.changedMeanwhile, ["docs/use-cases/UC-001-a.md"]);
+  assert.match(res.warning, /UC-001-a\.md/);
+  const cmp = g.calls.find((c) => c.path.endsWith("/repository/compare"));
+  assert.deepEqual([cmp.query.from, cmp.query.to], [H0, H1]);
+  // Counter-proof: the other commit changed an unrelated file — no warning.
+  const g2 = await fakeGitLab({ files, parent: H1, changed: ["README.md"] });
+  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [u1],
+    readAt: readerOf(files), now: WHEN }));
+  assert.equal(res2.warning, null);
+});
+
+test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; the address stored; nothing to GitHub", async () => {
+  const st = fakeStorage(), store = createStore(st);
+  store.setGitLabToken(GL_ADDR, GL_TOKEN, "2026-12-29");
+  const g = await fakeGitLab({ files: { "README.md": "# p\n", "SPEC.md": "# old\n" } });
+  const r = await withFetch(g.fetchMock, () => addProduct({ address: GL_ADDR, token: GL_TOKEN, click, store }));
+  assert.equal(r.commit.sha, NEWC);
+  const posts = g.calls.filter((c) => c.method === "POST");
+  assert.equal(posts.length, 1);
+  assert.deepEqual(posts[0].body.actions.map((a) => [a.action, a.file_path]).sort(), [["create", "CHANGELOG.md"], ["create", "docs/approvals/README.md"],
+    ["create", "docs/spec-freigaben/README.md"], ["create", "docs/use-cases/README.md"]]);
+  assert.deepEqual(store.getProducts(), [GL_ADDR]);
+  assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN), "only the product's server, only its token");
+  // Counter-proof: a refused write adds nothing to the list.
+  const s2 = createStore(fakeStorage());
+  const bad = await fakeGitLab({ files: {}, postStatus: 403, postBody: { message: "403 Forbidden" } });
+  await withFetch(bad.fetchMock, () => assert.rejects(addProduct({ address: GL_ADDR, token: GL_TOKEN, click, store: s2 }), /403/));
+  assert.deepEqual(s2.getProducts(), []);
+});
+
+test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Developer, scope api, expiry", () => {
+  const p = parseProductAddress(GL_ADDR);
+  assert.equal(gitlabTokenPageUrl(p), `${GL_ADDR}/-/settings/access_tokens`);
+  const s = gitlabTokenSteps(p).join("\n");
+  for (const must of [/Agent M/, /Developer/, /\bapi\b/, /[Ee]xpir/, /Create project access token/, /glpat-/]) assert.match(s, must);
+  assert.doesNotMatch(s, /Maintainer role for the token|Owner/, "no broader role is asked for");
+  // UC-001 3d: which of the two it is, and why a personal token is broader.
+  const self = gitlabNoProjectTokens(p);
+  assert.match(self, /Maintainer/);
+  assert.match(self, /personal access token/);
+  assert.match(self, /every project/);
+  const dotcom = gitlabNoProjectTokens(parseProductAddress("https://gitlab.com/alice/thesis"));
+  assert.match(dotcom, /Premium or Ultimate/, "on gitlab.com the subscription decides");
+  assert.doesNotMatch(self, /Premium/, "a self-managed server offers them with any licence");
+  // A refused write names the protected branch (GitLab's default protection lets Developers not push).
+  assert.match(gitlabWriteRefusal(Object.assign(new Error("403 Forbidden"), { status: 403 }), p), /protected/);
+  assert.equal(gitlabWriteRefusal(Object.assign(new Error("400"), { status: 400 }), p), null);
+});
+
+test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project token by its product, renewed on its project's page", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const g = { fetchMock: async () => new Response('{"message":"401 Unauthorized"}', { status: 401, statusText: "Unauthorized" }) };
+  let err;
+  await withFetch(g.fetchMock, async () => { try { await fetchText(`${gitlabApiBase(p)}`, {}, gitlabAuth(p, GL_TOKEN)); } catch (e) { err = e; } });
+  const r = tokenRefusal(err, p);
+  assert.equal(r.token, `GitLab project token for ${GL_ADDR}`);
+  assert.equal(r.renewUrl, `${GL_ADDR}/-/settings/access_tokens`);
+  assert.match(r.renew, /Rotate/);
+  assert.equal(tokenRefusal(err).token, "GitHub token", "without a product it is the GitHub token, as before");
+  const w = expiryWarning("2026-10-05", new Date("2026-09-30T12:00:00Z"), p);
+  assert.match(w.text, /GitLab project token for .*proj/);
+  assert.equal(w.renewUrl, `${GL_ADDR}/-/settings/access_tokens`);
+  const b = tokenBannerHtml({ expires: null, refused: true, product: p });
+  assert.match(b, /GitLab project token/);
+  assert.ok(b.includes(`${GL_ADDR}/-/settings/access_tokens`));
+});
+
+test("GitLab tokens in the browser store: one per product, only for that product; removed with the product and by a clear", () => {
+  const st = fakeStorage(), s = createStore(st);
+  s.setToken("github_pat_t");
+  s.addProduct(GL_ADDR);
+  s.setGitLabToken(GL_ADDR, ` ${GL_TOKEN} `, "2026-12-29");
+  s.setGitLabToken("https://gitlab.com/alice/thesis", "glpat-other0123456789", null);
+  assert.deepEqual(s.getGitLabToken(GL_ADDR), { token: GL_TOKEN, expires: "2026-12-29" });
+  assert.equal(s.getGitLabToken(`${GL}/grp/sub/other`), null, "a project without its own token has none");
+  assert.equal(s.getToken(), "github_pat_t", "the GitHub token is a separate entry");
+  assert.ok([...st.mem.keys()].every((k) => k.startsWith(PREFIX)));
+  s.removeProduct(GL_ADDR);
+  assert.equal(s.getGitLabToken(GL_ADDR), null, "removing the product removes its token");
+  assert.ok(s.getGitLabToken("https://gitlab.com/alice/thesis"));
+  s.clearGitLabToken("https://gitlab.com/alice/thesis");
+  assert.equal(st.getItem(GITLAB_TOKENS_KEY), null, "the last token cleared leaves no entry");
+  s.setGitLabToken(GL_ADDR, GL_TOKEN, null);
+  s.clear();
+  assert.equal(st.mem.size, 0);
+});
+
+test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens included, merged per product", async () => {
+  const s = createStore(fakeStorage());
+  s.setGitLabToken(GL_ADDR, GL_TOKEN, "2026-12-29");
+  s.addProduct(GL_ADDR);
+  const file = await exportSettings(s.entries(), { now: WHEN });
+  assert.ok(file.includes(GL_TOKEN));
+  assert.match(exportNotice(s.entries()), /GitLab project token/);
+  const t = createStore(fakeStorage());
+  t.setGitLabToken("https://gitlab.com/alice/thesis", "glpat-mine0123456789", null);
+  t.setGitLabToken(GL_ADDR, "glpat-newer0123456789", "2027-01-01");
+  const m = mergeSettings(t.entries(), await readSettingsFile(file));
+  t.putEntries(m.put);
+  assert.deepEqual(t.getGitLabToken(GL_ADDR), { token: "glpat-newer0123456789", expires: "2027-01-01" }, "what this browser has is kept");
+  assert.ok(m.kept.includes(`GitLab project token for ${GL_ADDR}`));
+  const u = createStore(fakeStorage());
+  const m2 = mergeSettings(u.entries(), await readSettingsFile(file));
+  u.putEntries(m2.put);
+  assert.deepEqual(u.getGitLabToken(GL_ADDR), { token: GL_TOKEN, expires: "2026-12-29" });
+  assert.ok(m2.added.includes(`GitLab project token for ${GL_ADDR}`));
+});
+
+test("the dashboard is opened on a GitLab product by its address; its files link to GitLab", () => {
+  const t = deriveTarget({ hostname: "reader.github.io", pathname: "/agent-m/", search: `?product=${encodeURIComponent(GL_ADDR)}` });
+  assert.equal(t.instance, "reader/agent-m");
+  assert.equal(t.repo, "grp/sub/proj");
+  assert.equal(t.product.server, GL);
+  assert.equal(t.refGiven, false);
+  assert.equal(deriveTarget({ hostname: "reader.github.io", pathname: "/agent-m/", search: "?product=javascript:alert(1)" }).repo, "reader/agent-m");
+  assert.equal(webFileUrl(parseProductAddress(GL_ADDR), "main", "docs/use-cases/UC-001 a.md"), `${GL_ADDR}/-/blob/main/docs/use-cases/UC-001%20a.md`);
+  assert.equal(webFileUrl(parseProductAddress("https://github.com/a/b"), "main", "SPEC.md"), "https://github.com/a/b/blob/main/SPEC.md");
 });
