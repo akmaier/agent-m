@@ -4,7 +4,8 @@
 counts as the Windows bridge's one file; *"3 seventh state is ok"* — *ended without record* is a job state of
 its own.
 
-**Size:** 2 existing requirements extended under their names; nothing new, nothing withdrawn.
+**Size:** 3 new requirements (the route to a bridge over HTTPS through the jump host — PO, D (a)); 2 existing
+requirements extended under their names; the level-1 occasion in §6 no longer names Gmail. Nothing withdrawn.
 
 **Order:** none — the two entries are independent.
 

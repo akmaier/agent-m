@@ -4,7 +4,8 @@
 *"A (a)"* — a job writes with the person's own token, stored as a CI secret; *"B (b)"* — Gmail only through
 the bridge over IMAP; *"C rewording is fine. We will need to be able to create new drafts in the mailbox."*
 
-**Size:** 1 new requirement; 3 existing requirements changed under their names. The level-1 sentence about
+**Size:** 1 new requirement; 4 existing requirements changed under their names — the fourth, the jump host's
+settings, gains its HTTPS address and login (PO, D (a)). The level-1 sentence about
 Gmail in §6 is changed in queue 2026-09-30h, entry 01, which holds §6.
 
 **Order:** none — the two entries are independent of each other and of queue 2026-09-30h.

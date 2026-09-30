@@ -38,7 +38,7 @@ changes it, or removes it, without hunting through the use cases in which it was
 
 | Kept in | Settings | First set up in |
 |---|---|---|
-| **this browser** | GitHub token; GitLab project token per product; model endpoints with their keys; bridge address and token; mailbox connection — route, app client ID and sign-in token, or servers and password — with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the jump host — hostname, SSH user, port range — and each remote session's name, port and bridge token; the paired Agent M Bridge (UC-044); list of products | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038 |
+| **this browser** | GitHub token; GitLab project token per product; model endpoints with their keys; bridge address and token; mailbox connection — route, app client ID and sign-in token, or servers and password — with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the jump host — hostname, SSH user, port range, HTTPS address and web-server login — and each remote session's name, port and bridge token; the paired Agent M Bridge (UC-044); list of products | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038 |
 | **the instance repository** | participants; source library; process models; the instance's resources | UC-017, UC-004, UC-031, UC-040 |
 | **each product's repository** | process model and roles; Definition of Done; test schedule; linked sources; resources; **pseudonymisation**; **collaborators** who agreed to be named | UC-002, UC-027, UC-015, UC-040, this use case |
 

@@ -19,6 +19,8 @@ realises:
   - EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE
   - THE DASHBOARD WRITES THE TUNNEL COMMANDS
   - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
+  - A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST
+  - THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
   - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
   - THE BRIDGE OPENS ITS TUNNELS ITSELF
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
@@ -87,14 +89,19 @@ sequenceDiagram
      work as in the main flow. The tunnel's end on the jump host listens on its loopback only.
   With the Agent M Bridge on both machines, the two bridges open these tunnels themselves and the author
   types nothing (UC-044, 6a); the commands above are for a machine without the bridge.
-  4. If the author would rather have no tunnel, a **self-hosted runner** on that machine works without
+  4. **Over HTTPS through the jump host** — the route for every browser, Safari included: instead of the
+     forward of step 2, the jump host's web server forwards its HTTPS address to the tunnel's end, after
+     its own login and for the instance's Pages address only; the dashboard reaches the session there
+     (UC-044, 6a 5).
+  5. If the author would rather have no tunnel, a **self-hosted runner** on that machine works without
      any incoming connection (UC-010, UC-017) — registered to a private repository only.
 - **1b. The author suspects the token has leaked.** They press **Pair anew** in the bridge's window; it
   shows a new token, the old one is rejected from then on, and the new one is pasted once as in step 1
   (UC-044, 4b).
 - **3a. The token is missing or wrong.** The bridge refuses the request; nothing reaches the CLI
   session.
-- **2a. The browser blocks the call.** The site names the reason and points to UC-010.
+- **2a. The browser blocks the call** — Safari does for `http://127.0.0.1`. The site names the reason and
+  points to the route over HTTPS through the jump host (1c, 4) and to UC-010.
 
 ## Postcondition
 

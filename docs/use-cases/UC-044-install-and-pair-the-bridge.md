@@ -27,6 +27,9 @@ realises:
   - A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
   - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
   - THE SHARED PAGES ORIGIN IS DISCLOSED
+  - A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST
+  - THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
+  - THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
 ---
@@ -100,6 +103,11 @@ sequenceDiagram
   import the dashboard's settings export (UC-042), which contains it.
 - **4b. The token may have leaked.** **Pair anew** in the bridge's window makes a new token; the old one is
   refused from then on; the person pastes the new one once.
+- **4c. The browser cannot reach the bridge on this computer** — Safari blocks a call from an HTTPS page to
+  `http://127.0.0.1`; Chrome, Edge and Firefox allow it after one local-network prompt, which the dashboard
+  explains before it appears. The dashboard names the reason and offers the route over HTTPS through the
+  jump host (6a, 5): the bridge on this computer opens its reverse tunnel to the jump host, and the
+  dashboard reaches it at the jump host's HTTPS address.
 - **6a. This computer is behind NAT and is to be reached from elsewhere** (a lab machine, a GPU box).
   1. In the bridge's window the person enters the jump host — hostname, SSH user —, or imports the
      dashboard's settings export that names it and this session's port.
@@ -110,6 +118,12 @@ sequenceDiagram
      reconnecting after sleep or network changes; the window shows *tunnel open* or the reason it is not.
   4. On the person's own computer, a bridge there opens the matching forward the same way; without a bridge
      there, the dashboard's two commands (UC-011, 1c) remain.
+  5. **Over HTTPS instead of a forward** — for every browser, Safari included: the jump host's web server
+     serves an HTTPS address that forwards to the tunnel's end on its loopback, only with the web server's
+     own login, and allows cross-origin requests from the instance's Pages address only. The person enters
+     that address and login once in the dashboard's settings (UC-042); the dashboard sends the login to the
+     web server and the bridge's token in a header of its own. No forward is needed on the person's
+     computer.
 - **7a. A newer release exists.** The bridge shows it with its release notes; **Update** installs it only
   after the click, and only if its signature is valid.
 - **7b. The person quits the bridge.** Jobs running there end as *cancelled*; the dashboard shows the bridge

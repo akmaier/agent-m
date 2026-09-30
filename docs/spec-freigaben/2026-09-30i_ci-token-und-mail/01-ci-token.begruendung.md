@@ -29,3 +29,7 @@ GitLab project access token start pipelines.
 (step 7, permissions prefilled — updated), UC-010 (precondition — updated); architecture ARC-010, ARC-015,
 MOD-participant-ci, MOD-ci-generator follow as an architecture change (UC-023) after acceptance. The rest of
 §7 is carried over byte for byte.
+
+**Also added before acceptance (PO decision D (a), 2026-09-30):** `THE JUMP HOST AND THE REMOTE SESSIONS ARE
+SETTINGS` gains the jump host's HTTPS address and web-server login — the settings of the route over HTTPS that
+queue 2026-09-30h, entry 01, adds to §6. It is here because §7 is this queue's section.
