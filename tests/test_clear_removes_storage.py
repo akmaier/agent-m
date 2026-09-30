@@ -9,13 +9,15 @@ FAKE = "const mem = new Map(); const fake = { getItem: k => mem.has(k) ? mem.get
 class ClearRemovesStorage(unittest.TestCase):
     def test_clear_leaves_no_agent_m_key(self):
         v = js(FAKE + "fake.setItem('other-app', 'keep'); const s = store.createStore(fake);"
-               "s.setToken('github_pat_x'); s.clear(); return [s.getToken(), [...mem.keys()]];")
-        self.assertEqual(v, [None, ["other-app"]])
+               "s.setToken('github_pat_x'); s.addProduct('https://github.com/a/b'); s.clear();"
+               "return [s.getToken(), s.getProducts(), [...mem.keys()]];")
+        self.assertEqual(v, [None, [], ["other-app"]])
 
     def test_counter_proof_a_form_reset_is_not_a_clear(self):
         # What a broken clear looks like: the store still answers with the token.
-        v = js(FAKE + "const s = store.createStore(fake); s.setToken('t'); return s.getToken();")
-        self.assertEqual(v, "t")
+        v = js(FAKE + "const s = store.createStore(fake); s.setToken('t'); s.addProduct('https://github.com/a/b');"
+               "return [s.getToken(), s.getProducts()];")
+        self.assertEqual(v, ["t", ["https://github.com/a/b"]])
 
 
 if __name__ == "__main__":

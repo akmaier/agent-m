@@ -2,7 +2,7 @@
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
 // §4.0a rule 5): a check that cannot fail checks nothing. The mutations are listed in
-// docs/measurements/2026-09-23_review-dashboard-tests.md.
+// docs/measurements/2026-09-30_review-dashboard-mutations.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -149,7 +149,7 @@ test("the app never calls fetch directly — every request goes through fetchTex
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
 
 import {
-  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout, addProductText,
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout,
 } from "../docs/assets/review-core.mjs";
 
 const click = { isTrusted: true };
@@ -181,15 +181,19 @@ async function withFetch(mock, f) {
   try { return await f(); } finally { globalThis.fetch = real; }
 }
 
-test("THE TOKEN LINK IS PREFILLED — name, description, expiry, the one permission; no more", () => {
+// ONE GITHUB TOKEN SERVES EVERY FEATURE: parameter names as documented by GitHub,
+// https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
+const TOKEN_FIELDS = ["name", "description", "expires_in", "target_name"];
+const ONE_TOKEN = { contents: "write", issues: "write", actions: "write", metadata: "read" };
+
+test("THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE — exactly Contents, Issues, Actions write, Metadata read", () => {
   const u = new URL(tokenLinkUrl("reader/agent-m"));
   assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
   assert.equal(u.searchParams.get("name"), "Agent M · reader/agent-m");
   assert.equal(u.searchParams.get("expires_in"), "90");
-  assert.equal(u.searchParams.get("contents"), "write");
-  assert.equal(u.searchParams.get("metadata"), "read");
-  assert.equal(u.searchParams.get("pull_requests"), null, "the dashboard needs no pull-request permission");
   assert.ok(u.searchParams.get("description"));
+  const perms = Object.fromEntries([...u.searchParams].filter(([k]) => !TOKEN_FIELDS.includes(k)));
+  assert.deepEqual(perms, ONE_TOKEN, "the link asks for exactly these permissions, no more, no less");
 });
 
 test("THE REPOSITORY CHOICE IS SPELLED OUT — both repositories named, 'Only select repositories' first", () => {
@@ -200,6 +204,10 @@ test("THE REPOSITORY CHOICE IS SPELLED OUT — both repositories named, 'Only se
   assert.ok(s.some((x) => /github_pat_/.test(x)));
   assert.equal(repositoryChoiceSteps("r/agent-m", "r/agent-m").filter((x) => x.includes("r/agent-m")).length, 1,
     "the instance as its own product is named once");
+  const all = s.join("\n");
+  for (const p of ["Contents: read and write", "Issues: read and write", "Actions: read and write", "Metadata: read"]) {
+    assert.ok(all.includes(p), `the steps name ${p}`);
+  }
 });
 
 test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be rendered", () => {
@@ -251,13 +259,103 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
   assert.match(missingLayout([], "alice/thesis").find((f) => f.path === "SPEC.md").content, /VERBINDLICH \(SPEC\)/);
 });
 
-test("THE INSTANCE LISTS ITS PRODUCTS IN A FILE — adding appends once, keeps the rest", () => {
-  const base = "# Products\n\n```\n- `owner/name` — example\n```\n\n## Products\n\n";
-  const once = addProductText(base, "alice/thesis", "Thesis tool");
-  assert.ok(once.startsWith(base));
-  assert.match(once, /\n- `alice\/thesis` — Thesis tool\n$/);
-  assert.equal(addProductText(once, "alice/thesis", "again"), once);
-  assert.throws(() => addProductText(base, "../evil", ""), /repository/);
+// ---------------------------------------------------------------- products in the browser (UC-001)
+// THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER · A PRODUCT IS NAMED BY ITS ADDRESS ·
+// ADDING A PRODUCT CREATES ITS LAYOUT (and writes nothing into the instance repository)
+
+import { parseProductAddress, addProduct } from "../docs/assets/review-core.mjs";
+import { createStore, PREFIX } from "../docs/assets/settings-store.mjs";
+
+function fakeStorage() {
+  const mem = new Map();
+  return { mem, getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: (k) => mem.delete(k), get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null };
+}
+
+test("A PRODUCT IS NAMED BY ITS ADDRESS — the address as copied from the browser", () => {
+  const p = parseProductAddress("https://github.com/alice/thesis-tool");
+  assert.deepEqual(p, { address: "https://github.com/alice/thesis-tool", host: "github.com", repo: "alice/thesis-tool" });
+  for (const v of [" https://github.com/alice/thesis-tool/ ", "https://github.com/alice/thesis-tool.git", "https://github.com/alice/thesis-tool/tree/main"]) {
+    assert.equal(parseProductAddress(v).address, "https://github.com/alice/thesis-tool", v);
+  }
+  // Counter-proof: a bare owner/name is not an address; nor is anything outside https.
+  for (const v of ["alice/thesis-tool", "http://github.com/alice/thesis-tool", "https://github.com/alice", "https://github.com/../evil", "javascript:alert(1)", ""]) {
+    assert.ok(parseProductAddress(v).error, `refused: ${JSON.stringify(v)}`);
+  }
+  // A GitLab address is recognised as such, and refused for now (GitLab support is a later task).
+  assert.match(parseProductAddress("https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool").error, /GitLab/);
+});
+
+test("the browser store keeps product addresses beside the token, once each", () => {
+  const st = fakeStorage(), s = createStore(st);
+  assert.deepEqual(s.getProducts(), []);
+  s.addProduct("https://github.com/alice/thesis-tool");
+  s.addProduct("https://github.com/alice/thesis-tool");
+  s.addProduct("https://github.com/alice/other");
+  assert.deepEqual(s.getProducts(), ["https://github.com/alice/thesis-tool", "https://github.com/alice/other"]);
+  assert.ok([...st.mem.keys()].every((k) => k.startsWith(PREFIX)));
+  st.setItem(PREFIX + "products", "not json");
+  assert.deepEqual(s.getProducts(), [], "a damaged entry reads as an empty list");
+});
+
+function productGitHub(tree) {
+  const g = fakeGitHub();
+  const inner = g.fetchMock;
+  g.fetchMock = async (u, init) => {
+    const path = new URL(u).pathname;
+    if (init.method === "GET" && /^\/repos\/[^/]+\/[^/]+$/.test(path)) {
+      g.calls.push(["GET", path, init.headers?.Authorization, null]);
+      return new Response(JSON.stringify({ default_branch: "main", private: true }), { status: 200 });
+    }
+    if (init.method === "GET" && path.includes("/git/trees/")) {
+      g.calls.push(["GET", path, init.headers?.Authorization, null]);
+      return new Response(JSON.stringify({ tree: tree.map((p) => ({ path: p, type: "blob" })) }), { status: 200 });
+    }
+    return inner(u, init);
+  };
+  return g;
+}
+
+test("THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the address and commits nothing to the instance", async () => {
+  const st = fakeStorage(), store = createStore(st);
+  store.setToken("github_pat_t");
+  const { calls, fetchMock } = productGitHub([]);
+  const r = await withFetch(fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }));
+  assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
+  assert.equal(JSON.parse(st.getItem(PREFIX + "products"))[0], "https://github.com/reader/thesis");
+  assert.equal(r.commit.sha, "c1", "the layout is committed into the product");
+  assert.ok(calls.length && calls.every(([, p]) => p.startsWith("/repos/reader/thesis")),
+    "every request goes to the product repository — none to the instance");
+  assert.deepEqual(Object.keys(treeOf(calls)).sort(),
+    ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
+  // Counter-proof: after a clear, the list is empty.
+  store.clear();
+  assert.deepEqual(store.getProducts(), []);
+  assert.equal(st.mem.size, 0);
+});
+
+test("UC-001 5b: a product with the complete layout is only added to the list; no click, nothing at all", async () => {
+  const store = createStore(fakeStorage());
+  const full = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/UC-001-x.md"];
+  const g = productGitHub(full);
+  const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }));
+  assert.equal(r.commit, null);
+  assert.ok(!g.calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
+  assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
+  const s2 = createStore(fakeStorage()), g2 = productGitHub([]);
+  await withFetch(g2.fetchMock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t",
+    click: { isTrusted: false }, store: s2 }), /click/));
+  assert.equal(g2.calls.length, 0);
+  assert.deepEqual(s2.getProducts(), []);
+});
+
+test("UC-001 5a: a refused write adds nothing to the list", async () => {
+  const store = createStore(fakeStorage());
+  const g = productGitHub([]);
+  const inner = g.fetchMock;
+  const mock = async (u, init) => (init.method === "POST" ? new Response(JSON.stringify({ message: "Resource not accessible" }), { status: 403 }) : inner(u, init));
+  await withFetch(mock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }), /403/));
+  assert.deepEqual(store.getProducts(), []);
 });
 
 test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {

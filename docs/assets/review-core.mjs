@@ -53,18 +53,24 @@ export function deriveTarget({ hostname, pathname, search }) {
   return { instance, repo, ref };
 }
 
-export function parseProducts(text) {
-  const out = [];
-  let fenced = false;
-  for (const line of text.split("\n")) {
-    if (line.trimStart().startsWith("```")) { fenced = !fenced; continue; }
-    if (fenced) continue; // format examples in code blocks are not products
-    const m = line.match(/^- `([^`]+)`(?:\s+—\s+(.*))?\s*$/);
-    if (m && REPO_RE.test(m[1]) && !m[1].includes("..") && !out.some((p) => p.repo === m[1])) {
-      out.push({ repo: m[1], note: (m[2] || "").trim() });
-    }
+// A PRODUCT IS NAMED BY ITS ADDRESS: the web address of its repository, as copied from the browser.
+// -> { address, host, repo } for a github.com repository, or { error }. GitLab addresses are
+// recognised but not yet supported by this dashboard.
+export function parseProductAddress(input) {
+  const s = String(input ?? "").trim();
+  let u;
+  try { u = new URL(s); } catch { return { error: "Paste the repository's address, e.g. https://github.com/owner/name." }; }
+  if (u.protocol !== "https:") return { error: "The address must use https." };
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (u.hostname !== "github.com") {
+    return { error: /gitlab|gitos/i.test(u.hostname) || parts.length >= 2
+      ? `${u.hostname} looks like a GitLab server — GitLab products cannot be added on this dashboard yet.`
+      : `${u.hostname} is not a repository host this dashboard supports.` };
   }
-  return out;
+  if (parts.length < 2) return { error: "The address names an owner and a repository: https://github.com/owner/name." };
+  const repo = `${parts[0]}/${parts[1].replace(/\.git$/, "")}`;
+  if (!REPO_RE.test(repo) || repo.includes("..")) return { error: `not a repository: ${repo}` };
+  return { address: `https://github.com/${repo}`, host: "github.com", repo };
 }
 
 // ---------------------------------------------------------------- settings texts (SPEC §7)
@@ -81,10 +87,14 @@ export const canStore = (acknowledged) => acknowledged === true;
 export const TOKEN_GUIDANCE = `A fine-grained personal access token is a key you create on GitHub. It lets this page act for you
 in exactly the repositories you choose, and nowhere else.
 — Repository access: Only select repositories — this instance and the products it manages, nothing else.
-— Permission: Contents, read and write. That is all: accepting, editing and adding a product are commits.
+— Permissions (one token serves every feature, so you create only one):
+  Contents: read and write — to save and accept: every edit and acceptance is a commit you ask for by clicking.
+  Issues: read and write — for reports that become issues in a product.
+  Actions: read and write — to start a run of a workflow, such as the tests.
+  Metadata: read — GitHub requires it for every token; it reads names and settings, nothing else.
 — Expiration: 90 days is preset; GitHub mails you before it expires, and you can renew it.
-Why this scope: every write the dashboard makes is a commit you asked for by clicking; no other permission
-is needed, so none is asked for.
+Why this scope: these four are what Agent M's features need, and nothing more is asked for; the repository
+choice keeps them to this instance and the products you add.
 Where the token goes: only to https://api.github.com, as an Authorization header. Never to the model endpoint,
 never into a URL, never into a repository.`;
 
@@ -260,9 +270,13 @@ export function deriveSpecStatus({ queue, nr, anchor, bis, proposalPath, proposa
 export function tokenLinkUrl(instance) {
   const q = new URLSearchParams({
     name: `Agent M · ${instance}`,
-    description: `Agent M dashboard of ${instance}: commits you ask for by clicking (accept, edit, add product).`,
+    description: `Agent M dashboard of ${instance}: commits, issues and runs you ask for by clicking.`,
     expires_in: "90",
+    // ONE GITHUB TOKEN SERVES EVERY FEATURE. Parameter names as documented by GitHub ("Pre-filling
+    // fine-grained personal access token details using URL parameters", docs.github.com).
     contents: "write",
+    issues: "write",
+    actions: "write",
     metadata: "read",
   });
   return `https://github.com/settings/personal-access-tokens/new?${q}`;
@@ -274,7 +288,8 @@ export function repositoryChoiceSteps(instance, product) {
     "Under “Repository access”, choose “Only select repositories”. GitHub preselects “All repositories”, " +
       "which would give Agent M write access to everything you own.",
     `Open “Select repositories” and pick ${repos.map((r) => `“${r}”`).join(" and ")} — nothing else.`,
-    "Leave the permissions as they are (Contents: read and write), scroll down and press “Generate token”.",
+    "Leave the permissions as they are (Contents: read and write, Issues: read and write, Actions: read and write, " +
+      "Metadata: read), scroll down and press “Generate token”.",
     "Copy the token GitHub now shows — it starts with github_pat_ and is shown only once.",
   ];
 }
@@ -523,9 +538,22 @@ export function missingLayout(existingPaths, product) {
   return out;
 }
 
-export function addProductText(text, repo, note) {
-  if (!REPO_RE.test(repo) || repo.includes("..")) throw new Error(`not a repository: ${repo}`);
-  if (parseProducts(text).some((p) => p.repo === repo)) return text;
-  const clean = String(note || "").replace(/[\r\n`]/g, " ").trim();
-  return (text.endsWith("\n") ? text : text + "\n") + `- \`${repo}\`${clean ? ` — ${clean}` : ""}\n`;
+// UC-001 Step C, one click: read the product repository, write only its missing layout into its default
+// branch, then add its address to the list in this browser. Nothing is written into the instance
+// repository (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY). A refused write adds nothing to the list.
+// store: the browser store of settings-store.mjs. -> { commit: { sha, url } | null, product }
+export async function addProduct({ address, token, click, store }) {
+  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
+  const product = parseProductAddress(address);
+  if (product.error) throw new Error(product.error);
+  const api = `https://api.github.com/repos/${product.repo}`;
+  const info = JSON.parse(await fetchText(api, { headers: { Accept: "application/vnd.github+json" } }, token));
+  const tree = JSON.parse(await fetchText(`${api}/git/trees/${encodeURIComponent(info.default_branch)}?recursive=1`, {}, token));
+  const files = missingLayout(tree.tree.filter((e) => e.type === "blob").map((e) => e.path), product.repo);
+  const commit = files.length
+    ? await commitFiles({ repo: product.repo, branch: info.default_branch, token, click, files,
+      message: "Add the Agent M review layout (Agent M dashboard)" })
+    : null;
+  store.addProduct(product.address);
+  return { commit, product };
 }
