@@ -1,10 +1,10 @@
 // Review dashboard — UI over review-core.mjs. SPEC §10.
 //
-// Reads one pinned commit of the repository (two GitHub API calls, then immutable raw files),
-// renders use cases and SPEC change proposals, and prepares — never performs — the two writes a
-// reviewer can make: an edit (committed in GitHub's web editor) and an acceptance (an approval
-// record committed on GitHub's new-file page). Every request goes through fetchText, which allows
-// GET only, to GitHub only, without credentials.
+// Reads one pinned commit of the repository (two GitHub API calls, then immutable raw files) and
+// renders use cases and SPEC change proposals. With a stored token, a person's click commits an edit
+// or an acceptance (commitFiles in review-core.mjs); an accepted SPEC change is written in the same
+// commit as its approval record. Without a token, GitHub's own pages are opened, prefilled. Every read
+// goes through fetchText, which allows GET only, to GitHub only.
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
@@ -13,8 +13,9 @@ import {
   fetchText, gitBlobSha, deriveTarget, parseProducts, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
   tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout, addProductText,
   tokenListUrl, extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
-  specRecord, newFileUrl, editUrl, blobUrl, extractSection, sectionText, parseQueueIndex,
-  parseDecisions, deriveUseCaseStatus, deriveSpecStatus,
+  specRecord, newFileUrl, editUrl, blobUrl, parseQueueIndex,
+  parseDecisions, deriveUseCaseStatus, deriveSpecStatus, acceptItems, createReviewSession, sectionForEntry,
+  missingNeeds, itemLabel, needsMessage,
 } from "./review-core.mjs";
 
 const API = "https://api.github.com";
@@ -27,6 +28,10 @@ const T = deriveTarget(location);
 const store = browserStore();
 const token = () => store.getToken();
 const state = { commit: null, tree: [], useCases: [], records: [], queues: [], spec: "", overview: "", products: [] };
+// What this page has shown the reviewer and what they ticked (SEVERAL FILES ARE ACCEPTED IN ONE CLICK).
+// Kept in memory only: a reload starts without ticks.
+const session = createReviewSession();
+let flash = null; // the outcome of the last acceptance, shown once above the next view
 
 // ---------------------------------------------------------------- loading
 
@@ -47,6 +52,17 @@ const raw = (path) => (token()
   ? fetchText(`${API}/repos/${T.repo}/contents/${encP(path)}?ref=${state.commit}`,
     { headers: { Accept: "application/vnd.github.raw+json" } }, token())
   : fetchText(`${RAW}/${T.repo}/${state.commit}/${encP(path)}`));
+
+// A file on the commit an acceptance is written on (review-core.mjs acceptItems); null if it is absent.
+async function readAt(head, path) {
+  try {
+    return await fetchText(`${API}/repos/${T.repo}/contents/${encP(path)}?ref=${encodeURIComponent(head)}`,
+      { headers: { Accept: "application/vnd.github.raw+json" } }, token());
+  } catch (e) {
+    if (/^404\b/.test(e.message)) return null;
+    throw e;
+  }
+}
 
 async function loadProducts() {
   try {
@@ -94,7 +110,7 @@ async function loadAll() {
       paths(new RegExp(`^${esc(dir)}/entscheidungen\\.md$`)).length ? raw(`${dir}/entscheidungen.md`) : ""]);
     const idx = parseQueueIndex(idxText);
     const decisions = parseDecisions(decText);
-    const entries = await Promise.all(idx.entries.map(async (en) => {
+    const loaded = await Promise.all(idx.entries.map(async (en) => {
       const nn = String(en.nr).padStart(2, "0");
       const files = paths(new RegExp(`^${esc(dir)}/${nn}-[^/]+\\.md$`));
       const prop = files.find((f) => !f.path.endsWith(".begruendung.md"));
@@ -102,14 +118,20 @@ async function loadAll() {
       const [proposalText, rationale] = await Promise.all([prop ? raw(prop.path) : "", why ? raw(why.path) : ""]);
       const targetPath = specTarget(idx.target || en.file);
       const specText = targetPath === "SPEC.md" ? state.spec : (paths(new RegExp(`^${esc(targetPath)}$`)).length ? await raw(targetPath) : "");
-      const sec = extractSection(specText, en.anchor, en.bis);
-      const current = sec.error ? "" : sectionText(sec);
-      const proposalBlob = await gitBlobSha(proposalText);
+      return { ...en, nn, dir, proposalPath: prop?.path, proposalText, rationale, targetPath, specText };
+    }));
+    // A QUEUE IS ACCEPTED IN ITS ORDER: an entry whose heading another entry of the queue creates is
+    // shown beside the section that entry creates, and names it (`needs`).
+    const entries = await Promise.all(loaded.map(async (en) => {
+      const sec = sectionForEntry({ specText: en.specText, nr: en.nr,
+        entries: loaded.filter((x) => x.targetPath === en.targetPath) });
+      const current = sec.error ? "" : sec.current;
+      const proposalBlob = await gitBlobSha(en.proposalText);
       const sectionBlob = sec.error ? "" : await gitBlobSha(current);
-      const status = deriveSpecStatus({ queue: dir, nr: en.nr, anchor: en.anchor, bis: en.bis, proposalPath: prop?.path, proposalText,
-        proposalBlob, sectionBlob, specText, decisions, records: state.records });
-      return { ...en, nn, dir, proposalPath: prop?.path, proposalText, rationale, current, error: sec.error,
-        proposalBlob, sectionBlob, targetPath, status, decision: decisions.get(en.nr) };
+      const status = deriveSpecStatus({ queue: dir, nr: en.nr, anchor: en.anchor, bis: en.bis, proposalPath: en.proposalPath,
+        proposalText: en.proposalText, proposalBlob, sectionBlob, specText: en.specText, decisions, records: state.records });
+      const { specText, ...rest } = en;
+      return { ...rest, current, error: sec.error, needs: sec.needs, proposalBlob, sectionBlob, status, decision: decisions.get(en.nr) };
     }));
     return { dir, name: dir.split("/").pop(), intro: idxText.split("\n| Nr")[0], entries };
   }));
@@ -186,23 +208,29 @@ function diffHtml(a, b) {
   return `<pre class="diff">${d.map(([k, l]) => `<span class="d${k === "+" ? "add" : k === "-" ? "del" : "ctx"}">${h(k)} ${h(l)}</span>`).join("\n")}</pre>`;
 }
 
-// ---------------------------------------------------------------- actions (prepare, never perform)
+// ---------------------------------------------------------------- actions
 
-function acceptPanel(record, path, what) {
+// `item` is what this page showed the reviewer (see session); with a token, Accept commits exactly that.
+function acceptPanel(record, path, what, item) {
   const text = recordText(record);
   if (token()) {
+    const key = session.show(item);
     return `
   <section class="panel accept">
     <h3>Accept ${h(what)}</h3>
     <p>One click commits an approval record under your GitHub account. It names exactly the text shown
     here by its blob SHA <code>${h(record.blob.slice(0, 12))}</code>.</p>
-    <p><button class="btn primary" data-accept-path="${h(path)}" data-accept-record="${h(text)}">Accept</button></p>
+    <p><button class="btn primary" data-accept-key="${h(key)}">Accept</button></p>
+    ${tickBox(key)}
     <p class="result muted"></p>
     <details class="explain"><summary>What happens when I click?</summary><div>
       A three-line file is committed to <code>${h(path)}</code> in <code>${h(T.repo)}</code> with the token stored in
       this browser. Git records you as the author and the time; the file records which text you accepted.
-      ${record.kind === "spec" ? "A workflow then writes the proposal into SPEC.md, byte for byte." : ""}
-      Nothing else is changed. Edit the text later, and it shows as changed again.</div></details>
+      ${record.kind === "spec" ? `The same commit replaces the section in <code>${h(record.target)}</code> with the proposal,
+      byte for byte, and adds the decision to the queue's <code>entscheidungen.md</code>. If the proposal or the SPEC
+      section changed since this page loaded, nothing is written and the page shows the new state.`
+        : "Nothing else is changed. If the text changed since this page loaded, nothing is written."}
+      Edit the text later, and it shows as changed again.</div></details>
   </section>`;
   }
   const url = newFileUrl(T.repo, T.ref, path, text);
@@ -254,24 +282,73 @@ async function reloadAndRoute() {
   await route();
 }
 
-function wireCommon(root, original) {
-  root.querySelectorAll("[data-accept-path]").forEach((b) => b.addEventListener("click", async (ev) => {
-    const out = b.closest(".panel").querySelector(".result");
-    b.disabled = true;
-    out.textContent = "Committing…";
-    try {
-      const c = await commitFiles({ repo: T.repo, branch: T.ref, token: token(), click: ev,
-        message: `accept ${b.dataset.acceptPath.split("/").pop().replace(/\.md$/, "")} (Agent M dashboard)`,
-        files: [{ path: b.dataset.acceptPath, content: b.dataset.acceptRecord }] });
-      out.innerHTML = `Accepted — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>. Reloading…`;
-      await reloadAndRoute();
-    } catch (e) {
-      out.textContent = /403|404/.test(e.message)
-        ? `Your token cannot write to ${T.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
-        : e.message;
-      b.disabled = false;
-    }
+// ---------------------------------------------------------------- ticks and acceptance (UC-006 4d, UC-008 3d)
+
+function tickBox(key) {
+  return `<p><label><input type="checkbox" data-tick="${h(key)}" ${session.isTicked(key) ? "checked" : ""}>
+    Tick for <em>Accept ticked</em></label></p>`;
+}
+
+// SEVERAL FILES ARE ACCEPTED IN ONE CLICK: the ticked files, and the one button that accepts them.
+function batchBar() {
+  if (!token()) return "";
+  const items = session.items(), gaps = missingNeeds(items);
+  return `<section class="panel batch">
+    <h3>Accept ticked</h3>
+    <p>${items.length ? `Ticked: ${items.map((i) => h(itemLabel(i))).join(", ")}.`
+      : "Nothing ticked. Open a use case or SPEC entry and tick it to accept several in one commit."}</p>
+    ${gaps.map((g) => `<p class="warn">${h(g.message)}</p>`).join("")}
+    <p><button class="btn primary" data-accept-ticked ${items.length && !gaps.length ? "" : "disabled"}>Accept ticked (${items.length})</button></p>
+    <p class="result muted"></p>
+    <details class="explain"><summary>What happens when I click?</summary><div>
+      One commit under your account holds one approval record per ticked file, each naming the text this page
+      showed you. Ticked SPEC entries are written into the SPEC in the order of their queue's index, with their
+      decisions. A file that changed after it was shown is left out and named; the others are still accepted.</div></details>
+  </section>`;
+}
+
+async function runAccept(ev, items, b, out) {
+  b.disabled = true;
+  out.textContent = "Checking the current texts and committing…";
+  try {
+    const r = await acceptItems({ repo: T.repo, branch: T.ref, token: token(), click: ev, items, readAt });
+    session.untick([...r.accepted, ...r.leftOut.map((l) => l.label)]);
+    flash = (r.commit
+      ? `Accepted ${h(r.accepted.join(", "))} — <a href="${h(r.commit.url)}" target="_blank" rel="noopener">commit ${h(r.commit.sha.slice(0, 7))}</a>.`
+      : "Nothing was written.")
+      + r.leftOut.map((l) => `<br>Left out <strong>${h(l.label)}</strong>: ${h(l.reason)}`).join("")
+      + (r.leftOut.length ? "<br>Shown below is the current state; decide again on what you see now." : "");
+    out.textContent = "Reloading…";
+    await reloadAndRoute();
+  } catch (e) {
+    out.textContent = /403|404/.test(e.message)
+      ? `Your token cannot write to ${T.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
+      : e.message;
+    b.disabled = false;
+  }
+}
+
+function wireAccept(root) {
+  root.querySelectorAll("[data-accept-key]").forEach((b) => b.addEventListener("click", (ev) => {
+    runAccept(ev, [session.get(b.dataset.acceptKey)], b, b.closest(".panel").querySelector(".result"));
   }));
+  root.querySelectorAll("[data-tick]").forEach((c) => c.addEventListener("change", () => {
+    session.tick(c.dataset.tick, c.checked);
+    const bar = root.querySelector(".panel.batch");
+    if (bar) { bar.outerHTML = batchBar(); wireBatch(root); }
+  }));
+  wireBatch(root);
+}
+
+function wireBatch(root) {
+  root.querySelector("[data-accept-ticked]")?.addEventListener("click", (ev) => {
+    const b = ev.currentTarget;
+    runAccept(ev, session.items(), b, b.closest(".panel").querySelector(".result"));
+  });
+}
+
+function wireCommon(root, original) {
+  wireAccept(root);
   root.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
     await navigator.clipboard.writeText(b.dataset.copy);
     b.textContent = "Copied ✓";
@@ -321,9 +398,23 @@ function counts(list) {
   return Object.entries(c).map(([k, v]) => `${badge(k)} ${v}`).join(" ");
 }
 
+// A tick in a list: only for a file this page has shown (UC-008 3d — each one read gets a tick).
+function tickCell(key, acceptable) {
+  if (!token()) return "";
+  if (!acceptable) return "<td></td>";
+  return session.wasShown(key)
+    ? `<td><input type="checkbox" data-tick="${h(key)}" ${session.isTicked(key) ? "checked" : ""} aria-label="Tick for Accept ticked"></td>`
+    : `<td class="muted small" title="Open it first — only what you have read can be ticked">—</td>`;
+}
+const ucItem = (u) => ({ kind: "use-case", id: u.fields.id, path: u.path, blob: u.blob });
+const specItem = (q, e) => ({ kind: "spec", queue: e.dir, qname: q.name, nr: e.nr, nn: e.nn, proposalPath: e.proposalPath,
+  proposalBlob: e.proposalBlob, sectionBlob: e.sectionBlob, targetPath: e.targetPath, anchor: e.anchor, bis: e.bis, needs: e.needs });
+const specAcceptable = (e) => Boolean(!e.error && e.proposalPath && ["open", "stale"].includes(e.status));
+
 async function viewUseCases() {
   const rows = state.useCases.map((u) => `
     <tr>
+      ${tickCell(session.key(ucItem(u)), u.status !== "accepted")}
       <td><a href="#uc/${h(u.fields.id)}">${h(u.fields.id)}</a></td>
       <td><a href="#uc/${h(u.fields.id)}">${h(u.fields.title)}</a></td>
       <td>${h(u.fields.stage)}</td>
@@ -336,9 +427,11 @@ async function viewUseCases() {
       accepting and editing then go through GitHub's own pages, and products cannot be added.</p>
       <p><a class="btn primary" href="#setup">Set up now</a></p></section>`}
     <section class="head"><h2>Use cases</h2><p>${counts(state.useCases)}</p></section>
-    <table class="list"><thead><tr><th>ID</th><th>Title</th><th>Stage</th><th>Realises</th><th>Status</th></tr></thead>
+    ${batchBar()}
+    <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th><th>Stage</th><th>Realises</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody></table>
     ${state.overview ? `<section class="md overview">${md(state.overview)}</section>` : ""}`;
+  wireAccept(main());
   await renderMermaid(main());
 }
 
@@ -371,7 +464,8 @@ async function viewUseCase(id) {
           `<li><a href="${h(blobUrl(T.repo, T.ref, r._path))}" target="_blank" rel="noopener">${h(r._path.split("/").pop())}</a>
            ${r.blob === u.blob ? "— current text" : "— an earlier text"}</li>`).join("")}</ul></section>` : ""}
         <section class="panel"><button class="btn" data-toggle-edit>Edit…</button></section>
-        ${u.status === "accepted" ? "" : acceptPanel(useCaseRecord(u.path, u.blob), approvalPath(u.fields.id, u.blob), u.fields.id)}
+        ${u.status === "accepted" ? "" : acceptPanel(useCaseRecord(u.path, u.blob), approvalPath(u.fields.id, u.blob), u.fields.id, ucItem(u))}
+        ${batchBar()}
       </aside>
     </div>
     ${editPanel(u.path, u.text, u.blob)}`;
@@ -383,26 +477,47 @@ async function viewSpec() {
   const all = state.queues.flatMap((q) => q.entries);
   main().innerHTML = `
     <section class="head"><h2>SPEC changes</h2><p>${counts(all)}</p>
-    <p class="muted">Each entry proposes the text of one SPEC section. Accept it here; the workflow writes it into
-    <code>SPEC.md</code> byte for byte once your approval commit arrives.</p></section>
+    <p class="muted">Each entry proposes the text of one SPEC section. ${token()
+      ? "Accepting it commits the approval and writes the proposal into the SPEC byte for byte, in one commit."
+      : "Accept it here; the workflow writes it into <code>SPEC.md</code> byte for byte once your approval commit arrives."}</p></section>
+    ${batchBar()}
     ${state.queues.map((q) => `
       <section class="queue">
         <h3>${h(q.name)}</h3>
-        <table class="list"><thead><tr><th>Nr</th><th>Section</th><th>Status</th></tr></thead><tbody>
-        ${q.entries.map((e) => `<tr><td><a href="#spec/${h(q.name)}/${h(e.nn)}">${h(e.nn)}</a></td>
-          <td><a href="#spec/${h(q.name)}/${h(e.nn)}">${h(e.anchor.replace(/^#+\s*/, ""))}</a>${e.error ? ` <span class="warn">${h(e.error)}</span>` : ""}</td>
+        <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>Nr</th><th>Section</th><th>Status</th></tr></thead><tbody>
+        ${q.entries.map((e) => `<tr>${tickCell(session.key(specItem(q, e)), specAcceptable(e))}
+          <td><a href="#spec/${h(q.name)}/${h(e.nn)}">${h(e.nn)}</a></td>
+          <td><a href="#spec/${h(q.name)}/${h(e.nn)}">${h(e.anchor.replace(/^#+\s*/, ""))}</a>${entryNote(e)}</td>
           <td>${badge(e.status)}</td></tr>`).join("")}
         </tbody></table>
       </section>`).join("")}`;
+  wireAccept(main());
+}
+
+// An entry whose heading another entry of its queue creates names that entry, not "anchor found 0 times".
+function entryNote(e) {
+  if (e.needs.length && ["open", "stale"].includes(e.status)) {
+    return ` <span class="muted small">— after entry ${e.needs.map((n) => h(String(n).padStart(2, "0"))).join(", ")}</span>`;
+  }
+  return e.error ? ` <span class="warn">${h(e.error)}</span>` : "";
 }
 
 async function viewSpecEntry(qname, nn) {
   const q = state.queues.find((x) => x.name === qname);
   const e = q?.entries.find((x) => x.nn === nn);
   if (!e) { main().innerHTML = `<p class="warn">No entry ${h(qname)}/${h(nn)}.</p>`; return; }
-  const canAccept = !e.error && e.proposalPath && ["open", "stale"].includes(e.status);
+  const waits = e.needs.length > 0 && ["open", "stale"].includes(e.status) && Boolean(e.proposalPath);
+  const canAccept = specAcceptable(e) && !waits;
   const rec = canAccept ? specRecord({ queue: e.dir, entry: e.nr, proposal: e.proposalPath, blob: e.proposalBlob,
     target: e.targetPath, anchor: e.anchor, section: e.sectionBlob }) : null;
+  const item = specItem(q, e);
+  // A QUEUE IS ACCEPTED IN ITS ORDER: not offered alone while another entry must create its heading.
+  const waitPanel = waits ? `<section class="panel accept"><h3>Accept entry ${h(e.nn)}</h3>
+      <p class="notice">${h(needsMessage(item, e.needs))}</p>
+      ${token() ? `${tickBox(session.show(item))}<p class="muted small">Tick this entry and entry ${e.needs.map((n) =>
+        h(String(n).padStart(2, "0"))).join(", ")}, then use <em>Accept ticked</em>: both are written in one commit, in the
+        queue's order.</p>` : `<p class="muted small">Accept entry ${e.needs.map((n) => h(String(n).padStart(2, "0"))).join(", ")} first;
+        this entry can be accepted once its heading is in the SPEC.</p>`}</section>` : "";
   main().innerHTML = `
     <p class="crumbs"><a href="#spec">← all SPEC changes</a></p>
     <section class="head">
@@ -410,17 +525,19 @@ async function viewSpecEntry(qname, nn) {
       <p class="meta">Section <code>${h(e.anchor)}</code> in <code>${h(e.targetPath)}</code> ·
         proposal blob <code>${h(e.proposalBlob.slice(0, 12))}</code>
         ${e.decision ? ` · decision: ${h(e.decision.decision)} ${h(e.decision.when)}` : ""}</p>
-      ${e.error ? `<p class="warn">${h(e.error)} — this entry cannot be accepted until the anchor is fixed.</p>` : ""}
+      ${e.error && !waits ? `<p class="warn">${h(e.error)} — this entry cannot be accepted until the anchor is fixed.</p>` : ""}
       ${e.status === "stale" ? `<p class="warn">An approval exists for an earlier text of this proposal or of the SPEC section. It was not applied. Decide again on what you see now.</p>` : ""}
     </section>
     <div class="side">
-      <section><h3>In the SPEC now</h3><div class="md doc">${e.current ? md(e.current) : `<p class="muted">—</p>`}</div></section>
+      <section><h3>${waits ? `In the SPEC after entry ${e.needs.map((n) => h(String(n).padStart(2, "0"))).join(", ")}`
+        : "In the SPEC now"}</h3><div class="md doc">${e.current ? md(e.current) : `<p class="muted">—</p>`}</div></section>
       <section><h3>Proposed</h3><div class="md doc">${md(e.proposalText)}</div></section>
     </div>
     <section class="panel"><h3>Difference</h3>${diffHtml(e.current, e.proposalText)}</section>
     ${e.rationale ? `<section class="panel md rationale"><h3>Rationale</h3>${md(e.rationale.replace(/^# .*\n/, ""))}</section>` : ""}
     <section class="panel"><button class="btn" data-toggle-edit>Edit proposal…</button></section>
-    ${rec ? acceptPanel(rec, approvalPath(`spec-${q.name}-${e.nn}`, e.proposalBlob), `entry ${e.nn}`) : ""}
+    ${rec ? acceptPanel(rec, approvalPath(`spec-${q.name}-${e.nn}`, e.proposalBlob), `entry ${e.nn}`, item) : waitPanel}
+    ${batchBar()}
     ${e.proposalPath ? editPanel(e.proposalPath, e.proposalText, e.proposalBlob) : ""}`;
   wireCommon(main(), e.proposalText);
   await renderMermaid(main());
@@ -430,9 +547,14 @@ function viewHow() {
   main().innerHTML = `<article class="md doc how">${md(`
 ## How acceptance works
 
-**Acceptance is a commit.** Nothing on this page writes to GitHub. When you accept, the page opens
-GitHub's *new file* page with a short approval record already filled in. Pressing *Commit changes*
-there is the act of accepting. Git records who and when; the record says which text.
+**Acceptance is a commit.** With a token stored in this browser, *Accept* commits a short approval
+record under your account. Without one, the page opens GitHub's *new file* page with the record
+already filled in, and pressing *Commit changes* there is the act of accepting. Git records who and
+when; the record says which text.
+
+**Several at once.** With a token, tick the use cases and SPEC entries you have read and press
+*Accept ticked*: one commit, one record per ticked file. A file that changed after it was shown is
+left out and named.
 
 **The record names the text by its SHA.** The page computes the git blob SHA of exactly the text it
 shows you, the same number \`git hash-object\` would give. A use case counts as accepted only while
@@ -443,10 +565,13 @@ reset.
 clipboard and opens GitHub's editor for the file: select all, paste, commit. The new text is then
 reviewed like any other.
 
-**SPEC changes** follow the same path. After your approval commit, a GitHub Actions workflow checks
-that the proposal and the current SPEC section still have the SHAs you saw. It then writes the
-proposal into \`SPEC.md\` byte for byte and logs the decision. If either changed in the meantime, it
-writes nothing and the entry shows as *stale*.
+**SPEC changes.** With a token, the accepting commit itself carries the record, the SPEC section
+replaced by the proposal byte for byte, and the decision in the queue's \`entscheidungen.md\` — after
+checking, on the commit it writes on, that the proposal and the SPEC section still have the SHAs you
+saw. Entries of one queue accepted together are written in the queue's order; an entry whose heading
+another entry creates waits for that entry. Without a token, for this instance's own SPEC, a GitHub
+Actions workflow makes the same checks after your approval commit and writes the same bytes. If
+either text changed in the meantime, nothing is written and the entry shows as *stale*.
 
 **Without write access**, GitHub turns your commit into a pull request. The acceptance counts once
 a maintainer merges it.
@@ -716,6 +841,10 @@ async function route() {
     else if (kind === "setup") viewSetup();
     else if (kind === "uc" && a) await viewUseCase(decodeURIComponent(a));
     else await viewUseCases();
+    if (flash) {
+      main().insertAdjacentHTML("afterbegin", `<section class="panel notice flash"><p>${flash}</p></section>`);
+      flash = null;
+    }
   } catch (e) {
     main().innerHTML = `<p class="warn">${h(e.message)}</p>`;
   }

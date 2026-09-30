@@ -5,6 +5,7 @@ Each test builds a throwaway repository, so nothing here touches the real SPEC.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -16,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import apply_approvals as ap  # noqa: E402
+from jsrun import js  # noqa: E402
 
 SPEC = """# S
 
@@ -145,6 +147,52 @@ class ApplyTests(unittest.TestCase):
             "kind: use-case\nfile: docs/use-cases/UC-001-x.md\nblob: " + "a" * 40 + "\n", encoding="utf-8")
         rc, _ = ap.apply(self.r.root)
         self.assertEqual((rc, self.r.spec()), (0, SPEC))
+
+
+class DashboardCommitTests(unittest.TestCase):
+    """AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL: with a token, the dashboard commits the record,
+    the SPEC section and the decision row together. The workflow then runs on that commit (it touches
+    docs/approvals/) and must not apply the record a second time."""
+
+    def setUp(self):
+        self.a, self.b = Repo(), Repo()
+
+    def tearDown(self):
+        self.a.tmp.cleanup()
+        self.b.tmp.cleanup()
+
+    def dashboard_commit(self, repo: Repo) -> dict:
+        """The files the dashboard's planner (docs/assets/review-core.mjs) writes, computed on `repo`."""
+        item = {"kind": "spec", "queue": Q, "qname": os.path.basename(Q), "nr": 1, "nn": "01",
+                "proposalPath": f"{Q}/01-zwei.md", "proposalBlob": git_hash(PROPOSAL),
+                "sectionBlob": repo.section_sha(), "targetPath": "SPEC.md", "anchor": "## 2. Two",
+                "bis": None, "needs": []}
+        plan = js("const fs = await import('node:fs');"
+                  f"const root = {json.dumps(str(repo.root))};"
+                  "return core.planAcceptance({ items: [" + json.dumps(item) + "], now: new Date('2026-09-29T16:03:00Z'),"
+                  " read: async (p) => fs.existsSync(root + '/' + p) ? fs.readFileSync(root + '/' + p, 'utf8') : null });")
+        self.assertEqual(plan["leftOut"], [])
+        for f in plan["files"]:
+            (repo.root / f["path"]).write_text(f["content"], encoding="utf-8")
+        return plan
+
+    def test_dashboard_writes_what_the_workflow_writes(self):
+        self.dashboard_commit(self.a)
+        name = self.b.record()
+        rc, _ = ap.apply(self.b.root)
+        self.assertEqual(rc, 0)
+        self.assertEqual(self.a.spec(), self.b.spec())
+        self.assertEqual([p.name for p in (self.a.root / "docs/approvals").iterdir()], [name])
+        strip = lambda t: [l.split("|", 2)[2] for l in t.splitlines() if l.startswith("| 20")]  # noqa: E731
+        self.assertEqual(strip(self.a.decisions()), strip(self.b.decisions()))
+
+    def test_record_whose_decision_row_exists_is_skipped(self):
+        # After the dashboard's commit the SPEC section no longer has the SHA the record names — it
+        # holds the proposal now. Applied again, the workflow would refuse it as stale and fail.
+        self.dashboard_commit(self.a)
+        spec, dec = self.a.spec(), self.a.decisions()
+        rc, report = ap.apply(self.a.root)
+        self.assertEqual((rc, report, self.a.spec(), self.a.decisions()), (0, "", spec, dec))
 
 
 if __name__ == "__main__":
