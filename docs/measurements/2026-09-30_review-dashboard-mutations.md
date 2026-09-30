@@ -344,3 +344,84 @@ then 20002; both commands per session appeared as in the tests, the bridge token
 HTTP listener on 127.0.0.1:20001 and none on 20002: "something answers at localhost:20001", "nothing answers at localhost:20002".
 *Clear everything* left `localStorage` empty. Not measured: the same probe from the HTTPS Pages origin, where Chrome's rules for
 requests to the local network apply (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`) — it belongs to the bridge's measurement.
+
+## 8. Architecture files on the dashboard — branch `feat/architecture-review` (on `main` at `e6dce7d`)
+
+SPEC §10 `ONE REVIEW LAYOUT FOR EVERY PRODUCT`, `ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`, `AN APPROVAL NAMES THE EXACT
+TEXT`, `STATUS IS DERIVED FROM THE RECORDS`, `SEVERAL FILES ARE ACCEPTED IN ONE CLICK`, `A CHANGED FILE IS SHOWN AGAINST ITS LAST
+ACCEPTED TEXT`, `EDITS ARE PREPARED ON THE DASHBOARD`, `A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE`, `AN EDITED FILE KEEPS
+ITS IDENTIFIER`, `GITLAB PRODUCTS ARE SUPPORTED`; §11 `ONE ARCHITECTURE DECISION, ONE FILE`, `AN ARCHITECTURE DECISION STATES
+CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES`, `ONE MODULE, ONE FILE`, `A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES`,
+`ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`, `AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST`.
+
+Same method as §6: a script replaced exactly one text, ran `cd tests && python3 -m unittest -v` and `node --test
+--test-reporter=tap tests/*.test.mjs`, and restored the file; it first ran the known positive (`tokenLinkUrl` without `issues`:
+red in `test_token_scope_documented` and in review-core.test.mjs) and asserted both suites green before and after the series.
+The new tests (`tests/architecture.test.mjs`, `tests/test_architecture_files.py`, two tests in `tests/test_approval_records.py`)
+were committed first and were red against the unchanged `docs/assets/` and `tests/artifact_checks.py` (missing exports, missing
+`architecture_problems`, unknown record kind). The fixture product is `tests/fixtures/architecture/`.
+
+| Mutation | In | Red |
+|---|---|---|
+| reviewedId reads MOD-<slug> like ARC (up to the first number) | `review-core.mjs` | "ONE REVIEW LAYOUT FOR EVERY PRODUCT — ARC and MOD files are reviewed files with identifiers from their names"; "parseArchitecture — a module: realises, follows, uses MOD-x.interface, provides, each interface described"; "the component diagram — computed from uses and provides; an interface nobody provides is drawn as missing" |
+| kindOfPath takes a module for a decision | `review-core.mjs` | "ONE REVIEW LAYOUT FOR EVERY PRODUCT — ARC and MOD files are reviewed files with identifiers from their names"; "parseArchitecture — a module: realises, follows, uses MOD-x.interface, provides, each interface described"; "ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON — accepting an ARC and a MOD in one click: one commit, one record each"; "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after"; "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module: users of an altered or removed interface, breaks first"; "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — counter-proof: a change to the text alone touches no user; no code is said so"; "the component diagram — computed from uses and provides; an interface nobody provides is drawn as missing" |
+| deriveReviewedStatus counts records of any kind | `review-core.mjs` | "STATUS IS DERIVED FROM THE RECORDS — ARC and MOD: open, accepted, changed; only records of their own kind count" |
+| architecture records written with kind use-case | `review-core.mjs` | "ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON — accepting an ARC and a MOD in one click: one commit, one record each"; "GITLAB PRODUCTS ARE SUPPORTED — an architecture file is accepted on GitLab by one commit with its project token" |
+| parseArchitecture: forced_by may be empty | `review-core.mjs` | "parseArchitecture — a decision: id, title, forced_by, and its four sections" ¹ |
+| parseArchitecture: a provided interface need not be described | `review-core.mjs` | "parseArchitecture — a module: realises, follows, uses MOD-x.interface, provides, each interface described" |
+| interface description without its continuation lines | `review-core.mjs` | "parseArchitecture — a module: realises, follows, uses MOD-x.interface, provides, each interface described" |
+| specRequirements: withdrawn never marked | `review-core.mjs` | "specRequirements — the names in SPEC.md; a withdrawn one is marked; prose in bold is no requirement"; "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — every named requirement in the SPEC, every named use case accepted"; "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — checked again on the commit written on: a use case changed or a requirement withdrawn meanwhile leaves the file out" |
+| specRequirements: source read on its first line only | `review-core.mjs` | "specRequirements — the names in SPEC.md; a withdrawn one is marked; prose in bold is no requirement"; "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — every named requirement in the SPEC, every named use case accepted" ¹ |
+| prerequisites: withdrawn requirement counts as accepted | `review-core.mjs` | "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — every named requirement in the SPEC, every named use case accepted" |
+| prerequisites: a changed use case counts as accepted | `review-core.mjs` | "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — every named requirement in the SPEC, every named use case accepted" |
+| blocked panel offers an enabled Accept | `review-core.mjs` | "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — the blocked panel: Accept disabled, every open item named, explained" |
+| acceptance: requirements not re-checked on the head | `review-core.mjs` | "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — checked again on the commit written on: a use case changed or a requirement withdrawn meanwhile leaves the file out" |
+| acceptance: use cases not re-checked on the head | `review-core.mjs` | "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — checked again on the commit written on: a use case changed or a requirement withdrawn meanwhile leaves the file out" |
+| acceptance: a UC without an accepted entry is not refused | `review-core.mjs` | "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — checked again on the commit written on: a use case changed or a requirement withdrawn meanwhile leaves the file out" |
+| acceptance: impact list not required for a change | `review-core.mjs` | "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a changed file whose impact list was not shown is left out" |
+| header lines: the whole file | `review-core.mjs` | "module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code"; "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after"; "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module: users of an altered or removed interface, breaks first" |
+| header: any line mentioning Module: | `review-core.mjs` | "module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code" |
+| vendored code counts as code | `review-core.mjs` | "module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code"; "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after"; "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module: users of an altered or removed interface, breaks first" |
+| tests not told apart (tests/ folder) | `review-core.mjs` | "module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code" ¹ |
+| impact: removed interface not a break | `review-core.mjs` | "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module: users of an altered or removed interface, breaks first" |
+| impact: altered interfaces ignored | `review-core.mjs` | "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module: users of an altered or removed interface, breaks first" |
+| impact: every user affected, changed or not | `review-core.mjs` | "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — counter-proof: a change to the text alone touches no user; no code is said so" |
+| impact: followers of a decision not listed | `review-core.mjs` | "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after" |
+| impact: names before/after swapped | `review-core.mjs` | "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after" |
+| impact html: no 'no code yet' | `review-core.mjs` | "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — counter-proof: a change to the text alone touches no user; no code is said so" |
+| diagram: missing interface drawn as provided | `review-core.mjs` | "the component diagram — computed from uses and provides; an interface nobody provides is drawn as missing" |
+| diagram: provider present but interface unprovided is not missing | `review-core.mjs` | "the component diagram — computed from uses and provides; an interface nobody provides is drawn as missing" |
+| diagram: title not escaped | `review-core.mjs` | "the component diagram — computed from uses and provides; an interface nobody provides is drawn as missing" |
+| save: identifier not checked | `review-core.mjs` | "AN EDITED FILE KEEPS ITS IDENTIFIER · A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — ARC and MOD" |
+| app: blocked panel not used | `review-app.mjs` | **none — green** ² |
+| index.html: no Architecture tab | `index.html` | "the dashboard has an Architecture tab that lists, reviews, accepts and edits ARC and MOD files like use cases" |
+| py: ARC name check accepts ARC-1 | `artifact_checks.py` | test_counter_proof_decision (test_architecture_files) ¹ |
+| py: Alternatives section not required | `artifact_checks.py` | test_counter_proof_decision (test_architecture_files) |
+| py: forced_by may be empty | `artifact_checks.py` | test_counter_proof_decision (test_architecture_files) |
+| py: uses items not checked | `artifact_checks.py` | test_counter_proof_module (test_architecture_files) |
+| py: undescribed interface accepted | `artifact_checks.py` | test_counter_proof_module (test_architecture_files) |
+| py: module id not checked against name | `artifact_checks.py` | test_counter_proof_decision (test_architecture_files); test_counter_proof_module (test_architecture_files) |
+| py: responsibility section not required | `artifact_checks.py` | test_counter_proof_module (test_architecture_files) |
+| py: record kind/path mismatch accepted | `artifact_checks.py` | test_records_of_architecture_decisions_and_modules (test_approval_records) |
+| py: record name need not carry the identifier | `artifact_checks.py` | test_records_of_architecture_decisions_and_modules (test_approval_records) |
+| py: renamed ARC record rejected | `artifact_checks.py` | test_records_of_architecture_decisions_and_modules (test_approval_records) |
+| py: architecture kinds unknown to records | `artifact_checks.py` | test_records_of_architecture_decisions_and_modules (test_approval_records) |
+| applier refuses non-spec records | `apply_approvals.py` | test_use_case_records_are_left_alone (test_apply_approvals); test_the_applier_passes_over_architecture_records (test_approval_records) |
+
+¹ Green in the first run; the test was tightened and the mutation run again — red as listed. *forced_by may be empty* (JS): the
+decision test had no case without `forced_by`. *source read on its first line only*: the fixture's withdrawn requirement had its
+whole source on one line, so the mutant could not differ; its withdrawal now stands on the second line of the source. *tests not
+told apart*: the only fixture test also matched by its name (`.test.js`); `tests/helpers.js` was added. *ARC name check accepts
+ARC-1* (Python): the broken name also broke the id check; a case whose id agrees with the name `ARC-1-…` was added.
+
+² Green, and left so: *app: blocked panel not used* changes the wiring in `review-app.mjs`, which runs only in a browser; the
+suite checks the source for the gate's presence, not for which branch is taken. The branch was seen in Chrome instead (below).
+
+**In Chrome** (a copy of `docs/` served from 127.0.0.1, with a harness page that answered GitHub's API and raw host from the
+fixture product, no token, nothing sent elsewhere; UC-001 accepted, UC-002 open, MOD-reader accepted at an earlier text): the
+*Architecture* tab listed ARC-001 and MOD-page/-reader/-review with *open*, *changed* and "waits for UC-002"; the component diagram
+drew `readFile` and `status` as arrows and `MOD-reader.listTree` and `MOD-store.load` dashed as *missing*. MOD-reader showed the
+difference to `MOD-reader-<sha>.md`, then the impact list — MOD-review first, marked *breaks* (uses the removed `listTree` and the
+altered `readFile`), code `src/review.py`; MOD-reader itself with `src/reader.js` and `tests/reader.test.js` — and only then the
+accept panel (without a token: GitHub's prefilled page). MOD-review showed a disabled *Accept* naming "UC-002 — not accepted yet".
+Not tried in the browser: a commit with a token (covered by the tests against the fake GitHub and GitLab APIs).
