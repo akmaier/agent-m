@@ -2589,15 +2589,27 @@ clusters, inference endpoints, agents — and each kind is pinned, checked and r
 *Check:* `tests/test_resources.py` — an unknown kind is rejected; counter-proof: each of the six is
 accepted.
 
-**A RESOURCE IS PINNED TO AN EXACT STATE** *(PO A. Maier, 2026-09-24)*
-A resource records the exact state the product uses — a commit for a repository, a revision or the
-SHA-256 of every file for data or a model, the identifier of the served model for an endpoint or
-an agent.
+**A RESOURCE IS PINNED TO AN EXACT STATE** *(PO A. Maier, 2026-09-24, narrowed 2026-09-30)*
+A resource of kind `repository`, `data`, `model`, `endpoint` or `agent` records the exact state the
+product uses — a commit for a repository, a revision or the SHA-256 of every file for data or a model,
+the identifier of the served model for an endpoint or an agent.
 *Occasion:* reuse "buys dependencies", and their maintainers change them (ch. 6 §5). "Which model
 did the tests run against?" needs an answer months later — the same reasoning as `A SOURCE VERSION
-IS FIXED BY IDENTIFIER AND HASH`, applied to what the product uses.
+IS FIXED BY IDENTIFIER AND HASH`, applied to what the product uses. PO, 2026-09-30: a `compute`
+resource has no version of its own; what it contributes to a result is the software environment on it,
+which `A COMPUTE ENVIRONMENT IS PINNED IN THE JOB'S OWN FILES` places with the job.
 *Check:* `tests/test_resources.py` — a `model` entry without revision or hash fails; counter-proof:
-the same entry with a 40-hex revision passes.
+the same entry with a 40-hex revision passes, and a `compute` entry without a pin passes.
+
+**A COMPUTE ENVIRONMENT IS PINNED IN THE JOB'S OWN FILES** *(PO A. Maier, 2026-09-30)*
+The software environment a job uses on a `compute` resource — a container image by its digest, or the
+loaded modules with their versions — is fixed in the product's versioned job files, not in its resource
+entry.
+*Occasion:* PO, 2026-09-30, on UC-040 (queue 2026-09-24g, entry 10, open question 4): hardware has no
+version, the environment on it does. It belongs to the code that uses it — the job script, the CI
+configuration, the container definition —, where it changes by commit together with that code; a second
+pin in `docs/resources.md` would drift away from it.
+*Check:* no automatic check; at review.
 
 **A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT** *(PO A. Maier, 2026-09-24)*
 The recorded state of a resource changes only by a person's decision on the dashboard.
