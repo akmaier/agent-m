@@ -1319,6 +1319,15 @@ context, nothing is sent and the dashboard says what does not fit.
 was meant to prevent, and looks as if it worked.
 *Check:* `tests/test_prompted_change_context.py`
 
+**A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT** *(PO A. Maier, 2026-09-30)*
+For a reviewed file that has changed since it was accepted, the dashboard shows the difference between
+the text named by the most recent approval record for the same identifier and the current text.
+*Occasion:* PO, 2026-09-30: "It would be great to have a diff of the previous accepted and the update to
+review them quicker." The approval record already names the accepted text by its blob SHA (`AN APPROVAL
+NAMES THE EXACT TEXT`), so git holds it; the reviewer then reads only what changed. Matched by identifier,
+not by path, so that a renamed file — UC-010 after 2026-09-30 — still shows what was accepted before.
+*Check:* `tests/review-core.test.mjs` — a use case with one changed line shows exactly that line against its
+last accepted text; counter-proof: with two approval records, the older text is not the one compared.
 ## 11. Architecture and implementation
 
 **ONE ARCHITECTURE DECISION, ONE FILE** *(PO A. Maier, 2026-09-24)*
