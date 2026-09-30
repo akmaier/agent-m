@@ -1970,16 +1970,18 @@ in the one its model defines.
 *Check:* `tests/test_progress_view.py`. A V-model, a Scrum and a Kanban fixture each render their
 declared measure. A definition naming an unknown measure fails validation.
 
-**ONE DASHBOARD SHOWS EVERY JOB** *(PO A. Maier, 2026-09-24)*
+**ONE DASHBOARD SHOWS EVERY JOB** *(PO A. Maier, 2026-09-24, extended 2026-09-30)*
 The job dashboard of an instance lists every job of every product it manages. Each job appears with
-its state (queued, running, waiting at a gate, done, failed or cancelled), its participant, where
-it runs, what it works on, its elapsed time and a link to its log.
+its state (queued, running, waiting at a gate, done, failed, cancelled or ended without record), its
+participant, where it runs, what it works on, its elapsed time and a link to its log.
 *Occasion:* PO, 2026-09-24: "There should be dashboard that shows all running stages which allows
 to inspect their status". Jobs run in several places at once: CI, a CLI agent, a sandbox. Without
 one view, nobody knows what is running. The book's human-above-the-loop oversight also needs one
-place to watch from (ch. 11 §8).
+place to watch from (ch. 11 §8). PO, 2026-09-30: a job with a start record, no end record and no
+runtime that knows it — the tab was closed, the bridge restarted (UC-036, 1c) — is a state of its own,
+*ended without record*; calling it *failed* would claim an outcome nobody observed.
 *Check:* `tests/test_job_dashboard.py`. Fixture jobs in two products and three runtimes appear in
-one list. A job state outside the six is rejected.
+one list. A job state outside the seven is rejected.
 
 **A CANCELLED JOB WRITES NOTHING MORE** *(PO A. Maier, 2026-09-24)*
 After a person cancels a job, the job commits nothing further to any repository.
