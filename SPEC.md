@@ -2563,50 +2563,68 @@ THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL`), a reply note holds an ident
 against the people of the mail at hand is deterministic, fast, and needs no list kept anywhere
 (`SOFTWARE_MAINTENANCE.md` §4.0a rule 3).
 *Check:* `tests/test_mail_privacy.py` — an issue text containing the sender's name, or a name from the
-mail's signature, is refused and the hit named; counter-proof: the same text with a surrogate passes.
+mail's signature, is refused and the hit named; counter-proof: the same text without the name passes.
 
 **A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL** *(PO A. Maier, 2026-09-28)*
-A job that writes to a repository is given the neutral issue and pseudonymised report data, never the
-text or attachments of a mail.
+A job that writes to a repository is given the neutral issue and the report data rewritten without
+persons, never the text or attachments of a mail.
 *Occasion:* only the participant that proposes an issue (UC-038) or drafts a reply (UC-039) reads mails,
 and neither writes anywhere — a person decides. A coding agent that fixes the bug never needs to know
 who reported it.
 *Check:* `tests/test_mail_privacy.py` — the inputs of an implementation job started from a mail's issue
 contain no text of the mail.
 
-**REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE MAILBOX** *(PO A. Maier, 2026-09-29)*
-Attachments, logs, screenshots' text and data files from a mail that go into an issue or a repository
-have every personal datum replaced by a surrogate.
-*Occasion:* PO, 2026-09-28: "bug report data should have personal information replaced with surrogates
-such that we don't share personal information by accident". A log from a reporter's machine carries their
-user name, paths and addresses; the bug is usually reproducible with *user1* and *user1@example.org*.
-*Check:* `tests/test_mail_privacy.py` — a fixture log with name, address, phone number, IP address and
-home-directory path yields surrogates for each; counter-proof: the technical content around them is
-unchanged.
+**REPORT DATA IS PSEUDONYMISED BEFORE IT LEAVES THE MAILBOX** *(PO A. Maier, 2026-09-29 — withdrawn 2026-09-30)*
+*Withdrawn:* report data is rewritten without persons instead of having its personal data replaced by
+surrogates. Replaced by `REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS` and `A REWRITTEN TEXT
+IS CHECKED BY THREE LLMS`. The name is not reused.
 
-**A SURROGATE IS THE SAME WITHIN A REPORT** *(PO A. Maier, 2026-09-28)*
-Within one report, the same personal datum is always replaced by the same surrogate.
-*Occasion:* a log in which one user becomes three different surrogates no longer shows what happened;
-consistency keeps the data useful for reproducing the bug.
-*Check:* `tests/test_mail_privacy.py`
+**REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS** *(PO A. Maier, 2026-09-30)*
+Attachments, logs, error messages, screenshots' text and data files from a mail go into an issue or a
+repository only as a participant's rewriting that mentions no person and keeps their technical content.
+*Occasion:* PO, 2026-09-30, on the architecture's pseudonymiser: "I would instruct to rephrase without
+mentioning persons. We simply don't want person names be part of issues." — logs and attachments
+included. A surrogate is a second name for a person; a rewriting leaves the person out — "the user's home
+folder" instead of a path with a user name. The group's own study of text pseudonymisation found that
+"Surrogates are not a privacy control" (`github.com/akmaier/pseudonymization`, README, read 2026-09-30). Whether the technical content survives
+the rewriting depends on a model, so it is measured, not assumed (`SOFTWARE_MAINTENANCE.md` §4.0a rule 4).
+*Check:* `tests/test_mail_privacy.py` — a fixture log with a name, a mail address, a phone number, an IP
+address and a home-directory path, rewritten by a fixture participant, contains none of them; counter-proof:
+a rewriting that keeps one is refused. How often a rewriting keeps the error message, stack trace and
+version is measured as a rate on a fixed set of reports, reported, not gated.
 
-**THE SURROGATE MAPPING IS NEVER STORED** *(PO A. Maier, 2026-09-29)*
-The mapping from surrogates back to personal data is written nowhere; the same surrogates are derived
-again from the mail whenever they are needed.
-*Occasion:* the mapping is the key that makes surrogates personal data again. Derived in order of
-appearance from the mail, it gives the same surrogates every time, so there is nothing to keep — and
-nothing that can leak.
-*Check:* `tests/test_mail_privacy.py` — two pseudonymisations of the same mail give the same surrogates;
-no write contains a mapping entry.
+**A REWRITTEN TEXT IS CHECKED BY THREE LLMS** *(PO A. Maier, 2026-09-30)*
+A text that a participant rewrites from a mail is written only after three LLM participants with three
+different models, at places the mailbox allows, have each checked it for any mention of a person and none
+of them has found one.
+*Occasion:* PO, 2026-09-30: "I would use three LLMs for this" — one participant rewrites, three check, and a
+finding of any one of them is enough. In the group's study an ensemble of detectors caught more than any
+single one (`github.com/akmaier/pseudonymization`, README, read 2026-09-30). A finding goes back to the rewriting participant like any other
+(`A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT`), within the round limit. The checkers read a
+text that may still hold a person, so they are held to the mailbox's places (`THE PLACES A MAILBOX'S MAIL
+MAY GO ARE CONFIGURED`). The search for the mail's own people (`A TEXT FROM A MAIL IS SEARCHED FOR THAT
+MAIL'S PEOPLE`) runs as well and needs no model.
+*Check:* `tests/test_mail_privacy.py` — with three fixture checkers of which one reports a name, nothing is
+written and the finding goes back; counter-proof: when none reports one, the text is written. How often a
+person passes all three is measured as a rate on a fixed set of mails, reported, not gated.
 
-**PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF** *(PO A. Maier, 2026-09-28)*
-Pseudonymisation of report data applies to every product whose settings do not switch it off.
+**A SURROGATE IS THE SAME WITHIN A REPORT** *(PO A. Maier, 2026-09-28 — withdrawn 2026-09-30)*
+*Withdrawn:* report data is rewritten without persons; there are no surrogates (`REPORT DATA LEAVES THE
+MAILBOX ONLY REWRITTEN WITHOUT PERSONS`). The name is not reused.
+
+**THE SURROGATE MAPPING IS NEVER STORED** *(PO A. Maier, 2026-09-29 — withdrawn 2026-09-30)*
+*Withdrawn:* report data is rewritten without persons; there are no surrogates and no mapping (`REPORT DATA
+LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS`). The name is not reused.
+
+**PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF** *(PO A. Maier, 2026-09-28, changed 2026-09-30)*
+Rewriting report data without persons applies to every product whose settings do not switch it off.
 *Occasion:* PO, 2026-09-28: "These requirements are very important in the EU; for the US it might not
 matter as much; I would enable the anonymization layer by default but have an option to disable the
 feature." The setting belongs to the product, in its own repository, where everyone working on it can
-see which rule applies.
-*Check:* `tests/test_mail_privacy.py` — a product without the setting gets surrogates; counter-proof: a
-product that switched it off gets the original data.
+see which rule applies. PO, 2026-09-30: the switch stays, for products on a protected data space; what it
+switches is the rewriting (`REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS`).
+*Check:* `tests/test_mail_privacy.py` — a product without the setting gets rewritten report data;
+counter-proof: a product that switched it off gets the original data.
 
 **SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS** *(PO A. Maier, 2026-09-28)*
 Before a product's pseudonymisation is switched off, the dashboard states that report data will then
