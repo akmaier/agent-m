@@ -32,10 +32,15 @@ const DONE = "docs/spec-freigaben/2026-09-01_done", OPEN = "docs/spec-freigaben/
 const INDEX = (anchor) => "# Queue\n\n**Zieldatei aller Einträge:** `products/fixture/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n" +
   `|---|---|---|---|---|\n| 01 | \`SPEC.md\` | ${anchor} | — | — |\n`;
 
+// The texts accepted earlier, which the server still holds by their blob SHA.
+const EARLIER = [];
+const server = async (files) => repoServer({ files, history: EARLIER });
+
 async function product(over = {}) {
   const f = { ...base, "docs/use-cases/README.md": "# Use cases\n\nThe overview.\n", "docs/approvals/README.md": "# Approval records\n" };
   const rec = async (id, path, text, blob = null) => {
     const b = blob ?? await gitBlobSha(text);
+    if (text !== f[path]) EARLIER.push(text);
     f[approvalPath(id, await gitBlobSha(text))] = recordText(path.includes("/use-cases/") ? useCaseRecord(path, b) : reviewedRecord(path, b));
   };
   await rec("UC-001", UC1, f[UC1]);                                  // accepted
@@ -66,7 +71,7 @@ const recordOf = (repo, id) => Object.keys(repo).filter((p) => p.startsWith(`doc
 
 test("the use-case list reads the commit, the tree, the use cases and only the records it must — no architecture or queue file", async () => {
   const repo = await product();
-  const page = await openDashboard({ server: await repoServer({ files: repo }) });
+  const page = await openDashboard({ server: await server(repo) });
   assert.match(page.main(), /UC-001/);
   assert.match(page.main(), /UC-002/);
   assert.match(page.main(), /The overview\./);
@@ -80,7 +85,7 @@ test("the use-case list reads the commit, the tree, the use cases and only the r
 
 test("the architecture view reads no use case and no queue file", async () => {
   const repo = await product();
-  const page = await openDashboard({ server: await repoServer({ files: repo }), hash: "#arc" });
+  const page = await openDashboard({ server: await server(repo), hash: "#arc" });
   for (const id of ["ARC-001", "MOD-page", "MOD-reader", "MOD-review"]) assert.match(page.main(), new RegExp(id));
   assert.deepEqual(under(page.requests, "docs/use-cases/"), []);
   assert.deepEqual(under(page.requests, "docs/spec-freigaben/"), []);
@@ -92,7 +97,7 @@ test("the architecture view reads no use case and no queue file", async () => {
 
 test("the SPEC view reads SPEC.md and every queue's index and decisions; an accepted queue's proposals only when it is opened", async () => {
   const repo = await product();
-  const page = await openDashboard({ server: await repoServer({ files: repo }), hash: "#spec" });
+  const page = await openDashboard({ server: await server(repo), hash: "#spec" });
   assert.deepEqual(files(page.requests), ["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/01-more.md`,
     `${OPEN}/entscheidungen.md`, `${OPEN}/index.md`].sort());
   // The accepted queue is named, not left out: its entries are counted and it can be opened.
@@ -106,15 +111,29 @@ test("the SPEC view reads SPEC.md and every queue's index and decisions; an acce
 
 test("opening one use case reads that use case and its records — no other file", async () => {
   const repo = await product();
-  const page = await openDashboard({ server: await repoServer({ files: repo }), hash: "#uc/UC-002" });
+  const page = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
   assert.deepEqual(files(page.requests), [UC2, ...recordOf(repo, "UC-002")].sort());
   // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT: the accepted text, read by the blob its record names.
   assert.deepEqual(page.requests.filter((r) => r.startsWith("blob ")), [`blob ${await gitBlobSha(repo[UC2].replace("Show the status", "Show a status"))}`]);
   assert.match(page.main(), /Show the status/);
+  assert.match(page.el("accepted-diff"), /- title: Show a status/, "the difference to the text accepted before");
+});
+
+test("opening a changed module reads what its impact list needs: its records, its last accepted text, every module, the code's headers", async () => {
+  const repo = await product();
+  const page = await openDashboard({ server: await server(repo), hash: "#arc/MOD-reader" });
+  assert.match(page.main(), /MOD-reader/);
+  assert.match(page.el("accepted-diff"), /Changed since it was last accepted/);
+  assert.match(page.el("impact"), /Affected modules/, page.el("impact"));
+  assert.match(page.el("arc-accept"), /data-accept-key=/, "Accept, once the impact list is shown");
+  assert.deepEqual(under(page.requests, "docs/use-cases/"), []);
+  assert.deepEqual(under(page.requests, "docs/spec-freigaben/"), []);
+  assert.ok(recordOf(repo, "MOD-reader").every((p) => files(page.requests).includes(p)));
+  assert.ok(["src/reader.js", "src/review.py", "tests/reader.test.js"].every((p) => files(page.requests).includes(p)), "the code's module headers");
 });
 
 test("settings read the product's settings, and no use case, architecture file, record or queue", async () => {
-  const page = await openDashboard({ server: await repoServer({ files: await product() }), hash: "#settings" });
+  const page = await openDashboard({ server: await server(await product()), hash: "#settings" });
   assert.deepEqual(files(page.requests), []);
   assert.ok(page.requests.includes("tree"));
 });
@@ -123,28 +142,28 @@ test("settings read the product's settings, and no use case, architecture file, 
 
 test("a second load on an unchanged tree reads no file — the texts are kept by their blob SHA", async () => {
   const repo = await product(), caches = fakeCaches();
-  const first = await openDashboard({ server: await repoServer({ files: repo }), caches });
+  const first = await openDashboard({ server: await server(repo), caches });
   assert.ok(files(first.requests).length > 0);
-  const again = await openDashboard({ server: await repoServer({ files: repo }), caches });
+  const again = await openDashboard({ server: await server(repo), caches });
   assert.deepEqual(again.requests, ["commit", "tree"]);
   assert.equal(again.main(), first.main(), "the same page");
   // A file whose blob changed is read again — that one, and its record: no record is named by its new text, so the record of
   // the earlier one says whether it is changed or open.
   const edited = { ...repo, [UC1]: repo[UC1].replace("Read a file", "Read one file") };
-  const third = await openDashboard({ server: await repoServer({ files: edited }), caches });
+  const third = await openDashboard({ server: await server(edited), caches });
   assert.deepEqual(files(third.requests), [...recordOf(repo, "UC-001"), UC1]);
   assert.match(third.main(), /Read one file/);
 });
 
 test("counter-proof: a kept text that does not hash to its blob SHA is read again, and the page shows the real text", async () => {
   const repo = await product(), caches = fakeCaches();
-  await openDashboard({ server: await repoServer({ files: repo }), caches });
+  await openDashboard({ server: await server(repo), caches });
   const sha = await gitBlobSha(repo[UC1]);
   const kept = [...caches.stores.values()][0];
   const key = [...kept.keys()].find((k) => k.endsWith(`/${sha}`));
   assert.ok(key, "UC-001's text was kept under its blob SHA");
   kept.set(key, repo[UC1].replace("Read a file", "A forged title"));
-  const again = await openDashboard({ server: await repoServer({ files: repo }), caches });
+  const again = await openDashboard({ server: await server(repo), caches });
   assert.deepEqual(files(again.requests), [UC1]);
   assert.doesNotMatch(again.main(), /A forged title/);
   assert.equal(kept.get(key), repo[UC1], "the kept text is replaced by the one read");
@@ -152,8 +171,8 @@ test("counter-proof: a kept text that does not hash to its blob SHA is read agai
 
 test("without Cache Storage the page still works; it reads every file it shows", async () => {
   const repo = await product();
-  const first = await openDashboard({ server: await repoServer({ files: repo }), caches: null });
-  const again = await openDashboard({ server: await repoServer({ files: repo }), caches: null });
+  const first = await openDashboard({ server: await server(repo), caches: null });
+  const again = await openDashboard({ server: await server(repo), caches: null });
   assert.deepEqual(files(again.requests), files(first.requests));
   assert.match(again.main(), /UC-002/);
 });
@@ -164,12 +183,12 @@ test("counter-proof: a record named for the current text whose content names ano
   const repo = await product();
   const name = approvalPath("UC-001", await gitBlobSha(repo[UC1]));
   const forged = { ...repo, [name]: recordText(useCaseRecord(UC1, "e".repeat(40))) };
-  const page = await openDashboard({ server: await repoServer({ files: forged }), hash: "#uc/UC-001" });
+  const page = await openDashboard({ server: await server(forged), hash: "#uc/UC-001" });
   assert.ok(files(page.requests).includes(name), "opened, the file's records are read");
   assert.doesNotMatch(page.main(), /<h2>[^<]*UC-001[^<]*<span class="badge b-accepted"/);
   assert.match(page.main(), /data-accept-key=/, "Accept is offered: no record names this text");
   // Counter-proof of the counter-proof: the true record accepts it, and no Accept is offered.
-  const honest = await openDashboard({ server: await repoServer({ files: repo }), hash: "#uc/UC-001" });
+  const honest = await openDashboard({ server: await server(repo), hash: "#uc/UC-001" });
   assert.match(honest.main(), /b-accepted/);
   assert.doesNotMatch(honest.main(), /data-accept-key=/);
 });

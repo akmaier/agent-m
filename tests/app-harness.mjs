@@ -10,10 +10,12 @@ const HEAD = "c0ffee".padEnd(40, "0");
 export const REPO = "akmaier/agent-m";
 export const TOKEN = "github_pat_HARNESS0123456789abcdefghij";
 
-// files: { path: text } — the repository at its default branch. dates: { path: ISO date } — when a record was committed.
-export async function repoServer({ files, dates = {}, repo = REPO }) {
+// files: { path: text } — the repository at its default branch. history: texts of earlier commits, readable by their blob SHA.
+// dates: { path: ISO date } — when a record was committed.
+export async function repoServer({ files, history = [], dates = {}, repo = REPO }) {
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
-  const bySha = Object.fromEntries(Object.entries(shas).map(([p, s]) => [s, files[p]]));
+  const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
+  for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
   const requests = [];
   let pending = 0;
   const api = `/repos/${repo}`;
@@ -101,7 +103,8 @@ let loads = 0;
 
 // One page load of the dashboard at `hash`, with a stored GitHub token. caches: the browser's Cache Storage, or null for a
 // browser without one. assets: the folder the app is served from (another checkout's, to measure it).
-// -> { main() -> the HTML of <main>, requests since the load began, go(hash) -> the requests that view made }
+// -> { main() -> the HTML of <main>, el(id) -> the HTML of another element, requests since the load began,
+//      go(hash) -> the requests that view made }
 export async function openDashboard({ server, hash = "", caches = null, token = TOKEN,
   assets = new URL("../docs/assets/", import.meta.url) }) {
   const purify = (await import(new URL("vendor/purify.es.mjs", assets))).default;
@@ -128,6 +131,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   await settle(server);
   const page = {
     main: () => doc.getElementById("main").innerHTML,
+    el: (id) => doc.getElementById(id).innerHTML, // a part the app fills after rendering, such as #impact
     requests: server.requests.slice(start),
     async go(next) {
       const from = server.requests.length;

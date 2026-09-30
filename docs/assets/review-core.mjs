@@ -406,20 +406,37 @@ export const recordsForId = (records, id) => records.filter((r) => r.kind !== "s
 
 const b64text = (s) => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s+/g, "")), (c) => c.charCodeAt(0)));
 
+// A file's text by its blob SHA: from `cache` when it holds a text that hashes to that SHA — git never changes the text
+// behind a SHA —, otherwise by read(), and then kept in `cache` if what was read hashes to the SHA. A cached text that does
+// not hash to its SHA is never used; it is read again and replaced. The cache is optional and may fail at any step: every
+// access is caught, and the text is then simply read. cache: { get(key) -> text | null, put(key, text) } (settings-store.mjs).
+export async function readByBlob({ sha, read, cache = null, key = null }) {
+  const k = key ?? sha, keep = Boolean(cache) && HEX40.test(String(sha));
+  if (keep) {
+    let t = null;
+    try { t = await cache.get(k); } catch { t = null; }
+    if (typeof t === "string" && await gitBlobSha(t) === sha) return t;
+  }
+  const text = await read();
+  if (keep && typeof text === "string" && await gitBlobSha(text) === sha) {
+    try { await cache.put(k, text); } catch { /* the page works without the cache */ }
+  }
+  return text;
+}
+
 // The exact text of a blob, read by its SHA from the product's server; refused unless it hashes to that SHA.
 // GitHub: product absent or a github.com product (repo); GitLab: a GitLab product (its own project token).
-export async function readBlob({ product = null, repo = null, blob, token = null }) {
+// cache, cacheKey: where this browser keeps file texts by blob SHA (readByBlob).
+export async function readBlob({ product = null, repo = null, blob, token = null, cache = null, cacheKey = null }) {
   if (!HEX40.test(String(blob))) throw new Error(`not a blob SHA: ${blob}`);
-  let text;
-  if (isGitLab(product)) {
-    text = await fetchText(`${gitlabApiBase(product)}/repository/blobs/${blob}/raw`, {}, gitlabAuth(product, token));
-  } else {
+  const text = await readByBlob({ sha: blob, cache, key: cacheKey, read: async () => {
+    if (isGitLab(product)) return fetchText(`${gitlabApiBase(product)}/repository/blobs/${blob}/raw`, {}, gitlabAuth(product, token));
     const r = repo ?? product?.repo;
     if (!REPO_RE.test(r) || r.includes("..")) throw new Error(`not a repository: ${r}`);
     const j = JSON.parse(await fetchText(`https://api.github.com/repos/${r}/git/blobs/${blob}`,
       { headers: { Accept: "application/vnd.github+json" } }, token));
-    text = j.encoding === "base64" ? b64text(j.content) : String(j.content ?? "");
-  }
+    return j.encoding === "base64" ? b64text(j.content) : String(j.content ?? "");
+  } });
   if (await gitBlobSha(text) !== blob) throw new Error(`the text read for blob ${blob.slice(0, 12)} does not match that blob SHA`);
   return text;
 }
@@ -441,7 +458,8 @@ export async function recordCommittedAt({ product = null, repo = null, commit, p
 
 // The last accepted text of identifier `id`: { record, text, committedAt, count } or null when it has no record.
 // records: parsed records, each with `_path`, its own path in docs/approvals/.
-export async function lastAccepted({ product = null, repo = null, commit, token = null, records, id }) {
+// cache, repoKey: this browser's file texts by blob SHA (readByBlob), kept under `${repoKey}/${blob}`.
+export async function lastAccepted({ product = null, repo = null, commit, token = null, records, id, cache = null, repoKey = null }) {
   const mine = recordsForId(records, id);
   if (!mine.length) return null;
   let record = mine[0], committedAt = null;
@@ -457,8 +475,69 @@ export async function lastAccepted({ product = null, repo = null, commit, token 
     }
     ({ r: record, at: committedAt } = dated[0]);
   }
-  const text = await readBlob({ product, repo, blob: record.blob, token });
+  const text = await readBlob({ product, repo, blob: record.blob, token, cache, cacheKey: repoKey ? `${repoKey}/${record.blob}` : null });
   return { record, text, committedAt, count: mine.length };
+}
+
+// ---------------------------------------------------------------- status from the names in the tree (load per view)
+//
+// STATUS IS DERIVED FROM THE RECORDS — read first from their names. A record is written at approvalPath(id, blob):
+// docs/approvals/<ID>-<first 12 hex of the accepted blob>.md for a use case, an architecture decision or a module (ID from its
+// front matter, which names the file), and docs/approvals/spec-<queue folder>-<nn>-<first 12 hex of the proposal's blob>.md for
+// a SPEC entry. The tree names every record with the page's first two requests, so whether a record exists for a file's current
+// blob is known without reading one. A name only points at a record: where what a record says decides — a file that is opened,
+// the last accepted text, an acceptance — the record itself is read, and a name its content contradicts counts as no record
+// (AN APPROVAL NAMES THE EXACT TEXT). A name of neither form is always read; so is every record of an identifier whose names
+// alone cannot decide.
+
+const RECORD_NAME = /^docs\/approvals\/([^/]+)-([0-9a-f]{12})\.md$/;
+const SPEC_RECORD_ID = /^spec-(.+)-(\d{2,})$/;
+const RECORD_ID = new RegExp(`^(?:[A-Z]+-\\d{3,}|MOD-${SLUG})$`);
+const specKey = (queue, nr) => `${String(queue).split("/").pop()}#${Number(nr)}`;
+
+// The records named in a tree -> { byId: Map(ID -> [{ path, hex }]), spec: Map("<queue folder>#<nr>" -> [{ path, hex }]),
+// unknown: [path] } — unknown: a record whose name follows neither form.
+export function recordIndex(paths) {
+  const byId = new Map(), spec = new Map(), unknown = [];
+  const add = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  for (const p of paths) {
+    if (!/^docs\/approvals\/[^/]+\.md$/.test(p) || p.endsWith("/README.md")) continue;
+    const m = RECORD_NAME.exec(p), s = m && SPEC_RECORD_ID.exec(m[1]);
+    if (s) add(spec, specKey(s[1], s[2]), { path: p, hex: m[2] });
+    else if (m && RECORD_ID.test(m[1])) add(byId, m[1], { path: p, hex: m[2] });
+    else unknown.push(p);
+  }
+  return { byId, spec, unknown };
+}
+
+// The status of the reviewed file at `path`, whose current blob is `blob`, as deriveReviewedStatus gives it from all records.
+// ids: the identifiers its records may be named by (its path's, and its front matter's where that was read).
+// read(paths) -> the parsed records at those paths, each with `_path`. verify: decide from the records' content, never from a
+// name — for a file that is opened. -> { status, record: the path of the record naming the current text, or null, byName }
+export async function statusByNames({ index, path, blob, ids = [], read, verify = false }) {
+  const named = [...new Set([reviewedId(path), ...ids].filter(Boolean))].flatMap((id) => index.byId.get(id) || []);
+  const other = index.unknown.length ? (await read(index.unknown)).filter((r) => r.kind !== "spec" && r.file === path) : [];
+  if (!verify && !other.length) {
+    const hit = named.find((n) => n.hex === String(blob).slice(0, 12));
+    if (hit) return { status: "accepted", record: hit.path, byName: true };
+    if (!named.length) return { status: "open", record: null, byName: true };
+  }
+  const recs = [...(await read(named.map((n) => n.path))), ...other];
+  const kind = kindOfPath(path);
+  return { status: deriveReviewedStatus(path, blob, recs), byName: false,
+    record: recs.find((r) => r.kind === kind && r.file === path && r.blob === blob)?._path ?? null };
+}
+
+// The status of a SPEC entry as deriveSpecStatus gives it from all records. entry: deriveSpecStatus's arguments without
+// `records`. A decided entry needs no record; an undecided one reads only the records named for it (their names cannot carry
+// the SPEC section's SHA that decides between approved and stale).
+export async function specStatusByNames({ index, entry, read }) {
+  const d = entry.decisions.get(entry.nr);
+  if (d && d.decision === "uebernommen") return deriveSpecStatus({ ...entry, records: [] });
+  const named = index.spec.get(specKey(entry.queue, entry.nr)) || [];
+  const other = index.unknown.length ? (await read(index.unknown)).filter((r) => r.kind === "spec") : [];
+  if (!named.length && !other.length) return "open";
+  return deriveSpecStatus({ ...entry, records: [...(await read(named.map((n) => n.path))), ...other] });
 }
 
 // ---------------------------------------------------------------- architecture (SPEC §11; UC-022, UC-023)

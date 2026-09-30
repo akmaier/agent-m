@@ -23,6 +23,9 @@
 // SPEC §7 THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS: the jump host { host, user, portFrom, portTo, reverseKey,
 // forwardKey } — key file NAMES only, never key contents — and the remote sessions [{ name, port, bridgePort, token }], each as
 // one JSON entry. Their rules (a port from the range, the tunnel commands) live in review-core.mjs.
+//
+// Beside the settings, this module keeps the texts of repository files the dashboard has read (fileTexts, below) — in Cache
+// Storage, never in localStorage.
 
 export const PREFIX = "agent-m.";
 export const TOKEN_KEY = PREFIX + "github-token";
@@ -125,6 +128,50 @@ export function createStore(storage) {
       for (const k of mine) storage.removeItem(k);
     },
   };
+}
+
+// ---------------------------------------------------------------- file texts by blob SHA
+//
+// The texts of repository files the dashboard has read, kept by repository and git blob SHA so that a file is not read again
+// until its blob changes (review-core.mjs readByBlob checks every kept text against its SHA before it is used). They are not
+// settings: nothing here configures Agent M, so they are kept in the browser's Cache Storage, not in localStorage, whose every
+// key is a setting with a place on the settings page (EVERY SETTING IS REACHED FROM ONE PAGE). "Clear everything" on the
+// settings page removes them with the settings (A CLEAR IS A REAL CLEAR). Every access is caught: without Cache Storage — a
+// private window, blocked site data, an insecure address — nothing is kept and the page reads every file from the server.
+
+export const FILE_TEXTS = "agent-m-file-texts";
+
+// cacheStorage: the browser's CacheStorage (globalThis.caches) or a stand-in with open, delete and has.
+// -> { get(key) -> text | null, put(key, text), clear() -> true when nothing is kept any more }
+export function createFileTexts(cacheStorage) {
+  let opened = null;
+  const cache = () => (opened ??= cacheStorage.open(FILE_TEXTS));
+  const address = (key) => `/${FILE_TEXTS}/${String(key).split("/").map(encodeURIComponent).join("/")}`;
+  return {
+    async get(key) {
+      if (!cacheStorage) return null;
+      try { const r = await (await cache()).match(address(key)); return r ? await r.text() : null; } catch { return null; }
+    },
+    async put(key, text) {
+      if (!cacheStorage) return;
+      try {
+        await (await cache()).put(address(key), new Response(text, { headers: { "Content-Type": "text/plain; charset=utf-8" } }));
+      } catch { /* not kept: the file is read again next time */ }
+    },
+    async clear() {
+      if (!cacheStorage) return true;
+      opened = null;
+      try { await cacheStorage.delete(FILE_TEXTS); } catch { /* asked below whether anything is kept */ }
+      // A Cache Storage that refuses even this question could keep nothing either.
+      try { return !(await cacheStorage.has(FILE_TEXTS)); } catch { return true; }
+    },
+  };
+}
+
+export function fileTexts() {
+  let s = null;
+  try { s = globalThis.caches ?? null; } catch { s = null; }
+  return createFileTexts(s);
 }
 
 export function browserStore() {
