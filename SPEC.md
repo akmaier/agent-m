@@ -1030,6 +1030,60 @@ branch without a pull request.
 The layout is empty folders and a SPEC skeleton; there is nothing in it to review. The product is
 not written into the instance repository (`NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY`).
 *Check:* `tests/review-core.test.mjs`
+
+**A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT** *(PO A. Maier, 2026-09-30)*
+When a draft returned by a participant fails one of Agent M's checks, Agent M sends the draft and its
+findings back to that participant and asks for a corrected draft before the person sees it.
+*Occasion:* PO, 2026-09-30, on UC-019: Agent M "should report problems … back to the drafting participant
+and ask it to fix the problems … So Step 7 should work like a harness until it is completed
+successfully." A person should read drafts, not mechanical errors a check already found; the book's agent
+loop — reason, act, observe (ch. 11 §2) — with Agent M's checks as the observation.
+*Check:* `tests/test_correction_loop.py` — a fixture participant that first returns an unknown name under
+`realises` and then a corrected draft is asked once more and the person sees only the corrected draft;
+counter-proof: with the loop switched off, the person sees the error.
+
+**A FINDING READS LIKE A COMPILER MESSAGE** *(PO A. Maier, 2026-09-30)*
+Every finding sent back names the artifact and line it concerns, its kind (*error* or *warning*), the
+rule it violates by name, and the correction expected, in one fixed text form.
+*Occasion:* PO, 2026-09-30: "including giving a template text like a compiler on what the problem is that
+it detected". For example: `UC-007:12: error: realises "EXPORT AS PDF" matches no requirement [A USE CASE
+REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.` The template lives once in the
+repository's single definition (`ONE DEFINITION, THREE DRIVERS`).
+*Check:* `tests/test_correction_loop.py` — every finding of the fixture run matches the template.
+
+**AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED** *(PO A. Maier, 2026-09-30)*
+A draft leaves the loop only when it has no error and every warning is either fixed or answered with a
+one-line justification.
+*Occasion:* errors are decided without a model — an unknown name, a changed identifier, a missing field,
+an unreadable answer — and have one right outcome. A warning is a suspicion, such as an "and" in a rule
+(`ONE STATEMENT PER REQUIREMENT`): demanding a fix for a false alarm would never end, so the participant may
+keep the text with a reason, which the person reads.
+*Check:* `tests/test_correction_loop.py` — a justified warning ends the loop; an unfixed error does not.
+
+**WHAT A PERSON DECIDES IS NOT SENT BACK** *(PO A. Maier, 2026-09-30)*
+A conflict with an existing requirement, and every other finding the SPEC leaves to a person, is shown to
+the person and never sent back to the participant.
+*Occasion:* `A CONFLICT IS DECIDED BY A PERSON`: a loop that let the participant resolve it would take the
+decision away from the person, one round at a time.
+*Check:* `tests/test_correction_loop.py` — a conflict finding appears in no message to the participant.
+
+**THE CORRECTION LOOP HAS A FIXED LIMIT** *(PO A. Maier, 2026-09-30)*
+The loop ends after a number of rounds fixed before the first round, or earlier when a round leaves the
+findings unchanged; a draft that still has findings is then shown to the person with them.
+*Occasion:* every round is another model call and costs time and money; a participant that cannot fix a
+finding would otherwise loop for ever. The same form as the process repository's repair rounds for
+unreadable model output (`SOFTWARE_MAINTENANCE.md` §4.0, point 11, addendum of 2026-09-01). The run panel
+states the limit before the person presses *Run*.
+*Check:* `tests/test_correction_loop.py` — a participant that never fixes its error is asked exactly
+*limit* times, or once more than a round without change, and the person sees the remaining finding.
+
+**THE ROUNDS ARE COUNTED AND SHOWN** *(PO A. Maier, 2026-09-30)*
+The number of correction rounds a draft needed, and the findings of each round, are shown with the draft
+and recorded with it.
+*Occasion:* counted, the rounds say how well a participant fits a task — a measure across runs, not a verdict
+on one (`SOFTWARE_MAINTENANCE.md` §4.0a rule 4); hidden, a loop would make a weak participant look as good
+as a strong one.
+*Check:* `tests/test_correction_loop.py`
 ## 10. Review on GitHub Pages
 
 **THE PAGES ROOT IS DOCS** *(PO A. Maier, 2026-09-23, products removed 2026-09-23)*
