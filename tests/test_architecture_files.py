@@ -42,6 +42,7 @@ class ArchitectureFiles(unittest.TestCase):
         good = fixture("ARC-001-static-client.md")
         broken = {
             "ARC-1-static-client.md": good,                                         # not ARC-<nnn>
+            "ARC-1-static.md": good.replace("id: ARC-001", "id: ARC-1"),            # not ARC-<nnn>, id agreeing
             "ARC-001-Static.md": good,                                              # slug not lower case
             "ARC-002-static-client.md": good,                                       # id differs from the name
             "ARC-001-a.md": good.replace("## Alternatives\n", "## Options\n"),      # no alternatives

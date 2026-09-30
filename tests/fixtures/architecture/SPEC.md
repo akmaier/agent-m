@@ -13,7 +13,8 @@ The first rule.
 A rule whose source runs over two lines and whose name has an apostrophe.
 *Check:* none
 
-**OLD RULE** *(PO, 2026-09-29 — withdrawn 2026-09-30)*
+**OLD RULE** *(PO, 2026-09-29, reworded 2026-09-29 —
+withdrawn 2026-09-30)*
 *Withdrawn:* replaced by `RULE ONE`. The name is not reused.
 
 **Form of a requirement** — prose in bold, not a requirement.

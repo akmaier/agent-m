@@ -25,6 +25,8 @@ import {
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
   addCollaborator, removeCollaborator, saveCollaborators, gitlabRole, jumpHostProblem, addRemoteSession, nextFreePort,
   probeLocalPort, diffHtml, reviewedId, recordsForId, lastAccepted,
+  ARCHITECTURE_FILE, parseArchitecture, deriveReviewedStatus, reviewedRecord, architecturePrerequisites, prerequisitesHtml,
+  moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile,
 } from "./review-core.mjs";
 
 const API = "https://api.github.com";
@@ -43,7 +45,7 @@ const ghToken = () => store.getToken();
 // The token that writes to the product shown: the GitHub token, or — for a GitLab product — its own project token
 // (A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN). Never the other one.
 const token = () => (GITLAB ? store.getGitLabToken(T.product.address)?.token || null : store.getToken());
-const state = { commit: null, tree: [], useCases: [], records: [], queues: [], spec: "", overview: "", products: [] };
+const state = { commit: null, tree: [], useCases: [], arch: [], records: [], queues: [], spec: "", overview: "", products: [] };
 // What this page has shown the reviewer and what they ticked (SEVERAL FILES ARE ACCEPTED IN ONE CLICK).
 // Kept in memory only: a reload starts without ticks.
 const session = createReviewSession();
@@ -105,12 +107,15 @@ const paths = (re) => state.tree.filter((e) => re.test(e.path));
 async function loadAll() {
   await loadSnapshot();
   const ucFiles = paths(/^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/);
+  // ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE: docs/architecture/ARC-<nnn>-<slug>.md and MOD-<slug>.md.
+  const archFiles = paths(ARCHITECTURE_FILE);
   const recFiles = paths(/^docs\/approvals\/[^/]+\.md$/).filter((e) => !e.path.endsWith("README.md"));
   const queueIdx = paths(/^docs\/spec-freigaben\/[^/]+\/index\.md$/);
   const overview = paths(/^docs\/use-cases\/README\.md$/)[0];
 
-  const [ucTexts, recTexts, spec, ov] = await Promise.all([
+  const [ucTexts, archTexts, recTexts, spec, ov] = await Promise.all([
     Promise.all(ucFiles.map((e) => raw(e.path))),
+    Promise.all(archFiles.map((e) => raw(e.path))),
     Promise.all(recFiles.map((e) => raw(e.path))),
     paths(/^SPEC\.md$/).length ? raw("SPEC.md") : Promise.resolve(""),
     overview ? raw(overview.path) : Promise.resolve(""),
@@ -126,6 +131,14 @@ async function loadAll() {
     return { path: e.path, text, blob, treeBlob: e.sha, fields, body,
       status: deriveUseCaseStatus(e.path, blob, state.records) };
   }));
+
+  state.arch = await Promise.all(archFiles.map(async (e, i) => {
+    const text = archTexts[i];
+    const blob = await gitBlobSha(text);
+    return { path: e.path, text, blob, treeBlob: e.sha, arch: parseArchitecture(e.path, text),
+      status: deriveReviewedStatus(e.path, blob, state.records) };
+  }));
+  state.arch.sort((a, b) => a.path.localeCompare(b.path));
 
   state.queues = await Promise.all(queueIdx.map(async (e) => {
     const dir = e.path.replace(/\/index\.md$/, "");
@@ -236,7 +249,7 @@ async function fillAcceptedDiff(u, id) {
       ${diffHtml(last.text, u.text)}
       <details class="explain"><summary>What is this?</summary><div>The approval record names the accepted text by its git blob
         SHA, so ${h(SERVER)} still holds it; the dashboard reads it by that SHA and shows only what changed since. Records are
-        matched by the use case's identifier, so a file renamed since is compared too. With several records, the one committed
+        matched by the file's identifier, so a file renamed since is compared too. With several records, the one committed
         last is used.</div></details>`;
   } catch (e) {
     noteRefusal(e);
@@ -286,7 +299,8 @@ function acceptPanel(record, path, what, item) {
       ${record.kind === "spec" ? `The same commit replaces the section in <code>${h(record.target)}</code> with the proposal,
       byte for byte, and adds the decision to the queue's <code>entscheidungen.md</code>. If the proposal or the SPEC
       section changed since this page loaded, nothing is written and the page shows the new state.`
-        : "Nothing else is changed. If the text changed since this page loaded, nothing is written."}
+        : `Nothing else is changed. If the text changed since this page loaded, nothing is written.${record.kind === "use-case" ? ""
+          : " The requirements and use cases this file names are checked again on the commit written on; if one is no longer accepted there, nothing is written."}`}
       Edit the text later, and it shows as changed again.</div></details>
   </section>`;
   }
@@ -356,7 +370,7 @@ function batchBar() {
   return `<section class="panel batch">
     <h3>Accept ticked</h3>
     <p>${items.length ? `Ticked: ${items.map((i) => h(itemLabel(i))).join(", ")}.`
-      : "Nothing ticked. Open a use case or SPEC entry and tick it to accept several in one commit."}</p>
+      : "Nothing ticked. Open a use case, an architecture file or a SPEC entry and tick it to accept several in one commit."}</p>
     ${gaps.map((g) => `<p class="warn">${h(g.message)}</p>`).join("")}
     <p><button class="btn primary" data-accept-ticked ${items.length && !gaps.length ? "" : "disabled"}>Accept ticked (${items.length})</button></p>
     <p class="result muted"></p>
@@ -396,16 +410,18 @@ function writeErrorText(e) {
     : errorText(e);
 }
 
-function wireAccept(root) {
-  root.querySelectorAll("[data-accept-key]").forEach((b) => b.addEventListener("click", (ev) => {
+// scope: the part of the page whose buttons are wired now — an accept panel shown later (after the impact list) is wired alone,
+// so that no button of the page gets a second listener.
+function wireAccept(root, scope = root) {
+  scope.querySelectorAll("[data-accept-key]").forEach((b) => b.addEventListener("click", (ev) => {
     runAccept(ev, [session.get(b.dataset.acceptKey)], b, b.closest(".panel").querySelector(".result"));
   }));
-  root.querySelectorAll("[data-tick]").forEach((c) => c.addEventListener("change", () => {
+  scope.querySelectorAll("[data-tick]").forEach((c) => c.addEventListener("change", () => {
     session.tick(c.dataset.tick, c.checked);
     const bar = root.querySelector(".panel.batch");
     if (bar) { bar.outerHTML = batchBar(); wireBatch(root); }
   }));
-  wireBatch(root);
+  if (scope === root) wireBatch(root);
 }
 
 function wireBatch(root) {
@@ -415,7 +431,8 @@ function wireBatch(root) {
   });
 }
 
-function wireCommon(root, original) {
+// openedId: the identifier the file was opened with (AN EDITED FILE KEEPS ITS IDENTIFIER); null for a SPEC proposal.
+function wireCommon(root, original, openedId = null) {
   wireAccept(root);
   root.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
     await navigator.clipboard.writeText(b.dataset.copy);
@@ -443,9 +460,8 @@ function wireCommon(root, original) {
     b.disabled = true;
     out.textContent = "Saving…";
     try {
-      const c = await writeFiles({ ...writeTarget(), branch: T.ref, token: token(), click: ev,
-        message: `edit ${b.dataset.editSave.split("/").pop()} (Agent M dashboard)`,
-        files: [{ path: b.dataset.editSave, content: text, expectBlob: b.dataset.editBlob || null }] });
+      const c = await saveReviewedFile({ ...writeTarget(), branch: T.ref, token: token(), click: ev, path: b.dataset.editSave, text,
+        openedId, expectBlob: b.dataset.editBlob || null });
       out.innerHTML = `Saved — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>. Reloading…`;
       await reloadAndRoute();
     } catch (e) { noteRefusal(e); out.textContent = writeErrorText(e); b.disabled = false; }
@@ -547,8 +563,142 @@ async function viewUseCase(id) {
       </aside>
     </div>
     ${editPanel(u.path, u.text, u.blob)}`;
-  wireCommon(main(), u.text);
+  wireCommon(main(), u.text, ucId);
   if (showDiff) fillAcceptedDiff(u, ucId);
+  await renderMermaid(main());
+}
+
+// ---------------------------------------------------------------- architecture (SPEC §11; UC-022 step 8, 10; UC-023 steps 4–5)
+
+// The use cases as architecture rests on them: each with its status and the record that accepts its current text.
+const ucStates = () => state.useCases.map((u) => ({ id: u.fields.id || reviewedId(u.path), path: u.path, blob: u.blob, status: u.status,
+  record: state.records.find((r) => r.kind === "use-case" && r.file === u.path && r.blob === u.blob)?._path ?? null }));
+const prerequisitesOf = (f) => architecturePrerequisites({ arch: f.arch, specText: state.spec, useCases: ucStates() });
+// A change to an accepted decision or module: accepted before under its identifier, not in this text.
+const isArchChange = (f) => f.status !== "accepted" && recordsForId(state.records, f.arch.id).length > 0;
+const archItem = (f, extra = {}) => ({ kind: f.arch.kind, id: f.arch.id, path: f.path, blob: f.blob,
+  requires: prerequisitesOf(f).useCases, changed: isArchChange(f), ...extra });
+
+async function viewArchitecture() {
+  const table = (kind, head, cols) => {
+    const list = state.arch.filter((f) => f.arch.kind === kind);
+    if (!list.length) return `<p class="muted">None yet.</p>`;
+    return `<table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th>${head}<th>Status</th></tr></thead><tbody>
+      ${list.map((f) => { const open = prerequisitesOf(f).open; return `<tr>
+        ${tickCell(session.key(archItem(f)), f.status !== "accepted" && !open.length)}
+        <td><a href="#arc/${h(f.arch.id)}">${h(f.arch.id)}</a></td>
+        <td><a href="#arc/${h(f.arch.id)}">${h(f.arch.title)}</a>${f.arch.problems.length ? ` <span class="warn small">${h(f.arch.problems.length)} format problem(s)</span>` : ""}
+          ${open.length ? `<br><span class="muted small">waits for ${open.map((o) => h(o.name)).join(", ")}</span>` : ""}</td>
+        ${cols(f)}<td>${badge(f.status)}</td></tr>`; }).join("")}
+      </tbody></table>`;
+  };
+  const mods = state.arch.filter((f) => f.arch.kind === "module");
+  main().innerHTML = `
+    <section class="head"><h2>Architecture</h2><p>${counts(state.arch)}</p>
+      <p class="muted">Architecture decisions (<code>ARC-&lt;nnn&gt;</code>) and modules (<code>MOD-&lt;slug&gt;</code>) in
+      <code>docs/architecture/</code>, each accepted like a use case, once everything it names is accepted.</p>
+      <details class="explain"><summary>What is this?</summary><div>A <em>decision</em> states its context, the decision, the
+        alternatives weighed and the consequences, and names the requirements and use cases that force it. A <em>module</em> states
+        its one responsibility, the interfaces it provides and those of other modules it uses, what it realises and which decisions
+        it follows (book ch. 10). Each file is accepted by an approval record naming its exact text; a decision or module can be
+        accepted only when every requirement and use case it names is accepted, and a change to an accepted one only beside its
+        impact list.</div></details></section>
+    ${batchBar()}
+    <h3>Decisions</h3>
+    ${table("architecture-decision", "<th>Forced by</th>", (f) => `<td>${f.arch.names.length}</td>`)}
+    <h3>Modules</h3>
+    ${table("module", "<th>Realises</th><th>Follows</th>", (f) => `<td>${f.arch.names.length}</td><td>${f.arch.follows.map(h).join(", ")}</td>`)}
+    ${mods.length ? `<section class="panel"><h3>Components</h3>
+      <div class="md">${md("```mermaid\n" + componentDiagram(mods.map((f) => f.arch)) + "```\n")}</div>
+      <details class="explain"><summary>What is this?</summary><div>Computed from the modules' <code>uses</code> and
+        <code>provides</code> at the commit shown: an arrow from a module to the module whose interface it uses. An interface that
+        no module provides is drawn dashed and marked <em>missing</em>.</div></details></section>` : ""}`;
+  wireAccept(main());
+  await renderMermaid(main());
+}
+
+// The files every impact list reads: module headers of the code at the pinned commit, read once per commit.
+const headersCache = new Map();
+function headersAt() {
+  if (!headersCache.has(state.commit)) {
+    headersCache.set(state.commit, moduleHeaders({ paths: state.tree.map((e) => e.path), read: raw })
+      .catch((e) => { headersCache.delete(state.commit); throw e; }));
+  }
+  return headersCache.get(state.commit);
+}
+
+// AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST: derived beside the difference, and only then is Accept offered.
+async function fillImpact(f) {
+  const box = document.getElementById("impact"), acc = document.getElementById("arc-accept");
+  if (!box) return;
+  try {
+    const [last, headers] = await Promise.all([lastAcceptedOf(f.arch.id), headersAt()]);
+    if (!document.body.contains(box) || !last) return;
+    const imp = impactList({ before: parseArchitecture(last.record.file, last.text), after: f.arch,
+      modules: state.arch.map((x) => x.arch), headers });
+    box.innerHTML = impactHtml(imp);
+    if (acc) {
+      acc.innerHTML = acceptPanel(reviewedRecord(f.path, f.blob), approvalPath(f.arch.id, f.blob), f.arch.id,
+        archItem(f, { impactShown: true }));
+      wireAccept(main(), acc);
+    }
+  } catch (e) {
+    noteRefusal(e);
+    if (document.body.contains(box)) box.innerHTML = `<h3>Impact of this change</h3><p class="warn">The impact list could not be derived:
+      ${h(errorText(e))} — without it, this change cannot be accepted. Reload to try again.</p>`;
+  }
+}
+
+async function viewArchitectureFile(id) {
+  const f = state.arch.find((x) => x.arch.id === id);
+  if (!f) { main().innerHTML = `<p class="warn">No architecture file ${h(id)} on ${h(T.ref)}.</p>`; return; }
+  const a = f.arch, pre = prerequisitesOf(f), approved = recordsForId(state.records, a.id);
+  const change = isArchChange(f);
+  const idx = state.arch.indexOf(f), prev = state.arch[idx - 1], next = state.arch[idx + 1];
+  const nameState = (n) => { const o = pre.open.find((x) => x.name === n); return o ? ` <span class="warn small">${h(o.reason)}</span>` : " ✓"; };
+  const accept = f.status === "accepted" ? ""
+    : pre.open.length ? prerequisitesHtml(pre.open)
+    : change ? `<div id="arc-accept"><section class="panel accept"><h3>Accept ${h(a.id)}</h3>
+        <p class="muted">Accept is offered once the impact list of this change is shown.</p></section></div>`
+    : acceptPanel(reviewedRecord(f.path, f.blob), approvalPath(a.id, f.blob), a.id, archItem(f));
+  main().innerHTML = `
+    <p class="crumbs"><a href="#arc">← all architecture</a>
+      ${prev ? `· <a href="#arc/${h(prev.arch.id)}">← ${h(prev.arch.id)}</a>` : ""}
+      ${next ? `· <a href="#arc/${h(next.arch.id)}">${h(next.arch.id)} →</a>` : ""}</p>
+    <section class="head">
+      <h2>${h(a.id)} ${h(a.title)} ${badge(f.status)}</h2>
+      <p class="meta">${a.kind === "module" ? "Module" : "Architecture decision"} ·
+        blob <code>${h(f.blob.slice(0, 12))}</code> ·
+        <a href="${h(webFileUrl(T.product, T.ref, f.path))}" target="_blank" rel="noopener">file on ${h(SERVER)} ↗</a></p>
+      ${f.treeBlob !== f.blob ? `<p class="warn">The SHA computed from the shown text differs from ${h(SERVER)}'s tree. Do not accept; reload.</p>` : ""}
+      ${a.problems.length ? `<p class="warn">${a.problems.map(h).join("<br>")}</p>` : ""}
+    </section>
+    ${change ? `<section class="panel accepted-diff" id="accepted-diff"><h3>Changed since it was last accepted</h3>
+      <p class="muted">Reading the last accepted text…</p></section>
+      <section class="panel impact" id="impact"><h3>Impact of this change</h3><p class="muted">Deriving the impact list…</p></section>` : ""}
+    <div class="cols">
+      <article class="md doc">${md(a.body)}</article>
+      <aside>
+        <section class="panel"><h3>${a.kind === "module" ? "Realises" : "Forced by"}</h3>
+          <ul class="names">${a.names.map((n) => `<li>${h(n)}${nameState(n)}</li>`).join("") || "<li class=\"muted\">nothing</li>"}</ul>
+          <p class="muted small">Requirement names from <a href="${h(webFileUrl(T.product, T.ref, "SPEC.md"))}" target="_blank" rel="noopener">SPEC.md ↗</a>;
+            use cases on the <a href="#uc">Use cases</a> tab.</p>
+        </section>
+        ${a.kind === "module" ? `<section class="panel"><h3>Interfaces</h3>
+          <p class="small">Follows: ${a.follows.map((x) => `<a href="#arc/${h(x)}">${h(x)}</a>`).join(", ") || "—"}</p>
+          <p class="small">Provides: ${a.provides.map((x) => `<code>${h(x)}</code>`).join(", ") || "—"}</p>
+          <p class="small">Uses: ${a.uses.map((u) => `<code>${h(u.module)}.${h(u.iface)}</code>`).join(", ") || "—"}</p></section>` : ""}
+        ${approved.length ? `<section class="panel"><h3>Approval records</h3><ul class="names">${approved.map((r) =>
+          `<li><a href="${h(webFileUrl(T.product, T.ref, r._path))}" target="_blank" rel="noopener">${h(r._path.split("/").pop())}</a>
+           ${r.blob === f.blob ? "— current text" : "— an earlier text"}${r.file !== f.path ? ", under an earlier file name" : ""}</li>`).join("")}</ul></section>` : ""}
+        <section class="panel"><button class="btn" data-toggle-edit>Edit…</button></section>
+        ${accept}
+        ${batchBar()}
+      </aside>
+    </div>
+    ${editPanel(f.path, f.text, f.blob)}`;
+  wireCommon(main(), f.text, a.id);
+  if (change) { fillAcceptedDiff(f, a.id); fillImpact(f); }
   await renderMermaid(main());
 }
 
@@ -619,7 +769,7 @@ async function viewSpecEntry(qname, nn) {
     ${rec ? acceptPanel(rec, approvalPath(`spec-${q.name}-${e.nn}`, e.proposalBlob), `entry ${e.nn}`, item) : waitPanel}
     ${batchBar()}
     ${e.proposalPath ? editPanel(e.proposalPath, e.proposalText, e.proposalBlob) : ""}`;
-  wireCommon(main(), e.proposalText);
+  wireCommon(main(), e.proposalText, null);
   await renderMermaid(main());
 }
 
@@ -644,6 +794,11 @@ reset.
 **Editing** happens here with a live preview. *Copy & open GitHub editor* puts your text on the
 clipboard and opens GitHub's editor for the file: select all, paste, commit. The new text is then
 reviewed like any other.
+
+**Architecture.** Decisions (\`docs/architecture/ARC-<nnn>-<slug>.md\`) and modules
+(\`docs/architecture/MOD-<slug>.md\`) are accepted like use cases, with a record of the same form. *Accept* is offered only
+while every requirement and use case the file names is accepted; for a change to an accepted decision or module, only after
+the dashboard has shown which modules, code files and tests it touches.
 
 **SPEC changes.** With a token, the accepting commit itself carries the record, the SPEC section
 replaced by the proposal byte for byte, and the decision in the queue's \`entscheidungen.md\` — after
@@ -1497,6 +1652,8 @@ async function route() {
     else if (kind === "add") await viewAddProduct(a ? decodeURIComponent(a) : "");
     else if (kind === "setup") viewSetup();
     else if (kind === "uc" && a) await viewUseCase(decodeURIComponent(a));
+    else if (kind === "arc" && a) await viewArchitectureFile(decodeURIComponent(a));
+    else if (kind === "arc") await viewArchitecture();
     else await viewUseCases();
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
     const gl = gitlabShown();

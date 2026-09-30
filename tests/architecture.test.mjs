@@ -20,7 +20,7 @@ import {
   deriveReviewedStatus, deriveUseCaseStatus, parseArchitecture, specRequirements, architecturePrerequisites,
   prerequisitesHtml, isCodePath, isTestPath, headerModules, moduleHeaders, impactList, impactHtml, componentDiagram,
   acceptItems, planAcceptance, createReviewSession, saveReviewedFile, lastAccepted, changedLines, parseProductAddress,
-  useCaseRecord,
+  useCaseRecord, ARCHITECTURE_FILE,
 } from "../docs/assets/review-core.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
@@ -136,6 +136,8 @@ test("parseArchitecture — a decision: id, title, forced_by, and its four secti
   assert.deepEqual(a.follows, []);
   assert.deepEqual(a.problems, []);
   assert.ok(a.problems.length === 0);
+  assert.match(parseArchitecture(ARC, files[ARC].replace("  - RULE ONE\n  - UC-001\n", "")).problems.join(" "), /forced_by must name at least one/,
+    "a decision names what forces it");
   const broken = parseArchitecture(ARC, files[ARC].replace("## Alternatives\n", ""));
   assert.match(broken.problems.join(" "), /Alternatives/);
 });
@@ -164,7 +166,8 @@ test("parseArchitecture — a module: realises, follows, uses MOD-x.interface, p
 test("specRequirements — the names in SPEC.md; a withdrawn one is marked; prose in bold is no requirement", () => {
   const r = specRequirements(files["SPEC.md"]);
   assert.deepEqual([...r.keys()], ["RULE ONE", "THE READER'S RULE", "OLD RULE"]);
-  assert.deepEqual([...r.values()].map((x) => x.withdrawn), [false, false, true], "the source that runs over two lines is read whole");
+  assert.deepEqual([...r.values()].map((x) => x.withdrawn), [false, false, true],
+    "a source that runs over two lines is read whole — OLD RULE's withdrawal stands on its second line");
   // The known positive: every requirement a use case of this repository realises is found in its SPEC.
   const real = specRequirements(readFileSync(new URL("../SPEC.md", import.meta.url), "utf8"));
   assert.ok(real.size > 250);
@@ -354,6 +357,7 @@ test("module headers — `Module: MOD-x` in the first lines of a code file; test
   assert.ok(!isCodePath("src/notes.md") && !isCodePath("vendor/lib.js") && !isCodePath("node_modules/x/i.js")
     && !isCodePath("docs/assets/vendor/marked.esm.js") && !isCodePath("logo.png"));
   assert.ok(isTestPath("tests/reader.test.js") && isTestPath("tests/test_x.py") && isTestPath("src/x.spec.ts") && isTestPath("pkg/x_test.go"));
+  assert.ok(isTestPath("tests/helpers.js") && isTestPath("pkg/__tests__/x.js"), "a file in a tests folder is a test");
   assert.ok(!isTestPath("src/reader.js") && !isTestPath("src/contest.js"));
   const read = [];
   const found = await moduleHeaders({ paths: Object.keys(files), read: async (p) => { read.push(p); return files[p]; } });
@@ -394,8 +398,8 @@ test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module
   assert.deepEqual(imp.alteredInterfaces, ["readFile"]);
   assert.deepEqual(imp.affected.map((a) => [a.id, a.breaks]), [["MOD-review", true], ["MOD-reader", false]],
     "the user of a removed interface first, marked breaks; then the changed module itself");
-  assert.match(imp.affected[0].reasons.join(" "), /listTree.*removed/);
-  assert.match(imp.affected[0].reasons.join(" "), /readFile.*altered/);
+  assert.match(imp.affected[0].reasons.join(" "), /listTree, which the change removes/);
+  assert.match(imp.affected[0].reasons.join(" "), /readFile, which the change alters/);
   assert.deepEqual(imp.affected[1].code, ["src/reader.js"]);
   assert.deepEqual(imp.names, { kept: ["RULE ONE", "UC-001"], added: [], removed: [] });
   const html = impactHtml(imp);
@@ -441,7 +445,7 @@ test("the component diagram — computed from uses and provides; an interface no
   // A node shows its identifier and title; a title cannot break out of its label into a directive of its own.
   assert.match(d, /MOD_reader\["MOD-reader<br\/>Reads files at a pinned commit"\]/);
   const evil = componentDiagram([{ ...store, title: 'x"]\nclick MOD_store "javascript:alert(1)" <b>' }]);
-  assert.doesNotMatch(evil, /"\]\n|\nclick|<b>/);
+  assert.doesNotMatch(evil, /x"|\nclick|<b>/);
   assert.match(evil, /x#quot;\] click MOD_store #quot;javascript:alert\(1\)#quot; #lt;b#gt;/);
 });
 
@@ -451,9 +455,13 @@ test("the dashboard has an Architecture tab that lists, reviews, accepts and edi
   const html = readFileSync(new URL("../docs/index.html", import.meta.url), "utf8");
   assert.match(html, /<a href="#arc" role="tab" id="tab-arc">Architecture<\/a>/);
   const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
-  assert.match(app, /docs\\\/architecture\\\//, "the files are read from docs/architecture/");
+  assert.match(app, /paths\(ARCHITECTURE_FILE\)/, "the files are read by the core's pattern");
+  assert.deepEqual(archPaths.concat(["docs/architecture/README.md", "docs/architecture/ARC-1-x.md", "docs/use-cases/UC-001-x.md",
+    "docs/architecture/sub/MOD-x.md"]).filter((p) => ARCHITECTURE_FILE.test(p)), archPaths, "docs/architecture/ARC-<nnn>-<slug>.md and MOD-<slug>.md only");
   const view = app.match(/async function viewArchitectureFile\([\s\S]*?\n}\n/)[0];
-  assert.ok(view.includes("architecturePrerequisites(") && view.includes("prerequisitesHtml("), "the gate is part of the view");
+  assert.match(app, /const prerequisitesOf = \(f\) => architecturePrerequisites\(/, "the gate is the core's");
+  assert.ok(view.includes("prerequisitesOf(f)") && view.includes("prerequisitesHtml("), "the gate is part of the view");
+  assert.ok(view.indexOf("prerequisitesHtml(") < view.indexOf("acceptPanel("), "while something is open, no accept panel");
   assert.ok(view.includes("accepted-diff"), "the difference to the last accepted text");
   assert.ok(view.includes("impact"), "the impact list beside it");
   assert.ok(view.includes("editPanel("), "the editor with preview");
