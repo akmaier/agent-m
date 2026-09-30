@@ -1,40 +1,65 @@
 // Review core — the logic of the Pages dashboard, free of DOM so that it runs under node --test.
 //
-// SPEC §10: acceptance is a commit in GitHub that adds an approval record; the record names the
-// exact text by its git blob SHA; status is derived from the records, never stored. The dashboard
-// holds no credential and only reads. The SPEC-section logic mirrors tools/apply_approvals.py
+// SPEC §10: acceptance is a commit by the accepting person, on the server that hosts the repository
+// (GitHub or a GitLab server), that adds an approval record; the record names the exact text by its git
+// blob SHA; status is derived from the records, never stored. The dashboard reads with GET only
+// (fetchText) and writes only on a person's click, with that person's token, as one commit
+// (commitFiles for GitHub, commitFilesGitLab for GitLab). Each token goes only to the API of the server
+// that issued it (fetchText, authHeaders). The SPEC-section logic mirrors tools/apply_approvals.py
 // (the workflow side); tests/review-core.test.mjs checks that both hash the same bytes.
 
 export const ALLOWED_ORIGINS = new Set(["https://api.github.com", "https://raw.githubusercontent.com"]);
 export const MAX_URL_VALUE = 1000; // NO TEXT TRAVELS IN A URL — a record is ~400 bytes
 
-// ---------------------------------------------------------------- reading (GET only, no credential)
+// ---------------------------------------------------------------- reading (GET only) and where tokens go
 
 export const TOKEN_DESTINATIONS = ["https://api.github.com"];
 
-// The only way the dashboard reads. SPEC §7/§10: GET only; the GitHub token, if any, goes only to
-// GitHub's API as a header built here — never in a URL, never to another origin, never by a caller.
-export async function fetchText(url, init = {}, token = null) {
+// A GitLab product is reached through its own server's REST API v4, and only through the API of its own
+// project: `auth` for a GitLab product is { gitlab: server origin, project: path, token | null } (gitlabAuth).
+// The server is the one in the product's address, which the person typed or chose (A PRODUCT IS NAMED BY
+// ITS ADDRESS); no other GitLab origin is ever reachable.
+const isGitLabAuth = (a) => Boolean(a) && typeof a === "object" && typeof a.gitlab === "string" && typeof a.project === "string";
+const gitlabPrefix = (a) => `${a.gitlab}/api/v4/projects/${encodeURIComponent(a.project)}`;
+const underPrefix = (u, prefix) => { const x = u.origin + u.pathname; return x === prefix || x.startsWith(prefix + "/"); };
+
+// The only way the dashboard reads. SPEC §7/§10: GET only. A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT:
+// the GitHub token (a string) only to GitHub's API as `Authorization`; a GitLab project token (in `auth`)
+// only to its own project's API on its own server as `PRIVATE-TOKEN` — headers built here, never in a URL,
+// never to another origin, never set by a caller.
+export async function fetchText(url, init = {}, auth = null) {
   const u = new URL(url, globalThis.location?.href);
   const sameOrigin = globalThis.location && u.origin === globalThis.location.origin;
-  if (!sameOrigin && !ALLOWED_ORIGINS.has(u.origin)) throw new Error(`origin not allowed: ${u.origin}`);
+  const gl = isGitLabAuth(auth) ? auth : null;
+  if (!sameOrigin && !ALLOWED_ORIGINS.has(u.origin) && !(gl && underPrefix(u, gitlabPrefix(gl)))) {
+    throw new Error(`origin not allowed: ${u.origin}${gl ? ` (this product's API is ${gitlabPrefix(gl)})` : ""}`);
+  }
   if ((init.method || "GET").toUpperCase() !== "GET") throw new Error("only GET is allowed");
   const h = { ...(init.headers || {}) };
-  if (Object.keys(h).some((k) => /^authorization$/i.test(k))) throw new Error("no caller-set authorization header");
+  if (Object.keys(h).some((k) => /^(authorization|private-token)$/i.test(k))) throw new Error("no caller-set authorization header");
   if (init.credentials === "include") throw new Error("the dashboard sends no browser credential");
+  const token = gl ? gl.token : typeof auth === "string" ? auth : null;
   if (token) {
     if (u.href.includes(token)) throw new Error("A credential is never placed in a URL");
-    if (!TOKEN_DESTINATIONS.includes(u.origin)) throw new Error(`the token may only go to ${TOKEN_DESTINATIONS.join(", ")}`);
-    Object.assign(h, authHeaders(u.href, token));
+    const a = authHeaders(u.href, auth);
+    if (!Object.keys(a).length) {
+      throw new Error(gl ? `the GitLab project token may only go to ${gitlabPrefix(gl)}` : `the token may only go to ${TOKEN_DESTINATIONS.join(", ")}`);
+    }
+    Object.assign(h, a);
   }
   const r = await fetch(u, { method: "GET", headers: h, credentials: "omit", cache: "no-store" });
   if (!r.ok) throw Object.assign(new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`), { status: r.status });
   return r.text();
 }
 
-export function authHeaders(url, token) {
-  if (!token) return {};
-  return TOKEN_DESTINATIONS.includes(new URL(url).origin) ? { Authorization: `Bearer ${token}` } : {};
+// The authorisation header for one request, or none. A GitHub token (string) for GitHub's API only; a GitLab
+// auth only for its own project's API on its own server.
+export function authHeaders(url, auth) {
+  if (!auth) return {};
+  const u = new URL(url);
+  if (isGitLabAuth(auth)) return auth.token && underPrefix(u, gitlabPrefix(auth)) ? { "PRIVATE-TOKEN": auth.token } : {};
+  if (typeof auth !== "string") return {};
+  return TOKEN_DESTINATIONS.includes(u.origin) ? { Authorization: `Bearer ${auth}` } : {};
 }
 
 // ---------------------------------------------------------------- instance and products (SPEC §10)
@@ -42,36 +67,52 @@ export function authHeaders(url, token) {
 const REPO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/;
 export const UPSTREAM = "akmaier/agent-m";
 
+// The product is chosen with ?repo=owner/name (GitHub) or ?product=<address> (GitHub or GitLab). A GitLab
+// product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read from GitLab).
 export function deriveTarget({ hostname, pathname, search }) {
   const owner = hostname.endsWith(".github.io") ? hostname.split(".")[0] : null;
   const name = pathname.split("/").filter(Boolean)[0];
   const instance = owner && name ? `${owner}/${name}` : UPSTREAM;
   const q = new URLSearchParams(search || "");
-  const wanted = q.get("repo");
+  const refOk = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..");
+  const ref = refOk ? q.get("ref") : "main";
+  const chosen = q.get("product") ? parseProductAddress(q.get("product")) : null;
+  if (chosen && !chosen.error && chosen.kind === "gitlab") return { instance, repo: chosen.repo, ref, product: chosen, refGiven: Boolean(refOk) };
+  const wanted = chosen && !chosen.error ? chosen.repo : q.get("repo");
   const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
-  const ref = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..") ? q.get("ref") : "main";
   return { instance, repo, ref };
 }
 
 // A PRODUCT IS NAMED BY ITS ADDRESS: the web address of its repository, as copied from the browser.
-// -> { address, host, repo } for a github.com repository, or { error }. GitLab addresses are
-// recognised but not yet supported by this dashboard.
+// -> { address, host, repo } for a github.com repository; { address, host, repo, server, kind: "gitlab" } for a
+// project on any other server, which is taken for a GitLab server (GITLAB PRODUCTS ARE SUPPORTED) — the check in
+// UC-001 step B confirms that it answers as one. GitLab projects sit in nested groups: `repo` is the whole path
+// up to GitLab's `/-/` separator. { error } for anything else.
+const GITLAB_SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
+
 export function parseProductAddress(input) {
   const s = String(input ?? "").trim();
   let u;
   try { u = new URL(s); } catch { return { error: "Paste the repository's address, e.g. https://github.com/owner/name." }; }
   if (u.protocol !== "https:") return { error: "The address must use https." };
+  if (u.username || u.password) return { error: "The address must not contain a user name or token (A CREDENTIAL IS NEVER PLACED IN A URL)." };
   const parts = u.pathname.split("/").filter(Boolean);
-  if (u.hostname !== "github.com") {
-    return { error: /gitlab|gitos/i.test(u.hostname) || parts.length >= 2
-      ? `${u.hostname} looks like a GitLab server — GitLab products cannot be added on this dashboard yet.`
-      : `${u.hostname} is not a repository host this dashboard supports.` };
+  if (u.hostname === "github.com") {
+    if (parts.length < 2) return { error: "The address names an owner and a repository: https://github.com/owner/name." };
+    const repo = `${parts[0]}/${parts[1].replace(/\.git$/, "")}`;
+    if (!REPO_RE.test(repo) || repo.includes("..")) return { error: `not a repository: ${repo}` };
+    return { address: `https://github.com/${repo}`, host: "github.com", repo };
   }
-  if (parts.length < 2) return { error: "The address names an owner and a repository: https://github.com/owner/name." };
-  const repo = `${parts[0]}/${parts[1].replace(/\.git$/, "")}`;
-  if (!REPO_RE.test(repo) || repo.includes("..")) return { error: `not a repository: ${repo}` };
-  return { address: `https://github.com/${repo}`, host: "github.com", repo };
+  const dash = parts.indexOf("-");
+  const path = dash >= 0 ? parts.slice(0, dash) : parts;
+  if (path.length) path[path.length - 1] = path[path.length - 1].replace(/\.git$/, "");
+  if (path.length < 2) return { error: `The address names a group and a project on ${u.host}, like ${u.origin}/group/project.` };
+  if (!path.every((x) => GITLAB_SEGMENT.test(x) && !x.includes(".."))) return { error: `not a GitLab project path: ${path.join("/")}` };
+  const repo = path.join("/");
+  return { address: `${u.origin}/${repo}`, host: u.host, repo, server: u.origin, kind: "gitlab" };
 }
+
+export const isGitLab = (p) => p?.kind === "gitlab";
 
 // ---------------------------------------------------------------- settings texts (SPEC §7)
 
@@ -173,6 +214,11 @@ export function editUrl(repo, ref, path) {
 
 export function blobUrl(repo, ref, path) {
   return `https://github.com/${repo}/blob/${encPath(ref)}/${encPath(path)}`;
+}
+
+// A file on the web page of its product's server (navigation only).
+export function webFileUrl(product, ref, path) {
+  return isGitLab(product) ? `${product.address}/-/blob/${encPath(ref)}/${encPath(path)}` : blobUrl(product.repo, ref, path);
 }
 
 // ---------------------------------------------------------------- SPEC sections (as spec_dashboard.py)
@@ -311,6 +357,47 @@ export function extendTokenSteps(instance, product) {
   ];
 }
 
+// UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: one token for this one project, role Developer, scope
+// api. The page and the fields as GitLab documents them (doc/user/project/settings/project_access_tokens.md,
+// "Create a project access token"; route /-/settings/access_tokens in config/routes/project.rb).
+export const gitlabTokenPageUrl = (product) => `${product.address}/-/settings/access_tokens`;
+
+export function gitlabTokenSteps(product) {
+  return [
+    `The button opens Settings → Access tokens of ${product.repo} on ${product.host}; there, press “Add new token”.`,
+    "Token name: Agent M.",
+    `Expiration date: a date of your choice — ${TOKEN_DAYS} days from today is a good default. Enter the same date below.`,
+    "Select a role: Developer. Select scopes: api — nothing else.",
+    "Press “Create project access token” and copy the token GitLab now shows — it starts with glpat- and is shown only once.",
+  ];
+}
+
+// UC-001 3d: the server offers no project access tokens, or the person is not Maintainer — and why a personal
+// token is broader. GitLab: "On GitLab.com, project access tokens require a Premium or Ultimate subscription …
+// On GitLab Self-Managed … available with any license"; prerequisite "The Maintainer or Owner role for the project".
+export function gitlabNoProjectTokens(product) {
+  const where = product.host === "gitlab.com"
+    ? "On gitlab.com, project access tokens need a Premium or Ultimate subscription: a project on the Free tier offers none " +
+      "(the Access tokens page says so, or has no “Add new token”)."
+    : `${product.host} is a self-managed GitLab: it offers project access tokens with any licence, unless its administrators or ` +
+      "the project's group have switched their creation off.";
+  return `${where} To create one you need the Maintainer or Owner role in the project — if Settings → Access tokens is not ` +
+    "in your sidebar, you do not have it: ask a Maintainer to create the token for you, or to give you the role. " +
+    `A personal access token would also work here, but it is broader: with scope api it reaches every project you can reach on ` +
+    `${product.host}, not only this one (A TOKEN IS SCOPED TO WHAT IT WRITES). You decide. Either way, Agent M stores it for ` +
+    "this product only and sends it only to this project's API.";
+}
+
+// A write refused with 403: a Developer cannot push to a protected branch, and GitLab protects the default branch
+// against Developers by default ("Fully protected - Default value. Developers cannot push new commits, but
+// maintainers can." — doc/user/project/repository/branches/default.md).
+export function gitlabWriteRefusal(e, product) {
+  if (e?.status !== 403) return null;
+  return `GitLab refused the write (403). A project token with role Developer cannot push to a protected branch, and GitLab ` +
+    `protects the default branch against Developers unless the project allows it: on ${product.address}, Settings → Repository → ` +
+    "Protected branches → “Allowed to push and merge”. Check that setting, and that the token has role Developer and scope api.";
+}
+
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 // EVERY STEP EXPLAINS ITSELF: the only way to render a step, and it refuses one without explanation.
@@ -367,6 +454,133 @@ export async function commitFiles({ repo, branch, files, message, token, click }
   const commit = await call("POST", "/git/commits", { message, tree: tree.sha, parents: [head] });
   await call("PATCH", `/git/refs/heads/${ref}`, { sha: commit.sha, force: false });
   return { sha: commit.sha, url: commit.html_url || `https://github.com/${repo}/commit/${commit.sha}` };
+}
+
+// ---------------------------------------------------------------- GitLab products (SPEC §10, queue 2026-09-24b)
+//
+// GITLAB PRODUCTS ARE SUPPORTED: a GitLab product is read and written through the REST API v4 of the server
+// in its address. Reading pins one commit, as on GitHub: the branch is resolved to a commit once, and the tree
+// and every file are read at that commit.
+
+export function gitlabAuth(product, token = null) {
+  if (!isGitLab(product)) throw new Error("not a GitLab product");
+  return { gitlab: product.server, project: product.repo, token: token || null };
+}
+
+export const gitlabApiBase = (product) => `${product.server}/api/v4/projects/${encodeURIComponent(product.repo)}`;
+
+export async function gitlabProject({ product, token = null }) {
+  return JSON.parse(await fetchText(gitlabApiBase(product), {}, gitlabAuth(product, token)));
+}
+
+const GITLAB_PAGE = 100;
+
+// -> { commit, tree: [{ path, sha }] } — the blobs of `ref` resolved to one commit, every page of the tree.
+export async function gitlabSnapshot({ product, ref, token = null }) {
+  const auth = gitlabAuth(product, token), api = gitlabApiBase(product);
+  const commit = JSON.parse(await fetchText(`${api}/repository/commits/${encodeURIComponent(ref)}`, {}, auth)).id;
+  const tree = [];
+  for (let page = 1; page <= 1000; page++) {
+    const items = JSON.parse(await fetchText(`${api}/repository/tree?ref=${encodeURIComponent(commit)}&recursive=true` +
+      `&per_page=${GITLAB_PAGE}&page=${page}`, {}, auth));
+    tree.push(...items.filter((e) => e.type === "blob").map((e) => ({ path: e.path, sha: e.id })));
+    if (items.length < GITLAB_PAGE) break;
+  }
+  return { commit, tree };
+}
+
+// A file's exact text at a commit, or null if it does not exist there.
+export async function gitlabReadFile({ product, commit, path, token = null }) {
+  try {
+    return await fetchText(`${gitlabApiBase(product)}/repository/files/${encodeURIComponent(path)}/raw?ref=${encodeURIComponent(commit)}`,
+      {}, gitlabAuth(product, token));
+  } catch (e) {
+    if (e.status === 404) return null;
+    throw e;
+  }
+}
+
+// ONE commit on a GitLab product, made with the person's project token on the person's click, through
+// POST /projects/:id/repository/commits with one action per file.
+//
+// GitLab offers no "write only if the branch is still at the commit I read" for an existing branch (on GitHub:
+// the fast-forward-only ref update in commitFiles): `start_sha` on an existing branch is refused unless `force`
+// is set, and `force` would discard every commit made meanwhile (app/services/commits/create_service.rb
+// validate_branch_existence!; doc/api/commits.md). What is done instead:
+//   1. the head of the branch is read, and `files(head)` computes the files from that commit — every check the
+//      caller makes (a STALE APPROVAL, a changed text) is made on it;
+//   2. each file that exists there is written with `update` and `last_commit_id: head` — GitLab refuses the whole
+//      commit if that file has changed on the branch since then (Files::MultiService#validate_file_status!);
+//      each file that does not exist is written with `create` — GitLab refuses it if the file exists by then;
+//   3. the branch is read again just before the commit; if it moved, nothing is written;
+//   4. GitLab's answer names the commit it was written on; if that is not the head read in 1, the files changed
+//      by the commits in between are returned (`changedMeanwhile`) so that the caller can name the ones it read.
+// What remains: a file that is only READ (a use case being accepted, a proposal) and changed by a commit that
+// lands between step 3 and GitLab's own write is not refused — step 4 reports it after the fact.
+export async function commitFilesGitLab({ product, branch, files, message, token, click }) {
+  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
+  if (!token) throw new Error("A GitLab product is written with its project token — store it first.");
+  if (!isGitLab(product)) throw new Error("not a GitLab product");
+  if (typeof files !== "function" && !files.length) throw new Error("nothing to write");
+  const auth = gitlabAuth(product, token), api = gitlabApiBase(product);
+  const branchHead = async () => JSON.parse(await fetchText(`${api}/repository/branches/${encodeURIComponent(branch)}`, {}, auth)).commit.id;
+  const head = await branchHead();
+  if (typeof files === "function") files = await files(head);
+  if (!files.length) throw new Error("nothing to write");
+  const actions = [];
+  for (const f of files) {
+    let meta = null;
+    try {
+      meta = JSON.parse(await fetchText(`${api}/repository/files/${encodeURIComponent(f.path)}?ref=${encodeURIComponent(head)}`, {}, auth));
+    } catch (e) { if (e.status !== 404) throw e; }
+    if (f.expectBlob && (meta?.blob_id ?? null) !== f.expectBlob) {
+      throw new Error(`${f.path} changed since you opened it — reload and look at the new text first`);
+    }
+    actions.push(meta ? { action: "update", file_path: f.path, content: f.content, encoding: "text", last_commit_id: head }
+      : { action: "create", file_path: f.path, content: f.content, encoding: "text" });
+  }
+  if (await branchHead() !== head) throw new Error(`${branch} moved on while this commit was prepared — nothing was written; reload and look again`);
+  if (typeof message === "function") message = message();
+  const url = `${api}/repository/commits`;
+  const headers = { ...authHeaders(url, auth), "Content-Type": "application/json" };
+  const r = await fetch(url, { method: "POST", credentials: "omit", cache: "no-store", headers,
+    body: JSON.stringify({ branch, commit_message: message, actions }) });
+  const text = await r.text();
+  if (!r.ok) {
+    let msg = text;
+    try { const j = JSON.parse(text); msg = j.message ?? j.error ?? text; } catch { /* keep raw */ }
+    if (typeof msg !== "string") msg = JSON.stringify(msg);
+    throw Object.assign(new Error(`POST ${new URL(url).pathname}: ${r.status} ${msg}`), { status: r.status });
+  }
+  const c = JSON.parse(text);
+  const parent = c.parent_ids?.[0] ?? null;
+  let changedMeanwhile = [];
+  if (parent && parent !== head) {
+    const cmp = JSON.parse(await fetchText(`${api}/repository/compare?from=${encodeURIComponent(head)}&to=${encodeURIComponent(parent)}`, {}, auth));
+    changedMeanwhile = [...new Set((cmp.diffs || []).flatMap((d) => [d.old_path, d.new_path]).filter(Boolean))];
+  }
+  return { sha: c.id, url: c.web_url || `${product.address}/-/commit/${c.id}`, base: head, parent, changedMeanwhile };
+}
+
+// Every write of the dashboard: to GitHub (commitFiles) or to a GitLab product (commitFilesGitLab), which is
+// written only with its own project token (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
+export async function writeFiles(args) {
+  const product = args.product;
+  if (isGitLab(product)) {
+    if (!args.click || args.click.isTrusted !== true) throw new Error("a write needs a person's click");
+    if (!args.token) throw new Error("A GitLab product is written with its project token — store it first (Settings, or + Add product).");
+    if (/^(github_pat_|ghp_)/.test(args.token)) throw new Error("That is the GitHub token; a GitLab product is written with its own GitLab project token.");
+    return commitFilesGitLab(args);
+  }
+  return commitFiles({ ...args, repo: args.repo ?? product?.repo });
+}
+
+// How Accept and Save work for a product: a commit with a stored token; without one, GitHub's web interface
+// (WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK), or on GitLab the step that stores the project's
+// token — GitLab has no page that could be prefilled (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
+export function writeRoute(product, token) {
+  if (token) return "commit";
+  return isGitLab(product) ? "token-step" : "github-web";
 }
 
 // ---------------------------------------------------------------- accepting (UC-006 4–7, 4d, 5a · UC-008 3d)
@@ -508,19 +722,28 @@ export async function planAcceptance({ items, read, now = new Date() }) {
 
 // One click: check the order, then plan and commit on the same head. readAt(head, path) -> text | null.
 // -> { commit, accepted, leftOut }; commit is null when everything was left out (nothing written).
-export async function acceptItems({ repo, branch, token, click, items, readAt, now = new Date() }) {
+// product: a GitLab product (parseProductAddress) — the commit is then made there (writeFiles). If GitLab wrote the
+// commit on a newer head than the one checked, `warning` names the files this acceptance read that changed in between.
+export async function acceptItems({ repo, product = null, branch, token, click, items, readAt, now = new Date() }) {
   if (!items.length) throw new Error("nothing ticked");
   const gaps = missingNeeds(items);
   if (gaps.length) throw new Error(gaps.map((g) => g.message).join(" "));
   let plan = null;
+  const read = new Set();
   try {
-    const commit = await commitFiles({ repo, branch, token, click,
+    const commit = await writeFiles({ repo, product, branch, token, click,
       message: () => `accept ${plan.accepted.join(", ")} (Agent M dashboard)`,
       files: async (head) => {
-        plan = await planAcceptance({ items, read: (p) => readAt(head, p), now });
+        plan = await planAcceptance({ items, read: (p) => { read.add(p); return readAt(head, p); }, now });
         return plan.files;
       } });
-    return { commit, accepted: plan.accepted, leftOut: plan.leftOut };
+    const changed = (commit.changedMeanwhile || []).filter((p) => read.has(p));
+    const warning = changed.length
+      ? `GitLab wrote this commit on ${String(commit.parent).slice(0, 7)}, a newer state than the one checked (${String(commit.base).slice(0, 7)}): ` +
+        `a commit that arrived at the same moment changed ${changed.join(", ")}. The acceptance was checked on the older text — open ` +
+        "these files again and look whether it still covers them."
+      : null;
+    return { commit, accepted: plan.accepted, leftOut: plan.leftOut, warning };
   } catch (e) {
     if (plan && !plan.files.length) return { commit: null, accepted: [], leftOut: plan.leftOut };
     throw e;
@@ -546,10 +769,24 @@ export function missingLayout(existingPaths, product) {
 // branch, then add its address to the list in this browser. Nothing is written into the instance
 // repository (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY). A refused write adds nothing to the list.
 // store: the browser store of settings-store.mjs. -> { commit: { sha, url } | null, product }
+// For a GitLab product, `token` is its project token, and the product's server is the only one contacted.
 export async function addProduct({ address, token, click, store }) {
   if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
   const product = parseProductAddress(address);
   if (product.error) throw new Error(product.error);
+  if (isGitLab(product)) {
+    if (!token) throw new Error("A GitLab product is written with its project token — store it in Step B first.");
+    const info = await gitlabProject({ product, token });
+    if (!info.default_branch) throw new Error(`${product.address} has no branch yet — push a first commit to it, then add it here.`);
+    const snap = await gitlabSnapshot({ product, ref: info.default_branch, token });
+    const files = missingLayout(snap.tree.map((e) => e.path), product.repo);
+    const commit = files.length
+      ? await commitFilesGitLab({ product, branch: info.default_branch, token, click, files,
+        message: "Add the Agent M review layout (Agent M dashboard)" })
+      : null;
+    store.addProduct(product.address);
+    return { commit, product };
+  }
   const api = `https://api.github.com/repos/${product.repo}`;
   const info = JSON.parse(await fetchText(api, { headers: { Accept: "application/vnd.github+json" } }, token));
   const tree = JSON.parse(await fetchText(`${api}/git/trees/${encodeURIComponent(info.default_branch)}?recursive=1`, {}, token));
@@ -569,13 +806,25 @@ export async function addProduct({ address, token, click, store }) {
 // it as it is, so tests/test_settings_page.py checks what the person sees.
 
 const K_TOKEN = "agent-m.github-token", K_EXPIRES = "agent-m.github-token-expires", K_PRODUCTS = "agent-m.products";
+const K_GITLAB = "agent-m.gitlab-tokens";
 
 export const BROWSER_SETTINGS = [
   { key: K_TOKEN, label: "GitHub token", secret: true,
     grants: "writes — commits, issues and workflow runs — to every repository it was given, under your account" },
   { key: K_EXPIRES, label: "GitHub token expiry date", secret: false, partOf: K_TOKEN },
   { key: K_PRODUCTS, label: "Products", secret: false },
+  { key: K_GITLAB, label: "GitLab project tokens", secret: true,
+    grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
 ];
+
+// The GitLab project tokens of a raw store value: { address: { token, expires } }; anything malformed is left out.
+function gitlabTokenMap(raw) {
+  let m;
+  try { m = JSON.parse(raw || "{}"); } catch { return {}; }
+  if (!m || typeof m !== "object" || Array.isArray(m)) return {};
+  return Object.fromEntries(Object.entries(m).filter(([, v]) => v && typeof v.token === "string" && v.token)
+    .map(([a, v]) => [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null }]));
+}
 const settingLabel = (k) => BROWSER_SETTINGS.find((s) => s.key === k)?.label ?? k;
 
 export const EXPIRY_WARN_DAYS = 14;
@@ -596,28 +845,44 @@ function daysUntil(date, now) {
 export const RENEW_TEXT = "On GitHub's list of your tokens, open this one and press “Regenerate token”: the new value keeps the " +
   "token's permissions and repositories. Then paste it under Settings → GitHub token → Change.";
 
-// A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE: from fourteen days before the date recorded with the token.
-export function expiryWarning(expires, now = new Date()) {
-  const days = daysUntil(expires, now);
-  if (days === null || days > EXPIRY_WARN_DAYS) return null;
-  const expired = days < 0;
-  return { days, expired, renewUrl: tokenListUrl(), renew: RENEW_TEXT,
-    text: expired ? `Your GitHub token expired on ${expires}.`
-      : `Your GitHub token expires on ${expires} (${days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`}).` };
+// A GitLab project token is renewed on its project's Access tokens page: "Rotate a token to create a new token with
+// the same permissions and scope as the original" (doc/user/project/settings/project_access_tokens.md).
+export const GITLAB_RENEW_TEXT = "On the project's Access tokens page, press “Rotate” next to the token Agent M: the new value keeps " +
+  "its role and scope. Then paste it, with the expiry date GitLab shows, under Settings → GitLab project tokens → Change.";
+
+// Which token, and where it is renewed: the GitHub token, or the GitLab project token of a GitLab product.
+function tokenIdentity(product) {
+  return isGitLab(product)
+    ? { token: `GitLab project token for ${product.address}`, renewUrl: gitlabTokenPageUrl(product), renew: GITLAB_RENEW_TEXT, server: product.host }
+    : { token: "GitHub token", renewUrl: tokenListUrl(), renew: RENEW_TEXT, server: "GitHub" };
 }
 
-// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: GitHub answers 401 to a token it no longer accepts
-// (expired, regenerated or deleted). 403 and 404 are a missing permission or repository, not this.
-export function tokenRefusal(e) {
+// A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE: from fourteen days before the date recorded with the token.
+export function expiryWarning(expires, now = new Date(), product = null) {
+  const days = daysUntil(expires, now);
+  if (days === null || days > EXPIRY_WARN_DAYS) return null;
+  const expired = days < 0, id = tokenIdentity(product);
+  return { days, expired, renewUrl: id.renewUrl, renew: id.renew,
+    text: expired ? `Your ${id.token} expired on ${expires}.`
+      : `Your ${id.token} expires on ${expires} (${days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`}).` };
+}
+
+// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: GitHub and GitLab answer 401 to a token they no longer accept
+// (expired, regenerated, rotated, revoked or deleted). 403 and 404 are a missing permission or repository, not this.
+// product: the GitLab product whose token was used; none for the GitHub token.
+export function tokenRefusal(e, product = null) {
   const status = e?.status ?? Number((/(?:^|: )(\d{3})\b/.exec(e?.message || "") || [])[1]);
   if (status !== 401) return null;
-  return { token: "GitHub token", renewUrl: tokenListUrl(), renew: RENEW_TEXT,
-    text: "GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub." };
+  const id = tokenIdentity(product);
+  return { token: id.token, renewUrl: id.renewUrl, renew: id.renew,
+    text: isGitLab(product)
+      ? `${id.server} refused your ${id.token} — it has expired, or was rotated or revoked on GitLab.`
+      : "GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub." };
 }
 
 // The line shown at the top of every view while the token is refused or expires within fourteen days.
-export function tokenBannerHtml({ expires, refused = false, now = new Date() }) {
-  const r = refused ? tokenRefusal({ status: 401 }) : expiryWarning(expires, now);
+export function tokenBannerHtml({ expires, refused = false, now = new Date(), product = null }) {
+  const r = refused ? tokenRefusal({ status: 401 }, product) : expiryWarning(expires, now, product);
   if (!r) return "";
   return `<section class="panel notice token-banner"><p><strong>${esc(r.text)}</strong>
     <a class="btn small" href="${esc(r.renewUrl)}" target="_blank" rel="noopener">Renew ↗</a></p>
@@ -630,9 +895,9 @@ export function secretFieldHtml({ key, value, shown = false, label }) {
       autocomplete="off" spellcheck="false"> <button class="btn small" data-show="${esc(key)}">${shown ? "Hide" : "Show"}</button>`;
 }
 
-function tokenStateLine(token, expires, tokenState, now) {
+function tokenStateLine(token, expires, tokenState, now, server = "GitHub") {
   if (!token) return "— not set";
-  if (tokenState?.refused) return "✗ refused — GitHub did not accept it at the last use";
+  if (tokenState?.refused) return `✗ refused — ${esc(server)} did not accept it at the last use`;
   const w = expiryWarning(expires, now);
   if (w) return `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(expires)}`;
   if (tokenState?.ok) return `✓ works — tested ${esc(tokenState.ok)}`;
@@ -672,9 +937,46 @@ export function browserSettingsHtml({ entries = {}, shown = [], tokenState = nul
     <p class="result muted" data-result="${K_PRODUCTS}"></p>
     <details class="explain"><summary>What is this?</summary><div>The addresses of the products this dashboard manages, kept
       in this browser only — the instance repository names none. <em>Test</em> checks that your token reaches each;
-      <em>Remove</em> and <em>Clear</em> take them off this browser's list and change nothing in their repositories.</div></details>
+      <em>Remove</em> and <em>Clear</em> take them off this browser's list and change nothing in their repositories. A GitLab
+      product's project token goes with it.</div></details>
   </div><!--/setting-->`;
-  return tokenRow + productRow;
+  // A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: one line per token, hidden with Show, Test, Change, Clear, and the
+  // project's Access tokens page, where it is renewed (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED).
+  const gl = gitlabTokenMap(entries[K_GITLAB]);
+  const lines = Object.entries(gl).map(([a, t]) => {
+    const p = parseProductAddress(a), ok = !p.error && isGitLab(p), showKey = `${K_GITLAB} ${a}`;
+    const st = tokenState?.gitlab?.[a];
+    const w = ok ? expiryWarning(t.expires, now, p) : null;
+    const state = st?.refused ? `✗ refused — ${esc(ok ? p.host : "the server")} did not accept it at the last use`
+      : w ? `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(t.expires)}` : st?.ok ? `✓ works — tested ${esc(st.ok)}` : "stored — not tested on this page yet";
+    return `<div class="gitlab-token">
+      <p><strong>${esc(a)}</strong> — <span class="state">${state}</span></p>
+      <p>${secretFieldHtml({ key: showKey, value: t.token, shown: shown.includes(showKey), label: `Stored GitLab project token for ${a}` })}</p>
+      <p>Expires on: <strong>${t.expires ? esc(t.expires) : "—"}</strong></p>
+      <p><button class="btn" data-test-gitlab="${esc(a)}">Test</button>
+        <button class="btn" data-change-gitlab="${esc(a)}">Change</button>
+        <button class="btn" data-clear-gitlab="${esc(a)}">Clear</button>
+        ${ok ? `<a class="btn small" href="${esc(gitlabTokenPageUrl(p))}" target="_blank" rel="noopener">Access tokens page ↗</a>` : ""}</p>
+      <div class="gitlab-change" data-change-form="${esc(a)}"></div>
+      <p class="result muted" data-result-gitlab="${esc(a)}"></p>
+    </div>`;
+  }).join("");
+  const n = Object.keys(gl).length;
+  const gitlabRow = `<div class="setting" data-setting-row="gitlab-tokens">
+    <h4 data-setting-key="${K_GITLAB}">GitLab project tokens</h4>
+    <p class="state">${n ? `${n} in this browser — one per GitLab product` : "— not set"}</p>
+    ${lines}
+    <p><button class="btn" data-test="${K_GITLAB}" ${n ? "" : "disabled"}>Test all</button>
+      <button class="btn" data-clear="${K_GITLAB}" ${n ? "" : "disabled"}>Clear all</button></p>
+    <p class="result muted" data-result="${K_GITLAB}"></p>
+    <details class="explain"><summary>What is this?</summary><div>Each GitLab product has its own project access token, created on
+      that project's Settings → Access tokens page with role Developer and scope api (<em>+ Add product</em> guides you). Kept in this
+      browser's <code>localStorage</code> under the product's address and sent only to that project's API on its own server, as a
+      header — never to GitHub, another GitLab or the model endpoint. <em>Test</em> reads the project with it; <em>Clear</em> removes it
+      from this browser — the product can then still be read if it is public, but not accepted in or edited. A token is renewed by
+      <em>Rotate</em> on the project's Access tokens page.</div></details>
+  </div><!--/setting-->`;
+  return tokenRow + productRow + gitlabRow;
 }
 
 // ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
@@ -744,6 +1046,17 @@ export function mergeSettings(current, incoming) {
   for (const [k, v] of Object.entries(incoming)) {
     if (!known.has(k)) { ignored.push(k); continue; }
     if (k === K_EXPIRES) continue; // follows its token, below
+    if (k === K_GITLAB) {
+      const have = gitlabTokenMap(current[k]), inc = gitlabTokenMap(v), out = { ...have };
+      for (const [a, t] of Object.entries(inc)) {
+        const name = `GitLab project token for ${a}`;
+        if (have[a]) { kept.push(name); continue; }
+        out[a] = t;
+        added.push(name);
+      }
+      if (Object.keys(out).length > Object.keys(have).length) put[k] = JSON.stringify(out);
+      continue;
+    }
     if (k === K_PRODUCTS) {
       const have = list(current[k]), fresh = list(v).filter((a) => !have.includes(a));
       kept.push(...list(v).filter((a) => have.includes(a)).map((a) => `product ${a}`));
@@ -795,11 +1108,11 @@ export function setProductSetting(text, name, value, product) {
 }
 
 // SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS — shown before the switch can be saved.
-export function pseudonymisationOffNotice({ repo, isPublic }) {
+export function pseudonymisationOffNotice({ repo, isPublic, server = "GitHub" }) {
   return `With pseudonymisation off, report data from mails — the names, addresses and other details of the people ` +
     `who write — enters the issues and the repository of ${repo} unchanged. This is advisable only on a protected, ` +
     `non-public data space. Issue texts themselves stay neutral either way.` +
-    (isPublic ? ` GitHub reports ${repo} as public: the data will be published — anyone on the internet can read it.` : "");
+    (isPublic ? ` ${server} reports ${repo} as public: the data will be published — anyone on the internet can read it.` : "");
 }
 
 export const PSEUDONYMISATION_ON_NOTE = "Data written while pseudonymisation was off stays in the repository's history; removing it " +
@@ -807,10 +1120,10 @@ export const PSEUDONYMISATION_ON_NOTE = "Data written while pseudonymisation was
 
 // One click commits docs/settings.md to the product (A PERSON'S OWN INPUT IS COMMITTED DIRECTLY); switching
 // off needs the tick under the notice. current/currentBlob: the file as shown (null if absent).
-export async function savePseudonymisation({ repo, branch, token, click, current, currentBlob, off, acknowledged }) {
+export async function savePseudonymisation({ repo, product = null, branch, token, click, current, currentBlob, off, acknowledged }) {
   if (off && acknowledged !== true) throw new Error("Tick “I have read this” under the notice first.");
-  return commitFiles({ repo, branch, token, click, message: `settings: pseudonymisation ${off ? "off" : "on"} (Agent M dashboard)`,
-    files: [{ path: PRODUCT_SETTINGS_PATH, content: setProductSetting(current, "pseudonymisation", off ? "off" : null, repo),
+  return writeFiles({ repo, product, branch, token, click, message: `settings: pseudonymisation ${off ? "off" : "on"} (Agent M dashboard)`,
+    files: [{ path: PRODUCT_SETTINGS_PATH, content: setProductSetting(current, "pseudonymisation", off ? "off" : null, repo ?? product?.repo),
       expectBlob: currentBlob || null }] });
 }
 
@@ -845,7 +1158,7 @@ export function addCollaborator(list, { name, account, agreed, consent }) {
 
 export const removeCollaborator = (list, account) => list.filter((c) => c.account !== account);
 
-export async function saveCollaborators({ repo, branch, token, click, list, currentBlob }) {
-  return commitFiles({ repo, branch, token, click, message: "collaborators: update (Agent M dashboard)",
-    files: [{ path: COLLABORATORS_PATH, content: formatCollaborators(list, repo), expectBlob: currentBlob || null }] });
+export async function saveCollaborators({ repo, product = null, branch, token, click, list, currentBlob }) {
+  return writeFiles({ repo, product, branch, token, click, message: "collaborators: update (Agent M dashboard)",
+    files: [{ path: COLLABORATORS_PATH, content: formatCollaborators(list, repo ?? product?.repo), expectBlob: currentBlob || null }] });
 }

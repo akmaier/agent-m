@@ -14,12 +14,18 @@
 // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE: the date the person entered is kept beside the token.
 // SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS: entries() and putEntries() carry exactly
 // these keys, and nothing else, to and from an export file.
+//
+// SPEC §7 A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: each GitLab product has its own token, kept under
+// its product's address in one JSON map { address: { token, expires } }. A token is looked up only by the
+// address of the product it was stored for; review-core.mjs sends it only to that project's API
+// (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT). Removing the product removes its token.
 
 export const PREFIX = "agent-m.";
 export const TOKEN_KEY = PREFIX + "github-token";
 export const TOKEN_EXPIRY_KEY = PREFIX + "github-token-expires";
 export const PRODUCTS_KEY = PREFIX + "products";
-export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY];
+export const GITLAB_TOKENS_KEY = PREFIX + "gitlab-tokens";
+export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY];
 
 export function createStore(storage) {
   const safe = (f, fallback) => { try { return f(); } catch { return fallback; } };
@@ -46,8 +52,33 @@ export function createStore(storage) {
     },
     removeProduct(address) {
       storage.setItem(PRODUCTS_KEY, JSON.stringify(this.getProducts().filter((a) => a !== address)));
+      this.clearGitLabToken(address);
     },
-    clearProducts() { storage.removeItem(PRODUCTS_KEY); },
+    clearProducts() {
+      storage.removeItem(PRODUCTS_KEY);
+      storage.removeItem(GITLAB_TOKENS_KEY);
+    },
+    // { address: { token, expires } } — every GitLab project token of this browser.
+    gitLabTokens() {
+      const map = safe(() => JSON.parse(storage.getItem(GITLAB_TOKENS_KEY) || "{}"), {});
+      if (!map || typeof map !== "object" || Array.isArray(map)) return {};
+      return Object.fromEntries(Object.entries(map).filter(([, v]) => v && typeof v.token === "string" && v.token)
+        .map(([a, v]) => [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null }]));
+    },
+    getGitLabToken(address) { return this.gitLabTokens()[address] || null; },
+    // A new token comes with its own expiry date, or none (as setToken).
+    setGitLabToken(address, token, expires = null) {
+      const map = this.gitLabTokens();
+      map[address] = { token: String(token).trim(), expires: expires ? String(expires) : null };
+      storage.setItem(GITLAB_TOKENS_KEY, JSON.stringify(map));
+    },
+    clearGitLabToken(address) {
+      const map = this.gitLabTokens();
+      if (!(address in map)) return;
+      delete map[address];
+      if (Object.keys(map).length) storage.setItem(GITLAB_TOKENS_KEY, JSON.stringify(map));
+      else storage.removeItem(GITLAB_TOKENS_KEY);
+    },
     // Every stored setting as { key: raw value } — what an export holds.
     entries() {
       const out = {};
