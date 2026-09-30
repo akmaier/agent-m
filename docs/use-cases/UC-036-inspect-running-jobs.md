@@ -48,6 +48,7 @@ agents run on their own, and a person watches the whole and can step in.
 | **done** | finished; its result is linked |
 | **failed** | ended with an error; the reason and log are linked |
 | **cancelled** | stopped by a person; wrote nothing afterwards |
+| **ended without record** | started, but no end record exists and no runtime knows the job — the tab was closed, the bridge restarted (1c) |
 
 ## Actors
 
@@ -136,7 +137,7 @@ sequenceDiagram
   note that its live state and log exist only in that tab; the folded explanation recommends a CI or
   bridge route for long jobs.
 - **1c. A job has a start record but no end record, and no runtime knows it** — the tab was closed, the
-  bridge restarted. It is shown as *ended without record*; **Retry** is offered as for a failed job.
+  bridge restarted. It is shown in the state *ended without record*; **Retry** is offered as for a failed job.
 - **4a. The runtime keeps no log for this job any more**, for example an expired Actions log. Agent M
   says so, and links the job's commits and pull request, which remain.
 - **4b. The runtime reports usage but the participant declares no price.** The cost shows the usage

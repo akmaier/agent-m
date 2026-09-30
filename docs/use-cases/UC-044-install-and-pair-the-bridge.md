@@ -58,8 +58,8 @@ double-clicking it, and copying one token. Nobody types a command.
 
 1. On the dashboard, the person opens **Settings → This computer → Get the Agent M Bridge**. The page
    explains the two levels with the table above, recognises the operating system, and offers the one file
-   for it, signed by the publisher of the release, with its size and checksum.
-2. The person downloads the file and double-clicks it. The system shows the publisher's name, not a
+   for it — on Windows an installer —, signed by the publisher of the release, with its size and checksum.
+2. The person downloads the file and double-clicks it; on Windows the installer puts the app in place first. The system shows the publisher's name, not a
    warning, because the file is signed (and, on macOS, notarised). The bridge starts; its icon appears in
    the menu bar or tray, and its window opens.
 3. **Agents.** The window lists the supported coding agents: for each installed one its version and *ready*;
