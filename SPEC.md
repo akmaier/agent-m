@@ -873,13 +873,15 @@ with prefilled permissions the page defaults to *All repositories* (measured 202
 broadest choice and the one `A TOKEN IS SCOPED TO WHAT IT WRITES` rules out.
 *Check:* `tests/test_token_scope_documented.py`
 
-**A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN** *(PO A. Maier, 2026-09-24)*
+**A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN** *(PO A. Maier, 2026-09-24, changed 2026-09-30)*
 For a product on a GitLab server, Agent M guides the person to create a project access token for
-that one project, with role *Developer* and scope `api`, and to paste it into Agent M.
+that one project, with role *Maintainer* and scope `api`, and to paste it into Agent M.
 *Occasion:* a GitLab personal access token with `api` scope reaches every project of its owner,
 which `A TOKEN IS SCOPED TO WHAT IT WRITES` rules out. A project access token reaches one project.
 It costs one token per GitLab product; where the server does not offer project access tokens, the
-person is told so, and why a personal token is broader.
+person is told so, and why a personal token is broader. PO, 2026-09-30: role *Maintainer*, because
+GitLab protects the default branch against pushes by Developers unless a project changes that
+setting, so a Developer token could write nothing on a project with default settings.
 *Check:* `tests/review-core.test.mjs`
 
 **ONE GITHUB TOKEN SERVES EVERY FEATURE** *(PO A. Maier, 2026-09-24)*
