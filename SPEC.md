@@ -588,6 +588,17 @@ Each participant that is not a person states where the data given to it is proce
 can only decide what may go there if the place is written down.
 *Check:* `tests/test_participants.py`
 
+**A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL** *(PO A. Maier, 2026-10-01)*
+Each participant that works with a language model — a model endpoint, a CI agent, a CLI agent or a
+sandboxed agent — names the model it uses.
+*Occasion:* PO, 2026-10-01, on the architecture's finding that "three different models" could be counted
+only for model endpoints: `A REWRITTEN TEXT IS CHECKED BY THREE LLMS` and `NO CHECKER IS THE REWRITER`
+compare models, so every participant that may check or rewrite must say which one it runs. An agent whose
+model changes with its own settings names the one it is configured for; the job record states the model
+that answered (`AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT`).
+*Check:* `tests/test_participants.py` — a CLI-agent entry without a model is rejected; counter-proof: the
+same entry naming its model is accepted, and a person needs none.
+
 **RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS** *(PO A. Maier, 2026-09-24)*
 Content of a source whose licence is restricted is given only to participants whose processing place
 the source's register entry permits.
@@ -951,6 +962,24 @@ renewed with the same permissions and repositories.
 *Occasion:* "401" teaches nothing. GitHub's *Regenerate token* keeps a fine-grained token's
 permissions and repository selection; only the new value has to be pasted.
 *Check:* `tests/review-core.test.mjs` — a refused request yields the token's name and the renewal link.
+
+**A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN** *(PO A. Maier, 2026-10-01)*
+When a repository server refuses a request because a rate limit is used up, the dashboard names that
+limit — the account's with a token, or the network's without one — and the time it resets where the
+server tells the page, and never reports the token as refused or lacking a permission.
+*Occasion:* PO, 2026-10-01: "The github token broke. I can't use agent m anymore" — the dashboard showed
+"Could not read akmaier/agent-m @ main: 403" with a hint about the 60 calls allowed without a token,
+while a token was stored. Measured the same night: the account's limit was used up — "your personal
+rate limit of 5,000 requests per hour", counted over every token of the account, the command line
+included (docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api, read 2026-10-01),
+here spent mostly by the session's agents polling CI. GitHub answers "a `403` or `429`" and exposes
+`X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` to pages; gitlab.com sends
+`RateLimit-*` headers but does not expose them (both measured 2026-10-01 with `Origin:
+https://akmaier.github.io`), so for GitLab the limit is named without its time. A person told "your token
+cannot write" renews a token that works.
+*Check:* `tests/review-core.test.mjs` — a `403` with `X-RateLimit-Remaining: 0` and `X-RateLimit-Limit:
+5000` yields the account's limit and its reset time, and no token message; counter-proof: a `403` without
+those headers is still reported as a missing permission.
 
 **A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY** *(PO A. Maier, 2026-09-28)*
 Settings that govern how a product is developed — its process model, Definition of Done, test
@@ -2565,12 +2594,13 @@ against the people of the mail at hand is deterministic, fast, and needs no list
 *Check:* `tests/test_mail_privacy.py` — an issue text containing the sender's name, or a name from the
 mail's signature, is refused and the hit named; counter-proof: the same text without the name passes.
 
-**A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL** *(PO A. Maier, 2026-09-28)*
-A job that writes to a repository is given the neutral issue and the report data rewritten without
-persons, never the text or attachments of a mail.
+**A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL** *(PO A. Maier, 2026-09-28, changed 2026-10-01)*
+A job that writes to a repository is given the neutral issue and the report data as the issue holds it —
+rewritten without persons unless the product switched that off —, never the text or attachments of a mail.
 *Occasion:* only the participant that proposes an issue (UC-038) or drafts a reply (UC-039) reads mails,
 and neither writes anywhere — a person decides. A coding agent that fixes the bug never needs to know
-who reported it.
+who reported it. PO, 2026-10-01: with the rewriting switched off (`PSEUDONYMISATION IS ON UNLESS A PRODUCT
+SWITCHES IT OFF`), the job gets the original report data the issue holds — never more than the issue.
 *Check:* `tests/test_mail_privacy.py` — the inputs of an implementation job started from a mail's issue
 contain no text of the mail.
 
@@ -2615,6 +2645,17 @@ MAILBOX ONLY REWRITTEN WITHOUT PERSONS`). The name is not reused.
 **THE SURROGATE MAPPING IS NEVER STORED** *(PO A. Maier, 2026-09-29 — withdrawn 2026-09-30)*
 *Withdrawn:* report data is rewritten without persons; there are no surrogates and no mapping (`REPORT DATA
 LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS`). The name is not reused.
+
+**NO CHECKER IS THE REWRITER** *(PO A. Maier, 2026-10-01)*
+None of the three participants that check a rewritten text is the participant that rewrote it or uses its
+model.
+*Occasion:* PO, 2026-10-01: a checker that wrote the text, or runs the same model, repeats the rewriter's
+blind spots — the reasoning of `A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`, applied to
+the three checks of `A REWRITTEN TEXT IS CHECKED BY THREE LLMS`. Models are compared by the name each
+participant declares (`A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL`).
+*Check:* `tests/test_mail_privacy.py` — a set of checkers that includes the rewriter, or a checker with the
+rewriter's model, is refused before anything is sent; counter-proof: three checkers with three other models
+are accepted.
 
 **PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF** *(PO A. Maier, 2026-09-28, changed 2026-09-30)*
 Rewriting report data without persons applies to every product whose settings do not switch it off.
