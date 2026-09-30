@@ -10,6 +10,7 @@ realises:
   - A PARTICIPANT HAS ONE OF FIVE TYPES
   - A PARTICIPANT DECLARES ITS CAPABILITIES
   - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
   - NO SECRET IN THE REPOSITORY
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
@@ -64,7 +65,11 @@ to roles (UC-002).
    - **CLI agent / sandboxed agent:** chosen from the agents the paired Agent M Bridge reports as installed
      (UC-044) — or, without the app, the bridge address (for a sandbox, the tunnel's local address)
      and which agent runs there; for a machine behind NAT, the remote session reached through the
-     jump host (UC-011, 1c).
+     jump host (UC-011, 1c) — and the **model** the agent is configured to use, for example
+     `claude-opus-5-5`.
+
+   Every participant that works with a language model names its model; Agent M compares these names when
+   it picks three checkers that differ from the rewriting participant (UC-038, step 6). A person names none.
 4. Agent M presets the capabilities typical for the type — draft text, read the repository, write to
    the repository, run code and tests, use tools, reach the web — and the author adjusts them.
 5. The author states where the participant processes data. Agent M presets it where it can tell
@@ -72,7 +77,7 @@ to roles (UC-002).
 6. For a CLI or sandboxed agent, the author presses **Test**; Agent M sends a harmless request through
    the bridge and shows what answered.
 7. The author presses **Save** — one click. Agent M commits the participant to
-   `docs/participants.md` of the instance: name, type, capabilities, processing place — no key.
+   `docs/participants.md` of the instance: name, type, model where it has one, capabilities, processing place — no key.
 
 ```mermaid
 sequenceDiagram
