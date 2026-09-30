@@ -35,8 +35,9 @@ Book ch. 10: layered architecture — "every layer is only dependent on the laye
 Four layers. A module belongs to exactly one.
 
 1. **Core** — pure functions and data: parsing artifacts, deriving status, traceability, groups,
-   process models, the run engine's next-job function, the correction loop's findings,
-   pseudonymisation, derivation classes, CI generation, release texts. No `fetch`, no DOM, no
+   process models, the run engine's next-job function, the correction loop's findings, the search
+   for a mail's people and the decision whether a text from a mail may be written, derivation
+   classes, CI generation, release texts. No `fetch`, no DOM, no
    storage, no clock or randomness except when passed in. Runs unchanged under `node --test`, in
    the browser, in a CI step and in the Deno bridge.
 2. **Host adapters** — the only code that talks to the outside: git hosts (ARC-004), model
@@ -77,7 +78,7 @@ flowchart TB
         TR["MOD-traceability"]
         RE["MOD-run-engine"]
         JH["MOD-job-harness"]
-        OTH["… groups, process model, derivation, pseudonymiser, CI generator"]
+        OTH["… groups, process model, derivation, pseudonymiser (people search, write gate), CI generator"]
     end
     APP --> GIT & PART & MAIL & BSRV & SS
     APP --> RC & SQ & TR & RE
@@ -109,4 +110,4 @@ flowchart TB
   Differences between the two runtimes' Web APIs are a measurement point: the core uses only
   `crypto.subtle`, `TextEncoder`, `URL` and `structuredClone`, which both provide.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 8b299337b2e61b80cb4a4415ff4e7c865d7a2dfe — SPEC queue 2026-09-30k as accepted: the core keeps the people search and the write gate, no surrogates; open until accepted.*
