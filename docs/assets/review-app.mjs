@@ -10,8 +10,8 @@ import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 import { browserStore } from "./settings-store.mjs";
 import {
-  fetchText, gitBlobSha, deriveTarget, parseProducts, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
-  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout, addProductText,
+  fetchText, gitBlobSha, deriveTarget, parseProductAddress, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, addProduct,
   tokenListUrl, extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, newFileUrl, editUrl, blobUrl, parseQueueIndex,
   parseDecisions, deriveUseCaseStatus, deriveSpecStatus, acceptItems, createReviewSession, sectionForEntry,
@@ -64,18 +64,10 @@ async function readAt(head, path) {
   }
 }
 
-async function loadProducts() {
-  try {
-    const text = token()
-      ? await fetchText(`${API}/repos/${T.instance}/contents/docs/products.md?ref=main`,
-        { headers: { Accept: "application/vnd.github.raw+json" } }, token())
-      : await fetchText(new URL("products.md", document.baseURI).href);
-    state.products = parseProducts(text);
-    state.productsText = text;
-  } catch {
-    state.products = [];
-    state.productsText = null;
-  }
+// THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER: the list is this browser's, by address; the instance
+// repository names no product. Another browser starts with an empty list.
+function loadProducts() {
+  state.products = store.getProducts().map(parseProductAddress).filter((p) => !p.error);
 }
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
@@ -578,7 +570,8 @@ a maintainer merges it.
 
 Reading: repository \`${T.repo}\`, branch \`${T.ref}\`, commit \`${(state.commit || "").slice(0, 12)}\`,
 ${token() ? "with the token stored in this browser" : "without a token"}. Instance: \`${T.instance}\`.
-Products are chosen in the selector at the top and listed in the instance's \`docs/products.md\`.
+Products are chosen in the selector at the top. Their list is kept in this browser only, by their
+addresses; the instance repository names no product.
 `)}</article>`;
 }
 
@@ -628,18 +621,23 @@ function viewSettings() {
   });
   document.getElementById("token-clear").addEventListener("click", () => {
     store.clear();
+    loadProducts();
+    renderProductSelector();
     viewSettings();
     document.getElementById("token-msg").textContent = token() ? "Clearing failed — token still stored." : "Nothing stored any more.";
   });
 }
 
 const EXPLAIN = {
-  repo: `A <em>repository</em> is the folder on GitHub that holds a project's files and their history. You name it as
-    <code>owner/name</code>, exactly as it appears in its address <code>github.com/owner/name</code>. The product's
-    requirements and use cases will live in that repository; this dashboard only shows them.`,
+  repo: `A <em>repository</em> is the folder on GitHub that holds a project's files and their history. Paste its
+    address as your browser shows it, <code>https://github.com/owner/name</code>. The product's requirements and use
+    cases will live in that repository; this dashboard only shows them.`,
   token: `A <em>token</em> is a key you create on GitHub and give to this page, so it can make commits for you — only in
-    the repositories you select, only with the one permission it needs, and only until the date you choose.
-    You can delete it on GitHub at any time; it then stops working immediately.<br><br>
+    the repositories you select, only with the permissions Agent M's features need, and only until the date you
+    choose. You can delete it on GitHub at any time; it then stops working immediately.<br><br>
+    <strong>Why these permissions?</strong> <em>Contents</em> (read and write) to save and accept — each is a commit;
+    <em>Issues</em> (read and write) for reports that become issues; <em>Actions</em> (read and write) to start a run;
+    <em>Metadata</em> (read), which GitHub requires for every token. One key covers all of them, so you create only one.<br><br>
     <strong>Why “Only select repositories”?</strong> GitHub preselects “All repositories”. That would let this page write
     to every repository you own. Choosing the two repositories named above limits it to what Agent M actually needs.`,
   store: `The token is saved in this browser only (its <code>localStorage</code>), never in a cookie, never in an
@@ -651,13 +649,15 @@ const EXPLAIN = {
   check: `Agent M reads the product repository with your key. For a private repository, success proves the key
     reaches it. A public repository can be read by anyone, so there the proof comes with the first write in Step C —
     if the key does not reach it yet, Step C says so and nothing is written.`,
-  add: `One click writes two commits under your account: into the product repository, the folders Agent M uses
+  add: `One click writes one commit under your account into the product repository: the folders Agent M uses
     (<code>docs/use-cases/</code>, <code>docs/approvals/</code>, <code>docs/spec-freigaben/</code>), an empty
-    <code>SPEC.md</code> and a <code>CHANGELOG.md</code> — only those that do not exist yet; and into this instance, one
-    line in <code>docs/products.md</code>. Both are ordinary commits you can see and revert on GitHub.`,
+    <code>SPEC.md</code> and a <code>CHANGELOG.md</code> — only those that do not exist yet. It is an ordinary commit you
+    can see and revert on GitHub; if nothing is missing, nothing is committed.<br><br>
+    <strong>Why the product list lives in this browser only:</strong> the product's address is kept in this browser's
+    storage, beside your key — nothing is written into your instance. So your fork never shows which products you
+    work on, and it can be synced with Agent M without conflict. Another browser starts with an empty list; add the
+    product there again. “Clear everything” in Settings removes the list with the key.`,
 };
-
-const REPO_INPUT = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
 
 async function checkReach(repo) {
   try {
@@ -732,19 +732,19 @@ async function viewAddProduct(preset = "") {
     <section class="head"><h2>Add a product</h2>
       <p class="muted">${token() ? "Your key exists already; it only needs to reach the new product." : "No key is stored in this browser yet — it is created first."}</p></section>
     <section class="panel">
-      <label>Product repository <input id="add-repo" value="${h(preset)}" placeholder="${h(owner)}/my-project" spellcheck="false" autocomplete="off"></label>
+      <label>Product repository address <input id="add-repo" value="${h(preset)}" placeholder="https://github.com/${h(owner)}/my-project" spellcheck="false" autocomplete="off"></label>
       <details class="explain"><summary>What is this?</summary><div>${EXPLAIN.repo}</div></details>
     </section>
     <div id="add-steps"></div>`;
   const input = document.getElementById("add-repo");
   const steps = document.getElementById("add-steps");
   const render = () => {
-    const repo = input.value.trim();
-    const valid = REPO_INPUT.test(repo) && !repo.includes("..");
+    const parsed = parseProductAddress(input.value);
+    const valid = !parsed.error, repo = parsed.repo;
     const product = valid ? repo : "<your product>";
     const c = stepHtml({ title: "Step C · Add the product",
       body: `<p><button class="btn primary" id="add-go" ${valid && token() ? "" : "disabled"}>Add product</button></p>
-        <p id="add-result" class="muted">${!valid ? "Type the product repository above." : !token() ? "Store your key in Step B first." : ""}</p>`,
+        <p id="add-result" class="muted">${!valid ? h(input.value.trim() ? parsed.error : "Paste the product repository's address above.") : !token() ? "Store your key in Step B first." : ""}</p>`,
       explain: EXPLAIN.add });
     if (token()) {
       const a = stepHtml({ title: "Step A · Let your key reach the product",
@@ -763,42 +763,28 @@ async function viewAddProduct(preset = "") {
       steps.innerHTML = createKeyStep([T.instance, product]) + storeKeyStep() + c;
       wireStoreKey(() => [T.instance, ...(valid ? [repo] : [])], () => {
         document.getElementById("add-go").disabled = !valid;
-        document.getElementById("add-result").textContent = valid ? "" : "Type the product repository above.";
+        document.getElementById("add-result").textContent = valid ? "" : "Paste the product repository's address above.";
       });
     }
-    wireAddGo(repo);
+    wireAddGo(parsed);
   };
   input.addEventListener("input", render);
   render();
 }
 
-function wireAddGo(repo) {
+// UC-001 Step C: the layout goes into the product repository; the address into this browser's list only.
+function wireAddGo(parsed) {
   document.getElementById("add-go").addEventListener("click", async (ev) => {
-    const out = document.getElementById("add-result"), b = ev.currentTarget;
+    const out = document.getElementById("add-result"), b = ev.currentTarget, repo = parsed.repo;
     b.disabled = true;
     try {
-      out.textContent = "Reading the product repository…";
-      const info = await checkReach(repo);
-      if (!info.ok) throw new Error(`cannot read ${repo}: ${info.error}`);
-      const tree = JSON.parse(await fetchText(`${API}/repos/${repo}/git/trees/${encodeURIComponent(info.branch)}?recursive=1`, {}, token()));
-      const files = missingLayout(tree.tree.filter((e) => e.type === "blob").map((e) => e.path), repo);
-      const links = [];
-      if (files.length) {
-        out.textContent = `Writing ${files.length} files into ${repo}…`;
-        const c = await commitFiles({ repo, branch: info.branch, token: token(), click: ev, files,
-          message: "Add the Agent M review layout (Agent M dashboard)" });
-        links.push(`<a href="${h(c.url)}" target="_blank" rel="noopener">layout in ${h(repo)}</a>`);
-      }
-      await loadProducts();
-      if (!state.products.some((p) => p.repo === repo) && repo !== T.instance) {
-        out.textContent = `Adding ${repo} to ${T.instance}…`;
-        const base = state.productsText ?? "# Products of this instance\n\n## Products\n\n";
-        const c = await commitFiles({ repo: T.instance, branch: "main", token: token(), click: ev,
-          files: [{ path: "docs/products.md", content: addProductText(base, repo, "") }],
-          message: `Add product ${repo} (Agent M dashboard)` });
-        links.push(`<a href="${h(c.url)}" target="_blank" rel="noopener">entry in ${h(T.instance)}</a>`);
-      }
-      out.innerHTML = `Done${links.length ? " — " + links.join(" · ") : " — nothing was missing"}.
+      out.textContent = `Reading ${repo} and writing what is missing…`;
+      const r = await addProduct({ address: parsed.address, token: token(), click: ev, store });
+      loadProducts();
+      renderProductSelector();
+      out.innerHTML = `Done — ${r.commit
+        ? `<a href="${h(r.commit.url)}" target="_blank" rel="noopener">layout in ${h(repo)}</a>`
+        : "nothing was missing in the product"}; ${h(parsed.address)} is now in this browser's product list.
         <a class="btn primary" href="?repo=${encodeURIComponent(repo)}">Open ${h(repo)} →</a>`;
     } catch (e) {
       out.textContent = /403|404/.test(e.message)
@@ -811,10 +797,12 @@ function wireAddGo(repo) {
 
 function renderProductSelector() {
   const sel = document.getElementById("product");
-  const options = [{ repo: T.instance, note: "this instance" }, ...state.products.filter((p) => p.repo !== T.instance)];
-  sel.innerHTML = options.map((p) => `<option value="${h(p.repo)}" ${p.repo === T.repo ? "selected" : ""}>${h(p.repo)}${p.note ? " — " + h(p.note) : ""}</option>`).join("")
+  // A PRODUCT IS NAMED BY ITS ADDRESS; the instance is always offered first and is not in the list.
+  const options = [{ repo: T.instance, label: `${T.instance} — this instance` },
+    ...state.products.filter((p) => p.repo !== T.instance).map((p) => ({ repo: p.repo, label: p.address }))];
+  sel.innerHTML = options.map((p) => `<option value="${h(p.repo)}" ${p.repo === T.repo ? "selected" : ""}>${h(p.label)}</option>`).join("")
     + `<option value="__add">+ Add product…</option>`;
-  sel.addEventListener("change", () => {
+  sel.onchange = () => {
     if (sel.value === "__add") {
       sel.value = T.repo;
       location.hash = "#add";
@@ -823,7 +811,7 @@ function renderProductSelector() {
     const q = new URLSearchParams();
     if (sel.value !== T.instance) q.set("repo", sel.value);
     location.search = q.toString();
-  });
+  };
 }
 
 // ---------------------------------------------------------------- routing
@@ -852,7 +840,7 @@ async function route() {
 }
 
 async function start() {
-  await loadProducts();
+  loadProducts();
   renderProductSelector();
   const early = /^#(settings|add|setup)/.test(location.hash);
   if (early) {
