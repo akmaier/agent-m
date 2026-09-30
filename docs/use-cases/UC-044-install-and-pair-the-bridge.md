@@ -40,7 +40,7 @@ double-clicking it, and copying one token. Nobody types a command.
 |---|---|---|
 | where jobs run | in the browser, and in GitHub Actions or GitLab CI on the server's machines | also on this computer, and on machines reached through it |
 | the coding agent logs in with | an API key stored as a CI secret, billed per call | the agent's own login on this computer — the person's subscription |
-| mail | Microsoft 365 and Gmail | also any IMAP/SMTP server |
+| mail | Microsoft 365 | also Gmail and any other IMAP/SMTP server |
 | needs | nothing | this app, and the agent's command-line version (Claude Code, Codex or opencode) |
 
 ## Actors

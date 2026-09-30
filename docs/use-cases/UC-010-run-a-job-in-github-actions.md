@@ -16,6 +16,7 @@ realises:
   - A JOB RECORD STARTS NO CI RUN
   - AGENT M WORKS WITHOUT A LOCAL INSTALLATION
   - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 ---
 # UC-010 Run a job in GitHub Actions
 
@@ -32,6 +33,9 @@ endpoint does not accept browser calls.
 
 - The product repository holds the agent's or endpoint's key as an Actions secret, not in any file. The
   dashboard names the secret and opens the repository's secrets page for it; it never asks for the value.
+- The product repository also holds the person's Agent M token as an Actions secret, so that the job's
+  pushes and pull requests start CI like the person's own (GitHub starts no run, or waits for approval,
+  for what the workflow's built-in token does); the dashboard names this secret and opens its page too.
   This is Agent M's first level: nothing is installed on the author's computer (UC-044 explains both
   levels), and the calls are billed per use by the agent's provider — the run panel says so.
 - The job workflow of Agent M is installed in the product repository.

@@ -113,8 +113,8 @@ Every job that needs no resource on the person's own network can run with nothin
 person's computer — in the browser, or in the product's CI on the server's own machines.
 *Occasion:* PO, 2026-09-30: users "will not be coding experts" — "We will need both levels." The first
 level is the one a newcomer meets: the dashboard, jobs in GitHub Actions or GitLab CI, mail through
-Microsoft 365 or Gmail. Installing something is the second level, needed only for local agents, IMAP
-mailboxes and machines on the person's own network.
+Microsoft 365. Installing something is the second level, needed only for local agents, IMAP
+mailboxes — Gmail's included — and machines on the person's own network.
 *Check:* `tests/test_runtime_levels.py` — every job kind whose definition names no local resource is
 runnable on the hosted-CI route; counter-proof: a job needing a compute resource is not offered there.
 

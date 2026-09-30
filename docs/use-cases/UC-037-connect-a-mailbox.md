@@ -42,7 +42,7 @@ alone.
 
 | | **Web API** — directly from the dashboard | **IMAP and SMTP** — through the local bridge |
 |---|---|---|
-| for | Microsoft 365 (Microsoft Graph), Gmail (Gmail API) | every other mail server — FAU's Exchange, a university's IMAP server, a small provider |
+| for | Microsoft 365 (Microsoft Graph) | every other mail server — Gmail, FAU's Exchange, a university's IMAP server, a small provider |
 | signing in | the provider's own sign-in; Agent M never sees a password | the mailbox password, stored in this browser after a notice |
 | needs | a one-time app registration with the provider, whose return address is this dashboard | the local bridge running (UC-011) |
 | why | the provider allows web pages to call it (measured 2026-09-29) | browsers let no web page open an IMAP or SMTP connection |
@@ -58,7 +58,7 @@ author withdraw on the provider's page.
 ## Actors
 
 - **Author** — owns the mailbox and runs the instance.
-- **Mail provider** — Microsoft or Google: signs the author in and serves the mail API.
+- **Mail provider** — Microsoft: signs the author in and serves the mail API.
 - **Local bridge** — the loopback program on the author's machine (UC-011); speaks IMAP and SMTP.
 - **Mail server** — the IMAP and SMTP servers of a mailbox on the bridge route.
 
@@ -71,24 +71,29 @@ author withdraw on the provider's page.
 ## Main flow
 
 1. The author opens **Settings → Mailbox** and presses **Connect a mailbox**, then enters the mail
-   address. Agent M recognises Microsoft 365 and Gmail from the address's domain and mail servers and
-   preselects the route; the author can change it. A folded **What is this?** explains the two routes
+   address. Agent M recognises Microsoft 365 from the address's domain and mail servers and
+   preselects the route — for Gmail and every other provider the IMAP route, with Gmail's servers filled in; the author can change it. A folded **What is this?** explains the two routes
    with the table above.
 2. **Web-API route, first time only — register the app.** A button opens the provider's page for a new
    app registration; underneath, what to enter there: the name `Agent M`, the kind *single-page
    application*, and the return address `https://<owner>.github.io/agent-m/` — shown with a copy
    button. The author copies the app's client ID back into the field. A folded explanation says that an
    institution may allow this only to its administrators, and whom to ask.
-3. **Web-API route — sign in.** The author presses **Sign in with Microsoft** or **Sign in with Google**.
-   The provider's own window asks for the account and shows the permissions — reading mail, writing
-   drafts, sending mail, nothing else —; the author accepts there. The dashboard keeps the token the
+3. **Web-API route — sign in.** The author presses **Sign in with Microsoft**. Before the provider's
+   window opens, Agent M names the permissions it asks for — `Mail.ReadWrite` (read mail, create drafts;
+   Microsoft offers no narrower one for drafts, and it would also allow changing and deleting, which
+   Agent M never does), `Mail.Send` and `offline_access` — and nothing else. The provider's own window
+   asks for the account and shows the same permissions; the author accepts there. The dashboard keeps the token the
    provider returns in `localStorage`; it is sent only to the provider's API.
 4. **IMAP route — servers and password.**
    1. The author enters the IMAP and the SMTP server with their ports. Agent M presets the usual
       encryption for each port — `993` implicit TLS for IMAP, `587` STARTTLS or `465` implicit TLS
       for SMTP — and the account name as the address; the author corrects what differs. A folded
       explanation says where a mail provider usually lists these settings.
-   2. **The notice.** Before the password field is enabled, Agent M shows: *"The password is stored in
+   2. **Gmail.** Gmail refuses the account password over IMAP; it accepts an **app password**, which
+      needs 2-Step Verification. A folded explanation links Google's page for creating one and says that
+      work or school accounts may not offer it, in which case the organisation's administrator decides.
+   3. **The notice.** Before the password field is enabled, Agent M shows: *"The password is stored in
       this browser. Every GitHub Pages site under `<owner>.github.io` can read it — here: the sites of
       `<owner>`. With it, anyone can read all mail in this mailbox and send mail in its name. It goes
       to no server except your bridge on this machine. Recommended: run this instance under a GitHub

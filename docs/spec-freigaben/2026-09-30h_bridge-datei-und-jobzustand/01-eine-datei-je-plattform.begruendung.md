@@ -16,3 +16,8 @@ and double-clicks it (UC-044, steps 1–2). Everything else of §6 is carried ov
 **Impact list** (files naming `THE BRIDGE IS ONE FILE PER PLATFORM`): `SPEC.md`, UC-044, ARC-011, ARC-017,
 MOD-bridge-app. UC-044 step 1 is updated in the same commit (open for review); the ARC and MOD files already
 describe the `.msi` and change only if the measurement settles the tray question differently.
+
+**Also in this entry, added before acceptance (PO decision of 2026-09-30, Gmail through the bridge — queue
+2026-09-30i):** the occasion of `AGENT M WORKS WITHOUT A LOCAL INSTALLATION` no longer names Gmail on the
+first level; Gmail's mailboxes are IMAP mailboxes of the second. The rule itself is unchanged. It is here
+because §6 is this queue's section; a second entry on §6 would make one of them stale.

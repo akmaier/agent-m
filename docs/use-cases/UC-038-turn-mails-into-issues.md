@@ -62,7 +62,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 - **Author** — decides which mail becomes which issue.
 - **Reporter** — sent the mail; not a user of Agent M.
 - **Mail provider or local bridge** — the route to the mailbox (UC-037): the provider's web API for
-  Microsoft 365 and Gmail, the bridge over IMAP otherwise; the bridge also hands mails to a CLI agent if
+  Microsoft 365, the bridge over IMAP otherwise — Gmail included; the bridge also hands mails to a CLI agent if
   one is chosen.
 - **Mail server** — holds the mailbox.
 - **Participant** — a model endpoint or CLI agent (UC-017) that proposes the issue.
