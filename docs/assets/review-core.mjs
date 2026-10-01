@@ -11,6 +11,7 @@
 // Module: MOD-review-core
 
 import { jumpHostProblem, tunnelCommands } from "./bridge-tunnel.mjs";
+import { settingKeys, parseJson, sessionList, gitlabTokenMap } from "./settings-store.mjs";
 
 export const ALLOWED_ORIGINS = new Set(["https://api.github.com", "https://raw.githubusercontent.com"]);
 export const MAX_URL_VALUE = 1000; // NO TEXT TRAVELS IN A URL — a record is ~400 bytes
@@ -1390,31 +1391,6 @@ const K_TOKEN = "agent-m.github-token", K_EXPIRES = "agent-m.github-token-expire
 const K_GITLAB = "agent-m.gitlab-tokens";
 const K_JUMP = "agent-m.jump-host", K_SESSIONS = "agent-m.remote-sessions";
 
-export const BROWSER_SETTINGS = [
-  { key: K_TOKEN, label: "GitHub token", secret: true,
-    grants: "writes — commits, issues and workflow runs — to every repository it was given, under your account" },
-  { key: K_EXPIRES, label: "GitHub token expiry date", secret: false, partOf: K_TOKEN },
-  { key: K_PRODUCTS, label: "Products", secret: false },
-  { key: K_GITLAB, label: "GitLab project tokens", secret: true,
-    grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
-  { key: K_JUMP, label: "Jump host", secret: false },
-  { key: K_SESSIONS, label: "remote sessions' bridge tokens", secret: true,
-    grants: "hand jobs to the CLI session behind each tunnel, which works there with that machine's own credentials" },
-];
-
-const parseJson = (raw, fallback) => { try { return JSON.parse(raw || "null") ?? fallback; } catch { return fallback; } };
-const sessionList = (raw) => { const l = parseJson(raw, []); return Array.isArray(l) ? l.filter((x) => x && typeof x.name === "string") : []; };
-
-// The GitLab project tokens of a raw store value: { address: { token, expires } }; anything malformed is left out.
-function gitlabTokenMap(raw) {
-  let m;
-  try { m = JSON.parse(raw || "{}"); } catch { return {}; }
-  if (!m || typeof m !== "object" || Array.isArray(m)) return {};
-  return Object.fromEntries(Object.entries(m).filter(([, v]) => v && typeof v.token === "string" && v.token)
-    .map(([a, v]) => [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null }]));
-}
-const settingLabel = (k) => BROWSER_SETTINGS.find((s) => s.key === k)?.label ?? k;
-
 export const EXPIRY_WARN_DAYS = 14;
 const DAY = 864e5;
 const isoDay = (d) => d.toISOString().slice(0, 10);
@@ -1627,106 +1603,14 @@ export function browserSettingsHtml({ entries = {}, shown = [], tokenState = nul
 
 // ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
 
-export const SETTINGS_FORMAT = "agent-m-settings";
-export const PBKDF2_ITERATIONS = 600000;
 export const PASSPHRASE_NOTICE = "A forgotten passphrase cannot be recovered: without it, nobody — you included — can read the file.";
 
 // AN EXPORT STATES THAT IT CONTAINS SECRETS: each stored secret by name, and what it grants.
 export function exportNotice(entries = {}) {
-  const secrets = BROWSER_SETTINGS.filter((s) => s.secret && entries[s.key]);
+  const secrets = settingKeys.filter((s) => s.secret && entries[s.key]);
   const what = secrets.length ? secrets.map((s) => `your ${s.label}, which ${s.grants}`).join("; ") : "no token, key or password (none is stored)";
   return `The file contains every setting of this browser in full, including ${what}. It opens all of that to ` +
     `whoever holds the file — keep it like a password, or lock it with a passphrase.`;
-}
-
-const b64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
-const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-
-async function passphraseKey(passphrase, salt, iterations) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base,
-    { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-}
-
-// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS · AN EXPORT CAN BE LOCKED WITH A PASSPHRASE.
-// entries: { key: raw value }. Locked: PBKDF2 (SHA-256, random salt) → AES-GCM (random IV); salt, IV and
-// iteration count are stored beside the ciphertext. -> the file's text (JSON).
-export async function exportSettings(entries, { passphrase = "", now = new Date() } = {}) {
-  const head = { format: SETTINGS_FORMAT, version: 1, exported: now.toISOString(),
-    note: "Contains the tokens, keys and passwords of an Agent M dashboard. Whoever holds it can use them." };
-  if (!passphrase) return JSON.stringify({ ...head, settings: entries }, null, 2) + "\n";
-  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await passphraseKey(passphrase, salt, PBKDF2_ITERATIONS);
-  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(entries)));
-  return JSON.stringify({ ...head, locked: { kdf: "PBKDF2", hash: "SHA-256", iterations: PBKDF2_ITERATIONS, salt: b64(salt),
-    cipher: "AES-GCM", iv: b64(iv), data: b64(data) } }, null, 2) + "\n";
-}
-
-// -> { key: raw value }. A locked file without passphrase throws { locked: true }; a wrong passphrase
-// throws { wrongPassphrase: true } — in both cases nothing has been read, so nothing can be imported.
-export async function readSettingsFile(text, passphrase = "") {
-  let f;
-  try { f = JSON.parse(text); } catch { f = null; }
-  if (!f || f.format !== SETTINGS_FORMAT) throw new Error("This is not an Agent M settings file.");
-  let settings = f.settings;
-  if (f.locked) {
-    if (!passphrase) throw Object.assign(new Error("This file is locked — enter its passphrase."), { locked: true });
-    try {
-      const L = f.locked;
-      const key = await passphraseKey(passphrase, unb64(L.salt), L.iterations);
-      settings = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(L.iv) }, key, unb64(L.data))));
-    } catch {
-      throw Object.assign(new Error("Wrong passphrase, or the file is damaged — nothing was imported."), { wrongPassphrase: true });
-    }
-  }
-  if (!settings || typeof settings !== "object") throw new Error("The file holds no settings.");
-  return Object.fromEntries(Object.entries(settings).filter(([, v]) => typeof v === "string"));
-}
-
-// UC-042 6a: what this browser has is kept; only what is missing is added; both are listed. A token that is
-// kept keeps its own expiry date. -> { put, added, kept, ignored }
-export function mergeSettings(current, incoming) {
-  const known = new Set(BROWSER_SETTINGS.map((s) => s.key));
-  const put = {}, added = [], kept = [], ignored = [];
-  const list = (v) => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch { return []; } };
-  for (const [k, v] of Object.entries(incoming)) {
-    if (!known.has(k)) { ignored.push(k); continue; }
-    if (k === K_EXPIRES) continue; // follows its token, below
-    if (k === K_GITLAB) {
-      const have = gitlabTokenMap(current[k]), inc = gitlabTokenMap(v), out = { ...have };
-      for (const [a, t] of Object.entries(inc)) {
-        const name = `GitLab project token for ${a}`;
-        if (have[a]) { kept.push(name); continue; }
-        out[a] = t;
-        added.push(name);
-      }
-      if (Object.keys(out).length > Object.keys(have).length) put[k] = JSON.stringify(out);
-      continue;
-    }
-    if (k === K_SESSIONS) {
-      const have = sessionList(current[k]), out = [...have];
-      for (const s of sessionList(v)) {
-        if (have.some((x) => x.name === s.name)) { kept.push(`remote session ${s.name}`); continue; }
-        if (out.some((x) => x.port === s.port)) { kept.push(`remote session ${s.name} not added: its port ${s.port} is used here`); continue; }
-        out.push(s);
-        added.push(`remote session ${s.name}`);
-      }
-      if (out.length > have.length) put[k] = JSON.stringify(out);
-      continue;
-    }
-    if (k === K_PRODUCTS) {
-      const have = list(current[k]), fresh = list(v).filter((a) => !have.includes(a));
-      kept.push(...list(v).filter((a) => have.includes(a)).map((a) => `product ${a}`));
-      added.push(...fresh.map((a) => `product ${a}`));
-      if (fresh.length) put[k] = JSON.stringify([...have, ...fresh]);
-      continue;
-    }
-    if (current[k]) { kept.push(settingLabel(k)); continue; }
-    put[k] = v;
-    added.push(settingLabel(k));
-    if (k === K_TOKEN && incoming[K_EXPIRES]) put[K_EXPIRES] = incoming[K_EXPIRES];
-  }
-  return { put, added, kept, ignored };
 }
 
 // ---------------------------------------------------------------- product settings (UC-042 4–5, SPEC §14)

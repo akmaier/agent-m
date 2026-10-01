@@ -13,7 +13,7 @@
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
-import { browserStore, fileTexts } from "./settings-store.mjs";
+import { browserStore, fileTexts, exportSettings, readSettingsFile, mergeSettings } from "./settings-store.mjs";
 import {
   fetchText, gitBlobSha, deriveTarget, parseProductAddress, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
   tokenLinkUrl, repositoryChoiceSteps, stepHtml, addProduct, writeFiles, writeRoute, isGitLab, gitlabAuth,
@@ -24,7 +24,7 @@ import {
   parseDecisions, acceptItems, createReviewSession, sectionForEntry, readByBlob, recordIndex, statusByNames, specStatusByNames,
   missingNeeds, itemLabel, needsMessage,
   browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
-  PASSPHRASE_NOTICE, exportSettings, readSettingsFile, mergeSettings, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
+  PASSPHRASE_NOTICE, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
   addCollaborator, removeCollaborator, saveCollaborators, gitlabRole,
   diffHtml, reviewedId, recordsForId, lastAccepted,

@@ -592,11 +592,13 @@ test("an entry already written in the queue's decisions is not written twice", a
 // PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
 
 import {
-  exportSettings, readSettingsFile, mergeSettings, PBKDF2_ITERATIONS, tokenRefusal, parseProductSettings,
+  tokenRefusal, parseProductSettings,
   setProductSetting, pseudonymisationOn, savePseudonymisation, parseCollaborators, formatCollaborators,
   addCollaborator, removeCollaborator, saveCollaborators,
 } from "../docs/assets/review-core.mjs";
-import { TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY } from "../docs/assets/settings-store.mjs";
+import {
+  TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, exportSettings, readSettingsFile, mergeSettings, PBKDF2_ITERATIONS,
+} from "../docs/assets/settings-store.mjs";
 
 const SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop";
 const FULL = { [TOKEN_KEY]: SECRET, [TOKEN_EXPIRY_KEY]: "2026-12-29",
