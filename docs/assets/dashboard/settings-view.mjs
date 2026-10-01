@@ -14,7 +14,7 @@ import {
   settingKeys, parseJson, sessionList, gitlabTokenMap, tokenTest, sessionTest, exportSettings, readSettingsFile, mergeSettings,
 } from "../settings-store.mjs";
 import {
-  parseProductAddress, isGitLab, gitlabProject, repositoryInfo, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
+  parseProductAddress, isGitLab, repositoryInfo, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
 } from "../git-host.mjs";
 import { jumpHostProblem, tunnelCommands, addRemoteSession, nextFreePort, probeLocalPort } from "../bridge-tunnel.mjs";
 import {
@@ -824,16 +824,16 @@ export async function checkReach(app, repo) {
   } catch (e) { noteRefusal(e, null); return { ok: false, error: errorText(e, null) }; }
 }
 
-// A GitLab project read with its own project token (or none): reachable, and with which role the token acts — below
-// Maintainer it cannot write to a protected default branch (gitlabRole).
+// A GitLab project read with its own project token (or none), through what MOD-git-host's repositoryInfo reports: reachable,
+// and with which role the token acts — below Maintainer it cannot write to a protected default branch (gitlabRole). An answer
+// that reports neither a visibility nor a default branch did not come from a GitLab server (ITM-130).
 export async function checkGitLab(app, p, tok) {
   const { noteRefusal, errorText } = app;
   try {
-    const r = await gitlabProject({ product: p, token: tok });
-    if (!r || !r.path_with_namespace) return { ok: false, error: `${p.host} did not answer as a GitLab server.` };
-    const level = r.permissions?.project_access?.access_level ?? r.permissions?.group_access?.access_level ?? null;
-    const role = gitlabRole(level);
-    return { ok: true, priv: r.visibility !== "public", branch: r.default_branch, role: role.role, canWrite: role.canWrite,
+    const r = await repositoryInfo({ product: p, token: tok });
+    if (!r.visibility && !r.defaultBranch) return { ok: false, error: `${p.host} did not answer as a GitLab server.` };
+    const role = gitlabRole(r.role);
+    return { ok: true, priv: r.visibility !== "public", branch: r.defaultBranch, role: role.role, canWrite: role.canWrite,
       note: role.note, tokenUsed: Boolean(tok) };
   } catch (e) {
     noteRefusal(e, p);
