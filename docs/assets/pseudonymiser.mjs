@@ -9,6 +9,9 @@
 // A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: docs/settings.md, one line `- name: value` per setting; a
 // setting that is not listed has its default. PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF.
 
+export const PRODUCT_SETTINGS_PATH = "docs/settings.md";
+export const COLLABORATORS_PATH = "docs/collaborators.md";
+
 export const SETTING_LINE = /^- ([a-z][a-z0-9-]*):[ \t]*(.+?)[ \t]*$/;
 
 export function parseProductSettings(text) {
@@ -21,6 +24,21 @@ export function parseProductSettings(text) {
 }
 
 export const pseudonymisationOn = (text) => parseProductSettings(text).pseudonymisation !== "off";
+
+// Set one setting's line (value null removes it); every other line of the file stays as it was.
+export function setProductSetting(text, name, value, product) {
+  let t = text || `# Settings of ${product}\n\nHow this product is developed, for everyone who works on it and every agent that runs for it.\n` +
+    "Changed on the Agent M dashboard (Settings). One line `- name: value` per setting; a setting not listed has its default.\n\n";
+  const lines = t.split("\n");
+  const at = lines.findIndex((l) => SETTING_LINE.exec(l)?.[1] === name);
+  if (at >= 0) {
+    if (value === null) lines.splice(at, 1); else lines[at] = `- ${name}: ${value}`;
+    return lines.join("\n");
+  }
+  if (value === null) return t;
+  if (!t.endsWith("\n")) t += "\n";
+  return `${t}- ${name}: ${value}\n`;
+}
 
 // ---------------------------------------------------------------- collaborators (SPEC §14)
 
