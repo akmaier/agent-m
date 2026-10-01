@@ -14,13 +14,16 @@
 //
 // The views are files of their own, docs/assets/dashboard/<view>-view.mjs, and the settings page's sections
 // docs/assets/dashboard/settings/<section>.mjs — each loaded by its name from one table (DASHBOARD), which also makes the tab
-// bar. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a stylesheet of
-// its own beside style.css; a section module exports `renderSection(app, box)`. Both get `app`, this page's context: what is
-// read, what is kept, and the helpers every view uses.
+// bar. Which of the table's files are built is read from one data file beside them, docs/assets/dashboard/built.json, so that a
+// page load asks for no file that is not there (one 404 each on GitHub Pages); an item that adds a view adds its file and its
+// line there. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a
+// stylesheet of its own beside style.css; a section module exports `renderSection(app, box)`. Both get `app`, this page's
+// context: what is read, what is kept, and the helpers every view uses.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
+import builtFiles from "./dashboard/built.json" with { type: "json" };
 import { browserStore, fileTexts } from "./settings-store.mjs";
 import {
   fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabSnapshot, gitlabReadFile, tokenRefusal, usedUpLimit,
@@ -37,7 +40,8 @@ const RAW = "https://raw.githubusercontent.com";
 // ---------------------------------------------------------------- the views and the settings sections (one table)
 //
 // Every view and every settings section the accepted use cases call for, in the order of the tab bar and of the settings page.
-// A view or section whose file does not exist yet is not shown; a later item adds one as a new file, without editing this one.
+// A view or section whose file is not built yet — not named in dashboard/built.json — is not shown and not asked for; a later
+// item adds one as a new file and one line of built.json, without editing this one.
 // view: the route (#<view>/…); tab: its label in the tab bar, if it has a tab. section: a part of the settings page; built in:
 // written by settings-view.mjs itself.
 export const DASHBOARD = [
@@ -94,8 +98,12 @@ export function tabsHtml(views) {
     ? ` title="${h(v.title)}"` : ""}>${v.icon ? `<span aria-hidden="true">${h(v.icon)}</span> ` : ""}${h(v.tab)}</a>`).join("\n");
 }
 
-// A view's file, loaded once per page. A file that is not there yet: a browser's import of it fails with a TypeError, node's
-// with ERR_MODULE_NOT_FOUND. A file that is there but fails otherwise is shown, so that opening it names the error.
+// The table's files that are built (dashboard/built.json). Whether a view or section is there is read from this list, never by
+// asking the server for its file: each file that is not there would cost one 404 per page load.
+const built = new Set(builtFiles);
+// A view's file, loaded once per page. A file the list names that is not there after all: a browser's import of it fails with a
+// TypeError, node's with ERR_MODULE_NOT_FOUND. A file that is there but fails otherwise is shown, so that opening it names the
+// error.
 const modules = new Map();
 function loadFile(file) {
   if (!modules.has(file)) modules.set(file, import(new URL(`dashboard/${file}`, import.meta.url).href));
@@ -103,7 +111,7 @@ function loadFile(file) {
 }
 const notThere = (e) => e?.code === "ERR_MODULE_NOT_FOUND" || e instanceof TypeError;
 async function present(file) {
-  try { await loadFile(file); return true; } catch (e) { return !notThere(e); }
+  return built.has(file);
 }
 
 // A view may bring a stylesheet of its own beside style.css: its module exports `stylesheet`, a file name in
@@ -466,7 +474,7 @@ async function route() {
     await available;
     // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
     const v = DASHBOARD.find((x) => x.view && x.view === kind);
-    const views = v ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
+    const views = v && built.has(v.file) ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
     if (views?.routes?.[v.view]) {
       linkStylesheet(views.stylesheet);
       await views.routes[v.view](app, a, b);
