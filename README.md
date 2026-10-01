@@ -5,6 +5,9 @@ Agent M runs the software engineering cycle the book teaches — requirement sou
 cases, architecture, implementation, tests, release, manual — as an actual workflow on an actual
 repository, with an AI doing the work and a human standing at the gates.
 
+**See it live: [akmaier.github.io/agent-m](https://akmaier.github.io/agent-m/)** — the author's own instance,
+on which Agent M is being built by its own process.
+
 It is a **GitHub Pages site plus a set of repository conventions**. There is no server, no account,
 and no database. Your products live in their own GitHub repositories; Agent M reads and writes them
 through the GitHub API, with a token that stays in your browser.
