@@ -181,3 +181,56 @@ item.
 
 New against them: C1 (a name line without its source), S1 (a check of every test, Python and node, by running them), the
 architecture's acceptance on a bold-prose name (case 18), and the reads with the other host's token handed over (case 22).
+
+## Addendum, 2026-10-02 — case 26 follows ITM-128's corrected criterion (S1 decided no defect)
+
+**MESSUNG** — 2026-10-02, branch `team/ITM-144-s1` from `sprint/02` at `5957157`, macOS, Node 25.9.0, Python 3.14.6; by
+`tester-opus` (claude-opus-5-5), the author of case 26. The text above stays as it was measured on 2026-10-01; this entry stands
+beside it.
+
+**Why.** At the gate of strand C the Product Owner decided S1 is no defect (`docs/backlog/sprints/sprint-02.md`, *Decided on
+2026-10-02*) and corrected ITM-128's criterion: "A whole-repository scan — a test that opens every committed file, or every
+artifact, of the repository to check each against a rule … — opens `SPEC.md` as one file among all and does not fall under this
+criterion, nor under `KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE`". The case's expectation changes because the criterion it is written
+from changed; the code does not, and no other case's expectation changes.
+
+**The criterion as the case reads it.** An open of `SPEC.md` comes from a whole-repository scan when its call site — the chain of
+test file:line frames the watcher records with the open — opens, in the same run, more than half of the repository's other
+committed Markdown files (`git ls-files '*.md'` without `SPEC.md`). A read by name opens `SPEC.md` from a line that opens it alone
+or with a handful of others; a `git` command or a node process naming the file is never a scan. No list of today's scans is
+written into the test, so a new scan passes and a new read by name is a finding wherever it stands. For this, the Python watcher
+notes, when asked, every other file of the repository a process opens, with its frames ("python read …"); the watcher's own opens
+(its log, the source lines of the frames) are not noted.
+
+| # | Case (changed) | Rule or flow | Item | Red under |
+|---|---|---|---|---|
+| 24 | as before, and in the planted repository a test that reads every committed file opens `SPEC.md` too: that open, and only that one, is told to come from a scan; the two opens by name, the `git show` and the node read are not | CLAUDE.md §6a.2 (the known positive), ITM-128 corrected | ITM-128 | MP2, M1 |
+| 26 | every Python open of Agent M's own `SPEC.md` the watcher sees comes from a whole-repository scan — the mark is gone | ITM-128 acceptance (corrected 2026-10-02) · KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE | ITM-128 | P1, P2 |
+
+**Readings on the increment** (`scratchpad/itm144s1-tester-opus/coverage.txt`, not committed): 903 committed Markdown files
+besides `SPEC.md`; the watcher sees two opens of `SPEC.md` in the Python suite —
+
+| Call site | Other committed Markdown files it opened | From a scan |
+|---|---|---|
+| `test_artifact_format.py:94` | 756 of 903 | yes |
+| `test_products_folder.py:78` ← `:70` (the record above says `:76`; the file has grown by two lines since) | 903 of 903 | yes |
+
+The largest call site that opens no `SPEC.md`: `test_release_sprint_02_d.py:71` (903), `test_no_backend.py:177 ← :102` (758);
+then `test_approval_records.py:27` (263), `test_groups.py` (255). Every site above the line of one half (452) is itself a scan of
+the repository; every site below it reads one folder or fewer files.
+
+**Counter-proofs** (`scratchpad/itm144s1-tester-opus/plant.txt`, each planted fault removed after its run):
+
+| Id | Planted | Result |
+|---|---|---|
+| P1 | `tests/test_artifact_format.py`: a new test that reads `(ROOT / "SPEC.md")` by name | case 26 red, the open listed at `test_artifact_format.py:148` |
+| P2 | `tests/test_products_folder.py`: a new test that reads `SPEC.md` and `README.md` from one loop over a written list | case 26 red, listed at `test_products_folder.py:138` (the same run as P1; the two scans not listed) |
+| M1 | `not_from_a_scan` counts every Python open as a scan (`> len(markdown)` → `>= 0`) | case 24 red |
+
+**Counts.** Before (`5957157`): `cd tests && python3 -m unittest` → `Ran 361 tests … OK (expected failures=6)`, 146 s. After:
+`Ran 361 tests … OK (expected failures=5)`, 147 s; `test_release_sprint_02_c` alone 3 tests, OK, 89 s. `node --test
+tests/*.test.mjs` → `tests 494, pass 479, fail 0, todo 15`, before and after (no node file changed).
+
+**Left as it was.** Case 25 (node) still expects nothing seen: no node test opens `SPEC.md`, so the corrected criterion and the
+stricter expectation agree today; a node scan would turn it red, and the node watcher records no frames to tell one. Moving the
+watcher into CI's one run is ITM-158, not done here.
