@@ -1,14 +1,15 @@
 // Dashboard — the browser runtime's composition root and router. SPEC §10; ARC-003 (shells).
 //
 // Reads one pinned commit of the product — on GitHub (two API calls, then immutable raw files) or on a
-// GitLab server (its REST API v4, at the same pinned commit) — and renders use cases and SPEC change
+// GitLab server (its REST API v4, at the same pinned commit) — through the reads the git host provides (readSnapshot,
+// readFile, repositoryInfo; dashboard/reads.mjs for a blob and the last accepted text), and renders use cases and SPEC change
 // proposals. A page load reads only the commit and its tree; each view then reads the files it shows, each by its blob
 // SHA and kept in this browser by that SHA, so that a file is read again only when it changed. With a stored token, a
 // person's click commits an edit or an acceptance: the button's trusted click becomes the authority of the git host's one
 // write path (dashboard/writes.mjs clickAuthority; ARC-003 decision 3); an accepted SPEC change is written in
 // the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
-// without its project token is read-only and links to the step that stores it. Every read goes through fetchText (GET only), and each token only to
-// the API of the server that issued it.
+// without its project token is read-only and links to the step that stores it. Every read goes through the git host (GET
+// only), and each token only to the API of the server that issued it.
 //
 // Module: MOD-dashboard-app
 //
@@ -26,16 +27,13 @@ import DOMPurify from "./vendor/purify.es.mjs";
 import builtFiles from "./dashboard/built.json" with { type: "json" };
 import { browserStore, fileTexts } from "./settings-store.mjs";
 import {
-  fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabSnapshot, gitlabReadFile, tokenRefusal, usedUpLimit,
+  REPO_RE, parseProductAddress, isGitLab, readSnapshot, readFile, repositoryInfo, tokenRefusal, usedUpLimit,
 } from "./git-host.mjs";
 import {
-  deriveTarget, parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff,
-  architecturePrerequisites,
+  parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
 } from "./review-core.mjs";
 import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
 
-const API = "https://api.github.com";
-const RAW = "https://raw.githubusercontent.com";
 
 // ---------------------------------------------------------------- the views and the settings sections (one table)
 //
@@ -219,6 +217,26 @@ export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date
 
 // ---------------------------------------------------------------- instance, product, token
 
+export const UPSTREAM = "akmaier/agent-m";
+
+// AN INSTANCE IS A FORK OF AGENT M: the instance is the repository of the Pages address this page is served from
+// (<owner>.github.io/<name>/), else Agent M itself. The product is chosen with ?repo=owner/name (GitHub) or ?product=<address>
+// (GitHub or GitLab). A GitLab product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read
+// from GitLab). Moved here from docs/assets/review-core.mjs (ITM-130): it reads the page's own address.
+export function deriveTarget({ hostname, pathname, search }) {
+  const owner = hostname.endsWith(".github.io") ? hostname.split(".")[0] : null;
+  const name = pathname.split("/").filter(Boolean)[0];
+  const instance = owner && name ? `${owner}/${name}` : UPSTREAM;
+  const q = new URLSearchParams(search || "");
+  const refOk = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..");
+  const ref = refOk ? q.get("ref") : "main";
+  const chosen = q.get("product") ? parseProductAddress(q.get("product")) : null;
+  if (chosen && !chosen.error && chosen.kind === "gitlab") return { instance, repo: chosen.repo, ref, product: chosen, refGiven: Boolean(refOk) };
+  const wanted = chosen && !chosen.error ? chosen.repo : q.get("repo");
+  const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
+  return { instance, repo, ref };
+}
+
 // The instance is the fork this page is served from; the product is chosen with ?repo= or ?product= (SPEC §10). Set by start().
 let T, GITLAB, SERVER, store, kept, REPO_KEY;
 // The GitHub token (the instance's key, UC-014).
@@ -248,20 +266,11 @@ function once(key, f) {
 
 async function loadSnapshot() {
   const before = state.commit;
-  if (GITLAB) {
-    // GITLAB PRODUCTS ARE SUPPORTED: its default branch unless ?ref= names one, resolved to one commit.
-    if (!T.refGiven) T.ref = (await gitlabProject({ product: T.product, token: token() })).default_branch || T.ref;
-    const snap = await gitlabSnapshot({ product: T.product, ref: T.ref, token: token() });
-    state.commit = snap.commit;
-    state.tree = snap.tree;
-  } else {
-    const [owner, name] = T.repo.split("/");
-    const commitJson = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/commits/${encodeURIComponent(T.ref)}`,
-      { headers: { Accept: "application/vnd.github+json" } }, token()));
-    state.commit = commitJson.sha;
-    const tree = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/git/trees/${state.commit}?recursive=1`, {}, token()));
-    state.tree = tree.tree.filter((e) => e.type === "blob");
-  }
+  // GITLAB PRODUCTS ARE SUPPORTED: its default branch unless ?ref= names one, resolved to one commit.
+  if (GITLAB && !T.refGiven) T.ref = (await repositoryInfo({ product: T.product, token: token() })).defaultBranch || T.ref;
+  const snap = await readSnapshot({ product: T.product, ref: T.ref, token: token() });
+  state.commit = snap.commit;
+  state.tree = snap.tree;
   state.byPath = new Map(state.tree.map((e) => [e.path, e]));
   if (state.commit !== before) { memo = new Map(); state.records = null; verified.clear(); }
 }
@@ -269,26 +278,16 @@ async function loadSnapshot() {
 // Without a token, files come from GitHub's raw host (public repositories). With a token, they come
 // through the API, the only place the token may go (SPEC §7 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT) —
 // which is also what makes private repositories readable. A GitLab product is read through its own
-// server's API, with its project token if one is stored.
-const encP = (path) => path.split("/").map(encodeURIComponent).join("/");
-const raw = (path) => (GITLAB
-  ? gitlabReadFile({ product: T.product, commit: state.commit, path, token: token() }).then((t) => t ?? "")
-  : token()
-    ? fetchText(`${API}/repos/${T.repo}/contents/${encP(path)}?ref=${state.commit}`,
-      { headers: { Accept: "application/vnd.github.raw+json" } }, token())
-    : fetchText(`${RAW}/${T.repo}/${state.commit}/${encP(path)}`));
+// server's API, with its project token if one is stored (MOD-git-host readFile). A file the pinned tree names is there: a
+// GitLab product's that its server does not find is shown empty, a GitHub product's is an error, as before ITM-130.
+async function raw(path) {
+  const text = await readFile({ product: T.product, commit: state.commit, path, token: token() });
+  if (text === null && !GITLAB) throw Object.assign(new Error(`404 Not Found — ${path} at ${state.commit}`), { status: 404 });
+  return text ?? "";
+}
 
 // A file on the commit an acceptance is written on (dashboard/writes.mjs acceptItems); null if it is absent.
-async function readAt(head, path) {
-  if (GITLAB) return gitlabReadFile({ product: T.product, commit: head, path, token: token() });
-  try {
-    return await fetchText(`${API}/repos/${T.repo}/contents/${encP(path)}?ref=${encodeURIComponent(head)}`,
-      { headers: { Accept: "application/vnd.github.raw+json" } }, token());
-  } catch (e) {
-    if (/^404\b/.test(e.message)) return null;
-    throw e;
-  }
-}
+const readAt = (head, path) => readFile({ product: T.product, commit: head, path, token: token() });
 
 // The product shown, for a write (writeFiles): a GitLab product by itself, a GitHub one by its repository.
 const writeTarget = () => (GITLAB ? { product: T.product } : { repo: T.repo });
@@ -438,7 +437,7 @@ function renderProductSelector() {
 let app = null;
 function context() {
   return {
-    T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, API, DASHBOARD,
+    T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, DASHBOARD,
     ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
     recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets, tokenState,
     main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,

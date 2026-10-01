@@ -106,6 +106,43 @@ test("the kernel never writes — no kernel file imports a write function of the
   assert.deepEqual(gitHostImports('import { fetchText } from "./git-host.mjs";\nimport { writeFiles } from "./other.mjs";'), ["fetchText"]);
 });
 
+// Guards: UC-024
+test("the kernel never reads through the git host — no kernel file imports anything of it", () => {
+  // ARC-003 decisions 1 and 2: a kernel module imports only kernel modules; what it reads is handed to it as a port
+  // (MOD-review-core lastAccepted's committedAt and read), and a shell wires the git host's reads to it (ITM-130). The kernel is
+  // read from the group file, a file's module from its Module line, as in the check above.
+  const kernel = kernelModules(), files = moduleFiles();
+  const checked = files.filter((f) => headerModules(f.text).some((m) => kernel.has(m)));
+  assert.ok(checked.some((f) => f.file === "review-core.mjs") && checked.some((f) => f.file === "artifacts.mjs"), "the kernel's files are checked");
+  for (const { file, text } of checked) assert.deepEqual(gitHostImports(text), [], file);
+  // counter-proof: a read imported into the kernel is caught — the check above lets it pass, it is no write
+  assert.deepEqual(gitHostImports('import { readBlob, REPO_RE } from "./git-host.mjs";'), ["readBlob", "REPO_RE"]);
+});
+
+// The dashboard's one direct read of the git host that has no provided counterpart of its shape: addProduct reads the paths
+// of a GitHub product's default branch by the branch's name, in one request; MOD-git-host's readSnapshot first resolves the
+// branch to a commit (ITM-130, a change request to akmaier). Named here, so that the exception cannot spread unnoticed.
+const DIRECT_READ = { file: "dashboard/writes.mjs", call: /fetchText\(`https:\/\/api\.github\.com\/repos\/\$\{product\.repo\}\/git\/trees\// };
+
+// Guards: UC-024
+test("the shells read only through what the git host provides — no file of the dashboard imports fetchText", () => {
+  // MOD-git-host calls its request helper internal: the dashboard reads through readSnapshot, readFile, readBlob,
+  // commitsTouching and repositoryInfo (ITM-130). A namespace or dynamic import reaches the helper too. The one exception is
+  // DIRECT_READ, with exactly one call.
+  const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
+  assert.ok(files.some((f) => f.file === "dashboard-app.mjs") && files.some((f) => f.file === "dashboard/settings-view.mjs")
+    && files.some((f) => f.file === "dashboard/reads.mjs"), "the shell's files are checked");
+  const importing = files.filter((f) => gitHostImports(f.text).some((n) => n === "*" || n === "fetchText")).map((f) => f.file);
+  assert.deepEqual(importing, [DIRECT_READ.file], "only the one direct read without a provided counterpart");
+  const writes = files.find((f) => f.file === DIRECT_READ.file).text;
+  assert.equal(writes.match(/\bfetchText\(/g).length, 1, "one call of the helper in it");
+  assert.match(writes, DIRECT_READ.call, "and it is that read");
+  // counter-proof: the helper imported by name, by a namespace or dynamically is caught; a provided read is not
+  assert.deepEqual(gitHostImports('import { readFile, fetchText as get } from "../git-host.mjs";'), ["readFile", "fetchText"]);
+  assert.deepEqual(gitHostImports('import * as host from "./git-host.mjs";'), ["*"]);
+  assert.deepEqual(gitHostImports('import { readSnapshot, repositoryInfo } from "./git-host.mjs";'), ["readSnapshot", "repositoryInfo"]);
+});
+
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: parameter names and access levels as documented by GitHub, read 2026-10-01 (table

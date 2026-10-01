@@ -10,7 +10,7 @@
 // the authority (clickAuthority), and each write hands it to the write path, which refuses a write without one.
 
 import {
-  fetchText, parseProductAddress, isGitLab, commitFiles, gitlabProject, gitlabSnapshot, commitFilesGitLab, writeFiles,
+  fetchText, parseProductAddress, isGitLab, commitFiles, repositoryInfo, readSnapshot, commitFilesGitLab, writeFiles,
 } from "../git-host.mjs";
 import { identifierKept, parseFrontMatter } from "../artifacts.mjs";
 import { missingNeeds, planAcceptance, missingLayout } from "../review-core.mjs";
@@ -96,23 +96,25 @@ export async function addProduct({ address, token, authority, store }) {
   if (product.error) throw new Error(product.error);
   if (isGitLab(product)) {
     if (!token) throw new Error("A GitLab product is written with its project token — store it in Step B first.");
-    const info = await gitlabProject({ product, token });
-    if (!info.default_branch) throw new Error(`${product.address} has no branch yet — push a first commit to it, then add it here.`);
-    const snap = await gitlabSnapshot({ product, ref: info.default_branch, token });
+    const info = await repositoryInfo({ product, token });
+    if (!info.defaultBranch) throw new Error(`${product.address} has no branch yet — push a first commit to it, then add it here.`);
+    const snap = await readSnapshot({ product, ref: info.defaultBranch, token });
     const files = missingLayout(snap.tree.map((e) => e.path), product.repo);
     const commit = files.length
-      ? await commitFilesGitLab({ product, branch: info.default_branch, token, authority, files,
+      ? await commitFilesGitLab({ product, branch: info.defaultBranch, token, authority, files,
         message: "Add the Agent M review layout (Agent M dashboard)" })
       : null;
     store.addProduct(product.address);
     return { commit, product };
   }
-  const api = `https://api.github.com/repos/${product.repo}`;
-  const info = JSON.parse(await fetchText(api, { headers: { Accept: "application/vnd.github+json" } }, token));
-  const tree = JSON.parse(await fetchText(`${api}/git/trees/${encodeURIComponent(info.default_branch)}?recursive=1`, {}, token));
+  const info = await repositoryInfo({ product, token });
+  // The paths of the default branch, read by the branch's name in one request. MOD-git-host provides no read of that shape:
+  // readSnapshot first resolves the branch to a commit, one request more (ITM-130 — a change request to akmaier).
+  const tree = JSON.parse(await fetchText(`https://api.github.com/repos/${product.repo}/git/trees/${encodeURIComponent(info.defaultBranch)}` +
+    "?recursive=1", {}, token));
   const files = missingLayout(tree.tree.filter((e) => e.type === "blob").map((e) => e.path), product.repo);
   const commit = files.length
-    ? await commitFiles({ repo: product.repo, branch: info.default_branch, token, authority, files,
+    ? await commitFiles({ repo: product.repo, branch: info.defaultBranch, token, authority, files,
       message: "Add the Agent M review layout (Agent M dashboard)" })
     : null;
   store.addProduct(product.address);
