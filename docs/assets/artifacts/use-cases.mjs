@@ -52,6 +52,13 @@ function frontMatterLine(lines, bodyStart, key, item) {
   return 1;
 }
 
+// keyLine(text, key, item) -> the line (from 1) of `key:` in a text's front matter, or of `  - item` under it; 1 when it is
+// not there. For the other format checks of MOD-artifacts (checks.mjs), so that every finding names its line the same way.
+export function keyLine(text, key, item) {
+  const { lines, bodyStart } = layout(String(text ?? ""));
+  return frontMatterLine(lines, bodyStart, key, item);
+}
+
 // The `## ` sections of a body, in order: { heading, from, to } over the body's lines; a lower heading stays inside.
 function sections(bodyLines) {
   const out = [];
@@ -79,6 +86,8 @@ function mermaidBlocks(bodyLines) {
 }
 
 // Every image a text stores a diagram in: { target, index } — the address as written, and where it stands in the text.
+// Exported as diagramImages for the architecture files' check in checks.mjs (DIAGRAMS ARE MERMAID IN MARKDOWN).
+export function diagramImages(text) { return images(String(text ?? "")); }
 function images(text) {
   const out = [];
   for (const re of [MD_IMAGE, HTML_IMAGE]) {
