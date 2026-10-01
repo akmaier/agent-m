@@ -11,7 +11,6 @@ realises:
   - A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
   - AN EXPORT STATES THAT IT CONTAINS SECRETS
   - THE SHARED PAGES ORIGIN IS DISCLOSED
-  - THE PAGE STATES WHAT IT SENDS WHERE
   - THE TOKEN LINK IS PREFILLED
   - THE REPOSITORY CHOICE IS SPELLED OUT
   - A TOKEN IS SCOPED TO WHAT IT WRITES
@@ -203,11 +202,10 @@ changes, specification browser, tests, jobs, progress, mail, settings), each rou
 ## Testing
 
 The pages are tested in a headless browser against fixture products with a fake `fetch` (`tests/app-harness.mjs`,
-`tests/test_settings_page.py`, `tests/test_settings_disclosure.py`, `tests/test_step_explanations.py`,
-`tests/test_destination_disclosure.py`): every step has its explanation; every key of `settingKeys` is
+`tests/test_settings_page.py`, `tests/test_settings_disclosure.py`, `tests/test_step_explanations.py`): every step has its explanation; every key of `settingKeys` is
 shown on the settings page with its test and clear; a secret is hidden until shown; an export states that it
 contains secrets; a save is made only after a trusted click, and a synthetic `click()` from a script writes
 nothing, as counter-proof; a refused save keeps the edit. The seams are `fetch` and the browser's storage.
 Wording and layout are reviewed by a person, not tested. No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): a thin composition root holding every text and turning a click into write authority, the current state removed, rules other modules check left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): a thin composition root holding every text and turning a click into write authority, the current state removed, rules other modules check left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — each rule under one module (ARC-020 decision 5): `THE PAGE STATES WHAT IT SENDS WHERE` stays with MOD-job-harness, whose `disclosure` computes what is sent where; open until accepted.*

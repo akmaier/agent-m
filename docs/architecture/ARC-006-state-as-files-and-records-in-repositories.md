@@ -75,7 +75,7 @@ shown for acceptance and never edited.
 | `docs/process.md` | declared model, roles, Definition of Done, branches | a person (UC-002) |
 | `docs/tests/schedule.md` | test schedule (ARC-015) | a person |
 | `docs/tests/releases/v<version>.md` | release test reports | the release run |
-| `docs/backlog/` | backlog items and sprint records | a person, a sprint-close job |
+| `docs/backlog/` | backlog items and sprint records | the holder of the role that orders the backlog — a person or an agent —, a sprint-close job |
 | branch `test-results`: `results/<commit>/<run>.md` | test result records | a CI step or the bridge (ARC-015) |
 | instance: `docs/participants.md`, `docs/sources/`, `docs/process-models/`, `docs/resources.md` | instance-wide data | a person |
 
@@ -149,4 +149,4 @@ CI trigger, and records on it never touch the default branch.
 - The same functions run in a run's final validation step (UC-043) and in the audit export, so the
   dashboard and the exported document cannot disagree.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): ARC-018 merged into this decision; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): ARC-018 merged into this decision; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01d: the role that orders the backlog may be held by an agent; open until accepted.*

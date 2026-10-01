@@ -36,7 +36,7 @@ What a definition contains:
 | **Verification pairs** | which later phase checks which earlier one | Concept ↔ Operation & Maintenance; Requirements ↔ Validation & Verification; Design ↔ Testing |
 | **Gates** | between which phases; which artifacts must exist; which condition must hold; who decides — a role (person or agent) or an automated check | before Implementation: every requirement has an `ARC-`, and the design is accepted; decided by the role *Architect* |
 | **Roles** | name; person, agent or either; capabilities needed | Tester: agent or person; *read the repository*, *run code and tests* |
-| **Flow control** (pulled only) | a time box with its length, or a work-in-progress limit | Scrum: sprint of 2 weeks; Kanban: WIP 3 |
+| **Flow control** (pulled only) | a time box with its length, or a work-in-progress limit; and whether the work runs in sprints — a sprint lasts the time box, or, without one, ends when its selection is done or the role that plans it ends it | Scrum: sprint of 2 weeks; Kanban: WIP 3, no sprints |
 | **Progress measure** | plan entries per phase, remaining items per time box, or items per state over time | plan entries per phase |
 
 The transitions carry the shapes of the other catalogue models (book ch. 6, ch. 7): waterfall is a

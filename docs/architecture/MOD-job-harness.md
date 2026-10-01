@@ -61,9 +61,11 @@ Unit tests with a fixture driver that returns scripted answers — the check the
 (`tests/test_correction_loop.py`): an answer that first names an unknown requirement and then a corrected
 one is asked once more; a participant that never fixes its error is asked exactly *limit* times; a
 conflict finding appears in no message to it. The seams are the driver, the checks and `read`; no clock.
-`mayReceive` is tested over a table of labels and places, with a counter-proof for each label. How well a
+`mayReceive` is tested over a table of labels and places, with a counter-proof for each label. `disclosure` is
+checked against the requests a fixture driver records: every destination the run contacts, and what it
+sends there, was named before *Run* (`tests/test_destination_disclosure.py`). How well a
 participant fits a task — the rounds it needs, how often it ends with findings left — depends on a model
 and is measured as a rate per participant over a fixed set of cases (ARC-016, kind 4), reported, not
 gated.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 2e6d8e4752b55b0707ec5e69c229914cb5d15fe8 — the mail's rewriting and checking kept inside the mail modules, at the PO's request; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over MOD-job-definitions with one generic rule for where content may go, imports neither drivers nor derivation; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 2e6d8e4752b55b0707ec5e69c229914cb5d15fe8 — the mail's rewriting and checking kept inside the mail modules, at the PO's request; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over MOD-job-definitions with one generic rule for where content may go, imports neither drivers nor derivation; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — each rule under one module (ARC-020 decision 5): `THE PAGE STATES WHAT IT SENDS WHERE` is checked here, no longer also under MOD-dashboard-app; open until accepted.*

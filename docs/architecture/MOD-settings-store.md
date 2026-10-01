@@ -43,11 +43,11 @@ other module; no other module opens a store.
 
 ## Testing
 
-Unit tests with a stand-in storage and a stand-in Cache Storage (`tests/review-core.test.mjs`,
+Unit tests with a stand-in storage and a stand-in Cache Storage (`tests/settings-store.test.mjs`,
 `tests/test_no_config_cookie.py`, `tests/test_clear_removes_storage.py`, `tests/test_config_client_side.py`):
 no cookie is ever set; after *Clear everything* no `agent-m.` key and no file text is left, with a foreign
 key kept as counter-proof; an export locked with a passphrase reads back with it and not without it; a
 merge keeps what the browser has. The seams are `localStorage`, `caches` and Web Crypto's random source. A
 browser that refuses storage is simulated by a throwing stand-in. No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the browser runtime's one store, the file texts in Cache Storage added, the current state removed; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the browser runtime's one store, the file texts in Cache Storage added, the current state removed; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01d: the checks the SPEC names for this module's rules are in its own test file (ARC-016 decision 1); open until accepted.*

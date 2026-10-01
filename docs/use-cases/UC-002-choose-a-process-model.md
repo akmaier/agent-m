@@ -62,8 +62,8 @@ and its process requirements show up here as additions to whatever model the aut
    book chapter that explains it.
 3. The author selects one model.
 4. Agent M shows the model's roles; for each, whether a person, an agent or either may fill it, and
-   which capabilities it needs. For Scrum, for example (book ch. 7 §5): *Product Owner* — a person,
-   who orders the backlog and decides what is released; *Scrum Master* — either, who watches the
+   which capabilities it needs. For Scrum, for example (book ch. 7 §5): *Product Owner* — a person or
+   an agent, who orders the backlog and decides what is released; *Scrum Master* — either, who watches the
    process and removes obstacles, and approves nothing; *Developers* — either, needing *write to the
    repository* and *run code and tests*, who turn items into a done increment. The
    author assigns participants from the instance's list (UC-017): people, model endpoints, CI agents,
@@ -72,7 +72,7 @@ and its process requirements show up here as additions to whatever model the aut
    data.
 5. Agent M shows the model's phases, the transitions between them, which phases pair for verification, and each gate
    with what it checks and who decides it — a role held by a person or an agent, or an automated check
-   (UC-031). For a phase, or for the model's time box — a sprint —, the author may set a
+   (UC-031). For a phase, or for a sprint — with or without a time box —, the author may set a
    **branch of its own**; the work is then merged into that branch, and merging it into the default
    branch is the gate at its end, decided in Scrum by the Product Owner after the review of the
    increment (UC-041). Preset is *none*: work merges into the default branch.

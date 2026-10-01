@@ -2,7 +2,7 @@
 model: scrum-wip
 model_file: docs/process-models/scrum-wip.md
 model_version: a6c336801ae85c019ab4e4897fa608913121faac
-sprint_close: po-fable
+sprint_close: scrum-master-opus
 ---
 # How Agent M is developed
 
@@ -54,9 +54,11 @@ BACKLOG`, `A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN`).
   review of its increment and the retrospective are recorded, and then the Product Owner decides the merge of
   `sprint/<nn>` into `main`.
 - Closing a sprint — its review, its retrospective and the decisions on its unfinished items — is assigned to
-  po-fable (`CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT`). A change to this declaration, to the model or
-  to a participant's instructions that a retrospective recommends is proposed, never applied by the agent
-  (`AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF`).
+  scrum-master-opus (`CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT`), not to po-fable: the merge of
+  `sprint/<nn>` into `main` checks the review and the retrospective, and the Product Owner who decides it must
+  not have written them (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`). A change to this
+  declaration, to the model or to a participant's instructions that a retrospective recommends is proposed,
+  never applied by the agent (`AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF`).
 
 ## Definition of Done
 

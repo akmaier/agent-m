@@ -2,11 +2,6 @@
 id: MOD-ci-entry
 title: The CI runtime's shell — the one entry every generated workflow step calls, wiring adapters on the ci-secret authority
 realises:
-  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
-  - WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
-  - EVERY TEST RUN LEAVES A RESULT RECORD
-  - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
-  - AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
   - UC-010
   - UC-024
 follows:
@@ -68,4 +63,4 @@ seam. Each test checks that every write is made on the `ci-secret` authority, an
 step run without the secret writes nothing. A system test on a test repository runs the generated
 workflows once per host before a release (ARC-016). No model is called by the module itself.
 
-*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up of the architecture review: the CI runtime's entry moved out of MOD-ci-generator into a shell of its own; open until accepted.*
+*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up of the architecture review: the CI runtime's entry moved out of MOD-ci-generator into a shell of its own; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — each rule under one module (ARC-020 decision 5): the five rules it shared stay with the modules whose own checks exercise them — MOD-ci-generator, MOD-review-core, MOD-test-records, MOD-process-model, MOD-source-library; open until accepted.*

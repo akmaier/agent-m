@@ -55,7 +55,7 @@ proposals; it changes no process file (UC-041 1a).
 - `parseItem(path, text) -> item` — a backlog item `docs/backlog/ITM-<nnn>-<slug>.md`: title, outcome, what it realises, origins (issues by address), acceptance criteria.
 - `itemProblems(item, known) -> [finding]` — an item that realises nothing, or names a requirement or use case that does not exist, is an error; one that restates an existing item is a warning.
 - `backlogOrder(text, items) -> { order, unplaced }` — the product's order file and the items it does not name yet, appended at the bottom.
-- `sprint(text) -> { goal, start, end, selection, closer, branch }` — a sprint record of `docs/backlog/sprints/`, with who closes it.
+- `sprint(text) -> { goal, start, end, selection, closer, branch }` — a sprint record of `docs/backlog/sprints/`, with who closes it; in a sprint without a time box, `end` stays empty until every selected item is done or the Product Owner records the end.
 - `itemState(item, { requirements, useCases, jobs, pullRequests, wip }) -> { state, reasons }` — the derived state; *in progress* counts against the WIP limit, an item in review included; a start is refused above the limit, outside the current sprint's selection, or for an item a pulled model has not in its backlog.
 - `progress(workflow, snapshot) -> view data` — plan entries per phase, remaining items per time box, or items per state over time, as the model's measure names; gates passed, pending, not reached.
 - `sprintClose(sprint, input, closer) -> { files, proposals } | { refused }` — the review and the retrospective as one record, feedback as new items, unfinished items moved; refused without a retrospective entry; an agent's review names the sources of its feedback and states that no stakeholder took part unless one did; changes to the model, the Definition of Done or a participant's instructions are returned as proposals, never as files.
@@ -72,4 +72,4 @@ its counter-proof. No seams beyond the data passed in. A review or retrospective
 model-dependent text; whether it names its sources is checked here deterministically, its quality is read
 by a person.
 
-*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): plan, backlog, sprints and progress, with the plan and progress taken over from the process model; open until accepted.*
+*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): plan, backlog, sprints and progress, with the plan and progress taken over from the process model; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01d: a sprint without a time box; open until accepted.*

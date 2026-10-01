@@ -51,7 +51,7 @@ none of them.
 
 ## Testing
 
-Unit tests for the writers and checks (`tests/review-core.test.mjs`, `tests/test_bridge_tunnel.py`): a command bound to `0.0.0.0`,
+Unit tests for the writers and checks (`tests/bridge-tunnel.test.mjs`, `tests/test_bridge_tunnel.py`): a command bound to `0.0.0.0`,
 with `-g` or `GatewayPorts` is refused, the generated one passes; the port allocator never hands out a used
 port or one outside the range; a web-server block without login, with `*` or to a non-loopback address is
 refused, and no output contains a password or a hash. Component tests for the bridge side with a fake
@@ -60,4 +60,4 @@ restarted after it exits, and the private key never appears in a result. The sea
 and the file system. A system test against a real OpenSSH server on loopback runs before a release
 (ARC-016). No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the HTTPS route's reasons stay in ARC-013, settings passed in, the current state removed, rules it does not check left to their owners; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the HTTPS route's reasons stay in ARC-013, settings passed in, the current state removed, rules it does not check left to their owners; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01d: the checks the SPEC names for this module's rules are in its own test file (ARC-016 decision 1); open until accepted.*

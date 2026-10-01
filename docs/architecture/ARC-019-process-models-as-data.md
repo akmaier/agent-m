@@ -39,7 +39,9 @@ its role assignment, practices, branches and its Definition of Done in its own r
    `name`, `kind` (`planned` | `pulled`), `adapted_from`, `measure`. Body: one table per part under
    fixed headings — `## Phases` (name, role, produces), `## Transitions` (from, to, kind: sequence,
    alternative, back), `## Verification pairs`, `## Gates` (between, artifacts, condition, decider),
-   `## Roles` (name, filled by, capabilities), `## Flow control` (time box or WIP limit). Readable
+   `## Roles` (name, filled by, capabilities), `## Flow control` (time box or WIP limit, and whether the
+   work runs in sprints — a sprint lasts the time box, or, without one, ends when its selection is done or
+   the role that plans it ends it). Readable
    without Agent M; parseable without a library (the same table reading the core already does for
    queue indexes).
 2. **Validation** (`MOD-process-model.validateModel`) returns every error beside the field that causes
@@ -74,4 +76,4 @@ its role assignment, practices, branches and its Definition of Done in its own r
   check can evaluate (a named CI check, a gate record) or it is shown as *checked by a person*.
 - Table parsing is strict: a malformed row is a validation error, not a guess.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01d: a pulled model may run in sprints without a time box; open until accepted.*

@@ -52,7 +52,8 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
 
 ## Precondition
 
-- The product's model works in time boxes, and a sprint is running (UC-032, step 6).
+- The product's model works in sprints — with or without a time box —, and a sprint is running
+  (UC-032, step 6).
 
 ## Main flow
 
@@ -106,8 +107,9 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **1a. The close is assigned to an agent.** When the sprint's end date is reached, the agent's job
-  starts by itself — no click. It does steps 2–6 in the Product Owner's place:
+- **1a. The close is assigned to an agent.** When the sprint ends — its end date is reached or, in a
+  sprint without a time box, every selected item is done or the Product Owner has ended it (UC-032, 6b) —,
+  the agent's job starts by itself — no click. It does steps 2–6 in the Product Owner's place:
   - the **review** from what the repository and the issue tracker hold — the increment, the items not
     done, issues and mails that arrived during the sprint as feedback —, naming each source, and stating
     that no stakeholder took part unless their feedback is recorded somewhere it read;
@@ -120,7 +122,9 @@ sequenceDiagram
 
   The job records the close under the agent's name, like any job (UC-036). Merging a sprint branch
   (step 7) stays with the role the model names for that gate — the Product Owner, unless the product
-  configured another decider (UC-002).
+  configured another decider (UC-002). If the closing agent also holds that role, its own decision does not
+  pass the gate, since the gate checks its review (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT
+  CHECKS`); another holder of the role decides, or a person.
 - **2a. No item is done.** The review still happens and is recorded; the increment is empty, and the
   review says so. The retrospective is where the reason belongs.
 - **3a. There are no stakeholders this time.** The review is held by the team and the Product Owner;
