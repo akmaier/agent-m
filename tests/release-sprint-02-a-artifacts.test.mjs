@@ -154,8 +154,7 @@ test("release · ITM-126 identifierKept: a text that lost its identifier is a fi
 // case opened as UC-001 whose text keeps `id: UC-001` but ends its lines with CR LF — as a file written on Windows does, or a
 // participant's draft — gives no finding; its counterpart with UC-009 gives one naming UC-009. Known positive: the same text
 // with LF line ends gives none.
-test("release · ITM-126 identifierKept: a text with CR LF line ends that keeps its identifier is no finding",
-  { todo: "FINDING A5 — docs/assets/artifacts.mjs identifierKept reads the front matter with parseFrontMatter, which finds no field in a CR LF text: \"the text carries no identifier\" — ITM-126 back to Development" }, () => {
+test("release · ITM-126 identifierKept: a text with CR LF line ends that keeps its identifier is no finding", () => {
     assert.equal(identifierKept("UC-001", useCase("UC-001")), null, "known positive");
     const crlf = (t) => t.replace(/\n/g, "\r\n");
     assert.equal(identifierKept("UC-001", crlf(useCase("UC-001"))), null, "CR LF, the same identifier");
