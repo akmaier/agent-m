@@ -70,7 +70,7 @@ traceability or acceptance.
 - `requirementProblems(requirement, linkedSources) -> [finding]` — a missing field, a missing check or a source the product does not link is an error, a resource entry named as source among them; an "and" or "additionally" in the rule is a warning (the decision stays human).
 - `parseUseCase(path, text) -> { id, title, area, actors, realises, sections, diagrams }` — a use case as `docs/use-cases/UC-<nnn>-<slug>.md` holds it.
 - `useCaseProblems(path, text, knownNames) -> [finding]` — the five parts, a Mermaid block, no diagram stored as an image, the identifier matching the file name, and every name under `realises` known.
-- `parseArchitecture(path, text) -> { kind, id, title, names, follows, uses, provides, interfaces, withdrawn, replacedBy, body, problems }` — an ARC or MOD file as `tests/artifact_checks.py` reads it; format problems are returned, never thrown.
+- `parseArchitecture(path, text) -> { kind, id, title, names, follows, uses, provides, interfaces, withdrawn: { date, replacedBy, note } | null, body, problems }` — an ARC or MOD file as `tests/artifact_checks.py` reads it; format problems are returned, never thrown.
 - `reviewedId(path) -> "UC-010" | "ARC-003" | "MOD-review-core" | null` — the identifier of a reviewed file from its name; a module's identifier is its whole slug.
 - `identifierKept(openedId, text) -> null | finding` — refuses a text whose front matter carries another identifier than the file was opened with.
 - `headerTags(path, text) -> { modules, guards, level, cases, test }` — the `Module:`, `Guards:` and `Level:` lines among a file's first 20 lines, the `TST-` identifiers of its cases, and whether the path is a test.
@@ -88,4 +88,4 @@ rule 5). The Python twin in `tests/artifact_checks.py` runs over the repository'
 compares both on the same fixtures so that the two readers cannot drift. No seams: nothing is read or
 sent. Nothing here depends on a model.
 
-*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over MOD-groups and the format parts of the former review core, SPEC queue, traceability and harness modules; open until accepted.*
+*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over MOD-groups and the format parts of the former review core, SPEC queue, traceability and harness modules; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); open until accepted.*

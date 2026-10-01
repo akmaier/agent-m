@@ -59,6 +59,7 @@ uses:
   - MOD-review-core.lineDiff
   - MOD-review-core.reviewSession
   - MOD-review-core.planAcceptance
+  - MOD-review-core.reviewPage
   - MOD-review-core.prerequisites
   - MOD-review-core.proposeEdit
   - MOD-review-core.requirementHistory
@@ -209,4 +210,4 @@ contains secrets; a save is made only after a trusted click, and a synthetic `cl
 nothing, as counter-proof; a refused save keeps the edit. The seams are `fetch` and the browser's storage.
 Wording and layout are reviewed by a person, not tested. No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): a thin composition root holding every text and turning a click into write authority, the current state removed, rules other modules check left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): a thin composition root holding every text and turning a click into write authority, the current state removed, rules other modules check left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); open until accepted.*

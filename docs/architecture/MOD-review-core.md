@@ -43,6 +43,7 @@ provides:
   - lineDiff
   - reviewSession
   - planAcceptance
+  - reviewPage
   - prerequisites
   - proposeEdit
   - requirementHistory
@@ -69,6 +70,7 @@ files, and a shell commits them on its authority (ARC-003).
 - `lastAccepted({ records, id, committedAt, read }) -> { record, text, count } | null` — of all records naming this identifier (matched by identifier, not path), the one committed last, and its text read by its blob SHA and refused unless it hashes to that SHA; `committedAt(path)` and `read(blob)` are ports; two records at the same instant raise an error naming both instead of guessing.
 - `lineDiff(a, b) -> [[" "|"+"|"-", line]]` — the one line difference used by every view (edits, drafts, last accepted text, SPEC entries).
 - `reviewSession() -> { show(item), tick(key, on), items() }` — what the page showed and what the reviewer ticked; only a shown item can be ticked, and it names the exact blob shown.
+- `reviewPage(files) -> { counted, notCounted: [{ file, reason }] }` — for the review page of one area (`SEVERAL FILES ARE ACCEPTED IN ONE CLICK`): of the open and changed files it shows, those **Accept all N shown** may accept, and those it shows but may not — a decision or module naming a requirement or use case that is not accepted — each with what is still open. The acceptance itself is `planAcceptance`.
 - `planAcceptance({ items, read, now }) -> { files, accepted, leftOut }` — the files of one acceptance commit, on the commit it is written on: a record per ticked file whose text is unchanged; for SPEC entries, in the order of their queue's index, the record, the replaced section and the decision row; a file or entry changed since it was shown, an entry whose anchor another unticked entry creates, a decision or module whose named requirements and use cases are no longer accepted there, or a changed decision or module whose impact list was not shown — each left out with its reason.
 - `prerequisites(arch, requirements, useCaseStates) -> { open, useCases }` — the names a decision or module states that are not accepted; the one blocking rule (`ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`).
 - `proposeEdit({ spec, queues, section, edited, why, impact, author, today }) -> { path, files }` — a SPEC edit as an entry of the author's open queue of today (or a new one), with the current section, the rationale and the impact list it is given; `SPEC.md` is never among the files. A changed name becomes a withdrawal plus a new requirement.
@@ -84,4 +86,4 @@ the tests answer from fixtures. Each rule has a counter-proof among the recorded
 order, a tickable unshown file. `applyApprovals` and `tools/apply_approvals.py` are run on the same
 records and must write byte-identical files. No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the approval engine, taking over MOD-spec-queue and MOD-apply-workflow and giving its format parsing to MOD-artifacts; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the approval engine, taking over MOD-spec-queue and MOD-apply-workflow and giving its format parsing to MOD-artifacts; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); open until accepted.*
