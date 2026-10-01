@@ -28,30 +28,63 @@
 //
 // Beside the settings, this module keeps the texts of repository files the dashboard has read (fileTexts, below) — in Cache
 // Storage, never in localStorage.
+//
+// UC-042 step 1 · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN: the last test of a setting — ✓ works with its date, or
+// ✗ refused at the last use — is kept beside the setting it describes, so that its line shows it after a reload too: the GitHub
+// token's in TOKEN_TEST_KEY beside the token and its expiry date; a GitLab project token's as `tested` in its entry of the map; a
+// remote session's as `tested` in its entry of the list. A new value starts untested (an old test never sticks to a new token),
+// and clearing a setting clears its test with it (A CLEAR IS A REAL CLEAR); an export carries them like every other entry.
 
 export const PREFIX = "agent-m.";
 export const TOKEN_KEY = PREFIX + "github-token";
 export const TOKEN_EXPIRY_KEY = PREFIX + "github-token-expires";
+export const TOKEN_TEST_KEY = PREFIX + "github-token-tested";
 export const PRODUCTS_KEY = PREFIX + "products";
 export const GITLAB_TOKENS_KEY = PREFIX + "gitlab-tokens";
 export const JUMP_HOST_KEY = PREFIX + "jump-host";
 export const REMOTE_SESSIONS_KEY = PREFIX + "remote-sessions";
-export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY, JUMP_HOST_KEY, REMOTE_SESSIONS_KEY];
+export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, TOKEN_TEST_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY, JUMP_HOST_KEY, REMOTE_SESSIONS_KEY];
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// A token's last test: { ok: "YYYY-MM-DD" } — the server accepted it that day —, { refused: true } — the server refused it at the
+// last use —, or null; anything else reads as null.
+export function tokenTest(v) {
+  if (!v || typeof v !== "object") return null;
+  if (v.refused === true) return { refused: true };
+  return typeof v.ok === "string" && DATE_RE.test(v.ok) ? { ok: v.ok } : null;
+}
+// A remote session's last test: { up: "YYYY-MM-DD" } — something answered at its local port that day —, { down: true } — nothing
+// answered —, or null.
+export function sessionTest(v) {
+  if (!v || typeof v !== "object") return null;
+  if (v.down === true) return { down: true };
+  return typeof v.up === "string" && DATE_RE.test(v.up) ? { up: v.up } : null;
+}
 
 export function createStore(storage) {
   const safe = (f, fallback) => { try { return f(); } catch { return fallback; } };
   return {
     getToken: () => safe(() => storage.getItem(TOKEN_KEY), null) || null,
-    // A new token comes with its own expiry date, or none: an old date never sticks to a new token.
+    // A new token comes with its own expiry date, or none: an old date never sticks to a new token, nor an old test.
     setToken(t, expires = null) {
       storage.setItem(TOKEN_KEY, String(t).trim());
       if (expires) storage.setItem(TOKEN_EXPIRY_KEY, String(expires));
       else storage.removeItem(TOKEN_EXPIRY_KEY);
+      storage.removeItem(TOKEN_TEST_KEY);
     },
     getTokenExpiry: () => safe(() => storage.getItem(TOKEN_EXPIRY_KEY), null) || null,
+    // The GitHub token's last test (tokenTest), kept beside it; none without a token.
+    getTokenTest() { return this.getToken() ? tokenTest(safe(() => JSON.parse(storage.getItem(TOKEN_TEST_KEY) || "null"), null)) : null; },
+    // result: as tokenTest reads it, or null to forget it. Without a stored token nothing is kept.
+    setTokenTest(result) {
+      const t = tokenTest(result);
+      if (t && this.getToken()) storage.setItem(TOKEN_TEST_KEY, JSON.stringify(t));
+      else storage.removeItem(TOKEN_TEST_KEY);
+    },
     clearToken() {
       storage.removeItem(TOKEN_KEY);
       storage.removeItem(TOKEN_EXPIRY_KEY);
+      storage.removeItem(TOKEN_TEST_KEY);
     },
     getProducts() {
       const list = safe(() => JSON.parse(storage.getItem(PRODUCTS_KEY) || "[]"), []);
@@ -69,18 +102,23 @@ export function createStore(storage) {
       storage.removeItem(PRODUCTS_KEY);
       storage.removeItem(GITLAB_TOKENS_KEY);
     },
-    // { address: { token, expires } } — every GitLab project token of this browser.
-    gitLabTokens() {
-      const map = safe(() => JSON.parse(storage.getItem(GITLAB_TOKENS_KEY) || "{}"), {});
-      if (!map || typeof map !== "object" || Array.isArray(map)) return {};
-      return Object.fromEntries(Object.entries(map).filter(([, v]) => v && typeof v.token === "string" && v.token)
-        .map(([a, v]) => [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null }]));
-    },
+    // { address: { token, expires[, tested] } } — every GitLab project token of this browser, with its last test if it has one.
+    gitLabTokens() { return gitlabTokenMap(safe(() => storage.getItem(GITLAB_TOKENS_KEY), null)); },
     getGitLabToken(address) { return this.gitLabTokens()[address] || null; },
-    // A new token comes with its own expiry date, or none (as setToken).
+    // A new token comes with its own expiry date, or none, and untested (as setToken).
     setGitLabToken(address, token, expires = null) {
       const map = this.gitLabTokens();
       map[address] = { token: String(token).trim(), expires: expires ? String(expires) : null };
+      storage.setItem(GITLAB_TOKENS_KEY, JSON.stringify(map));
+    },
+    // The last test of the GitLab project token of `address`, kept in its entry; result as tokenTest reads it, or null to forget
+    // it. Without a token for that address nothing is kept.
+    setGitLabTokenTest(address, result) {
+      const map = this.gitLabTokens();
+      if (!map[address]) return;
+      const t = tokenTest(result);
+      if (t) map[address].tested = t;
+      else delete map[address].tested;
       storage.setItem(GITLAB_TOKENS_KEY, JSON.stringify(map));
     },
     clearGitLabToken(address) {
@@ -103,6 +141,16 @@ export function createStore(storage) {
     setRemoteSessions(list) {
       if (list.length) storage.setItem(REMOTE_SESSIONS_KEY, JSON.stringify(list));
       else storage.removeItem(REMOTE_SESSIONS_KEY);
+    },
+    // The last test of the remote session `name`, kept in its entry; result as sessionTest reads it, or null to forget it.
+    setRemoteSessionTest(name, result) {
+      const list = this.getRemoteSessions();
+      const s = list.find((x) => x.name === name);
+      if (!s) return;
+      const t = sessionTest(result);
+      if (t) s.tested = t;
+      else delete s.tested;
+      this.setRemoteSessions(list);
     },
     clearRemoteSession(name) { this.setRemoteSessions(this.getRemoteSessions().filter((x) => x.name !== name)); },
     clearRemoteSessions() { storage.removeItem(REMOTE_SESSIONS_KEY); },
@@ -197,6 +245,7 @@ export const settingKeys = [
   { key: TOKEN_KEY, label: "GitHub token", secret: true,
     grants: "writes — commits, issues, pull requests and workflow runs — to every repository it was given, under your account" },
   { key: TOKEN_EXPIRY_KEY, label: "GitHub token expiry date", secret: false, partOf: TOKEN_KEY },
+  { key: TOKEN_TEST_KEY, label: "GitHub token's last test", secret: false, partOf: TOKEN_KEY },
   { key: PRODUCTS_KEY, label: "Products", secret: false },
   { key: GITLAB_TOKENS_KEY, label: "GitLab project tokens", secret: true,
     grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
@@ -208,13 +257,17 @@ export const settingKeys = [
 export const parseJson = (raw, fallback) => { try { return JSON.parse(raw || "null") ?? fallback; } catch { return fallback; } };
 export const sessionList = (raw) => { const l = parseJson(raw, []); return Array.isArray(l) ? l.filter((x) => x && typeof x.name === "string") : []; };
 
-// The GitLab project tokens of a raw store value: { address: { token, expires } }; anything malformed is left out.
+// The GitLab project tokens of a raw store value: { address: { token, expires[, tested] } } — `tested` only where a last test is
+// kept (tokenTest); anything malformed is left out.
 export function gitlabTokenMap(raw) {
   let m;
   try { m = JSON.parse(raw || "{}"); } catch { return {}; }
   if (!m || typeof m !== "object" || Array.isArray(m)) return {};
   return Object.fromEntries(Object.entries(m).filter(([, v]) => v && typeof v.token === "string" && v.token)
-    .map(([a, v]) => [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null }]));
+    .map(([a, v]) => {
+      const t = tokenTest(v.tested);
+      return [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null, ...(t ? { tested: t } : {}) }];
+    }));
 }
 const settingLabel = (k) => settingKeys.find((s) => s.key === k)?.label ?? k;
 
@@ -266,14 +319,14 @@ export async function readSettingsFile(text, passphrase = "") {
 }
 
 // UC-042 6a: what this browser has is kept; only what is missing is added; both are listed. A token that is
-// kept keeps its own expiry date. -> { put, added, kept, ignored }
+// kept keeps its own expiry date and its own last test; a token that is added brings the file's. -> { put, added, kept, ignored }
 export function mergeSettings(current, incoming) {
   const known = new Set(settingKeys.map((s) => s.key));
   const put = {}, added = [], kept = [], ignored = [];
   const list = (v) => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch { return []; } };
   for (const [k, v] of Object.entries(incoming)) {
     if (!known.has(k)) { ignored.push(k); continue; }
-    if (k === TOKEN_EXPIRY_KEY) continue; // follows its token, below
+    if (k === TOKEN_EXPIRY_KEY || k === TOKEN_TEST_KEY) continue; // follow their token, below
     if (k === GITLAB_TOKENS_KEY) {
       const have = gitlabTokenMap(current[k]), inc = gitlabTokenMap(v), out = { ...have };
       for (const [a, t] of Object.entries(inc)) {
@@ -307,6 +360,7 @@ export function mergeSettings(current, incoming) {
     put[k] = v;
     added.push(settingLabel(k));
     if (k === TOKEN_KEY && incoming[TOKEN_EXPIRY_KEY]) put[TOKEN_EXPIRY_KEY] = incoming[TOKEN_EXPIRY_KEY];
+    if (k === TOKEN_KEY && incoming[TOKEN_TEST_KEY]) put[TOKEN_TEST_KEY] = incoming[TOKEN_TEST_KEY];
   }
   return { put, added, kept, ignored };
 }

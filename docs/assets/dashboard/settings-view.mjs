@@ -10,7 +10,9 @@
 
 import { canStore, gitlabRole } from "../review-core.mjs";
 import { savePseudonymisation, saveCollaborators, clickAuthority } from "./writes.mjs";
-import { settingKeys, parseJson, sessionList, gitlabTokenMap, exportSettings, readSettingsFile, mergeSettings } from "../settings-store.mjs";
+import {
+  settingKeys, parseJson, sessionList, gitlabTokenMap, tokenTest, sessionTest, exportSettings, readSettingsFile, mergeSettings,
+} from "../settings-store.mjs";
 import {
   parseProductAddress, isGitLab, gitlabProject, repositoryInfo, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
 } from "../git-host.mjs";
@@ -84,6 +86,7 @@ export function repositoryChoiceSteps(instance, product) {
 // it as it is, so tests/test_settings_page.py checks what the person sees.
 
 const K_TOKEN = "agent-m.github-token", K_EXPIRES = "agent-m.github-token-expires", K_PRODUCTS = "agent-m.products";
+const K_TESTED = "agent-m.github-token-tested";
 const K_GITLAB = "agent-m.gitlab-tokens";
 const K_JUMP = "agent-m.jump-host", K_SESSIONS = "agent-m.remote-sessions";
 
@@ -127,37 +130,40 @@ export function secretFieldHtml({ key, value, shown = false, label }) {
       autocomplete="off" spellcheck="false"> <button class="btn small" data-show="${esc(key)}">${shown ? "Hide" : "Show"}</button>`;
 }
 
-function tokenStateLine(token, expires, tokenState, now, server = "GitHub") {
+// UC-042 step 1: the state of a token's line — its last test (tokenTest of MOD-settings-store), kept in this browser beside it.
+function tokenStateLine(token, expires, tested, now, server = "GitHub") {
   if (!token) return "— not set";
-  if (tokenState?.refused) return `✗ refused — ${esc(server)} did not accept it at the last use`;
+  if (tested?.refused) return `✗ refused — ${esc(server)} did not accept it at the last use`;
   const w = expiryWarning(expires, now);
   if (w) return `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(expires)}`;
-  if (tokenState?.ok) return `✓ works — tested ${esc(tokenState.ok)}`;
+  if (tested?.ok) return `✓ works — tested ${esc(tested.ok)}`;
   return "stored — not tested on this page yet";
 }
 
 // The browser section: one row per setting, each with Test and Clear (A BROWSER SETTING IS TESTED AND
-// CLEARED WHERE IT IS SHOWN). entries: { key: raw value } from the store; shown: keys revealed by Show.
-export function browserSettingsHtml({ entries = {}, shown = [], tokenState = null, now = new Date() }) {
-  const token = entries[K_TOKEN] || null, expires = entries[K_EXPIRES] || null;
+// CLEARED WHERE IT IS SHOWN). entries: { key: raw value } from the store — each setting's last test among them, kept beside it
+// (UC-042 step 1); shown: keys revealed by Show.
+export function browserSettingsHtml({ entries = {}, shown = [], now = new Date() }) {
+  const token = entries[K_TOKEN] || null, expires = entries[K_EXPIRES] || null, tested = tokenTest(parseJson(entries[K_TESTED], null));
   let products = [];
   try { products = JSON.parse(entries[K_PRODUCTS] || "[]"); } catch { products = []; }
   if (!Array.isArray(products)) products = [];
   const tokenRow = `<div class="setting" data-setting-row="github-token">
     <h4 data-setting-key="${K_TOKEN}">GitHub token</h4>
-    <p class="state">${tokenStateLine(token, expires, tokenState, now)}</p>
+    <p class="state">${tokenStateLine(token, expires, tested, now)}</p>
     ${token ? `<p>${secretFieldHtml({ key: K_TOKEN, value: token, shown: shown.includes(K_TOKEN), label: "Stored GitHub token" })}</p>` : ""}
     <p data-setting-key="${K_EXPIRES}">Expires on: <strong>${expires ? esc(expires) : "—"}</strong>
       <span class="muted small">— the date entered when the token was stored; the dashboard warns ${EXPIRY_WARN_DAYS} days before.</span></p>
-    <p><button class="btn" data-test="${K_TOKEN}" ${token ? "" : "disabled"}>Test</button>
+    <p data-setting-key="${K_TESTED}"><button class="btn" data-test="${K_TOKEN}" ${token ? "" : "disabled"}>Test</button>
       <button class="btn" data-change="${K_TOKEN}">${token ? "Change" : "Store a token"}</button>
       <button class="btn" data-clear="${K_TOKEN}" ${token ? "" : "disabled"}>Clear</button></p>
     <p class="result muted" data-result="${K_TOKEN}"></p>
     <details class="explain"><summary>What is this?</summary><div>The key that lets this page commit, open issues and start
       runs for you in the repositories you gave it. Kept in this browser's <code>localStorage</code>, sent only to
-      https://api.github.com as a header. <em>Test</em> reads your instance with it; <em>Clear</em> removes it and its date
-      from this browser — accepting and editing then go through GitHub's own pages, products cannot be added, and private
-      repositories cannot be read.</div></details>
+      https://api.github.com as a header. <em>Test</em> reads your instance with it; its answer — or GitHub's refusal at the
+      token's last use — is kept beside the token, so this line shows it after a reload too. <em>Clear</em> removes the token, its
+      date and its last test from this browser — accepting and editing then go through GitHub's own pages, products cannot be
+      added, and private repositories cannot be read.</div></details>
   </div><!--/setting-->`;
   const productRow = `<div class="setting" data-setting-row="products">
     <h4 data-setting-key="${K_PRODUCTS}">Products</h4>
@@ -177,7 +183,7 @@ export function browserSettingsHtml({ entries = {}, shown = [], tokenState = nul
   const gl = gitlabTokenMap(entries[K_GITLAB]);
   const lines = Object.entries(gl).map(([a, t]) => {
     const p = parseProductAddress(a), ok = !p.error && isGitLab(p), showKey = `${K_GITLAB} ${a}`;
-    const st = tokenState?.gitlab?.[a];
+    const st = t.tested;
     const w = ok ? expiryWarning(t.expires, now, p) : null;
     const state = st?.refused ? `✗ refused — ${esc(ok ? p.host : "the server")} did not accept it at the last use`
       : w ? `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(t.expires)}` : st?.ok ? `✓ works — tested ${esc(st.ok)}` : "stored — not tested on this page yet";
@@ -232,7 +238,7 @@ export function browserSettingsHtml({ entries = {}, shown = [], tokenState = nul
   const sessionLines = sessions.map((s) => {
     let cmds = null;
     try { cmds = jump && !jumpBad ? tunnelCommands(jump, s) : null; } catch { cmds = null; }
-    const showKey = `${K_SESSIONS} ${s.name}`, st = tokenState?.sessions?.[s.name];
+    const showKey = `${K_SESSIONS} ${s.name}`, st = sessionTest(s.tested);
     const state = st?.up ? `✓ something answered at localhost:${esc(s.port)} — tested ${esc(st.up)}`
       : st?.down ? `✗ nothing answered at localhost:${esc(s.port)} — start both commands` : "not tested on this page yet";
     const copy = (c) => `<pre class="cmd">${esc(c)}</pre><button class="btn small" data-copy="${esc(c)}">Copy</button>`;
@@ -399,10 +405,10 @@ async function renderSections(app, sections) {
 }
 
 export function renderBrowserSettings(app) {
-  const { T, store, state, shownSecrets, tokenState, showBanner, noteRefusal, errorText, loadProducts, renderProductSelector } = app;
+  const { T, store, state, shownSecrets, showBanner, noteRefusal, errorText, loadProducts, renderProductSelector } = app;
   const ghToken = app.ghToken;
   const box = document.getElementById("browser-settings");
-  box.innerHTML = browserSettingsHtml({ entries: store.entries(), shown: [...shownSecrets], tokenState });
+  box.innerHTML = browserSettingsHtml({ entries: store.entries(), shown: [...shownSecrets] });
   const say = (key, text) => { box.querySelector(`[data-result="${key}"]`).textContent = text; };
   wireRemoteSettings(app, box, say);
   box.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => {
@@ -418,7 +424,7 @@ export function renderBrowserSettings(app) {
     say("agent-m.github-token", `Reading ${T.instance}…`);
     try {
       await repositoryInfo({ product: githubRepository(T.instance), token: ghToken() });
-      Object.assign(tokenState, { ok: today(), refused: false });
+      store.setTokenTest({ ok: today() });
       showBanner();
       renderBrowserSettings(app);
       say("agent-m.github-token", `GitHub accepted the token: it can read ${T.instance}.`);
@@ -440,7 +446,7 @@ export function renderBrowserSettings(app) {
     const p = parseProductAddress(a);
     if (p.error || !isGitLab(p)) return `${a}: ${p.error || "not a GitLab address"}`;
     const x = await checkGitLab(app, p, store.getGitLabToken(a)?.token);
-    if (x.ok) tokenState.gitlab[a] = { ok: today(), refused: false };
+    if (x.ok) store.setGitLabTokenTest(a, { ok: today() });
     return reachLine([a, x]).replace(/<[^>]+>/g, "");
   };
   box.querySelectorAll("[data-test-gitlab]").forEach((b) => b.addEventListener("click", async () => {
@@ -470,7 +476,6 @@ export function renderBrowserSettings(app) {
       const bad = gitlabTokenProblem(v, exp);
       if (bad) { glSay(a, bad); return; }
       store.setGitLabToken(a, v, exp);
-      tokenState.gitlab[a] = {};
       showBanner();
       renderBrowserSettings(app);
       glSay(a, "Stored. Press Test to check it.");
@@ -481,14 +486,12 @@ export function renderBrowserSettings(app) {
     if (!confirm(`Clear the GitLab project token for ${a} from this browser? Without it, that product can be read only if it is public, and nothing can be accepted or saved in it.`)) return;
     store.clearGitLabToken(a);
     shownSecrets.delete(`agent-m.gitlab-tokens ${a}`);
-    delete tokenState.gitlab[a];
     showBanner();
     renderBrowserSettings(app);
   }));
   box.querySelector(`[data-clear="agent-m.gitlab-tokens"]`)?.addEventListener("click", () => {
     if (!confirm("Clear every GitLab project token from this browser? GitLab products can then be read only if they are public, and nothing can be accepted or saved in them.")) return;
     for (const a of Object.keys(store.gitLabTokens())) store.clearGitLabToken(a);
-    tokenState.gitlab = {};
     showBanner();
     renderBrowserSettings(app);
   });
@@ -496,7 +499,6 @@ export function renderBrowserSettings(app) {
     if (!confirm("Clear the GitHub token from this browser? Without it, accepting and editing go through GitHub's own pages, " +
       "products cannot be added, and private repositories cannot be read.")) return;
     store.clearToken();
-    Object.assign(tokenState, { ok: null, refused: false });
     shownSecrets.clear();
     showBanner();
     viewSettings(app);
@@ -522,7 +524,7 @@ export function renderBrowserSettings(app) {
 // (THE DASHBOARD WRITES THE TUNNEL COMMANDS). A web page cannot open SSH: Test asks each session's local port whether the
 // forward, and through it the reverse tunnel, answers.
 function wireRemoteSettings(app, box, say) {
-  const { store, shownSecrets, tokenState } = app;
+  const { store, shownSecrets } = app;
   const J = "agent-m.jump-host", R = "agent-m.remote-sessions";
   const one = (attr, v) => [...box.querySelectorAll(`[${attr}]`)].find((x) => x.getAttribute(attr) === v);
   const sessionSay = (name, text) => { const el = one("data-result-session", name); if (el) el.textContent = text; };
@@ -532,7 +534,7 @@ function wireRemoteSettings(app, box, say) {
   }));
   const testSession = async (sess) => {
     const up = await probeLocalPort(sess.port);
-    tokenState.sessions[sess.name] = up ? { up: today() } : { down: true };
+    store.setRemoteSessionTest(sess.name, up ? { up: today() } : { down: true });
     return up ? `${sess.name}: something answers at localhost:${sess.port} — the tunnel is up.`
       : `${sess.name}: nothing answers at localhost:${sess.port} — start the reverse tunnel on the machine behind NAT and the forward here.`;
   };
@@ -623,20 +625,18 @@ function wireRemoteSettings(app, box, say) {
     if (!confirm(`Clear the remote session ${name} and its bridge token from this browser? Its port becomes free again.`)) return;
     store.clearRemoteSession(name);
     shownSecrets.delete(`${R} ${name}`);
-    delete tokenState.sessions[name];
     renderBrowserSettings(app);
   }));
   box.querySelector(`[data-clear="${R}"]`)?.addEventListener("click", () => {
     if (!confirm("Clear every remote session and its bridge token from this browser?")) return;
     store.clearRemoteSessions();
     for (const k of [...shownSecrets]) if (k.startsWith(`${R} `)) shownSecrets.delete(k);
-    tokenState.sessions = {};
     renderBrowserSettings(app);
   });
 }
 
 function wireSettings(app) {
-  const { store, kept, shownSecrets, tokenState, showBanner, loadProducts, renderProductSelector } = app;
+  const { store, kept, shownSecrets, showBanner, loadProducts, renderProductSelector } = app;
   const ghToken = app.ghToken;
   const ack = document.getElementById("ack"), input = document.getElementById("token-input");
   const expires = document.getElementById("token-expires"), save = document.getElementById("token-save");
@@ -651,7 +651,6 @@ function wireSettings(app) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) { msg.textContent = "Enter the date the token expires — GitHub showed it when you created the token."; return; }
     store.setToken(v, exp);
     input.value = "";
-    Object.assign(tokenState, { ok: null, refused: false });
     showBanner();
     viewSettings(app);
     document.getElementById("token-msg").textContent = "Stored. Press Test to check it; reload to read with it.";
@@ -661,7 +660,6 @@ function wireSettings(app) {
     store.clear();
     // A CLEAR IS A REAL CLEAR: the file texts kept by blob SHA go too.
     const textsGone = await kept.clear();
-    Object.assign(tokenState, { ok: null, refused: false, gitlab: {}, sessions: {} });
     shownSecrets.clear();
     loadProducts();
     renderProductSelector();
