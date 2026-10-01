@@ -113,19 +113,28 @@ function entryNote(e) {
 //
 // A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST: for every requirement of the SPEC that the entry changes or withdraws, the
 // use cases, decisions, modules and tests that name it (MOD-traceability requirementImpact), derived from the files of the commit
-// shown. Which requirements the entry touches is read from the SPEC and the proposal alone; only for an entry that touches one are
-// the use cases, the architecture files and the tests read — each by its blob SHA, so a file read once is not read again. An entry
-// decided already (in SPEC, superseded) proposes nothing (linkGraph), and a SPEC other than the product's SPEC.md has no graph.
+// shown. Which requirements the entry touches is read from the SPEC, the proposal and the queue's index.md alone — the index names
+// the section the entry replaces, so a requirement of that section the entry no longer states (renamed in place, or left out) is
+// touched as withdrawn (linkGraph); an entry whose heading another entry of the queue creates comes with that entry, whose text
+// holds its section. Only for an entry that touches one are the use cases, the architecture files and the tests read — each by
+// its blob SHA, so a file read once is not read again. An entry decided already (in SPEC, superseded) proposes nothing
+// (linkGraph), and a SPEC other than the product's SPEC.md has no graph.
 
 const USE_CASE = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
 const TOUCHES = new Set(["change", "withdraw"]);
 const touchedBy = (graph, entry) => graph.edges.filter((x) => x.from === entry && x.kind === "proposes" && TOUCHES.has(x.change));
 
-// -> [{ name, change, artifacts: [{ id, kind, path, via }] }], in the order the proposal states them.
-async function entryImpact(app, e) {
+// entries: the entries of the entry's queue (queueEntries). -> [{ name, change, artifacts: [{ id, kind, path, via }] }]: the
+// requirements the entry leaves out of its section first, then those it states, in the order it states them.
+async function entryImpact(app, e, entries) {
   if (!e.proposalPath || e.targetPath !== "SPEC.md") return [];
-  const own = { "SPEC.md": await app.fileText("SPEC.md"), [e.proposalPath]: e.proposalText };
-  const status = { [e.proposalPath]: e.status };
+  // The index is the text the queue view read (queueHeads), kept by `once`: no request of its own.
+  const index = `${e.dir}/index.md`;
+  const creators = entries.filter((x) => e.needs.includes(x.nr) && x.proposalPath);
+  const [specText, indexText] = await Promise.all([app.fileText("SPEC.md"), app.fileText(index)]);
+  const own = { "SPEC.md": specText, [index]: indexText,
+    ...Object.fromEntries(creators.map((x) => [x.proposalPath, x.proposalText])), [e.proposalPath]: e.proposalText };
+  const status = Object.fromEntries([...creators, e].map((x) => [x.proposalPath, x.status]));
   if (!touchedBy(linkGraph({ files: own, status }), e.proposalPath).length) return [];
   const paths = app.state.tree.map((x) => x.path)
     .filter((p) => USE_CASE.test(p) || ARCHITECTURE_FILE.test(p) || (isCodePath(p) && isTestPath(p)));
@@ -161,12 +170,13 @@ async function viewSpecEntry(app, qname, nn) {
   const { session, openQueues, main, md, renderMermaid, diffHtml } = app;
   const seq = app.seq();
   const q = (await queueHeads(app)).find((x) => x.name === qname);
-  const e = q && (await queueEntries(app, q)).find((x) => x.nn === nn);
+  const entries = q ? await queueEntries(app, q) : [];
+  const e = entries.find((x) => x.nn === nn);
   if (seq !== app.seq()) return;
   if (!e) { main().innerHTML = `<p class="warn">No entry ${h(qname)}/${h(nn)}.</p>`; return; }
   openQueues.add(q.name);
   const [rationale, impact] = await Promise.all([e.rationalePath ? app.fileText(e.rationalePath) : "",
-    entryImpact(app, e).then((list) => ({ list }), (err) => { app.noteRefusal(err); return { list: [], error: app.errorText(err) }; })]);
+    entryImpact(app, e, entries).then((list) => ({ list }), (err) => { app.noteRefusal(err); return { list: [], error: app.errorText(err) }; })]);
   if (seq !== app.seq()) return;
   const waits = e.needs.length > 0 && ["open", "stale"].includes(e.status) && Boolean(e.proposalPath);
   // The impact list is part of the proposal: an entry whose list could not be derived is not offered for acceptance.

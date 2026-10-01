@@ -7,7 +7,8 @@
 // Guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
 // Level: component
 //
-// Counter-proofs (a planted fault for each test): docs/measurements/2026-10-02_spec-entry-impact-list.md.
+// Counter-proofs (a planted fault for each test): docs/measurements/2026-10-02_spec-entry-impact-list.md; for the two cases of an
+// entry that takes a requirement out of its section, docs/measurements/2026-10-02_entry-impact-from-the-index.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
