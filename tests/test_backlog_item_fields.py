@@ -88,6 +88,12 @@ class TestAnItemNamesWhatItRealises(unittest.TestCase):
         self.assertEqual(len(problems(ITEM, read(BROKEN / "not-a-name.md"), None)), 2)
         self.assertEqual(len(problems(ITEM, read(BROKEN / "realises-nothing.md"), None)), 1)
 
+    def test_counter_proof_another_identifier_in_capitals_is_no_requirement_name(self):
+        text = edited(TEXT, "  - EXPORT IS A PDF\n  - UC-003\n", "  - ARC-003\n  - ITM-016\n")
+        self.assertEqual([(f["line"], f["what"]) for f in problems(ITEM, text, None)],
+                         [(7, 'realises "ARC-003" is neither a requirement name nor a use case'),
+                          (8, 'realises "ITM-016" is neither a requirement name nor a use case')])
+
     def test_a_use_case_counts_only_when_the_product_has_it(self):
         text = edited(TEXT, "  - EXPORT IS A PDF\n  - UC-003\n", "  - UC-003\n")
         self.assertEqual(problems(ITEM, text, KNOWN), [])
