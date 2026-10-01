@@ -13,8 +13,9 @@
 //
 // The views are files of their own, docs/assets/dashboard/<view>-view.mjs, and the settings page's sections
 // docs/assets/dashboard/settings/<section>.mjs — each loaded by its name from one table (DASHBOARD), which also makes the tab
-// bar. A view module exports `routes`: { <route>: (app, …parts of the address) }; a section module exports
-// `renderSection(app, box)`. Both get `app`, this page's context: what is read, what is kept, and the helpers every view uses.
+// bar. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a stylesheet of
+// its own beside style.css; a section module exports `renderSection(app, box)`. Both get `app`, this page's context: what is
+// read, what is kept, and the helpers every view uses.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
 import { marked } from "./vendor/marked.esm.js";
@@ -100,6 +101,18 @@ function loadFile(file) {
 const notThere = (e) => e?.code === "ERR_MODULE_NOT_FOUND" || e instanceof TypeError;
 async function present(file) {
   try { await loadFile(file); return true; } catch (e) { return !notThere(e); }
+}
+
+// A view may bring a stylesheet of its own beside style.css: its module exports `stylesheet`, a file name in
+// docs/assets/dashboard/, which is linked into the page once, when the view is first shown.
+const linked = new Set();
+function linkStylesheet(file) {
+  if (!file || linked.has(file)) return;
+  linked.add(file);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = new URL(`dashboard/${file}`, import.meta.url).href;
+  document.head.append(link);
 }
 
 // ---------------------------------------------------------------- texts and HTML every view uses
@@ -391,8 +404,14 @@ async function route() {
     // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
     const v = DASHBOARD.find((x) => x.view && x.view === kind);
     const views = v ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
-    if (views?.routes?.[v.view]) await views.routes[v.view](app, a, b);
-    else await (await loadFile(DASHBOARD.find((x) => x.view === "uc").file)).routes.uc(app);
+    if (views?.routes?.[v.view]) {
+      linkStylesheet(views.stylesheet);
+      await views.routes[v.view](app, a, b);
+    } else {
+      const uc = await loadFile(DASHBOARD.find((x) => x.view === "uc").file);
+      linkStylesheet(uc.stylesheet);
+      await uc.routes.uc(app);
+    }
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
     const gl = gitlabShown();
     document.getElementById("token-banner").innerHTML = (ghToken()

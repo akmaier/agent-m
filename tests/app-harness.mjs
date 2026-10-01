@@ -197,8 +197,9 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const purify = (await import(new URL("vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
   const els = new Map();
+  const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },
-    querySelectorAll: () => [], createElement: () => element(""), body: { contains: () => true } };
+    querySelectorAll: () => [], createElement: () => element(""), body: { contains: () => true }, head };
   const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search: "", hash, origin: "https://akmaier.github.io",
     get href() { return `https://akmaier.github.io/agent-m/${this.search}${this.hash}`; } };
   const listeners = [];
@@ -219,6 +220,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const page = {
     main: () => doc.getElementById("main").innerHTML,
     el: (id) => doc.getElementById(id).innerHTML, // a part the app fills after rendering, such as #impact
+    stylesheets: () => head.children.map((l) => l.href), // the stylesheets the views linked, beside style.css
     requests: server.requests.slice(start),
     async go(next) {
       const from = server.requests.length;

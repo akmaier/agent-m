@@ -1,5 +1,6 @@
 // The dashboard shell — the tab bar written from the table of views, each view loaded by its name, a view or settings section
-// whose file is not there not shown, and the request handlers a view's tests bring to the harness. Run: node --test tests/
+// whose file is not there not shown, a view's own stylesheet, and the request handlers a view's tests bring to the harness.
+// Run: node --test tests/
 //
 // Module: MOD-dashboard-app
 // Guards: EVERY SETTING IS REACHED FROM ONE PAGE; UC-001; UC-006; UC-008; UC-014; UC-022; UC-023; UC-042
@@ -10,7 +11,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { repoServer, openDashboard } from "./app-harness.mjs";
 import { DASHBOARD } from "../docs/assets/dashboard-app.mjs";
 
@@ -75,4 +79,26 @@ test("a request handler a test brings answers before the harness's own GitHub", 
   const plain = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#settings" });
   assert.match(plain.el("product-settings"), /will be published/);
   assert.ok(!plain.requests.some((r) => r.startsWith("handler ")));
+});
+
+test("a view may link a stylesheet of its own beside style.css — once, when it is first shown", async () => {
+  // A copy of the site whose how-view.mjs names a stylesheet; the view is otherwise the real one.
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-assets-")));
+  try {
+    cpSync(new URL("../docs/assets/", import.meta.url), dir, { recursive: true });
+    const view = join(dir, "dashboard", "how-view.mjs");
+    writeFileSync(view, readFileSync(view, "utf8") + '\nexport const stylesheet = "how-view.css";\n');
+    const assets = pathToFileURL(dir + "/");
+    const page = await openDashboard({ server: await repoServer({ files: FILES }), assets });
+    assert.deepEqual(page.stylesheets(), [], "the use cases bring none");
+    await page.go("#how");
+    await page.go("#uc");
+    await page.go("#how");
+    assert.deepEqual(page.stylesheets(), [new URL("dashboard/how-view.css", assets).href]);
+    // Counter-proof: the real how-view.mjs names none, and nothing is linked.
+    const real = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#how" });
+    assert.deepEqual(real.stylesheets(), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

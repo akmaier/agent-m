@@ -42,8 +42,10 @@ reading sees a failure was checked on each row below, every one of which names t
 | `dashboard/review-views.mjs` removed | 24 of 115 node tests (every page load, the tab bar) |
 | `dashboard/settings-view.mjs` removed | 22 of 53 node tests (the app does not load) |
 | the harness asks none of a test's handlers | `dashboard-shell.test.mjs` "a request handler a test brings answers before the harness's own GitHub" |
-| a view counts as there whether its file is or not | all four tests of `dashboard-shell.test.mjs` |
+| a view counts as there whether its file is or not | all four tests `dashboard-shell.test.mjs` had at that point |
 | the tab bar drops the title the table gives *Settings* | `dashboard-shell.test.mjs` "with every view file of today, the tab bar shows the tabs it showed before …" |
+| the router does not link a view's stylesheet | `dashboard-shell.test.mjs` "a view may link a stylesheet of its own beside style.css — once, when it is first shown" |
+| the router links a view's stylesheet each time the view is shown | the same test |
 
-Before and after the series: `cd tests && python3 -m unittest` — 93 tests, OK; `node --test tests/*.test.mjs` — 133 tests,
-133 pass.
+Before and after the series: `cd tests && python3 -m unittest` — 93 tests, OK; `node --test tests/*.test.mjs` — 134 tests,
+134 pass. The comparison of section 1 was run again after the last change to `dashboard-app.mjs`: identical.
