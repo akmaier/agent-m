@@ -2,23 +2,18 @@
 id: MOD-bridge-tunnel
 title: Writes, checks and — in the bridge — opens and keeps the SSH tunnels to the jump host, and writes the jump host's web-server configuration for the HTTPS route
 realises:
+  - REMOTE ACCESS TO THE BRIDGE GOES THROUGH A TUNNEL
   - A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
   - A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
   - EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE
   - THE DASHBOARD WRITES THE TUNNEL COMMANDS
-  - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-  - THE BRIDGE OPENS ITS TUNNELS ITSELF
-  - THE BRIDGE CREATES ITS OWN SSH KEY
-  - REMOTE ACCESS TO THE BRIDGE GOES THROUGH A TUNNEL
-  - A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST
   - THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
   - THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE
+  - THE BRIDGE OPENS ITS TUNNELS ITSELF
+  - THE BRIDGE CREATES ITS OWN SSH KEY
   - UC-011
-  - UC-042
-  - UC-044
 follows:
   - ARC-003
-  - ARC-012
   - ARC-013
 uses: []
 provides:
@@ -31,20 +26,17 @@ provides:
   - ensureKey
   - superviseTunnel
 ---
-# MOD-bridge-tunnel Writes, checks and — in the bridge — opens and keeps the SSH tunnels to the jump host, and writes the jump host's web-server configuration for the HTTPS route
+# MOD-bridge-tunnel SSH tunnels to the jump host, and the jump host's web-server configuration
 
 ## Responsibility
 
-Tunnels of ARC-013: the commands and their checks, used by the dashboard's settings page for
-machines without a bridge, and the same commands executed and supervised by the bridge with its own
-key and its own OpenSSH client; and the web-server block that puts a session's tunnel end behind the
-jump host's HTTPS address (ARC-012 point 9, ARC-013 decision 6 — proposed). The jump host's name, SSH
-user, port range, HTTPS address and web-server login, and each session's name, port and bridge token,
-are read from the browser settings (MOD-settings-store); this module keeps none of them.
-
-**Current state.** In `review-core.mjs` today: `jumpHostProblem`, `nextFreePort`, `addRemoteSession`,
-`tunnelBindProblems`, `tunnelCommands`, `KEEPALIVE_SECONDS`; they move here. `webServerConfig`,
-`sshClient`, `ensureKey` and `superviseTunnel` do not exist yet.
+Adapter. The tunnels of ARC-013: the commands and their checks, used by the dashboard's settings page for
+machines without a bridge, and the same commands executed and supervised by the bridge with its own key
+and its own OpenSSH client; and the web-server block that puts a session's tunnel end behind the jump
+host's HTTPS address (ARC-013 decisions 5 and 6). The jump host's name, SSH user, port range, HTTPS
+address and web-server login, and each session's name and port, are passed in by the caller; the bridge's
+key and `known_hosts` live in the bridge's directory, which the bridge app passes in. This module keeps
+none of them.
 
 ## Interfaces
 
@@ -57,4 +49,15 @@ are read from the browser settings (MOD-settings-store); this module keeps none 
 - `ensureKey(dir) -> { publicKey, fingerprint }` — the bridge side: creates `id_ed25519` with the `ssh-keygen` of `sshClient` on first use, owner-only permissions (on Windows an ACL for the user only); the private key is never returned.
 - `superviseTunnel(argv, dir) -> { state(), stop() }` — the bridge side: runs the `ssh` of `sshClient` as a child with an argument array (no shell), its own `known_hosts`, restarts with backoff, reports *open* or the last error.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
+## Testing
+
+Unit tests for the writers and checks (`tests/review-core.test.mjs`, `tests/test_bridge_tunnel.py`): a command bound to `0.0.0.0`,
+with `-g` or `GatewayPorts` is refused, the generated one passes; the port allocator never hands out a used
+port or one outside the range; a web-server block without login, with `*` or to a non-loopback address is
+refused, and no output contains a password or a hash. Component tests for the bridge side with a fake
+`ssh` executable on the path: the argument array is exactly `tunnelCommands`' reverse end, the child is
+restarted after it exits, and the private key never appears in a result. The seams are the process spawner
+and the file system. A system test against a real OpenSSH server on loopback runs before a release
+(ARC-016). No model is involved.
+
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the HTTPS route's reasons stay in ARC-013, settings passed in, the current state removed, rules it does not check left to their owners; open until accepted.*
