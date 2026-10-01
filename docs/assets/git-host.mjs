@@ -133,6 +133,39 @@ export const tokenListUrl = () => "https://github.com/settings/personal-access-t
 // "Create a project access token"; route /-/settings/access_tokens in config/routes/project.rb).
 export const gitlabTokenPageUrl = (product) => `${product.address}/-/settings/access_tokens`;
 
+// ---------------------------------------------------------------- the one list of a token's permissions
+
+// ONE GITHUB TOKEN SERVES EVERY FEATURE: the permissions of the one fine-grained token, in GitHub's display names (`permission`)
+// and the parameter names and access levels of GitHub's prefilled token page (`param`, `access`) — read on 2026-10-01 in the
+// table "Repository permissions" of docs.github.com, "Pre-filling fine-grained personal access token details using URL
+// parameters": pull_requests read/write, workflows write only, metadata read only; "write always includes read".
+const GITHUB_PERMISSIONS = Object.freeze([
+  { permission: "Contents", param: "contents", access: "write",
+    why: "to save and accept: every edit and acceptance is a commit you ask for by clicking" },
+  { permission: "Issues", param: "issues", access: "write",
+    why: "for reports that become issues in a product" },
+  { permission: "Pull requests", param: "pull_requests", access: "write",
+    why: "for a job on GitHub's machines to open and merge its pull request" },
+  { permission: "Actions", param: "actions", access: "write",
+    why: "to start a run of a workflow, such as the tests" },
+  { permission: "Workflows", param: "workflows", access: "write",
+    why: "for a job that writes a product's CI configuration, the files under .github/workflows/" },
+  { permission: "Metadata", param: "metadata", access: "read",
+    why: "GitHub requires it for every token; it reads names and settings, nothing else" },
+].map(Object.freeze));
+
+// A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: role Maintainer, scope api, for the one project.
+const GITLAB_PERMISSIONS = Object.freeze({ role: "Maintainer", scope: "api",
+  why: "GitLab protects a project's default branch against pushes by Developers, so only a Maintainer token can write there" });
+
+// requiredPermissions(host) — host a server name ("github.com", "gitlab.rrze.fau.de") or a product (parseProductAddress):
+// on GitHub { github: [{ permission, param, access, why }] }, on a GitLab server { gitlab: { role, scope, why } }. The one list
+// the prefilled token link, the guidance, the steps and the settings page are written from.
+export function requiredPermissions(host) {
+  const name = typeof host === "string" ? host : host?.host;
+  return name === "github.com" ? { github: GITHUB_PERMISSIONS } : { gitlab: GITLAB_PERMISSIONS };
+}
+
 // ---------------------------------------------------------------- writing (SPEC §9, §10)
 
 // THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Every write needs the click event that caused it;
