@@ -195,7 +195,7 @@ export function browserStore() {
 
 export const settingKeys = [
   { key: TOKEN_KEY, label: "GitHub token", secret: true,
-    grants: "writes — commits, issues and workflow runs — to every repository it was given, under your account" },
+    grants: "writes — commits, issues, pull requests and workflow runs — to every repository it was given, under your account" },
   { key: TOKEN_EXPIRY_KEY, label: "GitHub token expiry date", secret: false, partOf: TOKEN_KEY },
   { key: PRODUCTS_KEY, label: "Products", secret: false },
   { key: GITLAB_TOKENS_KEY, label: "GitLab project tokens", secret: true,

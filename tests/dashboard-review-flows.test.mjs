@@ -1214,8 +1214,8 @@ async function downloaded(f) {
 
 test("UC-042 step 6: the export states what it contains and what each secret grants; Export saves every browser setting, the token included, and sends nothing", async () => {
   const { srv, dom, page } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([PRODUCT_ADDR]) } });
-  assert.ok(page.main().includes("The file contains every setting of this browser in full, including your GitHub token, which writes — commits, issues " +
-    "and workflow runs — to every repository it was given, under your account. It opens all of that to whoever holds the file — keep it like a " +
+  assert.ok(page.main().includes("The file contains every setting of this browser in full, including your GitHub token, which writes — commits, issues, " +
+    "pull requests and workflow runs — to every repository it was given, under your account. It opens all of that to whoever holds the file — keep it like a " +
     "password, or lock it with a passphrase."));
   let made;
   const [file] = await downloaded(async () => { made = await press(srv, dom.byId("export-go")); });
