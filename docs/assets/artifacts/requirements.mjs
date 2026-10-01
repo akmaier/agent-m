@@ -5,13 +5,15 @@
 //
 // A requirement as the SPEC's form gives it (A REQUIREMENT HAS FIVE FIELDS):
 //
-//   **NAME IN CAPITALS** *(SRC-…, YYYY-MM-DD)*      — the name, and its source with a date; the source may wrap
+//   **NAME IN CAPITALS** *(source, YYYY-MM-DD)*     — the name, and its source with a date; the source may wrap
 //   One rule, one statement.                          — the rule, up to the occasion
 //   *Occasion:* why.                                  — may run over several lines
 //   *Check:* `tests/…` | no automatic check; at review.
 //
 // A withdrawn requirement says so in its source and keeps only a line `*Withdrawn:* …`. A requirement ends at a blank line,
-// a heading or the next requirement. Sources and resource entries are named by their identifiers (SRC-…, RES-…).
+// a heading or the next requirement. A source is named as it is written — "PO A. Maier, 2026-09-24", "Vibe Coding, ch. 7 §5"
+// — and needs no identifier (akmaier, 2026-10-01). Where it names one, a source SRC-… must be one the product links, and a
+// resource entry RES-… is never a source (A RESOURCE'S TERMS ENTER AS A SOURCE).
 
 // The slug of an identifier, as artifacts.mjs SLUG — repeated here because artifacts.mjs imports this file.
 const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
@@ -63,20 +65,25 @@ const finding = (r, kind, rule, what, fix) => ({ artifact: r.name, line: r.line,
 const SOURCE_ID = new RegExp(`\\bSRC-${SLUG}\\b`, "g");
 const RESOURCE_ID = new RegExp(`\\bRES-${SLUG}\\b`, "g");
 const DATE = /\b\d{4}-\d{2}-\d{2}\b/;
+const DATES = /\b\d{4}-\d{2}-\d{2}\b/g;
 const NAMES_A_TEST = /\btests\/[\w./-]+/;
 const AT_REVIEW = /\bat review\b/i;
 const CONJUNCTION = /\b(and|additionally)\b/i;
 
 // requirementProblems(requirement, linkedSources) -> [finding] — linkedSources: the identifiers of the sources the product
 // links (docs/sources.md), as strings or as { source } entries. A finding is { artifact, line, kind, what, rule, fix }:
-// a missing field, a check that names nothing, a source the product does not link and a resource entry named as source are
-// errors; a conjunction in the rule is a warning, because whether it states two things is a person's decision. A withdrawn
-// requirement keeps only its note and is not checked.
+// a missing field — a source that is empty or only a date among them —, a check that names nothing, a named SRC-… the
+// product does not link and a resource entry named as source are errors; a source named as it is written, without an
+// identifier, is none. A conjunction in the rule is a warning, because whether it states two things is a person's decision.
+// A withdrawn requirement keeps only its note and is not checked.
 export function requirementProblems(requirement, linkedSources = []) {
   const r = requirement, out = [];
   if (r.withdrawn) return out;
   const FIVE = "A REQUIREMENT HAS FIVE FIELDS";
-  if (!r.source || !DATE.test(r.source)) {
+  if (!/[\p{L}\p{N}]/u.test((r.source ?? "").replace(DATES, ""))) {
+    out.push(finding(r, "error", FIVE, "no source",
+      "name who or what decided it, as it is written — a person, a document, a registered source (SRC-…) — with the date"));
+  } else if (!DATE.test(r.source)) {
     out.push(finding(r, "error", FIVE, "the source has no date", "write the date the source decided, as YYYY-MM-DD"));
   }
   if (!r.rule) out.push(finding(r, "error", FIVE, "no rule", "state the rule as one sentence below the name"));
@@ -98,12 +105,11 @@ export function requirementProblems(requirement, linkedSources = []) {
     out.push(finding(r, "error", "A RESOURCE'S TERMS ENTER AS A SOURCE", `the source names the resource entry ${res}`,
       "name the registered source of its terms (SRC-…), linked to the product"));
   }
-  const sources = [...new Set(source.match(SOURCE_ID) ?? [])];
-  const unlinked = sources.filter((s) => !linked.has(s));
-  if (!sources.length || unlinked.length) {
-    out.push(finding(r, "error", "A REQUIREMENT HAS A REGISTERED SOURCE",
-      unlinked.length ? `the product does not link ${unlinked.join(", ")}` : "the source names no registered source",
-      "name a source (SRC-…) the product links in docs/sources.md, or link it first"));
+  // A source written without an identifier is not looked up; a named SRC-… must be one the product links.
+  const unlinked = [...new Set(source.match(SOURCE_ID) ?? [])].filter((s) => !linked.has(s));
+  if (unlinked.length) {
+    out.push(finding(r, "error", "A REQUIREMENT HAS A REGISTERED SOURCE", `the product does not link ${unlinked.join(", ")}`,
+      "link it in the product's docs/sources.md, or name the source as it is written, without the identifier"));
   }
   return out;
 }

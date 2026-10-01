@@ -4,7 +4,8 @@
 """SPEC §3 A REQUIREMENT HAS FIVE FIELDS — name, source with a date, rule, occasion and check.
 
 MOD-artifacts.parseRequirements reads every requirement of a SPEC or of a queue entry by its name with its
-fields; requirementProblems returns a finding for each missing field. The texts are the fixture
+fields; requirementProblems returns a finding for each missing field — a source missing or without a date
+among them, whether it is named by an identifier or as it is written (ITM-127). The texts are the fixture
 tests/fixtures/requirements/spec.md, never Agent M's own SPEC (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE); each
 counter-proof breaks a copy of one requirement.
 """
@@ -74,12 +75,23 @@ class RequirementFields(unittest.TestCase):
             "no rule": SPEC.replace("The export of a report is a PDF file.\n", ""),
             "no check": SPEC.replace("*Check:* `tests/test_export.py`\n", ""),
             "a source without a date": SPEC.replace("*(SRC-po, 2026-09-24)*\nThe export", "*(SRC-po)*\nThe export"),
+            "a source written without a date": SPEC.replace("*(SRC-po, 2026-09-24)*", "*(PO A. Maier)*"),
+            "no source": SPEC.replace("*(SRC-po, 2026-09-24)*", "*()*"),
+            "a date and no source": SPEC.replace("*(SRC-po, 2026-09-24)*", "*(2026-09-24)*"),
         }
         for label, text in broken.items():
             fs = findings(text, name)
             self.assertEqual(kinds(fs), [("error", RULE)], label)
             self.assertEqual((fs[0]["artifact"], fs[0]["line"]), (name, 13), label)
             self.assertTrue(fs[0]["what"] and fs[0]["fix"], label)
+
+    def test_counter_proof_a_missing_source_is_named_as_missing(self):
+        # Not "the source has no date": a source that is empty, or only a date, names no one who decided.
+        for source in ("*()*", "*( )*", "*(2026-09-24)*", "*(2026-09-24, 2026-09-30)*"):
+            fs = findings(SPEC.replace("*(SRC-po, 2026-09-24)*", source), "THE EXPORT IS A PDF")
+            self.assertEqual([(f["kind"], f["rule"], f["what"]) for f in fs], [("error", RULE, "no source")], source)
+        # The written source of the fixture is a source.
+        self.assertEqual(findings(SPEC, "A NAMED RULE STAYS ONE", []), [])
 
 
 if __name__ == "__main__":
