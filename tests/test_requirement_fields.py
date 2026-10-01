@@ -117,11 +117,14 @@ class RequirementFields(unittest.TestCase):
 
     def test_counter_proof_bold_prose_between_requirements_stays_no_requirement(self):
         # The reader is shared (the link graph, the SPEC browser, the queue entries): bold prose — a line in capitals
-        # alone, a label in capitals with text after it, a quoted name — between two requirements is no requirement, and
-        # every requirement is read with the same fields as without it. Expected: the same names and fields, lines aside.
-        prose = ("**THIS SECTION IS INFORMATIVE**\n\n"
+        # alone (also when a paragraph with a field line follows after a blank line), a label in capitals with text after
+        # it, a quoted name — between two requirements is no requirement, and every requirement is read with the same
+        # fields as without it. Expected: the same names and fields, lines aside.
+        prose = ("**THIS SECTION IS INFORMATIVE**\n\nIt explains the export.\n*Occasion:* a line after a blank line.\n\n"
                  "**ALSO IN CAPITALS**\nA paragraph in bold capitals' wake, with no fields.\n\n"
-                 "**NOTE:** the exports are checked; see `THE EXPORT IS A PDF`.\n*Check:* not a field of a requirement.\n\n")
+                 "**NOTE:** the exports are checked; see `THE EXPORT IS A PDF`.\n*Check:* not a field of a requirement.\n\n"
+                 # A blank just inside the asterisks makes no bold text in Markdown, so no name.
+                 "**NOT BOLD IN MARKDOWN **\nA rule after it.\n*Check:* `tests/test_export.py`\n\n")
         anchor = "**THE PRODUCT IS NOT SOLD**"
         text = SPEC.replace(anchor, prose + anchor)
         self.assertEqual(text.count(prose), 1)

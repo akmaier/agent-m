@@ -13,7 +13,9 @@
 // A withdrawn requirement says so in its source and keeps only a line `*Withdrawn:* …`. A requirement ends at a blank line,
 // a heading or the next requirement. A source is named as it is written — "PO A. Maier, 2026-09-24", "Vibe Coding, ch. 7 §5"
 // — and needs no identifier (akmaier, 2026-10-01). Where it names one, a source SRC-… must be one the product links, and a
-// resource entry RES-… is never a source (A RESOURCE'S TERMS ENTER AS A SOURCE).
+// resource entry RES-… is never a source (A RESOURCE'S TERMS ENTER AS A SOURCE). A name in capitals written without any
+// `*(…)*`, alone on its line and followed by its *Occasion:* or *Check:* line, is a requirement whose source is missing — an
+// error, not prose (ITM-127, finding C1).
 
 // The slug of an identifier, as artifacts.mjs SLUG — repeated here because artifacts.mjs imports this file.
 const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
@@ -23,7 +25,21 @@ export const isRequirementName = (s) => typeof s === "string" && /[A-Z]/.test(s)
   && !/^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-/.test(s);
 
 const HEAD = /^\*\*([^*\n]+)\*\*[ \t]+\*\(([\s\S]*?)\)\*/gm;
+// A name line that carries no source at all: the bold name alone on its line. It is a requirement — one whose source is
+// missing — only when an *Occasion:* or *Check:* line follows it before the next blank line, heading, rule or bold line;
+// bold prose, a bold label with text after it and a bold line in capitals followed by a paragraph stay no requirement. As in
+// Markdown, a blank just inside the asterisks (`**NAME **`) makes no bold text, so no name.
+const BARE = /^\*\*([^*\s](?:[^*\n]*[^*\s])?)\*\*[ \t\r]*$/gm;
 const FIELD = /^\*(Occasion|Check|Withdrawn):\*[ \t]*(.*)$/;
+
+// Whether the lines after a bare name line hold an *Occasion:* or *Check:* line before the requirement could have ended.
+function fieldsFollow(text, from) {
+  for (const line of text.slice(from).split("\n").slice(1)) {
+    if (!line.trim() || /^#|^---\s*$|^\*\*[^*\n]+\*\*/.test(line)) return false;
+    if (/^\*(Occasion|Check):\*/.test(line)) return true;
+  }
+  return false;
+}
 
 // The fields of a requirement from the lines after its source, up to its end.
 function fieldsOf(rest) {
@@ -42,9 +58,13 @@ function fieldsOf(rest) {
 // parseRequirements(specText) -> Map(name -> { name, withdrawn, source, rule, occasion, check, note, section, line }) — every
 // requirement of a SPEC or of a queue entry by its name; withdrawn when its source says so, wherever the source wraps.
 // `section` is the heading of level two above it (null in a text without one), `line` the line of its name (from 1).
+// A requirement written without any source (BARE) is read with the source "", so that requirementProblems names it missing.
 export function parseRequirements(specText) {
   const text = String(specText ?? ""), out = new Map();
-  const heads = [...text.matchAll(HEAD)].filter((m) => isRequirementName(m[1]));
+  const bare = [...text.matchAll(BARE)].filter((m) => isRequirementName(m[1]) && fieldsFollow(text, m.index))
+    .map((m) => Object.assign([m[0], m[1], ""], { index: m.index }));
+  const heads = [...[...text.matchAll(HEAD)].filter((m) => isRequirementName(m[1])), ...bare]
+    .sort((a, b) => a.index - b.index);
   const sections = [...text.matchAll(/^## (.+)$/gm)];
   let line = 1, at = 0, s = -1;
   heads.forEach((m, i) => {
