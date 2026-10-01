@@ -48,7 +48,8 @@ its role assignment, practices, branches and its Definition of Done in its own r
 3. **Workflow derivation.** `deriveWorkflow(model, practices, processRequirements)` gives the
    product's phases, gates and roles, with the gates and artifacts added by accepted process
    requirements marked with their requirement and source; a practice adds, never replaces. For a
-   planned model, `derivePlan` yields one entry per accepted requirement per phase.
+   planned model, the plan (`MOD-work-items.derivePlan`) has one entry per accepted requirement per
+   phase.
 4. **The product's declaration** is `docs/process.md` in the product repository: the model by name and
    version (the instance commit of its file), the role assignment by participant name, practices,
    branches per phase or time box, and the Definition of Done — the default job rules plus the

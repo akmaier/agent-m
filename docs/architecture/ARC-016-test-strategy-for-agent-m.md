@@ -46,7 +46,7 @@ Five kinds, each with one level (`EVERY TEST HAS ONE LEVEL`):
    and WebKit against the dashboard served from `docs/` locally, with the git host and the bridge
    replaced by local fake servers; it covers the flows the unit tests cannot: a click that commits,
    a refused save that keeps the edit, the settings page's Show/Clear, pairing with a fake bridge.
-   The same harness runs the reachability measurements of ARC-012 and ARC-014 on a schedule and
+   The same harness runs the reachability measurements of ARC-012, ARC-013 and ARC-014 on a schedule and
    writes them as dated files, so `BROWSER REACHABILITY IS MEASURED, NOT ASSUMED` has a repeatable
    instrument.
 4. **Model-dependent measurements — `release`, nightly and on release candidates.** The derivation
@@ -78,7 +78,7 @@ Sources as in ARC-002. Agent M does not ship the tool; it is a development depen
 
 - **Puppeteer** — its README (read 2026-09-30) names Chrome and Firefox; Playwright's README names
   "Chromium, Firefox, and WebKit". WebKit is Safari's engine, whose loopback and storage behaviour the
-  measurements of ARC-012 need to cover.
+  measurements of ARC-012 and ARC-013 need to cover.
 - **Selenium** — needs a driver per browser and a grid for parallel runs; more setup for the same
   coverage.
 - **No browser tests, manual checks only** — rejected: the write paths are the riskiest code, and
@@ -93,4 +93,4 @@ Sources as in ARC-002. Agent M does not ship the tool; it is a development depen
 - Moving `review-core.test.mjs` apart along the modules is part of the refactoring job of ARC-003;
   its tests keep their expected results (`A REFACTORING JOB CHANGES NO EXPECTED RESULT`).
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): references to the merged decisions and the new module names; open until accepted.*

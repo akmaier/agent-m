@@ -1,6 +1,6 @@
 ---
 id: ARC-014
-title: Two mail routes — Microsoft Graph from the browser for Microsoft 365, IMAP and SMTP through the bridge for Gmail and every other mailbox — and report data that leaves the mailbox only rewritten without persons by one participant, checked by three LLMs and by a search for the mail's people
+title: Two mail routes — Microsoft Graph from the browser for Microsoft 365, IMAP and SMTP through the bridge for Gmail and every other mailbox — and a pipeline from mail to issue in which report data leaves the mailbox only rewritten without persons, checked by three LLMs and by a search for the mail's people
 forced_by:
   - A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
   - AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
@@ -30,7 +30,7 @@ forced_by:
   - UC-038
   - UC-039
 ---
-# ARC-014 Two mail routes, and report data rewritten without persons
+# ARC-014 Two mail routes, and the pipeline from mail to issue
 
 ## Context
 
@@ -63,20 +63,20 @@ rewrite, search for its people, check by three LLMs — before anything reaches 
 
 ## Decision
 
-**One mail interface, two adapters.** The mail flow (MOD-mail-flow) talks to a mailbox through one
-interface — list the `Message-ID`s of named folders, read one mail by identifier without changing
-it, store a draft replying to a mail, send a draft with a confirmation — implemented twice:
+**One mail interface, two adapters.** The mail logic talks to a mailbox through one interface — list
+the `Message-ID`s of named folders, read one mail by identifier without changing it, store a draft
+replying to a mail, send a draft with a confirmation — implemented twice, both in `MOD-mailbox`:
 
 ```mermaid
 flowchart LR
     subgraph BROWSER["Browser (dashboard)"]
-        FLOW["MOD-mail-flow<br/>(ids, threads, offers, checkers)"]
-        JH["MOD-job-harness<br/>(correction loop)"]
-        PS["MOD-pseudonymiser<br/>(people search, write gate)"]
-        API["MOD-mail-api"]
+        FLOW["MOD-mail-flow<br/>(ids, threads, proposals, replies)"]
+        PS["MOD-pseudonymiser<br/>(people search, three checks, write gate)"]
+        JH["MOD-job-harness<br/>(correction loop, where content may go)"]
+        API["MOD-mailbox<br/>(Microsoft Graph)"]
     end
     subgraph BR["Agent M Bridge (127.0.0.1)"]
-        BM["MOD-bridge-mail<br/>IMAP (EXAMINE, BODY.PEEK),<br/>APPEND to Drafts, SMTP"]
+        BM["MOD-mailbox mail routes<br/>IMAP (EXAMINE, BODY.PEEK),<br/>APPEND to Drafts, SMTP"]
     end
     G["Microsoft Graph<br/>(Microsoft 365)"]
     S["IMAP / SMTP server<br/>(Gmail with an app password,<br/>Exchange, any other)"]
@@ -91,24 +91,24 @@ flowchart LR
     FLOW --> PS --> IT
 ```
 
-1. **Route 1 — Microsoft Graph for Microsoft 365 (MOD-mail-api).** From the browser, sign-in without
+1. **Route 1 — Microsoft Graph for Microsoft 365.** From the browser, sign-in without
    a library: the authorization-code flow with PKCE for single-page applications, redirect URI of type
    `spa`. Microsoft documents that such a redirect "supports auth code flow with PKCE and cross-origin
    resource sharing (CORS)", that "Single page apps get a token with a 24-hour lifetime" and that "the
    refresh token expires after 24 hours", renewed by a pop-up or page load "in browsers without
    third-party cookies, such as Safari" (read 2026-09-30,
    `https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow`). The requested
-   scopes are the constant list `Mail.ReadWrite`, `Mail.Send`, `offline_access` — nothing else — in
-   MOD-mail-api, checked by its test. Graph has no permission for drafts alone: storing a reply draft
-   (`POST /me/messages/{id}/createReply`) needs `Mail.ReadWrite`, described as "create, read, update, and
-   delete email in user mailboxes"; sending needs `Mail.Send`; the refresh token needs `offline_access`
-   (permission tables of `https://github.com/microsoftgraph/microsoft-graph-docs-contrib` and
+   scopes are the constant list `Mail.ReadWrite`, `Mail.Send`, `offline_access` — nothing else. Graph has
+   no permission for drafts alone: storing a reply draft (`POST /me/messages/{id}/createReply`) needs
+   `Mail.ReadWrite`, described as "create, read, update, and delete email in user mailboxes"; sending
+   needs `Mail.Send`; the refresh token needs `offline_access` (permission tables of
+   `https://github.com/microsoftgraph/microsoft-graph-docs-contrib` and
    `https://learn.microsoft.com/en-us/graph/permissions-reference`, measurement §6). That Agent M changes
    nothing it reads rests on `READING THE MAILBOX CHANGES NOTHING IN IT` — reads use `GET` only —, not
-   on the permission. Tokens are stored through the settings store (ARC-005) and sent only to
+   on the permission. Tokens are kept in the browser store (ARC-003) and sent only to
    `https://graph.microsoft.com` and Microsoft's token endpoint (`THE MAIL SIGN-IN TOKEN GOES ONLY TO
    ITS PROVIDER`).
-2. **Route 2 — IMAP and SMTP through the bridge (MOD-bridge-mail)**, for Gmail and every other server.
+2. **Route 2 — IMAP and SMTP through the bridge**, for Gmail and every other server.
    The browser sends the mailbox password in the body of each mail request to the bridge (ARC-012);
    the bridge opens the connection over implicit TLS or STARTTLS and refuses to send `LOGIN`/`AUTH`
    otherwise, selects folders with `EXAMINE`, fetches with `BODY.PEEK[]`, finds mails by `UID SEARCH
@@ -122,54 +122,46 @@ flowchart LR
    Library: **imapflow** for IMAP and **nodemailer** for SMTP, through Deno's npm compatibility — both
    maintained for Node only (below); whether they run inside the compiled bridge is the first open
    measurement, and the fallback is named.
-3. **One participant rewrites; the loop corrects.** The participant the author picks for the
-   proposals (UC-038 step 4) runs the job `propose-issue-from-mail`, a job definition of MOD-mail-flow: it returns
-   the proposal — product, kind, a neutral title and text, possible duplicates — and every piece of
-   report data the author ticked, rewritten without any person and keeping its technical content: a
-   path with a user name becomes "the user's home folder", a name is left out, never replaced by a
-   second name. The job runs through the correction loop of ARC-007 (`MOD-job-harness.runDraft`),
-   started by MOD-mail-flow. Each round two kinds of check run on the draft:
-   - **the search for this mail's people**, without a model (MOD-pseudonymiser): `peopleOf(mail)` —
-     every address and display name from its headers, and every name, address, phone number and account
-     found in its body and signature by fixed patterns — and `findPeople(text, people)` for each text;
-   - **the three checks**: each of three checking participants receives the neutral text and the
-     rewritten report data — nothing else, not the mail and not its people — with the job
-     `check-for-persons`, and returns every mention of a person it finds.
 
-   A finding of either kind goes back to the rewriting participant as a compiler-like finding, and it
-   corrects the texts, within the round limit (`A DRAFT THAT FAILS A CHECK GOES BACK TO ITS
-   PARTICIPANT`). Both kinds are a check MOD-mail-flow supplies to the one loop; the loop itself knows
-   nothing about mail (ARC-007). What is still found after the last round is marked in the review panel (UC-038 6a).
-   A finding may quote a person: it goes only to the rewriting participant, which read the mail
-   already, and to the dashboard, which forgets it with the tab; the job's recorded rounds name the
-   text, the line and the rule, not the person.
-4. **Where the checkers run, and how they are picked.** The checkers are participants of the instance
-   (UC-017), reached through the drivers of ARC-009: a hosted model endpoint from the browser, a model
-   server on the author's machine through the bridge (`POST /endpoint/chat`, ARC-012), a CLI agent
-   through the bridge. `MOD-mail-flow.checkers` preselects three for the panel of UC-038 step 4, from
-   the participants that are not persons, can *draft text*, declare their model, and process data at a
-   place this mailbox allows (`THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED` — a checker reads a text
-   that may still hold a person); the three models differ, and the rewriting participant is not among
-   them, for the reason of `A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`. The panel
-   names each checker, where it processes data and that it receives only the rewritten texts; the author
-   may exchange a checker for another that meets the same conditions. Nothing about the choice is
-   stored. With fewer than three such participants, the participant's texts cannot be written: the panel
-   names what is missing and links UC-017 and the mailbox's places; the author may still write the issue
-   text by hand, covered by the search alone, without report data (UC-038 6c).
-5. **The write gate (`MOD-pseudonymiser.writeGate`).** An issue is created only on the author's click
-   and only when every text passes: no person of this mail found, and, for a text a participant drafted
-   or rewrote, verdicts of three checkers with three different models at allowed places that name the
-   SHA-256 of exactly that text and report nothing. A text the author edits in the review panel is
-   checked again — the search and the three checkers on the edited text — before *Create issue* is
-   possible (UC-038 step 7: "possible only when the check of step 6 finds nothing").
-6. **The switch.** With the product's setting *pseudonymisation* on — the default, read from its
-   `docs/settings.md` — report data is rewritten as above. Switched off (UC-042 step 4), report data is
-   not sent to the rewriting participant and enters the issue unchanged; the neutral issue text is
-   still rewritten, searched and checked by the three (UC-038 6b).
-7. **No mail content leaves the flow into repositories.** The only way from a mail to an issue or a
-   repository is the gate of decision 5. Jobs that write to a repository receive the neutral issue and
-   the report data as the issue holds it, never a mail (`A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER
-   RECEIVES A MAIL`; MOD-mail-flow gives them the issue and nothing from the mail).
+**Why the pipeline from mail to issue has this shape.** Book ch. 10, pipe-and-filter: a mail flows
+through filters — identify, match its thread, propose and rewrite, search for its people, check by three
+LLMs, gate the write — before anything reaches a tracker, and only the last filter writes. The shape
+follows from the SPEC's rules, and each filter has one owner; the interfaces are in the module files.
+
+- **One participant rewrites, the correction loop corrects** (`REPORT DATA LEAVES THE MAILBOX ONLY
+  REWRITTEN WITHOUT PERSONS`, `A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT`). The participant
+  the author picks proposes the issue and rewrites the report data the author ticked, keeping its
+  technical content: a path with a user name becomes "the user's home folder", a name is left out, never
+  replaced by a second name. The proposal runs as a drafting job through the one loop of ARC-007; the
+  loop knows nothing about mail (`MOD-mail-flow`).
+- **Two checks each round, both handed to the loop as checks** (`MOD-pseudonymiser`): the search for this
+  mail's own people, without a model (`A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE`) — every
+  address and display name from its headers and every name, address, phone number and account found in
+  its body and signature —, and three checking participants with three different models, each receiving
+  the rewritten texts and nothing else (`A REWRITTEN TEXT IS CHECKED BY THREE LLMS`). A finding of either
+  goes back to the rewriting participant. A finding may quote a person: it goes only to that participant,
+  which read the mail already, and to the dashboard, which forgets it with the tab; the job's recorded
+  rounds name the text, the line and the rule, not the person.
+- **The checkers are held like the rewriter.** A checker reads a text that may still hold a person, so it
+  must process data at a place the mailbox allows (`THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED`,
+  through the one rule of ARC-007 decision 6); the three are not persons, can draft text, declare their
+  model, and the rewriting participant is not among them, for the reason of `A GATE IS NOT DECIDED BY THE
+  PARTICIPANT WHOSE WORK IT CHECKS`. With fewer than three such participants, the participant's texts
+  cannot be written; the author may still write the issue text by hand, covered by the search alone,
+  without report data (UC-038 6c).
+- **One write gate.** An issue is created only on the author's click and only when every text passes:
+  no person of this mail found, and, for a text a participant drafted or rewrote, verdicts of three
+  checkers with three different models at allowed places that name the SHA-256 of exactly that text and
+  report nothing. A text the author edits is checked again before *Create issue* is possible (UC-038
+  step 7).
+- **The switch.** With the product's setting *pseudonymisation* on — the default, read from its
+  `docs/settings.md` — report data is rewritten as above (`PSEUDONYMISATION IS ON UNLESS A PRODUCT
+  SWITCHES IT OFF`). Switched off, report data enters the issue unchanged; the neutral issue text is still
+  rewritten, searched and checked (UC-038 6b).
+- **No mail content leaves the flow into repositories.** The only way from a mail to an issue or a
+  repository is the write gate. Jobs that write to a repository receive the neutral issue and the report
+  data as the issue holds it, never a mail (`A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A
+  MAIL`, ARC-007 decision 6).
 
 ### Due diligence (read 2026-09-30; the person-detection candidate read 2026-10-01)
 
@@ -199,7 +191,7 @@ maintainers' statements on Deno are those of measurement §5. The JSR packages w
   holds every token, and the read scopes are restricted (measurement §6). Gmail goes through the bridge
   with an app password.
 - **msal-browser** — not chosen: it keeps its own token cache in browser storage beside the settings
-  store (ARC-005), and the PKCE exchange it wraps is a few Web Crypto calls. **oauth4webapi** is the
+  store (ARC-003), and the PKCE exchange it wraps is a few Web Crypto calls. **oauth4webapi** is the
   fallback if the hand-written exchange proves fragile; it is small and has no open issue.
 - **The fallback if imapflow or nodemailer do not run in the compiled bridge** (open measurement 1):
   - IMAP: a small client over `Deno.connectTls` for the command set needed (`EXAMINE`, `UID SEARCH`,
@@ -232,7 +224,7 @@ maintainers' statements on Deno are those of measurement §5. The JSR packages w
   name in a log line. It stays as the check that needs no model and applies to every text, including
   one the author writes by hand.
 - **The rewriting participant as one of the checkers** — rejected: it would check its own work
-  (decision 4).
+  (the checkers above).
 
 ## Consequences
 
@@ -264,4 +256,4 @@ maintainers' statements on Deno are those of measurement §5. The JSR packages w
 - A checker processes a text that may still hold a person; it is therefore held to the mailbox's places
   like the participant that reads the mail.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 8b299337b2e61b80cb4a4415ff4e7c865d7a2dfe — SPEC queue 2026-09-30k as accepted: the deterministic pseudonymisation layer replaced by rewriting without persons, checked by three LLMs; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 2e6d8e4752b55b0707ec5e69c229914cb5d15fe8 — the mail's rewriting and checking kept inside the mail modules, at the PO's request; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 8b299337b2e61b80cb4a4415ff4e7c865d7a2dfe — SPEC queue 2026-09-30k as accepted: the deterministic pseudonymisation layer replaced by rewriting without persons, checked by three LLMs; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 2e6d8e4752b55b0707ec5e69c229914cb5d15fe8 — the mail's rewriting and checking kept inside the mail modules, at the PO's request; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the routes and the rationale of the pipeline stay here, its interfaces are in the module files; open until accepted.*

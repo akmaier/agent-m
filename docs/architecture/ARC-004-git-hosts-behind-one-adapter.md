@@ -42,8 +42,9 @@ core beside parsing code.
    /projects/:id/repository/commits` holding one action per file. The project token goes as
    `PRIVATE-TOKEN`, only to URLs under `<server>/api/v4/projects/<this project>`.
 4. **Token routing is a property of the adapter, not of the caller.** A caller passes an `auth`
-   value; the adapter derives the header from the request URL and refuses any other origin, any
-   caller-set authorisation header, any credential in a URL, and any browser credential mode.
+   value — for a write, the `authority` of ARC-003 —; the adapter derives the header from the request URL
+   and refuses any other origin, any caller-set authorisation header, any credential in a URL, and any
+   browser credential mode.
 5. **Without a token** on GitHub, the adapter returns prefilled web-interface links instead of
    writing (`WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK`); on GitLab there is no such
    route (`A GITLAB PRODUCT IS WRITTEN WITH A TOKEN`).
