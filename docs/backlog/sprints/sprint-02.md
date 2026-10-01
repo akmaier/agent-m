@@ -260,6 +260,22 @@ Ready on `main` at `37ed922` but outside this goal, left in the backlog for the 
   selecting them would widen the increment beyond what one review can inspect, as in sprint 01.
 - **ITM-100** — level 2; level 1 goes end to end first (`docs/backlog/order.md`).
 
+### Not added on 2026-10-01 — the three findings of ITM-141
+
+ITM-141 was merged (pull request #48) with 56 release cases green and three red on the sprint 01 increment — R1 (UC-001
+step 5: *Add product* writes no `docs/architecture/`), R2 (UC-006 4c: a product's SPEC entry without a token is offered
+GitHub's page) and R3 (UC-042 1a: the expiry line has no paste field) — kept as `{ todo }` cases
+(`docs/measurements/2026-10-01_release-tests-sprint-01.md`). The Product Owner filed **ITM-148, ITM-149, ITM-150** for
+them and decided **not** to add them to this sprint: an item added during a running sprint goes to the backlog (UC-032
+6a), and the one precedent for a change of the selection, ITM-124 in sprint 01, unblocked a selected item — none of the
+three does; each changes files this sprint's strands are still changing (`review-core.mjs` — ITM-130; `review-views.mjs`
+and `spec-changes-view.mjs` — ITM-133, ITM-018, ITM-134; `settings-view.mjs` and `dashboard-app.mjs` — ITM-130, ITM-133,
+ITM-136), so each would wait for its strand's last item and would then hold a slot past the point where the strand's
+release tests should take it; and the release-test file whose marks they remove lies on `sprint/02`, so they start
+cleanly from the `main` this sprint produces. They head the backlog order for sprint 03 (positions 41 to 43). The sprint
+01 gate *Release testing → Sprint review* is decided in `sprint-01.md` (*Addendum, 2026-10-01*): passed, with the three
+recorded as accepted limitations; the limitation of the sprint 01 merge is lifted.
+
 ## Review of the increment
 
 *Recorded at the close by `scrum-master-session`.*

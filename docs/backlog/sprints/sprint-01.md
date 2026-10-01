@@ -130,6 +130,53 @@ its own; the limit of four is untouched — the dashboard strand still holds one
   part. It is closed by the release tests of this increment as the first item of sprint 02; a dated addendum
   here lifts it once they are green on `main`.
 
+### Addendum, 2026-10-01 — release tests written and run; the limitation lifted, three findings recorded
+
+Recorded by `po-fable`, the Product Owner, after the merge of ITM-141 (pull request #48, `team/ITM-141` into `sprint/02`,
+2026-10-01). The sprint 02 plan places this record here (`docs/backlog/sprints/sprint-02.md`, *Branch and gates*: "when it
+is merged, the Product Owner writes the dated addendum to `sprint-01.md`").
+
+- **Written and run.** `tester-opus` — the Release tester, who implemented nothing of the increment — wrote the release
+  tests of this increment from the texts of UC-001, UC-006, UC-008, UC-014, UC-042 and the SPEC rules of ITM-005 to
+  ITM-008, not from the code or the implementers' tests: `tests/release-sprint-01-dashboard-app.test.mjs` (53 cases, the
+  real dashboard in `tests/app-harness.mjs`) and `tests/release-sprint-01-git-host.test.mjs` (6 cases, the adapter's
+  boundary), both `Level: release`. Record: `docs/measurements/2026-10-01_release-tests-sprint-01.md`, on the increment
+  (`sprint/02` at `ef4f619` = `main` at `385f5cf` plus records). At `7b41b60`: `node --test tests/*.test.mjs` → 303 tests,
+  300 pass, 0 fail, 3 todo; `cd tests && python3 -m unittest` → 172 OK. **56 cases green**, each shown red under at
+  least one of the 50 planted faults the record lists (G1–G6 in the adapter, D2–D50 in the dashboard and kernel); **3 cases red on the increment itself**, kept as `{ todo }` so that
+  the suite stays green and each becomes an ordinary test when its item is done (ITM-141, *Kind and level*).
+- **The three findings, and the items that close them** — each a flow a use case names that the increment does not
+  carry out, which no backlog item had named:
+
+  | Finding | Flow | What the increment does | Item |
+  |---|---|---|---|
+  | R1 (case 3) | UC-001 step 5, `ONE REVIEW LAYOUT FOR EVERY PRODUCT` | *Add product* writes no `docs/architecture/`, on GitHub and GitLab | **ITM-148** |
+  | R2 (case 29) | UC-006 4c, "For a product, a token is required" | a product's SPEC entry without a token is offered GitHub's new-file page, as the instance's; a record committed there would show *approved* for ever | **ITM-149** |
+  | R3 (case 41) | UC-042 1a, "… and the paste field for the new value" | the expiry line has *Renew* and a sentence, no field | **ITM-150** |
+
+  The marks in the test file name the finding ("FINDING R1" …), not the item — the items did not exist when the tests
+  were merged; this table and each item's *Where it came from* hold the mapping, and the item removes its mark. Sprint
+  decision: the three are **not** added to sprint 02 — they head the backlog order for sprint 03 (positions 41 to 43,
+  `docs/backlog/order.md`); the reason stands in `sprint-02.md`, *Not selected, and why*.
+- **Decision on the gate *Release testing → Sprint review* of sprint 01** (`docs/process-models/scrum-wip.md`: "written by
+  a participant other than the implementer of the behaviour they test, green on the sprint branch"; decider the
+  Product Owner): **passed, with R1–R3 recorded as accepted limitations of the increment.** Written by `tester-opus`, not
+  by an implementer — yes, readable from the file heads and pull request #48. Green on the sprint branch — the branch of
+  this sprint is merged; the increment lives on `sprint/02`, where the tests are green with the three marks, and they
+  reach `main` with the merge of `sprint/02`. **The limitation accepted at the merge into `main` is lifted now, not when
+  the three items are done**, because: the gate's artifact exists and covers every flow the increment carries out, with a
+  counter-proof per case; none of the three is a regression of a sprint 01 item or a false claim of its pull request —
+  each is a flow never built, of the same kind as the review's feedback 13 (UC-001 2a and 3a, UC-006 3b, UC-008 4a,
+  UC-042 step 1 and 5a: ITM-132 to ITM-137), which the merge of this sprint carried into `main` as items; and waiting for
+  three items that touch files strands A and D of sprint 02 are still changing would leave the gate undecided through at
+  least two sprints for behaviour the gate was not about. Each limitation is lifted by the merge of its item, which
+  removes the mark; no further addendum is owed here.
+- **What this gate does not cover** (the record's *Not covered here*): UC-006 4c's instance half — the workflow —
+  (MOD-apply-workflow, `tests/test_apply_approvals.py`; ITM-016); UC-014 1a and 1b (repository properties;
+  `tests/test_products_folder.py`); the flows ITM-132 to ITM-137 name as not carried out, which get their release tests
+  with the sprint that builds them; `A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET` and `A LOCAL AGENT USES
+  THE PERSON'S OWN LOGIN` only at the adapter's boundary, since no CI job and no bridge exists yet.
+
 ## Not selected, and why
 
 Ready after ITM-004 but outside this goal, so left at the top of the backlog for the next planning: ITM-014,
