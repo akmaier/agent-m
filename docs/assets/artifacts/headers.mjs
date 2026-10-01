@@ -52,11 +52,11 @@ export function headerTags(path, text) {
 
 // levelProblems(path, text) -> [finding] — EVERY TEST HAS ONE LEVEL: a test without a Level: line among its first lines, with
 // more than one, or with a level outside the five is an error. A file that is no test owes no level. A finding is
-// { artifact, line, kind, rule, what, correction }; the artifact is the file's path.
+// { artifact, line, kind, what, rule, fix } (MOD-job-harness formatFinding); the artifact is the file's path.
 export function levelProblems(path, text) {
   if (!(isCodePath(path) && isTestPath(path))) return [];
   const RULE = "EVERY TEST HAS ONE LEVEL", one = `one line \`Level: ${LEVELS.join("|")}\``;
-  const finding = (line, what, correction) => ({ artifact: path, line, kind: "error", rule: RULE, what, correction });
+  const finding = (line, what, fix) => ({ artifact: path, line, kind: "error", what, rule: RULE, fix });
   const levels = headerLines(text).filter((l) => l.key === "Level");
   if (!levels.length) {
     return [finding(1, `no Level: line among the first ${HEADER_LINES} lines`, `add ${one} to the header`)];

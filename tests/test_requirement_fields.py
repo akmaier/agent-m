@@ -79,7 +79,7 @@ class RequirementFields(unittest.TestCase):
             fs = findings(text, name)
             self.assertEqual(kinds(fs), [("error", RULE)], label)
             self.assertEqual((fs[0]["artifact"], fs[0]["line"]), (name, 13), label)
-            self.assertTrue(fs[0]["what"] and fs[0]["correction"], label)
+            self.assertTrue(fs[0]["what"] and fs[0]["fix"], label)
 
 
 if __name__ == "__main__":

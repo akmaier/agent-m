@@ -62,7 +62,7 @@ class IdentifierStability(unittest.TestCase):
     def assert_one(self, later: dict, artifact: str, label: str, earlier: dict = V1):
         fs = stability(earlier, later)
         self.assertEqual([(f["kind"], f["rule"], f["artifact"]) for f in fs], [("error", RULE, artifact)], label)
-        self.assertTrue(fs[0]["what"] and fs[0]["correction"] and fs[0]["line"] >= 1, label)
+        self.assertTrue(fs[0]["what"] and fs[0]["fix"] and fs[0]["line"] >= 1, label)
 
     def test_counter_proof_an_identifier_gone_without_a_note(self):
         spec = V2["SPEC.md"]

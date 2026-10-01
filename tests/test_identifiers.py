@@ -88,7 +88,7 @@ class Identifiers(unittest.TestCase):
     def assert_one(self, files: dict, artifact: str, label: str):
         fs = problems(files)
         self.assertEqual([(f["kind"], f["rule"], f["artifact"]) for f in fs], [("error", RULE, artifact)], label)
-        self.assertTrue(fs[0]["what"] and fs[0]["correction"] and fs[0]["line"] >= 1, label)
+        self.assertTrue(fs[0]["what"] and fs[0]["fix"] and fs[0]["line"] >= 1, label)
 
     def test_counter_proof_a_file_without_an_identifier(self):
         uc = V2["docs/use-cases/UC-002-show-each-status.md"]

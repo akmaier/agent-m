@@ -59,7 +59,7 @@ export function parseRequirements(specText) {
 
 // ---------------------------------------------------------------- checks
 
-const finding = (r, kind, rule, what, correction) => ({ artifact: r.name, line: r.line, kind, rule, what, correction });
+const finding = (r, kind, rule, what, fix) => ({ artifact: r.name, line: r.line, kind, what, rule, fix });
 const SOURCE_ID = new RegExp(`\\bSRC-${SLUG}\\b`, "g");
 const RESOURCE_ID = new RegExp(`\\bRES-${SLUG}\\b`, "g");
 const DATE = /\b\d{4}-\d{2}-\d{2}\b/;
@@ -68,7 +68,7 @@ const AT_REVIEW = /\bat review\b/i;
 const CONJUNCTION = /\b(and|additionally)\b/i;
 
 // requirementProblems(requirement, linkedSources) -> [finding] — linkedSources: the identifiers of the sources the product
-// links (docs/sources.md), as strings or as { source } entries. A finding is { artifact, line, kind, rule, what, correction }:
+// links (docs/sources.md), as strings or as { source } entries. A finding is { artifact, line, kind, what, rule, fix }:
 // a missing field, a check that names nothing, a source the product does not link and a resource entry named as source are
 // errors; a conjunction in the rule is a warning, because whether it states two things is a person's decision. A withdrawn
 // requirement keeps only its note and is not checked.

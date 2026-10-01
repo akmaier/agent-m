@@ -52,7 +52,7 @@ class OriginLinks(unittest.TestCase):
     def assert_one(self, files: dict, artifact: str, label: str):
         fs = origins(files)
         self.assertEqual([(f["kind"], f["rule"], f["artifact"]) for f in fs], [("error", RULE, artifact)], label)
-        self.assertTrue(fs[0]["what"] and fs[0]["correction"] and fs[0]["line"] >= 1, label)
+        self.assertTrue(fs[0]["what"] and fs[0]["fix"] and fs[0]["line"] >= 1, label)
 
     def test_counter_proof_a_use_case_decision_or_module_that_names_nothing(self):
         uc, arc, mod = ("docs/use-cases/UC-001-read-a-file.md", "docs/architecture/ARC-001-static-client.md",

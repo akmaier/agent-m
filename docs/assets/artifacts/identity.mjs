@@ -52,7 +52,7 @@ const FILES = [
   ["source", "docs/sources/", () => true, new RegExp(`^(SRC-${SLUG})\\.md$`), "SRC-<slug>.md", false],
 ];
 
-const finding = (artifact, line, rule, what, correction) => ({ artifact, line, kind: "error", rule, what, correction });
+const finding = (artifact, line, rule, what, fix) => ({ artifact, line, kind: "error", what, rule, fix });
 const HAS_ID = "EVERY ARTIFACT HAS AN IDENTIFIER";
 const SURVIVES = "THE NAME IS THE ID AND IT SURVIVES";
 const ORIGIN = "EVERY ARTIFACT NAMES ITS ORIGIN";
