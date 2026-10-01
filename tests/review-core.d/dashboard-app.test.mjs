@@ -2,7 +2,7 @@
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
 // Module: MOD-dashboard-app
-// Guards: THE TOKEN LINK IS PREFILLED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE REPOSITORY CHOICE IS SPELLED OUT; EVERY STEP EXPLAINS ITSELF; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-001; UC-014
+// Guards: THE TOKEN LINK IS PREFILLED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE REPOSITORY CHOICE IS SPELLED OUT; EVERY STEP EXPLAINS ITSELF; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-001; UC-014
 // Level: component
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
@@ -14,11 +14,12 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { parseFrontMatter, headerModules } from "../../docs/assets/artifacts.mjs";
-import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress } from "../../docs/assets/git-host.mjs";
+import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitlabAuth, gitlabApiBase } from "../../docs/assets/git-host.mjs";
 import { tokenLinkUrl, repositoryChoiceSteps } from "../../docs/assets/dashboard/settings-view.mjs";
 import { extendTokenSteps, gitlabTokenSteps, gitlabNoProjectTokens } from "../../docs/assets/dashboard/add-product-view.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
-import { ASSETS, viewFiles, dashboardText, GL_ADDR } from "./helpers.mjs";
+import * as shell from "../../docs/assets/dashboard-app.mjs";
+import { ASSETS, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } from "./helpers.mjs";
 
 // Every module file of the site (vendored libraries excepted), with the modules its Module line names.
 const moduleFiles = () => readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
@@ -195,4 +196,80 @@ test("the dashboard shows the last accepted text above a changed use case, with 
   assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "above the text");
   assert.match(app, /lastAccepted\(/);
   assert.doesNotMatch(app, /function (lineDiff|diffHtml)\(/, "one diff, in the core — not a second copy in the app");
+});
+
+// ---------------------------------------------------------------- a used-up rate limit (queue 2026-10-01b, ITM-005)
+// A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+// Each check below was first red on the commit that held only the tests of ITM-005; the faults planted afterwards in the
+// finished code, and the checks they turned red, are listed in the pull request of ITM-005.
+
+const RESET = 1790000000; // X-RateLimit-Reset, seconds
+const AT = new Date((RESET - 17 * 60) * 1000); // seventeen minutes before the reset
+const resetTime = new Date(RESET * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const GH = parseProductAddress("https://github.com/akmaier/agent-m");
+const limitHeaders = (limit, remaining = 0) => ({ "X-RateLimit-Limit": String(limit), "X-RateLimit-Remaining": String(remaining),
+  "X-RateLimit-Reset": String(RESET) });
+// The error the dashboard's read gets from fetchText when the server answers `status` with `headers`.
+async function refused(status, headers = {}, { url = "https://api.github.com/repos/akmaier/agent-m/commits/main", auth = "github_pat_STORED" } = {}) {
+  let err = null;
+  await withFetch(async () => new Response('{"message":"refused"}', { status, statusText: "Forbidden", headers }), async () => {
+    try { await fetchText(url, {}, auth); } catch (e) { err = e; }
+  });
+  return err;
+}
+
+test("A USED-UP RATE LIMIT IS NAMED — the load error names the account's limit and when it resets, and nothing about the token", async () => {
+  const html = shell.loadErrorHtml({ error: await refused(403, limitHeaders(5000)), product: GH, ref: "main", hasToken: true, now: AT });
+  assert.match(html, /Could not read akmaier\/agent-m @ main/);
+  assert.match(html, /your account/);
+  assert.match(html, /used up/);
+  assert.ok(html.includes(resetTime), `names the reset time ${resetTime}`);
+  assert.match(html, /in 17 minutes/);
+  assert.doesNotMatch(html, /token/i, "says nothing about the token");
+  assert.doesNotMatch(html, /60 API calls/, "not the hint for reading without a token");
+});
+
+test("A USED-UP RATE LIMIT IS NAMED — without a token, the network's limit and when it resets", async () => {
+  const html = shell.loadErrorHtml({ error: await refused(403, limitHeaders(60), { auth: null }), product: GH, ref: "main",
+    hasToken: false, now: AT });
+  assert.match(html, /this network/);
+  assert.match(html, /used up/);
+  assert.ok(html.includes(resetTime));
+  assert.match(html, /in 17 minutes/);
+  assert.doesNotMatch(html, /refused your|cannot (read|write)|lacks/, "nothing is reported as refused");
+});
+
+test("A USED-UP RATE LIMIT IS NAMED — a refused write names the limit; counter-proof: a 403 without the headers is a missing permission", async () => {
+  const limited = shell.writeRefusalText(await refused(403, limitHeaders(5000)), GH, AT);
+  assert.match(limited, /used up/);
+  assert.match(limited, /in 17 minutes/);
+  assert.doesNotMatch(limited, /token/i);
+  // Counter-proof: without the headers, the write is still reported as the token's missing permission.
+  const plain = await refused(403);
+  assert.match(shell.writeRefusalText(plain, GH, AT), /Your token cannot write to akmaier\/agent-m/);
+  // ... and the load error says the stored token lacks a permission, not that the limit without a token was reached.
+  const load = shell.loadErrorHtml({ error: plain, product: GH, ref: "main", hasToken: true, now: AT });
+  assert.match(load, /permission/);
+  assert.doesNotMatch(load, /60 API calls|used up/);
+  assert.equal(shell.rateLimitText(plain, GH, AT), null);
+});
+
+test("A USED-UP RATE LIMIT IS NAMED — a GitLab product's limit is named by its server, without a time", async () => {
+  const p = parseProductAddress(GL_ADDR);
+  const err = await refused(429, {}, { url: gitlabApiBase(p), auth: gitlabAuth(p, GL_TOKEN) });
+  const text = shell.rateLimitText(err, p, AT);
+  assert.ok(text && text.includes(p.host), "names the server");
+  assert.match(text, /used up/);
+  assert.match(text, /does not tell this page when/);
+  assert.doesNotMatch(text, /in \d+ minutes/);
+  assert.doesNotMatch(text, /token/i);
+  // The same text where a GitLab write is refused.
+  assert.equal(shell.writeRefusalText(err, p, AT), text);
+});
+
+test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — the load error still names a refused token and links its renewal", async () => {
+  const html = shell.loadErrorHtml({ error: await refused(401, limitHeaders(5000, 4999)), product: GH, ref: "main", hasToken: true, now: AT });
+  assert.match(html, /GitHub refused your GitHub token/);
+  assert.ok(html.includes("https://github.com/settings/personal-access-tokens"), "the renewal link");
+  assert.doesNotMatch(html, /used up/);
 });
