@@ -1,121 +1,211 @@
 ---
 id: MOD-dashboard-app
-title: Renders the dashboard pages and turns a person's click into one call of the write path
+title: The dashboard — the browser runtime's composition root, every page and text, and the one place a person's click becomes the authority to write
 realises:
+  - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - EVERY STEP EXPLAINS ITSELF
   - ONE CLICK PER DECISION
   - EVERY SETTING IS REACHED FROM ONE PAGE
   - A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
   - A STORED SECRET IS HIDDEN UNTIL SHOWN
   - A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
-  - THE SHARED PAGES ORIGIN IS DISCLOSED
   - AN EXPORT STATES THAT IT CONTAINS SECRETS
+  - THE SHARED PAGES ORIGIN IS DISCLOSED
+  - THE PAGE STATES WHAT IT SENDS WHERE
   - THE TOKEN LINK IS PREFILLED
   - THE REPOSITORY CHOICE IS SPELLED OUT
-  - ONE GITHUB TOKEN SERVES EVERY FEATURE
   - A TOKEN IS SCOPED TO WHAT IT WRITES
-  - A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
   - THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
-  - THE PAGE STATES WHAT IT SENDS WHERE
   - EDITS ARE PREPARED ON THE DASHBOARD
   - A REFUSED SAVE KEEPS THE EDIT
   - ADDING A PRODUCT CREATES ITS LAYOUT
-  - AN INSTANCE IS A FORK OF AGENT M
-  - THE PAGES ROOT IS DOCS
-  - ONE REVIEW LAYOUT FOR EVERY PRODUCT
-  - A MANAGED PRODUCT NEEDS NO PAGES SITE
-  - NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY
-  - THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW
-  - A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - A REGROUPING IS COMMITTED DIRECTLY
-  - SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS
-  - PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
-  - A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
+  - AN INSTANCE IS A FORK OF AGENT M
+  - A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
   - THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE
   - A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
-  - ONE DASHBOARD SHOWS EVERY JOB
-  - PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
-  - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-  - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+  - SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS
   - UC-001
-  - UC-008
   - UC-014
   - UC-020
+  - UC-021
   - UC-035
   - UC-036
   - UC-042
-  - UC-044
 follows:
   - ARC-001
   - ARC-002
   - ARC-003
   - ARC-005
 uses:
+  - MOD-artifacts.parseFrontMatter
+  - MOD-artifacts.parseRequirements
+  - MOD-artifacts.requirementProblems
+  - MOD-artifacts.parseUseCase
+  - MOD-artifacts.useCaseProblems
+  - MOD-artifacts.parseArchitecture
+  - MOD-artifacts.reviewedId
+  - MOD-artifacts.identifierKept
+  - MOD-artifacts.parseGroupFile
+  - MOD-artifacts.formatGroupFile
+  - MOD-artifacts.hierarchy
+  - MOD-artifacts.applyMoves
+  - MOD-artifacts.formatChecks
+  - MOD-review-core.gitBlobSha
   - MOD-review-core.deriveStatus
-  - MOD-review-core.planAcceptance
-  - MOD-review-core.reviewSession
+  - MOD-review-core.deriveSpecStatus
+  - MOD-review-core.lastAccepted
   - MOD-review-core.lineDiff
-  - MOD-review-core.lastAcceptedRecord
-  - MOD-review-core.checkIdentifierKept
-  - MOD-spec-queue.sectionForEntry
-  - MOD-spec-queue.deriveSpecStatus
-  - MOD-spec-queue.proposeEdit
+  - MOD-review-core.reviewSession
+  - MOD-review-core.planAcceptance
+  - MOD-review-core.prerequisites
+  - MOD-review-core.proposeEdit
+  - MOD-review-core.requirementHistory
   - MOD-traceability.linkGraph
   - MOD-traceability.tracesTo
   - MOD-traceability.coverageGaps
   - MOD-traceability.moduleRows
+  - MOD-traceability.requirementImpact
   - MOD-traceability.architectureImpact
+  - MOD-traceability.moduleOrder
+  - MOD-traceability.auditRows
+  - MOD-traceability.auditMarkdown
   - MOD-traceability.componentDiagram
-  - MOD-groups.hierarchy
-  - MOD-groups.applyMoves
+  - MOD-job-harness.loadDefinition
+  - MOD-job-harness.contextFits
+  - MOD-job-harness.disclosure
+  - MOD-job-harness.mayReceive
+  - MOD-job-harness.runDraft
+  - MOD-job-harness.formatFinding
+  - MOD-job-harness.splitFindings
+  - MOD-run-engine.newJobId
+  - MOD-run-engine.startRecord
+  - MOD-run-engine.gateRecord
+  - MOD-run-engine.cancelRecord
+  - MOD-run-engine.parseJobRecord
+  - MOD-run-engine.jobState
+  - MOD-run-engine.nextJobs
+  - MOD-run-engine.runPlan
+  - MOD-run-engine.startable
+  - MOD-run-engine.runJob
+  - MOD-process-model.parseModel
+  - MOD-process-model.validateModel
+  - MOD-process-model.parseParticipants
+  - MOD-process-model.parseDeclaration
+  - MOD-process-model.assignable
+  - MOD-process-model.deriveWorkflow
+  - MOD-process-model.definitionOfDone
+  - MOD-work-items.derivePlan
+  - MOD-work-items.parseItem
+  - MOD-work-items.itemProblems
+  - MOD-work-items.backlogOrder
+  - MOD-work-items.sprint
+  - MOD-work-items.itemState
+  - MOD-work-items.progress
+  - MOD-work-items.sprintClose
+  - MOD-work-items.itemFromIssue
+  - MOD-derivation.mergeCandidates
+  - MOD-derivation.classifyCandidates
+  - MOD-derivation.toProposals
+  - MOD-derivation.derivationInputs
+  - MOD-source-library.parseSource
+  - MOD-source-library.validateSource
+  - MOD-source-library.parseSourceLinks
+  - MOD-source-library.hashFiles
+  - MOD-source-library.contentLabels
+  - MOD-source-library.parseResources
+  - MOD-source-library.validateResource
+  - MOD-source-library.reachableRoutes
+  - MOD-source-library.newerState
+  - MOD-source-library.dueDiligence
+  - MOD-source-library.licenceCompatibility
+  - MOD-test-records.commitOutcomes
+  - MOD-test-records.rateComparison
+  - MOD-test-records.batteryProblems
+  - MOD-test-records.nextVersion
+  - MOD-test-records.releaseReport
+  - MOD-test-records.acceptRelease
+  - MOD-ci-generator.parseSchedule
+  - MOD-ci-generator.defaultSchedule
+  - MOD-ci-generator.generateTestCi
+  - MOD-ci-generator.generateJobWorkflows
+  - MOD-ci-generator.secretSetup
+  - MOD-ci-generator.checkRunner
+  - MOD-ci-generator.driver
+  - MOD-mail-flow.mailId
+  - MOD-mail-flow.pendingMails
+  - MOD-mail-flow.proposeIssues
+  - MOD-mail-flow.issueFromDecision
+  - MOD-mail-flow.replyOffers
+  - MOD-mail-flow.replyDraft
+  - MOD-mail-flow.replyNote
+  - MOD-pseudonymiser.findPeople
+  - MOD-pseudonymiser.parseCollaborators
+  - MOD-pseudonymiser.formatCollaborators
+  - MOD-pseudonymiser.namedPersons
+  - MOD-git-host.parseProductAddress
   - MOD-git-host.readSnapshot
+  - MOD-git-host.readFile
+  - MOD-git-host.readBlob
+  - MOD-git-host.commitsTouching
   - MOD-git-host.commitFiles
+  - MOD-git-host.appendRecords
   - MOD-git-host.webLinks
   - MOD-git-host.tokenRefusal
+  - MOD-git-host.repositoryInfo
+  - MOD-git-host.issues
+  - MOD-git-host.pullRequests
+  - MOD-git-host.workflows
+  - MOD-git-host.tags
   - MOD-git-host.requiredPermissions
   - MOD-settings-store.browserStore
   - MOD-settings-store.settingKeys
   - MOD-settings-store.exportSettings
   - MOD-settings-store.readSettingsFile
   - MOD-settings-store.mergeSettings
-  - MOD-job-records.jobState
-  - MOD-run-engine.runPlan
-  - MOD-process-model.progress
+  - MOD-settings-store.fileTexts
+  - MOD-participants.endpointDriver
+  - MOD-participants.cliDriver
+  - MOD-participants.diagnoseEndpoint
+  - MOD-mailbox.MAIL_SCOPES
+  - MOD-mailbox.signIn
+  - MOD-mailbox.mailbox
+  - MOD-bridge-server.bridgeClient
+  - MOD-bridge-tunnel.jumpHostProblem
+  - MOD-bridge-tunnel.allocatePort
   - MOD-bridge-tunnel.tunnelCommands
   - MOD-bridge-tunnel.webServerConfig
-  - MOD-bridge-server.bridgeClient
-  - MOD-participant-ci.secretSetup
-  - MOD-job-definitions.disclosure
 provides: []
 ---
-# MOD-dashboard-app Renders the dashboard pages and turns a person's click into one call of the write path
+# MOD-dashboard-app The dashboard: composition root, pages and texts, and the click
 
 ## Responsibility
 
-The UI layer of the dashboard: the views, the forms, the folded explanations, and the wiring from a
-click to one call of `MOD-git-host.commitFiles` or a participant driver. It holds no logic that a
-test could check without a browser — that lives in the core modules it calls — and it never touches
-storage or `fetch` directly (the repository checks already enforce both).
-
-**Current state.** `docs/assets/review-app.mjs` is this module, plus the HTML builders now in
-`review-core.mjs`: `stepHtml`, `diffHtml`, `prerequisitesHtml`, `impactHtml`, `browserSettingsHtml`,
-`secretFieldHtml`, `tokenBannerHtml`, the guidance texts (`TOKEN_GUIDANCE`, `tokenLinkUrl`,
-`repositoryChoiceSteps`, `extendTokenSteps`, `gitlabTokenSteps`, `gitlabNoProjectTokens`,
-`sharedOriginNotice`, `exportNotice`, `pseudonymisationOffNotice`), `missingLayout`, `addProduct`,
-the product-settings helpers (`parseProductSettings`, `setProductSetting`, `savePseudonymisation`,
-`parseCollaborators`, `formatCollaborators`, `addCollaborator`, `saveCollaborators`) and
-`expiryWarning`. `index.html` and `style.css` belong to it. The settings page also shows, for each jump
-host, the tunnel commands and the proposed web-server block (ARC-013 decision 6), and for each product the
-CI secrets a hosted job needs (UC-010) with their pages; the job list shows the seven job states of `ONE
-DASHBOARD SHOWS EVERY JOB` as `MOD-job-records.jobState` derives them. `ADDING A PRODUCT CREATES ITS LAYOUT`
-includes `docs/architecture/` (UC-001 step 5); `missingLayout` does not write it yet.
+Shell. The browser runtime's composition root (ARC-003): it creates the one store (MOD-settings-store),
+reads the settings from it, builds the git host, the participants' drivers, the mailbox and the bridge
+client with them, and passes these — as plain parameters — to the kernel and feature modules it calls.
+It is the only place in the browser where a person's click becomes write authority: an `authority` of kind
+`click` is created only from a trusted event (`isTrusted`) of the button that names the write, and is
+handed to the one write path of MOD-git-host. It holds every page and every text a person reads — the
+views, the forms, the folded explanations, the guidance for tokens and repositories, the disclosures of
+what is sent where, the notices on exports and on switching pseudonymisation off — and no rule a test could
+check without a browser; those live in the modules it calls. `docs/index.html` and `docs/assets/style.css`
+belong to it.
 
 ## Interfaces
 
-None: it is the page. Its entry points are the views of `docs/index.html` (use cases, architecture, SPEC changes, specification browser, tests, jobs, progress, mail, settings), each routed by the URL fragment.
+None: it is the page. Its entry points are the views of `docs/index.html` (use cases, architecture, SPEC
+changes, specification browser, tests, jobs, progress, mail, settings), each routed by the URL fragment.
 
-Uses, as declared above: `MOD-review-core.deriveStatus`, `MOD-review-core.planAcceptance`, `MOD-review-core.reviewSession`, `MOD-review-core.lineDiff`, `MOD-review-core.lastAcceptedRecord`, `MOD-review-core.checkIdentifierKept`, `MOD-spec-queue.sectionForEntry`, `MOD-spec-queue.deriveSpecStatus`, `MOD-spec-queue.proposeEdit`, `MOD-traceability.linkGraph`, `MOD-traceability.tracesTo`, `MOD-traceability.coverageGaps`, `MOD-traceability.moduleRows`, `MOD-traceability.architectureImpact`, `MOD-traceability.componentDiagram`, `MOD-groups.hierarchy`, `MOD-groups.applyMoves`, `MOD-git-host.readSnapshot`, `MOD-git-host.commitFiles`, `MOD-git-host.webLinks`, `MOD-git-host.tokenRefusal`, `MOD-git-host.requiredPermissions`, `MOD-settings-store.browserStore`, `MOD-settings-store.settingKeys`, `MOD-settings-store.exportSettings`, `MOD-settings-store.readSettingsFile`, `MOD-settings-store.mergeSettings`, `MOD-job-records.jobState`, `MOD-run-engine.runPlan`, `MOD-process-model.progress`, `MOD-bridge-tunnel.tunnelCommands`, `MOD-bridge-tunnel.webServerConfig`, `MOD-bridge-server.bridgeClient`, `MOD-participant-ci.secretSetup`, `MOD-job-definitions.disclosure`.
+## Testing
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
+The pages are tested in a headless browser against fixture products with a fake `fetch` (`tests/app-harness.mjs`,
+`tests/test_settings_page.py`, `tests/test_settings_disclosure.py`, `tests/test_step_explanations.py`,
+`tests/test_destination_disclosure.py`): every step has its explanation; every key of `settingKeys` is
+shown on the settings page with its test and clear; a secret is hidden until shown; an export states that it
+contains secrets; a save is made only after a trusted click, and a synthetic `click()` from a script writes
+nothing, as counter-proof; a refused save keeps the edit. The seams are `fetch` and the browser's storage.
+Wording and layout are reviewed by a person, not tested. No model is involved.
+
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): a thin composition root holding every text and turning a click into write authority, the current state removed, rules other modules check left to them; open until accepted.*

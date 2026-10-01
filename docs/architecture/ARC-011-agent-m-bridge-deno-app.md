@@ -36,10 +36,10 @@ cannot be created fails silently; there is no Windows-on-ARM target.
 
 ## Decision
 
-1. **One entry module, the dashboard's modules.** `bridge/main.mjs` imports the core and adapter
-   modules the dashboard uses (ARC-003) plus the bridge-only modules (MOD-bridge-server,
-   MOD-bridge-tunnel, MOD-bridge-mail, MOD-participant-cli, the local-endpoint route of
-   MOD-participant-endpoint) and the job definitions (ARC-007). No second language.
+1. **One entry module, the dashboard's modules.** `bridge/main.mjs` is the bridge's composition root
+   (MOD-bridge-app, ARC-003): it imports the kernel, feature and adapter modules the dashboard uses, the
+   bridge sides of the adapters — the server of the bridge protocol, the tunnels, the mail routes, the
+   agent and local-model-server routes — and the job definitions (ARC-007). No second language.
 2. **Build: `deno desktop`**, because the tray and the window exist only there (measurement §1: the
    tray page says "`deno desktop` is available starting in Deno v2.9.0"; the word `Tray` occurs 0 times
    on the `deno compile` reference, read 2026-09-30,
@@ -83,9 +83,9 @@ cannot be created fails silently; there is no Windows-on-ARM target.
    CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`), and its state is read on the dashboard through
    `GET /hello` and `GET /tunnels`.
 7. **The bridge's own settings** — its port, its pairing token, its jump host, its session port, its
-   local model servers — live in the bridge, set in its window or read from a dashboard export, in a
-   file readable by its user only (`THE BRIDGE IS PAIRED ONCE`). The port is a setting of the bridge; the
-   dashboard learns it at pairing.
+   local model servers — live in the bridge's one store (ARC-003), set in its window or read from a
+   dashboard export (ARC-005), in files readable by its user only (`THE BRIDGE IS PAIRED ONCE`). The port
+   is a setting of the bridge; the dashboard learns it at pairing.
 8. **Updater.** The bridge reads the release feed of Agent M (ARC-017), offers a newer version with its
    notes, and on the person's click downloads the file for its platform, checks the SHA-256 named in a
    feed signed with the publisher's Ed25519 key (public key compiled into the bridge, verified with Web
@@ -199,4 +199,4 @@ on `deno desktop`, measurement §1. Agent M's licence is MIT.
 - The bridge's size is that of the Deno runtime plus the modules; the Deno comparison page names about
   40 MB for a `deno desktop` webview app (not measured here).
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): references to the merged decisions and the new module names; open until accepted.*

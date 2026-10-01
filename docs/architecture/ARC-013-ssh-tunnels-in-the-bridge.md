@@ -13,6 +13,7 @@ forced_by:
   - THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
   - THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE
   - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
+  - BROWSER REACHABILITY IS MEASURED, NOT ASSUMED
   - THE BRIDGE IS ONE FILE PER PLATFORM
   - A REUSE DECISION RECORDS ITS DUE DILIGENCE
   - DUE DILIGENCE IS FETCHED, NOT RECALLED
@@ -37,10 +38,15 @@ launchd; measured 2026-08-24: restart after 5 s, tunnel end on the jump host's l
 (`SOFTWARE_MAINTENANCE.md` §6.1a).
 
 Instead of the forward, the dashboard may reach the tunnel's end through an HTTPS address of the jump
-host (`A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST`) — the only route Safari allows
-(ARC-012). The jump host's name, SSH user, port range, HTTPS address and web-server login, and each
-session's name, port and bridge token, are browser settings (`THE JUMP HOST AND THE REMOTE SESSIONS ARE
-SETTINGS`).
+host (`A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST`) — the only route Safari allows, which
+blocks a page's call to loopback as mixed content (measurement §3, cited in ARC-012). The SPEC sets three
+conditions for it: a certificate the browsers trust, the web server's own login before it forwards
+anything (`THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN`), and cross-origin requests for the
+instance's Pages origin only (`THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE`). The
+web server's `Authorization` header carries its own login, so "the bridge's token travels in a header of
+its own" (ARC-012 point 3). The jump host's name, SSH user, port range, HTTPS address and web-server
+login, and each session's name, port and bridge token, are browser settings (`THE JUMP HOST AND THE
+REMOTE SESSIONS ARE SETTINGS`). This decision holds the whole route; the other files refer here.
 
 Windows 10 and 11 have no OpenSSH client by default, and adding the feature needs an administrator
 (read 2026-09-30, `https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/cant-install-openssh-features`:
@@ -75,16 +81,51 @@ the Windows bridge ships its own OpenSSH client, Microsoft's Win32-OpenSSH.
 4. **Supervision.** The bridge restarts `ssh` with backoff when it exits, after sleep or a network
    change, and shows *tunnel open* or the last error from `ssh`'s stderr in its window and in `GET
    /tunnels`.
-5. **The jump host's HTTPS route needs four things on its web server** (ARC-012 point 9): a reverse
-   proxy from `https://<jump host>/<base path>/<session port>/` to `http://127.0.0.1:<session port>/`,
-   the reverse tunnel's end; **Basic authentication** over TLS in front of it
-   (`THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); the **preflight answered without
-   login, for the Pages origin only**, and not forwarded (`THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS
-   ONLY FROM THE INSTANCE`); and a **certificate the browsers trust** for the host's name — for
-   example Let's Encrypt, or the institution's own. The pattern is the support cockpit's
-   (`SOFTWARE_MAINTENANCE.md` §6.1a: `ProxyPass` to the tunnel end, `AuthUserFile`,
+5. **The route over HTTPS through the jump host.** Which route the dashboard takes is a browser setting
+   of the remote session (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`): *loopback* (the bridge
+   on this computer, or a forward to `localhost:<port>`) or *HTTPS* (the jump host's HTTPS address and
+   web-server login). On the HTTPS route:
+   - the dashboard sends `https://<jump host>/<base path>/<session port>/<endpoint>` with
+     `Authorization: Basic …` — the web server's login, sent only to that address — and
+     `Agent-M-Bridge-Token`;
+   - the web server answers the preflight (`OPTIONS`, which carries no login) itself, for the instance's
+     Pages origin only, without forwarding it; any other origin gets no `Access-Control-Allow-Origin`
+     (`THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE`);
+   - every other request is forwarded to `http://127.0.0.1:<session port>/` — the reverse tunnel's end
+     on the jump host's loopback — only when its Basic login is valid; without it the web server answers
+     `401` and forwards nothing (`THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN`);
+   - the bridge then applies its token, origin and host checks as for any request (ARC-012 points 3–5);
+     its `Access-Control-Allow-Origin` names the same Pages origin, and the web server adds no second one;
+   - the certificate is one the browsers trust, issued for the jump host's name — for example Let's
+     Encrypt, or the institution's own; behind a self-signed certificate "a request made by a page fails
+     without any way to proceed" (SPEC occasion), so the settings page names the certificate as a
+     possible cause when the test call fails.
+
+   The web server is the person's own; Agent M operates none (`NO SERVER`). The pattern is the support
+   cockpit's (`SOFTWARE_MAINTENANCE.md` §6.1a: `ProxyPass` to the tunnel end, `AuthUserFile`,
    `Require valid-user`, password hashed with `htpasswd -B`); the process repository keeps its Apache
-   block as `config/apache-support-location.conf`.
+   block as `config/apache-support-location.conf`. The mailbox password travels on this route inside TLS
+   to the jump host and then through the SSH tunnel; the web server logs no request bodies.
+
+```mermaid
+sequenceDiagram
+    participant D as Dashboard (https://owner.github.io)
+    participant W as Jump host web server (HTTPS, trusted certificate)
+    participant T as Reverse tunnel end 127.0.0.1:session port
+    participant B as Bridge on the far machine
+    D->>W: OPTIONS (preflight, no login)
+    W-->>D: allowed for the Pages origin only
+    D->>W: POST /…/jobs, Authorization: Basic, Agent-M-Bridge-Token
+    alt Basic login missing or wrong
+        W-->>D: 401, nothing forwarded
+    else login valid
+        W->>T: forward (Host 127.0.0.1:session port)
+        T->>B: through the SSH tunnel
+        B->>B: origin, host, token checked
+        B-->>D: answer (CORS for the paired origin)
+    end
+```
+
 6. **Proposed: the dashboard writes that configuration.** As it writes the tunnel commands (`THE
    DASHBOARD WRITES THE TUNNEL COMMANDS`), the settings page shows, filled in from the settings, the
    web-server block for all remote sessions of a jump host — one `<Location>` block per session for
@@ -144,8 +185,14 @@ Sources: GitHub API `https://api.github.com/repos/PowerShell/Win32-OpenSSH` (rep
   only shown, never applied; (d) the bridge terminating HTTPS itself with a certificate — rejected: the
   bridge binds to loopback only, and the certificate belongs to the jump host's name, which the bridge
   does not own.
+- **The jump host's web server forwarding the preflight to the bridge** — rejected: the preflight
+  carries no login, so the web server would forward an unauthenticated request; answering it itself
+  keeps `THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN` without exception.
 
 ## Consequences
+
+- The HTTPS route needs a jump host with a web server the person controls, a trusted certificate and a
+  login; the settings page tests it with one harmless request and names the failing part.
 
 - Windows needs no administrator step for tunnels beyond whatever installing the bridge's `.msi` itself
   requires (ARC-011, open measurement 3).
@@ -161,12 +208,16 @@ Sources: GitHub API `https://api.github.com/repos/PowerShell/Win32-OpenSSH` (rep
   record whether `ssh-keygen` creates the key with an owner-only ACL, whether `ssh -N -R …` holds the
   tunnel, and whether a Windows-feature `ssh.exe` on the path interferes. How `deno desktop` places
   extra executables into its `.msi` is not described on the pages read and is part of this measurement.
-- **Open measurement 2 — the generated web-server block.** Apply it to a test Apache and a test nginx
-  with a Let's Encrypt certificate and a reverse tunnel; run ARC-012 open measurement 2 against it.
+- **Open measurement 2 — reachability per browser, HTTPS route.** Through a test web server with a
+  trusted certificate, Basic login and a reverse tunnel: the preflight, a request without login (`401`,
+  nothing forwarded), a request with login and token (answered by the bridge), and a preflight from
+  another origin (refused) — in all four browsers (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`).
+- **Open measurement 3 — the generated web-server block.** Apply it to a test Apache and a test nginx
+  with a Let's Encrypt certificate and a reverse tunnel; run open measurement 2 against it.
 - The jump host keeps `GatewayPorts no` (its default); the bridge never passes `-g` or a non-loopback
   bind address, which `tunnelBindProblems` already refuses.
 - The core's tunnel functions move from `review-core.mjs` to MOD-bridge-tunnel; the settings page
   keeps showing the commands for machines without a bridge (`THE DASHBOARD WRITES THE TUNNEL
   COMMANDS`).
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the whole HTTPS route through the jump host, including ARC-012's former decision 9, its diagram and its measurement; open until accepted.*

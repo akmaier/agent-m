@@ -31,23 +31,22 @@ Developer ID (notarised) and a Windows code-signing certificate, and a bridge on
 person's click after checking the signature. The PO keeps signing and expects the bridge to be
 installed widely and soon, which matters for how Windows treats a new signature (below).
 
+How a product's — and Agent M's — version is computed, its release test report composed and accepted,
+and its tag set is the one release flow of UC-013, owned by the module that keeps test evidence
+(MOD-test-records); this decision is about what only Agent M's own release adds: the bridge's files,
+their signatures, and the feed the bridges update from.
+
 What Apple, Microsoft and Deno document about signing was read on 2026-09-30 and is recorded in
 `docs/measurements/2026-09-30_architecture-open-points.md`, point 2 (*measurement §2*).
 
 ## Decision
 
-1. **One release flow for products and for Agent M** (`MOD-release`, UC-013): the next version is
-   computed from the last tag of that product's own line (a new year restarts at `YYYY.1.0`); the
-   release candidate is the commit; the complete run is started on it (ARC-015); the release test
-   report is composed from the result records; accepting it commits report, approval record and
-   changelog entry in one commit and sets the tag on the tested commit. An existing tag stops the
-   release.
-2. **Agent M's bridge build** is an extra job of Agent M's own release workflow, run on the release
+1. **Agent M's bridge build** is an extra job of Agent M's own release workflow, run on the release
    candidate's commit: `deno desktop` for each target (ARC-011; the `.dmg` on a macOS runner, because it
    "shells out to `hdiutil`"), the platform start test (each file installed or started on a hosted
    runner of its operating system, with `--version` and the `trayId` check of ARC-011), and the SHA-256
    of each file.
-3. **Signing is a person's step, not a CI secret.** The PO signs with keys held on their own machine,
+2. **Signing is a person's step, not a CI secret.** The PO signs with keys held on their own machine,
    with the tools Apple, Microsoft and Deno document (measurement §2):
    - **macOS.** The `.app` inside the `.dmg` is signed with a Developer ID, the Hardened Runtime and a
      secure timestamp — `deno desktop` does this when an identity is set in `deno.json` ("the bundle is
@@ -71,15 +70,15 @@ What Apple, Microsoft and Deno document about signing was read on 2026-09-30 and
    signed files are uploaded; it then verifies each signature with the platform's tool (`spctl -a -vv`
    and `xcrun stapler validate` for the `.dmg`, `signtool verify /pa` for the `.msi` and the executables
    inside it) and refuses to publish a file that does not verify.
-4. **Update feed.** The release publishes, as release assets of Agent M's repository, the signed files
+3. **Update feed.** The release publishes, as release assets of Agent M's repository, the signed files
    and `bridge-feed.json`: version, date, release notes link, and per platform file name, size and
    SHA-256. The feed is signed with an Ed25519 key of the publisher (envelope `{signed, signature}`, the
    form Deno documents for its own updater); the public key is compiled into the bridge. The bridge
    checks the feed signature, then the file's SHA-256, then the platform signature, and installs only
    after the person's click (ARC-011).
-5. The job and artifact records name the Agent M version that produced them; for a bridge job, both the
+4. The job and artifact records name the Agent M version that produced them; for a bridge job, both the
    instance's Agent M commit and the bridge's version.
-6. **What the person sees on Windows is explained before the download.** Microsoft documents that a
+5. **What the person sees on Windows is explained before the download.** Microsoft documents that a
    freshly signed file is "flagged as unrecognized until reputation accumulates", that "EV certificates
    no longer bypass SmartScreen", and that reputation "can take several weeks and hundreds of clean
    installs"; it can carry over "on new files signed by the same trusted certificate"
@@ -129,7 +128,7 @@ What Apple, Microsoft and Deno document about signing was read on 2026-09-30 and
 - **Open measurement 3 — a Hardened-Runtime `deno compile` binary**, only if the fallback of ARC-011 is
   chosen: sign with `--options runtime`, with and without `com.apple.security.cs.allow-jit`, notarise,
   start on a Mac that has never seen the file; record whether V8 starts.
-- The product's release flow and Agent M's are the same code; only Agent M's own release has the bridge
-  job.
+- The product's release flow and Agent M's are the same code (MOD-test-records); only Agent M's own
+  release has the bridge job.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): decision 1, the release flow of every product, dropped, as it is the release module's; open until accepted.*

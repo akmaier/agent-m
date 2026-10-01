@@ -8,7 +8,6 @@ forced_by:
   - AN UNSUPPORTED ENDPOINT SAYS SO
   - BROWSER REACHABILITY IS MEASURED, NOT ASSUMED
   - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
   - THE BRIDGE FINDS THE INSTALLED AGENTS
   - THE LOCAL BRIDGE REQUIRES A TOKEN
@@ -26,7 +25,7 @@ forced_by:
 ## Context
 
 A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
-agent (`A PARTICIPANT HAS ONE OF FIVE TYPES`). The harness (ARC-008) and the run engine (ARC-010)
+agent (`A PARTICIPANT HAS ONE OF FIVE TYPES`). The harness (ARC-007) and the run engine (ARC-010)
 must not care which. Each non-person type is reached differently: an endpoint by HTTPS, a CI agent
 through a workflow on the git server, a CLI or sandboxed agent through the bridge (ARC-011, ARC-012).
 Book ch. 10: the plug-in pattern — a stable extension contract, with each plug-in behind it.
@@ -53,8 +52,8 @@ in `docs/measurements/2026-09-30_architecture-open-points.md`, point 7 (*measure
   "Additional origins can be configured with `OLLAMA_ORIGINS`."
   (`https://raw.githubusercontent.com/ollama/ollama/main/docs/faq.mdx`).
 
-A model server on the person's own machine is a loopback destination for the browser, so ARC-012's
-browser matrix would apply to it too — one prompt in Chrome, Edge and Firefox, blocked in Safari — and
+A model server on the person's own machine is a loopback destination for the browser, so what the
+browsers do with a call to loopback would apply to it too (measurement §3, cited in ARC-012) — and
 Ollama would additionally need `OLLAMA_ORIGINS` set to the Pages origin by the person.
 
 ## Decision
@@ -68,30 +67,27 @@ Ollama would additionally need `OLLAMA_ORIGINS` set to the Pages origin by the p
 - every call returns the cost or usage when the runtime reports one, and nothing otherwise
   (`NO COST IS GUESSED`).
 
-1. **Hosted model endpoint (`MOD-participant-endpoint`, route *browser*)** — from the browser, two wire
+1. **Hosted model endpoint (`MOD-participants`, route *browser*)** — from the browser, two wire
    formats: the OpenAI-compatible chat-completions format and the Anthropic Messages format. For
    Anthropic the request carries `anthropic-dangerous-direct-browser-access: true`, as the SDK source
    above sets it. No SDK is vendored: two request shapes over `fetch` are smaller than either SDK and
    keep the key's route inside the adapter. A refused cross-origin call is named with its reason and the
    routes that would work — CI, or the bridge (`AN UNSUPPORTED ENDPOINT SAYS SO`).
-2. **Local model server (`MOD-participant-endpoint`, route *bridge*)** — Ollama, vLLM, LiteLLM or any
+2. **Local model server (`MOD-participants`, route *bridge*)** — Ollama, vLLM, LiteLLM or any
    OpenAI-compatible server on the machine of a bridge is reached **through that bridge**, which calls
    it on the same machine. The browser sends the same request shape to the bridge (`POST
    /endpoint/chat`, ARC-012) with the bridge token; the bridge forwards it to the server address named
    in the bridge's own settings, which must be a loopback address, and returns the answer. No browser
    CORS rule and no `OLLAMA_ORIGINS` applies: the bridge is not a browser. The browser reaches the bridge
    directly on loopback, or — in Safari, or for a bridge on another machine — over the HTTPS route
-   through the jump host (ARC-012 point 9). A server key, where one is needed, goes in the request body
+   through the jump host (ARC-013). A server key, where one is needed, goes in the request body
    to the bridge and from there only to that server.
-3. **CI agent (`MOD-participant-ci`)** — a `workflow_dispatch` of Agent M's job workflow in the
+3. **CI agent (`MOD-ci-generator`)** — a `workflow_dispatch` of Agent M's job workflow in the
    product repository (GitHub) or a pipeline trigger (GitLab), with the job identifier as input. The
-   workflow checks out Agent M's definitions, runs the same core with Node, authenticates the agent with
-   a CI secret it names and never receives (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`),
-   and pushes, opens and merges pull requests with the person's Agent M token from a second named CI
-   secret, never with the workflow's built-in token (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A
-   CI SECRET`, ARC-015). A self-hosted runner is used only when the git server reports the repository as
-   private.
-4. **CLI agent and sandboxed agent (`MOD-participant-cli`)** — a request to the bridge, which runs
+   workflow checks out Agent M's definitions and runs the same code with Node; the agent authenticates
+   and the job writes with the credentials ARC-015 names. A self-hosted runner is used only when the git
+   server reports the repository as private.
+4. **CLI agent and sandboxed agent (`MOD-participants`)** — a request to the bridge, which runs
    the agent with its own login (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`). Three agents,
    invoked as their documentation describes (read 2026-09-30):
    - Claude Code: `claude -p "<prompt>" --output-format json`; the JSON includes `total_cost_usd`,
@@ -129,7 +125,7 @@ product that uses one declares it as a resource (UC-040).
 - **One agent only** — rejected: `THE BRIDGE FINDS THE INSTALLED AGENTS` names three; the person
   already pays for one of them.
 - **The vendors' SDKs in the browser** (Anthropic, OpenAI) — rejected for the reasons in point 1;
-  they would also add their own key handling beside the settings store (ARC-005).
+  they would also add their own key handling beside the browser store (ARC-003).
 - **A CI agent reached by SSH from GitHub's machines** — rejected: it needs an SSH key stored on
   GitHub and a host reachable from the internet; the self-hosted runner connects out and needs
   neither (UC-017 3b).
@@ -156,4 +152,4 @@ product that uses one declares it as a resource (UC-040).
   `docs/measurements/2026-09-30_gitlab-cors.md`, and one real browser call with a test key, recorded
   before the endpoint driver is released (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`).
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): module names, the CI credentials referred to ARC-015, the HTTPS route to ARC-013; open until accepted.*

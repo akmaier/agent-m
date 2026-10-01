@@ -35,7 +35,7 @@ the other half: every tool reads and writes one shared store — here, the git r
    names: the git servers' APIs, the configured model endpoints, the mail provider's API
    (Microsoft Graph), the local bridge — on loopback, or at the HTTPS address of the reader's own
    jump host that forwards to it (`A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST`,
-   ARC-012) —, and the package registries and resource hosts the page names before it calls them.
+   ARC-013) —, and the package registries and resource hosts the page names before it calls them.
 3. Work that cannot run in a browser runs where the reader already has a runtime: in the product
    repository's own CI (ARC-015, ARC-009), or in the Agent M Bridge on the reader's computer
    (ARC-011). Neither is operated by the Agent M project.
@@ -82,10 +82,10 @@ flowchart LR
 - Every capability is bounded by what browsers allow: cross-origin permissions of each API decide
   what the dashboard can do directly (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`). What they
   forbid moves to CI or to the bridge.
-- All state lives in repositories and in the browser (ARC-006, ARC-005). Two browsers see the same
+- All state lives in repositories and in the browser (ARC-006, ARC-003). Two browsers see the same
   repository state but not each other's settings.
 - Every Pages site of the same owner shares the browser storage origin; the dashboard discloses it
   (`THE SHARED PAGES ORIGIN IS DISCLOSED`). This is a consequence of this decision, not a defect of
   a later one.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): references to the merged decisions and the new module names; open until accepted.*
