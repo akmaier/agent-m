@@ -41,7 +41,9 @@ A new rule.
 withdrawn 2026-09-30)*
 *Withdrawn:* replaced by `RULE ONE`. The name is not reused.
 """
-WITH_ENTRY = {**FILES, ENTRY: PROPOSAL, f"{QUEUE}/01-rules.begruendung.md": "Why: **RULE ONE** *(nobody)*\nNot an entry.\n",
+# Its rationale quotes a requirement in the SPEC's form; a rationale is not an entry and proposes nothing.
+WITH_ENTRY = {**FILES, ENTRY: PROPOSAL,
+              f"{QUEUE}/01-rules.begruendung.md": "**RULE ONE** *(PO, 2026-10-01)*\nA rule the rationale quotes.\n*Check:* none\n",
               f"{QUEUE}/index.md": "| Nr | Datei |\n|---|---|\n| 01 | `SPEC.md` |\n"}
 
 
