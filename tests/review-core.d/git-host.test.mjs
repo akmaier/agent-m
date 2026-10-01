@@ -2,7 +2,7 @@
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
 // Module: MOD-git-host
-// Guards: NO TEXT TRAVELS IN A URL; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A PRODUCT IS NAMED BY ITS ADDRESS; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-001
+// Guards: NO TEXT TRAVELS IN A URL; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A PRODUCT IS NAMED BY ITS ADDRESS; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; ONE GITHUB TOKEN SERVES EVERY FEATURE; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001
 // Level: component
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
@@ -16,10 +16,44 @@ import {
   newFileUrl, editUrl, fetchText, ALLOWED_ORIGINS, MAX_URL_VALUE, commitFiles, parseProductAddress, tokenRefusal,
   gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute, authHeaders,
 } from "../../docs/assets/git-host.mjs";
+import * as gitHost from "../../docs/assets/git-host.mjs";
 import { expiryWarning, tokenBannerHtml } from "../../docs/assets/dashboard/settings-view.mjs";
 import {
   click, fakeGitHub, withFetch, B_SPEC, B_UC1, GL, GL_ADDR, GL_TOKEN, H0, NEWC, fakeGitLab,
 } from "./helpers.mjs";
+
+// ---------------------------------------------------------------- the one list of the token's permissions (ITM-006)
+
+// ONE GITHUB TOKEN SERVES EVERY FEATURE. The expected parameter names and access levels are GitHub's own, read on 2026-10-01 in
+// the table "Repository permissions" of
+// https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
+// — contents (read, write), issues (read, write), pull_requests (read, write), actions (read, write), workflows (write only),
+// metadata (read only); "write always includes read".
+const GITHUB_PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" };
+
+test("ONE GITHUB TOKEN SERVES EVERY FEATURE — requiredPermissions on GitHub: Contents, Issues, Pull requests, Actions, Workflows write, Metadata read, each with why", () => {
+  for (const host of ["github.com", parseProductAddress("https://github.com/alice/thesis")]) {
+    const r = gitHost.requiredPermissions(host);
+    assert.deepEqual(Object.keys(r), ["github"]);
+    assert.deepEqual(r.github.map((p) => p.permission), ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]);
+    assert.deepEqual(Object.fromEntries(r.github.map((p) => [p.param, p.access])), GITHUB_PERMISSIONS,
+      "exactly these parameters and levels, no more, no less");
+    for (const p of r.github) assert.ok(typeof p.why === "string" && p.why.length > 20, `${p.permission} says why it is needed`);
+  }
+  // counter-proof: a list missing Workflows, or carrying Administration, is not the one asked for
+  assert.notDeepEqual({ contents: "write", issues: "write", pull_requests: "write", actions: "write", metadata: "read" }, GITHUB_PERMISSIONS);
+  assert.notDeepEqual({ ...GITHUB_PERMISSIONS, administration: "write" }, GITHUB_PERMISSIONS);
+});
+
+test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — requiredPermissions on a GitLab server: role Maintainer, scope api", () => {
+  for (const host of ["gitlab.com", "gitlab.rrze.fau.de", parseProductAddress(GL_ADDR)]) {
+    const r = gitHost.requiredPermissions(host);
+    assert.deepEqual(Object.keys(r), ["gitlab"]);
+    assert.equal(r.gitlab.role, "Maintainer");
+    assert.equal(r.gitlab.scope, "api");
+    assert.ok(typeof r.gitlab.why === "string" && r.gitlab.why.length > 20);
+  }
+});
 
 test("NO TEXT TRAVELS IN A URL: long values are refused", () => {
   const u = newFileUrl("akmaier/agent-m", "main", "docs/approvals/x.md", "kind: use-case\n");
