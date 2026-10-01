@@ -29,6 +29,7 @@ changes no artifact and no approval.
 - Shells
   - MOD-dashboard-app
   - MOD-bridge-app
+  - MOD-ci-entry
 - Withdrawn
   - MOD-groups
   - MOD-spec-queue

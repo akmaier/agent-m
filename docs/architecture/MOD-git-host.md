@@ -11,6 +11,7 @@ realises:
   - A CREDENTIAL IS NEVER PLACED IN A URL
   - A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
   - AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+  - A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
   - A RESULT RECORD IS NEVER REWRITTEN
   - A VERSION IS NOT REWRITTEN
   - ONE GITHUB TOKEN SERVES EVERY FEATURE
@@ -32,6 +33,7 @@ provides:
   - appendRecords
   - webLinks
   - tokenRefusal
+  - usedUpLimit
   - repositoryInfo
   - issues
   - pullRequests
@@ -62,6 +64,7 @@ this module reads no store.
 - `appendRecords({ product, branch, files, token, authority }) -> { sha }` — adds new files to an append-only branch (`test-results`), refusing any file that already exists; never force.
 - `webLinks(product, ref) -> { file(path), newFile(path, record), edit(path) }` — navigation and prefill links; a prefilled value is at most a record (`MAX_URL_VALUE` 1 000 characters), never a text.
 - `tokenRefusal(error, product) -> { token, renewUrl, renew, text } | null` — a 401 turned into the name of the refused token and its renewal page.
+- `usedUpLimit(error, product) -> { limit: "account" | "network", resetsAt: Date | null } | null` — a `403` or `429` that the server's rate-limit headers mark as a used-up limit (GitHub: `X-RateLimit-Remaining: 0`, `X-RateLimit-Limit` 5000 with a token or 60 without, `X-RateLimit-Reset`); gitlab.com exposes no such header to pages, so its limit comes back without a time. Such an error is never passed to `tokenRefusal` (`A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN`).
 - `repositoryInfo({ product, token }) -> { visibility, defaultBranch, role? }` — what the server reports, including a GitLab token's access level.
 - `issues({ product, token }) -> { list(filter), create(issue, authority), comment(n, text, authority), label(n, add, remove, authority), close(n, authority), reopen(n, authority) }` — issue tracker calls on either host.
 - `pullRequests({ product, token }) -> { list(filter), get(n), merge(n, authority) }` — pull or merge requests and their CI status.
@@ -79,4 +82,4 @@ whose file changed meanwhile is refused; an existing tag and an existing result 
 a 401 names the refused token. The seams are `fetch` and the server's answers, recorded per host. A system
 test against a test repository on each host runs before a release (ARC-016). No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): every write takes an authority, the request helper is internal, the current state removed, rules decided by the shells left to them; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): every write takes an authority, the request helper is internal, the current state removed, rules decided by the shells left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; open until accepted.*

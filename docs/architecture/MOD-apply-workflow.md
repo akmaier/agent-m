@@ -13,7 +13,7 @@ provides: []
 
 ## Withdrawn
 
-Merged into MOD-review-core: applying recorded approvals is the review core's acceptance run without a dashboard; `applyApprovals` lives there, and the CI runtime calls it through MOD-ci-generator's `ciEntry`. The identifier is not reused; the text this file held is in the git history of this path.
+Merged into MOD-review-core: applying recorded approvals is the review core's acceptance run without a dashboard; `applyApprovals` lives there, and the CI runtime calls it through `MOD-ci-entry.ciEntry`. The identifier is not reused; the text this file held is in the git history of this path.
 
 ## Responsibility
 

@@ -65,11 +65,12 @@ Book ch. 10: layered architecture — "every layer is only dependent on the laye
      agents, mailboxes, the bridge's HTTP protocol, SSH. Only an adapter builds an authorisation header,
      opens a connection, starts a process or touches storage. An adapter imports at most the adapter it
      sends through (the bridge client). Each is replaced by a recorded or constructed fake in commit tests.
-   - **Shells** — the composition roots: the dashboard page and the bridge app. A shell chooses the
+   - **Shells** — the composition roots: the dashboard page (MOD-dashboard-app), the bridge app
+     (MOD-bridge-app) and the CI entry (MOD-ci-entry). A shell chooses the
      adapters, hands them to features and kernel as ports, holds every text a person reads, and turns a
-     person's action into an authority (point 3). In CI, which has no window and no person, the generated
-     workflow calls one entry function, `MOD-ci-generator.ciEntry`; it is the CI runtime's composition
-     root and the only code outside the two shell modules that chooses adapters.
+     person's action into an authority (point 3). In CI, which has no window and no person, every generated
+     workflow step calls `MOD-ci-entry.ciEntry`, which makes the `ci-secret` authority from the
+     workflow's secret.
 2. **Ports, not imports.** A feature or kernel function that needs the outside receives it as a plain
    parameter — `{ forge, driver, mailbox, issues, read, clock, random }` —, the same object in all three
    runtimes; no dependency-injection container. An interface passed in this way is not a `uses` of the
@@ -108,7 +109,7 @@ flowchart TB
     subgraph SH["Shells — composition roots"]
         DASH["dashboard page"]
         APP["bridge app"]
-        CIE["CI entry (in the CI configuration module)"]
+        CIE["CI entry"]
     end
     subgraph FE["Features — one concern each, ports passed in"]
         F["derivation, sources, tests and releases, CI, mail, personal data"]
@@ -162,4 +163,4 @@ flowchart TB
 - A test of a feature hands it fake ports; a test of an adapter records the requests it makes. Neither
   needs the other.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023); open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023); revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; open until accepted.*

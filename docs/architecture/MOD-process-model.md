@@ -10,6 +10,7 @@ realises:
   - A PRACTICE IS NOT A MODEL
   - A GATE NAMES WHAT IT CHECKS
   - A GATE NAMES WHO DECIDES IT
+  - A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
   - A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS
   - PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
   - A PARTICIPANT HAS ONE OF FIVE TYPES
@@ -61,7 +62,7 @@ restriction; it reads no source itself.
 
 - `parseModel(text) -> model` — a definition file (ARC-019): kind of work, phases, transitions, verification pairs, gates with their deciders, roles, flow control, measure.
 - `validateModel(model) -> [error]` — each error beside its field: unknown phase in a transition or pair, a phase no transition reaches, a gate without artifacts, condition or decider, a role without capabilities, a phase without a role, a gate checking an artifact no earlier phase produces, pulled work without exactly one of time box and WIP limit, a measure that does not fit the kind.
-- `parseParticipants(text) -> [participant]` — `docs/participants.md` of the instance: name, one of the five types, capabilities, processing place, route; a row carrying a key value is an error.
+- `parseParticipants(text) -> [participant]` — `docs/participants.md` of the instance: name, one of the five types, the model for every participant that works with a language model, capabilities, processing place, route; a row carrying a key value is an error, and so is a model endpoint, CI, CLI or sandboxed agent without its model (`A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL`).
 - `parseDeclaration(text) -> declaration` — a product's `docs/process.md`: model and version, role assignment, practices, branches per phase or time box, Definition of Done, sprint-close assignee.
 - `assignable(role, participants, restrictions) -> [{ participant, ok, missing, placeWarnings }]` — who may hold a role: every capability it needs, the person/agent rule, and the places the restrictions forbid.
 - `deriveWorkflow(model, practices, processRequirements) -> workflow` — phases, transitions, gates with deciders, and branches; gates and artifacts added by accepted process requirements marked with requirement and source; a practice adds and never replaces.
@@ -78,4 +79,4 @@ else and by the working participant. `doneCheck` is tested with constructed comm
 a refactoring with an edited expectation, a file outside the job's modules —, each case with its expected
 verdict. No seams beyond the data passed in; no model.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over the Definition of Done check; plan and progress moved to MOD-work-items; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over the Definition of Done check; plan and progress moved to MOD-work-items; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; open until accepted.*
