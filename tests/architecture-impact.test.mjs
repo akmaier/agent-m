@@ -6,7 +6,8 @@
 // Level: unit
 //
 // SPEC §11 AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST (UC-023 steps 4–5, 4a–4c). Moved out of
-// tests/architecture.test.mjs, unchanged, when it was split by module.
+// tests/architecture.test.mjs, unchanged, when it was split by module. ITM-018: impactList became architectureImpact over the
+// link graph of the commit (linkGraph); the import and the call changed, no expected result.
 //
 // The product is the fixture under tests/fixtures/architecture/. Counter-proofs are listed in
 // docs/measurements/2026-09-30_review-dashboard-mutations.md §8.
@@ -17,7 +18,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArchitecture } from "../docs/assets/artifacts.mjs";
-import { moduleHeaders, impactList, componentDiagram } from "../docs/assets/traceability.mjs";
+import { moduleHeaders, architectureImpact, linkGraph, componentDiagram } from "../docs/assets/traceability.mjs";
 import { impactHtml } from "../docs/assets/dashboard/review-views.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
@@ -37,11 +38,13 @@ const archPaths = [ARC, READER, REVIEW, PAGE];
 
 const headersOf = () => moduleHeaders({ paths: Object.keys(files), read: async (p) => files[p] });
 const modulesOf = (repo) => archPaths.map((p) => parseArchitecture(p, repo[p]));
+// The graph the dashboard builds for an impact list: the architecture files at the commit shown and the code's headers.
+const graphOf = (repo, headers) => linkGraph({ files: Object.fromEntries(archPaths.map((p) => [p, repo[p]])), headers });
 test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after", async () => {
   const before = parseArchitecture(ARC, files[ARC]);
   const text = files[ARC].replace("  - UC-001\n", "  - UC-002\n");
   const after = parseArchitecture(ARC, text);
-  const imp = impactList({ before, after, modules: modulesOf({ ...files, [ARC]: text }), headers: await headersOf() });
+  const imp = architectureImpact({ before, after, graph: graphOf({ ...files, [ARC]: text }, await headersOf()) });
   assert.deepEqual(imp.affected.map((a) => a.id), ["MOD-reader", "MOD-review"], "MOD-page follows nothing and is not listed");
   assert.deepEqual(imp.affected[0].code, ["src/reader.js"]);
   assert.deepEqual(imp.affected[0].tests, ["tests/reader.test.js"]);
@@ -58,7 +61,7 @@ test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module
     .replace("- `listTree() -> [path]` — every file path at the pinned commit.\n", "")
     .replace("`readFile(path) -> text | null`", "`readFile(path, commit) -> text | null`");
   const after = parseArchitecture(READER, text);
-  const imp = impactList({ before, after, modules: modulesOf({ ...files, [READER]: text }), headers: await headersOf() });
+  const imp = architectureImpact({ before, after, graph: graphOf({ ...files, [READER]: text }, await headersOf()) });
   assert.deepEqual(imp.removedInterfaces, ["listTree"]);
   assert.deepEqual(imp.alteredInterfaces, ["readFile"]);
   assert.deepEqual(imp.affected.map((a) => [a.id, a.breaks]), [["MOD-review", true], ["MOD-reader", false]],
@@ -78,12 +81,12 @@ test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module
 test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — counter-proof: a change to the text alone touches no user; no code is said so", async () => {
   const before = parseArchitecture(READER, files[READER]);
   const text = files[READER].replace("Reads the product's files, all at one commit.", "Reads files, all at one commit.");
-  const imp = impactList({ before, after: parseArchitecture(READER, text), modules: modulesOf({ ...files, [READER]: text }),
-    headers: await headersOf() });
+  const imp = architectureImpact({ before, after: parseArchitecture(READER, text),
+    graph: graphOf({ ...files, [READER]: text }, await headersOf()) });
   assert.deepEqual(imp.affected.map((a) => a.id), ["MOD-reader"], "MOD-review uses readFile, which did not change");
   assert.deepEqual([imp.removedInterfaces, imp.alteredInterfaces], [[], []]);
   // UC-023 4c: without code naming the module, the list says so.
-  const none = impactList({ before, after: parseArchitecture(READER, text), modules: modulesOf(files), headers: [] });
+  const none = architectureImpact({ before, after: parseArchitecture(READER, text), graph: graphOf(files, []) });
   assert.deepEqual(none.affected[0].code, []);
   assert.match(impactHtml(none), /no code yet/);
 });

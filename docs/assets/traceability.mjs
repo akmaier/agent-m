@@ -1,10 +1,13 @@
-// Traceability — what is derived from the artifacts of one commit: the code files and tests that name a module, the impact
-// list of an architecture change, and the component diagram. Kernel (ARC-003): pure functions over what the caller read; it
-// reads nothing itself and stores nothing (THE TRACEABILITY MATRIX IS DERIVED).
+// Traceability — what is derived from the artifacts of one commit: the link graph and the views over it (traceability/graph.mjs,
+// re-exported here), the code files and tests that name a module, the impact list of an architecture change, and the component
+// diagram. Kernel (ARC-003): pure functions over what the caller read; it reads nothing itself and stores nothing
+// (THE TRACEABILITY MATRIX IS DERIVED).
 //
 // Module: MOD-traceability
 
 import { isCodePath, isTestPath, headerModules } from "./artifacts.mjs";
+
+export { linkGraph, tracesTo, coverageGaps, moduleRows, requirementImpact } from "./traceability/graph.mjs";
 
 // ---------------------------------------------------------------- the impact list (UC-023 step 4, 4a, 4c)
 //
@@ -13,7 +16,8 @@ import { isCodePath, isTestPath, headerModules } from "./artifacts.mjs";
 // of them, and the requirements and use cases named before and after. Derived from the files at the commit shown; nothing is
 // stored. A code file names its module in a header line `Module: MOD-<slug>` among its first lines (UC-024 step 7).
 
-// Every code file and test among `paths` that names a module -> [{ path, modules, test }], by path. read(path) -> text.
+// Every code file and test among `paths` that names a module -> [{ path, modules, test }], by path. read(path) -> text. What a
+// caller that keeps no texts gives linkGraph as its `headers`.
 export async function moduleHeaders({ paths, read }) {
   const code = [...paths].filter(isCodePath).sort();
   const texts = await Promise.all(code.map((p) => read(p)));
@@ -21,10 +25,15 @@ export async function moduleHeaders({ paths, read }) {
     .filter((f) => f.modules.length);
 }
 
-// before, after: parseArchitecture of the last accepted and of the current text; modules: every module at the commit shown;
-// headers: moduleHeaders at that commit.
-export function impactList({ before, after, modules, headers }) {
+// architectureImpact({ before, after, graph }) -> { id, kind, removedInterfaces, alteredInterfaces, affected, names } —
+// before, after: parseArchitecture of the last accepted and of the current text; graph: linkGraph of the commit shown, whose
+// modules are read for what follows the decision or uses the module, and whose code files and tests for what names each of
+// them. affected [{ id, reasons, breaks, code, tests }]: the users of a removed interface first, marked breaks, then the
+// others by identifier, and a changed module itself last; code and tests by path, those of a withdrawn module included.
+export function architectureImpact({ before, after, graph }) {
   const id = after.id, affected = new Map();
+  const nodes = Object.values(graph?.nodes ?? {}), edges = graph?.edges ?? [];
+  const modules = nodes.filter((n) => n.kind === "module");
   const add = (mid, reason, breaks = false) => {
     const a = affected.get(mid) || { id: mid, reasons: [], breaks: false };
     a.reasons.push(reason);
@@ -48,7 +57,10 @@ export function impactList({ before, after, modules, headers }) {
   }
   const order = [...affected.values()].sort((a, b) => Number(b.breaks) - Number(a.breaks) || a.id.localeCompare(b.id));
   if (after.kind === "module") order.push({ id, reasons: ["the changed module itself"], breaks: false });
-  const files = (mid, test) => headers.filter((h) => h.test === test && h.modules.includes(mid)).map((h) => h.path);
+  // The code files (or tests) whose Module: line names a module, by path — whether the module is live or not.
+  const kindOf = new Map(nodes.map((n) => [n.id, n.kind]));
+  const files = (mid, test) => [...new Set(edges.filter((e) => e.kind === "module" && e.to === mid
+    && kindOf.get(e.from) === (test ? "test" : "code")).map((e) => e.from))].sort();
   const b = before.names, a = after.names;
   return {
     id, kind: after.kind, removedInterfaces: removed, alteredInterfaces: altered,
