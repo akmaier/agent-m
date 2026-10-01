@@ -27,7 +27,7 @@ import {
   addCollaborator, removeCollaborator, saveCollaborators, gitlabRole, jumpHostProblem, addRemoteSession, nextFreePort,
   probeLocalPort, diffHtml, reviewedId, recordsForId, lastAccepted,
   ARCHITECTURE_FILE, parseArchitecture, reviewedRecord, architecturePrerequisites, prerequisitesHtml,
-  moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile,
+  moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile, reviewPage,
 } from "./review-core.mjs";
 
 const API = "https://api.github.com";
@@ -581,7 +581,7 @@ async function viewUseCases() {
       accepting and editing then go through GitHub's own pages, and products cannot be added.</p>
       <p><a class="btn primary" href="#setup">Set up now</a> <a class="btn" href="#settings">Import settings</a>
         <span class="muted small">— from a file exported in another browser (Settings → Export settings).</span></p></section>`}
-    <section class="head"><h2>Use cases</h2><p>${counts(list)}</p></section>
+    <section class="head"><h2>Use cases</h2><p>${counts(list)}</p>${reviewAllLink("uc", list)}</section>
     ${batchBar()}
     <table class="list"><thead><tr>${token() ? "<th>Tick</th>" : ""}<th>ID</th><th>Title</th><th>Area</th><th>Realises</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody></table>
@@ -669,7 +669,7 @@ async function viewArchitecture() {
   };
   const mods = files.filter((f) => f.arch.kind === "module");
   main().innerHTML = `
-    <section class="head"><h2>Architecture</h2><p>${counts(files)}</p>
+    <section class="head"><h2>Architecture</h2><p>${counts(files)}</p>${reviewAllLink("arc", files)}
       <p class="muted">Architecture decisions (<code>ARC-&lt;nnn&gt;</code>) and modules (<code>MOD-&lt;slug&gt;</code>) in
       <code>docs/architecture/</code>, each accepted like a use case, once everything it names is accepted.</p>
       <details class="explain"><summary>What is this?</summary><div>A <em>decision</em> states its context, the decision, the
@@ -787,6 +787,162 @@ async function viewArchitectureFile(id) {
   await renderMermaid(main());
 }
 
+// ---------------------------------------------------------------- review pages (SPEC §10 SEVERAL FILES ARE ACCEPTED IN ONE CLICK;
+// UC-008 3e, UC-022 step 10, UC-023 step 5)
+//
+// One page per area shows every file that is not accepted, one after the other: a changed one as its difference to the text its
+// most recent approval record names (the single view's diff), with an architecture change's impact list; a new one in full; a
+// withdrawn decision or module with its note. Below them, one button accepts every file the page counted (review-core.mjs
+// reviewPage), through acceptItems as Accept ticked does: re-read at the head, a file changed since left out and named. Reads:
+// each file's status from the names in the tree, so that an accepted file is not read; the text and records of each file shown;
+// for a change its last accepted text — and, in the architecture, every module and the code's headers, which its impact list needs.
+
+const AREAS = { uc: { name: "use cases", one: "use case" }, arc: { name: "architecture", one: "decision or module" } };
+
+function reviewAllLink(area, list) {
+  const n = list.filter((x) => x.status !== "accepted").length;
+  return n ? `<p><a class="btn primary" href="#review/${area}">Review all ${n} open</a>
+    <span class="muted small">— every ${AREAS[area].one} not accepted on one page, accepted with one click</span></p>` : "";
+}
+
+// The tree's files of an area whose current blob no record names — by the records' names; no file is read for this.
+async function notAccepted(entries) {
+  const st = await Promise.all(entries.map((e) => statusOf(e.path, e.sha)));
+  return entries.filter((_, i) => st[i].status !== "accepted");
+}
+
+// One file of the page: the item Accept all would accept (naming the blob of the text rendered here), what it waits for, and what
+// is shown — its difference to the last accepted text, or its text.
+async function reviewUseCase(e) {
+  const u = await once(`review-file:${e.path}`, () => loadUseCase(e));
+  const id = u.fields.id || reviewedId(u.path);
+  const x = { item: { ...ucItem(u), id }, status: verified.get(u.path) ?? u.status, open: [], problem: null, id, path: u.path,
+    title: u.fields.title, href: `#uc/${id}`, kind: "Use case", text: u.text, body: u.body, blob: u.blob };
+  if (u.treeBlob !== u.blob) x.problem = `the text read differs from ${SERVER}'s tree — reload the page`;
+  if (x.status === "accepted") return x;
+  try {
+    if ((await recordsOf(id)).length) x.last = await lastAcceptedOf(id);
+  } catch (err) { noteRefusal(err); x.problem = `its last accepted text could not be read: ${errorText(err)}`; }
+  return x;
+}
+
+async function reviewArch(f, modules) {
+  const a = f.arch, x = { status: verified.get(f.path) ?? f.status, open: prerequisitesOf(f).open, problem: null, id: a.id,
+    path: f.path, title: a.title, href: `#arc/${a.id}`, kind: a.kind === "module" ? "Module" : "Architecture decision", text: f.text,
+    body: a.body, blob: f.blob, withdrawn: a.withdrawn };
+  if (f.treeBlob !== f.blob) x.problem = `the text read differs from ${SERVER}'s tree — reload the page`;
+  let impactShown = false;
+  if (isArchChange(f) && x.status !== "accepted") {
+    try {
+      x.last = await lastAcceptedOf(a.id);
+      x.impact = impactList({ before: parseArchitecture(x.last.record.file, x.last.text), after: a, modules: modules.files.map((m) => m.arch),
+        headers: modules.headers });
+      impactShown = true;
+    } catch (err) { noteRefusal(err); x.problem = `its difference and impact list could not be derived: ${errorText(err)}`; }
+  }
+  x.item = archItem(f, impactShown ? { impactShown } : {});
+  return x;
+}
+
+function reviewSectionHtml(x, blocked) {
+  const why = blocked && (blocked.problem
+    ? `<p class="warn"><strong>Not counted</strong> — ${h(blocked.problem)}.</p>`
+    : `<p class="warn"><strong>Not counted</strong> — it can be accepted once everything it names is accepted. Still open:
+      ${blocked.open.map((o) => `<strong>${h(o.name)}</strong> (${h(o.reason)})`).join(", ")}.</p>`);
+  const w = x.withdrawn;
+  const r = x.last?.record;
+  return `<section class="panel review-file" id="review-${h(x.id)}">
+    <h3><a href="${h(x.href)}">${h(x.id)}</a> ${h(x.title)} ${badge(x.status)}</h3>
+    <p class="meta">${h(x.kind)} · blob <code>${h(x.blob.slice(0, 12))}</code> ·
+      <a href="${h(webFileUrl(T.product, T.ref, x.path))}" target="_blank" rel="noopener">file on ${h(SERVER)} ↗</a></p>
+    ${why || ""}
+    ${w ? `<div class="notice withdrawn"><p><strong>Withdrawn</strong> on ${h(w.date)}${w.replacedBy
+      ? ` — replaced by <a href="#arc/${h(w.replacedBy)}">${h(w.replacedBy)}</a>` : ""}.</p>${w.note ? md(w.note) : ""}</div>` : ""}
+    ${x.last ? `<h4>Changed since it was last accepted</h4>
+      <p class="muted small">Difference between the text accepted in
+        <a href="${h(webFileUrl(T.product, T.ref, r._path))}" target="_blank" rel="noopener">${h(r._path.split("/").pop())}</a>
+        (blob <code>${h(r.blob.slice(0, 12))}</code>${r.file !== x.path ? `, then named <code>${h(r.file.split("/").pop())}</code>` : ""}) and the
+        text now.</p>
+      ${diffHtml(x.last.text, x.text)}`
+    : `<article class="md doc">${md(x.body)}</article>`}
+    ${x.impact ? `<div class="impact">${impactHtml(x.impact)}</div>` : ""}
+  </section>`;
+}
+
+function acceptAllPanel(page) {
+  const n = page.items.length, route = writeRoute(T.product, token());
+  const blocked = page.blocked.length ? `<p class="muted">Not counted: ${page.blocked.map((b) => `<strong>${h(b.label)}</strong>`).join(", ")}
+    — each says above why.</p>` : "";
+  const explain = `<details class="explain"><summary>What is this?</summary><div>The button accepts exactly what this page shows:
+    one approval record per file counted above, each naming by its git blob SHA the very text this page rendered — the same record
+    <em>Accept</em> commits on the file's own page. It is the same decision as accepting each file there: you read every text
+    here, a changed one as its difference to what was accepted before, with its impact list, and nothing you did not see is
+    accepted. Before the commit each file is read again on the branch; one that changed after this page was built is left out and
+    named, and so is a file whose requirements or use cases are no longer accepted there. A file that waits for something still
+    open is shown but not counted.</div></details>`;
+  if (route === "token-step") return `<section class="panel accept accept-all"><h3>Accept all ${n} shown</h3>${gitlabTokenNeeded("Accepting")}${blocked}${explain}</section>`;
+  if (route === "commit") {
+    return `<section class="panel accept accept-all"><h3>Accept all ${n} shown</h3>
+      <p>One click commits ${n === 1 ? "one approval record" : `${n} approval records`} under your account on ${h(SERVER)}, in one commit:
+      one per file counted above, each naming exactly the text shown here.</p>
+      ${blocked}
+      <p><button class="btn primary" data-accept-all ${n ? "" : "disabled"}>Accept all ${n} shown</button></p>
+      <p class="result muted"></p>
+      ${explain}
+    </section>`;
+  }
+  // WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK: GitHub's page commits one new file at a time — one prefilled page per record.
+  return `<section class="panel accept accept-all"><h3>Accept all ${n} shown</h3>
+    <p>Without a token stored in this browser the dashboard cannot write one commit for all of them: GitHub's page commits one file
+    at a time. Each record below opens prefilled; press <em>Commit changes…</em> there, then reload this page. A token in
+    <a href="#settings">Settings</a> makes this one click.</p>
+    <ol>${page.items.map((it) => {
+      const path = approvalPath(it.id, it.blob), rec = it.kind === "use-case" ? useCaseRecord(it.path, it.blob) : reviewedRecord(it.path, it.blob);
+      return `<li>${h(it.id)} — <a class="btn small" href="${h(newFileUrl(T.repo, T.ref, path, recordText(rec)))}" target="_blank"
+        rel="noopener">Open in GitHub to commit ↗</a></li>`;
+    }).join("")}</ol>
+    ${blocked}
+    ${explain}
+  </section>`;
+}
+
+async function viewReviewAll(area) {
+  const seq = routeSeq;
+  if (!AREAS[area]) { main().innerHTML = `<p class="warn">No review page for ${h(area)}.</p>`; return; }
+  let shown;
+  if (area === "uc") {
+    shown = await Promise.all((await notAccepted(ucEntries())).map(reviewUseCase));
+  } else {
+    const files = await Promise.all((await notAccepted(archEntries())).map((e) =>
+      once(`review-file:${e.path}`, () => loadArch(e))));
+    // The records of each file decide whether it is a change: those of its identifier, also under an earlier file name.
+    const open = await Promise.all(files.map(async (f) => ({ ...f, records: await recordsOf(f.arch.id) })));
+    await loadArchContext(open);
+    const changes = open.some((f) => (verified.get(f.path) ?? f.status) !== "accepted" && isArchChange(f));
+    const [all, headers] = changes ? await Promise.all([archFiles(), headersAt()]) : [[], []];
+    shown = await Promise.all(open.map((f) => reviewArch(f, { files: all, headers })));
+  }
+  if (seq !== routeSeq) return;
+  const page = reviewPage(shown);
+  const blockedOf = new Map(page.blocked.map((b) => [b.label, b]));
+  const A = AREAS[area];
+  main().innerHTML = `
+    <p class="crumbs"><a href="#${area}">← all ${h(A.name)}</a></p>
+    <section class="head"><h2>Review all — ${h(A.name)}</h2>
+      <p>${page.shown.length ? `${counts(page.shown)} · ${page.items.length} of ${page.shown.length} counted for <em>Accept all</em>`
+        : `Nothing to review: every ${h(A.one)} is accepted.`}</p>
+      <p class="muted">Every ${h(A.one)} that is not accepted, one after the other: a changed one as its difference to the text last
+      accepted${area === "arc" ? ", with its impact list" : ""}, a new one in full${area === "arc" ? ", a withdrawn one with its note" : ""}.
+      Accept all, at the bottom, accepts what this page shows.</p></section>
+    ${page.shown.map((x) => reviewSectionHtml(x, blockedOf.get(itemLabel(x.item)))).join("")}
+    ${page.shown.length ? acceptAllPanel(page) : ""}`;
+  main().querySelector("[data-accept-all]")?.addEventListener("click", (ev) => {
+    const b = ev.currentTarget;
+    runAccept(ev, page.items, b, b.closest(".panel").querySelector(".result"));
+  });
+  await renderMermaid(main());
+}
+
 // Every queue with its index and decisions; the entries of a queue with an entry still undecided, and of each queue opened on this
 // page. A queue whose entries are all accepted is named with their number and opened on request: only then are its proposals
 // read, to show whether each still stands in the SPEC.
@@ -892,6 +1048,11 @@ when; the record says which text.
 **Several at once.** With a token, tick the use cases and SPEC entries you have read and press
 *Accept ticked*: one commit, one record per ticked file. A file that changed after it was shown is
 left out and named.
+
+**Everything on one page.** *Review all* on the use-case list and on the architecture view opens one
+page with every file of that area that is not accepted — a changed one as its difference to the text
+accepted before, a new one in full — and *Accept all N shown* below them accepts exactly those, in one
+commit. A file that waits for an open requirement or use case is shown, but not counted.
 
 **The record names the text by its SHA.** The page computes the git blob SHA of exactly the text it
 shows you, the same number \`git hash-object\` would give. A use case counts as accepted only while
@@ -1755,11 +1916,12 @@ async function route() {
   routeSeq += 1;
   const [kind, a, b] = location.hash.replace(/^#/, "").split("/");
   document.querySelectorAll(".tabs a").forEach((t) => t.classList.toggle("active",
-    t.getAttribute("href") === `#${kind || "uc"}`));
+    t.getAttribute("href") === `#${(kind === "review" ? a : kind) || "uc"}`));
   // The views of the repository read what they show first.
-  if (state.commit && ["", "uc", "arc", "spec"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
+  if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
-    if (kind === "spec" && a && b) await viewSpecEntry(decodeURIComponent(a), b);
+    if (kind === "review") await viewReviewAll(a);
+    else if (kind === "spec" && a && b) await viewSpecEntry(decodeURIComponent(a), b);
     else if (kind === "spec") await viewSpec(a ? decodeURIComponent(a) : null);
     else if (kind === "how") viewHow();
     else if (kind === "settings") viewSettings();

@@ -625,9 +625,15 @@ export function parseArchitecture(path, text) {
   for (const s of kind === "module" ? MOD_SECTIONS : kind ? ARC_SECTIONS : []) {
     if (!body.split("\n").some((l) => l.trimEnd() === s)) problems.push(`${name}: missing section ${s}`);
   }
+  // ARC-020 decision 4: a withdrawn decision or module keeps its file, with `withdrawn: <date>`, perhaps `replaced_by`, and the
+  // reason as the section ## Withdrawn.
+  const withdrawn = typeof fields.withdrawn === "string" && fields.withdrawn
+    ? { date: fields.withdrawn, replacedBy: typeof fields.replaced_by === "string" && fields.replaced_by ? fields.replaced_by : null,
+      note: (sectionOf(body, "## Withdrawn") || []).join("\n").trim() }
+    : null;
   return { kind, id: fields.id ?? want, title: typeof fields.title === "string" ? fields.title : "", names,
     requirements: names.filter((n) => !UC_ID.test(n)), useCases: names.filter((n) => UC_ID.test(n)), follows, uses, provides,
-    interfaces, body, problems };
+    interfaces, body, problems, withdrawn };
 }
 
 // The requirements of a SPEC: a line `**NAME** *(source)*`, the name in capitals; withdrawn when its source says so — the
@@ -1216,6 +1222,22 @@ export function createReviewSession() {
     untick(labels) { for (const k of [...ticked]) if (labels.includes(itemLabel(shown.get(k)))) ticked.delete(k); },
     items: () => [...ticked].map((k) => shown.get(k)),
   };
+}
+
+// SEVERAL FILES ARE ACCEPTED IN ONE CLICK — a review page (UC-008 3e, UC-022 step 10, UC-023 step 5): every reviewed file of one
+// area that is not accepted is shown, in the page's order; those that can be accepted are counted, and their items are what
+// "Accept all N shown" accepts — through acceptItems, like ticked files. A file that names something not accepted
+// (ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS), a change shown without its impact list (AN ARCHITECTURE CHANGE IS NOT ACCEPTED
+// WITHOUT AN IMPACT LIST), or a file the page could not show as it must be (`problem`) is shown, not counted, and named.
+// files: [{ item, status, open: [{ name, reason }], problem: text | null }] — item as acceptItems takes it, naming the blob of
+// the text the page rendered. -> { shown, items, blocked: [{ label, open, problem }] }
+export function reviewPage(files) {
+  const shown = files.filter((f) => f.status !== "accepted");
+  const why = (f) => f.problem || (f.item.kind !== "use-case" && f.item.changed && f.item.impactShown !== true
+    ? "its impact list could not be shown" : null);
+  const counted = (f) => !(f.open || []).length && !why(f);
+  return { shown, items: shown.filter(counted).map((f) => f.item),
+    blocked: shown.filter((f) => !counted(f)).map((f) => ({ label: itemLabel(f.item), open: f.open || [], problem: why(f) })) };
 }
 
 // The files of one acceptance commit, computed from the commit it is written on.
