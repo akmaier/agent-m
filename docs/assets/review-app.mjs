@@ -32,9 +32,10 @@ import {
   addCollaborator, removeCollaborator, saveCollaborators, gitlabRole,
   diffHtml, recordsForId, lastAccepted,
   reviewedRecord, architecturePrerequisites, prerequisitesHtml,
-  moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile, reviewPage,
+  impactHtml, saveReviewedFile, reviewPage,
 } from "./review-core.mjs";
 import { parseFrontMatter, reviewedId, ARCHITECTURE_FILE, parseArchitecture } from "./artifacts.mjs";
+import { moduleHeaders, impactList, componentDiagram } from "./traceability.mjs";
 import { jumpHostProblem, addRemoteSession, nextFreePort, probeLocalPort } from "./bridge-tunnel.mjs";
 
 const API = "https://api.github.com";

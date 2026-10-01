@@ -18,13 +18,14 @@ import { fileURLToPath } from "node:url";
 import {
   gitBlobSha, recordsForId, approvalPath, recordText, parseRecord, reviewedRecord,
   deriveReviewedStatus, deriveUseCaseStatus, architecturePrerequisites,
-  prerequisitesHtml, moduleHeaders, impactList, impactHtml, componentDiagram,
+  prerequisitesHtml, impactHtml,
   acceptItems, planAcceptance, createReviewSession, saveReviewedFile, lastAccepted, changedLines,
   useCaseRecord,
 } from "../docs/assets/review-core.mjs";
 import {
   reviewedId, kindOfPath, parseArchitecture, specRequirements, isCodePath, isTestPath, headerModules, ARCHITECTURE_FILE,
 } from "../docs/assets/artifacts.mjs";
+import { moduleHeaders, impactList, componentDiagram } from "../docs/assets/traceability.mjs";
 import { parseProductAddress } from "../docs/assets/git-host.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
