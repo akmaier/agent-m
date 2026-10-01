@@ -193,7 +193,8 @@ under *From the sprint 02 planning*:
 | ITM-133 | `writeRefusalText` and what it shows | `dashboard/review-views.mjs`; `tests/review-core.d/dashboard-app.test.mjs` | inside its module |
 | ITM-016 | adds `applyApprovals` beside `review-core.mjs` | none; `tests/test_apply_approvals.py` exists (MOD-review-core) and gains the twin comparison | inside its module |
 | ITM-147 | a new view, `dashboard/backlog-view.mjs`, and one line in ITM-129's list | the shell loads it by name from the existing `DASHBOARD` row; no other caller | inside its module |
-| ITM-027, ITM-033, ITM-034, ITM-146, ITM-014, ITM-050, ITM-125, ITM-128, ITM-131, ITM-132, ITM-134 | new files, or a text, or tests only | no caller outside the item's modules | — |
+| ITM-125 | the GitHub token's grant sentence in `settingKeys` | `tests/dashboard-review-flows.test.mjs` asserts the sentence word for word; `tests/test_settings_disclosure.py`, which the item names, carries MOD-dashboard-app — both MOD-dashboard-app | **corrected at the sprint 02 review:** MOD-dashboard-app added for those two test files; no code file of it changes |
+| ITM-027, ITM-033, ITM-034, ITM-146, ITM-014, ITM-050, ITM-128, ITM-131, ITM-132, ITM-134 | new files, or a text, or tests only | no caller outside the item's modules | — |
 
 Checks an item names but cannot build itself (P6): ITM-134 names `tests/test_impact_list.py` as created by ITM-018,
 which is in this sprint before it; ITM-147 names `tests/test_progress_derived.py` for the item states and leaves the
@@ -258,6 +259,22 @@ Ready on `main` at `37ed922` but outside this goal, left in the backlog for the 
   released runtime's measurement file — there is no release yet, ITM-058): each opens a feature area of its own;
   selecting them would widen the increment beyond what one review can inspect, as in sprint 01.
 - **ITM-100** — level 2; level 1 goes end to end first (`docs/backlog/order.md`).
+
+### Not added on 2026-10-01 — the three findings of ITM-141
+
+ITM-141 was merged (pull request #48) with 56 release cases green and three red on the sprint 01 increment — R1 (UC-001
+step 5: *Add product* writes no `docs/architecture/`), R2 (UC-006 4c: a product's SPEC entry without a token is offered
+GitHub's page) and R3 (UC-042 1a: the expiry line has no paste field) — kept as `{ todo }` cases
+(`docs/measurements/2026-10-01_release-tests-sprint-01.md`). The Product Owner filed **ITM-148, ITM-149, ITM-150** for
+them and decided **not** to add them to this sprint: an item added during a running sprint goes to the backlog (UC-032
+6a), and the one precedent for a change of the selection, ITM-124 in sprint 01, unblocked a selected item — none of the
+three does; each changes files this sprint's strands are still changing (`review-core.mjs` — ITM-130; `review-views.mjs`
+and `spec-changes-view.mjs` — ITM-133, ITM-018, ITM-134; `settings-view.mjs` and `dashboard-app.mjs` — ITM-130, ITM-133,
+ITM-136), so each would wait for its strand's last item and would then hold a slot past the point where the strand's
+release tests should take it; and the release-test file whose marks they remove lies on `sprint/02`, so they start
+cleanly from the `main` this sprint produces. They head the backlog order for sprint 03 (positions 41 to 43). The sprint
+01 gate *Release testing → Sprint review* is decided in `sprint-01.md` (*Addendum, 2026-10-01*): passed, with the three
+recorded as accepted limitations; the limitation of the sprint 01 merge is lifted.
 
 ## Review of the increment
 
