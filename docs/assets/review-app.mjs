@@ -28,14 +28,15 @@ import {
   missingNeeds, itemLabel, needsMessage,
   browserSettingsHtml, tokenBannerHtml, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
   PASSPHRASE_NOTICE, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
-  pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
-  addCollaborator, removeCollaborator, saveCollaborators, gitlabRole,
+  pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation,
+  saveCollaborators, gitlabRole,
   diffHtml, recordsForId, lastAccepted,
   reviewedRecord, architecturePrerequisites, prerequisitesHtml,
   impactHtml, saveReviewedFile, reviewPage,
 } from "./review-core.mjs";
 import { parseFrontMatter, reviewedId, ARCHITECTURE_FILE, parseArchitecture } from "./artifacts.mjs";
 import { moduleHeaders, impactList, componentDiagram } from "./traceability.mjs";
+import { pseudonymisationOn, parseCollaborators, addCollaborator, removeCollaborator } from "./pseudonymiser.mjs";
 import { jumpHostProblem, addRemoteSession, nextFreePort, probeLocalPort } from "./bridge-tunnel.mjs";
 
 const API = "https://api.github.com";
