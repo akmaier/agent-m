@@ -70,9 +70,10 @@ class MatrixDerived(unittest.TestCase):
                "const a = traceability.linkGraph({ files }), b = traceability.linkGraph({ files });"
                "const other = traceability.linkGraph({ files: {} });"
                "return [JSON.stringify(a) === JSON.stringify(b), JSON.stringify(files) === copy,"
-               "  traceability.tracesTo(other, 'RULE ONE'), JSON.parse(JSON.stringify(a)).nodes['RULE ONE'].kind];")
-        self.assertEqual(r, [True, True, {"sources": [], "useCases": [], "decisions": [], "modules": [], "tests": [],
-                                          "proposals": []}, "requirement"])
+               "  traceability.tracesTo(a, 'RULE ONE').useCases, traceability.tracesTo(other, 'RULE ONE'),"
+               "  JSON.parse(JSON.stringify(a)).nodes['RULE ONE'].kind];")
+        self.assertEqual(r, [True, True, ["UC-001"], {"sources": [], "useCases": [], "decisions": [], "modules": [],
+                                                      "tests": [], "proposals": []}, "requirement"])
 
 
 if __name__ == "__main__":

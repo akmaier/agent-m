@@ -12,7 +12,7 @@ import { acceptItems, saveReviewedFile, clickAuthority } from "./writes.mjs";
 import { lastAccepted } from "./reads.mjs";
 import { writeRoute, webFileUrl, newFileUrl, editUrl } from "../git-host.mjs";
 import { parseFrontMatter, reviewedId, ARCHITECTURE_FILE, parseArchitecture } from "../artifacts.mjs";
-import { moduleHeaders, impactList, componentDiagram } from "../traceability.mjs";
+import { moduleHeaders, architectureImpact, linkGraph, componentDiagram } from "../traceability.mjs";
 
 export const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const esc = h;
@@ -596,8 +596,8 @@ async function fillImpact(app, f) {
   try {
     const [last, headers, all] = await Promise.all([lastAcceptedOf(app, f.arch.id), headersAt(app), archFiles(app)]);
     if (!document.body.contains(box) || !last) return;
-    const imp = impactList({ before: parseArchitecture(last.record.file, last.text), after: f.arch,
-      modules: all.map((x) => x.arch), headers });
+    const imp = architectureImpact({ before: parseArchitecture(last.record.file, last.text), after: f.arch,
+      graph: linkGraph({ files: Object.fromEntries(all.map((x) => [x.path, x.text])), headers }) });
     box.innerHTML = impactHtml(imp);
     if (acc) {
       acc.innerHTML = acceptPanel(app, reviewedRecord(f.path, f.blob), approvalPath(f.arch.id, f.blob), f.arch.id,
@@ -724,8 +724,8 @@ async function reviewArch(app, f, modules) {
   if (isArchChange(f) && x.status !== "accepted") {
     try {
       x.last = await lastAcceptedOf(app, a.id);
-      x.impact = impactList({ before: parseArchitecture(x.last.record.file, x.last.text), after: a, modules: modules.files.map((m) => m.arch),
-        headers: modules.headers });
+      x.impact = architectureImpact({ before: parseArchitecture(x.last.record.file, x.last.text), after: a,
+        graph: linkGraph({ files: Object.fromEntries(modules.files.map((m) => [m.path, m.text])), headers: modules.headers }) });
       impactShown = true;
     } catch (err) { app.noteRefusal(err); x.problem = `its difference and impact list could not be derived: ${app.errorText(err)}`; }
   }
