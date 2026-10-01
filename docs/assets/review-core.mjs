@@ -3,21 +3,15 @@
 // SPEC §10: acceptance is a commit by the accepting person, on the server that hosts the repository
 // (GitHub or a GitLab server), that adds an approval record; the record names the exact text by its git
 // blob SHA; status is derived from the records, never stored. The dashboard reads with GET only
-// (fetchText) and writes only on a person's click, with that person's token, as one commit
-// (commitFiles for GitHub, commitFilesGitLab for GitLab). Each token goes only to the API of the server
-// that issued it (fetchText, authHeaders) — the requests themselves are made in git-host.mjs. The SPEC-section logic
+// (fetchText). This module never writes: it returns the files of a commit (planAcceptance, missingLayout), and the
+// dashboard commits them on a person's click (docs/assets/dashboard/writes.mjs; ARC-003). Each token goes only to the API of
+// the server that issued it (fetchText, authHeaders) — the requests themselves are made in git-host.mjs. The SPEC-section logic
 // mirrors tools/apply_approvals.py (the workflow side); tests/review-core.test.mjs checks that both hash the same bytes.
 //
 // Module: MOD-review-core
 
-import {
-  fetchText, REPO_RE, parseProductAddress, isGitLab, commitFiles, gitlabAuth, gitlabApiBase, gitlabProject,
-  gitlabSnapshot, commitFilesGitLab, writeFiles,
-} from "./git-host.mjs";
-import { SLUG, reviewedId, kindOfPath, parseArchitecture, specRequirements, identifierKept } from "./artifacts.mjs";
-// The two save functions of the product settings below still write here; they read the settings line and the collaborators
-// file of the pseudonymiser until the writes leave the kernel (ITM-008).
-import { SETTING_LINE, formatCollaborators } from "./pseudonymiser.mjs";
+import { fetchText, REPO_RE, parseProductAddress, isGitLab, gitlabAuth, gitlabApiBase } from "./git-host.mjs";
+import { SLUG, reviewedId, kindOfPath, parseArchitecture, specRequirements } from "./artifacts.mjs";
 
 // ---------------------------------------------------------------- instance and products (SPEC §10)
 
@@ -426,17 +420,6 @@ export function gitlabRole(level) {
     "the token needs role Maintainer" };
 }
 
-// Saving an edit of a reviewed file (EDITS ARE PREPARED ON THE DASHBOARD): refused, before anything is sent, when the text
-// carries another identifier than the one the file was opened with (AN EDITED FILE KEEPS ITS IDENTIFIER); written only if the
-// file is still the text the editor opened (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE). openedId null: a file without
-// an identifier, such as a SPEC proposal.
-export async function saveReviewedFile({ repo = null, product = null, branch, token, click, path, text, openedId, expectBlob }) {
-  const refused = identifierKept(openedId, text);
-  if (refused) throw new Error(refused);
-  return writeFiles({ repo, product, branch, token, click, message: `edit ${String(path).split("/").pop()} (Agent M dashboard)`,
-    files: [{ path, content: text, expectBlob: expectBlob || null }] });
-}
-
 // ---------------------------------------------------------------- accepting (UC-006 4–7, 4d, 5a · UC-008 3d)
 //
 // AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL: with a token, one commit holds the approval
@@ -600,36 +583,6 @@ export async function planAcceptance({ items, read, now = new Date() }) {
   return { files: [...files].map(([path, content]) => ({ path, content })), accepted, leftOut };
 }
 
-// One click: check the order, then plan and commit on the same head. readAt(head, path) -> text | null.
-// -> { commit, accepted, leftOut }; commit is null when everything was left out (nothing written).
-// product: a GitLab product (parseProductAddress) — the commit is then made there (writeFiles). If GitLab wrote the
-// commit on a newer head than the one checked, `warning` names the files this acceptance read that changed in between.
-export async function acceptItems({ repo, product = null, branch, token, click, items, readAt, now = new Date() }) {
-  if (!items.length) throw new Error("nothing ticked");
-  const gaps = missingNeeds(items);
-  if (gaps.length) throw new Error(gaps.map((g) => g.message).join(" "));
-  let plan = null;
-  const read = new Set();
-  try {
-    const commit = await writeFiles({ repo, product, branch, token, click,
-      message: () => `accept ${plan.accepted.join(", ")} (Agent M dashboard)`,
-      files: async (head) => {
-        plan = await planAcceptance({ items, read: (p) => { read.add(p); return readAt(head, p); }, now });
-        return plan.files;
-      } });
-    const changed = (commit.changedMeanwhile || []).filter((p) => read.has(p));
-    const warning = changed.length
-      ? `GitLab wrote this commit on ${String(commit.parent).slice(0, 7)}, a newer state than the one checked (${String(commit.base).slice(0, 7)}): ` +
-        `a commit that arrived at the same moment changed ${changed.join(", ")}. The acceptance was checked on the older text — open ` +
-        "these files again and look whether it still covers them."
-      : null;
-    return { commit, accepted: plan.accepted, leftOut: plan.leftOut, warning };
-  } catch (e) {
-    if (plan && !plan.files.length) return { commit: null, accepted: [], leftOut: plan.leftOut };
-    throw e;
-  }
-}
-
 // ---------------------------------------------------------------- adding a product (UC-001)
 
 export function missingLayout(existingPaths, product) {
@@ -643,75 +596,4 @@ export function missingLayout(existingPaths, product) {
   add("SPEC.md", null, `# ${product} — Specification\n\n**VERBINDLICH (SPEC)**\n\nNo requirement yet. Requirements enter through the approval queues in \`docs/spec-freigaben/\`.\n`);
   add("CHANGELOG.md", null, `# Changelog of ${product}\n\nCalendar versions \`YYYY.MINOR.PATCH\`. No release yet.\n`);
   return out;
-}
-
-// UC-001 Step C, one click: read the product repository, write only its missing layout into its default
-// branch, then add its address to the list in this browser. Nothing is written into the instance
-// repository (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY). A refused write adds nothing to the list.
-// store: the browser store of settings-store.mjs. -> { commit: { sha, url } | null, product }
-// For a GitLab product, `token` is its project token, and the product's server is the only one contacted.
-export async function addProduct({ address, token, click, store }) {
-  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
-  const product = parseProductAddress(address);
-  if (product.error) throw new Error(product.error);
-  if (isGitLab(product)) {
-    if (!token) throw new Error("A GitLab product is written with its project token — store it in Step B first.");
-    const info = await gitlabProject({ product, token });
-    if (!info.default_branch) throw new Error(`${product.address} has no branch yet — push a first commit to it, then add it here.`);
-    const snap = await gitlabSnapshot({ product, ref: info.default_branch, token });
-    const files = missingLayout(snap.tree.map((e) => e.path), product.repo);
-    const commit = files.length
-      ? await commitFilesGitLab({ product, branch: info.default_branch, token, click, files,
-        message: "Add the Agent M review layout (Agent M dashboard)" })
-      : null;
-    store.addProduct(product.address);
-    return { commit, product };
-  }
-  const api = `https://api.github.com/repos/${product.repo}`;
-  const info = JSON.parse(await fetchText(api, { headers: { Accept: "application/vnd.github+json" } }, token));
-  const tree = JSON.parse(await fetchText(`${api}/git/trees/${encodeURIComponent(info.default_branch)}?recursive=1`, {}, token));
-  const files = missingLayout(tree.tree.filter((e) => e.type === "blob").map((e) => e.path), product.repo);
-  const commit = files.length
-    ? await commitFiles({ repo: product.repo, branch: info.default_branch, token, click, files,
-      message: "Add the Agent M review layout (Agent M dashboard)" })
-    : null;
-  store.addProduct(product.address);
-  return { commit, product };
-}
-
-// ---------------------------------------------------------------- product settings (UC-042 4–5, SPEC §14)
-//
-// A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: docs/settings.md, one line `- name: value` per setting; a
-// setting that is not listed has its default. PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF.
-
-export const PRODUCT_SETTINGS_PATH = "docs/settings.md";
-export const COLLABORATORS_PATH = "docs/collaborators.md";
-
-// Set one setting's line (value null removes it); every other line of the file stays as it was.
-export function setProductSetting(text, name, value, product) {
-  let t = text || `# Settings of ${product}\n\nHow this product is developed, for everyone who works on it and every agent that runs for it.\n` +
-    "Changed on the Agent M dashboard (Settings). One line `- name: value` per setting; a setting not listed has its default.\n\n";
-  const lines = t.split("\n");
-  const at = lines.findIndex((l) => SETTING_LINE.exec(l)?.[1] === name);
-  if (at >= 0) {
-    if (value === null) lines.splice(at, 1); else lines[at] = `- ${name}: ${value}`;
-    return lines.join("\n");
-  }
-  if (value === null) return t;
-  if (!t.endsWith("\n")) t += "\n";
-  return `${t}- ${name}: ${value}\n`;
-}
-
-// One click commits docs/settings.md to the product (A PERSON'S OWN INPUT IS COMMITTED DIRECTLY); switching
-// off needs the tick under the notice. current/currentBlob: the file as shown (null if absent).
-export async function savePseudonymisation({ repo, product = null, branch, token, click, current, currentBlob, off, acknowledged }) {
-  if (off && acknowledged !== true) throw new Error("Tick “I have read this” under the notice first.");
-  return writeFiles({ repo, product, branch, token, click, message: `settings: pseudonymisation ${off ? "off" : "on"} (Agent M dashboard)`,
-    files: [{ path: PRODUCT_SETTINGS_PATH, content: setProductSetting(current, "pseudonymisation", off ? "off" : null, repo ?? product?.repo),
-      expectBlob: currentBlob || null }] });
-}
-
-export async function saveCollaborators({ repo, product = null, branch, token, click, list, currentBlob }) {
-  return writeFiles({ repo, product, branch, token, click, message: "collaborators: update (Agent M dashboard)",
-    files: [{ path: COLLABORATORS_PATH, content: formatCollaborators(list, repo ?? product?.repo), expectBlob: currentBlob || null }] });
 }

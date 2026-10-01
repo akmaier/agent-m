@@ -1,9 +1,11 @@
 # Module: MOD-dashboard-app
-# Guards: EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; THE DASHBOARD WRITES THE TUNNEL COMMANDS; UC-042
+# Guards: EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; THE DASHBOARD WRITES THE TUNNEL COMMANDS; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; UC-042
 # Level: component
 """SPEC §7 EVERY SETTING IS REACHED FROM ONE PAGE · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS
 SHOWN · A STORED SECRET IS HIDDEN UNTIL SHOWN · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE (UC-042).
-A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY is checked where its code is, in tests/test_settings_in_the_core.py.
+A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: changing a product setting commits to the product's repository
+(docs/assets/dashboard/writes.mjs savePseudonymisation), and the browser's store holds none — moved back here, unchanged but for
+the module the write is reached by, from tests/test_settings_in_the_core.py when the writes left the kernel (ITM-124).
 
 The browser section of the settings page is rendered by settingsView.browserSettingsHtml; the page inserts
 that HTML as it is. So "appears on the page" is checked on the HTML the page shows.
@@ -142,6 +144,28 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         html = page(full_entries(), now="2026-12-20")
         self.assertIn("expires on 2026-12-29", html)
         self.assertIn("⚠", html)
+
+
+class ProductSettingsInTheRepository(unittest.TestCase):
+    def test_the_store_has_no_product_setting(self):
+        src = STORE.read_text(encoding="utf-8")
+        for word in ("pseudonym", "collaborator", "settings.md"):
+            self.assertNotIn(word, src.lower())
+        v = js("const mem = new Map(); const fake = { getItem: k => mem.has(k) ? mem.get(k) : null, setItem: (k, v) => mem.set(k, String(v)),"
+               " removeItem: k => mem.delete(k), get length() { return mem.size; }, key: i => [...mem.keys()][i] ?? null };"
+               "const calls = []; globalThis.fetch = async (u, init) => { calls.push(init.method + ' ' + new URL(u).pathname);"
+               " const ok = (o) => new Response(JSON.stringify(o)); const p = new URL(u).pathname;"
+               " if (p.endsWith('/git/ref/heads/main')) return ok({ object: { sha: 'c0' } });"
+               " if (p.endsWith('/git/commits/c0')) return ok({ tree: { sha: 't0' } });"
+               " if (p.endsWith('/git/trees')) return ok({ sha: 't1' }); if (p.endsWith('/git/commits')) return ok({ sha: 'c1' });"
+               " return ok({}); };"
+               "store.createStore(fake).setToken('github_pat_t');"
+               "await writes.savePseudonymisation({ repo: 'alice/thesis', branch: 'main', token: 'github_pat_t', click: { isTrusted: true },"
+               " current: null, currentBlob: null, off: true, acknowledged: true });"
+               "return [calls, [...mem.keys()]];")
+        calls, keys = v
+        self.assertIn("PATCH /repos/alice/thesis/git/refs/heads/main", calls, "changing a product setting commits to the product")
+        self.assertEqual(keys, ["agent-m.github-token"], "counter-proof: localStorage holds no product setting")
 
 
 GL_ADDR = "https://gitlab.example.org/grp/sub/proj"

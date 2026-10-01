@@ -1,7 +1,7 @@
 // Review core — deterministic, no network. Run: node --test tests/*.test.mjs
 //
 // Module: MOD-review-core
-// Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A QUEUE IS ACCEPTED IN ITS ORDER; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A PRODUCT IS NAMED BY ITS ADDRESS; UC-001; UC-006; UC-008; UC-042
+// Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; ADDING A PRODUCT CREATES ITS LAYOUT; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A PRODUCT IS NAMED BY ITS ADDRESS; UC-001; UC-006; UC-008
 // Level: unit
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
@@ -10,7 +10,8 @@
 //
 // SPEC.md names this file as the check of requirements of several modules. The checks of the other modules live in
 // tests/review-core.d/, one file per module, and this file runs every file of that folder (at its end): a failing check there
-// makes this file red. Those files are not matched by tests/*.test.mjs, so CI runs each check once.
+// makes this file red. Those files are not matched by tests/*.test.mjs, so CI runs each check once. The checks of the dashboard's
+// five writes (saving an edit, accepting, adding a product, the product settings) are there too, in dashboard-writes.test.mjs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -19,19 +20,17 @@ import { readFileSync, readdirSync } from "node:fs";
 import {
   gitBlobSha, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, extractSection, sectionText, parseQueueIndex, parseDecisions,
-  deriveUseCaseStatus, deriveSpecStatus, missingLayout, addProduct,
-  acceptItems, planAcceptance, createReviewSession, decisionRow, replaceSection, sectionForEntry, missingNeeds,
-  savePseudonymisation, saveCollaborators, deriveTarget, gitlabRole,
+  deriveUseCaseStatus, deriveSpecStatus, missingLayout,
+  planAcceptance, decisionRow, replaceSection, sectionForEntry,
+  deriveTarget, gitlabRole,
   lastAccepted, changedLines, readBlob,
 } from "../docs/assets/review-core.mjs";
 import { reviewedId } from "../docs/assets/artifacts.mjs";
 import { parseProductAddress, webFileUrl } from "../docs/assets/git-host.mjs";
-import { createStore, PREFIX } from "../docs/assets/settings-store.mjs";
-import { pseudonymisationOn, parseCollaborators } from "../docs/assets/pseudonymiser.mjs";
 import { diffHtml } from "../docs/assets/dashboard-app.mjs";
 import {
-  dashboardText, click, fakeGitHub, withFetch, fakeStorage, QD, WHEN, B_SPEC, B_P05, B_P06, B_INDEX, B_UC1, B_UC2, SETTINGS_OFF, PEOPLE,
-  GL, GL_ADDR, GL_TOKEN, H0, H1, NEWC, fakeGitLab, UC_OLD, UC_NEW,
+  dashboardText, withFetch, QD, WHEN, B_SPEC, B_P05, B_P06, B_INDEX, B_UC1, B_UC2,
+  GL, GL_ADDR, GL_TOKEN, UC_OLD, UC_NEW,
 } from "./review-core.d/helpers.mjs";
 
 const gitHash = (s) => execFileSync("git", ["hash-object", "--stdin"], { input: s }).toString().trim();
@@ -46,25 +45,6 @@ const R_PROPOSAL = "**A DRAFTED RULE** *(PO A. Maier, 2026-09-24, narrowed 2026-
   "**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n";
 const R_AFTER = replaceSection(R_BEFORE, R_ANCHOR, R_BIS, R_PROPOSAL);
 
-function productGitHub(tree) {
-  const g = fakeGitHub();
-  const inner = g.fetchMock;
-  g.fetchMock = async (u, init) => {
-    const path = new URL(u).pathname;
-    if (init.method === "GET" && /^\/repos\/[^/]+\/[^/]+$/.test(path)) {
-      g.calls.push(["GET", path, init.headers?.Authorization, null]);
-      return new Response(JSON.stringify({ default_branch: "main", private: true }), { status: 200 });
-    }
-    if (init.method === "GET" && path.includes("/git/trees/")) {
-      g.calls.push(["GET", path, init.headers?.Authorization, null]);
-      return new Response(JSON.stringify({ tree: tree.map((p) => ({ path: p, type: "blob" })) }), { status: 200 });
-    }
-    return inner(u, init);
-  };
-  return g;
-}
-
-
 function batchRepo(over = {}) {
   return { "SPEC.md": B_SPEC, [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/06-b.md`]: B_P06,
     [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
@@ -78,14 +58,6 @@ async function specItem(nr, proposalText, shownSection, anchor) {
     proposalBlob: await gitBlobSha(proposalText), sectionBlob: await gitBlobSha(shownSection), targetPath: "SPEC.md",
     anchor, bis: null, needs: [] };
 }
-const ucItem = async (id, path, text) => ({ kind: "use-case", id, path, blob: await gitBlobSha(text) });
-
-function readerOf(files, seen = []) {
-  return async (head, path) => { seen.push(head); return path in files ? files[path] : null; };
-}
-
-const treeOf = (calls) => Object.fromEntries(calls.find(([m, p]) => m === "POST" && p.endsWith("/git/trees"))[3].tree.map((f) => [f.path, f.content]));
-
 const A_TEXT = "---\nid: UC-010\ntitle: Run a job\nstage: runtime\n---\n# UC-010\n\nBody line one.\nBody line two.\n";
 const B_TEXT = A_TEXT.replace("stage: runtime", "area: runtime");
 const OLDER_TEXT = A_TEXT.replace("Body line one.", "An older first line.");
@@ -246,52 +218,6 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
   assert.match(missingLayout([], "alice/thesis").find((f) => f.path === "SPEC.md").content, /VERBINDLICH \(SPEC\)/);
 });
 
-// ---------------------------------------------------------------- products in the browser (UC-001)
-// THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER · ADDING A PRODUCT CREATES ITS LAYOUT (and writes nothing into the
-// instance repository)
-
-test("THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the address and commits nothing to the instance", async () => {
-  const st = fakeStorage(), store = createStore(st);
-  store.setToken("github_pat_t");
-  const { calls, fetchMock } = productGitHub([]);
-  const r = await withFetch(fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }));
-  assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
-  assert.equal(JSON.parse(st.getItem(PREFIX + "products"))[0], "https://github.com/reader/thesis");
-  assert.equal(r.commit.sha, "c1", "the layout is committed into the product");
-  assert.ok(calls.length && calls.every(([, p]) => p.startsWith("/repos/reader/thesis")),
-    "every request goes to the product repository — none to the instance");
-  assert.deepEqual(Object.keys(treeOf(calls)).sort(),
-    ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
-  // Counter-proof: after a clear, the list is empty.
-  store.clear();
-  assert.deepEqual(store.getProducts(), []);
-  assert.equal(st.mem.size, 0);
-});
-
-test("UC-001 5b: a product with the complete layout is only added to the list; no click, nothing at all", async () => {
-  const store = createStore(fakeStorage());
-  const full = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/UC-001-x.md"];
-  const g = productGitHub(full);
-  const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }));
-  assert.equal(r.commit, null);
-  assert.ok(!g.calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
-  assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
-  const s2 = createStore(fakeStorage()), g2 = productGitHub([]);
-  await withFetch(g2.fetchMock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t",
-    click: { isTrusted: false }, store: s2 }), /click/));
-  assert.equal(g2.calls.length, 0);
-  assert.deepEqual(s2.getProducts(), []);
-});
-
-test("UC-001 5a: a refused write adds nothing to the list", async () => {
-  const store = createStore(fakeStorage());
-  const g = productGitHub([]);
-  const inner = g.fetchMock;
-  const mock = async (u, init) => (init.method === "POST" ? new Response(JSON.stringify({ message: "Resource not accessible" }), { status: 403 }) : inner(u, init));
-  await withFetch(mock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }), /403/));
-  assert.deepEqual(store.getProducts(), []);
-});
-
 // ---------------------------------------------------------------- one commit per decision (queue 2026-09-24g, entry 05)
 // AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL · A STALE APPROVAL IS NOT APPLIED ·
 // SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER (UC-006 4–7, 4d, 5a; UC-008 3d)
@@ -306,105 +232,6 @@ test("replaceSection writes the proposal byte for byte and keeps the file's fina
   assert.throws(() => replaceSection(B_SPEC, "## 11. X", null, "x\n"), /0 times/);
 });
 
-test("AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — one commit: record, section, decision row", async () => {
-  const files = batchRepo(), heads = [];
-  const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
-  const { calls, fetchMock } = fakeGitHub();
-  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
-    items: [it], readAt: readerOf(files, heads), now: WHEN }));
-  const rec = `docs/approvals/spec-2026-09-24g_x-05-${it.proposalBlob.slice(0, 12)}.md`;
-  assert.equal(res.commit.sha, "c1");
-  assert.deepEqual(res.leftOut, []);
-  assert.equal(calls.filter(([m, p]) => m === "POST" && p.endsWith("/git/commits")).length, 1, "exactly one commit");
-  assert.ok(heads.length && heads.every((h) => h === "c0"), "every check reads the commit that is written on");
-  const tree = treeOf(calls);
-  assert.deepEqual(Object.keys(tree).sort(), [`${QD}/entscheidungen.md`, "SPEC.md", rec].sort());
-  assert.equal(tree["SPEC.md"], "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n" + B_P05);
-  assert.equal(tree[`${QD}/entscheidungen.md`], "# Decisions\n\nAppend-only.\n\n" +
-    `| 2026-09-29 16:03 UTC | 5 | uebernommen | approval:${rec.split("/").pop()} |\n`);
-  assert.equal(tree[rec], recordText(specRecord({ queue: QD, entry: 5, proposal: `${QD}/05-a.md`, blob: it.proposalBlob,
-    target: "SPEC.md", anchor: "## 10. R", section: it.sectionBlob })));
-});
-
-test("A STALE APPROVAL IS NOT APPLIED — dashboard: proposal or section changed on the commit written on", async () => {
-  const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
-  for (const [over, why] of [[{ [`${QD}/05-a.md`]: B_P05 + "edited\n" }, /proposal changed/],
-    [{ "SPEC.md": B_SPEC.replace("old ten", "changed meanwhile") }, /SPEC section changed/]]) {
-    const { calls, fetchMock } = fakeGitHub();
-    const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
-      items: [it], readAt: readerOf(batchRepo(over)), now: WHEN }));
-    assert.equal(res.commit, null);
-    assert.deepEqual(res.leftOut.map((l) => l.label), ["2026-09-24g_x 05"]);
-    assert.match(res.leftOut[0].reason, why);
-    assert.ok(!calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
-  }
-});
-
-test("SEVERAL FILES ARE ACCEPTED IN ONE CLICK — one record per ticked file, none for a file not opened", async () => {
-  const s = createReviewSession();
-  const u1 = await ucItem("UC-001", "docs/use-cases/UC-001-a.md", B_UC1), u2 = await ucItem("UC-002", "docs/use-cases/UC-002-b.md", B_UC2);
-  s.show(u1); s.show(u2);
-  assert.equal(s.tick("uc:docs/use-cases/UC-003-c.md", true), false, "a file that was not opened cannot be ticked");
-  assert.equal(s.tick(s.key(u1), true), true);
-  assert.equal(s.tick(s.key(u2), true), true);
-  assert.deepEqual(s.items().map((i) => i.id), ["UC-001", "UC-002"]);
-  const { calls, fetchMock } = fakeGitHub();
-  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
-    items: s.items(), readAt: readerOf(batchRepo()), now: WHEN }));
-  const tree = treeOf(calls);
-  assert.deepEqual(Object.keys(tree).sort(), [approvalPath("UC-001", u1.blob), approvalPath("UC-002", u2.blob)]);
-  assert.equal(tree[approvalPath("UC-002", u2.blob)], recordText(useCaseRecord(u2.path, u2.blob)));
-  assert.deepEqual(res.accepted, ["UC-001", "UC-002"]);
-  // Counter-proof: UC-002 changed after it was shown — it is left out and named, UC-001 is still written.
-  const g = fakeGitHub();
-  const res2 = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
-    items: s.items(), readAt: readerOf(batchRepo({ "docs/use-cases/UC-002-b.md": B_UC2 + "edited\n" })), now: WHEN }));
-  assert.deepEqual(Object.keys(treeOf(g.calls)), [approvalPath("UC-001", u1.blob)]);
-  assert.deepEqual(res2.leftOut.map((l) => l.label), ["UC-002"]);
-  assert.match(res2.leftOut[0].reason, /changed after it was shown/);
-});
-
-test("A QUEUE IS ACCEPTED IN ITS ORDER — 05 and 06 together: one commit with both sections, rows in index order", async () => {
-  const entries = [{ nr: 5, anchor: "## 10. R", bis: null, proposalText: B_P05 }, { nr: 6, anchor: "## 11. X", bis: null, proposalText: B_P06 }];
-  const shown06 = sectionForEntry({ specText: B_SPEC, entries, nr: 6 });
-  assert.deepEqual(shown06.needs, [5], "06 needs 05, which creates its heading");
-  assert.equal(shown06.current, "## 11. X\n\n*(not yet approved)*\n", "06 is shown beside the heading 05 creates");
-  assert.deepEqual(sectionForEntry({ specText: B_SPEC, entries, nr: 5 }).needs, []);
-  const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
-  const i06 = { ...(await specItem(6, B_P06, shown06.current, "## 11. X")), needs: [5] };
-  const { calls, fetchMock } = fakeGitHub();
-  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
-    items: [i06, i05], readAt: readerOf(batchRepo()), now: WHEN }));        // ticked in reverse order
-  assert.deepEqual(res.leftOut, []);
-  assert.equal(calls.filter(([m, p]) => m === "POST" && p.endsWith("/git/commits")).length, 1);
-  const tree = treeOf(calls);
-  assert.equal(tree["SPEC.md"], "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nnew ten\n\n" + B_P06);
-  const rows = tree[`${QD}/entscheidungen.md`].split("\n").filter((l) => l.startsWith("| 2026"));
-  assert.deepEqual(rows.map((r) => r.split("|")[2].trim()), ["5", "6"]);
-  assert.equal(Object.keys(tree).filter((p) => p.startsWith("docs/approvals/")).length, 2);
-});
-
-test("A QUEUE IS ACCEPTED IN ITS ORDER — counter-proof: 06 alone is not offered while its anchor is missing, and 05 is named", async () => {
-  const i06 = { ...(await specItem(6, B_P06, "## 11. X\n\n*(not yet approved)*\n", "## 11. X")), needs: [5] };
-  const gaps = missingNeeds([i06]);
-  assert.equal(gaps.length, 1);
-  assert.match(gaps[0].message, /entry 05/);
-  assert.doesNotMatch(gaps[0].message, /times/);
-  const { calls, fetchMock } = fakeGitHub();
-  await withFetch(fetchMock, () => assert.rejects(acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
-    items: [i06], readAt: readerOf(batchRepo()), now: WHEN }), /entry 05/));
-  assert.equal(calls.length, 0, "nothing is read or written");
-  assert.deepEqual(missingNeeds([i06, await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R")]), []);
-  // And if 05 is ticked but left out as stale, 06 is left out too, naming 05 — not "anchor found 0 times".
-  const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
-  const plan = await planAcceptance({ items: [i05, i06], now: WHEN,
-    read: async (p) => batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" })[p] ?? null });
-  assert.deepEqual(plan.files, []);
-  assert.deepEqual(plan.leftOut.map((l) => l.label), ["2026-09-24g_x 05", "2026-09-24g_x 06"]);
-  assert.match(plan.leftOut[1].reason, /entry 05/);
-  assert.doesNotMatch(plan.leftOut[1].reason, /times/);
-});
-
 test("an entry already written in the queue's decisions is not written twice", async () => {
   const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
   const name = approvalPath("spec-2026-09-24g_x-05", it.proposalBlob).split("/").pop();
@@ -414,134 +241,10 @@ test("an entry already written in the queue's decisions is not written twice", a
   assert.match(plan.leftOut[0].reason, /already/);
 });
 
-// ---------------------------------------------------------------- settings in one place (UC-042)
-// A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
-
-test("A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY — switching off commits docs/settings.md on a click, after the notice", async () => {
-  const st = fakeStorage();
-  createStore(st).setToken("github_pat_t");
-  const before = [...st.mem.entries()];
-  const { calls, fetchMock } = fakeGitHub({ "docs/settings.md": "b0" });
-  const base = { repo: "alice/thesis", branch: "main", token: "github_pat_t", current: null, currentBlob: null, off: true };
-  await withFetch(fetchMock, async () => {
-    await assert.rejects(savePseudonymisation({ ...base, click, acknowledged: false }), /I have read this/);
-    await assert.rejects(savePseudonymisation({ ...base, click: { isTrusted: false }, acknowledged: true }), /click/);
-  });
-  assert.equal(calls.length, 0, "nothing sent without the acknowledgement and a real click");
-  const r = await withFetch(fetchMock, () => savePseudonymisation({ ...base, click, acknowledged: true }));
-  assert.equal(r.sha, "c1");
-  assert.equal(pseudonymisationOn(treeOf(calls)["docs/settings.md"]), false);
-  assert.deepEqual(Object.keys(treeOf(calls)), ["docs/settings.md"]);
-  assert.deepEqual([...st.mem.entries()], before, "localStorage holds no product setting");
-  // Switching back on needs no acknowledgement (UC-042 4a).
-  const g = fakeGitHub({ "docs/settings.md": "b0" });
-  await withFetch(g.fetchMock, () => savePseudonymisation({ ...base, click, off: false, acknowledged: false,
-    current: SETTINGS_OFF, currentBlob: "b0" }));
-  assert.equal(pseudonymisationOn(treeOf(g.calls)["docs/settings.md"]), true);
-});
-
-test("collaborators are saved by one commit of docs/collaborators.md, on a click", async () => {
-  const { calls, fetchMock } = fakeGitHub();
-  await withFetch(fetchMock, () => assert.rejects(saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t",
-    click: { isTrusted: false }, list: PEOPLE, currentBlob: null }), /click/));
-  assert.equal(calls.length, 0);
-  await withFetch(fetchMock, () => saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t",
-    click, list: PEOPLE, currentBlob: null }));
-  assert.deepEqual(parseCollaborators(treeOf(calls)["docs/collaborators.md"]), PEOPLE);
-});
-
 // ---------------------------------------------------------------- GitLab products (queue 2026-09-24b)
 // GITLAB PRODUCTS ARE SUPPORTED · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN · A PRODUCT IS NAMED BY ITS ADDRESS
 // (UC-001 3c/3d, UC-006). The GitLab server is a mock of the REST API v4 as GitLab documents it
 // (doc/api/repositories.md, repository_files.md, commits.md, branches.md); no request leaves this process.
-
-test("GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, section and decision row in one commit, checked at the head", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const files = batchRepo(), heads = [];
-  const g = await fakeGitLab({ files });
-  const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
-  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [it],
-    readAt: readerOf(files, heads), now: WHEN }));
-  assert.deepEqual(res.leftOut, []);
-  assert.ok(heads.length && heads.every((h) => h === H0), "every check reads the commit the new one is written on");
-  const posts = g.calls.filter((c) => c.method === "POST");
-  assert.equal(posts.length, 1);
-  const acts = Object.fromEntries(posts[0].body.actions.map((a) => [a.file_path, a]));
-  const rec = `docs/approvals/spec-2026-09-24g_x-05-${it.proposalBlob.slice(0, 12)}.md`;
-  assert.deepEqual(Object.keys(acts).sort(), [`${QD}/entscheidungen.md`, "SPEC.md", rec].sort());
-  assert.equal(acts["SPEC.md"].content, "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n" + B_P05);
-  assert.equal(acts["SPEC.md"].action, "update");
-  assert.equal(acts["SPEC.md"].last_commit_id, H0);
-  assert.equal(acts[rec].action, "create");
-  assert.match(acts[`${QD}/entscheidungen.md`].content, /\| 5 \| uebernommen \| approval:/);
-  // A STALE APPROVAL IS NOT APPLIED — the proposal changed on the head: nothing is written.
-  const s = await fakeGitLab({ files: batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" }) });
-  const res2 = await withFetch(s.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [it],
-    readAt: readerOf(batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" })), now: WHEN }));
-  assert.equal(res2.commit, null);
-  assert.match(res2.leftOut[0].reason, /proposal changed/);
-  assert.ok(!s.calls.some((c) => c.method === "POST"), "nothing written");
-});
-
-test("GitLab: SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER — one commit", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const files = batchRepo();
-  const u1 = await ucItem("UC-001", "docs/use-cases/UC-001-a.md", B_UC1), u2 = await ucItem("UC-002", "docs/use-cases/UC-002-b.md", B_UC2);
-  const entries = [{ nr: 5, anchor: "## 10. R", bis: null, proposalText: B_P05 }, { nr: 6, anchor: "## 11. X", bis: null, proposalText: B_P06 }];
-  const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
-  const i06 = { ...(await specItem(6, B_P06, sectionForEntry({ specText: B_SPEC, entries, nr: 6 }).current, "## 11. X")), needs: [5] };
-  const g = await fakeGitLab({ files });
-  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click,
-    items: [u2, i06, u1, i05], readAt: readerOf(files), now: WHEN }));
-  assert.deepEqual(res.leftOut, []);
-  const posts = g.calls.filter((c) => c.method === "POST");
-  assert.equal(posts.length, 1, "one commit for all four");
-  const acts = posts[0].body.actions;
-  assert.equal(acts.filter((a) => a.file_path.startsWith("docs/approvals/")).length, 4, "one record per ticked file");
-  const spec = acts.find((a) => a.file_path === "SPEC.md").content;
-  assert.equal(spec, "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nnew ten\n\n" + B_P06);
-  const rows = acts.find((a) => a.file_path.endsWith("entscheidungen.md")).content.split("\n").filter((l) => l.startsWith("| 2026"));
-  assert.deepEqual(rows.map((r) => r.split("|")[2].trim()), ["5", "6"]);
-});
-
-test("GitLab: a commit GitLab wrote on a newer head than the one checked is reported with the files read that changed", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const files = batchRepo();
-  const u1 = await ucItem("UC-001", "docs/use-cases/UC-001-a.md", B_UC1);
-  // The branch did not move before the commit, but GitLab reports another parent: a commit arrived in between.
-  const g = await fakeGitLab({ files, parent: H1, changed: ["docs/use-cases/UC-001-a.md"] });
-  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [u1],
-    readAt: readerOf(files), now: WHEN }));
-  assert.equal(res.commit.sha, NEWC);
-  assert.deepEqual(res.commit.changedMeanwhile, ["docs/use-cases/UC-001-a.md"]);
-  assert.match(res.warning, /UC-001-a\.md/);
-  const cmp = g.calls.find((c) => c.path.endsWith("/repository/compare"));
-  assert.deepEqual([cmp.query.from, cmp.query.to], [H0, H1]);
-  // Counter-proof: the other commit changed an unrelated file — no warning.
-  const g2 = await fakeGitLab({ files, parent: H1, changed: ["README.md"] });
-  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [u1],
-    readAt: readerOf(files), now: WHEN }));
-  assert.equal(res2.warning, null);
-});
-
-test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; the address stored; nothing to GitHub", async () => {
-  const st = fakeStorage(), store = createStore(st);
-  store.setGitLabToken(GL_ADDR, GL_TOKEN, "2026-12-29");
-  const g = await fakeGitLab({ files: { "README.md": "# p\n", "SPEC.md": "# old\n" } });
-  const r = await withFetch(g.fetchMock, () => addProduct({ address: GL_ADDR, token: GL_TOKEN, click, store }));
-  assert.equal(r.commit.sha, NEWC);
-  const posts = g.calls.filter((c) => c.method === "POST");
-  assert.equal(posts.length, 1);
-  assert.deepEqual(posts[0].body.actions.map((a) => [a.action, a.file_path]).sort(), [["create", "CHANGELOG.md"], ["create", "docs/approvals/README.md"],
-    ["create", "docs/spec-freigaben/README.md"], ["create", "docs/use-cases/README.md"]]);
-  assert.deepEqual(store.getProducts(), [GL_ADDR]);
-  assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN), "only the product's server, only its token");
-  // Counter-proof: a refused write adds nothing to the list.
-  const s2 = createStore(fakeStorage());
-  const bad = await fakeGitLab({ files: {}, postStatus: 403, postBody: { message: "403 Forbidden" } });
-  await withFetch(bad.fetchMock, () => assert.rejects(addProduct({ address: GL_ADDR, token: GL_TOKEN, click, store: s2 }), /403/));
-  assert.deepEqual(s2.getProducts(), []);
-});
 
 test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer is shown as unable to write to a protected default branch", () => {
   assert.deepEqual(gitlabRole(40), { role: "Maintainer", canWrite: true, note: "" });

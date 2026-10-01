@@ -8,13 +8,16 @@
 // Route #settings. Every view function gets `app`, the page's context (dashboard-app.mjs); the texts and HTML builders above
 // them are plain functions.
 
-import { canStore, gitlabRole, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH, savePseudonymisation, saveCollaborators } from "../review-core.mjs";
+import { canStore, gitlabRole } from "../review-core.mjs";
+import { savePseudonymisation, saveCollaborators } from "./writes.mjs";
 import { settingKeys, parseJson, sessionList, gitlabTokenMap, exportSettings, readSettingsFile, mergeSettings } from "../settings-store.mjs";
 import {
   fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
 } from "../git-host.mjs";
 import { jumpHostProblem, tunnelCommands, addRemoteSession, nextFreePort, probeLocalPort } from "../bridge-tunnel.mjs";
-import { pseudonymisationOn, parseCollaborators, addCollaborator, removeCollaborator } from "../pseudonymiser.mjs";
+import {
+  pseudonymisationOn, parseCollaborators, addCollaborator, removeCollaborator, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
+} from "../pseudonymiser.mjs";
 
 export const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const esc = h;

@@ -13,8 +13,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   parseProductSettings, pseudonymisationOn, parseCollaborators, formatCollaborators, addCollaborator, removeCollaborator,
+  setProductSetting,
 } from "../../docs/assets/pseudonymiser.mjs";
-import { setProductSetting } from "../../docs/assets/review-core.mjs";
 import { SETTINGS_OFF, PEOPLE } from "./helpers.mjs";
 
 // ---------------------------------------------------------------- settings in one place (UC-042)

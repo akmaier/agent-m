@@ -6,7 +6,8 @@
 // Route #add and #add/<address>. Every view function gets `app`, the page's context (dashboard-app.mjs); the step texts above
 // them are plain functions.
 
-import { canStore, addProduct } from "../review-core.mjs";
+import { canStore } from "../review-core.mjs";
+import { addProduct } from "./writes.mjs";
 import { parseProductAddress, isGitLab, gitlabTokenPageUrl, tokenListUrl, requiredPermissions } from "../git-host.mjs";
 import {
   h, sharedOriginNotice, tokenLinkUrl, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, checkGitLab, reachLine,

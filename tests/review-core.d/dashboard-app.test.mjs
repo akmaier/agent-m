@@ -56,6 +56,56 @@ test("the app never calls fetch directly — every request goes through fetchTex
   assert.doesNotMatch("saved in this browser (its <code>localStorage</code>)", FORBIDDEN);
 });
 
+// The kernel (ARC-003 decision 1): the modules of the group Kernel in docs/groups/modules.md.
+function kernelModules() {
+  const out = new Set();
+  let inGroup = false;
+  for (const l of readFileSync(new URL("../../docs/groups/modules.md", import.meta.url), "utf8").split("\n")) {
+    const top = /^- (.+)$/.exec(l);
+    if (top) { inGroup = top[1].trim() === "Kernel"; continue; }
+    const m = /^\s+- (MOD-[a-z0-9-]+)\s*$/.exec(l);
+    if (inGroup && m) out.add(m[1]);
+  }
+  return out;
+}
+// The three write functions of the git host (MOD-git-host): the one write path and the commit on each kind of server.
+const GIT_HOST_WRITES = ["commitFiles", "commitFilesGitLab", "writeFiles"];
+// What a module file imports from the git host: each name it imports (an alias counts by its original name), and "*" for a
+// namespace or dynamic import, which reaches every function of it.
+function gitHostImports(text) {
+  const out = [];
+  for (const m of text.matchAll(/\bimport\s+([^;]*?)\s+from\s+["']([^"']+)["']/g)) {
+    if (!/(^|\/)git-host\.mjs$/.test(m[2])) continue;
+    if (/\*\s*as\s+[\w$]+/.test(m[1])) out.push("*");
+    for (const n of (m[1].match(/\{([^}]*)\}/)?.[1] ?? "").split(",")) {
+      const name = n.trim().split(/\s+as\s+/)[0];
+      if (name) out.push(name);
+    }
+  }
+  if (/\bimport\s*\(\s*[^)]*git-host\.mjs/.test(text)) out.push("*");
+  return out;
+}
+
+test("the kernel never writes — no kernel file imports a write function of the git host", () => {
+  // ARC-003 decision 1: a kernel module imports only kernel modules; MOD-review-core returns the files, and a shell commits
+  // them on its authority. The kernel's reads through the git host are not checked here (ITM-124). A file's module is its
+  // Module line; the kernel is read from the group file.
+  const kernel = kernelModules(), files = moduleFiles();
+  const checked = files.filter((f) => headerModules(f.text).some((m) => kernel.has(m)));
+  assert.ok(kernel.has("MOD-review-core") && kernel.has("MOD-artifacts") && !kernel.has("MOD-git-host"), "the kernel is read from the group file");
+  assert.ok(checked.some((f) => f.file === "review-core.mjs") && !checked.some((f) => f.file.startsWith("dashboard")),
+    "the kernel's files are checked, the dashboard's are not");
+  for (const { file, text } of checked) {
+    assert.deepEqual(gitHostImports(text).filter((n) => n === "*" || GIT_HOST_WRITES.includes(n)), [], file);
+  }
+  // counter-proof: each way of importing a write function is caught, a read is not, and another module's writeFiles is not
+  assert.deepEqual(gitHostImports('import {\n  fetchText, writeFiles,\n} from "./git-host.mjs";'), ["fetchText", "writeFiles"]);
+  assert.deepEqual(gitHostImports('import { commitFiles as commit } from "../git-host.mjs";'), ["commitFiles"]);
+  assert.deepEqual(gitHostImports('import * as gitHost from "./git-host.mjs";'), ["*"]);
+  assert.deepEqual(gitHostImports('const g = await import("./git-host.mjs");'), ["*"]);
+  assert.deepEqual(gitHostImports('import { fetchText } from "./git-host.mjs";\nimport { writeFiles } from "./other.mjs";'), ["fetchText"]);
+});
+
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: parameter names and access levels as documented by GitHub, read 2026-10-01 (table

@@ -6,9 +6,10 @@
 // Routes #uc, #uc/<id>, #arc, #arc/<id>, #review/<area>. Every function gets `app`, the page's context (dashboard-app.mjs).
 
 import {
-  gitBlobSha, recordText, approvalPath, useCaseRecord, reviewedRecord, acceptItems, missingNeeds, itemLabel, lastAccepted,
-  saveReviewedFile, reviewPage, recordsForId,
+  gitBlobSha, recordText, approvalPath, useCaseRecord, reviewedRecord, missingNeeds, itemLabel, lastAccepted, reviewPage,
+  recordsForId,
 } from "../review-core.mjs";
+import { acceptItems, saveReviewedFile } from "./writes.mjs";
 import { writeRoute, webFileUrl, newFileUrl, editUrl } from "../git-host.mjs";
 import { parseFrontMatter, reviewedId, ARCHITECTURE_FILE, parseArchitecture } from "../artifacts.mjs";
 import { moduleHeaders, impactList, componentDiagram } from "../traceability.mjs";
