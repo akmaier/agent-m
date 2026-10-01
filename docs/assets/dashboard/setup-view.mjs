@@ -51,7 +51,7 @@ export function storeKeyStep(app) {
 }
 
 export function wireStoreKey(app, reposToCheck, onStored) {
-  const { store, tokenState, showBanner } = app;
+  const { store, showBanner } = app;
   const ack = document.getElementById("key-ack"), tok = document.getElementById("key-token");
   const btn = document.getElementById("key-store"), out = document.getElementById("key-check");
   const expires = document.getElementById("key-expires");
@@ -61,8 +61,8 @@ export function wireStoreKey(app, reposToCheck, onStored) {
     if (!canStore(ack.checked)) return;
     if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { out.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) { out.textContent = "Enter the date the token expires — GitHub showed it when you created the token."; return; }
+    // A new token starts untested: storing it forgets the last test of the one before (MOD-settings-store setToken).
     store.setToken(v, exp);
-    Object.assign(tokenState, { ok: null, refused: false });
     showBanner();
     tok.value = "";
     const res = await Promise.all(reposToCheck().map(async (r) => [r, await checkReach(app, r)]));

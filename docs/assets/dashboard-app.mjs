@@ -387,16 +387,15 @@ const writeErrorText = (e, githubPage = null) => writeRefusalText(e, T.product, 
 // ---------------------------------------------------------------- tokens refused or expiring (SPEC §7)
 
 const shownSecrets = new Set(); // keys revealed by Show on this page; any other view hides them again
-// This page's last answers about the tokens: the GitHub token, and each GitLab project token by its address.
-const tokenState = { ok: null, refused: false, gitlab: {}, sessions: {} };
 
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a 401 anywhere marks the token that was used as refused —
 // the GitHub token, or the project token of the GitLab product (`product`) — and the line at the top of every
-// view says which token and where it is renewed.
+// view says which token and where it is renewed. The mark is the token's last test, kept in this browser beside the token
+// (MOD-settings-store), so that it holds after a reload too (UC-042 step 1); a successful Test, a new value or a Clear replace it.
 function noteRefusal(e, product = T.product) {
   if (tokenRefusal(e)) {
-    if (isGitLab(product)) tokenState.gitlab[product.address] = { refused: true, ok: null };
-    else { tokenState.refused = true; tokenState.ok = null; }
+    if (isGitLab(product)) store.setGitLabTokenTest(product.address, { refused: true });
+    else store.setTokenTest({ refused: true });
     showBanner();
     if (document.getElementById("browser-settings")) renderBrowserSettings(app);
   }
@@ -410,10 +409,12 @@ const errorText = (e, product = T.product) => {
   return r ? `${r.text} Renew it with the link at the top of the page.` : e.message;
 };
 const gitlabShown = () => (GITLAB ? store.getGitLabToken(T.product.address) : null);
+// The line at the top of every view: the GitHub token, and the shown GitLab product's project token, each expiring or refused at
+// its last use (its kept last test).
 function showBanner() {
   const el = document.getElementById("token-banner"), gl = gitlabShown();
-  if (el) el.innerHTML = (ghToken() ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: tokenState.refused }) : "")
-    + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(tokenState.gitlab[T.product.address]?.refused), product: T.product }) : "");
+  if (el) el.innerHTML = (ghToken() ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
+    + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(gl.tested?.refused), product: T.product }) : "");
 }
 
 // ---------------------------------------------------------------- the product selector
@@ -451,7 +452,7 @@ function context() {
   return {
     T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, DASHBOARD,
     ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
-    recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets, tokenState,
+    recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets,
     main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,
     writeAccessRefused: (e) => writeAccessRefused(e, T.product),
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
@@ -498,8 +499,8 @@ async function route() {
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
     const gl = gitlabShown();
     document.getElementById("token-banner").innerHTML = (ghToken()
-      ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: tokenState.refused }) : "")
-      + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(tokenState.gitlab[T.product.address]?.refused), product: T.product }) : "");
+      ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
+      + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(gl.tested?.refused), product: T.product }) : "");
     if (flash) {
       main().insertAdjacentHTML("afterbegin", `<section class="panel notice flash"><p>${flash}</p></section>`);
       flash = null;

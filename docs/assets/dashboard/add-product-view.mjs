@@ -142,13 +142,14 @@ function gitlabSteps(app, parsed) {
 }
 
 function wireGitLabSteps(app, parsed) {
-  const { store, tokenState } = app;
+  const { store } = app;
   const ack = document.getElementById("gl-ack"), tok = document.getElementById("gl-token"), exp = document.getElementById("gl-expires");
   const btn = document.getElementById("gl-store"), out = document.getElementById("gl-check-out");
   const check = async () => {
     out.textContent = `Reading ${parsed.address}…`;
     const x = await checkGitLab(app, parsed, store.getGitLabToken(parsed.address)?.token);
-    if (x.ok) tokenState.gitlab[parsed.address] = { ok: today(), refused: false };
+    // The project token's last test, kept beside it (UC-042 step 1): the settings page shows it after a reload too.
+    if (x.ok) store.setGitLabTokenTest(parsed.address, { ok: today() });
     out.innerHTML = reachLine([parsed.address, x]);
     const go = document.getElementById("add-go");
     go.disabled = !store.getGitLabToken(parsed.address);
@@ -161,9 +162,9 @@ function wireGitLabSteps(app, parsed) {
     if (!canStore(ack.checked)) return;
     const bad = gitlabTokenProblem(v, exp.value);
     if (bad) { out.textContent = bad; return; }
+    // A new value starts untested (MOD-settings-store setGitLabToken); the check below tests it.
     store.setGitLabToken(parsed.address, v, exp.value);
     tok.value = "";
-    tokenState.gitlab[parsed.address] = {};
     await check();
   });
 }

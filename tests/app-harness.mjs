@@ -136,7 +136,9 @@ function control(tag) {
     value: "", hidden: false,
     addEventListener(type, f) { listeners.push([type, f]); },
     fire(type, ev) { for (const [t, f] of listeners) if (t === type) f({ ...ev, currentTarget: c, target: c }); },
-    closest() { return c; }, querySelector: () => sink, querySelectorAll: () => [], focus() {} };
+    closest() { return c; }, querySelector: () => sink, querySelectorAll: () => [], focus() {},
+    // An attribute of its tag, as a browser's element answers it (the settings page finds a remote session's line this way).
+    getAttribute: (name) => attrOf(tag, name) };
   return c;
 }
 function find(html, sel, found) {
