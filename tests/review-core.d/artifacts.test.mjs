@@ -25,6 +25,19 @@ test("front matter: scalars and lists, body separated", () => {
   assert.deepEqual(parseFrontMatter("# no front matter\n").fields, {});
 });
 
+// ITM-126, back from Release testing (finding A5): a front matter whose lines end in CR LF (`---\r\n` … `\r\n---\r\n`) is read
+// as one with LF line ends. Expected: the same fields as the LF text — each value without its CR, the list items too —, and as
+// body the text's own bytes after the closing `---\r\n`, its CRs kept. Known positive: the LF text gives those fields.
+test("front matter with CR LF line ends: the fields of the LF text, the body the text's own bytes", () => {
+  const lf = "---\nid: UC-001\ntitle: Register a source\nrealises:\n  - NO SERVER\n  - A SOURCE DECLARES ITS AUTHORITY\n---\n# Body\n\nText.\n";
+  const crlf = lf.replace(/\n/g, "\r\n");
+  const want = { id: "UC-001", title: "Register a source", realises: ["NO SERVER", "A SOURCE DECLARES ITS AUTHORITY"] };
+  assert.deepEqual(parseFrontMatter(lf).fields, want, "known positive: the LF text");
+  const { fields, body } = parseFrontMatter(crlf);
+  assert.deepEqual(fields, want, "CR LF: the same fields, no value keeps its CR");
+  assert.equal(body, "# Body\r\n\r\nText.\r\n", "CR LF: the body is the text after the closing ---, byte for byte");
+});
+
 // ---------------------------------------------------------------- the last accepted text (queue 2026-09-30, entry 03)
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT finds the records of a renamed file by its identifier (UC-008 2a).
 
@@ -68,4 +81,20 @@ test("AN EDITED FILE KEEPS ITS IDENTIFIER — a use case whose text carries anot
     fix: "put back id: UC-001; a new identifier is a new file, proposed as such.",
   });
   assert.equal(identifierKept(null, "## 1\n"), null, "a file without an identifier, such as a SPEC proposal, is not checked");
+});
+
+// ITM-126, back from Release testing (finding A5): AN EDITED FILE KEEPS ITS IDENTIFIER refuses a text "whose identifier differs
+// from the one it was opened with" — how its lines end is no part of it. Expected: the fixture use case with CR LF line ends and
+// `id: UC-001` gives null when opened as UC-001; with `id: UC-002` it gives the same finding as the LF text — the line of the
+// `id` (2), what names UC-002 without a CR. Known positive: the LF text gives null.
+test("AN EDITED FILE KEEPS ITS IDENTIFIER — a text with CR LF line ends keeps its identifier; another one is still named", () => {
+  const text = readFileSync(new URL("../fixtures/use-cases/UC-001-complete.md", import.meta.url), "utf8");
+  const crlf = (t) => t.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+  assert.equal(identifierKept("UC-001", text), null, "known positive: LF, the same identifier");
+  assert.equal(identifierKept("UC-001", crlf(text)), null, "CR LF, the same identifier: no finding");
+  assert.deepEqual(identifierKept("UC-001", crlf(text.replace("id: UC-001", "id: UC-002"))), {
+    artifact: "UC-001", line: 2, kind: "error", rule: KEPT,
+    what: "the file was opened as UC-001, but the text carries the identifier UC-002",
+    fix: "put back id: UC-001; a new identifier is a new file, proposed as such.",
+  }, "CR LF, another identifier: the finding of the LF text");
 });
