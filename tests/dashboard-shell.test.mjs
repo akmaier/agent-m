@@ -46,16 +46,18 @@ const FILES = {
   [UC]: "---\nid: UC-001\ntitle: Add a product\narea: setup\nrealises:\n  - NO SERVER\n---\n# UC-001 Add a product\n",
 };
 
-// The tab bar docs/index.html carried before the views had files of their own, link for link.
+// The tab bar docs/index.html carried before the views had files of their own, link for link — and the tab of each view built
+// since, in the table's order: Backlog (ITM-147).
 const TABS_BEFORE = [
   '<a href="#uc" role="tab" id="tab-uc">Use cases</a>',
   '<a href="#arc" role="tab" id="tab-arc">Architecture</a>',
   '<a href="#spec" role="tab" id="tab-spec">SPEC changes</a>',
+  '<a href="#backlog" role="tab" id="tab-backlog">Backlog</a>',
   '<a href="#how" role="tab" id="tab-how">How acceptance works</a>',
   '<a href="#settings" role="tab" id="tab-settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
 ];
 
-test("with every view file of today, the tab bar shows the tabs it showed before, in their order", async () => {
+test("with every view file of today, the tab bar shows the tabs it showed before and those built since, in their order", async () => {
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
   assert.deepEqual(page.el("tabs").split("\n"), TABS_BEFORE);
 });
