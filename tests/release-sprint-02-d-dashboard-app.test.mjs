@@ -352,7 +352,7 @@ test("ITM-134 · an entry withdrawing a requirement lists what still names it", 
 // or no requirement at all. Accepted, either takes TITLE out of the SPEC while UC-001, UC-002, MOD-cover and tests/title.test.mjs
 // still name it. Expected: those four listed before Accept, as for any change of TITLE.
 // FINDING D1 (back to Development: ITM-134) — the page shows no list; see the measurement record.
-test("ITM-134 · an entry that takes a requirement out of its section lists what references it", { todo: "finding D1 — ITM-134" }, async () => {
+test("ITM-134 · an entry that takes a requirement out of its section lists what references it", async () => {
   const renamed = `## 2. Title page\n\n${req(`${TITLE} AND THE SUPERVISOR`, "PO B. Example, 2026-10-01", "The title page names both.")}`;
   const dropped = "## 2. Title page\n\nThe title page is laid out by the faculty's template.\n";
   for (const [what, text] of [["renamed in place", renamed], ["left out", dropped]]) {
