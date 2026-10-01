@@ -2,6 +2,10 @@
 // is kept in the browser by its blob SHA and not read again while that blob is unchanged. Deterministic, no network: the real
 // app (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that counts every request.
 //
+// Module: MOD-dashboard-app
+// Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A CLEAR IS A REAL CLEAR
+// Level: component
+//
 // Why: on 2026-10-01 the PO's account used up its 5,000 requests per hour. With a token, every page load read every use case,
 // every architecture file, every approval record and every queue file through the contents API — about 450 requests.
 // SPEC §10 STATUS IS DERIVED FROM THE RECORDS · AN APPROVAL NAMES THE EXACT TEXT · A CHANGED FILE IS SHOWN AGAINST ITS LAST
