@@ -1346,7 +1346,7 @@ test("the dashboard shows the last accepted text above a changed use case, with 
 
 import {
   jumpHostProblem, nextFreePort, addRemoteSession, tunnelCommands, tunnelBindProblems, probeLocalPort,
-} from "../docs/assets/review-core.mjs";
+} from "../docs/assets/bridge-tunnel.mjs";
 import { JUMP_HOST_KEY, REMOTE_SESSIONS_KEY, KEYS } from "../docs/assets/settings-store.mjs";
 
 const JUMP = { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003,

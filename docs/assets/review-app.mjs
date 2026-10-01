@@ -8,6 +8,8 @@
 // the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
 // without its project token is read-only and links to the step that stores it. Every read goes through fetchText (GET only), and each token only to
 // the API of the server that issued it.
+//
+// Module: MOD-dashboard-app
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
@@ -24,11 +26,12 @@ import {
   browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
   PASSPHRASE_NOTICE, exportSettings, readSettingsFile, mergeSettings, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
-  addCollaborator, removeCollaborator, saveCollaborators, gitlabRole, jumpHostProblem, addRemoteSession, nextFreePort,
-  probeLocalPort, diffHtml, reviewedId, recordsForId, lastAccepted,
+  addCollaborator, removeCollaborator, saveCollaborators, gitlabRole,
+  diffHtml, reviewedId, recordsForId, lastAccepted,
   ARCHITECTURE_FILE, parseArchitecture, reviewedRecord, architecturePrerequisites, prerequisitesHtml,
   moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile, reviewPage,
 } from "./review-core.mjs";
+import { jumpHostProblem, addRemoteSession, nextFreePort, probeLocalPort } from "./bridge-tunnel.mjs";
 
 const API = "https://api.github.com";
 const RAW = "https://raw.githubusercontent.com";
