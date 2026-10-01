@@ -15,7 +15,9 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { parseFrontMatter, headerModules } from "../../docs/assets/artifacts.mjs";
 import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitlabAuth, gitlabApiBase } from "../../docs/assets/git-host.mjs";
-import { tokenLinkUrl, repositoryChoiceSteps } from "../../docs/assets/dashboard/settings-view.mjs";
+import { tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE } from "../../docs/assets/dashboard/settings-view.mjs";
+import { createKeyStep } from "../../docs/assets/dashboard/setup-view.mjs";
+import * as gitHost from "../../docs/assets/git-host.mjs";
 import { extendTokenSteps, gitlabTokenSteps, gitlabNoProjectTokens } from "../../docs/assets/dashboard/add-product-view.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
 import * as shell from "../../docs/assets/dashboard-app.mjs";
@@ -56,12 +58,16 @@ test("the app never calls fetch directly — every request goes through fetchTex
 
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
 
-// ONE GITHUB TOKEN SERVES EVERY FEATURE: parameter names as documented by GitHub,
+// ONE GITHUB TOKEN SERVES EVERY FEATURE: parameter names and access levels as documented by GitHub, read 2026-10-01 (table
+// "Repository permissions": pull_requests read/write, workflows write only, metadata read only),
 // https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
 const TOKEN_FIELDS = ["name", "description", "expires_in", "target_name"];
-const ONE_TOKEN = { contents: "write", issues: "write", actions: "write", metadata: "read" };
+const ONE_TOKEN = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" };
+// The permissions as the person reads them, in GitHub's display names.
+const NAMED = ["Contents: read and write", "Issues: read and write", "Pull requests: read and write", "Actions: read and write",
+  "Workflows: read and write", "Metadata: read"];
 
-test("THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE — exactly Contents, Issues, Actions write, Metadata read", () => {
+test("THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE — exactly Contents, Issues, Pull requests, Actions, Workflows write, Metadata read", () => {
   const u = new URL(tokenLinkUrl("reader/agent-m"));
   assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
   assert.equal(u.searchParams.get("name"), "Agent M · reader/agent-m");
@@ -80,9 +86,30 @@ test("THE REPOSITORY CHOICE IS SPELLED OUT — both repositories named, 'Only se
   assert.equal(repositoryChoiceSteps("r/agent-m", "r/agent-m").filter((x) => x.includes("r/agent-m")).length, 1,
     "the instance as its own product is named once");
   const all = s.join("\n");
-  for (const p of ["Contents: read and write", "Issues: read and write", "Actions: read and write", "Metadata: read"]) {
-    assert.ok(all.includes(p), `the steps name ${p}`);
+  for (const p of NAMED) assert.ok(all.includes(p), `the steps name ${p}`);
+});
+
+test("ONE GITHUB TOKEN SERVES EVERY FEATURE — the link, the steps and the guidance are written from requiredPermissions", () => {
+  const list = gitHost.requiredPermissions("github.com").github;
+  const perms = Object.fromEntries([...new URL(tokenLinkUrl("r/agent-m")).searchParams].filter(([k]) => !TOKEN_FIELDS.includes(k)));
+  assert.deepEqual(perms, Object.fromEntries(list.map((p) => [p.param, p.access])), "the link asks for the list's permissions");
+  const steps = repositoryChoiceSteps("r/agent-m", null).join("\n");
+  for (const p of list) {
+    assert.ok(steps.includes(p.permission), `the steps name ${p.permission}`);
+    assert.ok(TOKEN_GUIDANCE.includes(`${p.permission}: `) && TOKEN_GUIDANCE.includes(p.why), `the guidance names ${p.permission} and why`);
   }
+});
+
+test("UC-014: the setup step explains every permission and why it is needed", () => {
+  const html = createKeyStep({ T: { instance: "r/agent-m" }, stepHtml }, ["r/agent-m"]);
+  const explain = html.slice(html.indexOf('<details class="explain">'));
+  for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
+    assert.match(explain, new RegExp(`<em>${p}</em>`), `the explanation names ${p}`);
+  }
+  for (const why of ["save and accept", "issues", "pull request", "start a run", "CI configuration"]) {
+    assert.ok(explain.toLowerCase().includes(why.toLowerCase()), `the explanation says why: ${why}`);
+  }
+  assert.doesNotMatch(explain, /\bfour\b/i, "no count that another permission would make wrong");
 });
 
 test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be rendered", () => {
@@ -120,6 +147,12 @@ test("UC-001: extending the token names the token, adds the product, keeps the i
   assert.match(s, /nothing to copy/i);
   const name = new URL(tokenLinkUrl("reader/agent-m")).searchParams.get("name");
   assert.ok(s.includes(name), "the steps must name the token exactly as the setup link created it");
+});
+
+test("UC-001: extending the token makes sure it carries every permission — a token from before carries no Pull requests or Workflows", () => {
+  const s = extendTokenSteps("reader/agent-m", "reader/thesis").join("\n");
+  for (const p of NAMED) assert.ok(s.includes(p), `the steps name ${p}`);
+  assert.match(s, /Permissions/);
 });
 
 // ---------------------------------------------------------------- settings in one place (UC-042)

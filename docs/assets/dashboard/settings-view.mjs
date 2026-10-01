@@ -10,7 +10,9 @@
 
 import { canStore, gitlabRole, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH, savePseudonymisation, saveCollaborators } from "../review-core.mjs";
 import { settingKeys, parseJson, sessionList, gitlabTokenMap, exportSettings, readSettingsFile, mergeSettings } from "../settings-store.mjs";
-import { fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabTokenPageUrl, tokenIdentity, tokenRefusal } from "../git-host.mjs";
+import {
+  fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
+} from "../git-host.mjs";
 import { jumpHostProblem, tunnelCommands, addRemoteSession, nextFreePort, probeLocalPort } from "../bridge-tunnel.mjs";
 import { pseudonymisationOn, parseCollaborators, addCollaborator, removeCollaborator } from "../pseudonymiser.mjs";
 
@@ -27,16 +29,19 @@ export function sharedOriginNotice(owner) {
     `under a GitHub owner (account or organisation) that has no other Pages sites.`;
 }
 
+// ONE GITHUB TOKEN SERVES EVERY FEATURE: the token's permissions from the one list of MOD-git-host, each as the person reads it
+// on GitHub's page — "Contents: read and write", "Metadata: read".
+export const GITHUB_PERMISSIONS = requiredPermissions("github.com").github;
+export const permissionLabel = (p) => `${p.permission}: ${p.access === "read" ? "read" : "read and write"}`;
+const permissionLabels = () => GITHUB_PERMISSIONS.map(permissionLabel).join(", ");
+
 export const TOKEN_GUIDANCE = `A fine-grained personal access token is a key you create on GitHub. It lets this page act for you
 in exactly the repositories you choose, and nowhere else.
 — Repository access: Only select repositories — this instance and the products it manages, nothing else.
 — Permissions (one token serves every feature, so you create only one):
-  Contents: read and write — to save and accept: every edit and acceptance is a commit you ask for by clicking.
-  Issues: read and write — for reports that become issues in a product.
-  Actions: read and write — to start a run of a workflow, such as the tests.
-  Metadata: read — GitHub requires it for every token; it reads names and settings, nothing else.
+${GITHUB_PERMISSIONS.map((p) => `  ${permissionLabel(p)} — ${p.why}.`).join("\n")}
 — Expiration: 90 days is preset; GitHub mails you before it expires, and you can renew it.
-Why this scope: these four are what Agent M's features need, and nothing more is asked for; the repository
+Why this scope: these permissions are what Agent M's features need, and nothing more is asked for; the repository
 choice keeps them to this instance and the products you add.
 Where the token goes: only to https://api.github.com, as an Authorization header. Never to the model endpoint,
 never into a URL, never into a repository.`;
@@ -50,14 +55,10 @@ export const TOKEN_DAYS = 90;
 export function tokenLinkUrl(instance) {
   const q = new URLSearchParams({
     name: `Agent M · ${instance}`,
-    description: `Agent M dashboard of ${instance}: commits, issues and runs you ask for by clicking.`,
+    description: `Agent M dashboard of ${instance}: commits, issues, pull requests and runs of the work you start.`,
     expires_in: String(TOKEN_DAYS),
-    // ONE GITHUB TOKEN SERVES EVERY FEATURE. Parameter names as documented by GitHub ("Pre-filling
-    // fine-grained personal access token details using URL parameters", docs.github.com).
-    contents: "write",
-    issues: "write",
-    actions: "write",
-    metadata: "read",
+    // ONE GITHUB TOKEN SERVES EVERY FEATURE: the parameters of the one list (requiredPermissions, git-host.mjs).
+    ...Object.fromEntries(GITHUB_PERMISSIONS.map((p) => [p.param, p.access])),
   });
   return `https://github.com/settings/personal-access-tokens/new?${q}`;
 }
@@ -68,8 +69,7 @@ export function repositoryChoiceSteps(instance, product) {
     "Under “Repository access”, choose “Only select repositories”. GitHub preselects “All repositories”, " +
       "which would give Agent M write access to everything you own.",
     `Open “Select repositories” and pick ${repos.map((r) => `“${r}”`).join(" and ")} — nothing else.`,
-    "Leave the permissions as they are (Contents: read and write, Issues: read and write, Actions: read and write, " +
-      "Metadata: read), scroll down and press “Generate token”.",
+    `Leave the permissions as they are (${permissionLabels()}), scroll down and press “Generate token”.`,
     "Copy the token GitHub now shows — it starts with github_pat_ and is shown only once.",
   ];
 }
