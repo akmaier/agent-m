@@ -1,5 +1,5 @@
 # Module: MOD-dashboard-app
-# Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS
+# Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; EVERY STEP EXPLAINS ITSELF; UC-042
 # Level: component
 """SPEC §7 THE SHARED PAGES ORIGIN IS DISCLOSED — stated before anything is stored.
 
@@ -79,3 +79,39 @@ class PseudonymisationOffDisclosure(unittest.TestCase):
     def test_the_page_shows_the_notice_before_saving(self):
         app = dashboard_text()
         self.assertLess(app.index("pseudonymisationOffNotice("), app.index('id="pseudo-save"'))
+
+
+# Guards: EVERY STEP EXPLAINS ITSELF; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; UC-042
+class PseudonymisationExplained(unittest.TestCase):
+    """The folded explanation of the product setting *Pseudonymisation* (UC-042): what the setting does since the SPEC of
+    2026-09-30 — report data from mails reaches the product only as a participant's rewriting that mentions no person and
+    keeps its technical content, checked by three LLMs of three other models — and no longer stand-ins (surrogates were
+    withdrawn the same day)."""
+
+    STALE = re.compile(r"stand-?ins?\b|surrogat", re.I)
+
+    def test_the_explanation_names_the_rewriting_without_persons(self):
+        e = js("return settingsView.PSEUDONYMISATION_EXPLANATION ?? null;")
+        self.assertIsInstance(e, str, "settings-view.mjs exports the explanation as one text")
+        low = e.lower()
+        self.assertIn("rewriting", low)
+        self.assertIn("mentions no person", low)
+        self.assertIn("technical content", low)
+        self.assertIn("three", low)
+        self.assertIn("different models", low)
+        self.assertIn("default", low, "on unless the product switches it off")
+        self.assertIn("protected, non-public", low)
+        self.assertIsNone(self.STALE.search(e), "no stand-ins: surrogates are withdrawn")
+
+    def test_the_dashboard_says_neither_stand_in_nor_surrogate(self):
+        hit = self.STALE.search(dashboard_text())
+        self.assertIsNone(hit, f"the dashboard still says {hit.group(0)!r}" if hit else "")
+
+    def test_the_setting_shows_that_explanation(self):
+        app = dashboard_text()
+        start, end = app.index("<h4>Pseudonymisation"), app.index("<h4>Collaborators")
+        section = app[start:end]
+        explain = re.search(r'<details class="explain"><summary>What is this\?</summary><div>(.*?)</div></details>', section, re.S)
+        self.assertIsNotNone(explain, "the setting has a folded explanation")
+        self.assertEqual(explain.group(1).strip(), "${h(PSEUDONYMISATION_EXPLANATION)}",
+                         "the fold shows the one exported text, not a second copy of it")
