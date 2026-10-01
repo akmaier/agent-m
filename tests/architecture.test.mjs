@@ -459,7 +459,7 @@ test("the component diagram — computed from uses and provides; an interface no
 test("the dashboard has an Architecture tab that lists, reviews, accepts and edits ARC and MOD files like use cases", () => {
   const html = readFileSync(new URL("../docs/index.html", import.meta.url), "utf8");
   assert.match(html, /<a href="#arc" role="tab" id="tab-arc">Architecture<\/a>/);
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
   assert.match(app, /paths\(ARCHITECTURE_FILE\)/, "the files are read by the core's pattern");
   assert.deepEqual(archPaths.concat(["docs/architecture/README.md", "docs/architecture/ARC-1-x.md", "docs/use-cases/UC-001-x.md",
     "docs/architecture/sub/MOD-x.md"]).filter((p) => ARCHITECTURE_FILE.test(p)), archPaths, "docs/architecture/ARC-<nnn>-<slug>.md and MOD-<slug>.md only");

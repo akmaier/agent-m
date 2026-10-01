@@ -1,6 +1,6 @@
 // The review page — every open file of one area on one page, and one click that accepts everything it showed. Deterministic, no
 // network: the core (docs/assets/review-core.mjs) on the fixture product of tests/fixtures/architecture, and the real app
-// (docs/assets/review-app.mjs) in tests/app-harness.mjs against a GitHub API mock that counts every request and takes commits.
+// (docs/assets/dashboard-app.mjs) in tests/app-harness.mjs against a GitHub API mock that counts every request and takes commits.
 //
 // SPEC §10 SEVERAL FILES ARE ACCEPTED IN ONE CLICK (extended 2026-10-01, queue 2026-10-01c) · AN APPROVAL NAMES THE EXACT TEXT ·
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT · THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK · EVERY STEP EXPLAINS

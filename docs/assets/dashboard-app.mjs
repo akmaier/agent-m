@@ -1,4 +1,4 @@
-// Review dashboard — UI over review-core.mjs. SPEC §10.
+// Dashboard — the browser runtime's composition root: the page over review-core.mjs. SPEC §10.
 //
 // Reads one pinned commit of the product — on GitHub (two API calls, then immutable raw files) or on a
 // GitLab server (its REST API v4, at the same pinned commit) — and renders use cases and SPEC change

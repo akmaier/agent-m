@@ -1,4 +1,4 @@
-// A browser for docs/assets/review-app.mjs under node — used by tests/load-per-view.test.mjs and tests/review-page.test.mjs, no
+// A browser for docs/assets/dashboard-app.mjs under node — used by tests/load-per-view.test.mjs and tests/review-page.test.mjs, no
 // test of its own.
 //
 // The app is the real module, imported fresh for every page load. Around it: a DOM that keeps what the app writes into its
@@ -207,7 +207,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   g.matchMedia = () => ({ matches: false });
   const start = server.requests.length;
   loads += 1;
-  await import(new URL(`review-app.mjs?load=${loads}`, assets));
+  await import(new URL(`dashboard-app.mjs?load=${loads}`, assets));
   await settle(server);
   const page = {
     main: () => doc.getElementById("main").innerHTML,

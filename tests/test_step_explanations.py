@@ -11,7 +11,7 @@ from jsrun import ASSETS, js
 
 class StepExplanations(unittest.TestCase):
     def test_the_app_renders_steps_only_through_stepHtml(self):
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
         self.assertNotRegex(app, r'class="step"', "a step written by hand can skip its explanation")
         self.assertGreaterEqual(len(re.findall(r"\bstepHtml\(", app)), 3, "Step A, B and C of UC-001")
 

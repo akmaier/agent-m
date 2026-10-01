@@ -16,7 +16,7 @@ class SettingsDisclosure(unittest.TestCase):
         self.assertEqual(js("return [core.canStore(false), core.canStore(true)];"), [False, True])
 
     def test_settings_view_shows_the_notice_before_the_input(self):
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
         m = re.search(r"function viewSettings\(.*?\n}\n", app, re.S)
         self.assertIsNotNone(m, "viewSettings missing")
         body = m.group(0)
@@ -44,7 +44,7 @@ class ExportDisclosure(unittest.TestCase):
 
     def test_a_forgotten_passphrase_is_stated_before_saving(self):
         self.assertIn("cannot be recovered", js("return core.PASSPHRASE_NOTICE;"))
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
         view = re.search(r"function viewSettings\(.*?\n}\n", app, re.S).group(0)
         self.assertLess(view.index("PASSPHRASE_NOTICE"), view.index('id="export-go"'))
         self.assertLess(view.index("exportNotice("), view.index('id="export-go"'))
@@ -66,5 +66,5 @@ class PseudonymisationOffDisclosure(unittest.TestCase):
         self.assertIn("will be published", n)
 
     def test_the_page_shows_the_notice_before_saving(self):
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
         self.assertLess(app.index("pseudonymisationOffNotice("), app.index('id="pseudo-save"'))

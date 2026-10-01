@@ -117,12 +117,12 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertEqual(b[1], "", "counter-proof: far from expiry, no banner")
         self.assertIn("GitHub token", b[2])
         self.assertIn("Renew", b[2])
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
         route = re.search(r"async function route\(\).*?\n}\n", app, re.S).group(0)
         self.assertIn("tokenBannerHtml(", route, "the banner is added in route(), which renders every view")
 
     def test_storing_a_token_asks_for_its_expiry(self):
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
         for fn in ("viewSettings", "storeKeyStep"):
             body = re.search(rf"function {fn}\(.*?\n}}\n", app, re.S).group(0)
             self.assertRegex(body, r'<input type="date"[^>]*value="\$\{h\(defaultExpiry\(\)\)\}"', fn)

@@ -181,7 +181,7 @@ test("fetchText reads with GET only; the GitHub token goes only to GitHub's API 
 });
 
 test("the app never calls fetch directly — every request goes through fetchText", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
   const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
   assert.doesNotMatch(app.replace(/fetchText\(/g, ""), FORBIDDEN);
   // counter-proof: access is caught, the word in an explanation is not
@@ -406,7 +406,7 @@ test("UC-001 5a: a refused write adds nothing to the list", async () => {
 });
 
 test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
-  for (const f of ["review-app.mjs", "review-core.mjs", "settings-store.mjs"]) {
+  for (const f of ["dashboard-app.mjs", "review-core.mjs", "settings-store.mjs"]) {
     const r = spawnSync(process.execPath, ["--check", new URL(`../docs/assets/${f}`, import.meta.url).pathname]);
     assert.equal(r.status, 0, `${f}: ${r.stderr}`);
   }
@@ -754,7 +754,7 @@ test("collaborators are saved by one commit of docs/collaborators.md, on a click
 });
 
 test("the settings export is saved as a file only — never committed, fetched or put into an address", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
   const body = (src) => (src.match(/async function saveExport\([\s\S]*?\n}\n/) || [""])[0];
   const LEAK = /commitFiles|fetchText|location|data:|encodeURIComponent|URLSearchParams/;
   const b = body(app);
@@ -768,7 +768,7 @@ test("the settings export is saved as a file only — never committed, fetched o
 // ---------------------------------------------------------------- the use-case key is `area` (was `stage`)
 
 test("the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
   const STAGE = /\bstages?\b/i;
   assert.doesNotMatch(app, STAGE);
   assert.match(app, /fields\.area\b/);
@@ -779,7 +779,7 @@ test("the dashboard reads the use-case key `area` and says Area — `stage` is u
 });
 
 test("status 'approved' is described truly for both routes — the dashboard's own commit and the workflow", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
   const line = app.match(/^\s*approved: \["approved", "([^"]+)"\],$/m)?.[1];
   assert.ok(line, "the label of status approved");
   assert.doesNotMatch(line, /^Approval committed — the workflow writes it into the SPEC$/);
@@ -1119,7 +1119,7 @@ test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer 
     assert.match(r.note, /Maintainer/);
   }
   assert.equal(gitlabRole(30).role, "Developer");
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
   assert.match(app, /gitlabRole\(/, "the settings page takes the role check from the core");
   assert.doesNotMatch(app, /role Developer|role <em>Developer<\/em>|>= 30/, "the app names no Developer token any more");
 });
@@ -1345,7 +1345,7 @@ test("A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT — GitLab: its com
 });
 
 test("the dashboard shows the last accepted text above a changed use case, with the core's diff", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
   const view = app.match(/async function viewUseCase\([\s\S]*?\n}\n/)[0];
   assert.ok(view.includes("accepted-diff"), "the panel is part of the use-case view");
   assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "above the text");
