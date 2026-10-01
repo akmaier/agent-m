@@ -23,6 +23,7 @@ realises:
   - A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF
   - UC-010
   - UC-011
+  - UC-024
   - UC-034
   - UC-036
   - UC-043
