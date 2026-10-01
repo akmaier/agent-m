@@ -1,0 +1,94 @@
+// The review page in the core — which files of one area a review page shows, and which it counts (docs/assets/review-core.mjs
+// reviewPage). Deterministic, no network. Run: node --test tests/*.test.mjs
+//
+// Module: MOD-review-core
+// Guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-008; UC-022; UC-023
+// Level: unit
+//
+// SPEC §10 SEVERAL FILES ARE ACCEPTED IN ONE CLICK (extended 2026-10-01, queue 2026-10-01c) · AN APPROVAL NAMES THE EXACT TEXT;
+// §11 ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS · AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST (UC-008 3e,
+// UC-022 step 10, UC-023 step 5). Moved out of tests/review-page.test.mjs, unchanged, when it was split by module; the page
+// itself is checked there. The one commit that accepts a review page's files is the dashboard's write, checked in
+// tests/review-core.d/dashboard-writes.test.mjs (ITM-124).
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import * as core from "../docs/assets/review-core.mjs";
+import { parseArchitecture, reviewedId } from "../docs/assets/artifacts.mjs";
+
+const { gitBlobSha, recordText, useCaseRecord, reviewedRecord, approvalPath, parseRecord,
+  architecturePrerequisites, deriveReviewedStatus, deriveUseCaseStatus } = core;
+
+// ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records
+
+const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
+const base = {};
+(function walk(dir) {
+  for (const n of readdirSync(dir)) {
+    const p = join(dir, n);
+    if (statSync(p).isDirectory()) walk(p); else base[relative(FIX, p).split("\\").join("/")] = readFileSync(p, "utf8");
+  }
+})(FIX);
+const UC1 = "docs/use-cases/UC-001-read-a-file.md", UC2 = "docs/use-cases/UC-002-show-the-status.md";
+const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";
+const REVIEW = "docs/architecture/MOD-review.md", PAGE = "docs/architecture/MOD-page.md";
+const ARCH = [ARC, PAGE, READER, REVIEW];
+
+// The texts accepted earlier, which the server still holds by their blob SHA.
+const EARLIER = [];
+// UC-001 and ARC-001 accepted; UC-002 and MOD-reader changed since acceptance; MOD-page and MOD-review never accepted.
+// MOD-review realises UC-002, which is not accepted in its current text: it cannot be accepted (ARCHITECTURE RESTS ON
+// ACCEPTED ARTIFACTS). MOD-page names nothing; MOD-reader names RULE ONE and UC-001, both accepted.
+async function product() {
+  const f = { ...base, "docs/use-cases/README.md": "# Use cases\n", "docs/approvals/README.md": "# Approval records\n" };
+  const rec = async (id, path, text) => {
+    const b = await gitBlobSha(text);
+    if (text !== f[path]) EARLIER.push(text);
+    f[approvalPath(id, b)] = recordText(path.includes("/use-cases/") ? useCaseRecord(path, b) : reviewedRecord(path, b));
+  };
+  await rec("UC-001", UC1, f[UC1]);
+  await rec("UC-002", UC2, f[UC2].replace("Show the status", "Show a status"));
+  await rec("ARC-001", ARC, f[ARC]);
+  await rec("MOD-reader", READER, f[READER].replace("Reads files at", "Reads a file at"));
+  return f;
+}
+const records = (repo) => Object.entries(repo).filter(([p]) => p.startsWith("docs/approvals/") && !p.endsWith("README.md"))
+  .map(([p, t]) => ({ ...parseRecord(t), _path: p }));
+
+// ---------------------------------------------------------------- the core: which files a review page counts
+
+// The architecture files as the page holds them: the item it would accept, the status, what the file waits for.
+async function archEntries(repo) {
+  const recs = records(repo);
+  const useCases = await Promise.all([UC1, UC2].map(async (p) => {
+    const blob = await gitBlobSha(repo[p]);
+    return { id: reviewedId(p), path: p, blob, status: deriveUseCaseStatus(p, blob, recs),
+      record: recs.find((r) => r.kind === "use-case" && r.file === p && r.blob === blob)?._path ?? null };
+  }));
+  return Promise.all(ARCH.map(async (path) => {
+    const arch = parseArchitecture(path, repo[path]), blob = await gitBlobSha(repo[path]);
+    const pre = architecturePrerequisites({ arch, specText: repo["SPEC.md"], useCases });
+    const status = deriveReviewedStatus(path, blob, recs), changed = status !== "accepted" && core.recordsForId(recs, arch.id).length > 0;
+    return { item: { kind: arch.kind, id: arch.id, path, blob, requires: pre.useCases, changed, ...(changed ? { impactShown: true } : {}) },
+      status, open: pre.open };
+  }));
+}
+test("reviewPage: every file that is not accepted is shown; those that can be accepted are counted; one that waits is named with what is open", async () => {
+  const page = core.reviewPage(await archEntries(await product()));
+  assert.deepEqual(page.shown.map((f) => f.item.id), ["MOD-page", "MOD-reader", "MOD-review"], "in the page's order; ARC-001 is accepted");
+  assert.deepEqual(page.items.map((i) => i.id), ["MOD-page", "MOD-reader"]);
+  assert.deepEqual(page.blocked.map((b) => [b.label, b.open.map((o) => o.name)]), [["MOD-review", ["UC-002"]]]);
+  // A file the page could not show as it must be — here a change without its impact list — is shown, not counted, and named.
+  const entries = await archEntries(await product());
+  const noImpact = entries.map((e) => (e.item.id === "MOD-reader" ? { ...e, item: { ...e.item, impactShown: false } } : e));
+  const p2 = core.reviewPage(noImpact);
+  assert.deepEqual(p2.items.map((i) => i.id), ["MOD-page"]);
+  assert.deepEqual(p2.blocked.map((b) => b.label), ["MOD-reader", "MOD-review"]);
+  assert.match(p2.blocked[0].problem, /impact list/);
+  const p3 = core.reviewPage(entries.map((e) => (e.item.id === "MOD-page" ? { ...e, problem: "the text read differs from the tree" } : e)));
+  assert.deepEqual(p3.items.map((i) => i.id), ["MOD-reader"]);
+  assert.deepEqual(p3.blocked.map((b) => [b.label, b.problem]), [["MOD-page", "the text read differs from the tree"], ["MOD-review", null]]);
+});

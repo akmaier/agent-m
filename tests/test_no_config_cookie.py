@@ -1,3 +1,6 @@
+# Module: MOD-settings-store
+# Guards: CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
+# Level: unit
 """SPEC §7 CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE."""
 import re
 import unittest

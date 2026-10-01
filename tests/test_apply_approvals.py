@@ -1,3 +1,6 @@
+# Module: MOD-review-core
+# Guards: A STALE APPROVAL IS NOT APPLIED; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL
+# Level: unit
 """tools/apply_approvals.py — the workflow half of SPEC §10. Deterministic, no network.
 
 Guards AN ACCEPTED SPEC CHANGE IS WRITTEN BY A WORKFLOW and A STALE APPROVAL IS NOT APPLIED.
@@ -16,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
+import apply_approvals  # noqa: E402
 import apply_approvals as ap  # noqa: E402
 from jsrun import js  # noqa: E402
 
@@ -193,6 +197,24 @@ class DashboardCommitTests(unittest.TestCase):
         spec, dec = self.a.spec(), self.a.decisions()
         rc, report = ap.apply(self.a.root)
         self.assertEqual((rc, report, self.a.spec(), self.a.decisions()), (0, "", spec, dec))
+
+
+ARC_FILE = "docs/architecture/ARC-001-static-client.md"
+MOD_FILE = "docs/architecture/MOD-reader.md"
+
+
+class ApplierPassesOverArchitectureRecords(unittest.TestCase):
+    """Moved from tests/test_approval_records.py (MOD-artifacts) when it was split by module: the applier is MOD-review-core."""
+    def test_the_applier_passes_over_architecture_records(self):
+        # tools/apply_approvals.py writes SPEC changes only; an architecture record must neither be applied nor refused.
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "docs" / "approvals").mkdir(parents=True)
+            (Path(d) / "docs" / "approvals" / ("ARC-001-" + "a" * 12 + ".md")).write_text(
+                "kind: architecture-decision\nfile: " + ARC_FILE + "\nblob: " + "a" * 40 + "\n", encoding="utf-8")
+            (Path(d) / "docs" / "approvals" / ("MOD-reader-" + "b" * 12 + ".md")).write_text(
+                "kind: module\nfile: " + MOD_FILE + "\nblob: " + "b" * 40 + "\n", encoding="utf-8")
+            self.assertEqual(apply_approvals.apply(Path(d)), (0, ""))
 
 
 if __name__ == "__main__":

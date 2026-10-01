@@ -1,17 +1,21 @@
 // Status from the names in the tree, and file texts kept by blob SHA — review-core.mjs statusByNames, specStatusByNames,
-// readByBlob; settings-store.mjs createFileTexts. Deterministic, no network.
+// readByBlob, readBlob. Deterministic, no network. Run: node --test tests/*.test.mjs
+//
+// Module: MOD-review-core
+// Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT
+// Level: unit
 //
 // SPEC §10 STATUS IS DERIVED FROM THE RECORDS: a record is named approvalPath(id, blob), so the tree's names say whether a
 // record exists for a file's current blob. Checked here: the status from the names equals the status from reading every
 // record, on a fixture with renamed files, several records, a record named by no known form, and SPEC entries in every state.
 // AN APPROVAL NAMES THE EXACT TEXT: where the record is read, its content decides — a name its content contradicts counts
 // for nothing.
+// Where the texts are kept — settings-store.mjs createFileTexts — is checked in tests/file-texts.test.mjs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as core from "../docs/assets/review-core.mjs";
-import * as settings from "../docs/assets/settings-store.mjs";
-import { fakeCaches } from "./app-harness.mjs";
+import * as artifacts from "../docs/assets/artifacts.mjs";
 
 const { gitBlobSha, recordText, useCaseRecord, reviewedRecord, specRecord, approvalPath, parseRecord, deriveReviewedStatus,
   deriveSpecStatus } = core;
@@ -77,7 +81,7 @@ test("STATUS IS DERIVED FROM THE RECORDS — from the names, equal to reading ev
       if (truth === "accepted") assert.equal(fx.records[byNames.record] !== undefined, true, `${path}: the record accepting it is named`);
       if (!unknown) {
         // An accepted file's name, or no name at all, decides without reading; otherwise only the records of its identifier are read.
-        const id = core.reviewedId(path);
+        const id = artifacts.reviewedId(path);
         if (byNames.byName) assert.deepEqual(r.read, [], path);
         else assert.ok(r.read.every((p) => p.startsWith(`docs/approvals/${id}-`)), `${path}: ${r.read}`);
       }
@@ -143,14 +147,12 @@ test("STATUS IS DERIVED FROM THE RECORDS — SPEC entries: decided ones read no 
     if (en.nr >= 3) assert.deepEqual(r.read, [], `entry ${en.nr}: no record named for it, or decided`);
   }
 });
-
 // ---------------------------------------------------------------- file texts by blob SHA
 
 function memoryCache(init = {}) {
   const m = new Map(Object.entries(init)), log = [];
   return { m, log, get: async (k) => { log.push(`get ${k}`); return m.get(k) ?? null; }, put: async (k, t) => { log.push(`put ${k}`); m.set(k, t); } };
 }
-
 test("readByBlob: a kept text that hashes to the SHA is used without reading; a text read is kept by its SHA", async () => {
   const text = "# UC-001\n\nä ✓\n", sha = await gitBlobSha(text);
   let reads = 0;
@@ -197,29 +199,4 @@ test("readBlob keeps the accepted text of a record by its blob SHA", async () =>
     assert.equal(await core.readBlob({ repo: "a/b", blob: sha, cache: c, cacheKey: `github.com/a/b/${sha}` }), text);
   } finally { globalThis.fetch = real; }
   assert.equal(calls.length, 1);
-});
-
-test("the file texts live in Cache Storage under their key; a clear removes them; without Cache Storage nothing is kept", async () => {
-  const caches = fakeCaches(), kept = settings.createFileTexts(caches);
-  await kept.put("github.com/a/b/" + "a".repeat(40), "text ä\n");
-  assert.equal(await kept.get("github.com/a/b/" + "a".repeat(40)), "text ä\n");
-  assert.deepEqual([...caches.stores.keys()], [settings.FILE_TEXTS]);
-  assert.ok(!settings.FILE_TEXTS.startsWith(settings.PREFIX), "not a localStorage key of the settings");
-  assert.equal(await kept.clear(), true);
-  assert.equal(caches.stores.size, 0, "A CLEAR IS A REAL CLEAR");
-  assert.equal(await kept.get("github.com/a/b/" + "a".repeat(40)), null);
-  // Counter-proof: a Cache Storage that keeps its store after delete is reported.
-  const stuck = { ...fakeCaches(), delete: async () => false, has: async () => true };
-  assert.equal(await settings.createFileTexts(stuck).clear(), false);
-  // No Cache Storage, or one that refuses: nothing kept, nothing thrown.
-  const none = settings.createFileTexts(null);
-  await none.put("k", "x");
-  assert.equal(await none.get("k"), null);
-  assert.equal(await none.clear(), true);
-  const refusing = { open: async () => { throw new Error("SecurityError"); }, delete: async () => { throw new Error("SecurityError"); },
-    has: async () => { throw new Error("SecurityError"); } };
-  const r = settings.createFileTexts(refusing);
-  await r.put("k", "x");
-  assert.equal(await r.get("k"), null);
-  assert.equal(await r.clear(), true);
 });

@@ -1,0 +1,68 @@
+{
+  "UC-001-complete.md": [],
+  "UC-002-no-actors-section.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing section '## Actors'"]
+  ],
+  "UC-003-no-precondition.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing section '## Precondition'"]
+  ],
+  "UC-004-no-main-flow.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing section '## Main flow'"]
+  ],
+  "UC-005-no-alternative-flows.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing section '## Alternative flows'"]
+  ],
+  "UC-006-no-postcondition.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing section '## Postcondition'"]
+  ],
+  "UC-007-no-actor.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "actors must be a non-empty list"]
+  ],
+  "UC-008-realises-nothing.md": [
+    ["A USE CASE REALISES NAMED REQUIREMENTS", "realises must be a non-empty list"]
+  ],
+  "UC-009-unknown-name.md": [
+    ["A USE CASE REALISES NAMED REQUIREMENTS", "realises \"EXPORT AS PDF\" matches no requirement"]
+  ],
+  "UC-010-not-a-name.md": [
+    ["A USE CASE REALISES NAMED REQUIREMENTS", "realises: \"export as pdf\" is not a requirement name"],
+    ["A USE CASE REALISES NAMED REQUIREMENTS", "realises: \"UC-003\" is not a requirement name"]
+  ],
+  "UC-011-no-mermaid.md": [
+    ["DIAGRAMS ARE MERMAID IN MARKDOWN", "no Mermaid diagram"]
+  ],
+  "UC-012-mermaid-only-mentioned.md": [
+    ["DIAGRAMS ARE MERMAID IN MARKDOWN", "no Mermaid diagram"]
+  ],
+  "UC-013-image-diagram.md": [
+    ["DIAGRAMS ARE MERMAID IN MARKDOWN", "no Mermaid diagram"],
+    ["DIAGRAMS ARE MERMAID IN MARKDOWN", "diagram stored as an image file (flow.png)"]
+  ],
+  "UC-014-image-with-title.md": [
+    ["DIAGRAMS ARE MERMAID IN MARKDOWN", "diagram stored as an image file (diagrams/flow.PNG)"]
+  ],
+  "UC-015-image-as-html.md": [
+    ["DIAGRAMS ARE MERMAID IN MARKDOWN", "diagram stored as an image file (diagrams/flow.svg?raw=true)"]
+  ],
+  "UC-016-id-mismatch.md": [
+    ["ONE USE CASE, ONE FILE", "id \"UC-017\" does not match the file name (UC-016)"]
+  ],
+  "UC-1-short-number.md": [
+    ["ONE USE CASE, ONE FILE", "file name is not UC-<nnn>-<slug>.md"]
+  ],
+  "UC-018-no-front-matter.md": [
+    ["ONE USE CASE, ONE FILE", "no front matter"]
+  ],
+  "UC-019-no-title.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing title"]
+  ],
+  "UC-020-old-key-stage.md": [
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing area"],
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "key 'stage' is now 'area'"]
+  ],
+  "UC-021-several-faults.md": [
+    ["A USE CASE REALISES NAMED REQUIREMENTS", "realises \"EXPORT AS XML\" matches no requirement"],
+    ["A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION", "missing section '## Postcondition'"],
+    ["DIAGRAMS ARE MERMAID IN MARKDOWN", "no Mermaid diagram"]
+  ]
+}

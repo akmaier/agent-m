@@ -1,10 +1,11 @@
-// A browser for docs/assets/review-app.mjs under node — used by tests/load-per-view.test.mjs and tests/review-page.test.mjs, no
-// test of its own.
+// A browser for docs/assets/dashboard-app.mjs under node — used by the tests that load the dashboard (load-per-view, review-page,
+// dashboard-shell, architecture), no test of its own.
 //
 // The app is the real module, imported fresh for every page load. Around it: a DOM that keeps what the app writes into its
 // elements, localStorage, the Cache Storage (shared between page loads when the test says so), and GitHub's REST API served
 // from a set of files — every request counted by what it reads. The git-data endpoints a commit uses (ref, commit, tree, update
-// of the ref, fast-forward only) are served too, and a commit changes the files. A button the app wired is found by its
+// of the ref, fast-forward only) are served too, and a commit changes the files; a test adds the servers its view talks to as
+// request handlers of its own. A button the app wired is found by its
 // attribute and clicked with an event the test gives — trusted or not. No request leaves this process.
 
 import { gitBlobSha } from "../docs/assets/review-core.mjs";
@@ -14,8 +15,10 @@ export const REPO = "akmaier/agent-m";
 export const TOKEN = "github_pat_HARNESS0123456789abcdefghij";
 
 // files: { path: text } — the repository at its default branch. history: texts of earlier commits, readable by their blob SHA.
-// dates: { path: ISO date } — when a record was committed.
-export async function repoServer({ files: given, history = [], dates = {}, repo = REPO }) {
+// dates: { path: ISO date } — when a record was committed. handlers: a test's own fakes, asked first and in order —
+// (url: URL, init) -> Response, or nothing for a request the handler does not answer; each request it answers is counted as
+// `handler <METHOD> <url>`. So a view's tests bring the servers that view talks to.
+export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [] }) {
   const files = { ...given };
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
   const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
@@ -33,6 +36,10 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
     pending += 1;
     try {
       await new Promise((r) => setTimeout(r, 0));
+      for (const handle of handlers) {
+        const answer = await handle(url, { ...init, method });
+        if (answer) { what = `handler ${method} ${url.origin}${p}${url.search}`; return answer; }
+      }
       // Without a token a public repository's files come from GitHub's raw host, at the commit the page pinned.
       const rawFile = url.origin === "https://raw.githubusercontent.com" && method === "GET"
         && new RegExp(`^/${repo}/[0-9a-f]{40}/(.+)$`).exec(p);
@@ -182,17 +189,19 @@ async function settle(server) {
 let loads = 0;
 
 // One page load of the dashboard at `hash`, with a stored GitHub token. caches: the browser's Cache Storage, or null for a
-// browser without one. assets: the folder the app is served from (another checkout's, to measure it).
+// browser without one. assets: the folder the app is served from (another checkout's, to measure it). search: the page's query,
+// such as `?product=<address>` for a GitLab product (empty: the instance).
 // -> { main() -> the HTML of <main>, el(id) -> the HTML of another element, requests since the load began,
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
-export async function openDashboard({ server, hash = "", caches = null, token = TOKEN,
+export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "",
   assets = new URL("../docs/assets/", import.meta.url) }) {
   const purify = (await import(new URL("vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
   const els = new Map();
+  const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },
-    querySelectorAll: () => [], createElement: () => element(""), body: { contains: () => true } };
-  const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search: "", hash, origin: "https://akmaier.github.io",
+    querySelectorAll: () => [], createElement: () => element(""), body: { contains: () => true }, head };
+  const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search, hash, origin: "https://akmaier.github.io",
     get href() { return `https://akmaier.github.io/agent-m/${this.search}${this.hash}`; } };
   const listeners = [];
   const g = globalThis;
@@ -207,11 +216,12 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   g.matchMedia = () => ({ matches: false });
   const start = server.requests.length;
   loads += 1;
-  await import(new URL(`review-app.mjs?load=${loads}`, assets));
+  await import(new URL(`dashboard-app.mjs?load=${loads}`, assets));
   await settle(server);
   const page = {
     main: () => doc.getElementById("main").innerHTML,
     el: (id) => doc.getElementById(id).innerHTML, // a part the app fills after rendering, such as #impact
+    stylesheets: () => head.children.map((l) => l.href), // the stylesheets the views linked, beside style.css
     requests: server.requests.slice(start),
     async go(next) {
       const from = server.requests.length;

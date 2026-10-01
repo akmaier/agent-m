@@ -1,3 +1,5 @@
+# Guards: THE PAGES ROOT IS DOCS; ONE REVIEW LAYOUT FOR EVERY PRODUCT; NO SERVER
+# Level: unit
 """SPEC §10 THE PAGES ROOT IS DOCS · ONE REVIEW LAYOUT FOR EVERY PRODUCT · §0 NO SERVER."""
 import re
 import unittest
@@ -21,7 +23,9 @@ class PagesLayout(unittest.TestCase):
 
     def test_site_code_calls_no_foreign_origin(self):
         found = {}
-        for f in list(DOCS.glob("*.html")) + list((DOCS / "assets").glob("*.mjs")) + list((DOCS / "assets").glob("*.css")):
+        # Every module file of the site, the dashboard's views under assets/dashboard/ included (vendored libraries excepted).
+        own = [f for f in (DOCS / "assets").rglob("*.mjs") if "vendor" not in f.relative_to(DOCS / "assets").parts]
+        for f in list(DOCS.glob("*.html")) + own + list((DOCS / "assets").glob("*.css")):
             o = foreign_origins(f.read_text(encoding="utf-8"))
             if o:
                 found[f.name] = sorted(o)

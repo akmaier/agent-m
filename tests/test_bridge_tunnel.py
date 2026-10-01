@@ -1,3 +1,6 @@
+# Module: MOD-bridge-tunnel
+# Guards: A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; UC-011
+# Level: unit
 """SPEC §6 A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK — the dashboard's side (UC-011 1c).
 
 What this file checks: the reverse-tunnel command the dashboard writes binds the jump host's end to 127.0.0.1
@@ -20,12 +23,12 @@ JUMP = {"host": "jump.example.org", "user": "agentm", "portFrom": 20001, "portTo
 
 
 def commands(jump=JUMP, bridge_port=8765):
-    return js(f"const j = {json.dumps(jump)}; const s = core.addRemoteSession(j, [], {{ name: 'lab-pc', bridgePort: {bridge_port} }})[0];"
-              "return core.tunnelCommands(j, s);")
+    return js(f"const j = {json.dumps(jump)}; const s = bridgeTunnel.addRemoteSession(j, [], {{ name: 'lab-pc', bridgePort: {bridge_port} }})[0];"
+              "return bridgeTunnel.tunnelCommands(j, s);")
 
 
 def problems(cmd: str) -> list:
-    return js(f"return core.tunnelBindProblems({json.dumps(cmd)});")
+    return js(f"return bridgeTunnel.tunnelBindProblems({json.dumps(cmd)});")
 
 
 class ReverseTunnelOnLoopback(unittest.TestCase):

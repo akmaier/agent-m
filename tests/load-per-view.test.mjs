@@ -1,6 +1,10 @@
 // Load per view — the dashboard reads the commit and the tree on a page load, and each view only what it shows; a file's text
 // is kept in the browser by its blob SHA and not read again while that blob is unchanged. Deterministic, no network: the real
-// app (docs/assets/review-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that counts every request.
+// app (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that counts every request.
+//
+// Module: MOD-dashboard-app
+// Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A CLEAR IS A REAL CLEAR
+// Level: component
 //
 // Why: on 2026-10-01 the PO's account used up its 5,000 requests per hour. With a token, every page load read every use case,
 // every architecture file, every approval record and every queue file through the contents API — about 450 requests.
@@ -15,6 +19,14 @@ import { fileURLToPath } from "node:url";
 import { gitBlobSha, recordText, useCaseRecord, reviewedRecord, specRecord, extractSection, sectionText, approvalPath }
   from "../docs/assets/review-core.mjs";
 import { repoServer, fakeCaches, openDashboard } from "./app-harness.mjs";
+
+// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
+// under docs/assets/dashboard/ — what a test that read the one app file reads now.
+const dashboardText = () => {
+  const assets = new URL("../docs/assets/", import.meta.url);
+  const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
+  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
+};
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues
 
@@ -194,7 +206,7 @@ test("counter-proof: a record named for the current text whose content names ano
 });
 
 test("Clear everything also removes the kept file texts (A CLEAR IS A REAL CLEAR)", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText();
   const handler = app.match(/getElementById\("token-clear"\)\.addEventListener\("click", [\s\S]*?\n {2}\}\);\n/)?.[0] ?? "";
   assert.match(handler, /store\.clear\(\)/);
   assert.match(handler, /kept\.clear\(\)/, "the texts kept by blob SHA go with the settings");

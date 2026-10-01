@@ -1,8 +1,13 @@
+# Module: MOD-dashboard-app
+# Guards: EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; THE DASHBOARD WRITES THE TUNNEL COMMANDS; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; UC-042
+# Level: component
 """SPEC §7 EVERY SETTING IS REACHED FROM ONE PAGE · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS
-SHOWN · A STORED SECRET IS HIDDEN UNTIL SHOWN · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE ·
-A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY (UC-042).
+SHOWN · A STORED SECRET IS HIDDEN UNTIL SHOWN · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE (UC-042).
+A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: changing a product setting commits to the product's repository
+(docs/assets/dashboard/writes.mjs savePseudonymisation), and the browser's store holds none — moved back here, unchanged but for
+the module the write is reached by, from tests/test_settings_in_the_core.py when the writes left the kernel (ITM-124).
 
-The browser section of the settings page is rendered by core.browserSettingsHtml; the page inserts
+The browser section of the settings page is rendered by settingsView.browserSettingsHtml; the page inserts
 that HTML as it is. So "appears on the page" is checked on the HTML the page shows.
 """
 import json
@@ -12,6 +17,13 @@ import unittest
 from jsrun import ASSETS, js
 
 STORE = ASSETS / "settings-store.mjs"
+
+
+def dashboard_text(shell: bool = True) -> str:
+    """The dashboard's own files (MOD-dashboard-app): the shell, dashboard-app.mjs, and every view and settings section under
+    docs/assets/dashboard/ — what a test that read the one app file reads now; `shell=False`: the views alone."""
+    views = sorted((ASSETS / "dashboard").rglob("*.mjs"))
+    return "\n".join(f.read_text(encoding="utf-8") for f in ([ASSETS / "dashboard-app.mjs"] if shell else []) + views)
 KEY_RE = re.compile(r"""PREFIX\s*\+\s*["']([^"']+)["']""")
 SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop"
 
@@ -26,7 +38,7 @@ def keys_without_place(store_source: str, page_html: str) -> list[str]:
 
 
 def page(entries: dict, shown=(), now="2026-09-30", state=None) -> str:
-    return js(f"return core.browserSettingsHtml({{ entries: {json.dumps(entries)}, shown: {json.dumps(list(shown))},"
+    return js(f"return settingsView.browserSettingsHtml({{ entries: {json.dumps(entries)}, shown: {json.dumps(list(shown))},"
               f" now: new Date('{now}T12:00:00Z'), tokenState: {json.dumps(state)} }});")
 
 
@@ -91,13 +103,13 @@ class SecretHiddenUntilShown(unittest.TestCase):
 
 class ExpiryWarnedInAdvance(unittest.TestCase):
     def test_default_expiry_is_the_links_90_days(self):
-        v = js("return [core.defaultExpiry(new Date('2026-09-30T08:00:00Z')),"
-               " new URL(core.tokenLinkUrl('a/agent-m')).searchParams.get('expires_in')];")
+        v = js("return [settingsView.defaultExpiry(new Date('2026-09-30T08:00:00Z')),"
+               " new URL(settingsView.tokenLinkUrl('a/agent-m')).searchParams.get('expires_in')];")
         self.assertEqual(v, ["2026-12-29", "90"])
 
     def test_warning_from_fourteen_days_before(self):
         w = js("const n = new Date('2026-09-30T12:00:00Z'); return ['2026-10-15', '2026-10-14', '2026-09-30', '2026-09-29', null]"
-               ".map((d) => core.expiryWarning(d, n));")
+               ".map((d) => settingsView.expiryWarning(d, n));")
         self.assertIsNone(w[0], "15 days before: no warning yet")
         self.assertEqual((w[1]["days"], w[1]["expired"]), (14, False))
         self.assertIn("2026-10-14", w[1]["text"])
@@ -107,9 +119,9 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertIsNone(w[4], "no date recorded: nothing to warn of")
 
     def test_the_banner_on_every_page_carries_renew(self):
-        b = js("return [core.tokenBannerHtml({ expires: '2026-10-10', now: new Date('2026-09-30T12:00:00Z') }),"
-               " core.tokenBannerHtml({ expires: '2026-12-29', now: new Date('2026-09-30T12:00:00Z') }),"
-               " core.tokenBannerHtml({ expires: null, refused: true, now: new Date('2026-09-30T12:00:00Z') })];")
+        b = js("return [settingsView.tokenBannerHtml({ expires: '2026-10-10', now: new Date('2026-09-30T12:00:00Z') }),"
+               " settingsView.tokenBannerHtml({ expires: '2026-12-29', now: new Date('2026-09-30T12:00:00Z') }),"
+               " settingsView.tokenBannerHtml({ expires: null, refused: true, now: new Date('2026-09-30T12:00:00Z') })];")
         self.assertIn("2026-10-10", b[0])
         self.assertIn("Renew", b[0])
         self.assertIn("https://github.com/settings/personal-access-tokens", b[0])
@@ -117,12 +129,12 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertEqual(b[1], "", "counter-proof: far from expiry, no banner")
         self.assertIn("GitHub token", b[2])
         self.assertIn("Renew", b[2])
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
         route = re.search(r"async function route\(\).*?\n}\n", app, re.S).group(0)
         self.assertIn("tokenBannerHtml(", route, "the banner is added in route(), which renders every view")
 
     def test_storing_a_token_asks_for_its_expiry(self):
-        app = (ASSETS / "review-app.mjs").read_text(encoding="utf-8")
+        app = dashboard_text()
         for fn in ("viewSettings", "storeKeyStep"):
             body = re.search(rf"function {fn}\(.*?\n}}\n", app, re.S).group(0)
             self.assertRegex(body, r'<input type="date"[^>]*value="\$\{h\(defaultExpiry\(\)\)\}"', fn)
@@ -132,6 +144,28 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         html = page(full_entries(), now="2026-12-20")
         self.assertIn("expires on 2026-12-29", html)
         self.assertIn("⚠", html)
+
+
+class ProductSettingsInTheRepository(unittest.TestCase):
+    def test_the_store_has_no_product_setting(self):
+        src = STORE.read_text(encoding="utf-8")
+        for word in ("pseudonym", "collaborator", "settings.md"):
+            self.assertNotIn(word, src.lower())
+        v = js("const mem = new Map(); const fake = { getItem: k => mem.has(k) ? mem.get(k) : null, setItem: (k, v) => mem.set(k, String(v)),"
+               " removeItem: k => mem.delete(k), get length() { return mem.size; }, key: i => [...mem.keys()][i] ?? null };"
+               "const calls = []; globalThis.fetch = async (u, init) => { calls.push(init.method + ' ' + new URL(u).pathname);"
+               " const ok = (o) => new Response(JSON.stringify(o)); const p = new URL(u).pathname;"
+               " if (p.endsWith('/git/ref/heads/main')) return ok({ object: { sha: 'c0' } });"
+               " if (p.endsWith('/git/commits/c0')) return ok({ tree: { sha: 't0' } });"
+               " if (p.endsWith('/git/trees')) return ok({ sha: 't1' }); if (p.endsWith('/git/commits')) return ok({ sha: 'c1' });"
+               " return ok({}); };"
+               "store.createStore(fake).setToken('github_pat_t');"
+               "await writes.savePseudonymisation({ repo: 'alice/thesis', branch: 'main', token: 'github_pat_t', authority: writes.clickAuthority({ isTrusted: true }),"
+               " current: null, currentBlob: null, off: true, acknowledged: true });"
+               "return [calls, [...mem.keys()]];")
+        calls, keys = v
+        self.assertIn("PATCH /repos/alice/thesis/git/refs/heads/main", calls, "changing a product setting commits to the product")
+        self.assertEqual(keys, ["agent-m.github-token"], "counter-proof: localStorage holds no product setting")
 
 
 GL_ADDR = "https://gitlab.example.org/grp/sub/proj"
@@ -183,36 +217,13 @@ class GitLabTokensOnThePage(unittest.TestCase):
         self.assertIn("data-clear=", body)
 
 
-class ProductSettingsInTheRepository(unittest.TestCase):
-    def test_the_store_has_no_product_setting(self):
-        src = STORE.read_text(encoding="utf-8")
-        for word in ("pseudonym", "collaborator", "settings.md"):
-            self.assertNotIn(word, src.lower())
-        v = js("const mem = new Map(); const fake = { getItem: k => mem.has(k) ? mem.get(k) : null, setItem: (k, v) => mem.set(k, String(v)),"
-               " removeItem: k => mem.delete(k), get length() { return mem.size; }, key: i => [...mem.keys()][i] ?? null };"
-               "const calls = []; globalThis.fetch = async (u, init) => { calls.push(init.method + ' ' + new URL(u).pathname);"
-               " const ok = (o) => new Response(JSON.stringify(o)); const p = new URL(u).pathname;"
-               " if (p.endsWith('/git/ref/heads/main')) return ok({ object: { sha: 'c0' } });"
-               " if (p.endsWith('/git/commits/c0')) return ok({ tree: { sha: 't0' } });"
-               " if (p.endsWith('/git/trees')) return ok({ sha: 't1' }); if (p.endsWith('/git/commits')) return ok({ sha: 'c1' });"
-               " return ok({}); };"
-               "store.createStore(fake).setToken('github_pat_t');"
-               "await core.savePseudonymisation({ repo: 'alice/thesis', branch: 'main', token: 'github_pat_t', click: { isTrusted: true },"
-               " current: null, currentBlob: null, off: true, acknowledged: true });"
-               "return [calls, [...mem.keys()]];")
-        calls, keys = v
-        self.assertIn("PATCH /repos/alice/thesis/git/refs/heads/main", calls, "changing a product setting commits to the product")
-        self.assertEqual(keys, ["agent-m.github-token"], "counter-proof: localStorage holds no product setting")
-
-
-
 JUMP = {"host": "jump.example.org", "user": "agentm", "portFrom": 20001, "portTo": 20010,
         "reverseKey": "~/.ssh/agent-m-jump", "forwardKey": "~/.ssh/id_ed25519"}
 BRIDGE_SECRET = "bridgeSECRETtoken0123456789"
 
 
 def remote_entries(jump=JUMP) -> dict:
-    return js("const j = " + json.dumps(jump) + "; const s = core.addRemoteSession(j, [], { name: 'lab-pc', bridgePort: 8765, token: '"
+    return js("const j = " + json.dumps(jump) + "; const s = bridgeTunnel.addRemoteSession(j, [], { name: 'lab-pc', bridgePort: 8765, token: '"
               + BRIDGE_SECRET + "' }); return { [store.JUMP_HOST_KEY]: JSON.stringify(j), [store.REMOTE_SESSIONS_KEY]: JSON.stringify(s) };")
 
 
