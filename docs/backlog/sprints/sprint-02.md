@@ -193,7 +193,8 @@ under *From the sprint 02 planning*:
 | ITM-133 | `writeRefusalText` and what it shows | `dashboard/review-views.mjs`; `tests/review-core.d/dashboard-app.test.mjs` | inside its module |
 | ITM-016 | adds `applyApprovals` beside `review-core.mjs` | none; `tests/test_apply_approvals.py` exists (MOD-review-core) and gains the twin comparison | inside its module |
 | ITM-147 | a new view, `dashboard/backlog-view.mjs`, and one line in ITM-129's list | the shell loads it by name from the existing `DASHBOARD` row; no other caller | inside its module |
-| ITM-027, ITM-033, ITM-034, ITM-146, ITM-014, ITM-050, ITM-125, ITM-128, ITM-131, ITM-132, ITM-134 | new files, or a text, or tests only | no caller outside the item's modules | — |
+| ITM-125 | the GitHub token's grant sentence in `settingKeys` | `tests/dashboard-review-flows.test.mjs` asserts the sentence word for word; `tests/test_settings_disclosure.py`, which the item names, carries MOD-dashboard-app — both MOD-dashboard-app | **corrected at the sprint 02 review:** MOD-dashboard-app added for those two test files; no code file of it changes |
+| ITM-027, ITM-033, ITM-034, ITM-146, ITM-014, ITM-050, ITM-128, ITM-131, ITM-132, ITM-134 | new files, or a text, or tests only | no caller outside the item's modules | — |
 
 Checks an item names but cannot build itself (P6): ITM-134 names `tests/test_impact_list.py` as created by ITM-018,
 which is in this sprint before it; ITM-147 names `tests/test_progress_derived.py` for the item states and leaves the

@@ -8,6 +8,7 @@ realises:
   - AN EXPORT STATES THAT IT CONTAINS SECRETS
 modules:
   - MOD-settings-store
+  - MOD-dashboard-app
 depends_on: []
 origin: sprint 01 review
 ---
@@ -38,6 +39,7 @@ Architecture decisions its modules follow: ARC-003, ARC-005.
 ## Modules
 
 - MOD-settings-store (adapters) — uses no other module
+- MOD-dashboard-app (shells) — only for `tests/test_settings_disclosure.py` and the one asserted sentence in `tests/dashboard-review-flows.test.mjs` (*From the sprint 02 review of ITM-125*)
 
 The pull request changes only code files and tests that name one of these modules (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`).
 
@@ -45,6 +47,7 @@ Files it creates or changes:
 
 - `docs/assets/settings-store.mjs` (the grant of the GitHub token)
 - `tests/test_settings_disclosure.py` (the grant names pull requests)
+- `tests/dashboard-review-flows.test.mjs` (UC-042 step 6: the asserted export notice gains "pull requests"; nothing else in the file)
 
 ## Kind and level
 
@@ -69,3 +72,24 @@ Files it creates or changes:
 ## Needs a person
 
 No.
+
+## From the sprint 02 review of ITM-125
+
+developer-opus-d stopped before the first commit (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`): the test
+this item names for `AN EXPORT STATES THAT IT CONTAINS SECRETS`, `tests/test_settings_disclosure.py`, carries
+`Module: MOD-dashboard-app`, and `tests/dashboard-review-flows.test.mjs` (MOD-dashboard-app, the characterisation
+tests of ITM-123) asserts the export notice of today word for word — with the new grant it goes red (64/65). The
+sprint's caller table had listed ITM-125 under "no caller outside the item's modules"; the asserted sentence was not
+looked for. MOD-dashboard-app is therefore among its modules for those two test files only:
+
+- `tests/test_settings_disclosure.py` — gains the assertion the item names (the grant names pull requests beside
+  commits, issues and workflow runs); it is the item's red test.
+- `tests/dashboard-review-flows.test.mjs` — the one asserted sentence of UC-042 step 6 changes to the new grant;
+  nothing else in the file. A characterisation test pins what the dashboard shows; the sentence it pins comes
+  from `settingKeys` in `docs/assets/settings-store.mjs`, so the changed expectation changes nothing the
+  dashboard does.
+
+No code file of MOD-dashboard-app changes. The first commit holds both test changes and is red on both for the
+same reason (`AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST`); the second commit changes the grant in
+`docs/assets/settings-store.mjs` and turns both green. A further unit assertion in
+`tests/review-core.d/settings-store.test.mjs` (MOD-settings-store) is allowed, not required. (po-fable, 2026-10-01)
