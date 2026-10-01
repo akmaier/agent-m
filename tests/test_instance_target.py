@@ -1,3 +1,6 @@
+# Module: MOD-review-core
+# Guards: AN INSTANCE IS A FORK OF AGENT M
+# Level: unit
 """SPEC §10 AN INSTANCE IS A FORK OF AGENT M — the dashboard derives its repository from its address."""
 import unittest
 

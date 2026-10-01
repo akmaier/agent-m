@@ -1,3 +1,6 @@
+# Module: MOD-git-host
+# Guards: A CREDENTIAL IS NEVER PLACED IN A URL
+# Level: component
 """SPEC §7 A CREDENTIAL IS NEVER PLACED IN A URL."""
 import unittest
 

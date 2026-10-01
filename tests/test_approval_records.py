@@ -1,12 +1,15 @@
-"""SPEC §10 ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON · AN APPROVAL NAMES THE EXACT TEXT."""
-import sys
+# Module: MOD-artifacts
+# Guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT; THE NAME IS THE ID AND IT SURVIVES
+# Level: unit
+"""SPEC §10 ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON · AN APPROVAL NAMES THE EXACT TEXT.
+
+That the applier (tools/apply_approvals.py, MOD-review-core) passes over architecture records is checked in
+tests/test_apply_approvals.py.
+"""
 import unittest
 from pathlib import Path
 
-from artifact_checks import DOCS, ROOT, record_problems
-
-sys.path.insert(0, str(ROOT / "tools"))
-import apply_approvals  # noqa: E402
+from artifact_checks import DOCS, record_problems
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "architecture"
 ARC_FILE = "docs/architecture/ARC-001-static-client.md"
@@ -67,16 +70,6 @@ class ApprovalRecords(unittest.TestCase):
         }.items():
             self.assertTrue(record_problems(name.split("#")[0], text, FIXTURE), name)
 
-    def test_the_applier_passes_over_architecture_records(self):
-        # tools/apply_approvals.py writes SPEC changes only; an architecture record must neither be applied nor refused.
-        import tempfile
-        with tempfile.TemporaryDirectory() as d:
-            (Path(d) / "docs" / "approvals").mkdir(parents=True)
-            (Path(d) / "docs" / "approvals" / ("ARC-001-" + "a" * 12 + ".md")).write_text(
-                "kind: architecture-decision\nfile: " + ARC_FILE + "\nblob: " + "a" * 40 + "\n", encoding="utf-8")
-            (Path(d) / "docs" / "approvals" / ("MOD-reader-" + "b" * 12 + ".md")).write_text(
-                "kind: module\nfile: " + MOD_FILE + "\nblob: " + "b" * 40 + "\n", encoding="utf-8")
-            self.assertEqual(apply_approvals.apply(Path(d)), (0, ""))
 
 
 if __name__ == "__main__":

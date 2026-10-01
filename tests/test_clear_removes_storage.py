@@ -1,3 +1,6 @@
+# Module: MOD-settings-store
+# Guards: A CLEAR IS A REAL CLEAR
+# Level: unit
 """SPEC §7 A CLEAR IS A REAL CLEAR — clearing removes the entries from storage, not only from a form."""
 import unittest
 
