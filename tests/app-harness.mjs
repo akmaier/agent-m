@@ -189,10 +189,11 @@ async function settle(server) {
 let loads = 0;
 
 // One page load of the dashboard at `hash`, with a stored GitHub token. caches: the browser's Cache Storage, or null for a
-// browser without one. assets: the folder the app is served from (another checkout's, to measure it).
+// browser without one. assets: the folder the app is served from (another checkout's, to measure it). search: the page's query,
+// such as `?product=<address>` for a GitLab product (empty: the instance).
 // -> { main() -> the HTML of <main>, el(id) -> the HTML of another element, requests since the load began,
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
-export async function openDashboard({ server, hash = "", caches = null, token = TOKEN,
+export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "",
   assets = new URL("../docs/assets/", import.meta.url) }) {
   const purify = (await import(new URL("vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
@@ -200,7 +201,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },
     querySelectorAll: () => [], createElement: () => element(""), body: { contains: () => true }, head };
-  const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search: "", hash, origin: "https://akmaier.github.io",
+  const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search, hash, origin: "https://akmaier.github.io",
     get href() { return `https://akmaier.github.io/agent-m/${this.search}${this.hash}`; } };
   const listeners = [];
   const g = globalThis;
