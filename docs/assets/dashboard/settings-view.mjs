@@ -12,7 +12,7 @@ import { canStore, gitlabRole } from "../review-core.mjs";
 import { savePseudonymisation, saveCollaborators, clickAuthority } from "./writes.mjs";
 import { settingKeys, parseJson, sessionList, gitlabTokenMap, exportSettings, readSettingsFile, mergeSettings } from "../settings-store.mjs";
 import {
-  fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
+  parseProductAddress, isGitLab, gitlabProject, repositoryInfo, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
 } from "../git-host.mjs";
 import { jumpHostProblem, tunnelCommands, addRemoteSession, nextFreePort, probeLocalPort } from "../bridge-tunnel.mjs";
 import {
@@ -399,7 +399,7 @@ async function renderSections(app, sections) {
 }
 
 export function renderBrowserSettings(app) {
-  const { T, API, store, state, shownSecrets, tokenState, showBanner, noteRefusal, errorText, loadProducts, renderProductSelector } = app;
+  const { T, store, state, shownSecrets, tokenState, showBanner, noteRefusal, errorText, loadProducts, renderProductSelector } = app;
   const ghToken = app.ghToken;
   const box = document.getElementById("browser-settings");
   box.innerHTML = browserSettingsHtml({ entries: store.entries(), shown: [...shownSecrets], tokenState });
@@ -417,7 +417,7 @@ export function renderBrowserSettings(app) {
   box.querySelector(`[data-test="agent-m.github-token"]`)?.addEventListener("click", async () => {
     say("agent-m.github-token", `Reading ${T.instance}…`);
     try {
-      await fetchText(`${API}/repos/${T.instance}`, {}, ghToken());
+      await repositoryInfo({ product: githubRepository(T.instance), token: ghToken() });
       Object.assign(tokenState, { ok: today(), refused: false });
       showBanner();
       renderBrowserSettings(app);
@@ -814,12 +814,15 @@ export async function loadProductSettings(app) {
   }));
 }
 
+// A repository on github.com, as the git host's reads take it: by its owner/name.
+const githubRepository = (repo) => ({ repo });
+
 export async function checkReach(app, repo) {
-  const { API, noteRefusal, errorText } = app;
+  const { noteRefusal, errorText } = app;
   const ghToken = app.ghToken;
   try {
-    const r = JSON.parse(await fetchText(`${API}/repos/${repo}`, {}, ghToken()));
-    return { ok: true, priv: r.private, branch: r.default_branch };
+    const r = await repositoryInfo({ product: githubRepository(repo), token: ghToken() });
+    return { ok: true, priv: r.visibility !== "public", branch: r.defaultBranch };
   } catch (e) { noteRefusal(e, null); return { ok: false, error: errorText(e, null) }; }
 }
 

@@ -1,5 +1,6 @@
 // Status from the names in the tree, and file texts kept by blob SHA — review-core.mjs statusByNames, specStatusByNames,
-// readByBlob, readBlob. Deterministic, no network. Run: node --test tests/*.test.mjs
+// readByBlob. Deterministic, no network. Run: node --test tests/*.test.mjs
+// The check of readBlob moved, unchanged, to tests/review-core.d/dashboard-reads.test.mjs when the reads left the kernel (ITM-130).
 //
 // Module: MOD-review-core
 // Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT
@@ -187,16 +188,4 @@ test("readByBlob: a cache that fails at every step is passed over — the text i
   const broken = { get: async () => { throw new Error("SecurityError"); }, put: async () => { throw new Error("QuotaExceededError"); } };
   assert.equal(await core.readByBlob({ sha, read: async () => text, cache: broken, key: "k" }), text);
   assert.equal(await core.readByBlob({ sha, read: async () => text }), text, "and without any cache");
-});
-
-test("readBlob keeps the accepted text of a record by its blob SHA", async () => {
-  const text = "---\nid: UC-001\n---\naccepted\n", sha = await gitBlobSha(text), c = memoryCache();
-  const calls = [];
-  const real = globalThis.fetch;
-  globalThis.fetch = async (u) => { calls.push(String(u)); return new Response(JSON.stringify({ encoding: "base64", content: Buffer.from(text).toString("base64") })); };
-  try {
-    assert.equal(await core.readBlob({ repo: "a/b", blob: sha, cache: c, cacheKey: `github.com/a/b/${sha}` }), text);
-    assert.equal(await core.readBlob({ repo: "a/b", blob: sha, cache: c, cacheKey: `github.com/a/b/${sha}` }), text);
-  } finally { globalThis.fetch = real; }
-  assert.equal(calls.length, 1);
 });
