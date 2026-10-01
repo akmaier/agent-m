@@ -71,9 +71,10 @@ const USE_RE = new RegExp(`^(MOD-${SLUG})\\.([A-Za-z_][A-Za-z0-9_]*)$`);
 const ARC_SECTIONS = ["## Context", "## Decision", "## Alternatives", "## Consequences"];
 const MOD_SECTIONS = ["## Responsibility", "## Interfaces"];
 
-// A requirement is named by its name in capitals (THE NAME IS THE ID AND IT SURVIVES); other identifiers are not names.
-export const isRequirementName = (s) => typeof s === "string" && /[A-Z]/.test(s) && !/[a-z]/.test(s)
-  && !/^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-/.test(s);
+// A requirement is named by its name in capitals (THE NAME IS THE ID AND IT SURVIVES); the requirements are read in
+// artifacts/requirements.mjs.
+import { isRequirementName, parseRequirements } from "./artifacts/requirements.mjs";
+export { isRequirementName };
 
 const asList = (v) => (v === "[]" ? [] : Array.isArray(v) ? v : null);
 
@@ -147,15 +148,10 @@ export function parseArchitecture(path, text) {
     interfaces, body, problems, withdrawn };
 }
 
-// The requirements of a SPEC: a line `**NAME** *(source)*`, the name in capitals; withdrawn when its source says so — the
-// source may run over several lines. -> Map(name -> { withdrawn })
+// The requirements of a SPEC, read by parseRequirements: a line `**NAME** *(source)*`, the name in capitals; withdrawn when
+// its source says so — the source may run over several lines. -> Map(name -> { withdrawn, … })
 export function specRequirements(specText) {
-  const out = new Map();
-  for (const m of String(specText).matchAll(/^\*\*([^*\n]+)\*\*[ \t]+\*\(([\s\S]*?)\)\*/gm)) {
-    if (!isRequirementName(m[1])) continue;
-    out.set(m[1], { withdrawn: /withdrawn/i.test(m[2]) });
-  }
-  return out;
+  return parseRequirements(specText);
 }
 
 // ---------------------------------------------------------------- code and test headers (ARC-020 decision 1, UC-024 step 7)
