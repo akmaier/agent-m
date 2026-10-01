@@ -1,30 +1,26 @@
 ---
 id: MOD-apply-workflow
 title: Writes an accepted change of the instance's own SPEC when its approval was committed without the dashboard
-realises:
-  - WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
-  - A STALE APPROVAL IS NOT APPLIED
-  - THE APPROVED TEXT IS TAKEN VERBATIM
-  - UC-006
+withdrawn: 2026-10-01
+replaced_by: MOD-review-core
+realises: []
 follows:
   - ARC-006
 uses: []
-provides:
-  - applyApprovals
+provides: []
 ---
 # MOD-apply-workflow Writes an accepted change of the instance's own SPEC when its approval was committed without the dashboard
 
+## Withdrawn
+
+Merged into MOD-review-core: applying recorded approvals is the review core's acceptance run without a dashboard; `applyApprovals` lives there, and the CI runtime calls it through MOD-ci-generator's `ciEntry`. The identifier is not reused; the text this file held is in the git history of this path.
+
 ## Responsibility
 
-The workflow half of `AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL` for the instance's own
-SPEC (`.github/workflows/apply-approvals.yml` runs it on pushes to `docs/approvals/`). It is the one
-module in Python; it mirrors `MOD-spec-queue` section logic, and `tests/test_apply_approvals.py`
-checks that both write the same bytes (ARC-003 names this exception).
-
-**Current state.** `tools/apply_approvals.py` is this module, unchanged.
+See MOD-review-core.
 
 ## Interfaces
 
-- `applyApprovals` — `python3 tools/apply_approvals.py [--repo DIR] -> exit 0 | 1` — for every `kind: spec` record not yet applied: checks the proposal's and the SPEC section's blob SHAs and the queue's anchor, replaces the section byte for byte keeping the final newline, appends the decision row; a stale or malformed record is refused and makes the exit code 1; commits nothing — the workflow does.
+None; see MOD-review-core.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — withdrawn in the leaner architecture of the architecture review, as the PO approved it (UC-023); open until accepted.*
