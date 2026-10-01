@@ -5,7 +5,7 @@
 //
 // Adapter (ARC-003, ARC-004). Tokens are passed in by the caller; this module reads no store and imports no other module.
 // Besides the requests: a product's address, the links that open GitHub's or GitLab's own pages, and the name of a token a
-// server refused, with where it is renewed.
+// server refused, with where it is renewed, and a used-up rate limit, told apart from a refused token.
 
 export const ALLOWED_ORIGINS = new Set(["https://api.github.com", "https://raw.githubusercontent.com"]);
 export const MAX_URL_VALUE = 1000; // NO TEXT TRAVELS IN A URL — a record is ~400 bytes
@@ -47,7 +47,12 @@ export async function fetchText(url, init = {}, auth = null) {
     Object.assign(h, a);
   }
   const r = await fetch(u, { method: "GET", headers: h, credentials: "omit", cache: "no-store" });
-  if (!r.ok) throw Object.assign(new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`), { status: r.status });
+  // The error keeps the server's answer headers — a used-up rate limit is told by them (usedUpLimit) — and whether a token
+  // was sent, which decides whose limit it is where the headers do not say.
+  if (!r.ok) {
+    throw Object.assign(new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`),
+      { status: r.status, headers: r.headers, authenticated: Boolean(token) });
+  }
   return r.text();
 }
 
@@ -151,7 +156,7 @@ export async function commitFiles({ repo, branch, files, message, token, click }
       let msg = text;
       try { msg = JSON.parse(text).message || text; } catch { /* keep raw */ }
       const e = new Error(`${method} ${path}: ${r.status} ${msg}`);
-      e.status = r.status;
+      Object.assign(e, { status: r.status, headers: r.headers, authenticated: true });
       throw e;
     }
     return text ? JSON.parse(text) : {};
@@ -271,7 +276,7 @@ export async function commitFilesGitLab({ product, branch, files, message, token
     let msg = text;
     try { const j = JSON.parse(text); msg = j.message ?? j.error ?? text; } catch { /* keep raw */ }
     if (typeof msg !== "string") msg = JSON.stringify(msg);
-    throw Object.assign(new Error(`POST ${new URL(url).pathname}: ${r.status} ${msg}`), { status: r.status });
+    throw Object.assign(new Error(`POST ${new URL(url).pathname}: ${r.status} ${msg}`), { status: r.status, headers: r.headers, authenticated: true });
   }
   const c = JSON.parse(text);
   const parent = c.parent_ids?.[0] ?? null;
@@ -321,8 +326,46 @@ export function tokenIdentity(product) {
     : { token: "GitHub token", renewUrl: tokenListUrl(), renew: RENEW_TEXT, server: "GitHub" };
 }
 
+// ---------------------------------------------------------------- a used-up rate limit, named (queue 2026-10-01b)
+
+// One header of a refused request's answer: from the Headers the error keeps, or a plain object of them.
+function answerHeader(e, name) {
+  const hs = e?.headers;
+  if (!hs) return null;
+  if (typeof hs.get === "function") return hs.get(name);
+  const k = Object.keys(hs).find((x) => x.toLowerCase() === name);
+  return k === undefined ? null : String(hs[k]);
+}
+const resetDate = (v) => (Number(v) > 0 ? new Date(Number(v) * 1000) : null);
+
+// A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN: a 403 or 429 that the server's rate-limit headers mark as a used-up
+// limit -> { limit: "account" | "network", resetsAt: Date | null }; anything else -> null.
+// GitHub answers a used-up primary limit with 403 or 429 and exposes X-RateLimit-Limit, -Remaining and -Reset to pages: the
+// limit is used up when Remaining is 0; it is the account's (5000 an hour, every token of the account counted together) or,
+// without a token, the network's (60 an hour); Reset is when it starts again, in seconds since 1970. gitlab.com answers 429
+// and exposes no rate-limit header to pages (measured 2026-10-01), so a GitLab product's limit comes back without a time —
+// with one only where its server lets the page read RateLimit-Remaining and RateLimit-Reset. Whose limit it is, where no
+// header says: the account's when the request carried a token, else the network's.
+// product: the GitLab product the request went to; none for GitHub.
+export function usedUpLimit(e, product = null) {
+  const status = e?.status;
+  if (status !== 403 && status !== 429) return null;
+  const whose = e.authenticated === false ? "network" : "account";
+  if (isGitLab(product)) {
+    const remaining = answerHeader(e, "ratelimit-remaining");
+    if (status !== 429 && remaining !== "0") return null;
+    return { limit: whose, resetsAt: remaining === "0" ? resetDate(answerHeader(e, "ratelimit-reset")) : null };
+  }
+  if (answerHeader(e, "x-ratelimit-remaining") !== "0") return null;
+  const perHour = Number(answerHeader(e, "x-ratelimit-limit"));
+  return { limit: perHour > 0 ? (perHour <= 60 ? "network" : "account") : whose, resetsAt: resetDate(answerHeader(e, "x-ratelimit-reset")) };
+}
+
+// ---------------------------------------------------------------- a refused token, named
+
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: GitHub and GitLab answer 401 to a token they no longer accept
-// (expired, regenerated, rotated, revoked or deleted). 403 and 404 are a missing permission or repository, not this.
+// (expired, regenerated, rotated, revoked or deleted). 403 and 404 are a missing permission or repository, not this — nor is a
+// used-up rate limit (403 or 429, usedUpLimit), which a caller names before it asks this.
 // product: the GitLab product whose token was used; none for the GitHub token.
 export function tokenRefusal(e, product = null) {
   const status = e?.status ?? Number((/(?:^|: )(\d{3})\b/.exec(e?.message || "") || [])[1]);

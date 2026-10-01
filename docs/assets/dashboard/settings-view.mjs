@@ -413,7 +413,7 @@ export function renderBrowserSettings(app) {
     } catch (e) {
       noteRefusal(e, null);
       renderBrowserSettings(app);
-      say("agent-m.github-token", `The token cannot read ${T.instance}: ${errorText(e, null)}`);
+      say("agent-m.github-token", app.rateLimitText(e, null) || `The token cannot read ${T.instance}: ${errorText(e, null)}`);
     }
   });
   box.querySelector(`[data-test="agent-m.products"]`)?.addEventListener("click", async () => {
