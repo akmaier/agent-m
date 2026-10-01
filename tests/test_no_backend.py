@@ -21,7 +21,8 @@ dashboard renders. Three checks:
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
    unless it is listed below with the reason it calls no other origin — each listed one exactly as often as listed.
 3. No Markdown file the site serves loads anything from an address of a host outside the list of check 1 — the
-   dashboard renders these files, and an image or frame in them would be fetched from its host.
+   dashboard renders these files, and an image or frame in them would be fetched from its host. Code spans and fenced
+   blocks are rendered as text and are not read.
 
 The check of the own code's addresses moved here from tests/test_pages_layout.py (ITM-050). Only tracked files are
 read, so a scratch file in a working tree changes nothing. Counter-proofs:
@@ -30,6 +31,8 @@ import re
 import subprocess
 import unittest
 from pathlib import Path
+
+from test_artifact_format import outside_code
 
 ROOT = Path(__file__).resolve().parents[1]
 VENDOR = "docs/assets/vendor/"
@@ -126,7 +129,9 @@ def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> lis
 
 
 def markdown_loads(text: str) -> list[str]:
-    """Addresses a rendered Markdown text would load from: images, and tags that load (script, frame, embed …)."""
+    """Addresses a rendered Markdown text would load from: images, and tags that load (script, frame, embed …). Code spans
+    and fenced blocks are shown as text and load nothing."""
+    text = outside_code(text)[0]
     image = re.findall(r"!\[[^\]]*\]\(\s*<?((?:[a-z][a-z0-9+.-]*:)?//[^)\s>]+)", text, re.I)
     tags = re.findall(r"<(?:script|link|iframe|frame|img|image|object|embed|audio|video|source|track)\b[^>]*?\b"
                       r"(?:src|href|data|srcset|poster)\s*=\s*[\"']?\s*((?:[a-z][a-z0-9+.-]*:)?//[^\"'\s>]+)", text, re.I)
@@ -214,7 +219,8 @@ class NoServer(unittest.TestCase):
 
     def test_counter_proof_a_markdown_file_that_loads_from_another_host(self):
         text = ("![flow](https://tracker.example/p.png)\n<img src='//cdn.example/x.svg'>\n<iframe src=\"https://embed.example/\"></iframe>\n"
-                "![badge](https://github.com/o/r/actions/workflows/t.yml/badge.svg)\n![local](diagram.png)\n[a link](https://example.org/)\n")
+                "![badge](https://github.com/o/r/actions/workflows/t.yml/badge.svg)\n![local](diagram.png)\n[a link](https://example.org/)\n"
+                "Shown as text: `![](https://code.example/p.png)`\n```html\n<script src=\"https://fence.example/x.js\"></script>\n```\n")
         self.assertEqual([host_of(a) for a in markdown_loads(text)],
                          ["tracker.example", "github.com", "cdn.example", "embed.example"])
 
