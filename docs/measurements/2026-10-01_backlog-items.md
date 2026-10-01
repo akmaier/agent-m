@@ -91,5 +91,14 @@ item and so rightly not read —, and three tests were red in no row.
 replaced by `23. ITM-001`, and three faults were added for the three tests (a section the item lacks, the slug of a file
 name, the places of the order). The table is the run after these changes.
 
-Before and after the series, on the implementation commit: `cd tests && python3 -m unittest` ran 234 tests, OK;
+## 3. Red in CI on the implementation commit, green locally
+
+The implementation commit `e920d48` was green locally and red in CI (runs 36921937257 and 36921945898): the three tests
+over Agent M's own backlog failed with `OSError: [Errno 7] Argument list too long: 'node'`. They passed the whole
+backlog — 147 item texts — inside the one expression `tests/jsrun.py` hands to `node -e`; Linux limits a single
+argument to 128 KiB, macOS does not. The next commit has node read the item files itself (`items_js` in both test
+files) and asserts that node read as many item files as Python sees, so that an empty read cannot pass. No expected
+result changed. The series above was run again after that change.
+
+Before and after the series, on the commit that reads the backlog through node: `cd tests && python3 -m unittest` ran 234 tests, OK;
 `node --test tests/*.test.mjs` ran 244 tests, 244 pass. Before this item: 197 Python tests, 244 node tests.

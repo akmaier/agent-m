@@ -37,6 +37,14 @@ def files(backlog: Path) -> dict:
     return {f"docs/backlog/{p.name}": read(p) for p in sorted(backlog.glob("ITM-*.md"))}
 
 
+def items_js(backlog: Path) -> str:
+    """JavaScript that reads every item file of a backlog folder with node's own fs into `items` — a whole backlog is
+    too long for one argument of the command line on Linux (`OSError: Argument list too long` in CI)."""
+    return (f"const fs = await import('node:fs'); const dir = {json.dumps(str(backlog))};"
+            "const items = fs.readdirSync(dir).filter((n) => /^ITM-.*\\.md$/.test(n)).sort()"
+            ".map((n) => workItems.parseItem('docs/backlog/' + n, fs.readFileSync(dir + '/' + n, 'utf8')));")
+
+
 def parse(path: str, text: str) -> dict:
     return js(f"return workItems.parseItem({json.dumps(path)}, {json.dumps(text)});")
 
@@ -164,15 +172,16 @@ class TestAgentMsOwnBacklog(unittest.TestCase):
 
     def test_every_item_of_this_repository_is_read_without_a_problem(self):
         own = files(self.OWN)
-        found = js(f"return Object.entries({json.dumps(own)}).map(([p, t]) => workItems.parseItem(p, t))"
-                   ".filter((i) => i.problems.length || !i.id || !i.title || !i.realises.length || !i.origins.length)"
-                   ".map((i) => [i.path, i.problems]);")
+        count, found = js(items_js(self.OWN) + "return [items.length, items"
+                          ".filter((i) => i.problems.length || !i.id || !i.title || !i.realises.length || !i.origins.length)"
+                          ".map((i) => [i.path, i.problems])];")
         self.assertEqual(found, [])
+        self.assertEqual(count, len(own), "node read every item file Python sees")
         self.assertGreater(len(own), 100)
 
     def test_the_order_of_this_repository_places_every_item_once(self):
         own = files(self.OWN)
-        got = order(read(self.OWN / "order.md"), own)
+        got = js(items_js(self.OWN) + f"return workItems.backlogOrder({json.dumps(read(self.OWN / 'order.md'))}, items);")
         self.assertEqual((got["unplaced"], got["problems"]), ([], []))
         self.assertEqual(sorted(got["order"]), sorted(re.match(r"ITM-\d{3}", Path(p).name).group(0) for p in own))
 

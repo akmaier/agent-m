@@ -50,6 +50,14 @@ def problems(path: str, text: str, known, others: dict | None = None) -> list:
               f" {{ ...{json.dumps(known or {})}, items: others }});")
 
 
+def items_js(backlog: Path) -> str:
+    """JavaScript that reads every item file of a backlog folder with node's own fs into `items` — a whole backlog is
+    too long for one argument of the command line on Linux (`OSError: Argument list too long` in CI)."""
+    return (f"const fs = await import('node:fs'); const dir = {json.dumps(str(backlog))};"
+            "const items = fs.readdirSync(dir).filter((n) => /^ITM-.*\\.md$/.test(n)).sort()"
+            ".map((n) => workItems.parseItem('docs/backlog/' + n, fs.readFileSync(dir + '/' + n, 'utf8')));")
+
+
 def item_problems(item: dict, known) -> list:
     return js(f"return workItems.itemProblems({json.dumps(item)}, {json.dumps(known or {})});")
 
@@ -218,10 +226,11 @@ class TestAgentMsOwnBacklog(unittest.TestCase):
     def test_every_item_of_this_repository_names_what_it_realises_and_where_it_came_from(self):
         use_cases = sorted({re.match(r"UC-\d{3}", p.name).group(0) for p in (DOCS / "use-cases").glob("UC-*.md")})
         self.assertIn("UC-032", use_cases)
-        found = js(f"const items = Object.entries({json.dumps(files(self.OWN))}).map(([p, t]) => workItems.parseItem(p, t));"
-                   f"const known = {{ requirements: null, useCases: {json.dumps(use_cases)}, items }};"
-                   "return items.map((i) => [i.path, workItems.itemProblems(i, known)]).filter(([, f]) => f.length);")
-        self.assertEqual(found, [])
+        found = js(items_js(self.OWN) + f"const known = {{ requirements: null, useCases: {json.dumps(use_cases)}, items }};"
+                   "return [items.length, items.map((i) => [i.path, workItems.itemProblems(i, known)]).filter(([, f]) => f.length)];")
+        self.assertEqual(found[1], [])
+        self.assertEqual(found[0], len(files(self.OWN)), "node read every item file Python sees")
+        self.assertGreater(found[0], 100)
 
 
 if __name__ == "__main__":
