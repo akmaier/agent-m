@@ -137,8 +137,9 @@ test("a requirement: each broken field, check, source, statement and name is one
     [plant(SPEC, "The export of a report is a PDF file.", "The export of a report is a PDF file and a CSV file."),
       [[PDF, 13, "warning", "ONE STATEMENT PER REQUIREMENT", 'the rule contains "and"']]],
     [plant(SPEC, "**THE EXPORT IS A PDF** *(SRC-po, 2026-09-24)*", "**THE EXPORT IS A PDF** *(RES-model, 2026-09-24)*"),
-      [[PDF, 13, "error", "A RESOURCE'S TERMS ENTER AS A SOURCE", "the source names the resource entry RES-model"],
-        [PDF, 13, "error", "A REQUIREMENT HAS A REGISTERED SOURCE", "the source names no registered source"]]],
+      [[PDF, 13, "error", "A RESOURCE'S TERMS ENTER AS A SOURCE", "the source names the resource entry RES-model"]]],
+    [plant(SPEC, "**THE EXPORT IS A PDF** *(SRC-po, 2026-09-24)*", "**THE EXPORT IS A PDF** *(2026-09-24)*"),
+      [[PDF, 13, "error", FIVE, "no source"]]],
     [plant(SPEC, "**THE EXPORT IS A PDF**", "**The export is a PDF**"),
       [["SPEC.md", 13, "error", HAS_ID, 'the requirement "The export is a PDF" has no name in capitals']]],
     [SPEC + "\n**THE EXPORT IS A PDF** *(SRC-po, 2026-10-01)*\nA second rule under the name.\n*Occasion:* none.\n" +
@@ -146,6 +147,11 @@ test("a requirement: each broken field, check, source, statement and name is one
       [[PDF, 44, "error", HAS_ID, "THE EXPORT IS A PDF is carried by line 13 and by line 44"]]],
   ];
   for (const [text, want] of cases) assert.deepEqual(brief(seen(requirement(text))), want, want[0][4]);
+  // A source named as it is written (A NAMED RULE STAYS ONE, "PO A. Maier") is no error, even when nothing is linked.
+  assert.deepEqual(brief(seen(requirement(SPEC, []))), [
+    ["THE EXPORT IS A PDF", 13, "error", "A REQUIREMENT HAS A REGISTERED SOURCE", "the product does not link SRC-po"],
+    ["THE PRODUCT IS NOT SOLD", 18, "error", "A REQUIREMENT HAS A REGISTERED SOURCE", "the product does not link SRC-model-licence"],
+    ["EVERY CHANGE IS VERIFIED", 37, "error", "A REQUIREMENT HAS A REGISTERED SOURCE", "the product does not link SRC-iec-62304"]]);
   // A source the product does not link: the requirement that names it, nothing else.
   assert.deepEqual(brief(seen(requirement(SPEC, ["SRC-po", "SRC-model-licence"]))),
     [["EVERY CHANGE IS VERIFIED", 37, "error", "A REQUIREMENT HAS A REGISTERED SOURCE", "the product does not link SRC-iec-62304"]]);

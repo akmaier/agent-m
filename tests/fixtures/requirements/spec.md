@@ -3,8 +3,8 @@
 **VERBINDLICH (SPEC)**
 
 A fixture for the requirement checks of MOD-artifacts (tests/test_requirement_*.py,
-tests/test_single_statement.py). Every requirement here is well formed for a product that links the
-sources SRC-po, SRC-model-licence and SRC-iec-62304; each test breaks a copy of one of them.
+tests/test_single_statement.py), well formed for a product that links SRC-po, SRC-model-licence and
+SRC-iec-62304; one source is named as it is written. Each test breaks a copy of one requirement.
 
 **Form of a requirement** — prose in bold, not a requirement.
 
@@ -22,7 +22,7 @@ The product is offered free of charge.
 a registered source.
 *Check:* no automatic check; at review.
 
-**A NAMED RULE STAYS ONE** *(SRC-po, 2026-09-25)*
+**A NAMED RULE STAYS ONE** *(PO A. Maier, 2026-09-25)*
 Every export follows `ONE DEFINITION AND ONE DRIVER` in its standard handling.
 *Occasion:* a rule that names another requirement in backticks, and words that only contain the
 letters a-n-d, still state one thing.
