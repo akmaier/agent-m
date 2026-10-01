@@ -20,7 +20,7 @@ def permissions(link: str) -> dict:
 
 class TokenScopeDocumented(unittest.TestCase):
     def test_guidance_names_minimum_scope_and_reason(self):
-        g = js("return core.TOKEN_GUIDANCE;")
+        g = js("return settingsView.TOKEN_GUIDANCE;")
         for must in ["fine-grained", "Only select repositories", "expir", "why", *NAMED]:
             self.assertIn(must.lower(), g.lower(), must)
         self.assertNotIn("Pull requests", g, "the dashboard needs no pull-request permission")
@@ -29,7 +29,7 @@ class TokenScopeDocumented(unittest.TestCase):
             self.assertIn(why, g.lower(), why)
 
     def test_link_asks_for_exactly_the_one_token_permissions(self):
-        link = js("return core.tokenLinkUrl('r/agent-m');")
+        link = js("return settingsView.tokenLinkUrl('r/agent-m');")
         self.assertEqual(permissions(link), ONE_TOKEN)
 
     def test_counter_proof_a_missing_or_extra_permission_is_seen(self):
@@ -40,7 +40,7 @@ class TokenScopeDocumented(unittest.TestCase):
         self.assertEqual(permissions(base + "&contents=write&issues=write&actions=write&metadata=read"), ONE_TOKEN)
 
     def test_steps_carry_the_scope(self):
-        steps = js("return core.repositoryChoiceSteps('r/agent-m', 'r/thesis');")
+        steps = js("return settingsView.repositoryChoiceSteps('r/agent-m', 'r/thesis');")
         self.assertIn("Only select repositories", steps[0])
         self.assertTrue(any("r/thesis" in s for s in steps))
         for p in NAMED:

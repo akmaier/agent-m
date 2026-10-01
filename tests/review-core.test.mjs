@@ -7,16 +7,39 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import {
   gitBlobSha, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, extractSection, sectionText, parseQueueIndex, parseDecisions,
   deriveUseCaseStatus, deriveSpecStatus,
 } from "../docs/assets/review-core.mjs";
-import { parseFrontMatter } from "../docs/assets/artifacts.mjs";
+import { parseFrontMatter, headerModules } from "../docs/assets/artifacts.mjs";
 import { newFileUrl, editUrl, fetchText, ALLOWED_ORIGINS, MAX_URL_VALUE } from "../docs/assets/git-host.mjs";
 
 const gitHash = (s) => execFileSync("git", ["hash-object", "--stdin"], { input: s }).toString().trim();
+
+// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and its views and settings sections
+// under docs/assets/dashboard/. A test that read the one app file reads them all, or — `shell: false` — the views alone.
+const ASSETS = new URL("../docs/assets/", import.meta.url);
+const viewFiles = () => readdirSync(new URL("dashboard/", ASSETS), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort()
+  .map((f) => new URL(`dashboard/${f}`, ASSETS));
+const dashboardText = ({ shell = true } = {}) => [...(shell ? [new URL("dashboard-app.mjs", ASSETS)] : []), ...viewFiles()]
+  .map((u) => readFileSync(u, "utf8")).join("\n");
+// Every module file of the site (vendored libraries excepted), with the modules its Module line names.
+const moduleFiles = () => readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
+  .sort().map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") }));
+// The adapters (ARC-003 decision 1): the modules of the group Adapters in docs/groups/modules.md.
+function adapterModules() {
+  const out = new Set();
+  let inGroup = false;
+  for (const l of readFileSync(new URL("../docs/groups/modules.md", import.meta.url), "utf8").split("\n")) {
+    const top = /^- (.+)$/.exec(l);
+    if (top) { inGroup = top[1].trim() === "Adapters"; continue; }
+    const m = /^\s+- (MOD-[a-z0-9-]+)\s*$/.exec(l);
+    if (inGroup && m) out.add(m[1]);
+  }
+  return out;
+}
 
 test("gitBlobSha equals git hash-object, byte for byte", async () => {
   for (const s of ["", "a\n", "no trailing newline", "Umlaute äöü — und ✓\n", "x".repeat(5000)]) {
@@ -181,9 +204,15 @@ test("fetchText reads with GET only; the GitHub token goes only to GitHub's API 
 });
 
 test("the app never calls fetch directly — every request goes through fetchText", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  // ARC-003 decision 6: no module file but an adapter's calls fetch or touches browser storage — the dashboard's files and every
+  // kernel and feature file. A file's module is its Module line; a file naming no adapter is checked.
+  const adapters = adapterModules(), files = moduleFiles();
+  const checked = files.filter((f) => !headerModules(f.text).some((m) => adapters.has(m)));
+  assert.ok(adapters.has("MOD-git-host") && adapters.has("MOD-settings-store"), "the adapters are read from the group file");
+  assert.ok(!checked.some((f) => f.file === "git-host.mjs") && checked.some((f) => f.file === "dashboard-app.mjs")
+    && checked.some((f) => f.file === "artifacts.mjs") && checked.some((f) => f.file.startsWith("dashboard/")), "kernel and shell files are checked");
   const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
-  assert.doesNotMatch(app.replace(/fetchText\(/g, ""), FORBIDDEN);
+  for (const { file, text: app } of checked) assert.doesNotMatch(app.replace(/fetchText\(/g, ""), FORBIDDEN, file);
   // counter-proof: access is caught, the word in an explanation is not
   assert.match("localStorage.getItem('t')", FORBIDDEN);
   assert.match("fetch(url)", FORBIDDEN);
@@ -193,9 +222,9 @@ test("the app never calls fetch directly — every request goes through fetchTex
 
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
 
-import {
-  tokenLinkUrl, repositoryChoiceSteps, stepHtml, missingLayout,
-} from "../docs/assets/review-core.mjs";
+import { missingLayout } from "../docs/assets/review-core.mjs";
+import { tokenLinkUrl, repositoryChoiceSteps } from "../docs/assets/dashboard/settings-view.mjs";
+import { stepHtml } from "../docs/assets/dashboard-app.mjs";
 import { commitFiles } from "../docs/assets/git-host.mjs";
 
 const click = { isTrusted: true };
@@ -406,15 +435,15 @@ test("UC-001 5a: a refused write adds nothing to the list", async () => {
 });
 
 test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
-  for (const f of ["review-app.mjs", "review-core.mjs", "settings-store.mjs"]) {
-    const r = spawnSync(process.execPath, ["--check", new URL(`../docs/assets/${f}`, import.meta.url).pathname]);
-    assert.equal(r.status, 0, `${f}: ${r.stderr}`);
+  for (const u of [new URL("dashboard-app.mjs", ASSETS), ...viewFiles(), new URL("review-core.mjs", ASSETS), new URL("settings-store.mjs", ASSETS)]) {
+    const r = spawnSync(process.execPath, ["--check", u.pathname]);
+    assert.equal(r.status, 0, `${u.pathname}: ${r.stderr}`);
   }
 });
 
 // ---------------------------------------------------------------- token at instance setup (UC-014), extended in UC-001
 
-import { extendTokenSteps } from "../docs/assets/review-core.mjs";
+import { extendTokenSteps } from "../docs/assets/dashboard/add-product-view.mjs";
 import { tokenListUrl } from "../docs/assets/git-host.mjs";
 
 test("UC-014: setup names only the instance", () => {
@@ -754,7 +783,7 @@ test("collaborators are saved by one commit of docs/collaborators.md, on a click
 });
 
 test("the settings export is saved as a file only — never committed, fetched or put into an address", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText();
   const body = (src) => (src.match(/async function saveExport\([\s\S]*?\n}\n/) || [""])[0];
   const LEAK = /commitFiles|fetchText|location|data:|encodeURIComponent|URLSearchParams/;
   const b = body(app);
@@ -768,7 +797,7 @@ test("the settings export is saved as a file only — never committed, fetched o
 // ---------------------------------------------------------------- the use-case key is `area` (was `stage`)
 
 test("the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText();
   const STAGE = /\bstages?\b/i;
   assert.doesNotMatch(app, STAGE);
   assert.match(app, /fields\.area\b/);
@@ -779,7 +808,7 @@ test("the dashboard reads the use-case key `area` and says Area — `stage` is u
 });
 
 test("status 'approved' is described truly for both routes — the dashboard's own commit and the workflow", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText();
   const line = app.match(/^\s*approved: \["approved", "([^"]+)"\],$/m)?.[1];
   assert.ok(line, "the label of status approved");
   assert.doesNotMatch(line, /^Approval committed — the workflow writes it into the SPEC$/);
@@ -793,10 +822,10 @@ test("status 'approved' is described truly for both routes — the dashboard's o
 // UC-008 3c, UC-018 4b, UC-006, UC-042). The GitLab server is a mock of the REST API v4 as GitLab documents it
 // (doc/api/repositories.md, repository_files.md, commits.md, branches.md); no request leaves this process.
 
-import {
-  gitlabTokenSteps, gitlabNoProjectTokens, gitlabWriteRefusal, deriveTarget,
-  expiryWarning, tokenBannerHtml, exportNotice, gitlabRole,
-} from "../docs/assets/review-core.mjs";
+import { deriveTarget, gitlabRole } from "../docs/assets/review-core.mjs";
+import { gitlabTokenSteps, gitlabNoProjectTokens } from "../docs/assets/dashboard/add-product-view.mjs";
+import { gitlabWriteRefusal } from "../docs/assets/dashboard-app.mjs";
+import { expiryWarning, tokenBannerHtml, exportNotice } from "../docs/assets/dashboard/settings-view.mjs";
 import {
   gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute,
   gitlabTokenPageUrl, webFileUrl, authHeaders,
@@ -1119,7 +1148,7 @@ test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer 
     assert.match(r.note, /Maintainer/);
   }
   assert.equal(gitlabRole(30).role, "Developer");
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText();
   assert.match(app, /gitlabRole\(/, "the settings page takes the role check from the core");
   assert.doesNotMatch(app, /role Developer|role <em>Developer<\/em>|>= 30/, "the app names no Developer token any more");
 });
@@ -1202,8 +1231,9 @@ test("the dashboard is opened on a GitLab product by its address; its files link
 // /projects/:id/repository/commits?path=&ref_name=, GET /projects/:id/repository/blobs/:sha/raw).
 
 import {
-  recordsForId, lastAccepted, changedLines, diffHtml, readBlob,
+  recordsForId, lastAccepted, changedLines, readBlob,
 } from "../docs/assets/review-core.mjs";
+import { diffHtml } from "../docs/assets/dashboard-app.mjs";
 import { reviewedId } from "../docs/assets/artifacts.mjs";
 
 const UC_OLD = "docs/use-cases/UC-010-run-a-stage-in-github-actions.md", UC_NEW = "docs/use-cases/UC-010-run-a-job-in-github-actions.md";
@@ -1345,7 +1375,7 @@ test("A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT — GitLab: its com
 });
 
 test("the dashboard shows the last accepted text above a changed use case, with the core's diff", () => {
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText({ shell: false });
   const view = app.match(/async function viewUseCase\([\s\S]*?\n}\n/)[0];
   assert.ok(view.includes("accepted-diff"), "the panel is part of the use-case view");
   assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "above the text");

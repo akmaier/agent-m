@@ -18,7 +18,6 @@ import { fileURLToPath } from "node:url";
 import {
   gitBlobSha, recordsForId, approvalPath, recordText, parseRecord, reviewedRecord,
   deriveReviewedStatus, deriveUseCaseStatus, architecturePrerequisites,
-  prerequisitesHtml, impactHtml,
   acceptItems, planAcceptance, createReviewSession, saveReviewedFile, lastAccepted, changedLines,
   useCaseRecord,
 } from "../docs/assets/review-core.mjs";
@@ -26,7 +25,17 @@ import {
   reviewedId, kindOfPath, parseArchitecture, specRequirements, isCodePath, isTestPath, headerModules, ARCHITECTURE_FILE,
 } from "../docs/assets/artifacts.mjs";
 import { moduleHeaders, impactList, componentDiagram } from "../docs/assets/traceability.mjs";
+import { prerequisitesHtml, impactHtml } from "../docs/assets/dashboard/review-views.mjs";
 import { parseProductAddress } from "../docs/assets/git-host.mjs";
+import { repoServer, openDashboard } from "./app-harness.mjs";
+
+// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
+// under docs/assets/dashboard/ — what a test that read the one app file reads now.
+const dashboardText = () => {
+  const assets = new URL("../docs/assets/", import.meta.url);
+  const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
+  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
+};
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const files = {};
@@ -456,10 +465,11 @@ test("the component diagram — computed from uses and provides; an interface no
 
 // ---------------------------------------------------------------- the app
 
-test("the dashboard has an Architecture tab that lists, reviews, accepts and edits ARC and MOD files like use cases", () => {
-  const html = readFileSync(new URL("../docs/index.html", import.meta.url), "utf8");
+test("the dashboard has an Architecture tab that lists, reviews, accepts and edits ARC and MOD files like use cases", async () => {
+  // The tab bar is written by the dashboard from its table of views; the page's own tab bar is read.
+  const html = (await openDashboard({ server: await repoServer({ files: { "SPEC.md": "# SPEC\n" } }) })).el("tabs");
   assert.match(html, /<a href="#arc" role="tab" id="tab-arc">Architecture<\/a>/);
-  const app = readFileSync(new URL("../docs/assets/review-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText();
   assert.match(app, /paths\(ARCHITECTURE_FILE\)/, "the files are read by the core's pattern");
   assert.deepEqual(archPaths.concat(["docs/architecture/README.md", "docs/architecture/ARC-1-x.md", "docs/use-cases/UC-001-x.md",
     "docs/architecture/sub/MOD-x.md"]).filter((p) => ARCHITECTURE_FILE.test(p)), archPaths, "docs/architecture/ARC-<nnn>-<slug>.md and MOD-<slug>.md only");
