@@ -64,7 +64,7 @@ class TestLevels(unittest.TestCase):
             self.assertNotEqual(text, TEXT, label)
             fs = levels(READER, text)
             self.assertEqual([(f["kind"], f["rule"], f["artifact"]) for f in fs], [("error", RULE, READER)], label)
-            self.assertTrue(fs[0]["what"] and fs[0]["correction"] and fs[0]["line"] >= 1, label)
+            self.assertTrue(fs[0]["what"] and fs[0]["fix"] and fs[0]["line"] >= 1, label)
             self.assertEqual(tags(READER, text)["level"], read, label)
 
 
