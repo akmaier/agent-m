@@ -186,11 +186,23 @@ export function headerModules(text) {
 }
 
 // AN EDITED FILE KEEPS ITS IDENTIFIER: a text whose front matter carries another identifier than the one the file was opened
-// with is refused — the refusal's text, or null. openedId null: a file without an identifier, such as a SPEC proposal.
+// with is refused — null, or the finding that refuses it, in the one shape of MOD-artifacts (A FINDING READS LIKE A COMPILER
+// MESSAGE): { artifact, line, kind, what, rule, fix }, its line that of `id:` in the front matter, or 1 when there is none. The
+// sentence a person reads is the shell's (ARC-003 decision 5). openedId null: a file without an identifier, such as a SPEC
+// proposal.
 export function identifierKept(openedId, text) {
   if (!openedId) return null;
-  const now = parseFrontMatter(String(text)).fields.id ?? null;
-  if (now === openedId) return null;
-  return `The file was opened as ${openedId}, but the text now carries the identifier ${now ?? "(none)"} — an edited file keeps its ` +
-    "identifier. Nothing was saved; put the identifier back, or propose a new file for a new one.";
+  const t = String(text ?? "");
+  const { fields } = parseFrontMatter(t);
+  if (fields.id === openedId) return null;
+  const now = typeof fields.id === "string" && fields.id ? fields.id : null;
+  // The line of `id:` among the front matter's lines, which end at the closing --- that parseFrontMatter found.
+  const lines = t.split("\n");
+  const at = "id" in fields ? lines.findIndex((l, i) => i > 0 && /^id:/.test(l)) + 1 : 1;
+  return {
+    artifact: openedId, line: at, kind: "error",
+    what: `the file was opened as ${openedId}, but the text carries ${now ? `the identifier ${now}` : "no identifier"}`,
+    rule: "AN EDITED FILE KEEPS ITS IDENTIFIER",
+    fix: `put back id: ${openedId}; a new identifier is a new file, proposed as such.`,
+  };
 }
