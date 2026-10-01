@@ -265,7 +265,7 @@ test("ITM-018 · the impact list of a requirement names every artifact that refe
 // place, or left out — takes TITLE out of the SPEC when it is accepted. Expected: the graph counts that entry as touching TITLE
 // (a change or a withdrawal), so that what traces to TITLE names the entry and its impact list can be shown beside it.
 // FINDING D1 (back to Development: ITM-018) — the graph reads only the names an entry states; see the measurement record.
-test("ITM-018 · an entry whose section no longer states a requirement touches that requirement", { todo: "finding D1 — ITM-018" }, () => {
+test("ITM-018 · an entry whose section no longer states a requirement touches that requirement", () => {
   const renamed = "## 2. Title page\n\n" + req(`${TITLE} AND THE SUPERVISOR`, "PO B. Example, 2026-10-01", "The title page names both.");
   const dropped = "## 2. Title page\n\nThe title page is laid out by the faculty's template.\n";
   for (const [what, text] of [["renamed in place", renamed], ["left out", dropped]]) {
