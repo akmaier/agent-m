@@ -1990,9 +1990,9 @@ agents, spawning is cheap, so the limit protects review capacity and budget inst
 *Check:* `tests/test_wip_limit.py`. With limit 2 and two items in progress, a third start is refused
 with the limit named. With one of the two done, the start succeeds.
 
-**A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT** *(Vibe Coding, ch. 7 §5)*
-When a product's model works in time boxes, implementation jobs start only for items selected for
-the current time box.
+**A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT** *(Vibe Coding, ch. 7 §5; changed PO A. Maier, 2026-10-01)*
+When a product's model works in sprints, implementation jobs start only for items selected for
+the current sprint.
 *Occasion:* in Scrum, sprint planning selects a subset of the product backlog into the sprint
 backlog, and the team works from that (ch. 7 §5). The process repository runs its own sprints the
 same way: sprint scope is fixed at planning (`SOFTWARE_MAINTENANCE.md`, phase 2).
@@ -2137,35 +2137,35 @@ whoever presses merge.
 *Check:* `tests/test_definition_of_done.py` — a pull request missing one condition is not mergeable;
 counter-proof: with all conditions met it is.
 
-**A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT** *(Vibe Coding, ch. 7 §5)*
-A time box of a product is closed only after a review of its increment is recorded: what was done,
+**A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT** *(Vibe Coding, ch. 7 §5; changed PO A. Maier, 2026-10-01)*
+A sprint of a product is closed only after a review of its increment is recorded: what was done,
 who took part, and the feedback, which enters the backlog as items.
 *Occasion:* the book: "at the end of the sprint, the review checks what was actually achieved", and
 the backlog is adapted from it (ch. 7 §5). Without a record, the inspection that Scrum rests on
 leaves no trace, and the feedback is lost with the meeting.
 *Check:* `tests/test_time_box_close.py`
 
-**A SPRINT ENDS WITH A RETROSPECTIVE** *(Vibe Coding, ch. 7 §5)*
-A time box of a product is closed only after its retrospective is recorded: what the team — people
+**A SPRINT ENDS WITH A RETROSPECTIVE** *(Vibe Coding, ch. 7 §5; changed PO A. Maier, 2026-10-01)*
+A sprint of a product is closed only after its retrospective is recorded: what the team — people
 and agents — will change in how it works.
 *Occasion:* the book: "the retrospective reflects on how the team itself should improve before the
 next cycle". A change it decides for the process model goes through its configuration (UC-031); a
 change for the agents' instructions through their definition.
 *Check:* `tests/test_time_box_close.py`
 
-**A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN** *(PO A. Maier, 2026-09-24)*
-A product may give a phase or a time box — a sprint, for example — a branch of its own, into which
+**A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN** *(PO A. Maier, 2026-09-24, changed 2026-10-01)*
+A product may give a phase or a sprint a branch of its own, into which
 its work is merged; merging that branch into the default branch is then the gate at its end, decided
 by the role the model names for that gate — in Scrum the Product Owner, after the review of the
 increment.
 *Occasion:* PO, 2026-09-24: "an entire scrum phase can be assigned an additional branch in git; then
-the merge is the gate at the end of the phase, but this is optional." A sprint is a time box, not a
+the merge is the gate at the end of the phase, but this is optional." A sprint is not a
 phase in the book's sense (ch. 6: a phase groups activities), so both are named. Releasing the
 increment is the Product Owner's decision; the review informs it.
 *Check:* `tests/test_phase_branch.py`
 
-**WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET** *(PO A. Maier, 2026-09-24)*
-Without a branch for the current phase or time box, the work of every job is merged into the default
+**WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET** *(PO A. Maier, 2026-09-24, changed 2026-10-01)*
+Without a branch for the current phase or sprint, the work of every job is merged into the default
 branch.
 *Occasion:* PO, 2026-09-24: "it should be main by default." A branch per sprint is extra ceremony
 that a small product does not need.
@@ -2241,8 +2241,9 @@ person, every sprint, without being reminded.
 *Check:* `tests/test_time_box_close.py` — a sprint whose close is assigned to an agent fixture is closed
 with a review and a retrospective recorded by that agent.
 
-**A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF** *(PO A. Maier, 2026-09-30)*
-When closing a sprint is assigned to an agent, its job starts by itself when the sprint's time box ends.
+**A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF** *(PO A. Maier, 2026-09-30, changed 2026-10-01)*
+When closing a sprint is assigned to an agent, its job starts by itself when the sprint's time box ends or, in a
+sprint without one, when every selected item is done.
 *Occasion:* the point of assigning it is that nobody has to remember; the time box's end date is already
 recorded with the sprint (UC-032).
 *Check:* `tests/test_time_box_close.py`
