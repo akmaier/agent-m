@@ -13,9 +13,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as gitHost from "../../docs/assets/git-host.mjs";
-import { click, fakeGitHub, withFetch, GL_ADDR, GL_TOKEN, fakeGitLab } from "./helpers.mjs";
+import { fakeGitHub, withFetch, GL_ADDR, GL_TOKEN, fakeGitLab } from "./helpers.mjs";
 
 const { fetchText, tokenRefusal, parseProductAddress, gitlabAuth, gitlabApiBase, commitFiles, commitFilesGitLab } = gitHost;
+// The authority a write is made on (ARC-003 decision 3): here a person's click.
+const authority = Object.freeze({ kind: "click" });
 
 const RESET = 1790000000; // X-RateLimit-Reset: seconds since 1970, UTC
 const limitHeaders = (limit, remaining = 0) => ({ "X-RateLimit-Limit": String(limit), "X-RateLimit-Remaining": String(remaining),
@@ -74,7 +76,7 @@ test("A USED-UP RATE LIMIT IS NAMED — a refused write carries the server's hea
   await withFetch(limited, async () => {
     try {
       await commitFiles({ repo: "akmaier/agent-m", branch: "main", files: [{ path: "a.md", content: "x\n" }], message: "m",
-        token: "github_pat_STORED", click });
+        token: "github_pat_STORED", authority });
     } catch (e) { err = e; }
   });
   assert.ok(err && err.status === 403, "the write was refused with 403");
@@ -104,7 +106,7 @@ test("A USED-UP RATE LIMIT IS NAMED — a GitLab product's 429 is its limit, nam
   let err = null;
   await withFetch(m.fetchMock, async () => {
     try {
-      await commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click, files: [{ path: "SPEC.md", content: "y\n" }] });
+      await commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, authority, files: [{ path: "SPEC.md", content: "y\n" }] });
     } catch (e) { err = e; }
   });
   assert.equal(err?.status, 429);
