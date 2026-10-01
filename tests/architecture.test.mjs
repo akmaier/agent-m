@@ -16,12 +16,15 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  gitBlobSha, reviewedId, recordsForId, approvalPath, recordText, parseRecord, reviewedRecord, kindOfPath,
-  deriveReviewedStatus, deriveUseCaseStatus, parseArchitecture, specRequirements, architecturePrerequisites,
-  prerequisitesHtml, isCodePath, isTestPath, headerModules, moduleHeaders, impactList, impactHtml, componentDiagram,
+  gitBlobSha, recordsForId, approvalPath, recordText, parseRecord, reviewedRecord,
+  deriveReviewedStatus, deriveUseCaseStatus, architecturePrerequisites,
+  prerequisitesHtml, moduleHeaders, impactList, impactHtml, componentDiagram,
   acceptItems, planAcceptance, createReviewSession, saveReviewedFile, lastAccepted, changedLines,
-  useCaseRecord, ARCHITECTURE_FILE,
+  useCaseRecord,
 } from "../docs/assets/review-core.mjs";
+import {
+  reviewedId, kindOfPath, parseArchitecture, specRequirements, isCodePath, isTestPath, headerModules, ARCHITECTURE_FILE,
+} from "../docs/assets/artifacts.mjs";
 import { parseProductAddress } from "../docs/assets/git-host.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));

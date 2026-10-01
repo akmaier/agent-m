@@ -9,10 +9,11 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import {
-  gitBlobSha, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
+  gitBlobSha, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, extractSection, sectionText, parseQueueIndex, parseDecisions,
   deriveUseCaseStatus, deriveSpecStatus,
 } from "../docs/assets/review-core.mjs";
+import { parseFrontMatter } from "../docs/assets/artifacts.mjs";
 import { newFileUrl, editUrl, fetchText, ALLOWED_ORIGINS, MAX_URL_VALUE } from "../docs/assets/git-host.mjs";
 
 const gitHash = (s) => execFileSync("git", ["hash-object", "--stdin"], { input: s }).toString().trim();
@@ -1200,8 +1201,9 @@ test("the dashboard is opened on a GitLab product by its address; its files link
 // /projects/:id/repository/commits?path=&ref_name=, GET /projects/:id/repository/blobs/:sha/raw).
 
 import {
-  reviewedId, recordsForId, lastAccepted, changedLines, diffHtml, readBlob,
+  recordsForId, lastAccepted, changedLines, diffHtml, readBlob,
 } from "../docs/assets/review-core.mjs";
+import { reviewedId } from "../docs/assets/artifacts.mjs";
 
 const UC_OLD = "docs/use-cases/UC-010-run-a-stage-in-github-actions.md", UC_NEW = "docs/use-cases/UC-010-run-a-job-in-github-actions.md";
 const A_TEXT = "---\nid: UC-010\ntitle: Run a job\nstage: runtime\n---\n# UC-010\n\nBody line one.\nBody line two.\n";
