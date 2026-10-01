@@ -119,6 +119,48 @@ test("UC-006 3b: an entry whose impact list cannot be derived is not offered for
   assert.match(page.main(), /In the SPEC now[^]*<h3>Proposed<\/h3>/, "the entry itself is still shown");
 });
 
+// ---------------------------------------------------------------- an entry that takes a requirement out of its section
+//
+// UC-006 step 6 replaces the entry's section byte for byte: a requirement of that section the entry no longer states — renamed in
+// place, or left out — leaves the SPEC when the entry is accepted, while what names it still does. The graph learns the section
+// an entry replaces from the queue's index.md among its files (MOD-traceability linkGraph); the view hands it the index the queue
+// view has read already and, for an entry whose heading another entry of the queue creates, that entry too.
+
+const RENAMED = `## 1. One\n\n${rule("RULE ONE RENAMED", "The first rule, under a new name.", "`tests/one.test.mjs`")}`;
+const LEFT_OUT = "## 1. One\n\nThe first section states no rule any more.\n";
+
+test("UC-006 3b: an entry that renames a requirement in place or leaves it out of its section lists what names it, as withdrawn, before Accept", async () => {
+  for (const [what, text] of [["renamed in place", RENAMED], ["left out", LEFT_OUT]]) {
+    const srv = await repoServer({ files: { ...FILES, [`${QD}/01-one.md`]: text } });
+    const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/01` });
+    const html = page.main(), section = impactOf(html);
+    assert.ok(section, `${what}: the entry shows an impact list`);
+    assert.deepEqual(listed(section), { "RULE ONE": { change: "withdraw", ids: ["UC-001", "UC-002", T1] } }, what);
+    const at = html.indexOf('id="spec-impact"');
+    assert.ok(html.indexOf("data-accept-key") > at, `${what}: Accept comes after the impact list`);
+    // The index is the one the queue view read: one read per load, none of the list's own.
+    assert.equal(fileReads(page.requests).filter((r) => r === `file ${QD}/index.md`).length, 1, `${what}: the index is read once`);
+    assert.deepEqual(srv.writes, [], `${what}: opening writes nothing`);
+  }
+});
+
+// Entry 04 splits "## 3. Three" and moves RULE THREE under a heading of its own, "## 3a. Sub"; entry 05 replaces that sub-section
+// with a text that states no rule. Accepted after 04, entry 05 takes RULE THREE out of the SPEC.
+const P04 = `## 3. Three\n\nThe third section, split.\n\n## 3a. Sub\n\n${rule("RULE THREE", "The third rule.")}`;
+const P05 = "## 3a. Sub\n\nNothing is required here any more.\n";
+const SPLIT = { ...FILES, [`${QD}/04-split.md`]: P04, [`${QD}/05-sub.md`]: P05,
+  [`${QD}/index.md`]: `${INDEX}| 04 | \`SPEC.md\` | ## 3. Three | — | — |\n| 05 | \`SPEC.md\` | ## 3a. Sub | — | — |\n` };
+
+test("UC-006 3b: an entry whose heading another entry of its queue creates lists what names a requirement it leaves out", async () => {
+  const srv = await repoServer({ files: SPLIT });
+  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
+  const html = page.main(), section = impactOf(html);
+  assert.match(html, /after entry 04|created by entry 04/, "the entry waits for entry 04, as before");
+  assert.ok(section, "the entry shows an impact list");
+  assert.deepEqual(listed(section), { "RULE THREE": { change: "withdraw", ids: ["UC-003", T3] } });
+  assert.ok(html.indexOf("Accept entry 05") > html.indexOf('id="spec-impact"'), "the list stands before the accept panel");
+});
+
 // ---------------------------------------------------------------- the requests a load of an entry makes
 
 test("UC-006 3b: the requests one load of an entry makes, with an empty and with a kept file cache", async (t) => {
