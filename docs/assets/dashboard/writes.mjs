@@ -12,7 +12,7 @@
 import {
   fetchText, parseProductAddress, isGitLab, commitFiles, gitlabProject, gitlabSnapshot, commitFilesGitLab, writeFiles,
 } from "../git-host.mjs";
-import { identifierKept } from "../artifacts.mjs";
+import { identifierKept, parseFrontMatter } from "../artifacts.mjs";
 import { missingNeeds, planAcceptance, missingLayout } from "../review-core.mjs";
 import { PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH, setProductSetting, formatCollaborators } from "../pseudonymiser.mjs";
 
@@ -25,13 +25,22 @@ export function clickAuthority(event) {
   return Object.freeze({ kind: "click" });
 }
 
+// The sentence a person reads when a save is refused for a changed identifier, written here from the finding identifierKept
+// returns (ARC-003 decision 5: the kernel returns the finding, the shell writes the sentence). The finding names the identifier
+// the file was opened with (its artifact); the identifier the text carries now is the one its front matter holds.
+function keptRefusalText(finding, text) {
+  const now = parseFrontMatter(String(text)).fields.id ?? null;
+  return `The file was opened as ${finding.artifact}, but the text now carries the identifier ${now ?? "(none)"} — an edited file ` +
+    "keeps its identifier. Nothing was saved; put the identifier back, or propose a new file for a new one.";
+}
+
 // Saving an edit of a reviewed file (EDITS ARE PREPARED ON THE DASHBOARD): refused, before anything is sent, when the text
 // carries another identifier than the one the file was opened with (AN EDITED FILE KEEPS ITS IDENTIFIER); written only if the
 // file is still the text the editor opened (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE). openedId null: a file without
 // an identifier, such as a SPEC proposal.
 export async function saveReviewedFile({ repo = null, product = null, branch, token, authority, path, text, openedId, expectBlob }) {
   const refused = identifierKept(openedId, text);
-  if (refused) throw new Error(refused);
+  if (refused) throw new Error(keptRefusalText(refused, text));
   return writeFiles({ repo, product, branch, token, authority, message: `edit ${String(path).split("/").pop()} (Agent M dashboard)`,
     files: [{ path, content: text, expectBlob: expectBlob || null }] });
 }
