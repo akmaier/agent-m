@@ -78,3 +78,20 @@ Further:
 ## Needs a person
 
 No.
+
+## Back from Release testing (2026-10-02) — finding D1, the view's half
+
+Finding **D1** of ITM-145 (`docs/measurements/2026-10-02_release-tests-sprint-02-d.md`, case 18, `{ todo }` in
+`tests/release-sprint-02-d-dashboard-app.test.mjs`): an entry that renames TITLE in place, or leaves it out of its section,
+shows no impact list and offers *Accept*. Path: `spec-changes-view.mjs` `viewSpecEntry` → `entryImpact` →
+`touchedBy(linkGraph({ files: own, status }), e.proposalPath)` → the graph reads only the names the entry states (ITM-018's
+half) → `[]` → no list, *Accept* offered. Soll: UC-001, UC-002, MOD-cover and `tests/title.test.mjs` listed before *Accept*,
+as for a withdrawal.
+
+The Product Owner sends the item **back to Development** (`docs/backlog/sprints/sprint-02.md`, *Decided on 2026-10-02*):
+developer-opus-d takes it up on a new branch, red first — the first commit removes the mark of case 18 —, after ITM-018's
+re-opening, inside MOD-dashboard-app: `entryImpact` gives the graph the queue's `index.md` beside `SPEC.md` and the proposal
+(`own`), so that the graph knows the section the entry replaces, and the list names the requirement as withdrawn or
+changed as the graph says. The view holds the replaced section already (`e.current`); it is the graph that draws the edge,
+so that `tests/release-sprint-02-d-traceability.test.mjs` case 24 and this case go green together. The request count of
+ITM-134's record changes by the index file at most.

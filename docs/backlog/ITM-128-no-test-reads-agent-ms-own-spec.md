@@ -60,7 +60,14 @@ Files it creates or changes:
 
 ## Acceptance criteria
 
-- No file under `tests/` opens the repository's own `SPEC.md`; reading a fixture's `SPEC.md` stays allowed.
+- No file under `tests/` opens the repository's own `SPEC.md` as a source of expected values; reading a fixture's `SPEC.md`
+  stays allowed. **A whole-repository scan** — a test that opens every committed file, or every artifact, of the
+  repository to check each against a rule (today `tests/test_artifact_format.py`, `ARTIFACTS ARE MARKDOWN`, and
+  `tests/test_products_folder.py`, `NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY`) — **opens `SPEC.md` as one file among
+  all and does not fall under this criterion**, nor under `KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE`: the rule's occasion is a test
+  that compares strings with a Markdown file so that the SPEC can no longer be rewritten without breaking it; a scan asserts
+  nothing about the SPEC's content and breaks on no rewording (reading of the Scrum Master, 2026-10-01, adopted by the
+  Product Owner at the sprint 02 gate decisions, 2026-10-02; *From the sprint 02 release tests*, below).
 - The assertions of the test keep their expected values; only their input changes from the real SPEC to fixture text.
 - Every new code file and test names its module, and every test names what it guards and its level (ARC-020).
 - A fault planted in `specRequirements` that the real-SPEC block caught (a withdrawn requirement read as live) is still caught, recorded with the change (`A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT`).
@@ -73,3 +80,17 @@ Files it creates or changes:
 ## Needs a person
 
 No.
+
+## From the sprint 02 release tests (2026-10-02)
+
+Finding **S1** of ITM-144 (`docs/measurements/2026-10-01_release-tests-sprint-02-c.md`, case 26, `@unittest.expectedFailure`
+in `tests/test_release_sprint_02_c.py`): the watcher sees two Python tests open `SPEC.md` — `tests/test_artifact_format.py:94`
+(every artifact of the repository is Markdown; ITM-050) and `tests/test_products_folder.py:76` (every committed file names no
+product). Both are whole-repository scans; the tester left their reach as an open question. The Product Owner decided at
+the gate of strand C (`docs/backlog/sprints/sprint-02.md`, *Decided on 2026-10-02*): the criterion above is corrected,
+**not the code** — the two scans stay as they are. The S1 case follows the corrected criterion: its expectation becomes
+"every open of `SPEC.md` the watcher sees comes from a whole-repository scan" (the watcher records the test file and line
+of each open), and its mark goes. That is a change to a release test's expectation, so it is made by its author,
+`tester-opus`, on a branch of ITM-144 — one commit, green, no code — not by this item's developer
+(`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). The item itself is not re-opened. ITM-158 moves the watcher into CI's
+one run.
