@@ -124,6 +124,11 @@ its own; the limit of four is untouched — the dashboard strand still holds one
   retrospective, and the Product Owner who decides that merge must not have written them (`A GATE IS NOT DECIDED
   BY THE PARTICIPANT WHOSE WORK IT CHECKS`). The front matter's `closer` follows `docs/process.md`; `end` records
   the day the last selected item was merged (pull request #38, 18:15 UTC).
+- *Merged into `main`, 2026-10-01:* decided by `po-fable` (gate record in pull request #39, merge commit
+  385f5cf), executed under the account `akmaier` with akmaier's approval. Limitation accepted: the gate
+  *Release testing → Sprint review* has no decision — no release test was written and `tester-opus` took no
+  part. It is closed by the release tests of this increment as the first item of sprint 02; a dated addendum
+  here lifts it once they are green on `main`.
 
 ## Not selected, and why
 
