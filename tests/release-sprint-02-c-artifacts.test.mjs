@@ -87,7 +87,7 @@ test("release · requirements: a source without a date, an empty source and a da
 // without the source after its name. Expected: an error under that rule at that requirement — a missing source is still an
 // error (ITM-127, *Outcome*). Finding C1 (back to Development: ITM-127): the checker does not see the requirement at all and
 // reports nothing.
-test("release · requirements: a requirement written without any source is an error", { todo: "finding C1 — ITM-127: a requirement whose name line carries no source is not read as a requirement, so a missing source yields no finding" }, () => {
+test("release · requirements: a requirement written without any source is an error", () => {
   const fs = findingsOf(spec(req("NO SOURCE GIVEN", null), req("EXPORT IS A PDF", "PO B. Example, 2026-09-24")));
   assert.equal(errors(fs, "NO SOURCE GIVEN", "A REQUIREMENT HAS FIVE FIELDS").length, 1, JSON.stringify(fs));
 });
