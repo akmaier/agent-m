@@ -93,6 +93,41 @@ class RequirementFields(unittest.TestCase):
         # The written source of the fixture is a source.
         self.assertEqual(findings(SPEC, "A NAMED RULE STAYS ONE", []), [])
 
+    def test_a_requirement_written_without_any_source_is_read_and_its_source_named_as_missing(self):
+        # ITM-127, back from Release testing (finding C1): a bold name in capitals with no *(…)* after it, followed by its
+        # rule and its *Occasion:* or *Check:* line, is a requirement whose source is missing — read with its other fields,
+        # and one error "no source" at its own line. Expected for each spelling of the name line below.
+        name = "THE EXPORT IS A PDF"
+        for label, head in (("the name alone", f"**{name}**\n"), ("blanks after the name", f"**{name}**  \n"),
+                            ("a CR LF line end", f"**{name}**\r\n")):
+            text = SPEC.replace(f"**{name}** *(SRC-po, 2026-09-24)*\n", head)
+            r = requirements(text)
+            self.assertEqual(list(r), list(requirements(SPEC)), label)
+            got = r[name]
+            self.assertEqual((got["rule"], got["occasion"], got["check"], got["line"], got["withdrawn"]),
+                             ("The export of a report is a PDF file.", "the readers print it.", "`tests/test_export.py`", 13,
+                              False), label)
+            fs = findings(text, name)
+            self.assertEqual([(f["kind"], f["rule"], f["what"], f["line"]) for f in fs], [("error", RULE, "no source", 13)],
+                             label)
+        # With only its check after the rule, it is still a requirement — without a source and without an occasion.
+        text = SPEC.replace(f"**{name}** *(SRC-po, 2026-09-24)*\n", f"**{name}**\n").replace(
+            "*Occasion:* the readers print it.\n", "")
+        self.assertEqual(sorted(f["what"] for f in findings(text, name)), ["no occasion", "no source"])
+
+    def test_counter_proof_bold_prose_between_requirements_stays_no_requirement(self):
+        # The reader is shared (the link graph, the SPEC browser, the queue entries): bold prose — a line in capitals
+        # alone, a label in capitals with text after it, a quoted name — between two requirements is no requirement, and
+        # every requirement is read with the same fields as without it. Expected: the same names and fields, lines aside.
+        prose = ("**THIS SECTION IS INFORMATIVE**\n\n"
+                 "**ALSO IN CAPITALS**\nA paragraph in bold capitals' wake, with no fields.\n\n"
+                 "**NOTE:** the exports are checked; see `THE EXPORT IS A PDF`.\n*Check:* not a field of a requirement.\n\n")
+        anchor = "**THE PRODUCT IS NOT SOLD**"
+        text = SPEC.replace(anchor, prose + anchor)
+        self.assertEqual(text.count(prose), 1)
+        strip = lambda reqs: {n: {k: v for k, v in x.items() if k != "line"} for n, x in reqs.items()}  # noqa: E731
+        self.assertEqual(strip(requirements(text)), strip(requirements(SPEC)))
+
 
 if __name__ == "__main__":
     unittest.main()
