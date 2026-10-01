@@ -83,3 +83,13 @@ Further:
 ## Needs a person
 
 No.
+
+## From the sprint 01 review
+
+ITM-007 quoted, among its acceptance criteria, the checks of `tests/test_mail_privacy.py` for `PSEUDONYMISATION IS ON
+UNLESS A PRODUCT SWITCHES IT OFF` — a product without the setting gets rewritten report data; counter-proof: a product
+that switched it off gets the original data — and for `REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS`,
+but built neither: they exercise MOD-pseudonymiser's write gate, which was not among ITM-007's modules, and the file was
+not in its list (pull request #34, *Left out of this item*). This item creates `tests/test_mail_privacy.py` and the write
+gate, so the first of the two checks is written here, against the setting as ITM-007 explained it; the second stays with
+ITM-069, which names it. (Sprint 01 review, `docs/backlog/sprints/sprint-01.md`, feedback 11.)

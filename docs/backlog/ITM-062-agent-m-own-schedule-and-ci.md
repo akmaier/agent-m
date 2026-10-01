@@ -90,3 +90,12 @@ Further:
 ## Needs a person
 
 The PO stores the Agent M token as an Actions secret of `akmaier/agent-m` (the dashboard names it and opens the page; nobody else can).
+
+## From the sprint 01 review
+
+In Agent M's CI of today (`.github/workflows/tests.yml`) the node step does not run when the Python step fails, so the
+red first commit of an implementation job shows only the Python result; ITM-008's developer recorded the node counts
+locally (`docs/measurements/2026-10-01_one-write-path-with-an-authority.md`, section 1). The CI this item generates runs
+every suite's step even when an earlier one failed, so that a red run reports every suite; counter-proof: a generated
+configuration that skips the second step after a red first one fails the check. (Sprint 01 review,
+`docs/backlog/sprints/sprint-01.md`, process finding 20.)

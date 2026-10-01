@@ -109,3 +109,13 @@ Further:
 ## Needs a person
 
 No.
+
+## From the sprint 01 review
+
+ITM-008 named `tests/test_runtime_levels.py` for `A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET` but could
+not write it inside MOD-git-host and MOD-dashboard-app; it built the write path's `ci-secret` authority kind and a
+repository check that only the CI entry makes one (`docs/measurements/2026-10-01_one-write-path-with-an-authority.md`;
+pull request #37, *Acceptance criteria not met here*). This item's check of that rule therefore also covers ITM-008's
+part: the job step of the CI entry writes through MOD-git-host's write path with a `ci-secret` authority made in
+MOD-ci-entry, with the token from the named secret; counter-proof: a write of the job step without that authority is
+refused before any request. (Sprint 01 review, `docs/backlog/sprints/sprint-01.md`, feedback 10.)

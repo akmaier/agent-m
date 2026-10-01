@@ -78,3 +78,14 @@ Further:
 ## Needs a person
 
 No.
+
+## From the sprint 01 review
+
+ITM-008 named `tests/test_bridge_agents.py` for `A LOCAL AGENT USES THE PERSON'S OWN LOGIN` but could not write it inside
+MOD-git-host and MOD-dashboard-app; it built the write path's `agent-login` authority kind and a repository check that
+only the bridge app makes one (`docs/measurements/2026-10-01_one-write-path-with-an-authority.md`; pull request #37,
+*Acceptance criteria not met here*). This item writes that check, as the SPEC words it — the command the bridge starts
+carries no key and no key environment variable —, and so closes the part ITM-008 left open for it. A write that follows
+from an agent's run, made with the `agent-login` authority, belongs to the item that runs the bridge's queued jobs
+(ITM-106), whose module MOD-bridge-app makes that authority. (Sprint 01 review, `docs/backlog/sprints/sprint-01.md`,
+feedback 10.)
