@@ -1,4 +1,11 @@
-"""SPEC §7 THE SHARED PAGES ORIGIN IS DISCLOSED — stated before anything is stored."""
+# Module: MOD-dashboard-app
+# Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS
+# Level: component
+"""SPEC §7 THE SHARED PAGES ORIGIN IS DISCLOSED — stated before anything is stored.
+
+That nothing can be stored before the notice is acknowledged (canStore, still in the kernel) is checked in
+tests/test_settings_in_the_core.py.
+"""
 import re
 import unittest
 from pathlib import Path
@@ -18,9 +25,6 @@ class SettingsDisclosure(unittest.TestCase):
         n = js("return settingsView.sharedOriginNotice('akmaier');")
         self.assertIn("akmaier.github.io", n)
         self.assertIn("every", n.lower())
-
-    def test_nothing_can_be_stored_before_acknowledging(self):
-        self.assertEqual(js("return [core.canStore(false), core.canStore(true)];"), [False, True])
 
     def test_settings_view_shows_the_notice_before_the_input(self):
         app = dashboard_text()

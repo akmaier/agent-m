@@ -1,3 +1,6 @@
+# Module: MOD-bridge-tunnel
+# Guards: A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; UC-011
+# Level: unit
 """SPEC §6 A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK — the dashboard's side (UC-011 1c).
 
 What this file checks: the reverse-tunnel command the dashboard writes binds the jump host's end to 127.0.0.1

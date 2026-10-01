@@ -1,3 +1,5 @@
+# Guards: A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY
+# Level: unit
 """SPEC §10 A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER — products/README.md is tracked;
 a folder created under products/ is ignored by git.
 

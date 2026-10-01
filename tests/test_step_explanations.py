@@ -1,3 +1,6 @@
+# Module: MOD-dashboard-app
+# Guards: EVERY STEP EXPLAINS ITSELF
+# Level: component
 """SPEC §10 EVERY STEP EXPLAINS ITSELF.
 
 Steps are rendered only through dashboardApp.stepHtml, which refuses a step without an explanation. This

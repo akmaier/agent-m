@@ -67,7 +67,7 @@ def use_case_problems(name: str, text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------- architecture files (SPEC §11)
-# The same format as docs/assets/review-core.mjs parseArchitecture reads; tests/test_architecture_files.py.
+# The same format as docs/assets/artifacts.mjs parseArchitecture reads; tests/test_architecture_files.py.
 
 SLUG = r"[a-z0-9]+(?:-[a-z0-9]+)*"
 ARC_NAME = re.compile(rf"^ARC-(\d{{3}})-{SLUG}\.md$")

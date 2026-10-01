@@ -1,11 +1,16 @@
-// Architecture on the review dashboard — deterministic, no network. Run: node --test tests/
+// Architecture on the review dashboard: status, acceptance and editing of ARC and MOD files — deterministic, no network.
+// Run: node --test tests/*.test.mjs
 //
-// SPEC §11 ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE · ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS ·
-// AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; §10 ONE REVIEW LAYOUT FOR EVERY PRODUCT · ACCEPTANCE IS
-// A COMMIT BY THE ACCEPTING PERSON · AN APPROVAL NAMES THE EXACT TEXT · STATUS IS DERIVED FROM THE RECORDS · SEVERAL FILES
-// ARE ACCEPTED IN ONE CLICK · A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT · A SAVE IS REFUSED WHEN THE TEXT
-// CHANGED MEANWHILE · AN EDITED FILE KEEPS ITS IDENTIFIER · GITLAB PRODUCTS ARE SUPPORTED (UC-022 step 8, 10, 10a;
-// UC-023 steps 4–5, 4a–4c).
+// Module: MOD-review-core
+// Guards: STATUS IS DERIVED FROM THE RECORDS; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; GITLAB PRODUCTS ARE SUPPORTED; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; UC-022; UC-023
+// Level: unit
+//
+// SPEC §11 ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS · AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; §10
+// ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON · AN APPROVAL NAMES THE EXACT TEXT · STATUS IS DERIVED FROM THE RECORDS ·
+// SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE · AN EDITED FILE KEEPS ITS
+// IDENTIFIER · GITLAB PRODUCTS ARE SUPPORTED (UC-022 step 8, 10, 10a; UC-023 steps 4–5, 4a–4c).
+// The format of the files is checked in tests/architecture-format.test.mjs, the impact list and the component diagram in
+// tests/architecture-impact.test.mjs, the dashboard's Architecture view in tests/architecture-view.test.mjs.
 //
 // The product is the fixture under tests/fixtures/architecture/. Counter-proofs are listed in
 // docs/measurements/2026-09-30_review-dashboard-mutations.md §8.
@@ -16,26 +21,13 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  gitBlobSha, recordsForId, approvalPath, recordText, parseRecord, reviewedRecord,
+  gitBlobSha, approvalPath, recordText, parseRecord, reviewedRecord,
   deriveReviewedStatus, deriveUseCaseStatus, architecturePrerequisites,
-  acceptItems, planAcceptance, createReviewSession, saveReviewedFile, lastAccepted, changedLines,
+  acceptItems, createReviewSession, saveReviewedFile,
   useCaseRecord,
 } from "../docs/assets/review-core.mjs";
-import {
-  reviewedId, kindOfPath, parseArchitecture, specRequirements, isCodePath, isTestPath, headerModules, ARCHITECTURE_FILE,
-} from "../docs/assets/artifacts.mjs";
-import { moduleHeaders, impactList, componentDiagram } from "../docs/assets/traceability.mjs";
-import { prerequisitesHtml, impactHtml } from "../docs/assets/dashboard/review-views.mjs";
+import { reviewedId, parseArchitecture } from "../docs/assets/artifacts.mjs";
 import { parseProductAddress } from "../docs/assets/git-host.mjs";
-import { repoServer, openDashboard } from "./app-harness.mjs";
-
-// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
-// under docs/assets/dashboard/ — what a test that read the one app file reads now.
-const dashboardText = () => {
-  const assets = new URL("../docs/assets/", import.meta.url);
-  const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
-  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
-};
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const files = {};
@@ -103,30 +95,6 @@ const readerOf = (repo) => async (_head, p) => (p in repo ? repo[p] : null);
 
 // ---------------------------------------------------------------- identifiers, records, status
 
-test("ONE REVIEW LAYOUT FOR EVERY PRODUCT — ARC and MOD files are reviewed files with identifiers from their names", () => {
-  assert.equal(reviewedId(ARC), "ARC-001");
-  assert.equal(reviewedId("docs/architecture/ARC-001-renamed-since.md"), "ARC-001");
-  assert.equal(reviewedId(READER), "MOD-reader");
-  assert.equal(reviewedId("docs/architecture/MOD-review-core.md"), "MOD-review-core", "the whole slug is the identifier");
-  assert.equal(reviewedId("docs/architecture/MOD-123-x.md"), "MOD-123-x", "a module is not read as an ARC-like number");
-  assert.equal(reviewedId("docs/architecture/README.md"), null);
-  assert.equal(kindOfPath(ARC), "architecture-decision");
-  assert.equal(kindOfPath(READER), "module");
-  assert.equal(kindOfPath(UC1), "use-case");
-  assert.equal(kindOfPath("docs/architecture/notes.md"), null);
-  assert.equal(approvalPath("MOD-reader", "0123456789ab".padEnd(40, "0")), "docs/approvals/MOD-reader-0123456789ab.md");
-  const r = reviewedRecord(READER, "b".repeat(40));
-  assert.deepEqual(r, { kind: "module", file: READER, blob: "b".repeat(40) });
-  assert.equal(recordText(r), `kind: module\nfile: ${READER}\nblob: ${"b".repeat(40)}\n`, "the three lines of a use case's record");
-  assert.equal(reviewedRecord(ARC, "a".repeat(40)).kind, "architecture-decision");
-  assert.throws(() => reviewedRecord("docs/architecture/notes.md", "a".repeat(40)), /reviewed file/);
-  // Records of MOD-reader are found by identifier; MOD-reader-extra's are not MOD-reader's.
-  const recs = [reviewedRecord(READER, "a".repeat(40)), reviewedRecord("docs/architecture/MOD-reader-extra.md", "b".repeat(40)),
-    reviewedRecord(ARC, "c".repeat(40))];
-  assert.deepEqual(recordsForId(recs, "MOD-reader"), [recs[0]]);
-  assert.deepEqual(recordsForId(recs, "ARC-001"), [recs[2]]);
-});
-
 test("STATUS IS DERIVED FROM THE RECORDS — ARC and MOD: open, accepted, changed; only records of their own kind count", async () => {
   const b = await gitBlobSha(files[READER]);
   assert.equal(deriveReviewedStatus(READER, b, []), "open");
@@ -137,58 +105,7 @@ test("STATUS IS DERIVED FROM THE RECORDS — ARC and MOD: open, accepted, change
   assert.equal(deriveReviewedStatus(UC1, b, [reviewedRecord(UC1, b)]), "accepted", "use cases derive the same way");
 });
 
-// ---------------------------------------------------------------- the format
-
-test("parseArchitecture — a decision: id, title, forced_by, and its four sections", () => {
-  const a = parseArchitecture(ARC, files[ARC]);
-  assert.equal(a.kind, "architecture-decision");
-  assert.equal(a.id, "ARC-001");
-  assert.equal(a.title, "The dashboard is a static client of the Git server's API");
-  assert.deepEqual(a.names, ["RULE ONE", "UC-001"]);
-  assert.deepEqual(a.requirements, ["RULE ONE"]);
-  assert.deepEqual(a.useCases, ["UC-001"]);
-  assert.deepEqual(a.follows, []);
-  assert.deepEqual(a.problems, []);
-  assert.ok(a.problems.length === 0);
-  assert.match(parseArchitecture(ARC, files[ARC].replace("  - RULE ONE\n  - UC-001\n", "")).problems.join(" "), /forced_by must name at least one/,
-    "a decision names what forces it");
-  const broken = parseArchitecture(ARC, files[ARC].replace("## Alternatives\n", ""));
-  assert.match(broken.problems.join(" "), /Alternatives/);
-});
-
-test("parseArchitecture — a module: realises, follows, uses MOD-x.interface, provides, each interface described", () => {
-  const m = parseArchitecture(REVIEW, files[REVIEW]);
-  assert.equal(m.kind, "module");
-  assert.equal(m.id, "MOD-review");
-  assert.deepEqual(m.names, ["THE READER'S RULE", "UC-002"]);
-  assert.deepEqual(m.follows, ["ARC-001"]);
-  assert.deepEqual(m.uses, [{ module: "MOD-reader", iface: "readFile" }, { module: "MOD-reader", iface: "listTree" },
-    { module: "MOD-store", iface: "load" }]);
-  assert.deepEqual(m.provides, ["status"]);
-  assert.equal(m.interfaces.status, "- `status(path) -> \"open\" | \"accepted\" | \"changed\"`\n  — derived, never stored.");
-  assert.deepEqual(m.problems, []);
-  const page = parseArchitecture(PAGE, files[PAGE]);
-  assert.deepEqual([page.names, page.follows, page.provides, page.problems], [[], [], [], []], "empty lists are lists");
-  // Counter-proof: a use of an interface not written MOD-x.name, and a provided interface nobody describes.
-  assert.ok(parseArchitecture(REVIEW, files[REVIEW].replace("  - MOD-reader.readFile\n", "  - readFile\n")).problems.length);
-  assert.ok(parseArchitecture(REVIEW, files[REVIEW].replace("  - status\n", "  - status\n  - history\n")).problems.length);
-  assert.ok(parseArchitecture("docs/architecture/MOD-other.md", files[REVIEW]).problems.length, "id differs from the file name");
-});
-
 // ---------------------------------------------------------------- ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
-
-test("specRequirements — the names in SPEC.md; a withdrawn one is marked; prose in bold is no requirement", () => {
-  const r = specRequirements(files["SPEC.md"]);
-  assert.deepEqual([...r.keys()], ["RULE ONE", "THE READER'S RULE", "OLD RULE"]);
-  assert.deepEqual([...r.values()].map((x) => x.withdrawn), [false, false, true],
-    "a source that runs over two lines is read whole — OLD RULE's withdrawal stands on its second line");
-  // The known positive: every requirement a use case of this repository realises is found in its SPEC.
-  const real = specRequirements(readFileSync(new URL("../SPEC.md", import.meta.url), "utf8"));
-  assert.ok(real.size > 250);
-  assert.ok(real.get("ACCEPTANCE IS A COMMIT IN GITHUB").withdrawn);
-  assert.equal(real.get("ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON").withdrawn, false);
-  assert.equal(real.get("A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED").withdrawn, false, "WITHDRAWN in the name is not a withdrawal");
-});
 
 test("ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — every named requirement in the SPEC, every named use case accepted", async () => {
   const repo = { ...files, ...(await ucRecordFiles()) };
@@ -212,17 +129,6 @@ test("ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — every named requirement in th
   assert.deepEqual(architecturePrerequisites({ arch: parseArchitecture(REVIEW, files[REVIEW]), specText: files["SPEC.md"], useCases }).open, []);
 });
 
-test("ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — the blocked panel: Accept disabled, every open item named, explained", () => {
-  const html = prerequisitesHtml([{ name: "UC-001", reason: "not accepted yet" }, { name: "OLD RULE", reason: "withdrawn in SPEC.md" }]);
-  assert.match(html, /<button[^>]*disabled[^>]*>Accept<\/button>/);
-  assert.match(html, /UC-001/);
-  assert.match(html, /OLD RULE/);
-  assert.match(html, /withdrawn in SPEC\.md/);
-  assert.match(html, /<details class="explain"><summary>What is this\?<\/summary>/);
-  assert.doesNotMatch(html, /data-accept-key|data-tick/, "nothing that could accept or tick");
-  assert.equal(prerequisitesHtml([]), "", "nothing open, nothing blocked");
-});
-
 // ---------------------------------------------------------------- accepting
 
 async function archItem(path, text, repo, extra = {}) {
@@ -230,7 +136,6 @@ async function archItem(path, text, repo, extra = {}) {
   const pre = architecturePrerequisites({ arch, specText: repo["SPEC.md"], useCases: await useCasesOf(repo) });
   return { kind: arch.kind, id: arch.id, path, blob: await gitBlobSha(text), requires: pre.useCases, ...extra };
 }
-
 test("ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON — accepting an ARC and a MOD in one click: one commit, one record each", async () => {
   const repo = { ...files, ...(await ucRecordFiles()) };
   const s = createReviewSession();
@@ -357,131 +262,4 @@ test("AN EDITED FILE KEEPS ITS IDENTIFIER · A SAVE IS REFUSED WHEN THE TEXT CHA
   await withFetch(g4.fetchMock, () => saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", click,
     path: "docs/spec-freigaben/q/01-a.md", text: "## 1\n", openedId: null, expectBlob: "x" }));
   assert.ok(g4.calls.some(([m]) => m === "PATCH"));
-});
-
-// ---------------------------------------------------------------- the impact list
-
-test("module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code", async () => {
-  assert.deepEqual(headerModules(files["src/reader.js"]), ["MOD-reader"]);
-  assert.deepEqual(headerModules(files["src/review.py"]), ["MOD-review"]);
-  assert.deepEqual(headerModules(files["src/late.js"]), [], "a header after the first lines is not a header");
-  assert.deepEqual(headerModules("/* Module: MOD-a */\n<!-- Module: MOD-b -->\n"), ["MOD-a", "MOD-b"]);
-  assert.deepEqual(headerModules("const x = 'Module: MOD-a';\n"), [], "only a line that is a header, not a string in code");
-  assert.ok(isCodePath("src/reader.js") && isCodePath("src/review.py") && isCodePath("docs/assets/review-core.mjs"));
-  assert.ok(!isCodePath("src/notes.md") && !isCodePath("vendor/lib.js") && !isCodePath("node_modules/x/i.js")
-    && !isCodePath("docs/assets/vendor/marked.esm.js") && !isCodePath("logo.png"));
-  assert.ok(isTestPath("tests/reader.test.js") && isTestPath("tests/test_x.py") && isTestPath("src/x.spec.ts") && isTestPath("pkg/x_test.go"));
-  assert.ok(isTestPath("tests/helpers.js") && isTestPath("pkg/__tests__/x.js"), "a file in a tests folder is a test");
-  assert.ok(!isTestPath("src/reader.js") && !isTestPath("src/contest.js"));
-  const read = [];
-  const found = await moduleHeaders({ paths: Object.keys(files), read: async (p) => { read.push(p); return files[p]; } });
-  assert.deepEqual(found, [
-    { path: "src/reader.js", modules: ["MOD-reader"], test: false },
-    { path: "src/review.py", modules: ["MOD-review"], test: false },
-    { path: "tests/reader.test.js", modules: ["MOD-reader"], test: true },
-  ]);
-  assert.ok(!read.some((p) => p.endsWith(".md") || p.startsWith("vendor/")), "only code files are read");
-});
-
-const headersOf = () => moduleHeaders({ paths: Object.keys(files), read: async (p) => files[p] });
-const modulesOf = (repo) => archPaths.map((p) => parseArchitecture(p, repo[p]));
-
-test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after", async () => {
-  const before = parseArchitecture(ARC, files[ARC]);
-  const text = files[ARC].replace("  - UC-001\n", "  - UC-002\n");
-  const after = parseArchitecture(ARC, text);
-  const imp = impactList({ before, after, modules: modulesOf({ ...files, [ARC]: text }), headers: await headersOf() });
-  assert.deepEqual(imp.affected.map((a) => a.id), ["MOD-reader", "MOD-review"], "MOD-page follows nothing and is not listed");
-  assert.deepEqual(imp.affected[0].code, ["src/reader.js"]);
-  assert.deepEqual(imp.affected[0].tests, ["tests/reader.test.js"]);
-  assert.deepEqual(imp.affected[1].code, ["src/review.py"]);
-  assert.deepEqual(imp.affected[1].tests, []);
-  assert.match(imp.affected[0].reasons.join(" "), /follows ARC-001/);
-  assert.deepEqual(imp.names, { kept: ["RULE ONE"], added: ["UC-002"], removed: ["UC-001"] });
-});
-
-test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a module: users of an altered or removed interface, breaks first", async () => {
-  const before = parseArchitecture(READER, files[READER]);
-  // listTree removed, readFile altered.
-  const text = files[READER].replace("  - listTree\n", "")
-    .replace("- `listTree() -> [path]` — every file path at the pinned commit.\n", "")
-    .replace("`readFile(path) -> text | null`", "`readFile(path, commit) -> text | null`");
-  const after = parseArchitecture(READER, text);
-  const imp = impactList({ before, after, modules: modulesOf({ ...files, [READER]: text }), headers: await headersOf() });
-  assert.deepEqual(imp.removedInterfaces, ["listTree"]);
-  assert.deepEqual(imp.alteredInterfaces, ["readFile"]);
-  assert.deepEqual(imp.affected.map((a) => [a.id, a.breaks]), [["MOD-review", true], ["MOD-reader", false]],
-    "the user of a removed interface first, marked breaks; then the changed module itself");
-  assert.match(imp.affected[0].reasons.join(" "), /listTree, which the change removes/);
-  assert.match(imp.affected[0].reasons.join(" "), /readFile, which the change alters/);
-  assert.deepEqual(imp.affected[1].code, ["src/reader.js"]);
-  assert.deepEqual(imp.names, { kept: ["RULE ONE", "UC-001"], added: [], removed: [] });
-  const html = impactHtml(imp);
-  assert.match(html, /MOD-review/);
-  assert.match(html, /breaks/);
-  assert.match(html, /src\/review\.py/);
-  assert.match(html, /tests\/reader\.test\.js/);
-  assert.match(html, /<details class="explain">/);
-});
-
-test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — counter-proof: a change to the text alone touches no user; no code is said so", async () => {
-  const before = parseArchitecture(READER, files[READER]);
-  const text = files[READER].replace("Reads the product's files, all at one commit.", "Reads files, all at one commit.");
-  const imp = impactList({ before, after: parseArchitecture(READER, text), modules: modulesOf({ ...files, [READER]: text }),
-    headers: await headersOf() });
-  assert.deepEqual(imp.affected.map((a) => a.id), ["MOD-reader"], "MOD-review uses readFile, which did not change");
-  assert.deepEqual([imp.removedInterfaces, imp.alteredInterfaces], [[], []]);
-  // UC-023 4c: without code naming the module, the list says so.
-  const none = impactList({ before, after: parseArchitecture(READER, text), modules: modulesOf(files), headers: [] });
-  assert.deepEqual(none.affected[0].code, []);
-  assert.match(impactHtml(none), /no code yet/);
-});
-
-// ---------------------------------------------------------------- the component diagram
-
-test("the component diagram — computed from uses and provides; an interface nobody provides is drawn as missing", () => {
-  const d = componentDiagram(modulesOf(files));
-  assert.match(d, /^flowchart LR\n/);
-  assert.match(d, /MOD_review -->\|"readFile"\| MOD_reader/);
-  assert.match(d, /MOD_review -->\|"listTree"\| MOD_reader/);
-  assert.match(d, /MOD_page -->\|"status"\| MOD_review/);
-  assert.match(d, /MOD_review -.->\|"load"\| missing_\w+\["MOD-store\.load — missing"\]/);
-  assert.match(d, /class missing_\w+ missing/);
-  // Counter-proof: provided, it is not missing; an interface a module exists for but does not provide is.
-  const store = parseArchitecture("docs/architecture/MOD-store.md", files[READER].replace(/MOD-reader/g, "MOD-store")
-    .replace("  - readFile\n  - listTree\n", "  - load\n").replace(/- `readFile[^\n]*\n- `listTree[^\n]*\n/, "- `load()` — loads.\n"));
-  assert.deepEqual(store.problems, []);
-  const d2 = componentDiagram([...modulesOf(files), store]);
-  assert.doesNotMatch(d2, /missing/);
-  assert.match(d2, /MOD_review -->\|"load"\| MOD_store/);
-  const d3 = componentDiagram(modulesOf({ ...files, [REVIEW]: files[REVIEW].replace("MOD-reader.listTree", "MOD-reader.listFiles") }));
-  assert.match(d3, /MOD-reader\.listFiles — missing/);
-  // A node shows its identifier and title; a title cannot break out of its label into a directive of its own.
-  assert.match(d, /MOD_reader\["MOD-reader<br\/>Reads files at a pinned commit"\]/);
-  const evil = componentDiagram([{ ...store, title: 'x"]\nclick MOD_store "javascript:alert(1)" <b>' }]);
-  assert.doesNotMatch(evil, /x"|\nclick|<b>/);
-  assert.match(evil, /x#quot;\] click MOD_store #quot;javascript:alert\(1\)#quot; #lt;b#gt;/);
-});
-
-// ---------------------------------------------------------------- the app
-
-test("the dashboard has an Architecture tab that lists, reviews, accepts and edits ARC and MOD files like use cases", async () => {
-  // The tab bar is written by the dashboard from its table of views; the page's own tab bar is read.
-  const html = (await openDashboard({ server: await repoServer({ files: { "SPEC.md": "# SPEC\n" } }) })).el("tabs");
-  assert.match(html, /<a href="#arc" role="tab" id="tab-arc">Architecture<\/a>/);
-  const app = dashboardText();
-  assert.match(app, /paths\(ARCHITECTURE_FILE\)/, "the files are read by the core's pattern");
-  assert.deepEqual(archPaths.concat(["docs/architecture/README.md", "docs/architecture/ARC-1-x.md", "docs/use-cases/UC-001-x.md",
-    "docs/architecture/sub/MOD-x.md"]).filter((p) => ARCHITECTURE_FILE.test(p)), archPaths, "docs/architecture/ARC-<nnn>-<slug>.md and MOD-<slug>.md only");
-  const view = app.match(/async function viewArchitectureFile\([\s\S]*?\n}\n/)[0];
-  assert.match(app, /const prerequisitesOf = \(f\) => architecturePrerequisites\(/, "the gate is the core's");
-  assert.ok(view.includes("prerequisitesOf(f)") && view.includes("prerequisitesHtml("), "the gate is part of the view");
-  assert.ok(view.indexOf("prerequisitesHtml(") < view.indexOf("acceptPanel("), "while something is open, no accept panel");
-  assert.ok(view.includes("accepted-diff"), "the difference to the last accepted text");
-  assert.ok(view.includes("impact"), "the impact list beside it");
-  assert.ok(view.includes("editPanel("), "the editor with preview");
-  assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "the difference above the text");
-  assert.match(app, /componentDiagram\(/);
-  assert.match(app, /saveReviewedFile\(/);
-  assert.doesNotMatch(app, /function (impactList|componentDiagram|parseArchitecture)\(/, "one implementation, in the core");
 });

@@ -1,9 +1,12 @@
+# Module: MOD-artifacts
+# Guards: ONE ARCHITECTURE DECISION, ONE FILE; AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES; ONE MODULE, ONE FILE; A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES; EVERY ARTIFACT NAMES ITS ORIGIN; ONE REVIEW LAYOUT FOR EVERY PRODUCT; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+# Level: unit
 """SPEC §11 ONE ARCHITECTURE DECISION, ONE FILE · AN ARCHITECTURE DECISION STATES CONTEXT, DECISION,
 ALTERNATIVES AND CONSEQUENCES · ONE MODULE, ONE FILE · A MODULE STATES ITS RESPONSIBILITY AND ITS
 INTERFACES · §1 EVERY ARTIFACT NAMES ITS ORIGIN · §10 ONE REVIEW LAYOUT FOR EVERY PRODUCT.
 
 The format of `docs/architecture/ARC-<nnn>-<slug>.md` and `docs/architecture/MOD-<slug>.md` as the
-dashboard reads it (docs/assets/review-core.mjs parseArchitecture). The instance has no architecture
+dashboard reads it (docs/assets/artifacts.mjs parseArchitecture). The instance has no architecture
 files yet; the fixture product under tests/fixtures/architecture/ has one decision and three modules,
 and each counter-proof breaks one of them.
 """
