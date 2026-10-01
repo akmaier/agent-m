@@ -179,15 +179,27 @@ export function rateLimitText(e, product = null, now = new Date()) {
   return which + when + after;
 }
 
+// UC-008 4a: a write GitHub refused because the token cannot write to the repository — 403 or 404 —, and not because a rate
+// limit is used up (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN) or the token itself was refused (401, tokenRefusal).
+// Never a GitLab product's: there is no GitHub page to fall back to (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
+export function writeAccessRefused(e, product) {
+  if (!e || isGitLab(product) || usedUpLimit(e)) return false;
+  return e.status ? e.status === 403 || e.status === 404 : /403|404/.test(e.message || "");
+}
+
 // Why a write was refused, in the product's terms — a used-up limit first, then GitLab's 403, then GitHub's 403 or 404 as the
-// token's missing permission; null when none of these applies (the caller then shows errorText).
-export function writeRefusalText(e, product, now = new Date()) {
+// token's missing permission; null when none of these applies (the caller then shows errorText). githubPage: GitHub's
+// new-file page prefilled with the approval record, which the caller shows beside the text as a link (UC-008 4a); without it
+// the GitHub path is named only.
+export function writeRefusalText(e, product, now = new Date(), { githubPage = null } = {}) {
   const limit = rateLimitText(e, product, now);
   if (limit) return limit;
   if (isGitLab(product)) return gitlabWriteRefusal(e, product);
-  return /403|404/.test(e?.message || "")
-    ? `Your token cannot write to ${product.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
-    : null;
+  if (!writeAccessRefused(e, product)) return null;
+  return `Your token cannot write to ${product.repo} (${e.message}). ` + (githubPage
+    ? "Extend it in Settings, or commit the record on GitHub's page instead: without write access GitHub makes your commit a " +
+      "pull request, and the acceptance counts once a maintainer merges it."
+    : "Extend it in Settings, or remove it to use GitHub's page instead.");
 }
 
 // The page shown when the product's commit cannot be read: the server's answer, and what it means here. A used-up rate limit
@@ -369,8 +381,8 @@ async function reloadAndRoute() {
 // (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-008 3c, UC-018 4b).
 const tokenStepLink = () => `#add/${encodeURIComponent(T.product.address)}`;
 
-// Why a write was refused, in the product's terms (writeRefusalText).
-const writeErrorText = (e) => writeRefusalText(e, T.product) || errorText(e);
+// Why a write was refused, in the product's terms (writeRefusalText); githubPage: the GitHub path the caller links beside it.
+const writeErrorText = (e, githubPage = null) => writeRefusalText(e, T.product, new Date(), { githubPage }) || errorText(e);
 
 // ---------------------------------------------------------------- tokens refused or expiring (SPEC §7)
 
@@ -441,6 +453,7 @@ function context() {
     ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
     recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets, tokenState,
     main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,
+    writeAccessRefused: (e) => writeAccessRefused(e, T.product),
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
     seq: () => routeSeq,
     setFlash: (text) => { flash = text; },

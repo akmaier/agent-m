@@ -120,6 +120,18 @@ export function gitlabTokenNeeded(app, what) {
     project's token</a></p>`;
 }
 
+// UC-008 4a: the GitHub path for a record — GitHub's new-file page prefilled with it, the page Accept opens without a token —,
+// offered beside a commit refused for missing write access. None for a GitLab product (A GITLAB PRODUCT IS WRITTEN WITH A
+// TOKEN), nor for a product's SPEC change: no product carries the workflow that would write it (UC-006 4c).
+export function githubPath(app, record, path) {
+  const { T, GITLAB } = app;
+  if (GITLAB || (record.kind === "spec" && T.repo !== T.instance)) return null;
+  return newFileUrl(T.repo, T.ref, path, recordText(record));
+}
+// The GitHub path of each Accept button this page shows, by the key of the item it accepts (session.key) — kept for this page
+// only; the panel that shows the button sets it, the click that is refused reads it.
+const githubPages = new Map();
+
 // `item` is what this page showed the reviewer (see session); with a token, Accept commits exactly that.
 export function acceptPanel(app, record, path, what, item) {
   const { T, SERVER, session } = app;
@@ -137,7 +149,8 @@ export function acceptPanel(app, record, path, what, item) {
   </section>`;
   }
   if (route === "commit") {
-    const key = session.show(item);
+    const key = session.show(item), page = githubPath(app, record, path);
+    if (page) githubPages.set(key, page); else githubPages.delete(key);
     return `
   <section class="panel accept">
     <h3>Accept ${h(what)}</h3>
@@ -273,7 +286,9 @@ export function batchBar(app) {
 }
 
 // ev: the event of the accept button's click handler — it becomes the authority of the write (clickAuthority), or none.
-async function runAccept(app, ev, items, b, out) {
+// githubPage: the GitHub path of the one record the button accepts (githubPath), linked beside a refusal for missing write
+// access (UC-008 4a); none for a batch.
+async function runAccept(app, ev, items, b, out, githubPage = null) {
   const { T, session } = app;
   b.disabled = true;
   out.textContent = "Checking the current texts and committing…";
@@ -290,7 +305,10 @@ async function runAccept(app, ev, items, b, out) {
     await app.reloadAndRoute();
   } catch (e) {
     app.noteRefusal(e);
-    out.textContent = app.writeErrorText(e);
+    if (githubPage && app.writeAccessRefused(e)) {
+      out.innerHTML = `${h(app.writeErrorText(e, githubPage))} <a class="btn small" href="${h(githubPage)}" target="_blank"
+        rel="noopener">Open in GitHub to commit ↗</a>`;
+    } else out.textContent = app.writeErrorText(e);
     b.disabled = false;
   }
 }
@@ -300,7 +318,7 @@ async function runAccept(app, ev, items, b, out) {
 export function wireAccept(app, root, scope = root) {
   const { session } = app;
   scope.querySelectorAll("[data-accept-key]").forEach((b) => b.addEventListener("click", (ev) => {
-    runAccept(app, ev, [session.get(b.dataset.acceptKey)], b, b.closest(".panel").querySelector(".result"));
+    runAccept(app, ev, [session.get(b.dataset.acceptKey)], b, b.closest(".panel").querySelector(".result"), githubPages.get(b.dataset.acceptKey) || null);
   }));
   scope.querySelectorAll("[data-tick]").forEach((c) => c.addEventListener("change", () => {
     session.tick(c.dataset.tick, c.checked);

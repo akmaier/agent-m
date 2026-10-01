@@ -307,7 +307,8 @@ test("UC-008 3c: a GitLab product without its project token is read, but offers 
   assert.ok(!srv.seen.some((r) => r.url.startsWith(`${API}/repos/grp`)), "nothing of the product goes to GitHub");
 });
 
-test("UC-008 4a: a commit the server refuses (no write access) writes nothing; the page says so and names the way through GitHub's page", async () => {
+// Changed by ITM-133 (UC-008 4a): the way through GitHub's page is offered as a link beside the refusal, not only named.
+test("UC-008 4a: a commit the server refuses (no write access) writes nothing; the page says so and offers the way through GitHub's page as a link", async () => {
   const refuse = (url, init) => (init.method === "POST" && url.pathname.endsWith("/git/trees")
     ? json({ message: "Resource not accessible by personal access token" }, 403) : undefined);
   const srv = await ucServer({}, [refuse]);
@@ -316,9 +317,10 @@ test("UC-008 4a: a commit the server refuses (no write access) writes nothing; t
   assert.deepEqual(srv.writes, []);
   const accept = inMain("[data-accept-key]");
   assert.equal(accept.disabled, false, "Accept can be pressed again");
-  assert.equal(accept.closest(".panel").querySelector(".result").textContent,
-    `Your token cannot write to ${REPO} (POST /git/trees: 403 Resource not accessible by personal access token). ` +
-    "Extend it in Settings, or remove it to use GitHub's page instead.");
+  const result = accept.closest(".panel").querySelector(".result").innerHTML;
+  assert.ok(result.startsWith(`Your token cannot write to ${REPO} (POST /git/trees: 403 Resource not accessible by personal access token). ` +
+    "Extend it in Settings, or commit the record on GitHub&#39;s page instead"), result);
+  assert.match(result, new RegExp(`href="https://github\\.com/${reEsc(REPO)}/new/main\\?filename=docs%2Fapprovals%2FUC-002-`));
 });
 
 // ================================================================ UC-006 Approve a specification change
