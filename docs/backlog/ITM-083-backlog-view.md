@@ -11,6 +11,7 @@ depends_on:
   - ITM-033
   - ITM-034
   - ITM-008
+  - ITM-147
 origin: backlog refinement 2026-10-01
 ---
 # ITM-083 The backlog — order, propose items, plan a sprint, pull under the WIP limit
@@ -19,7 +20,7 @@ origin: backlog refinement 2026-10-01
 
 ## Outcome
 
-UC-032: items in order with their derived state, uncovered requirements on top, *Propose items* through a participant, *+ Item*, reorder and *Save order*, *Plan sprint* with selection and closer, the board under the WIP limit.
+UC-032, the writes: *Propose items* through a participant, *+ Item*, reorder and *Save order*, *Plan sprint* with selection and closer, *Pull* under the WIP limit and *End sprint*. The read part — items in order with their derived state, uncovered requirements on top, the running sprint's board under the limit — is ITM-147 (*From the sprint 02 planning*), whose view this item extends.
 
 ## Realises
 
@@ -39,8 +40,9 @@ The pull request changes only code files and tests that name one of these module
 
 Files it creates or changes:
 
-- `docs/assets/dashboard/backlog-view.mjs` (new)
-- `tests/dashboard-backlog.test.mjs` (new)
+- `docs/assets/dashboard/backlog-view.mjs` (created by ITM-147; the writes added here)
+- `docs/assets/jobs/propose-backlog-items/` (the job definition ITM-033 writes, wired to *Propose items*)
+- `tests/dashboard-backlog.test.mjs` (created by ITM-147; the write tests added here)
 
 ## Kind and level
 
@@ -74,7 +76,14 @@ Further:
 - ITM-033 — items
 - ITM-034 — states, sprints, WIP
 - ITM-008 — click authority
+- ITM-147 — the view this item adds its writes to
 
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+The read part of UC-032 — the backlog in order with derived states, the uncovered names, the running sprint's board
+under the limit — was cut out as ITM-147, the first slice of the process dashboard (akmaier's wish of 2026-10-01).
+This item keeps every write and depends on ITM-147.

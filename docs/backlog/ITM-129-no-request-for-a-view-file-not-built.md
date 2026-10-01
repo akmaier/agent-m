@@ -21,7 +21,9 @@ exist without requesting each planned file. Today every page load on GitHub Page
 with a tab whose file is not built yet — the table names them, and the tab bar asks for each to find out (15 at the end
 of sprint 01: the table names 39 view and section files, 31 of them not built, 15 of those with a tab). After this item a page load requests only files that exist, and a view whose file is missing is still not
 shown, as ITM-003 made it. How the shell knows — a list kept beside the view files, written by the item that adds a
-view, or asking on first use only — is the implementer's choice inside MOD-dashboard-app.
+view, or asking on first use only — is the implementer's choice inside MOD-dashboard-app, with one bound (*From the
+sprint 02 planning*): a list, if kept, is a data file beside the view files under `docs/assets/dashboard/`, not a line
+of `dashboard-app.mjs`, so that an item adding a view changes only its own file and that list.
 
 ## Realises
 
@@ -77,3 +79,10 @@ Further:
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+ITM-147 adds the view `backlog` in the same sprint, on another strand, while this strand changes `dashboard-app.mjs`
+four times (ITM-129, ITM-130, ITM-133, ITM-136). Two items without a dependency change disjoint files
+(`docs/backlog/order.md`, *Conventions*); so, of the two ways named above, a list of built files is kept — if at all —
+as a data file beside the view files, and ITM-147 waits for this item to know which way was taken.

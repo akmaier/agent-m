@@ -11,7 +11,7 @@ modules:
   - MOD-work-items
 depends_on:
   - ITM-033
-  - ITM-030
+  - ITM-027
 origin: backlog refinement 2026-10-01
 ---
 # ITM-034 Sprints, item states, the work-in-progress limit and the sprint's selection
@@ -75,7 +75,7 @@ Further:
 ## Depends on
 
 - ITM-033 — items
-- ITM-030 — flow control from the declared model
+- ITM-027 — `parseModel`: the flow control (WIP limit, sprints) the caller passes in as `wip` (*From the sprint 02 planning*)
 
 ## Needs a person
 
@@ -84,3 +84,11 @@ No.
 ## Notes
 
 Agent M's own adapted model `scrum-wip` has a WIP limit of 4 and sprints with a selection but no time box; the SPEC's selection rule speaks of time boxes — see the change requests.
+
+## From the sprint 02 planning
+
+Checked at planning: `itemState(item, { requirements, useCases, jobs, pullRequests, wip })` takes the limit as an
+input (MOD-work-items, *Interfaces*); the limit stands in the model definition's *Flow control* table, which
+`parseModel` (ITM-027) reads. The declaration's `parseDeclaration` and `deriveWorkflow` (ITM-030, behind ITM-028 and
+ITM-029) are not needed for it, so the dependency on ITM-030 is replaced by ITM-027. The caller in this sprint is
+ITM-147, the first slice of the process dashboard.

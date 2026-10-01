@@ -44,7 +44,7 @@ The pull request changes only code files and tests that name one of these module
 Files it creates or changes:
 
 - `docs/assets/git-host/issues.mjs` (new)
-- `docs/assets/git-host/pull-requests.mjs` (new)
+- `docs/assets/git-host/pull-requests.mjs` (`merge(n, authority)` only; `list` and `get` are ITM-146 — *From the sprint 02 planning*)
 - `docs/assets/git-host/workflows.mjs` (new)
 - `tests/review-core.d/git-host-calls.test.mjs`
 
@@ -86,7 +86,14 @@ Further:
 ## Depends on
 
 - ITM-008 — writes take an authority
+- ITM-146 — creates `docs/assets/git-host/pull-requests.mjs` with `list` and `get`; this item adds `merge`
 
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+The reads of pull requests — `pullRequests().list(filter)` and `get(n)` on both hosts — were cut out into ITM-146 for the
+first slice of the process dashboard (ITM-147), which needs them and nothing else of this item. This item keeps
+`issues`, `workflows`, `repositoryInfo` and the write `pullRequests().merge`, and now depends on ITM-146.

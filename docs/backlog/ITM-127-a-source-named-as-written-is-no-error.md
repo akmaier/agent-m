@@ -50,6 +50,7 @@ Files it creates or changes:
 - `docs/assets/artifacts/requirements.mjs` (`requirementProblems`, the header comment)
 - `tests/fixtures/requirements/spec.md` (the fixture SPEC)
 - `tests/test_requirement_has_source.py` (the expectations)
+- `tests/test_requirement_fields.py`, `tests/test_single_statement.py`, `tests/test_requirement_names_check.py`, `tests/artifacts-checks.test.mjs` — the other readers of the fixture, only where an expectation rests on the fixture's sources (*From the sprint 02 planning*)
 
 ## Kind and level
 
@@ -76,3 +77,11 @@ Files it creates or changes:
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+The callers of what this item changes were checked at planning (sprint 01 retrospective, P7). `requirementProblems`
+is called by `docs/assets/artifacts/checks.mjs` (same module, signature unchanged) and read by five test files; four
+of them share the fixture `tests/fixtures/requirements/spec.md` this item changes. All are MOD-artifacts, so the item
+can change them; they are added to its list for the case that an expectation of theirs rests on the fixture's
+sources. ITM-139 waits for this item, as before.

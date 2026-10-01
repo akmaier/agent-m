@@ -57,7 +57,7 @@ Files it creates or changes:
 
 ## Tests the SPEC names
 
-- `tests/test_correction_loop.py` — `A FINDING READS LIKE A COMPILER MESSAGE`
+- `tests/test_correction_loop.py` — `A FINDING READS LIKE A COMPILER MESSAGE` (checked by ITM-024, which builds the loop; here `formatFinding` is checked in `tests/job-harness.test.mjs`)
 - `tests/test_derivation_context.py` — `NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`
 - `tests/test_destination_disclosure.py` — `THE PAGE STATES WHAT IT SENDS WHERE`
 - `tests/test_prompted_change_context.py` — `NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY`
@@ -69,7 +69,7 @@ From the SPEC's checks:
 - `NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY` — `tests/test_derivation_context.py`
 - `NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY` — `tests/test_prompted_change_context.py`
 - `THE PAGE STATES WHAT IT SENDS WHERE` — `tests/test_destination_disclosure.py`
-- `A FINDING READS LIKE A COMPILER MESSAGE` — `tests/test_correction_loop.py` — every finding of the fixture run matches the template.
+- `A FINDING READS LIKE A COMPILER MESSAGE` — in `tests/job-harness.test.mjs`: every finding of the catalogue formats as `<artifact>:<line>: <error|warning>: <what> [<RULE>] — <fix>`; the fixture run of the loop is `tests/test_correction_loop.py`, checked by ITM-024.
 
 Further:
 
@@ -84,3 +84,9 @@ Further:
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+P6 of the sprint 01 retrospective: an item names only checks it can build inside its modules and files.
+`tests/test_correction_loop.py` runs the correction loop, which ITM-024 builds; this item's part of `A FINDING READS
+LIKE A COMPILER MESSAGE` — the template — is checked in its own test file.

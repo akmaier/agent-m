@@ -13,6 +13,8 @@ modules:
 depends_on:
   - ITM-125
   - ITM-130
+  - ITM-132
+  - ITM-133
 origin: sprint 01 review
 ---
 # ITM-136 A browser setting's line keeps its last test across reloads — works since a date, or refused at the last use
@@ -52,6 +54,7 @@ Files it creates or changes:
 
 - `docs/assets/settings-store.mjs` (the last test's date and outcome per setting, cleared with it)
 - `docs/assets/dashboard-app.mjs`, `docs/assets/dashboard/settings-view.mjs` (read and write the kept state instead of `tokenState` in memory)
+- `docs/assets/dashboard/setup-view.mjs`, `docs/assets/dashboard/add-product-view.mjs` (the other two readers of `tokenState`, where the kept state replaces it — *From the sprint 02 planning*)
 - `tests/dashboard-settings-last-test.test.mjs` (new — run in `tests/app-harness.mjs`)
 
 ## Kind and level
@@ -81,7 +84,18 @@ Further:
 
 - ITM-125 — changes `docs/assets/settings-store.mjs` first
 - ITM-130 — changes `docs/assets/dashboard-app.mjs` and `docs/assets/dashboard/settings-view.mjs` first
+- ITM-132 — changes `docs/assets/dashboard/add-product-view.mjs` first
+- ITM-133 — changes `docs/assets/dashboard-app.mjs` first
 
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+The callers of what this item changes were checked at planning (sprint 01 retrospective, P7). `tokenState` is
+read and set in four files, not two: beside `dashboard-app.mjs` and `dashboard/settings-view.mjs` also
+`dashboard/setup-view.mjs` (resets it on *Store and check*) and `dashboard/add-product-view.mjs` (sets the GitLab
+token's state after *Check*); `tests/test_settings_page.py` constructs it. All are MOD-dashboard-app, so the item
+can change them; the two files are added to its list, and because ITM-132 changes `add-product-view.mjs` and
+ITM-133 `dashboard-app.mjs`, this item waits for both (`docs/backlog/sprints/sprint-02.md`).

@@ -10,6 +10,7 @@ modules:
   - MOD-dashboard-app
 depends_on:
   - ITM-136
+  - ITM-068
 origin: sprint 01 review
 ---
 # ITM-137 Removing a collaborator lists the files on the default branch that still name them
@@ -74,7 +75,15 @@ Further:
 ## Depends on
 
 - ITM-136 — changes `docs/assets/dashboard/settings-view.mjs` first
+- ITM-068 — builds `findPeople` of MOD-pseudonymiser (`docs/assets/pseudonymiser/people.mjs`), which this item calls
 
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+Checked at planning (sprint 01 retrospective, P7): `findPeople` stands in MOD-pseudonymiser's `provides`, but no file
+under `docs/assets/` exports it — ITM-068 builds it (`docs/assets/pseudonymiser/people.mjs`). The sentence above,
+"which MOD-pseudonymiser already provides", holds for the module file, not for the code. The item therefore waits
+for ITM-068 and was not selected for sprint 02 (`docs/backlog/sprints/sprint-02.md`, *Not selected, and why*).

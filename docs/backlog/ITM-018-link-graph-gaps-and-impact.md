@@ -12,10 +12,12 @@ realises:
   - AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
 modules:
   - MOD-traceability
+  - MOD-dashboard-app
 depends_on:
   - ITM-009
   - ITM-010
   - ITM-011
+  - ITM-133
 origin: backlog refinement 2026-10-01
 ---
 # ITM-018 The link graph of one commit — coverage and module gaps, impact of a requirement change
@@ -44,6 +46,7 @@ Architecture decisions its modules follow: ARC-003, ARC-006, ARC-020.
 ## Modules
 
 - MOD-traceability (kernel) — uses MOD-artifacts, MOD-review-core
+- MOD-dashboard-app (shells) — only for the two calls of the impact list in `docs/assets/dashboard/review-views.mjs` (*From the sprint 02 planning*)
 
 The pull request changes only code files and tests that name one of these modules (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`).
 
@@ -51,6 +54,8 @@ Files it creates or changes:
 
 - `docs/assets/traceability/graph.mjs` (new)
 - `docs/assets/traceability.mjs` (impactList becomes architectureImpact)
+- `docs/assets/dashboard/review-views.mjs` (its two calls of `impactList` become calls of `architectureImpact` over the graph; nothing else in the file)
+- `tests/architecture-impact.test.mjs` (the renamed import and signature)
 - `tests/test_matrix_derived.py`
 - `tests/test_references.py`
 - `tests/test_coverage_report.py`
@@ -91,7 +96,19 @@ Further:
 - ITM-009 — requirements
 - ITM-010 — use cases
 - ITM-011 — code and test headers
+- ITM-133 — the last item of sprint 02 that changes `docs/assets/dashboard/review-views.mjs` before this one
 
 ## Needs a person
 
 No.
+
+## From the sprint 02 planning
+
+The callers of what this item changes were checked at planning (sprint 01 retrospective, P7). `impactList` is
+imported by `docs/assets/dashboard/review-views.mjs` (two calls, the architecture view and the review page) — a
+file of MOD-dashboard-app, which this item did not name; renaming it to `architectureImpact` with the graph as
+input would have left the item unable to change its caller, as ITM-008 was (`AN IMPLEMENTATION JOB CHANGES ONLY
+ITS MODULES`). MOD-dashboard-app is therefore among its modules for that one file, and the item waits for
+ITM-133, the last change to `review-views.mjs` before it in sprint 02 (`docs/backlog/sprints/sprint-02.md`). The
+other callers — `tests/architecture-impact.test.mjs` (MOD-traceability) and the assertion in
+`tests/architecture-view.test.mjs` that the dashboard holds no implementation of its own — lie inside its modules.
