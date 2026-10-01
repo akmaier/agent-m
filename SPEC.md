@@ -1470,14 +1470,22 @@ once its inputs are complete, and everything that follows from it is done by Age
 a decision and its effect is a place to get lost.
 *Check:* no automatic check; at review of each use case.
 
-**SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier, 2026-09-25)*
-A reviewer who has opened several reviewed files may accept all of them with one click, in one commit
-that holds one approval record per file, each naming the text shown.
+**SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier, 2026-09-25, extended 2026-10-01)*
+A reviewer who has been shown several reviewed files — opened one by one, or together on one review page
+— may accept all of them with one click, in one commit that holds one approval record per file, each
+naming the text shown.
 *Occasion:* forty use cases are forty decisions, but not forty round trips: the reviewer reads each one,
 ticks it, and commits once. Each record still names exactly the text that was shown
-(`AN APPROVAL NAMES THE EXACT TEXT`), so nothing unread is accepted.
-*Check:* `tests/review-core.test.mjs` — a batch writes one record per ticked file, and none for a file
-that was not opened; counter-proof: a file changed after it was shown is left out and named.
+(`AN APPROVAL NAMES THE EXACT TEXT`), so nothing unread is accepted. PO, 2026-10-01, after accepting the
+restructured architecture file by file: "there should be an option to bulk accept all of the changes
+without me having to click every single one." A review page shows every open file of one area in
+sequence — a changed file as its difference to its last accepted text, a new file in full, a withdrawn
+file with its note, an architecture change with its impact list — and one button accepts everything it
+showed; the reviewer scrolls instead of opening each file.
+*Check:* `tests/review-core.test.mjs` — a batch writes one record per file shown, and none for a file that
+was not shown; counter-proof: a file changed after it was shown is left out and named, and a file the
+review page could not show — one whose named requirements are not all accepted — gets no record and is
+named.
 
 **A QUEUE IS ACCEPTED IN ITS ORDER** *(PO A. Maier, 2026-09-25)*
 Entries of one queue accepted together are written in the order of the queue's index, in one commit,
