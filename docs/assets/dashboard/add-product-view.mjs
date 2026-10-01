@@ -7,7 +7,7 @@
 // them are plain functions.
 
 import { canStore } from "../review-core.mjs";
-import { addProduct } from "./writes.mjs";
+import { addProduct, clickAuthority } from "./writes.mjs";
 import { parseProductAddress, isGitLab, gitlabTokenPageUrl, tokenListUrl, requiredPermissions } from "../git-host.mjs";
 import {
   h, sharedOriginNotice, tokenLinkUrl, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, checkGitLab, reachLine,
@@ -213,7 +213,8 @@ function wireAddGo(app, parsed) {
     b.disabled = true;
     try {
       out.textContent = `Reading ${repo} and writing what is missing…`;
-      const r = await addProduct({ address: parsed.address, token: gl ? store.getGitLabToken(parsed.address)?.token : ghToken(), click: ev, store });
+      const r = await addProduct({ address: parsed.address, token: gl ? store.getGitLabToken(parsed.address)?.token : ghToken(),
+        authority: clickAuthority(ev), store });
       loadProducts();
       renderProductSelector();
       out.innerHTML = `Done — ${r.commit

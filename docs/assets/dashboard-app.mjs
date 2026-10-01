@@ -4,7 +4,8 @@
 // GitLab server (its REST API v4, at the same pinned commit) — and renders use cases and SPEC change
 // proposals. A page load reads only the commit and its tree; each view then reads the files it shows, each by its blob
 // SHA and kept in this browser by that SHA, so that a file is read again only when it changed. With a stored token, a
-// person's click commits an edit or an acceptance (dashboard/writes.mjs); an accepted SPEC change is written in
+// person's click commits an edit or an acceptance: the button's trusted click becomes the authority of the git host's one
+// write path (dashboard/writes.mjs clickAuthority; ARC-003 decision 3); an accepted SPEC change is written in
 // the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
 // without its project token is read-only and links to the step that stores it. Every read goes through fetchText (GET only), and each token only to
 // the API of the server that issued it.

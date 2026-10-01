@@ -7,7 +7,8 @@
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
 // §4.0a rule 5): a check that cannot fail checks nothing. The mutations are listed in
-// docs/measurements/2026-09-30_review-dashboard-mutations.md.
+// docs/measurements/2026-09-30_review-dashboard-mutations.md; the write path's authority (ITM-008) in
+// docs/measurements/2026-10-01_one-write-path-with-an-authority.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -83,23 +84,78 @@ test("fetchText reads with GET only; the GitHub token goes only to GitHub's API 
     ["https://raw.githubusercontent.com/a/b/c/d", "GET", undefined]]);
 });
 
-// ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
+// ---------------------------------------------------------------- one write path, with an authority (ARC-003 decision 3)
+//
+// The git host knows nothing of a page or a click: it takes an authority of kind `click`, `ci-secret` or `agent-login`, and
+// refuses a write without one. Which runtime makes which kind is the shells' business (authority.test.mjs).
 
-test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — no trusted click, no request", async () => {
+const KINDS = ["click", "ci-secret", "agent-login"];
+const authority = Object.freeze({ kind: "click" });
+
+test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — the write path refuses a write without an authority: no request at all", async () => {
   const { calls, fetchMock } = fakeGitHub();
   await withFetch(fetchMock, async () => {
     const base = { repo: "a/b", branch: "main", files: [{ path: "x.md", content: "x\n" }], message: "m", token: "github_pat_t" };
-    await assert.rejects(commitFiles({ ...base }), /click/);
-    await assert.rejects(commitFiles({ ...base, click: { isTrusted: false } }), /click/);
-    await assert.rejects(commitFiles({ ...base, click, token: null }), /token/);
+    await assert.rejects(commitFiles({ ...base }), /authority/);
+    // The click event itself, as the write path took it before, is no authority — trusted or not.
+    await assert.rejects(commitFiles({ ...base, click }), /authority/);
+    await assert.rejects(commitFiles({ ...base, click: { isTrusted: false } }), /authority/);
+    await assert.rejects(commitFiles({ ...base, authority: click }), /authority/);
+    await assert.rejects(commitFiles({ ...base, authority, token: null }), /token/);
   });
   assert.equal(calls.length, 0);
+});
+
+test("the authority is one value of one shape — { kind } of three kinds; anything else is refused", () => {
+  const { requireAuthority } = gitHost;
+  for (const kind of KINDS) assert.doesNotThrow(() => requireAuthority(Object.freeze({ kind })), kind);
+  for (const bad of [undefined, null, "click", {}, { isTrusted: true }, { kind: "admin" }, { kind: "CLICK" }, { kind: ["click"] },
+    { kind: "click", token: "github_pat_t" }, [{ kind: "click" }]]) {
+    assert.throws(() => requireAuthority(bad), /authority/, JSON.stringify(bad));
+  }
+});
+
+test("each kind of authority writes one commit with the token it is given — the form the CI entry and the bridge app use", async () => {
+  for (const kind of KINDS) {
+    const { calls, fetchMock } = fakeGitHub();
+    const r = await withFetch(fetchMock, () => commitFiles({ repo: "a/b", branch: "main", message: "m", token: "github_pat_t",
+      authority: Object.freeze({ kind }), files: [{ path: "x.md", content: "x\n" }] }));
+    assert.equal(r.sha, "c1", kind);
+    assert.equal(calls.filter(([m]) => m === "PATCH").length, 1, kind);
+    assert.ok(calls.every(([, , auth]) => auth === "Bearer github_pat_t"), kind);
+  }
+});
+
+test("the request helper writes only on an authority and builds the header itself — a read needs none", async () => {
+  const { request } = gitHost;
+  const seen = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (u, init) => { seen.push([String(u), init.method, { ...init.headers }, init.credentials, init.body]); return new Response("{}"); };
+  try {
+    const url = "https://api.github.com/repos/a/b/git/trees";
+    // Refused before anything is sent: a write without an authority, a caller-set header, another origin, a credential mode.
+    await assert.rejects(request(url, { method: "POST", auth: "github_pat_t", body: "{}" }), /authority/);
+    await assert.rejects(request(url, { method: "PATCH", auth: "github_pat_t", authority: click }), /authority/);
+    await assert.rejects(request(url, { method: "POST", authority, headers: { Authorization: "Bearer x" } }), /header/);
+    await assert.rejects(request("https://example.org/x", { method: "POST", authority, auth: "github_pat_t" }), /origin/);
+    await assert.rejects(request(url, { method: "POST", authority, credentials: "include" }), /credential/);
+    assert.equal(seen.length, 0, "no refused request reached the network");
+    // Known positives: a write on an authority, a read without one; the token as the header the helper builds.
+    const w = await request(url, { method: "POST", authority, auth: "github_pat_t", headers: { "Content-Type": "application/json" }, body: "{}" });
+    assert.equal(w.status, 200);
+    await request("https://api.github.com/repos/a/b", { auth: "github_pat_t" });
+    assert.deepEqual(seen, [
+      [url, "POST", { "Content-Type": "application/json", Authorization: "Bearer github_pat_t" }, "omit", "{}"],
+      ["https://api.github.com/repos/a/b", "GET", { Authorization: "Bearer github_pat_t" }, "omit", undefined]]);
+    // fetchText stays the read: GET only, whatever authority it is handed.
+    await assert.rejects(fetchText(url, { method: "POST", authority }, "github_pat_t"), /GET/);
+  } finally { globalThis.fetch = real; }
 });
 
 test("one commit, fast-forward only, token only to the API", async () => {
   const { calls, fetchMock } = fakeGitHub();
   const r = await withFetch(fetchMock, () => commitFiles({ repo: "a/b", branch: "main", message: "accept UC-001",
-    token: "github_pat_t", click, files: [{ path: "docs/approvals/UC-001-abc.md", content: "kind: use-case\n" }] }));
+    token: "github_pat_t", authority, files: [{ path: "docs/approvals/UC-001-abc.md", content: "kind: use-case\n" }] }));
   assert.equal(r.sha, "c1");
   assert.deepEqual(calls.map(([m, p]) => `${m} ${p}`), [
     "GET /repos/a/b/git/ref/heads/main", "GET /repos/a/b/git/commits/c0", "POST /repos/a/b/git/trees",
@@ -114,7 +170,7 @@ test("one commit, fast-forward only, token only to the API", async () => {
 test("an edit is refused when the file changed since it was loaded", async () => {
   const { calls, fetchMock } = fakeGitHub({ "docs/use-cases/UC-001-x.md": "newer" });
   await withFetch(fetchMock, () => assert.rejects(commitFiles({ repo: "a/b", branch: "main", message: "edit", token: "github_pat_t",
-    click, files: [{ path: "docs/use-cases/UC-001-x.md", content: "mine\n", expectBlob: "older" }] }), /changed since/));
+    authority, files: [{ path: "docs/use-cases/UC-001-x.md", content: "mine\n", expectBlob: "older" }] }), /changed since/));
   assert.ok(!calls.some(([m]) => m === "PATCH"), "nothing written");
 });
 
@@ -251,7 +307,7 @@ test("GITLAB PRODUCTS ARE SUPPORTED — reading: the pinned commit, every page o
 test("GitLab writes: one commit with several actions — create where absent, update with last_commit_id where present", async () => {
   const p = parseProductAddress(GL_ADDR);
   const g = await fakeGitLab({ files: { "SPEC.md": B_SPEC } });
-  const r = await withFetch(g.fetchMock, () => commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
+  const r = await withFetch(g.fetchMock, () => commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, authority,
     files: [{ path: "SPEC.md", content: "new\n" }, { path: "docs/approvals/x.md", content: "kind: spec\n" }] }));
   const posts = g.calls.filter((c) => c.method === "POST");
   assert.equal(posts.length, 1, "exactly one commit");
@@ -267,17 +323,17 @@ test("GitLab writes: one commit with several actions — create where absent, up
   assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN), "every request to its server with its token");
 });
 
-test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing is sent; the route is the token step", async () => {
+test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no authority: nothing is sent; the route is the token step", async () => {
   const p = parseProductAddress(GL_ADDR);
   const g = await fakeGitLab({ files: { "SPEC.md": B_SPEC } });
   const base = { product: p, branch: "main", message: "m", files: [{ path: "x.md", content: "x\n" }] };
   await withFetch(g.fetchMock, async () => {
-    await assert.rejects(writeFiles({ ...base, token: null, click }), /token/);
-    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN }), /click/);
-    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN, click: { isTrusted: false } }), /click/);
-    await assert.rejects(writeFiles({ ...base, token: "github_pat_11GITHUBTOKEN", click }), /GitLab project token/);
-    await assert.rejects(commitFilesGitLab({ ...base, token: GL_TOKEN }), /click/, "the GitLab writer itself needs the click");
-    await assert.rejects(commitFilesGitLab({ ...base, token: null, click }), /token/, "and the token");
+    await assert.rejects(writeFiles({ ...base, token: null, authority }), /token/);
+    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN }), /authority/);
+    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN, click }), /authority/, "the click event is no authority");
+    await assert.rejects(writeFiles({ ...base, token: "github_pat_11GITHUBTOKEN", authority }), /GitLab project token/);
+    await assert.rejects(commitFilesGitLab({ ...base, token: GL_TOKEN }), /authority/, "the GitLab writer itself needs the authority");
+    await assert.rejects(commitFilesGitLab({ ...base, token: null, authority }), /token/, "and the token");
   });
   assert.equal(g.calls.length, 0);
   assert.equal(writeRoute(p, null), "token-step");
@@ -290,17 +346,17 @@ test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing
 test("GitLab: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — a changed blob or a moved branch writes nothing", async () => {
   const p = parseProductAddress(GL_ADDR);
   const g = await fakeGitLab({ files: { "docs/use-cases/UC-001-a.md": "newer\n" } });
-  await withFetch(g.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "edit", token: GL_TOKEN, click,
+  await withFetch(g.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "edit", token: GL_TOKEN, authority,
     files: [{ path: "docs/use-cases/UC-001-a.md", content: "mine\n", expectBlob: "older" }] }), /changed since/));
   assert.ok(!g.calls.some((c) => c.method === "POST"), "nothing written");
   // The branch moved between the read the files were computed from and the commit: nothing is written.
   const m = await fakeGitLab({ files: { "SPEC.md": B_SPEC }, moveAt: 1 });
-  await withFetch(m.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
+  await withFetch(m.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, authority,
     files: [{ path: "SPEC.md", content: "x\n" }] }), /moved on|reload/));
   assert.ok(!m.calls.some((c) => c.method === "POST"), "nothing written");
   // GitLab's own refusal (last_commit_id, or a file created meanwhile) is passed on, with its status.
   const r = await fakeGitLab({ files: { "SPEC.md": B_SPEC }, postStatus: 400, postBody: { message: "The file has changed since you started editing it: SPEC.md" } });
-  await withFetch(r.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
+  await withFetch(r.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, authority,
     files: [{ path: "SPEC.md", content: "x\n" }] }), (e) => e.status === 400 && /changed since you started editing/.test(e.message)));
 });
 

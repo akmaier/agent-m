@@ -11,6 +11,8 @@
 // fixtures under the names they had there: the three files used the same names for different fixtures (WHEN, fakeGitHub,
 // readerOf, treeOf). Fixtures the checks staying behind use too are copied, not moved. Counter-proofs: the mutations listed
 // in docs/measurements/2026-09-30_review-dashboard-mutations.md, and docs/measurements/2026-10-01_writes-leave-the-kernel.md.
+// Since ITM-008 each write takes the authority the dashboard makes from a person's trusted click (clickAuthority) instead of
+// the click event, and hands it to the git host's one write path: docs/measurements/2026-10-01_one-write-path-with-an-authority.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +24,7 @@ import {
   gitBlobSha, recordText, approvalPath, useCaseRecord, reviewedRecord, parseRecord, specRecord, planAcceptance,
   createReviewSession, sectionForEntry, missingNeeds, deriveUseCaseStatus, deriveReviewedStatus, architecturePrerequisites,
 } from "../../docs/assets/review-core.mjs";
-import { saveReviewedFile, acceptItems, addProduct, savePseudonymisation, saveCollaborators } from "../../docs/assets/dashboard/writes.mjs";
+import * as writes from "../../docs/assets/dashboard/writes.mjs";
 import { reviewedId, parseArchitecture } from "../../docs/assets/artifacts.mjs";
 import { parseProductAddress } from "../../docs/assets/git-host.mjs";
 import { createStore, PREFIX } from "../../docs/assets/settings-store.mjs";
@@ -31,6 +33,9 @@ import {
   click, fakeGitHub, withFetch, fakeStorage, QD, WHEN, B_SPEC, B_P05, B_P06, B_INDEX, B_UC1, B_UC2, SETTINGS_OFF, PEOPLE,
   GL, GL_ADDR, GL_TOKEN, H0, H1, NEWC, fakeGitLab,
 } from "./helpers.mjs";
+
+// The five writes, and the one place a person's click becomes the authority they hand to the git host's write path (ITM-008).
+const { saveReviewedFile, acceptItems, addProduct, savePseudonymisation, saveCollaborators, clickAuthority } = writes;
 
 // ================================================================ from tests/review-core.test.mjs
 {
@@ -81,7 +86,7 @@ test("THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the addr
   const st = fakeStorage(), store = createStore(st);
   store.setToken("github_pat_t");
   const { calls, fetchMock } = productGitHub([]);
-  const r = await withFetch(fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }));
+  const r = await withFetch(fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", authority: clickAuthority(click), store }));
   assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
   assert.equal(JSON.parse(st.getItem(PREFIX + "products"))[0], "https://github.com/reader/thesis");
   assert.equal(r.commit.sha, "c1", "the layout is committed into the product");
@@ -99,15 +104,57 @@ test("UC-001 5b: a product with the complete layout is only added to the list; n
   const store = createStore(fakeStorage());
   const full = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/UC-001-x.md"];
   const g = productGitHub(full);
-  const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }));
+  const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", authority: clickAuthority(click), store }));
   assert.equal(r.commit, null);
   assert.ok(!g.calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
   assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
+  // A click a script makes becomes no authority, so the view starts no write and sends nothing (authority.test.mjs).
+  assert.throws(() => clickAuthority({ isTrusted: false }), /click/);
+  // addProduct has no click check of its own any more (ITM-008): without an authority the write path refuses the layout's
+  // commit — nothing is written, and the address is not stored. The product is read before that, to find what is missing.
   const s2 = createStore(fakeStorage()), g2 = productGitHub([]);
   await withFetch(g2.fetchMock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t",
-    click: { isTrusted: false }, store: s2 }), /click/));
-  assert.equal(g2.calls.length, 0);
+    store: s2 }), /authority/));
+  assert.ok(!g2.calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
   assert.deepEqual(s2.getProducts(), []);
+  // Nor with the event handed over as before: it is no authority.
+  const s3 = createStore(fakeStorage()), g3 = productGitHub([]);
+  await withFetch(g3.fetchMock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t",
+    click, store: s3 }), /authority/));
+  assert.ok(!g3.calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
+  assert.deepEqual(s3.getProducts(), []);
+});
+
+test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — each of the five writes hands the authority to the write path; without one, none writes", async () => {
+  // Four writes go straight to the write path: without an authority — or with the event in its place — not one request is sent.
+  const st = await fakeGitLab({ files: {} });
+  for (const [name, call] of [
+    ["saveReviewedFile", (a) => saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", ...a, path: "docs/use-cases/UC-001-a.md",
+      text: B_UC1, openedId: "UC-001", expectBlob: null })],
+    ["acceptItems", async (a) => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", ...a,
+      items: [{ kind: "use-case", id: "UC-001", path: "docs/use-cases/UC-001-a.md", blob: await gitBlobSha(B_UC1) }],
+      readAt: async () => B_UC1, now: WHEN })],
+    ["savePseudonymisation", (a) => savePseudonymisation({ repo: "alice/thesis", branch: "main", token: "github_pat_t", ...a,
+      current: null, currentBlob: null, off: false, acknowledged: false })],
+    ["saveCollaborators", (a) => saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t", ...a, list: PEOPLE,
+      currentBlob: null })],
+    ["acceptItems on GitLab", async (a) => acceptItems({ product: parseProductAddress(GL_ADDR), branch: "main", token: GL_TOKEN, ...a,
+      items: [{ kind: "use-case", id: "UC-001", path: "docs/use-cases/UC-001-a.md", blob: await gitBlobSha(B_UC1) }],
+      readAt: async () => B_UC1, now: WHEN })],
+  ]) {
+    for (const [label, a] of [["no authority", {}], ["the event", { click }], ["the event as the authority", { authority: click }]]) {
+      const g = fakeGitHub();
+      const mock = async (u, init) => (String(u).startsWith(GL) ? st.fetchMock(u, init) : g.fetchMock(u, init));
+      const before = st.calls.length;
+      await withFetch(mock, () => assert.rejects(call(a), /authority/, `${name}: ${label}`));
+      assert.equal(g.calls.length + st.calls.length - before, 0, `${name}: ${label} — nothing sent`);
+    }
+    // Known positive: the click authority writes one commit.
+    const g = fakeGitHub(), gl = await fakeGitLab({ files: { "docs/use-cases/UC-001-a.md": B_UC1 } });
+    const mock = async (u, init) => (String(u).startsWith(GL) ? gl.fetchMock(u, init) : g.fetchMock(u, init));
+    await withFetch(mock, () => call({ authority: clickAuthority(click) }));
+    assert.equal(g.calls.filter(([m]) => m === "PATCH").length + gl.calls.filter((c) => c.method === "POST").length, 1, `${name}: one commit`);
+  }
 });
 
 test("UC-001 5a: a refused write adds nothing to the list", async () => {
@@ -115,7 +162,7 @@ test("UC-001 5a: a refused write adds nothing to the list", async () => {
   const g = productGitHub([]);
   const inner = g.fetchMock;
   const mock = async (u, init) => (init.method === "POST" ? new Response(JSON.stringify({ message: "Resource not accessible" }), { status: 403 }) : inner(u, init));
-  await withFetch(mock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", click, store }), /403/));
+  await withFetch(mock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", authority: clickAuthority(click), store }), /403/));
   assert.deepEqual(store.getProducts(), []);
 });
 
@@ -127,7 +174,7 @@ test("AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — one commit: recor
   const files = batchRepo(), heads = [];
   const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
   const { calls, fetchMock } = fakeGitHub();
-  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [it], readAt: readerOf(files, heads), now: WHEN }));
   const rec = `docs/approvals/spec-2026-09-24g_x-05-${it.proposalBlob.slice(0, 12)}.md`;
   assert.equal(res.commit.sha, "c1");
@@ -148,7 +195,7 @@ test("A STALE APPROVAL IS NOT APPLIED — dashboard: proposal or section changed
   for (const [over, why] of [[{ [`${QD}/05-a.md`]: B_P05 + "edited\n" }, /proposal changed/],
     [{ "SPEC.md": B_SPEC.replace("old ten", "changed meanwhile") }, /SPEC section changed/]]) {
     const { calls, fetchMock } = fakeGitHub();
-    const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
       items: [it], readAt: readerOf(batchRepo(over)), now: WHEN }));
     assert.equal(res.commit, null);
     assert.deepEqual(res.leftOut.map((l) => l.label), ["2026-09-24g_x 05"]);
@@ -166,7 +213,7 @@ test("SEVERAL FILES ARE ACCEPTED IN ONE CLICK — one record per ticked file, no
   assert.equal(s.tick(s.key(u2), true), true);
   assert.deepEqual(s.items().map((i) => i.id), ["UC-001", "UC-002"]);
   const { calls, fetchMock } = fakeGitHub();
-  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: s.items(), readAt: readerOf(batchRepo()), now: WHEN }));
   const tree = treeOf(calls);
   assert.deepEqual(Object.keys(tree).sort(), [approvalPath("UC-001", u1.blob), approvalPath("UC-002", u2.blob)]);
@@ -174,7 +221,7 @@ test("SEVERAL FILES ARE ACCEPTED IN ONE CLICK — one record per ticked file, no
   assert.deepEqual(res.accepted, ["UC-001", "UC-002"]);
   // Counter-proof: UC-002 changed after it was shown — it is left out and named, UC-001 is still written.
   const g = fakeGitHub();
-  const res2 = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res2 = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: s.items(), readAt: readerOf(batchRepo({ "docs/use-cases/UC-002-b.md": B_UC2 + "edited\n" })), now: WHEN }));
   assert.deepEqual(Object.keys(treeOf(g.calls)), [approvalPath("UC-001", u1.blob)]);
   assert.deepEqual(res2.leftOut.map((l) => l.label), ["UC-002"]);
@@ -190,7 +237,7 @@ test("A QUEUE IS ACCEPTED IN ITS ORDER — 05 and 06 together: one commit with b
   const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
   const i06 = { ...(await specItem(6, B_P06, shown06.current, "## 11. X")), needs: [5] };
   const { calls, fetchMock } = fakeGitHub();
-  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [i06, i05], readAt: readerOf(batchRepo()), now: WHEN }));        // ticked in reverse order
   assert.deepEqual(res.leftOut, []);
   assert.equal(calls.filter(([m, p]) => m === "POST" && p.endsWith("/git/commits")).length, 1);
@@ -208,7 +255,7 @@ test("A QUEUE IS ACCEPTED IN ITS ORDER — counter-proof: 06 alone is not offere
   assert.match(gaps[0].message, /entry 05/);
   assert.doesNotMatch(gaps[0].message, /times/);
   const { calls, fetchMock } = fakeGitHub();
-  await withFetch(fetchMock, () => assert.rejects(acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  await withFetch(fetchMock, () => assert.rejects(acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [i06], readAt: readerOf(batchRepo()), now: WHEN }), /entry 05/));
   assert.equal(calls.length, 0, "nothing is read or written");
   assert.deepEqual(missingNeeds([i06, await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R")]), []);
@@ -232,18 +279,18 @@ test("A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY — switching off commits docs
   const { calls, fetchMock } = fakeGitHub({ "docs/settings.md": "b0" });
   const base = { repo: "alice/thesis", branch: "main", token: "github_pat_t", current: null, currentBlob: null, off: true };
   await withFetch(fetchMock, async () => {
-    await assert.rejects(savePseudonymisation({ ...base, click, acknowledged: false }), /I have read this/);
-    await assert.rejects(savePseudonymisation({ ...base, click: { isTrusted: false }, acknowledged: true }), /click/);
+    await assert.rejects(savePseudonymisation({ ...base, authority: clickAuthority(click), acknowledged: false }), /I have read this/);
+    await assert.rejects(savePseudonymisation({ ...base, acknowledged: true }), /authority/);
   });
-  assert.equal(calls.length, 0, "nothing sent without the acknowledgement and a real click");
-  const r = await withFetch(fetchMock, () => savePseudonymisation({ ...base, click, acknowledged: true }));
+  assert.equal(calls.length, 0, "nothing sent without the acknowledgement and an authority");
+  const r = await withFetch(fetchMock, () => savePseudonymisation({ ...base, authority: clickAuthority(click), acknowledged: true }));
   assert.equal(r.sha, "c1");
   assert.equal(pseudonymisationOn(treeOf(calls)["docs/settings.md"]), false);
   assert.deepEqual(Object.keys(treeOf(calls)), ["docs/settings.md"]);
   assert.deepEqual([...st.mem.entries()], before, "localStorage holds no product setting");
   // Switching back on needs no acknowledgement (UC-042 4a).
   const g = fakeGitHub({ "docs/settings.md": "b0" });
-  await withFetch(g.fetchMock, () => savePseudonymisation({ ...base, click, off: false, acknowledged: false,
+  await withFetch(g.fetchMock, () => savePseudonymisation({ ...base, authority: clickAuthority(click), off: false, acknowledged: false,
     current: SETTINGS_OFF, currentBlob: "b0" }));
   assert.equal(pseudonymisationOn(treeOf(g.calls)["docs/settings.md"]), true);
 });
@@ -251,10 +298,10 @@ test("A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY — switching off commits docs
 test("collaborators are saved by one commit of docs/collaborators.md, on a click", async () => {
   const { calls, fetchMock } = fakeGitHub();
   await withFetch(fetchMock, () => assert.rejects(saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t",
-    click: { isTrusted: false }, list: PEOPLE, currentBlob: null }), /click/));
+    list: PEOPLE, currentBlob: null }), /authority/));
   assert.equal(calls.length, 0);
   await withFetch(fetchMock, () => saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t",
-    click, list: PEOPLE, currentBlob: null }));
+    authority: clickAuthority(click), list: PEOPLE, currentBlob: null }));
   assert.deepEqual(parseCollaborators(treeOf(calls)["docs/collaborators.md"]), PEOPLE);
 });
 
@@ -268,7 +315,7 @@ test("GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, s
   const files = batchRepo(), heads = [];
   const g = await fakeGitLab({ files });
   const it = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
-  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [it],
+  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, authority: clickAuthority(click), items: [it],
     readAt: readerOf(files, heads), now: WHEN }));
   assert.deepEqual(res.leftOut, []);
   assert.ok(heads.length && heads.every((h) => h === H0), "every check reads the commit the new one is written on");
@@ -284,7 +331,7 @@ test("GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, s
   assert.match(acts[`${QD}/entscheidungen.md`].content, /\| 5 \| uebernommen \| approval:/);
   // A STALE APPROVAL IS NOT APPLIED — the proposal changed on the head: nothing is written.
   const s = await fakeGitLab({ files: batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" }) });
-  const res2 = await withFetch(s.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [it],
+  const res2 = await withFetch(s.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, authority: clickAuthority(click), items: [it],
     readAt: readerOf(batchRepo({ [`${QD}/05-a.md`]: B_P05 + "edited\n" })), now: WHEN }));
   assert.equal(res2.commit, null);
   assert.match(res2.leftOut[0].reason, /proposal changed/);
@@ -299,7 +346,7 @@ test("GitLab: SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN 
   const i05 = await specItem(5, B_P05, "## 10. R\n\nold ten\n", "## 10. R");
   const i06 = { ...(await specItem(6, B_P06, sectionForEntry({ specText: B_SPEC, entries, nr: 6 }).current, "## 11. X")), needs: [5] };
   const g = await fakeGitLab({ files });
-  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click,
+  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, authority: clickAuthority(click),
     items: [u2, i06, u1, i05], readAt: readerOf(files), now: WHEN }));
   assert.deepEqual(res.leftOut, []);
   const posts = g.calls.filter((c) => c.method === "POST");
@@ -318,7 +365,7 @@ test("GitLab: a commit GitLab wrote on a newer head than the one checked is repo
   const u1 = await ucItem("UC-001", "docs/use-cases/UC-001-a.md", B_UC1);
   // The branch did not move before the commit, but GitLab reports another parent: a commit arrived in between.
   const g = await fakeGitLab({ files, parent: H1, changed: ["docs/use-cases/UC-001-a.md"] });
-  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [u1],
+  const res = await withFetch(g.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, authority: clickAuthority(click), items: [u1],
     readAt: readerOf(files), now: WHEN }));
   assert.equal(res.commit.sha, NEWC);
   assert.deepEqual(res.commit.changedMeanwhile, ["docs/use-cases/UC-001-a.md"]);
@@ -327,7 +374,7 @@ test("GitLab: a commit GitLab wrote on a newer head than the one checked is repo
   assert.deepEqual([cmp.query.from, cmp.query.to], [H0, H1]);
   // Counter-proof: the other commit changed an unrelated file — no warning.
   const g2 = await fakeGitLab({ files, parent: H1, changed: ["README.md"] });
-  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, click, items: [u1],
+  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ product: p, branch: "main", token: GL_TOKEN, authority: clickAuthority(click), items: [u1],
     readAt: readerOf(files), now: WHEN }));
   assert.equal(res2.warning, null);
 });
@@ -336,7 +383,7 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; 
   const st = fakeStorage(), store = createStore(st);
   store.setGitLabToken(GL_ADDR, GL_TOKEN, "2026-12-29");
   const g = await fakeGitLab({ files: { "README.md": "# p\n", "SPEC.md": "# old\n" } });
-  const r = await withFetch(g.fetchMock, () => addProduct({ address: GL_ADDR, token: GL_TOKEN, click, store }));
+  const r = await withFetch(g.fetchMock, () => addProduct({ address: GL_ADDR, token: GL_TOKEN, authority: clickAuthority(click), store }));
   assert.equal(r.commit.sha, NEWC);
   const posts = g.calls.filter((c) => c.method === "POST");
   assert.equal(posts.length, 1);
@@ -347,7 +394,7 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; 
   // Counter-proof: a refused write adds nothing to the list.
   const s2 = createStore(fakeStorage());
   const bad = await fakeGitLab({ files: {}, postStatus: 403, postBody: { message: "403 Forbidden" } });
-  await withFetch(bad.fetchMock, () => assert.rejects(addProduct({ address: GL_ADDR, token: GL_TOKEN, click, store: s2 }), /403/));
+  await withFetch(bad.fetchMock, () => assert.rejects(addProduct({ address: GL_ADDR, token: GL_TOKEN, authority: clickAuthority(click), store: s2 }), /403/));
   assert.deepEqual(s2.getProducts(), []);
 });
 }
@@ -434,7 +481,7 @@ test("ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON — accepting an ARC and a 
   assert.equal(s.tick(s.key(m), true), true);
   assert.equal(s.tick("uc:" + REVIEW, true), false, "a file that was not shown cannot be ticked");
   const g = fakeGitHub();
-  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: s.items(), readAt: readerOf(repo), now: WHEN }));
   assert.deepEqual(res.leftOut, []);
   assert.deepEqual(res.accepted, ["ARC-001", "MOD-reader"]);
@@ -456,7 +503,7 @@ test("ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — checked again on the commit w
     [{ "SPEC.md": files["SPEC.md"].replace("**RULE ONE**", "**RULE 1**") }, /RULE ONE/],
   ]) {
     const g = fakeGitHub();
-    const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
       items: [a], readAt: readerOf({ ...repo, ...over }), now: WHEN }));
     assert.equal(res.commit, null, String(why));
     assert.deepEqual(res.leftOut.map((l) => l.label), ["ARC-001"]);
@@ -465,7 +512,7 @@ test("ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — checked again on the commit w
   }
   // An item that carries no accepted use case for a UC its text names is left out too (the text decides, not the item).
   const g = fakeGitHub();
-  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [{ ...a, requires: [] }], readAt: readerOf(repo), now: WHEN }));
   assert.equal(res.commit, null);
   assert.match(res.leftOut[0].reason, /UC-001/);
@@ -475,7 +522,7 @@ test("AN APPROVAL NAMES THE EXACT TEXT — an ARC changed after it was shown is 
   const repo = { ...files, ...(await ucRecordFiles()) };
   const a = await archItem(ARC, files[ARC], repo), m = await archItem(READER, files[READER], repo);
   const g = fakeGitHub();
-  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [a, m], readAt: readerOf({ ...repo, [ARC]: files[ARC] + "more\n" }), now: WHEN }));
   assert.deepEqual(Object.keys(treeOf(g.calls)), [approvalPath("MOD-reader", m.blob)]);
   assert.deepEqual(res.leftOut.map((l) => l.label), ["ARC-001"]);
@@ -486,13 +533,13 @@ test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a change
   const repo = { ...files, ...(await ucRecordFiles()) };
   const m = await archItem(READER, files[READER], repo, { changed: true });
   const g = fakeGitHub();
-  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [m], readAt: readerOf(repo), now: WHEN }));
   assert.equal(res.commit, null);
   assert.match(res.leftOut[0].reason, /impact list/);
   // Counter-proof: shown with its impact list, it is accepted.
   const g2 = fakeGitHub();
-  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [{ ...m, impactShown: true }], readAt: readerOf(repo), now: WHEN }));
   assert.deepEqual(res2.accepted, ["MOD-reader"]);
 });
@@ -513,7 +560,7 @@ test("GITLAB PRODUCTS ARE SUPPORTED — an architecture file is accepted on GitL
     if (rest === "/repository/commits" && method === "POST") return ok({ id: "c".repeat(40), parent_ids: [H0], web_url: `${GL}/${project}/-/commit/c` }, 201);
     return ok({ message: "unexpected" }, 500);
   };
-  const res = await withFetch(fetchMock, () => acceptItems({ product: p, branch: "main", token: TOKEN, click, items: [m],
+  const res = await withFetch(fetchMock, () => acceptItems({ product: p, branch: "main", token: TOKEN, authority: clickAuthority(click), items: [m],
     readAt: readerOf(repo), now: WHEN }));
   assert.deepEqual(res.accepted, ["MOD-reader"]);
   const post = calls.filter((c) => c.method === "POST");
@@ -529,7 +576,7 @@ test("AN EDITED FILE KEEPS ITS IDENTIFIER · A SAVE IS REFUSED WHEN THE TEXT CHA
   const blob = await gitBlobSha(files[READER]);
   const edited = files[READER].replace("Reads the product's files", "Reads every file of the product");
   const g = fakeGitHub({ [READER]: blob });
-  const c = await withFetch(g.fetchMock, () => saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const c = await withFetch(g.fetchMock, () => saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     path: READER, text: edited, openedId: "MOD-reader", expectBlob: blob }));
   assert.equal(c.sha, "c1");
   assert.deepEqual(treeOf(g.calls), { [READER]: edited });
@@ -537,18 +584,18 @@ test("AN EDITED FILE KEEPS ITS IDENTIFIER · A SAVE IS REFUSED WHEN THE TEXT CHA
   for (const [text, id] of [[edited.replace("id: MOD-reader", "id: MOD-reader2"), "MOD-reader"],
     [files[ARC].replace("id: ARC-001", "id: ARC-002"), "ARC-001"], [edited.replace("id: MOD-reader\n", ""), "MOD-reader"]]) {
     const g2 = fakeGitHub({ [READER]: blob });
-    await withFetch(g2.fetchMock, () => assert.rejects(saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+    await withFetch(g2.fetchMock, () => assert.rejects(saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
       path: READER, text, openedId: id, expectBlob: blob }), /identifier/));
     assert.equal(g2.calls.length, 0, "nothing sent");
   }
   // Refused: the file on the branch is no longer the text the editor opened.
   const g3 = fakeGitHub({ [READER]: "f".repeat(40) });
-  await withFetch(g3.fetchMock, () => assert.rejects(saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  await withFetch(g3.fetchMock, () => assert.rejects(saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     path: READER, text: edited, openedId: "MOD-reader", expectBlob: blob }), /changed since/));
   assert.ok(!g3.calls.some(([m]) => m === "PATCH"), "nothing written");
   // A file without an identifier (a SPEC proposal) is saved without that check.
   const g4 = fakeGitHub({ "docs/spec-freigaben/q/01-a.md": "x" });
-  await withFetch(g4.fetchMock, () => saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  await withFetch(g4.fetchMock, () => saveReviewedFile({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     path: "docs/spec-freigaben/q/01-a.md", text: "## 1\n", openedId: null, expectBlob: "x" }));
   assert.ok(g4.calls.some(([m]) => m === "PATCH"));
 });
@@ -639,7 +686,7 @@ test("SEVERAL FILES ARE ACCEPTED IN ONE CLICK — a review page's items: one com
   const repo = await product();
   const page = core.reviewPage(await archEntries(repo));
   const g = fakeGitHub();
-  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: page.items, readAt: readerOf(repo), now: WHEN }));
   assert.deepEqual(res.leftOut, []);
   assert.equal(g.calls.filter(([m, p]) => m === "POST" && p.endsWith("/git/commits")).length, 1, "one commit");
@@ -653,7 +700,7 @@ test("SEVERAL FILES ARE ACCEPTED IN ONE CLICK — a review page's items: one com
   // Counter-proof: MOD-review, passed in anyway, is left out on the commit written on and named with the use case it waits for.
   const blocked = page.shown.find((f) => f.item.id === "MOD-review").item;
   const g2 = fakeGitHub();
-  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res2 = await withFetch(g2.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: [blocked], readAt: readerOf(repo), now: WHEN }));
   assert.equal(res2.commit, null);
   assert.match(res2.leftOut[0].reason, /UC-002/);
@@ -666,7 +713,7 @@ test("counter-proof: a file changed after the review page was built is left out 
   const repo = await product();
   const page = core.reviewPage(await archEntries(repo));
   const g = fakeGitHub();
-  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", click,
+  const res = await withFetch(g.fetchMock, () => acceptItems({ repo: "a/b", branch: "main", token: "github_pat_t", authority: clickAuthority(click),
     items: page.items, readAt: readerOf({ ...repo, [PAGE]: repo[PAGE] + "edited\n" }), now: WHEN }));
   assert.deepEqual(Object.keys(treeOf(g.calls)), [approvalPath("MOD-reader", await gitBlobSha(repo[READER]))]);
   assert.deepEqual(res.leftOut.map((l) => l.label), ["MOD-page"]);

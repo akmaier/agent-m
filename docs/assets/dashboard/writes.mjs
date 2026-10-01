@@ -6,7 +6,8 @@
 //
 // Module: MOD-dashboard-app
 //
-// Moved out of docs/assets/review-core.mjs, with their signatures, their `click` and their behaviour unchanged (ITM-124).
+// Moved out of docs/assets/review-core.mjs (ITM-124). Since ITM-008 the click handler of the button that names a write makes
+// the authority (clickAuthority), and each write hands it to the write path, which refuses a write without one.
 
 import {
   fetchText, parseProductAddress, isGitLab, commitFiles, gitlabProject, gitlabSnapshot, commitFilesGitLab, writeFiles,
@@ -15,14 +16,23 @@ import { identifierKept } from "../artifacts.mjs";
 import { missingNeeds, planAcceptance, missingLayout } from "../review-core.mjs";
 import { PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH, setProductSetting, formatCollaborators } from "../pseudonymiser.mjs";
 
+// THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: the one place in the browser where a person's click becomes the authority to
+// write (ARC-003 decision 3), and only from an event the browser marks as trusted — `isTrusted` is set by the browser for real
+// user input only and cannot be set by a script. A click a script makes becomes no authority, so no write starts. Called in the
+// click handler of the button that names the write, with that handler's event; the write hands the result to the write path.
+export function clickAuthority(event) {
+  if (!event || event.isTrusted !== true) throw new Error("a write needs a person's click");
+  return Object.freeze({ kind: "click" });
+}
+
 // Saving an edit of a reviewed file (EDITS ARE PREPARED ON THE DASHBOARD): refused, before anything is sent, when the text
 // carries another identifier than the one the file was opened with (AN EDITED FILE KEEPS ITS IDENTIFIER); written only if the
 // file is still the text the editor opened (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE). openedId null: a file without
 // an identifier, such as a SPEC proposal.
-export async function saveReviewedFile({ repo = null, product = null, branch, token, click, path, text, openedId, expectBlob }) {
+export async function saveReviewedFile({ repo = null, product = null, branch, token, authority, path, text, openedId, expectBlob }) {
   const refused = identifierKept(openedId, text);
   if (refused) throw new Error(refused);
-  return writeFiles({ repo, product, branch, token, click, message: `edit ${String(path).split("/").pop()} (Agent M dashboard)`,
+  return writeFiles({ repo, product, branch, token, authority, message: `edit ${String(path).split("/").pop()} (Agent M dashboard)`,
     files: [{ path, content: text, expectBlob: expectBlob || null }] });
 }
 
@@ -38,14 +48,14 @@ export async function saveReviewedFile({ repo = null, product = null, branch, to
 // -> { commit, accepted, leftOut }; commit is null when everything was left out (nothing written).
 // product: a GitLab product (parseProductAddress) — the commit is then made there (writeFiles). If GitLab wrote the
 // commit on a newer head than the one checked, `warning` names the files this acceptance read that changed in between.
-export async function acceptItems({ repo, product = null, branch, token, click, items, readAt, now = new Date() }) {
+export async function acceptItems({ repo, product = null, branch, token, authority, items, readAt, now = new Date() }) {
   if (!items.length) throw new Error("nothing ticked");
   const gaps = missingNeeds(items);
   if (gaps.length) throw new Error(gaps.map((g) => g.message).join(" "));
   let plan = null;
   const read = new Set();
   try {
-    const commit = await writeFiles({ repo, product, branch, token, click,
+    const commit = await writeFiles({ repo, product, branch, token, authority,
       message: () => `accept ${plan.accepted.join(", ")} (Agent M dashboard)`,
       files: async (head) => {
         plan = await planAcceptance({ items, read: (p) => { read.add(p); return readAt(head, p); }, now });
@@ -70,9 +80,9 @@ export async function acceptItems({ repo, product = null, branch, token, click, 
 // branch, then add its address to the list in this browser. Nothing is written into the instance
 // repository (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY). A refused write adds nothing to the list.
 // store: the browser store of settings-store.mjs. -> { commit: { sha, url } | null, product }
-// For a GitLab product, `token` is its project token, and the product's server is the only one contacted.
-export async function addProduct({ address, token, click, store }) {
-  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
+// For a GitLab product, `token` is its project token, and the product's server is the only one contacted. authority: the one
+// the click on *Add product* made; without it the write path refuses the layout's commit, and the address is not stored.
+export async function addProduct({ address, token, authority, store }) {
   const product = parseProductAddress(address);
   if (product.error) throw new Error(product.error);
   if (isGitLab(product)) {
@@ -82,7 +92,7 @@ export async function addProduct({ address, token, click, store }) {
     const snap = await gitlabSnapshot({ product, ref: info.default_branch, token });
     const files = missingLayout(snap.tree.map((e) => e.path), product.repo);
     const commit = files.length
-      ? await commitFilesGitLab({ product, branch: info.default_branch, token, click, files,
+      ? await commitFilesGitLab({ product, branch: info.default_branch, token, authority, files,
         message: "Add the Agent M review layout (Agent M dashboard)" })
       : null;
     store.addProduct(product.address);
@@ -93,7 +103,7 @@ export async function addProduct({ address, token, click, store }) {
   const tree = JSON.parse(await fetchText(`${api}/git/trees/${encodeURIComponent(info.default_branch)}?recursive=1`, {}, token));
   const files = missingLayout(tree.tree.filter((e) => e.type === "blob").map((e) => e.path), product.repo);
   const commit = files.length
-    ? await commitFiles({ repo: product.repo, branch: info.default_branch, token, click, files,
+    ? await commitFiles({ repo: product.repo, branch: info.default_branch, token, authority, files,
       message: "Add the Agent M review layout (Agent M dashboard)" })
     : null;
   store.addProduct(product.address);
@@ -104,14 +114,14 @@ export async function addProduct({ address, token, click, store }) {
 
 // One click commits docs/settings.md to the product (A PERSON'S OWN INPUT IS COMMITTED DIRECTLY); switching
 // off needs the tick under the notice. current/currentBlob: the file as shown (null if absent).
-export async function savePseudonymisation({ repo, product = null, branch, token, click, current, currentBlob, off, acknowledged }) {
+export async function savePseudonymisation({ repo, product = null, branch, token, authority, current, currentBlob, off, acknowledged }) {
   if (off && acknowledged !== true) throw new Error("Tick “I have read this” under the notice first.");
-  return writeFiles({ repo, product, branch, token, click, message: `settings: pseudonymisation ${off ? "off" : "on"} (Agent M dashboard)`,
+  return writeFiles({ repo, product, branch, token, authority, message: `settings: pseudonymisation ${off ? "off" : "on"} (Agent M dashboard)`,
     files: [{ path: PRODUCT_SETTINGS_PATH, content: setProductSetting(current, "pseudonymisation", off ? "off" : null, repo ?? product?.repo),
       expectBlob: currentBlob || null }] });
 }
 
-export async function saveCollaborators({ repo, product = null, branch, token, click, list, currentBlob }) {
-  return writeFiles({ repo, product, branch, token, click, message: "collaborators: update (Agent M dashboard)",
+export async function saveCollaborators({ repo, product = null, branch, token, authority, list, currentBlob }) {
+  return writeFiles({ repo, product, branch, token, authority, message: "collaborators: update (Agent M dashboard)",
     files: [{ path: COLLABORATORS_PATH, content: formatCollaborators(list, repo ?? product?.repo), expectBlob: currentBlob || null }] });
 }

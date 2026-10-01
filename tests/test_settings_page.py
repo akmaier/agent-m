@@ -160,7 +160,7 @@ class ProductSettingsInTheRepository(unittest.TestCase):
                " if (p.endsWith('/git/trees')) return ok({ sha: 't1' }); if (p.endsWith('/git/commits')) return ok({ sha: 'c1' });"
                " return ok({}); };"
                "store.createStore(fake).setToken('github_pat_t');"
-               "await writes.savePseudonymisation({ repo: 'alice/thesis', branch: 'main', token: 'github_pat_t', click: { isTrusted: true },"
+               "await writes.savePseudonymisation({ repo: 'alice/thesis', branch: 'main', token: 'github_pat_t', authority: writes.clickAuthority({ isTrusted: true }),"
                " current: null, currentBlob: null, off: true, acknowledged: true });"
                "return [calls, [...mem.keys()]];")
         calls, keys = v
