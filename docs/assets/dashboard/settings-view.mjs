@@ -289,6 +289,15 @@ export function pseudonymisationOffNotice({ repo, isPublic, server = "GitHub" })
 export const PSEUDONYMISATION_ON_NOTE = "Data written while pseudonymisation was off stays in the repository's history; removing it " +
   "needs a rewrite of that history.";
 
+// What the setting does (REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS, A REWRITTEN TEXT IS CHECKED BY THREE LLMS,
+// NO CHECKER IS THE REWRITER, PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF) — the setting's folded explanation.
+export const PSEUDONYMISATION_EXPLANATION = "With pseudonymisation on — the default — attachments, logs, error messages, the text of " +
+  "screenshots and data files from mails reach this product's issues and repository only as a participant's rewriting that " +
+  "mentions no person and keeps the technical content: “the user's home folder” instead of a path with a user name. Before it " +
+  "is written, three LLM participants with three different models — none of them the one that rewrote it — each check the " +
+  "rewriting for any mention of a person; one finding is enough to send it back. Switch it off only where the repository is a " +
+  "protected, non-public data space.";
+
 // The page: its head, the notice before anything is stored, then its sections in the order of the dashboard's table (DASHBOARD in
 // dashboard-app.mjs). A section built in is written here; one of its own file is shown only when that file is there.
 // The sections of their own file that are there, per page: found when the settings page is first opened.
@@ -741,9 +750,7 @@ export async function loadProductSettings(app) {
       <p class="muted small">${h(PSEUDONYMISATION_ON_NOTE)}</p>
       <p><button class="btn primary" id="pseudo-on">Switch on and save</button></p>`}
       <p class="result muted" id="pseudo-msg"></p>
-      <details class="explain"><summary>What is this?</summary><div>With pseudonymisation on, report data from mails reaches this
-        product's issues and repository only with names, addresses and other details replaced by stand-ins. Switch it off only
-        where the repository is a protected, non-public data space.</div></details>
+      <details class="explain"><summary>What is this?</summary><div>${h(PSEUDONYMISATION_EXPLANATION)}</div></details>
     </div>
     <div class="setting">
       <h4>Collaborators — ${people.length ? `${people.length} named` : "none named"}</h4>
