@@ -16,6 +16,14 @@ import { gitBlobSha, recordText, useCaseRecord, reviewedRecord, specRecord, extr
   from "../docs/assets/review-core.mjs";
 import { repoServer, fakeCaches, openDashboard } from "./app-harness.mjs";
 
+// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
+// under docs/assets/dashboard/ — what a test that read the one app file reads now.
+const dashboardText = () => {
+  const assets = new URL("../docs/assets/", import.meta.url);
+  const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
+  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
+};
+
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
@@ -194,7 +202,7 @@ test("counter-proof: a record named for the current text whose content names ano
 });
 
 test("Clear everything also removes the kept file texts (A CLEAR IS A REAL CLEAR)", () => {
-  const app = readFileSync(new URL("../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
+  const app = dashboardText();
   const handler = app.match(/getElementById\("token-clear"\)\.addEventListener\("click", [\s\S]*?\n {2}\}\);\n/)?.[0] ?? "";
   assert.match(handler, /store\.clear\(\)/);
   assert.match(handler, /kept\.clear\(\)/, "the texts kept by blob SHA go with the settings");

@@ -13,7 +13,7 @@ class DestinationDisclosure(unittest.TestCase):
         self.assertEqual(dests, ["https://api.github.com"])
         self.assertEqual(api, {"Authorization": "Bearer t"})
         self.assertEqual((raw, other, none), ({}, {}, {}))
-        self.assertIn("api.github.com", js("return core.TOKEN_GUIDANCE;"))
+        self.assertIn("api.github.com", js("return settingsView.TOKEN_GUIDANCE;"))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 SHOWN · A STORED SECRET IS HIDDEN UNTIL SHOWN · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE ·
 A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY (UC-042).
 
-The browser section of the settings page is rendered by core.browserSettingsHtml; the page inserts
+The browser section of the settings page is rendered by settingsView.browserSettingsHtml; the page inserts
 that HTML as it is. So "appears on the page" is checked on the HTML the page shows.
 """
 import json
@@ -12,6 +12,13 @@ import unittest
 from jsrun import ASSETS, js
 
 STORE = ASSETS / "settings-store.mjs"
+
+
+def dashboard_text(shell: bool = True) -> str:
+    """The dashboard's own files (MOD-dashboard-app): the shell, dashboard-app.mjs, and every view and settings section under
+    docs/assets/dashboard/ — what a test that read the one app file reads now; `shell=False`: the views alone."""
+    views = sorted((ASSETS / "dashboard").rglob("*.mjs"))
+    return "\n".join(f.read_text(encoding="utf-8") for f in ([ASSETS / "dashboard-app.mjs"] if shell else []) + views)
 KEY_RE = re.compile(r"""PREFIX\s*\+\s*["']([^"']+)["']""")
 SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop"
 
@@ -26,7 +33,7 @@ def keys_without_place(store_source: str, page_html: str) -> list[str]:
 
 
 def page(entries: dict, shown=(), now="2026-09-30", state=None) -> str:
-    return js(f"return core.browserSettingsHtml({{ entries: {json.dumps(entries)}, shown: {json.dumps(list(shown))},"
+    return js(f"return settingsView.browserSettingsHtml({{ entries: {json.dumps(entries)}, shown: {json.dumps(list(shown))},"
               f" now: new Date('{now}T12:00:00Z'), tokenState: {json.dumps(state)} }});")
 
 
@@ -91,13 +98,13 @@ class SecretHiddenUntilShown(unittest.TestCase):
 
 class ExpiryWarnedInAdvance(unittest.TestCase):
     def test_default_expiry_is_the_links_90_days(self):
-        v = js("return [core.defaultExpiry(new Date('2026-09-30T08:00:00Z')),"
-               " new URL(core.tokenLinkUrl('a/agent-m')).searchParams.get('expires_in')];")
+        v = js("return [settingsView.defaultExpiry(new Date('2026-09-30T08:00:00Z')),"
+               " new URL(settingsView.tokenLinkUrl('a/agent-m')).searchParams.get('expires_in')];")
         self.assertEqual(v, ["2026-12-29", "90"])
 
     def test_warning_from_fourteen_days_before(self):
         w = js("const n = new Date('2026-09-30T12:00:00Z'); return ['2026-10-15', '2026-10-14', '2026-09-30', '2026-09-29', null]"
-               ".map((d) => core.expiryWarning(d, n));")
+               ".map((d) => settingsView.expiryWarning(d, n));")
         self.assertIsNone(w[0], "15 days before: no warning yet")
         self.assertEqual((w[1]["days"], w[1]["expired"]), (14, False))
         self.assertIn("2026-10-14", w[1]["text"])
@@ -107,9 +114,9 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertIsNone(w[4], "no date recorded: nothing to warn of")
 
     def test_the_banner_on_every_page_carries_renew(self):
-        b = js("return [core.tokenBannerHtml({ expires: '2026-10-10', now: new Date('2026-09-30T12:00:00Z') }),"
-               " core.tokenBannerHtml({ expires: '2026-12-29', now: new Date('2026-09-30T12:00:00Z') }),"
-               " core.tokenBannerHtml({ expires: null, refused: true, now: new Date('2026-09-30T12:00:00Z') })];")
+        b = js("return [settingsView.tokenBannerHtml({ expires: '2026-10-10', now: new Date('2026-09-30T12:00:00Z') }),"
+               " settingsView.tokenBannerHtml({ expires: '2026-12-29', now: new Date('2026-09-30T12:00:00Z') }),"
+               " settingsView.tokenBannerHtml({ expires: null, refused: true, now: new Date('2026-09-30T12:00:00Z') })];")
         self.assertIn("2026-10-10", b[0])
         self.assertIn("Renew", b[0])
         self.assertIn("https://github.com/settings/personal-access-tokens", b[0])
@@ -122,7 +129,7 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertIn("tokenBannerHtml(", route, "the banner is added in route(), which renders every view")
 
     def test_storing_a_token_asks_for_its_expiry(self):
-        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
+        app = dashboard_text()
         for fn in ("viewSettings", "storeKeyStep"):
             body = re.search(rf"function {fn}\(.*?\n}}\n", app, re.S).group(0)
             self.assertRegex(body, r'<input type="date"[^>]*value="\$\{h\(defaultExpiry\(\)\)\}"', fn)
