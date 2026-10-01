@@ -21,7 +21,9 @@
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 import { browserStore, fileTexts } from "./settings-store.mjs";
-import { fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabSnapshot, gitlabReadFile, tokenRefusal } from "./git-host.mjs";
+import {
+  fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabSnapshot, gitlabReadFile, tokenRefusal, usedUpLimit,
+} from "./git-host.mjs";
 import {
   deriveTarget, parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff,
   architecturePrerequisites,
@@ -142,6 +144,68 @@ export function gitlabWriteRefusal(e, product) {
     `protected even against Maintainers on ${product.address} — Settings → Repository → Protected branches → “Allowed to push and merge” — or ` +
     "that the token lacks scope api or was created with a lower role. Check the setting, and the token's role and scopes on the " +
     "project's Access tokens page.";
+}
+
+// A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN: which limit — the account's, or the network's for requests without a
+// token — and when it resets, where the server tells the page (MOD-git-host usedUpLimit); null for any other refusal. The
+// account's text names no token: every token of the account counts against the same limit, so none of them is at fault.
+// product: the product the request went to — a GitLab one by its server; null or a GitHub product for GitHub.
+export function rateLimitText(e, product = null, now = new Date()) {
+  const gl = isGitLab(product) ? product : null;
+  const l = usedUpLimit(e, gl);
+  if (!l) return null;
+  const server = gl ? gl.host : "GitHub";
+  const which = l.limit === "account"
+    ? (gl ? `${server}'s request limit for the account these requests are made with is used up.`
+      : "GitHub's hourly request limit for your account is used up — it counts every request made in your account's name, " +
+        "from this page and from any other program.")
+    : `${server}'s request limit for this network, for requests made without a token, is used up.`;
+  let when;
+  if (l.resetsAt) {
+    const minutes = Math.ceil((l.resetsAt.getTime() - now.getTime()) / 60000);
+    const time = l.resetsAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    when = minutes > 0 ? ` It resets at ${time} (in ${minutes} minute${minutes === 1 ? "" : "s"}); reload then.`
+      : ` It reset at ${time}; reload.`;
+  } else when = ` ${server} does not tell this page when it resets — try again in a few minutes.`;
+  const after = l.limit === "account" ? " Nothing in Settings needs to change."
+    : gl ? "" : " A GitHub token in Settings gives this page your account's own, higher limit.";
+  return which + when + after;
+}
+
+// Why a write was refused, in the product's terms — a used-up limit first, then GitLab's 403, then GitHub's 403 or 404 as the
+// token's missing permission; null when none of these applies (the caller then shows errorText).
+export function writeRefusalText(e, product, now = new Date()) {
+  const limit = rateLimitText(e, product, now);
+  if (limit) return limit;
+  if (isGitLab(product)) return gitlabWriteRefusal(e, product);
+  return /403|404/.test(e?.message || "")
+    ? `Your token cannot write to ${product.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
+    : null;
+}
+
+// The page shown when the product's commit cannot be read: the server's answer, and what it means here. A used-up rate limit
+// is named instead (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN); a refused token is named with its renewal (AN
+// EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED). hasToken: whether a token for this product is stored.
+export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date() }) {
+  const gl = isGitLab(product), name = gl ? product.address : product.repo;
+  const limit = rateLimitText(e, product, now);
+  if (limit) return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(limit)}</p>`;
+  const refused = tokenRefusal(e, gl ? product : null);
+  const msg = e?.message || "";
+  const limited = !gl && !hasToken && /403|429/.test(msg), forbidden = !gl && hasToken && /403/.test(msg), missing = !gl && /404/.test(msg);
+  return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(msg)}</p>
+      ${gl && e instanceof TypeError ? `<p class="muted">${h(product.host)} could not be reached from this page — it must accept requests
+        from this address, and your network must reach it.</p>` : ""}
+      ${gl && e?.status === 404 && !hasToken ? `<p class="muted">A private GitLab project is read only with its project token —
+        <a href="${h(`#add/${encodeURIComponent(product.address)}`)}">store it</a>.</p>` : ""}
+      ${gl && e?.status === 404 && hasToken ? `<p class="muted">The stored project token does not reach this project — check the address,
+        or <a href="${h(`#add/${encodeURIComponent(product.address)}`)}">store another token</a>.</p>` : ""}
+      ${limited ? `<p class="muted">Without a token GitHub allows 60 API calls per hour and network; this page uses two per load. A token in <a href="#settings">Settings</a> raises that.</p>` : ""}
+      ${forbidden ? `<p class="muted">GitHub refused reading ${h(name)} with the stored token: it lacks a permission for this repository. Extend it on github.com, or check the name.</p>` : ""}
+      ${missing && !hasToken ? `<p class="muted">A private repository cannot be read without a token — add one in <a href="#settings">Settings</a>.</p>` : ""}
+      ${missing && hasToken ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}
+      ${refused ? `<p>${h(refused.text)} <a class="btn small" href="${h(refused.renewUrl)}" target="_blank" rel="noopener">Renew ↗</a></p>
+        <p class="muted small">${h(refused.renew)} <a href="#settings">Settings</a></p>` : ""}`;
 }
 
 // ---------------------------------------------------------------- instance, product, token
@@ -297,13 +361,8 @@ async function reloadAndRoute() {
 // (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-008 3c, UC-018 4b).
 const tokenStepLink = () => `#add/${encodeURIComponent(T.product.address)}`;
 
-// Why a write was refused, in the product's terms.
-function writeErrorText(e) {
-  if (GITLAB) return gitlabWriteRefusal(e, T.product) || errorText(e);
-  return /403|404/.test(e.message)
-    ? `Your token cannot write to ${T.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
-    : errorText(e);
-}
+// Why a write was refused, in the product's terms (writeRefusalText).
+const writeErrorText = (e) => writeRefusalText(e, T.product) || errorText(e);
 
 // ---------------------------------------------------------------- tokens refused or expiring (SPEC §7)
 
@@ -323,7 +382,10 @@ function noteRefusal(e, product = T.product) {
   }
   return e;
 }
+// Any refusal, in words: a used-up rate limit by its name, a refused token with where it is renewed, else the server's answer.
 const errorText = (e, product = T.product) => {
+  const limit = rateLimitText(e, product);
+  if (limit) return limit;
   const r = tokenRefusal(e, isGitLab(product) ? product : null);
   return r ? `${r.text} Renew it with the link at the top of the page.` : e.message;
 };
@@ -370,7 +432,7 @@ function context() {
     T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, API, DASHBOARD,
     ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
     recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets, tokenState,
-    main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, reloadAndRoute, tokenStepLink, writeErrorText,
+    main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
     seq: () => routeSeq,
     setFlash: (text) => { flash = text; },
@@ -454,20 +516,7 @@ async function start() {
     noteRefusal(e);
     state.loadError = e;
     if (early) { loadProductSettings(app); return; }
-    const refused = tokenRefusal(e, GITLAB ? T.product : null);
-    const limited = !GITLAB && /403|429/.test(e.message), missing = !GITLAB && /404/.test(e.message);
-    main().innerHTML = `<p class="warn">Could not read ${h(GITLAB ? T.product.address : T.repo)} @ ${h(T.ref)}: ${h(e.message)}</p>
-      ${GITLAB && e instanceof TypeError ? `<p class="muted">${h(T.product.host)} could not be reached from this page — it must accept requests
-        from this address, and your network must reach it.</p>` : ""}
-      ${GITLAB && e.status === 404 && !token() ? `<p class="muted">A private GitLab project is read only with its project token —
-        <a href="${h(tokenStepLink())}">store it</a>.</p>` : ""}
-      ${GITLAB && e.status === 404 && token() ? `<p class="muted">The stored project token does not reach this project — check the address,
-        or <a href="${h(tokenStepLink())}">store another token</a>.</p>` : ""}
-      ${limited ? `<p class="muted">Without a token GitHub allows 60 API calls per hour and network; this page uses two per load. A token in <a href="#settings">Settings</a> raises that.</p>` : ""}
-      ${missing && !token() ? `<p class="muted">A private repository cannot be read without a token — add one in <a href="#settings">Settings</a>.</p>` : ""}
-      ${missing && token() ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}
-      ${refused ? `<p>${h(refused.text)} <a class="btn small" href="${h(refused.renewUrl)}" target="_blank" rel="noopener">Renew ↗</a></p>
-        <p class="muted small">${h(refused.renew)} <a href="#settings">Settings</a></p>` : ""}`;
+    main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()) });
     addEventListener("hashchange", route);
     return;
   }

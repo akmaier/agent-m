@@ -218,10 +218,10 @@ function wireAddGo(app, parsed) {
         <a class="btn primary" href="${h(productHref(parsed))}">Open ${h(repo)} →</a>`;
     } catch (e) {
       noteRefusal(e, gl ? parsed : null);
-      out.textContent = gl ? gitlabWriteRefusal(e, parsed) || errorText(e, parsed)
+      out.textContent = app.rateLimitText(e, gl ? parsed : null) || (gl ? gitlabWriteRefusal(e, parsed) || errorText(e, parsed)
         : /403|404/.test(e.message)
           ? `Your key cannot write to ${repo} yet (${e.message}). Do Step A — add the product to your key on GitHub — and click again.`
-          : errorText(e, null);
+          : errorText(e, null));
       b.disabled = false;
     }
   });

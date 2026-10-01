@@ -112,8 +112,8 @@ test("A USED-UP RATE LIMIT IS NAMED — a GitLab product's 429 is its limit, nam
 });
 
 test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a 401 stays a refused token, rate-limit headers or not", async () => {
-  // GitHub sends its rate-limit headers on every answer, a refusal of the token included.
-  const err = await readError(answer(401, limitHeaders(60, 59), "Bad credentials"));
+  // GitHub sends its rate-limit headers on every answer, a refusal of the token included — even one whose limit is used up.
+  const err = await readError(answer(401, limitHeaders(60, 0), "Bad credentials"));
   assert.equal(gitHost.usedUpLimit(err, null), null, "a refused token is not a used-up limit");
   const r = tokenRefusal(err);
   assert.equal(r?.token, "GitHub token");
