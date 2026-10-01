@@ -74,6 +74,14 @@ class TestGateDefinition(unittest.TestCase):
         self.assertEqual([(f["rule"], f["what"]) for f in errors(text)],
                          [(RULE, "the gate Design → Implementation checks TST, which no phase up to Design produces")])
 
+    def test_counter_proof_a_back_transition_does_not_make_the_phase_it_leaves_earlier(self):
+        # Testing → Implementation is a back transition: what Testing produces is still later than Implementation.
+        text = edited(PLANNED, "| Testing | Tester | TST (system tests) |", "| Testing | Tester | TST (system tests), ITM (defects) |")
+        text = edited(text, "| Testing → Acceptance |",
+                      "| Implementation → Testing | the ITM of the defects found | none is open | Tester |\n| Testing → Acceptance |")
+        self.assertEqual([(f["rule"], f["what"]) for f in errors(text)],
+                         [(RULE, "the gate Implementation → Testing checks ITM, which no phase up to Implementation produces")])
+
     def test_counter_proof_a_gate_checking_what_no_phase_produces_is_refused(self):
         text = edited(PULLED, GATE, GATE.replace("with its code and TST", "with its code, TST and UC-"))
         self.assertEqual([(f["rule"], f["what"]) for f in errors(text)],
