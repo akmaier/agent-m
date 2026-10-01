@@ -5,66 +5,20 @@
 // blob SHA; status is derived from the records, never stored. The dashboard reads with GET only
 // (fetchText) and writes only on a person's click, with that person's token, as one commit
 // (commitFiles for GitHub, commitFilesGitLab for GitLab). Each token goes only to the API of the server
-// that issued it (fetchText, authHeaders). The SPEC-section logic mirrors tools/apply_approvals.py
-// (the workflow side); tests/review-core.test.mjs checks that both hash the same bytes.
+// that issued it (fetchText, authHeaders) — the requests themselves are made in git-host.mjs. The SPEC-section logic
+// mirrors tools/apply_approvals.py (the workflow side); tests/review-core.test.mjs checks that both hash the same bytes.
+//
+// Module: MOD-review-core
 
-export const ALLOWED_ORIGINS = new Set(["https://api.github.com", "https://raw.githubusercontent.com"]);
-export const MAX_URL_VALUE = 1000; // NO TEXT TRAVELS IN A URL — a record is ~400 bytes
-
-// ---------------------------------------------------------------- reading (GET only) and where tokens go
-
-export const TOKEN_DESTINATIONS = ["https://api.github.com"];
-
-// A GitLab product is reached through its own server's REST API v4, and only through the API of its own
-// project: `auth` for a GitLab product is { gitlab: server origin, project: path, token | null } (gitlabAuth).
-// The server is the one in the product's address, which the person typed or chose (A PRODUCT IS NAMED BY
-// ITS ADDRESS); no other GitLab origin is ever reachable.
-const isGitLabAuth = (a) => Boolean(a) && typeof a === "object" && typeof a.gitlab === "string" && typeof a.project === "string";
-const gitlabPrefix = (a) => `${a.gitlab}/api/v4/projects/${encodeURIComponent(a.project)}`;
-const underPrefix = (u, prefix) => { const x = u.origin + u.pathname; return x === prefix || x.startsWith(prefix + "/"); };
-
-// The only way the dashboard reads. SPEC §7/§10: GET only. A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT:
-// the GitHub token (a string) only to GitHub's API as `Authorization`; a GitLab project token (in `auth`)
-// only to its own project's API on its own server as `PRIVATE-TOKEN` — headers built here, never in a URL,
-// never to another origin, never set by a caller.
-export async function fetchText(url, init = {}, auth = null) {
-  const u = new URL(url, globalThis.location?.href);
-  const sameOrigin = globalThis.location && u.origin === globalThis.location.origin;
-  const gl = isGitLabAuth(auth) ? auth : null;
-  if (!sameOrigin && !ALLOWED_ORIGINS.has(u.origin) && !(gl && underPrefix(u, gitlabPrefix(gl)))) {
-    throw new Error(`origin not allowed: ${u.origin}${gl ? ` (this product's API is ${gitlabPrefix(gl)})` : ""}`);
-  }
-  if ((init.method || "GET").toUpperCase() !== "GET") throw new Error("only GET is allowed");
-  const h = { ...(init.headers || {}) };
-  if (Object.keys(h).some((k) => /^(authorization|private-token)$/i.test(k))) throw new Error("no caller-set authorization header");
-  if (init.credentials === "include") throw new Error("the dashboard sends no browser credential");
-  const token = gl ? gl.token : typeof auth === "string" ? auth : null;
-  if (token) {
-    if (u.href.includes(token)) throw new Error("A credential is never placed in a URL");
-    const a = authHeaders(u.href, auth);
-    if (!Object.keys(a).length) {
-      throw new Error(gl ? `the GitLab project token may only go to ${gitlabPrefix(gl)}` : `the token may only go to ${TOKEN_DESTINATIONS.join(", ")}`);
-    }
-    Object.assign(h, a);
-  }
-  const r = await fetch(u, { method: "GET", headers: h, credentials: "omit", cache: "no-store" });
-  if (!r.ok) throw Object.assign(new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`), { status: r.status });
-  return r.text();
-}
-
-// The authorisation header for one request, or none. A GitHub token (string) for GitHub's API only; a GitLab
-// auth only for its own project's API on its own server.
-export function authHeaders(url, auth) {
-  if (!auth) return {};
-  const u = new URL(url);
-  if (isGitLabAuth(auth)) return auth.token && underPrefix(u, gitlabPrefix(auth)) ? { "PRIVATE-TOKEN": auth.token } : {};
-  if (typeof auth !== "string") return {};
-  return TOKEN_DESTINATIONS.includes(u.origin) ? { Authorization: `Bearer ${auth}` } : {};
-}
+import {
+  fetchText, REPO_RE, parseProductAddress, isGitLab, gitlabTokenPageUrl, commitFiles, gitlabAuth, gitlabApiBase, gitlabProject,
+  gitlabSnapshot, commitFilesGitLab, writeFiles, tokenIdentity, tokenRefusal,
+} from "./git-host.mjs";
+import { jumpHostProblem, tunnelCommands } from "./bridge-tunnel.mjs";
+import { settingKeys, parseJson, sessionList, gitlabTokenMap } from "./settings-store.mjs";
 
 // ---------------------------------------------------------------- instance and products (SPEC §10)
 
-const REPO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/;
 export const UPSTREAM = "akmaier/agent-m";
 
 // The product is chosen with ?repo=owner/name (GitHub) or ?product=<address> (GitHub or GitLab). A GitLab
@@ -82,37 +36,6 @@ export function deriveTarget({ hostname, pathname, search }) {
   const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
   return { instance, repo, ref };
 }
-
-// A PRODUCT IS NAMED BY ITS ADDRESS: the web address of its repository, as copied from the browser.
-// -> { address, host, repo } for a github.com repository; { address, host, repo, server, kind: "gitlab" } for a
-// project on any other server, which is taken for a GitLab server (GITLAB PRODUCTS ARE SUPPORTED) — the check in
-// UC-001 step B confirms that it answers as one. GitLab projects sit in nested groups: `repo` is the whole path
-// up to GitLab's `/-/` separator. { error } for anything else.
-const GITLAB_SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
-
-export function parseProductAddress(input) {
-  const s = String(input ?? "").trim();
-  let u;
-  try { u = new URL(s); } catch { return { error: "Paste the repository's address, e.g. https://github.com/owner/name." }; }
-  if (u.protocol !== "https:") return { error: "The address must use https." };
-  if (u.username || u.password) return { error: "The address must not contain a user name or token (A CREDENTIAL IS NEVER PLACED IN A URL)." };
-  const parts = u.pathname.split("/").filter(Boolean);
-  if (u.hostname === "github.com") {
-    if (parts.length < 2) return { error: "The address names an owner and a repository: https://github.com/owner/name." };
-    const repo = `${parts[0]}/${parts[1].replace(/\.git$/, "")}`;
-    if (!REPO_RE.test(repo) || repo.includes("..")) return { error: `not a repository: ${repo}` };
-    return { address: `https://github.com/${repo}`, host: "github.com", repo };
-  }
-  const dash = parts.indexOf("-");
-  const path = dash >= 0 ? parts.slice(0, dash) : parts;
-  if (path.length) path[path.length - 1] = path[path.length - 1].replace(/\.git$/, "");
-  if (path.length < 2) return { error: `The address names a group and a project on ${u.host}, like ${u.origin}/group/project.` };
-  if (!path.every((x) => GITLAB_SEGMENT.test(x) && !x.includes(".."))) return { error: `not a GitLab project path: ${path.join("/")}` };
-  const repo = path.join("/");
-  return { address: `${u.origin}/${repo}`, host: u.host, repo, server: u.origin, kind: "gitlab" };
-}
-
-export const isGitLab = (p) => p?.kind === "gitlab";
 
 // ---------------------------------------------------------------- settings texts (SPEC §7)
 
@@ -204,28 +127,6 @@ export function parseRecord(text) {
 
 export function approvalPath(id, blob) {
   return `docs/approvals/${id}-${blob.slice(0, 12)}.md`;
-}
-
-// ---------------------------------------------------------------- GitHub links (navigation only)
-
-const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
-
-export function newFileUrl(repo, ref, path, value) {
-  if (value.length > MAX_URL_VALUE) throw new Error("NO TEXT TRAVELS IN A URL: value too long for a record");
-  return `https://github.com/${repo}/new/${encPath(ref)}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(value)}`;
-}
-
-export function editUrl(repo, ref, path) {
-  return `https://github.com/${repo}/edit/${encPath(ref)}/${encPath(path)}`;
-}
-
-export function blobUrl(repo, ref, path) {
-  return `https://github.com/${repo}/blob/${encPath(ref)}/${encPath(path)}`;
-}
-
-// A file on the web page of its product's server (navigation only).
-export function webFileUrl(product, ref, path) {
-  return isGitLab(product) ? `${product.address}/-/blob/${encPath(ref)}/${encPath(path)}` : blobUrl(product.repo, ref, path);
 }
 
 // ---------------------------------------------------------------- SPEC sections (as spec_dashboard.py)
@@ -866,8 +767,6 @@ export function repositoryChoiceSteps(instance, product) {
   ];
 }
 
-export const tokenListUrl = () => "https://github.com/settings/personal-access-tokens";
-
 // UC-001: the instance's token (created in UC-014) is extended by one repository — same token,
 // nothing to copy. The token's name is the one tokenLinkUrl gave it, so the person can find it.
 export function extendTokenSteps(instance, product) {
@@ -879,11 +778,7 @@ export function extendTokenSteps(instance, product) {
   ];
 }
 
-// UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: one token for this one project, role Maintainer, scope
-// api — GitLab's default branch protection lets Developers push nothing (queue 2026-09-30c). The page and the fields as GitLab documents them (doc/user/project/settings/project_access_tokens.md,
-// "Create a project access token"; route /-/settings/access_tokens in config/routes/project.rb).
-export const gitlabTokenPageUrl = (product) => `${product.address}/-/settings/access_tokens`;
-
+// UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the steps on the page gitlabTokenPageUrl (git-host.mjs) opens.
 export function gitlabTokenSteps(product) {
   return [
     `The button opens Settings → Access tokens of ${product.repo} on ${product.host}; there, press “Add new token”.`,
@@ -942,174 +837,6 @@ export function stepHtml({ title, body, explain }) {
     `<details class="explain"><summary>What is this?</summary><div>${explain}</div></details></section>`;
 }
 
-// ---------------------------------------------------------------- writing (SPEC §9, §10)
-
-// THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Every write needs the click event that caused it;
-// `isTrusted` is set by the browser for real user input only and cannot be set by a script.
-// All files go into ONE commit, fast-forward only — nobody else's work is ever overwritten.
-// `files` may be a function of the branch head: it then computes the files from that very commit, so
-// that every check it makes is made on the commit the new one is written on (A STALE APPROVAL IS NOT
-// APPLIED). A later commit on the branch makes the fast-forward fail, and nothing is written.
-export async function commitFiles({ repo, branch, files, message, token, click }) {
-  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
-  if (!token) throw new Error("writing needs a stored token");
-  if (!REPO_RE.test(repo) || repo.includes("..")) throw new Error(`not a repository: ${repo}`);
-  if (typeof files !== "function" && !files.length) throw new Error("nothing to write");
-  const api = `https://api.github.com/repos/${repo}`;
-  const call = async (method, path, body) => {
-    const r = await fetch(api + path, { method, credentials: "omit", cache: "no-store",
-      headers: { Accept: "application/vnd.github+json", ...authHeaders(api, token), ...(body ? { "Content-Type": "application/json" } : {}) },
-      body: body ? JSON.stringify(body) : undefined });
-    const text = await r.text();
-    if (!r.ok) {
-      let msg = text;
-      try { msg = JSON.parse(text).message || text; } catch { /* keep raw */ }
-      const e = new Error(`${method} ${path}: ${r.status} ${msg}`);
-      e.status = r.status;
-      throw e;
-    }
-    return text ? JSON.parse(text) : {};
-  };
-  const ref = encodeURIComponent(branch).replace(/%2F/g, "/");
-  const head = (await call("GET", `/git/ref/heads/${ref}`)).object.sha;
-  if (typeof files === "function") files = await files(head);
-  if (!files.length) throw new Error("nothing to write");
-  for (const f of files) {
-    if (!f.expectBlob) continue;
-    let current = null;
-    try {
-      current = (await call("GET", `/contents/${f.path.split("/").map(encodeURIComponent).join("/")}?ref=${head}`)).sha;
-    } catch (e) { if (e.status !== 404) throw e; }
-    if (current !== f.expectBlob) throw new Error(`${f.path} changed since you opened it — reload and look at the new text first`);
-  }
-  const baseTree = (await call("GET", `/git/commits/${head}`)).tree.sha;
-  const tree = await call("POST", "/git/trees", { base_tree: baseTree,
-    tree: files.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })) });
-  if (typeof message === "function") message = message();
-  const commit = await call("POST", "/git/commits", { message, tree: tree.sha, parents: [head] });
-  await call("PATCH", `/git/refs/heads/${ref}`, { sha: commit.sha, force: false });
-  return { sha: commit.sha, url: commit.html_url || `https://github.com/${repo}/commit/${commit.sha}` };
-}
-
-// ---------------------------------------------------------------- GitLab products (SPEC §10, queue 2026-09-24b)
-//
-// GITLAB PRODUCTS ARE SUPPORTED: a GitLab product is read and written through the REST API v4 of the server
-// in its address. Reading pins one commit, as on GitHub: the branch is resolved to a commit once, and the tree
-// and every file are read at that commit.
-
-export function gitlabAuth(product, token = null) {
-  if (!isGitLab(product)) throw new Error("not a GitLab product");
-  return { gitlab: product.server, project: product.repo, token: token || null };
-}
-
-export const gitlabApiBase = (product) => `${product.server}/api/v4/projects/${encodeURIComponent(product.repo)}`;
-
-export async function gitlabProject({ product, token = null }) {
-  return JSON.parse(await fetchText(gitlabApiBase(product), {}, gitlabAuth(product, token)));
-}
-
-const GITLAB_PAGE = 100;
-
-// -> { commit, tree: [{ path, sha }] } — the blobs of `ref` resolved to one commit, every page of the tree.
-export async function gitlabSnapshot({ product, ref, token = null }) {
-  const auth = gitlabAuth(product, token), api = gitlabApiBase(product);
-  const commit = JSON.parse(await fetchText(`${api}/repository/commits/${encodeURIComponent(ref)}`, {}, auth)).id;
-  const tree = [];
-  for (let page = 1; page <= 1000; page++) {
-    const items = JSON.parse(await fetchText(`${api}/repository/tree?ref=${encodeURIComponent(commit)}&recursive=true` +
-      `&per_page=${GITLAB_PAGE}&page=${page}`, {}, auth));
-    tree.push(...items.filter((e) => e.type === "blob").map((e) => ({ path: e.path, sha: e.id })));
-    if (items.length < GITLAB_PAGE) break;
-  }
-  return { commit, tree };
-}
-
-// A file's exact text at a commit, or null if it does not exist there.
-export async function gitlabReadFile({ product, commit, path, token = null }) {
-  try {
-    return await fetchText(`${gitlabApiBase(product)}/repository/files/${encodeURIComponent(path)}/raw?ref=${encodeURIComponent(commit)}`,
-      {}, gitlabAuth(product, token));
-  } catch (e) {
-    if (e.status === 404) return null;
-    throw e;
-  }
-}
-
-// ONE commit on a GitLab product, made with the person's project token on the person's click, through
-// POST /projects/:id/repository/commits with one action per file.
-//
-// GitLab offers no "write only if the branch is still at the commit I read" for an existing branch (on GitHub:
-// the fast-forward-only ref update in commitFiles): `start_sha` on an existing branch is refused unless `force`
-// is set, and `force` would discard every commit made meanwhile (app/services/commits/create_service.rb
-// validate_branch_existence!; doc/api/commits.md). What is done instead:
-//   1. the head of the branch is read, and `files(head)` computes the files from that commit — every check the
-//      caller makes (a STALE APPROVAL, a changed text) is made on it;
-//   2. each file that exists there is written with `update` and `last_commit_id: head` — GitLab refuses the whole
-//      commit if that file has changed on the branch since then (Files::MultiService#validate_file_status!);
-//      each file that does not exist is written with `create` — GitLab refuses it if the file exists by then;
-//   3. the branch is read again just before the commit; if it moved, nothing is written;
-//   4. GitLab's answer names the commit it was written on; if that is not the head read in 1, the files changed
-//      by the commits in between are returned (`changedMeanwhile`) so that the caller can name the ones it read.
-// What remains: a file that is only READ (a use case being accepted, a proposal) and changed by a commit that
-// lands between step 3 and GitLab's own write is not refused — step 4 reports it after the fact.
-export async function commitFilesGitLab({ product, branch, files, message, token, click }) {
-  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
-  if (!token) throw new Error("A GitLab product is written with its project token — store it first.");
-  if (!isGitLab(product)) throw new Error("not a GitLab product");
-  if (typeof files !== "function" && !files.length) throw new Error("nothing to write");
-  const auth = gitlabAuth(product, token), api = gitlabApiBase(product);
-  const branchHead = async () => JSON.parse(await fetchText(`${api}/repository/branches/${encodeURIComponent(branch)}`, {}, auth)).commit.id;
-  const head = await branchHead();
-  if (typeof files === "function") files = await files(head);
-  if (!files.length) throw new Error("nothing to write");
-  const actions = [];
-  for (const f of files) {
-    let meta = null;
-    try {
-      meta = JSON.parse(await fetchText(`${api}/repository/files/${encodeURIComponent(f.path)}?ref=${encodeURIComponent(head)}`, {}, auth));
-    } catch (e) { if (e.status !== 404) throw e; }
-    if (f.expectBlob && (meta?.blob_id ?? null) !== f.expectBlob) {
-      throw new Error(`${f.path} changed since you opened it — reload and look at the new text first`);
-    }
-    actions.push(meta ? { action: "update", file_path: f.path, content: f.content, encoding: "text", last_commit_id: head }
-      : { action: "create", file_path: f.path, content: f.content, encoding: "text" });
-  }
-  if (await branchHead() !== head) throw new Error(`${branch} moved on while this commit was prepared — nothing was written; reload and look again`);
-  if (typeof message === "function") message = message();
-  const url = `${api}/repository/commits`;
-  const headers = { ...authHeaders(url, auth), "Content-Type": "application/json" };
-  const r = await fetch(url, { method: "POST", credentials: "omit", cache: "no-store", headers,
-    body: JSON.stringify({ branch, commit_message: message, actions }) });
-  const text = await r.text();
-  if (!r.ok) {
-    let msg = text;
-    try { const j = JSON.parse(text); msg = j.message ?? j.error ?? text; } catch { /* keep raw */ }
-    if (typeof msg !== "string") msg = JSON.stringify(msg);
-    throw Object.assign(new Error(`POST ${new URL(url).pathname}: ${r.status} ${msg}`), { status: r.status });
-  }
-  const c = JSON.parse(text);
-  const parent = c.parent_ids?.[0] ?? null;
-  let changedMeanwhile = [];
-  if (parent && parent !== head) {
-    const cmp = JSON.parse(await fetchText(`${api}/repository/compare?from=${encodeURIComponent(head)}&to=${encodeURIComponent(parent)}`, {}, auth));
-    changedMeanwhile = [...new Set((cmp.diffs || []).flatMap((d) => [d.old_path, d.new_path]).filter(Boolean))];
-  }
-  return { sha: c.id, url: c.web_url || `${product.address}/-/commit/${c.id}`, base: head, parent, changedMeanwhile };
-}
-
-// Every write of the dashboard: to GitHub (commitFiles) or to a GitLab product (commitFilesGitLab), which is
-// written only with its own project token (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
-export async function writeFiles(args) {
-  const product = args.product;
-  if (isGitLab(product)) {
-    if (!args.click || args.click.isTrusted !== true) throw new Error("a write needs a person's click");
-    if (!args.token) throw new Error("A GitLab product is written with its project token — store it first (Settings, or + Add product).");
-    if (/^(github_pat_|ghp_)/.test(args.token)) throw new Error("That is the GitHub token; a GitLab product is written with its own GitLab project token.");
-    return commitFilesGitLab(args);
-  }
-  return commitFiles({ ...args, repo: args.repo ?? product?.repo });
-}
-
 // Saving an edit of a reviewed file (EDITS ARE PREPARED ON THE DASHBOARD): refused, before anything is sent, when the text
 // carries another identifier than the one the file was opened with (AN EDITED FILE KEEPS ITS IDENTIFIER); written only if the
 // file is still the text the editor opened (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE). openedId null: a file without
@@ -1124,14 +851,6 @@ export async function saveReviewedFile({ repo = null, product = null, branch, to
   }
   return writeFiles({ repo, product, branch, token, click, message: `edit ${String(path).split("/").pop()} (Agent M dashboard)`,
     files: [{ path, content: text, expectBlob: expectBlob || null }] });
-}
-
-// How Accept and Save work for a product: a commit with a stored token; without one, GitHub's web interface
-// (WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK), or on GitLab the step that stores the project's
-// token — GitLab has no page that could be prefilled (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
-export function writeRoute(product, token) {
-  if (token) return "commit";
-  return isGitLab(product) ? "token-step" : "github-web";
 }
 
 // ---------------------------------------------------------------- accepting (UC-006 4–7, 4d, 5a · UC-008 3d)
@@ -1386,139 +1105,6 @@ const K_TOKEN = "agent-m.github-token", K_EXPIRES = "agent-m.github-token-expire
 const K_GITLAB = "agent-m.gitlab-tokens";
 const K_JUMP = "agent-m.jump-host", K_SESSIONS = "agent-m.remote-sessions";
 
-export const BROWSER_SETTINGS = [
-  { key: K_TOKEN, label: "GitHub token", secret: true,
-    grants: "writes — commits, issues and workflow runs — to every repository it was given, under your account" },
-  { key: K_EXPIRES, label: "GitHub token expiry date", secret: false, partOf: K_TOKEN },
-  { key: K_PRODUCTS, label: "Products", secret: false },
-  { key: K_GITLAB, label: "GitLab project tokens", secret: true,
-    grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
-  { key: K_JUMP, label: "Jump host", secret: false },
-  { key: K_SESSIONS, label: "remote sessions' bridge tokens", secret: true,
-    grants: "hand jobs to the CLI session behind each tunnel, which works there with that machine's own credentials" },
-];
-
-// ---------------------------------------------------------------- jump host and remote sessions (UC-011 1c, UC-042; SPEC §6, §7)
-//
-// A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL: the machine behind NAT opens `ssh -R` to a jump host the person
-// names, the person's machine opens `ssh -L` to it, and the dashboard reaches the session at http://localhost:<port>.
-// EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE · THE DASHBOARD WRITES THE TUNNEL COMMANDS · A REVERSE TUNNEL
-// LISTENS ONLY ON THE JUMP HOST'S LOOPBACK. The bridge's own port on the NAT machine is a setting of each session
-// (`bridgePort`): no bridge exists in this repository yet, so there is no port convention to take it from.
-// Every value that enters a command is checked first, so that no setting can add an option or an address to it.
-
-const HOST_RE = /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/;
-const SSH_USER_RE = /^[A-Za-z_][A-Za-z0-9_.-]{0,31}$/;
-const KEY_FILE_RE = /^(?:~\/|\/)?[A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*$/;
-const SESSION_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
-export const KEEPALIVE_SECONDS = 30;
-const isPort = (p, min = 1) => Number.isInteger(p) && p >= min && p <= 65535;
-
-// What is wrong with a jump host's settings, or null.
-export function jumpHostProblem(j) {
-  if (!j || typeof j !== "object") return "No jump host is set.";
-  if (!HOST_RE.test(String(j.host ?? ""))) return "The jump host is a host name or an IPv4 address, such as jump.example.org.";
-  if (!SSH_USER_RE.test(String(j.user ?? ""))) return "The SSH user is a login name on the jump host, such as agentm.";
-  if (!isPort(j.portFrom, 1024) || !isPort(j.portTo, 1024)) return "The port range lies between 1024 and 65535.";
-  if (j.portFrom > j.portTo) return "The port range starts at its lower end.";
-  for (const [k, what] of [["reverseKey", "machine behind NAT"], ["forwardKey", "your machine"]]) {
-    const v = j[k] ?? "";
-    if (v && !KEY_FILE_RE.test(v)) return `The key file on the ${what} is a file name, such as ~/.ssh/id_ed25519 — its name only, never the key itself.`;
-  }
-  return null;
-}
-
-// The lowest port of the range that no session uses.
-export function nextFreePort(jump, sessions) {
-  const used = new Set(sessions.map((s) => s.port));
-  for (let p = jump.portFrom; p <= jump.portTo; p++) if (!used.has(p)) return p;
-  throw new Error(`No free port left in ${jump.portFrom}–${jump.portTo}: every port of the range has a session. Widen the range or ` +
-    "remove a session.");
-}
-
-// + Remote session: the list with the new session; its port is the lowest free one unless one of the range is chosen.
-export function addRemoteSession(jump, sessions, { name, port = null, bridgePort, token = "" }) {
-  const bad = jumpHostProblem(jump);
-  if (bad) throw new Error(`Set the jump host first. ${bad}`);
-  const n = String(name ?? "").trim(), t = String(token ?? "").trim(), bp = Number(bridgePort);
-  if (!SESSION_NAME_RE.test(n)) throw new Error("Name the session with letters, digits, '.', '_' or '-', such as lab-pc.");
-  if (sessions.some((s) => s.name === n)) throw new Error(`A session named ${n} already exists.`);
-  if (!isPort(bp)) throw new Error("The bridge port is the port the bridge listens on, on the machine behind NAT (1–65535).");
-  if (/\s/.test(t)) throw new Error("A bridge token has no spaces.");
-  let p;
-  if (port === null || port === undefined || port === "") p = nextFreePort(jump, sessions);
-  else {
-    p = Number(port);
-    if (!Number.isInteger(p) || p < jump.portFrom || p > jump.portTo) throw new Error(`The port lies in the jump host's range ${jump.portFrom}–${jump.portTo}.`);
-    const other = sessions.find((s) => s.port === p);
-    if (other) throw new Error(`Port ${p} is used by the session ${other.name}; each session has its own port.`);
-  }
-  return [...sessions, { name: n, port: p, bridgePort: bp, token: t }];
-}
-
-const LOOPBACK_BIND = new Set(["127.0.0.1", "localhost", "[::1]"]);
-
-// A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK: every -R and -L of a command binds its listening end to a loopback
-// address, explicitly, and forwards to 127.0.0.1; nothing switches on listening for other hosts. -> [] or the problems.
-export function tunnelBindProblems(cmd) {
-  const words = String(cmd).trim().split(/\s+/), out = [];
-  let forwards = 0;
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i];
-    if (w === "-g") out.push("-g lets other hosts connect to the forwarded port");
-    if (w === "-o" && /^GatewayPorts/i.test(words[i + 1] || "")) out.push("GatewayPorts is not set by a command of the dashboard");
-    if (w !== "-R" && w !== "-L") continue;
-    forwards++;
-    const spec = words[i + 1] || "", parts = spec.split(":");
-    if (parts.length !== 4) { out.push(`${w} ${spec}: no bind address — it must name 127.0.0.1`); continue; }
-    const [bind, , dest] = parts;
-    if (bind === "" || bind === "*" || bind === "0.0.0.0" || !LOOPBACK_BIND.has(bind)) out.push(`${w} ${spec}: binds ${bind || "(empty)"}, not the loopback address`);
-    if (dest !== "127.0.0.1") out.push(`${w} ${spec}: forwards to ${dest}, not to 127.0.0.1`);
-  }
-  if (!forwards) out.push("no -R or -L in the command");
-  return out;
-}
-
-// THE DASHBOARD WRITES THE TUNNEL COMMANDS: both ends of one session's tunnel, and the address the dashboard reaches it at.
-export function tunnelCommands(jump, session) {
-  const bad = jumpHostProblem(jump);
-  if (bad) throw new Error(bad);
-  if (!SESSION_NAME_RE.test(session?.name ?? "") || !isPort(session.port) || !isPort(session.bridgePort)) throw new Error("not a remote session");
-  const opts = `-N -o ServerAliveInterval=${KEEPALIVE_SECONDS} -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes`;
-  const key = (f) => (f ? ` -i ${f}` : "");
-  const to = `${jump.user}@${jump.host}`;
-  const reverse = `ssh ${opts}${key(jump.reverseKey)} -R 127.0.0.1:${session.port}:127.0.0.1:${session.bridgePort} ${to}`;
-  const forward = `ssh ${opts}${key(jump.forwardKey)} -L 127.0.0.1:${session.port}:127.0.0.1:${session.port} ${to}`;
-  for (const c of [reverse, forward]) {
-    const p = tunnelBindProblems(c);
-    if (p.length) throw new Error(`refused to write a tunnel command: ${p.join("; ")}`);
-  }
-  return { reverse, forward, url: `http://localhost:${session.port}` };
-}
-
-// Test of a remote session: does anything answer at its local port — the forward, and through it the tunnel? A request
-// without token or header, whose answer the page cannot read (no-cors): it tells only that a connection was made.
-export async function probeLocalPort(port) {
-  if (typeof port !== "number" || !isPort(port)) throw new Error(`not a port: ${port}`);
-  try {
-    await fetch(`http://localhost:${port}/`, { method: "GET", mode: "no-cors", credentials: "omit", cache: "no-store" });
-    return true;
-  } catch { return false; }
-}
-
-const parseJson = (raw, fallback) => { try { return JSON.parse(raw || "null") ?? fallback; } catch { return fallback; } };
-const sessionList = (raw) => { const l = parseJson(raw, []); return Array.isArray(l) ? l.filter((x) => x && typeof x.name === "string") : []; };
-
-// The GitLab project tokens of a raw store value: { address: { token, expires } }; anything malformed is left out.
-function gitlabTokenMap(raw) {
-  let m;
-  try { m = JSON.parse(raw || "{}"); } catch { return {}; }
-  if (!m || typeof m !== "object" || Array.isArray(m)) return {};
-  return Object.fromEntries(Object.entries(m).filter(([, v]) => v && typeof v.token === "string" && v.token)
-    .map(([a, v]) => [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null }]));
-}
-const settingLabel = (k) => BROWSER_SETTINGS.find((s) => s.key === k)?.label ?? k;
-
 export const EXPIRY_WARN_DAYS = 14;
 const DAY = 864e5;
 const isoDay = (d) => d.toISOString().slice(0, 10);
@@ -1534,21 +1120,6 @@ function daysUntil(date, now) {
   return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - today) / DAY);
 }
 
-export const RENEW_TEXT = "On GitHub's list of your tokens, open this one and press “Regenerate token”: the new value keeps the " +
-  "token's permissions and repositories. Then paste it under Settings → GitHub token → Change.";
-
-// A GitLab project token is renewed on its project's Access tokens page: "Rotate a token to create a new token with
-// the same permissions and scope as the original" (doc/user/project/settings/project_access_tokens.md).
-export const GITLAB_RENEW_TEXT = "On the project's Access tokens page, press “Rotate” next to the token Agent M: the new value keeps " +
-  "its role and scope. Then paste it, with the expiry date GitLab shows, under Settings → GitLab project tokens → Change.";
-
-// Which token, and where it is renewed: the GitHub token, or the GitLab project token of a GitLab product.
-function tokenIdentity(product) {
-  return isGitLab(product)
-    ? { token: `GitLab project token for ${product.address}`, renewUrl: gitlabTokenPageUrl(product), renew: GITLAB_RENEW_TEXT, server: product.host }
-    : { token: "GitHub token", renewUrl: tokenListUrl(), renew: RENEW_TEXT, server: "GitHub" };
-}
-
 // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE: from fourteen days before the date recorded with the token.
 export function expiryWarning(expires, now = new Date(), product = null) {
   const days = daysUntil(expires, now);
@@ -1557,19 +1128,6 @@ export function expiryWarning(expires, now = new Date(), product = null) {
   return { days, expired, renewUrl: id.renewUrl, renew: id.renew,
     text: expired ? `Your ${id.token} expired on ${expires}.`
       : `Your ${id.token} expires on ${expires} (${days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`}).` };
-}
-
-// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: GitHub and GitLab answer 401 to a token they no longer accept
-// (expired, regenerated, rotated, revoked or deleted). 403 and 404 are a missing permission or repository, not this.
-// product: the GitLab product whose token was used; none for the GitHub token.
-export function tokenRefusal(e, product = null) {
-  const status = e?.status ?? Number((/(?:^|: )(\d{3})\b/.exec(e?.message || "") || [])[1]);
-  if (status !== 401) return null;
-  const id = tokenIdentity(product);
-  return { token: id.token, renewUrl: id.renewUrl, renew: id.renew,
-    text: isGitLab(product)
-      ? `${id.server} refused your ${id.token} — it has expired, or was rotated or revoked on GitLab.`
-      : "GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub." };
 }
 
 // The line shown at the top of every view while the token is refused or expires within fourteen days.
@@ -1731,106 +1289,14 @@ export function browserSettingsHtml({ entries = {}, shown = [], tokenState = nul
 
 // ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
 
-export const SETTINGS_FORMAT = "agent-m-settings";
-export const PBKDF2_ITERATIONS = 600000;
 export const PASSPHRASE_NOTICE = "A forgotten passphrase cannot be recovered: without it, nobody — you included — can read the file.";
 
 // AN EXPORT STATES THAT IT CONTAINS SECRETS: each stored secret by name, and what it grants.
 export function exportNotice(entries = {}) {
-  const secrets = BROWSER_SETTINGS.filter((s) => s.secret && entries[s.key]);
+  const secrets = settingKeys.filter((s) => s.secret && entries[s.key]);
   const what = secrets.length ? secrets.map((s) => `your ${s.label}, which ${s.grants}`).join("; ") : "no token, key or password (none is stored)";
   return `The file contains every setting of this browser in full, including ${what}. It opens all of that to ` +
     `whoever holds the file — keep it like a password, or lock it with a passphrase.`;
-}
-
-const b64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
-const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-
-async function passphraseKey(passphrase, salt, iterations) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base,
-    { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-}
-
-// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS · AN EXPORT CAN BE LOCKED WITH A PASSPHRASE.
-// entries: { key: raw value }. Locked: PBKDF2 (SHA-256, random salt) → AES-GCM (random IV); salt, IV and
-// iteration count are stored beside the ciphertext. -> the file's text (JSON).
-export async function exportSettings(entries, { passphrase = "", now = new Date() } = {}) {
-  const head = { format: SETTINGS_FORMAT, version: 1, exported: now.toISOString(),
-    note: "Contains the tokens, keys and passwords of an Agent M dashboard. Whoever holds it can use them." };
-  if (!passphrase) return JSON.stringify({ ...head, settings: entries }, null, 2) + "\n";
-  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await passphraseKey(passphrase, salt, PBKDF2_ITERATIONS);
-  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(entries)));
-  return JSON.stringify({ ...head, locked: { kdf: "PBKDF2", hash: "SHA-256", iterations: PBKDF2_ITERATIONS, salt: b64(salt),
-    cipher: "AES-GCM", iv: b64(iv), data: b64(data) } }, null, 2) + "\n";
-}
-
-// -> { key: raw value }. A locked file without passphrase throws { locked: true }; a wrong passphrase
-// throws { wrongPassphrase: true } — in both cases nothing has been read, so nothing can be imported.
-export async function readSettingsFile(text, passphrase = "") {
-  let f;
-  try { f = JSON.parse(text); } catch { f = null; }
-  if (!f || f.format !== SETTINGS_FORMAT) throw new Error("This is not an Agent M settings file.");
-  let settings = f.settings;
-  if (f.locked) {
-    if (!passphrase) throw Object.assign(new Error("This file is locked — enter its passphrase."), { locked: true });
-    try {
-      const L = f.locked;
-      const key = await passphraseKey(passphrase, unb64(L.salt), L.iterations);
-      settings = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(L.iv) }, key, unb64(L.data))));
-    } catch {
-      throw Object.assign(new Error("Wrong passphrase, or the file is damaged — nothing was imported."), { wrongPassphrase: true });
-    }
-  }
-  if (!settings || typeof settings !== "object") throw new Error("The file holds no settings.");
-  return Object.fromEntries(Object.entries(settings).filter(([, v]) => typeof v === "string"));
-}
-
-// UC-042 6a: what this browser has is kept; only what is missing is added; both are listed. A token that is
-// kept keeps its own expiry date. -> { put, added, kept, ignored }
-export function mergeSettings(current, incoming) {
-  const known = new Set(BROWSER_SETTINGS.map((s) => s.key));
-  const put = {}, added = [], kept = [], ignored = [];
-  const list = (v) => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch { return []; } };
-  for (const [k, v] of Object.entries(incoming)) {
-    if (!known.has(k)) { ignored.push(k); continue; }
-    if (k === K_EXPIRES) continue; // follows its token, below
-    if (k === K_GITLAB) {
-      const have = gitlabTokenMap(current[k]), inc = gitlabTokenMap(v), out = { ...have };
-      for (const [a, t] of Object.entries(inc)) {
-        const name = `GitLab project token for ${a}`;
-        if (have[a]) { kept.push(name); continue; }
-        out[a] = t;
-        added.push(name);
-      }
-      if (Object.keys(out).length > Object.keys(have).length) put[k] = JSON.stringify(out);
-      continue;
-    }
-    if (k === K_SESSIONS) {
-      const have = sessionList(current[k]), out = [...have];
-      for (const s of sessionList(v)) {
-        if (have.some((x) => x.name === s.name)) { kept.push(`remote session ${s.name}`); continue; }
-        if (out.some((x) => x.port === s.port)) { kept.push(`remote session ${s.name} not added: its port ${s.port} is used here`); continue; }
-        out.push(s);
-        added.push(`remote session ${s.name}`);
-      }
-      if (out.length > have.length) put[k] = JSON.stringify(out);
-      continue;
-    }
-    if (k === K_PRODUCTS) {
-      const have = list(current[k]), fresh = list(v).filter((a) => !have.includes(a));
-      kept.push(...list(v).filter((a) => have.includes(a)).map((a) => `product ${a}`));
-      added.push(...fresh.map((a) => `product ${a}`));
-      if (fresh.length) put[k] = JSON.stringify([...have, ...fresh]);
-      continue;
-    }
-    if (current[k]) { kept.push(settingLabel(k)); continue; }
-    put[k] = v;
-    added.push(settingLabel(k));
-    if (k === K_TOKEN && incoming[K_EXPIRES]) put[K_EXPIRES] = incoming[K_EXPIRES];
-  }
-  return { put, added, kept, ignored };
 }
 
 // ---------------------------------------------------------------- product settings (UC-042 4–5, SPEC §14)

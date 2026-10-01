@@ -212,7 +212,7 @@ BRIDGE_SECRET = "bridgeSECRETtoken0123456789"
 
 
 def remote_entries(jump=JUMP) -> dict:
-    return js("const j = " + json.dumps(jump) + "; const s = core.addRemoteSession(j, [], { name: 'lab-pc', bridgePort: 8765, token: '"
+    return js("const j = " + json.dumps(jump) + "; const s = bridgeTunnel.addRemoteSession(j, [], { name: 'lab-pc', bridgePort: 8765, token: '"
               + BRIDGE_SECRET + "' }); return { [store.JUMP_HOST_KEY]: JSON.stringify(j), [store.REMOTE_SESSIONS_KEY]: JSON.stringify(s) };")
 
 

@@ -1,5 +1,7 @@
 // The browser store of an Agent M instance — the ONLY module that touches browser storage.
 //
+// Module: MOD-settings-store
+//
 // SPEC §7: configuration, including the GitHub token, lives in the browser's localStorage and
 // nowhere else; no cookie; a clear removes the entries, not only the form. Every key carries the
 // prefix "agent-m." so that clear() removes exactly Agent M's entries and nothing of another page
@@ -22,7 +24,7 @@
 //
 // SPEC §7 THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS: the jump host { host, user, portFrom, portTo, reverseKey,
 // forwardKey } — key file NAMES only, never key contents — and the remote sessions [{ name, port, bridgePort, token }], each as
-// one JSON entry. Their rules (a port from the range, the tunnel commands) live in review-core.mjs.
+// one JSON entry. Their rules (a port from the range, the tunnel commands) live in bridge-tunnel.mjs.
 //
 // Beside the settings, this module keeps the texts of repository files the dashboard has read (fileTexts, below) — in Cache
 // Storage, never in localStorage.
@@ -184,4 +186,127 @@ export function browserStore() {
       get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null };
   }
   return createStore(storage);
+}
+
+// ---------------------------------------------------------------- the settings by name, export and import (UC-042 6, UC-014 7a)
+//
+// EVERY SETTING IS REACHED FROM ONE PAGE · AN EXPORT STATES THAT IT CONTAINS SECRETS: settingKeys names every key this store
+// writes, with its label and, for a secret, what it grants; the settings page and the export notice are built from it.
+
+export const settingKeys = [
+  { key: TOKEN_KEY, label: "GitHub token", secret: true,
+    grants: "writes — commits, issues and workflow runs — to every repository it was given, under your account" },
+  { key: TOKEN_EXPIRY_KEY, label: "GitHub token expiry date", secret: false, partOf: TOKEN_KEY },
+  { key: PRODUCTS_KEY, label: "Products", secret: false },
+  { key: GITLAB_TOKENS_KEY, label: "GitLab project tokens", secret: true,
+    grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
+  { key: JUMP_HOST_KEY, label: "Jump host", secret: false },
+  { key: REMOTE_SESSIONS_KEY, label: "remote sessions' bridge tokens", secret: true,
+    grants: "hand jobs to the CLI session behind each tunnel, which works there with that machine's own credentials" },
+];
+
+export const parseJson = (raw, fallback) => { try { return JSON.parse(raw || "null") ?? fallback; } catch { return fallback; } };
+export const sessionList = (raw) => { const l = parseJson(raw, []); return Array.isArray(l) ? l.filter((x) => x && typeof x.name === "string") : []; };
+
+// The GitLab project tokens of a raw store value: { address: { token, expires } }; anything malformed is left out.
+export function gitlabTokenMap(raw) {
+  let m;
+  try { m = JSON.parse(raw || "{}"); } catch { return {}; }
+  if (!m || typeof m !== "object" || Array.isArray(m)) return {};
+  return Object.fromEntries(Object.entries(m).filter(([, v]) => v && typeof v.token === "string" && v.token)
+    .map(([a, v]) => [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null }]));
+}
+const settingLabel = (k) => settingKeys.find((s) => s.key === k)?.label ?? k;
+
+export const SETTINGS_FORMAT = "agent-m-settings";
+export const PBKDF2_ITERATIONS = 600000;
+
+const b64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+async function passphraseKey(passphrase, salt, iterations) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base,
+    { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS · AN EXPORT CAN BE LOCKED WITH A PASSPHRASE.
+// entries: { key: raw value }. Locked: PBKDF2 (SHA-256, random salt) → AES-GCM (random IV); salt, IV and
+// iteration count are stored beside the ciphertext. -> the file's text (JSON).
+export async function exportSettings(entries, { passphrase = "", now = new Date() } = {}) {
+  const head = { format: SETTINGS_FORMAT, version: 1, exported: now.toISOString(),
+    note: "Contains the tokens, keys and passwords of an Agent M dashboard. Whoever holds it can use them." };
+  if (!passphrase) return JSON.stringify({ ...head, settings: entries }, null, 2) + "\n";
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await passphraseKey(passphrase, salt, PBKDF2_ITERATIONS);
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(entries)));
+  return JSON.stringify({ ...head, locked: { kdf: "PBKDF2", hash: "SHA-256", iterations: PBKDF2_ITERATIONS, salt: b64(salt),
+    cipher: "AES-GCM", iv: b64(iv), data: b64(data) } }, null, 2) + "\n";
+}
+
+// -> { key: raw value }. A locked file without passphrase throws { locked: true }; a wrong passphrase
+// throws { wrongPassphrase: true } — in both cases nothing has been read, so nothing can be imported.
+export async function readSettingsFile(text, passphrase = "") {
+  let f;
+  try { f = JSON.parse(text); } catch { f = null; }
+  if (!f || f.format !== SETTINGS_FORMAT) throw new Error("This is not an Agent M settings file.");
+  let settings = f.settings;
+  if (f.locked) {
+    if (!passphrase) throw Object.assign(new Error("This file is locked — enter its passphrase."), { locked: true });
+    try {
+      const L = f.locked;
+      const key = await passphraseKey(passphrase, unb64(L.salt), L.iterations);
+      settings = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(L.iv) }, key, unb64(L.data))));
+    } catch {
+      throw Object.assign(new Error("Wrong passphrase, or the file is damaged — nothing was imported."), { wrongPassphrase: true });
+    }
+  }
+  if (!settings || typeof settings !== "object") throw new Error("The file holds no settings.");
+  return Object.fromEntries(Object.entries(settings).filter(([, v]) => typeof v === "string"));
+}
+
+// UC-042 6a: what this browser has is kept; only what is missing is added; both are listed. A token that is
+// kept keeps its own expiry date. -> { put, added, kept, ignored }
+export function mergeSettings(current, incoming) {
+  const known = new Set(settingKeys.map((s) => s.key));
+  const put = {}, added = [], kept = [], ignored = [];
+  const list = (v) => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch { return []; } };
+  for (const [k, v] of Object.entries(incoming)) {
+    if (!known.has(k)) { ignored.push(k); continue; }
+    if (k === TOKEN_EXPIRY_KEY) continue; // follows its token, below
+    if (k === GITLAB_TOKENS_KEY) {
+      const have = gitlabTokenMap(current[k]), inc = gitlabTokenMap(v), out = { ...have };
+      for (const [a, t] of Object.entries(inc)) {
+        const name = `GitLab project token for ${a}`;
+        if (have[a]) { kept.push(name); continue; }
+        out[a] = t;
+        added.push(name);
+      }
+      if (Object.keys(out).length > Object.keys(have).length) put[k] = JSON.stringify(out);
+      continue;
+    }
+    if (k === REMOTE_SESSIONS_KEY) {
+      const have = sessionList(current[k]), out = [...have];
+      for (const s of sessionList(v)) {
+        if (have.some((x) => x.name === s.name)) { kept.push(`remote session ${s.name}`); continue; }
+        if (out.some((x) => x.port === s.port)) { kept.push(`remote session ${s.name} not added: its port ${s.port} is used here`); continue; }
+        out.push(s);
+        added.push(`remote session ${s.name}`);
+      }
+      if (out.length > have.length) put[k] = JSON.stringify(out);
+      continue;
+    }
+    if (k === PRODUCTS_KEY) {
+      const have = list(current[k]), fresh = list(v).filter((a) => !have.includes(a));
+      kept.push(...list(v).filter((a) => have.includes(a)).map((a) => `product ${a}`));
+      added.push(...fresh.map((a) => `product ${a}`));
+      if (fresh.length) put[k] = JSON.stringify([...have, ...fresh]);
+      continue;
+    }
+    if (current[k]) { kept.push(settingLabel(k)); continue; }
+    put[k] = v;
+    added.push(settingLabel(k));
+    if (k === TOKEN_KEY && incoming[TOKEN_EXPIRY_KEY]) put[TOKEN_EXPIRY_KEY] = incoming[TOKEN_EXPIRY_KEY];
+  }
+  return { put, added, kept, ignored };
 }

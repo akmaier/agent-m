@@ -8,27 +8,33 @@
 // the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
 // without its project token is read-only and links to the step that stores it. Every read goes through fetchText (GET only), and each token only to
 // the API of the server that issued it.
+//
+// Module: MOD-dashboard-app
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
-import { browserStore, fileTexts } from "./settings-store.mjs";
+import { browserStore, fileTexts, exportSettings, readSettingsFile, mergeSettings } from "./settings-store.mjs";
 import {
-  fetchText, gitBlobSha, deriveTarget, parseProductAddress, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
-  tokenLinkUrl, repositoryChoiceSteps, stepHtml, addProduct, writeFiles, writeRoute, isGitLab, gitlabAuth,
-  gitlabProject, gitlabSnapshot, gitlabReadFile, gitlabTokenPageUrl, gitlabTokenSteps, gitlabNoProjectTokens,
-  gitlabWriteRefusal, webFileUrl,
-  tokenListUrl, extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
-  specRecord, newFileUrl, editUrl, parseQueueIndex,
+  fetchText, parseProductAddress, writeFiles, writeRoute, isGitLab, gitlabAuth, gitlabProject, gitlabSnapshot, gitlabReadFile,
+  gitlabTokenPageUrl, webFileUrl, tokenListUrl, newFileUrl, editUrl, tokenRefusal,
+} from "./git-host.mjs";
+import {
+  gitBlobSha, deriveTarget, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, addProduct, gitlabTokenSteps, gitlabNoProjectTokens,
+  gitlabWriteRefusal,
+  extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
+  specRecord, parseQueueIndex,
   parseDecisions, acceptItems, createReviewSession, sectionForEntry, readByBlob, recordIndex, statusByNames, specStatusByNames,
   missingNeeds, itemLabel, needsMessage,
-  browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
-  PASSPHRASE_NOTICE, exportSettings, readSettingsFile, mergeSettings, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
+  browserSettingsHtml, tokenBannerHtml, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
+  PASSPHRASE_NOTICE, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
-  addCollaborator, removeCollaborator, saveCollaborators, gitlabRole, jumpHostProblem, addRemoteSession, nextFreePort,
-  probeLocalPort, diffHtml, reviewedId, recordsForId, lastAccepted,
+  addCollaborator, removeCollaborator, saveCollaborators, gitlabRole,
+  diffHtml, reviewedId, recordsForId, lastAccepted,
   ARCHITECTURE_FILE, parseArchitecture, reviewedRecord, architecturePrerequisites, prerequisitesHtml,
   moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile, reviewPage,
 } from "./review-core.mjs";
+import { jumpHostProblem, addRemoteSession, nextFreePort, probeLocalPort } from "./bridge-tunnel.mjs";
 
 const API = "https://api.github.com";
 const RAW = "https://raw.githubusercontent.com";
