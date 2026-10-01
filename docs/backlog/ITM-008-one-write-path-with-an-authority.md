@@ -12,7 +12,7 @@ modules:
   - MOD-git-host
   - MOD-dashboard-app
 depends_on:
-  - ITM-007
+  - ITM-124
 origin: backlog refinement 2026-10-01
 ---
 # ITM-008 One write path that takes an authority — click, CI secret or agent login
@@ -21,7 +21,7 @@ origin: backlog refinement 2026-10-01
 
 ## Outcome
 
-`MOD-git-host.commitFiles` (with its GitLab twin) becomes the one write path of ARC-003 decision 3: it takes an `authority` of kind `click`, `ci-secret` or `agent-login` and refuses a write without one; it knows nothing of a page or a click. The dashboard alone creates a `click` authority, and only from an event the browser marks as trusted (`isTrusted`) on the button that names the write. Issue, pull-request, workflow and tag calls take the same authority (ITM-055, ITM-054). The request and commit helpers become importable by the module's other files, so that later git-host items add files of their own.
+`MOD-git-host.commitFiles` (with its GitLab twin) becomes the one write path of ARC-003 decision 3: it takes an `authority` of kind `click`, `ci-secret` or `agent-login` and refuses a write without one; it knows nothing of a page or a click. The dashboard alone creates a `click` authority, and only from an event the browser marks as trusted (`isTrusted`) on the button that names the write; the dashboard's five writes (`docs/assets/dashboard/writes.mjs`, since ITM-124) hand that authority to the write path instead of the click, and `addProduct` drops its own `isTrusted` check, since the write path refuses. The authority is one value of one shape; the issue, pull-request, workflow and tag calls that ITM-054 and ITM-055 add later take it unchanged — those calls do not exist yet, so this item fixes only the authority's form for them. The request and commit helpers become importable by the module's other files, so that later git-host items add files of their own.
 
 ## Realises
 
@@ -32,7 +32,7 @@ origin: backlog refinement 2026-10-01
 
 ## Where it came from
 
-Backlog refinement of 2026-10-01 (SOFTWARE_MAINTENANCE.md Phase 2) from the accepted architecture — ARC-003 decision 3, ARC-004 decision 4; MOD-git-host `commitFiles`.
+Backlog refinement of 2026-10-01 (SOFTWARE_MAINTENANCE.md Phase 2) from the accepted architecture — ARC-003 decision 3, ARC-004 decision 4; MOD-git-host `commitFiles`. Scope corrected by the PO on 2026-10-01, when the developer found that the write calls still lived in the kernel: ITM-124 moves them into the dashboard first, and this item's files are named as they lie after ITM-004 and ITM-124 (`docs/backlog/sprints/sprint-01.md`, *Selection changed on 2026-10-01*).
 
 Architecture decisions its modules follow: ARC-001, ARC-002, ARC-003, ARC-004, ARC-005, ARC-006.
 
@@ -47,13 +47,15 @@ Files it creates or changes:
 
 - `docs/assets/git-host.mjs`
 - `docs/assets/dashboard-app.mjs`
-- `docs/assets/dashboard/review-views.mjs` (write calls)
-- `docs/assets/dashboard/spec-changes-view.mjs` (write calls)
-- `docs/assets/dashboard/settings-view.mjs` (write calls)
-- `docs/assets/dashboard/add-product-view.mjs` (write calls)
-- `docs/assets/dashboard/setup-view.mjs` (write calls)
-- `tests/review-core.test.mjs` (the click tests)
-- `tests/review-core.d/authority.test.mjs`
+- `docs/assets/dashboard/writes.mjs` (the five writes hand an authority to the write path)
+- `docs/assets/dashboard/review-views.mjs` (the buttons that name a write — where the click becomes the authority)
+- `docs/assets/dashboard/settings-view.mjs` (the same)
+- `docs/assets/dashboard/add-product-view.mjs` (the same)
+- `tests/review-core.d/git-host.test.mjs` (the click tests of the write path become authority tests)
+- `tests/review-core.d/dashboard-writes.test.mjs` (the click tests of the five writes)
+- `tests/review-core.d/authority.test.mjs` (new)
+
+Not changed: `docs/assets/dashboard/spec-changes-view.mjs` accepts through `review-views.mjs` (`wireAccept`) and `docs/assets/dashboard/setup-view.mjs` writes nothing — neither has a write call of its own.
 
 ## Kind and level
 
@@ -85,7 +87,7 @@ Further:
 
 ## Depends on
 
-- ITM-007 — changes every view's write call after the last text fix in the settings view
+- ITM-124 — changes the write calls after they have left the kernel; only then are MOD-git-host and MOD-dashboard-app the modules where the click and the write path live
 
 ## Needs a person
 
