@@ -15,7 +15,6 @@ realises:
 follows:
   - ARC-003
   - ARC-007
-  - ARC-008
   - ARC-009
 uses:
   - MOD-job-definitions.renderPrompt
@@ -34,7 +33,7 @@ provides:
 
 ## Responsibility
 
-The correction loop of ARC-008: one function for every drafting job, given a driver that reaches the
+The correction loop of ARC-007: one function for every drafting job, given a driver that reaches the
 participant. It runs where the driver runs — in the browser, inside a CI job (whose draft is then
 committed only as open, UC-019 6b), or in the bridge. Pure core apart from the driver passed in.
 

@@ -38,7 +38,6 @@ follows:
   - ARC-003
   - ARC-006
   - ARC-007
-  - ARC-008
   - ARC-014
 uses:
   - MOD-mail-api.apiMailbox

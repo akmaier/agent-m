@@ -127,7 +127,7 @@ flowchart LR
    the proposal — product, kind, a neutral title and text, possible duplicates — and every piece of
    report data the author ticked, rewritten without any person and keeping its technical content: a
    path with a user name becomes "the user's home folder", a name is left out, never replaced by a
-   second name. The job runs through the correction loop of ARC-008 (`MOD-job-harness.runDraft`),
+   second name. The job runs through the correction loop of ARC-007 (`MOD-job-harness.runDraft`),
    started by MOD-mail-flow. Each round two kinds of check run on the draft:
    - **the search for this mail's people**, without a model (MOD-pseudonymiser): `peopleOf(mail)` —
      every address and display name from its headers, and every name, address, phone number and account
@@ -139,7 +139,7 @@ flowchart LR
    A finding of either kind goes back to the rewriting participant as a compiler-like finding, and it
    corrects the texts, within the round limit (`A DRAFT THAT FAILS A CHECK GOES BACK TO ITS
    PARTICIPANT`). Both kinds are a check MOD-mail-flow supplies to the one loop; the loop itself knows
-   nothing about mail (ARC-008). What is still found after the last round is marked in the review panel (UC-038 6a).
+   nothing about mail (ARC-007). What is still found after the last round is marked in the review panel (UC-038 6a).
    A finding may quote a person: it goes only to the rewriting participant, which read the mail
    already, and to the dashboard, which forgets it with the tab; the job's recorded rounds name the
    text, the line and the rule, not the person.

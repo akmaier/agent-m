@@ -20,7 +20,7 @@ realises:
   - UC-030
 follows:
   - ARC-003
-  - ARC-018
+  - ARC-006
   - ARC-020
 uses:
   - MOD-review-core.parseArchitecture

@@ -26,7 +26,7 @@ forced_by:
 ## Context
 
 A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
-agent (`A PARTICIPANT HAS ONE OF FIVE TYPES`). The harness (ARC-008) and the run engine (ARC-010)
+agent (`A PARTICIPANT HAS ONE OF FIVE TYPES`). The harness (ARC-007) and the run engine (ARC-010)
 must not care which. Each non-person type is reached differently: an endpoint by HTTPS, a CI agent
 through a workflow on the git server, a CLI or sandboxed agent through the bridge (ARC-011, ARC-012).
 Book ch. 10: the plug-in pattern — a stable extension contract, with each plug-in behind it.

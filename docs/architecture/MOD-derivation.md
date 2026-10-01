@@ -17,7 +17,6 @@ realises:
 follows:
   - ARC-003
   - ARC-007
-  - ARC-008
 uses:
   - MOD-spec-queue.specRequirements
 provides:
