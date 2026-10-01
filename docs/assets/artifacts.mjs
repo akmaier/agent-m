@@ -7,13 +7,18 @@
 
 // ---------------------------------------------------------------- use-case front matter
 
+// The `---` block of an artifact, its lines ended by LF or — a file written on Windows, a participant's draft — by CR LF
+// (`---\r\n` … `\r\n---\r\n`): the same fields either way, no value keeping its CR; the body is the text's own bytes after the
+// closing line (ITM-126, finding A5).
 export function parseFrontMatter(text) {
-  if (!text.startsWith("---\n")) return { fields: {}, body: text };
-  const end = text.indexOf("\n---\n", 4);
+  const eol = text.startsWith("---\n") ? "\n" : text.startsWith("---\r\n") ? "\r\n" : null;
+  if (!eol) return { fields: {}, body: text };
+  const open = 3 + eol.length, close = `${eol}---${eol}`;
+  const end = text.indexOf(close, open);
   if (end < 0) return { fields: {}, body: text };
   const fields = {};
   let key = null;
-  for (const line of text.slice(4, end).split("\n")) {
+  for (const line of text.slice(open, end).split(eol)) {
     const m = line.match(/^([a-z][a-z0-9_-]*):\s*(.*)$/);
     if (m) {
       key = m[1];
@@ -22,7 +27,7 @@ export function parseFrontMatter(text) {
       fields[key].push(line.replace(/^\s+-\s+/, "").trim());
     }
   }
-  return { fields, body: text.slice(end + 5) };
+  return { fields, body: text.slice(end + close.length) };
 }
 
 // ---------------------------------------------------------------- identifiers and kinds of reviewed files
