@@ -9,7 +9,7 @@ import {
   gitBlobSha, recordText, approvalPath, useCaseRecord, reviewedRecord, missingNeeds, itemLabel, lastAccepted, reviewPage,
   recordsForId,
 } from "../review-core.mjs";
-import { acceptItems, saveReviewedFile } from "./writes.mjs";
+import { acceptItems, saveReviewedFile, clickAuthority } from "./writes.mjs";
 import { writeRoute, webFileUrl, newFileUrl, editUrl } from "../git-host.mjs";
 import { parseFrontMatter, reviewedId, ARCHITECTURE_FILE, parseArchitecture } from "../artifacts.mjs";
 import { moduleHeaders, impactList, componentDiagram } from "../traceability.mjs";
@@ -229,12 +229,13 @@ export function batchBar(app) {
   </section>`;
 }
 
+// ev: the event of the accept button's click handler — it becomes the authority of the write (clickAuthority), or none.
 async function runAccept(app, ev, items, b, out) {
   const { T, session } = app;
   b.disabled = true;
   out.textContent = "Checking the current texts and committing…";
   try {
-    const r = await acceptItems({ ...app.writeTarget(), branch: T.ref, token: app.token(), click: ev, items, readAt: app.readAt });
+    const r = await acceptItems({ ...app.writeTarget(), branch: T.ref, token: app.token(), authority: clickAuthority(ev), items, readAt: app.readAt });
     session.untick([...r.accepted, ...r.leftOut.map((l) => l.label)]);
     app.setFlash((r.commit
       ? `Accepted ${h(r.accepted.join(", "))} — <a href="${h(r.commit.url)}" target="_blank" rel="noopener">commit ${h(r.commit.sha.slice(0, 7))}</a>.`
@@ -303,7 +304,7 @@ export function wireCommon(app, root, original, openedId = null) {
     b.disabled = true;
     out.textContent = "Saving…";
     try {
-      const c = await saveReviewedFile({ ...app.writeTarget(), branch: T.ref, token: app.token(), click: ev, path: b.dataset.editSave, text,
+      const c = await saveReviewedFile({ ...app.writeTarget(), branch: T.ref, token: app.token(), authority: clickAuthority(ev), path: b.dataset.editSave, text,
         openedId, expectBlob: b.dataset.editBlob || null });
       out.innerHTML = `Saved — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>. Reloading…`;
       await app.reloadAndRoute();

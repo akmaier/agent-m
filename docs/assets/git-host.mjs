@@ -1,16 +1,35 @@
-// Git host — the requests to GitHub and to GitLab servers: reading with GET only, writing one commit on a person's click,
-// and each token only as the authorisation header of requests to the API of the server that issued it.
+// Git host — the requests to GitHub and to GitLab servers: reading with GET only, writing one commit on the authority it is
+// given, and each token only as the authorisation header of requests to the API of the server that issued it.
 //
 // Module: MOD-git-host
 //
 // Adapter (ARC-003, ARC-004). Tokens are passed in by the caller; this module reads no store and imports no other module.
 // Besides the requests: a product's address, the links that open GitHub's or GitLab's own pages, and the name of a token a
 // server refused, with where it is renewed, and a used-up rate limit, told apart from a refused token.
+//
+// The request helper (request, fetchText) and the authority check (requireAuthority) are exported for the module's other
+// files: a later file of the git host — issues, pull requests, workflows, tags — sends through the same helper and takes the
+// same authority.
 
 export const ALLOWED_ORIGINS = new Set(["https://api.github.com", "https://raw.githubusercontent.com"]);
 export const MAX_URL_VALUE = 1000; // NO TEXT TRAVELS IN A URL — a record is ~400 bytes
 
-// ---------------------------------------------------------------- reading (GET only) and where tokens go
+// ---------------------------------------------------------------- the authority a write is made on (ARC-003 decision 3)
+
+// One value of one shape, { kind }, of three kinds: a person's click (made by the dashboard, from a trusted event), the
+// person's token in a CI secret (made by the CI entry) and an agent's own login (made by the bridge app). This module makes
+// none and knows nothing of a page or a click; it refuses a write without one. Which kind exists in a runtime is decided by
+// that runtime's shell.
+const AUTHORITY_KINDS = Object.freeze(["click", "ci-secret", "agent-login"]);
+
+export function requireAuthority(authority) {
+  const ok = authority !== null && typeof authority === "object" && !Array.isArray(authority)
+    && Object.keys(authority).length === 1 && AUTHORITY_KINDS.includes(authority.kind);
+  if (!ok) throw new Error("a write needs an authority — a person's click, a CI secret or an agent's own login");
+  return authority;
+}
+
+// ---------------------------------------------------------------- the one request helper, and where tokens go
 
 export const TOKEN_DESTINATIONS = ["https://api.github.com"];
 
@@ -22,21 +41,26 @@ const isGitLabAuth = (a) => Boolean(a) && typeof a === "object" && typeof a.gitl
 const gitlabPrefix = (a) => `${a.gitlab}/api/v4/projects/${encodeURIComponent(a.project)}`;
 const underPrefix = (u, prefix) => { const x = u.origin + u.pathname; return x === prefix || x.startsWith(prefix + "/"); };
 
-// The only way the dashboard reads. SPEC §7/§10: GET only. A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT:
-// the GitHub token (a string) only to GitHub's API as `Authorization`; a GitLab project token (in `auth`)
-// only to its own project's API on its own server as `PRIVATE-TOKEN` — headers built here, never in a URL,
-// never to another origin, never set by a caller.
-export async function fetchText(url, init = {}, auth = null) {
+// The checks every request passes before it is sent, and the request itself. A TOKEN GOES ONLY TO THE SERVER THAT ISSUED
+// IT: the GitHub token (a string) only to GitHub's API as `Authorization`; a GitLab project token (in `auth`) only to its own
+// project's API on its own server as `PRIVATE-TOKEN` — headers built here, never in a URL, never to another origin, never set
+// by a caller. A read (GET) needs no authority; every other method is a write and needs one (requireAuthority). readOnly: a
+// request that may only read (fetchText). -> [url, init, whether a token was sent]
+function prepare(url, { method = "GET", headers = {}, credentials, body, auth = null, authority = null, readOnly = false } = {}) {
   const u = new URL(url, globalThis.location?.href);
   const sameOrigin = globalThis.location && u.origin === globalThis.location.origin;
   const gl = isGitLabAuth(auth) ? auth : null;
   if (!sameOrigin && !ALLOWED_ORIGINS.has(u.origin) && !(gl && underPrefix(u, gitlabPrefix(gl)))) {
     throw new Error(`origin not allowed: ${u.origin}${gl ? ` (this product's API is ${gitlabPrefix(gl)})` : ""}`);
   }
-  if ((init.method || "GET").toUpperCase() !== "GET") throw new Error("only GET is allowed");
-  const h = { ...(init.headers || {}) };
+  const m = String(method || "GET").toUpperCase();
+  if (m !== "GET") {
+    if (readOnly) throw new Error("only GET is allowed");
+    requireAuthority(authority);
+  }
+  const h = { ...(headers || {}) };
   if (Object.keys(h).some((k) => /^(authorization|private-token)$/i.test(k))) throw new Error("no caller-set authorization header");
-  if (init.credentials === "include") throw new Error("the dashboard sends no browser credential");
+  if (credentials === "include") throw new Error("the dashboard sends no browser credential");
   const token = gl ? gl.token : typeof auth === "string" ? auth : null;
   if (token) {
     if (u.href.includes(token)) throw new Error("A credential is never placed in a URL");
@@ -46,12 +70,25 @@ export async function fetchText(url, init = {}, auth = null) {
     }
     Object.assign(h, a);
   }
-  const r = await fetch(u, { method: "GET", headers: h, credentials: "omit", cache: "no-store" });
+  return [u, { method: m, headers: h, credentials: "omit", cache: "no-store", ...(body === undefined ? {} : { body }) }, Boolean(token)];
+}
+
+// The request helper: one request to a git server -> the server's Response, whatever its status. A write (any method but GET)
+// is sent only on an authority. The helper of every write of this module, and of its later files.
+export async function request(url, opts = {}) {
+  const [u, init] = prepare(url, opts);
+  return fetch(u, init);
+}
+
+// The only way the dashboard reads. SPEC §7/§10: GET only.
+export async function fetchText(url, init = {}, auth = null) {
+  const [u, req, sent] = prepare(url, { method: init.method, headers: init.headers, credentials: init.credentials, auth, readOnly: true });
+  const r = await fetch(u, req);
   // The error keeps the server's answer headers — a used-up rate limit is told by them (usedUpLimit) — and whether a token
   // was sent, which decides whose limit it is where the headers do not say.
   if (!r.ok) {
     throw Object.assign(new Error(`${r.status} ${r.statusText} — ${u.origin}${u.pathname}`),
-      { status: r.status, headers: r.headers, authenticated: Boolean(token) });
+      { status: r.status, headers: r.headers, authenticated: sent });
   }
   return r.text();
 }
@@ -168,21 +205,21 @@ export function requiredPermissions(host) {
 
 // ---------------------------------------------------------------- writing (SPEC §9, §10)
 
-// THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Every write needs the click event that caused it;
-// `isTrusted` is set by the browser for real user input only and cannot be set by a script.
+// The one write path (ARC-003 decision 3): every write needs an authority — on the dashboard the one it makes from a
+// person's trusted click (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK) —, and refuses without one before anything is sent.
 // All files go into ONE commit, fast-forward only — nobody else's work is ever overwritten.
 // `files` may be a function of the branch head: it then computes the files from that very commit, so
 // that every check it makes is made on the commit the new one is written on (A STALE APPROVAL IS NOT
 // APPLIED). A later commit on the branch makes the fast-forward fail, and nothing is written.
-export async function commitFiles({ repo, branch, files, message, token, click }) {
-  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
+export async function commitFiles({ repo, branch, files, message, token, authority }) {
+  requireAuthority(authority);
   if (!token) throw new Error("writing needs a stored token");
   if (!REPO_RE.test(repo) || repo.includes("..")) throw new Error(`not a repository: ${repo}`);
   if (typeof files !== "function" && !files.length) throw new Error("nothing to write");
   const api = `https://api.github.com/repos/${repo}`;
   const call = async (method, path, body) => {
-    const r = await fetch(api + path, { method, credentials: "omit", cache: "no-store",
-      headers: { Accept: "application/vnd.github+json", ...authHeaders(api, token), ...(body ? { "Content-Type": "application/json" } : {}) },
+    const r = await request(api + path, { method, auth: token, authority,
+      headers: { Accept: "application/vnd.github+json", ...(body ? { "Content-Type": "application/json" } : {}) },
       body: body ? JSON.stringify(body) : undefined });
     const text = await r.text();
     if (!r.ok) {
@@ -259,7 +296,7 @@ export async function gitlabReadFile({ product, commit, path, token = null }) {
   }
 }
 
-// ONE commit on a GitLab product, made with the person's project token on the person's click, through
+// ONE commit on a GitLab product, made with the person's project token on the authority it is given (as commitFiles), through
 // POST /projects/:id/repository/commits with one action per file.
 //
 // GitLab offers no "write only if the branch is still at the commit I read" for an existing branch (on GitHub:
@@ -276,8 +313,8 @@ export async function gitlabReadFile({ product, commit, path, token = null }) {
 //      by the commits in between are returned (`changedMeanwhile`) so that the caller can name the ones it read.
 // What remains: a file that is only READ (a use case being accepted, a proposal) and changed by a commit that
 // lands between step 3 and GitLab's own write is not refused — step 4 reports it after the fact.
-export async function commitFilesGitLab({ product, branch, files, message, token, click }) {
-  if (!click || click.isTrusted !== true) throw new Error("a write needs a person's click");
+export async function commitFilesGitLab({ product, branch, files, message, token, authority }) {
+  requireAuthority(authority);
   if (!token) throw new Error("A GitLab product is written with its project token — store it first.");
   if (!isGitLab(product)) throw new Error("not a GitLab product");
   if (typeof files !== "function" && !files.length) throw new Error("nothing to write");
@@ -301,8 +338,7 @@ export async function commitFilesGitLab({ product, branch, files, message, token
   if (await branchHead() !== head) throw new Error(`${branch} moved on while this commit was prepared — nothing was written; reload and look again`);
   if (typeof message === "function") message = message();
   const url = `${api}/repository/commits`;
-  const headers = { ...authHeaders(url, auth), "Content-Type": "application/json" };
-  const r = await fetch(url, { method: "POST", credentials: "omit", cache: "no-store", headers,
+  const r = await request(url, { method: "POST", auth, authority, headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ branch, commit_message: message, actions }) });
   const text = await r.text();
   if (!r.ok) {
@@ -321,12 +357,12 @@ export async function commitFilesGitLab({ product, branch, files, message, token
   return { sha: c.id, url: c.web_url || `${product.address}/-/commit/${c.id}`, base: head, parent, changedMeanwhile };
 }
 
-// Every write of the dashboard: to GitHub (commitFiles) or to a GitLab product (commitFilesGitLab), which is
-// written only with its own project token (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
+// The write path for a product of either host, on the authority it is given: to GitHub (commitFiles) or to a GitLab product
+// (commitFilesGitLab), which is written only with its own project token (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
 export async function writeFiles(args) {
   const product = args.product;
   if (isGitLab(product)) {
-    if (!args.click || args.click.isTrusted !== true) throw new Error("a write needs a person's click");
+    requireAuthority(args.authority);
     if (!args.token) throw new Error("A GitLab product is written with its project token — store it first (Settings, or + Add product).");
     if (/^(github_pat_|ghp_)/.test(args.token)) throw new Error("That is the GitHub token; a GitLab product is written with its own GitLab project token.");
     return commitFilesGitLab(args);

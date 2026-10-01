@@ -9,7 +9,7 @@
 // them are plain functions.
 
 import { canStore, gitlabRole } from "../review-core.mjs";
-import { savePseudonymisation, saveCollaborators } from "./writes.mjs";
+import { savePseudonymisation, saveCollaborators, clickAuthority } from "./writes.mjs";
 import { settingKeys, parseJson, sessionList, gitlabTokenMap, exportSettings, readSettingsFile, mergeSettings } from "../settings-store.mjs";
 import {
   fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
@@ -779,7 +779,7 @@ export async function loadProductSettings(app) {
     ev.currentTarget.disabled = true;
     out.textContent = "Committing…";
     try {
-      const c = await savePseudonymisation({ ...app.writeTarget(), branch: T.ref, token: token(), click: ev, current: settingsText,
+      const c = await savePseudonymisation({ ...app.writeTarget(), branch: T.ref, token: token(), authority: clickAuthority(ev), current: settingsText,
         currentBlob: sEntry?.sha, off, acknowledged: off ? document.getElementById("pseudo-ack").checked : false });
       app.setFlash(`Pseudonymisation ${off ? "off" : "on"} — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>.`);
       await app.reloadAndRoute();
@@ -795,7 +795,7 @@ export async function loadProductSettings(app) {
     ev.currentTarget.disabled = true;
     cOut.textContent = "Committing…";
     try {
-      const c = await saveCollaborators({ ...app.writeTarget(), branch: T.ref, token: token(), click: ev, list, currentBlob: cEntry?.sha });
+      const c = await saveCollaborators({ ...app.writeTarget(), branch: T.ref, token: token(), authority: clickAuthority(ev), list, currentBlob: cEntry?.sha });
       app.setFlash(`${h(what)} — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>.`);
       await app.reloadAndRoute();
     } catch (e) { noteRefusal(e); cOut.textContent = writeErrorText(e); ev.target.disabled = false; }
