@@ -1,59 +1,130 @@
-// Review core — deterministic, no network. Run: node --test tests/
+// Review core — deterministic, no network. Run: node --test tests/*.test.mjs
+//
+// Module: MOD-review-core
+// Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A QUEUE IS ACCEPTED IN ITS ORDER; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A PRODUCT IS NAMED BY ITS ADDRESS; UC-001; UC-006; UC-008; UC-042
+// Level: unit
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
 // §4.0a rule 5): a check that cannot fail checks nothing. The mutations are listed in
 // docs/measurements/2026-09-30_review-dashboard-mutations.md.
+//
+// SPEC.md names this file as the check of requirements of several modules. The checks of the other modules live in
+// tests/review-core.d/, one file per module, and this file runs every file of that folder (at its end): a failing check there
+// makes this file red. Those files are not matched by tests/*.test.mjs, so CI runs each check once.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import {
   gitBlobSha, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, extractSection, sectionText, parseQueueIndex, parseDecisions,
-  deriveUseCaseStatus, deriveSpecStatus,
+  deriveUseCaseStatus, deriveSpecStatus, missingLayout, addProduct,
+  acceptItems, planAcceptance, createReviewSession, decisionRow, replaceSection, sectionForEntry, missingNeeds,
+  savePseudonymisation, saveCollaborators, deriveTarget, gitlabRole,
+  lastAccepted, changedLines, readBlob,
 } from "../docs/assets/review-core.mjs";
-import { parseFrontMatter, headerModules } from "../docs/assets/artifacts.mjs";
-import { newFileUrl, editUrl, fetchText, ALLOWED_ORIGINS, MAX_URL_VALUE } from "../docs/assets/git-host.mjs";
+import { reviewedId } from "../docs/assets/artifacts.mjs";
+import { parseProductAddress, webFileUrl } from "../docs/assets/git-host.mjs";
+import { createStore, PREFIX } from "../docs/assets/settings-store.mjs";
+import { pseudonymisationOn, parseCollaborators } from "../docs/assets/pseudonymiser.mjs";
+import { diffHtml } from "../docs/assets/dashboard-app.mjs";
+import {
+  dashboardText, click, fakeGitHub, withFetch, fakeStorage, QD, WHEN, B_SPEC, B_P05, B_P06, B_INDEX, B_UC1, B_UC2, SETTINGS_OFF, PEOPLE,
+  GL, GL_ADDR, GL_TOKEN, H0, H1, NEWC, fakeGitLab, UC_OLD, UC_NEW,
+} from "./review-core.d/helpers.mjs";
 
 const gitHash = (s) => execFileSync("git", ["hash-object", "--stdin"], { input: s }).toString().trim();
 
-// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and its views and settings sections
-// under docs/assets/dashboard/. A test that read the one app file reads them all, or — `shell: false` — the views alone.
-const ASSETS = new URL("../docs/assets/", import.meta.url);
-const viewFiles = () => readdirSync(new URL("dashboard/", ASSETS), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort()
-  .map((f) => new URL(`dashboard/${f}`, ASSETS));
-const dashboardText = ({ shell = true } = {}) => [...(shell ? [new URL("dashboard-app.mjs", ASSETS)] : []), ...viewFiles()]
-  .map((u) => readFileSync(u, "utf8")).join("\n");
-// Every module file of the site (vendored libraries excepted), with the modules its Module line names.
-const moduleFiles = () => readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
-  .sort().map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") }));
-// The adapters (ARC-003 decision 1): the modules of the group Adapters in docs/groups/modules.md.
-function adapterModules() {
-  const out = new Set();
-  let inGroup = false;
-  for (const l of readFileSync(new URL("../docs/groups/modules.md", import.meta.url), "utf8").split("\n")) {
-    const top = /^- (.+)$/.exec(l);
-    if (top) { inGroup = top[1].trim() === "Adapters"; continue; }
-    const m = /^\s+- (MOD-[a-z0-9-]+)\s*$/.exec(l);
-    if (inGroup && m) out.add(m[1]);
-  }
-  return out;
+// Queue 2026-09-30g entry 01: the anchor is a requirement's bold line, and the accepted proposal rewrote that very line
+// ("…, 2026-09-24)*" -> "…, 2026-09-24, narrowed 2026-09-30)*"). The anchor as it stood before acceptance is gone from the
+// SPEC; the entry's text stands where it was written, starting with the proposal's first line.
+const R_ANCHOR = "**A DRAFTED RULE** *(PO A. Maier, 2026-09-24)*", R_BIS = "## 11. A";
+const R_BEFORE = "# T\n\n## 10. R\n\n**AN EARLIER RULE** *(PO, 2026-09-23)*\nearlier.\n\n" +
+  `${R_ANCHOR}\nold text.\n*Check:* x\n\n**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n${R_BIS}\n\neleven\n`;
+const R_PROPOSAL = "**A DRAFTED RULE** *(PO A. Maier, 2026-09-24, narrowed 2026-09-30)*\nnew text.\n*Check:* x\n\n" +
+  "**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n";
+const R_AFTER = replaceSection(R_BEFORE, R_ANCHOR, R_BIS, R_PROPOSAL);
+
+function productGitHub(tree) {
+  const g = fakeGitHub();
+  const inner = g.fetchMock;
+  g.fetchMock = async (u, init) => {
+    const path = new URL(u).pathname;
+    if (init.method === "GET" && /^\/repos\/[^/]+\/[^/]+$/.test(path)) {
+      g.calls.push(["GET", path, init.headers?.Authorization, null]);
+      return new Response(JSON.stringify({ default_branch: "main", private: true }), { status: 200 });
+    }
+    if (init.method === "GET" && path.includes("/git/trees/")) {
+      g.calls.push(["GET", path, init.headers?.Authorization, null]);
+      return new Response(JSON.stringify({ tree: tree.map((p) => ({ path: p, type: "blob" })) }), { status: 200 });
+    }
+    return inner(u, init);
+  };
+  return g;
+}
+
+
+function batchRepo(over = {}) {
+  return { "SPEC.md": B_SPEC, [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/06-b.md`]: B_P06,
+    [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
+    "docs/use-cases/UC-001-a.md": B_UC1, "docs/use-cases/UC-002-b.md": B_UC2, ...over };
+}
+
+// What the dashboard showed: the proposal and the section beside it, each by its blob SHA.
+async function specItem(nr, proposalText, shownSection, anchor) {
+  const nn = String(nr).padStart(2, "0");
+  return { kind: "spec", queue: QD, qname: "2026-09-24g_x", nr, nn, proposalPath: `${QD}/${nn}-${nr === 5 ? "a" : "b"}.md`,
+    proposalBlob: await gitBlobSha(proposalText), sectionBlob: await gitBlobSha(shownSection), targetPath: "SPEC.md",
+    anchor, bis: null, needs: [] };
+}
+const ucItem = async (id, path, text) => ({ kind: "use-case", id, path, blob: await gitBlobSha(text) });
+
+function readerOf(files, seen = []) {
+  return async (head, path) => { seen.push(head); return path in files ? files[path] : null; };
+}
+
+const treeOf = (calls) => Object.fromEntries(calls.find(([m, p]) => m === "POST" && p.endsWith("/git/trees"))[3].tree.map((f) => [f.path, f.content]));
+
+const A_TEXT = "---\nid: UC-010\ntitle: Run a job\nstage: runtime\n---\n# UC-010\n\nBody line one.\nBody line two.\n";
+const B_TEXT = A_TEXT.replace("stage: runtime", "area: runtime");
+const OLDER_TEXT = A_TEXT.replace("Body line one.", "An older first line.");
+const PIN = "f".repeat(40);
+
+// records: [{ text, file (the use case it names), date }] -> parsed records as the app keeps them, with their own path
+async function recordsOf(list) {
+  return Promise.all(list.map(async (r) => {
+    const blob = await gitBlobSha(r.text);
+    return { ...parseRecord(recordText(useCaseRecord(r.file, blob))), _path: approvalPath(reviewedId(r.file), blob), _date: r.date, _text: r.text };
+  }));
+}
+
+function fakeHistoryGitHub(recs, repo = "a/b") {
+  const calls = [];
+  const blobs = Object.fromEntries(recs.map((r) => [r.blob, r._text]));
+  const dates = Object.fromEntries(recs.map((r) => [r._path, r._date]));
+  const fetchMock = async (u, init = {}) => {
+    const url = new URL(u), p = url.pathname;
+    calls.push({ origin: url.origin, path: p, query: Object.fromEntries(url.searchParams), auth: init.headers?.Authorization, method: init.method });
+    const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
+    if (p === `/repos/${repo}/commits`) {
+      const d = dates[url.searchParams.get("path")];
+      return ok(d ? [{ sha: "c".repeat(40), commit: { committer: { date: d }, author: { date: "2000-01-01T00:00:00Z" } } }] : []);
+    }
+    const m = p.match(new RegExp(`^/repos/${repo}/git/blobs/([0-9a-f]{40})$`));
+    if (m && m[1] in blobs) {
+      const b64 = Buffer.from(blobs[m[1]], "utf8").toString("base64").replace(/(.{60})/g, "$1\n");
+      return ok({ sha: m[1], size: Buffer.byteLength(blobs[m[1]]), content: b64, encoding: "base64" });
+    }
+    return new Response('{"message":"Not Found"}', { status: 404, statusText: "Not Found" });
+  };
+  return { calls, fetchMock };
 }
 
 test("gitBlobSha equals git hash-object, byte for byte", async () => {
   for (const s of ["", "a\n", "no trailing newline", "Umlaute äöü — und ✓\n", "x".repeat(5000)]) {
     assert.equal(await gitBlobSha(s), gitHash(s), JSON.stringify(s.slice(0, 20)));
   }
-});
-
-test("front matter: scalars and lists, body separated", () => {
-  const { fields, body } = parseFrontMatter(
-    "---\nid: UC-001\ntitle: Register a source\nrealises:\n  - NO SERVER\n  - A SOURCE DECLARES ITS AUTHORITY\n---\n# Body\n");
-  assert.equal(fields.id, "UC-001");
-  assert.deepEqual(fields.realises, ["NO SERVER", "A SOURCE DECLARES ITS AUTHORITY"]);
-  assert.equal(body, "# Body\n");
-  assert.deepEqual(parseFrontMatter("# no front matter\n").fields, {});
 });
 
 test("records round-trip and carry no text", () => {
@@ -65,14 +136,6 @@ test("records round-trip and carry no text", () => {
     blob: "b".repeat(40), target: "SPEC.md", anchor: "## 9. Human gates", section: "c".repeat(40) });
   assert.deepEqual(parseRecord(recordText(s)), s);
   assert.equal(s.entry, "01");
-});
-
-test("NO TEXT TRAVELS IN A URL: long values are refused", () => {
-  const u = newFileUrl("akmaier/agent-m", "main", "docs/approvals/x.md", "kind: use-case\n");
-  assert.match(u, /^https:\/\/github\.com\/akmaier\/agent-m\/new\/main\?filename=docs%2Fapprovals%2Fx\.md&value=kind%3A/);
-  assert.throws(() => newFileUrl("a/b", "main", "p.md", "x".repeat(MAX_URL_VALUE + 1)), /URL/);
-  assert.equal(editUrl("a/b", "main", "docs/use-cases/UC-001 x.md"),
-    "https://github.com/a/b/edit/main/docs/use-cases/UC-001%20x.md");
 });
 
 test("extractSection: heading to next heading of same level, code fences masked", () => {
@@ -140,16 +203,6 @@ test("an applied entry is judged by its own section, not by headings later entri
   assert.equal(deriveSpecStatus({ ...pre, specText: "# T\n\nolder preamble\n## 0. H\nrule\n" }), "superseded");
 });
 
-// Queue 2026-09-30g entry 01: the anchor is a requirement's bold line, and the accepted proposal rewrote that very line
-// ("…, 2026-09-24)*" -> "…, 2026-09-24, narrowed 2026-09-30)*"). The anchor as it stood before acceptance is gone from the
-// SPEC; the entry's text stands where it was written, starting with the proposal's first line.
-const R_ANCHOR = "**A DRAFTED RULE** *(PO A. Maier, 2026-09-24)*", R_BIS = "## 11. A";
-const R_BEFORE = "# T\n\n## 10. R\n\n**AN EARLIER RULE** *(PO, 2026-09-23)*\nearlier.\n\n" +
-  `${R_ANCHOR}\nold text.\n*Check:* x\n\n**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n${R_BIS}\n\neleven\n`;
-const R_PROPOSAL = "**A DRAFTED RULE** *(PO A. Maier, 2026-09-24, narrowed 2026-09-30)*\nnew text.\n*Check:* x\n\n" +
-  "**A LATER RULE** *(PO, 2026-09-24)*\nlater.\n";
-const R_AFTER = replaceSection(R_BEFORE, R_ANCHOR, R_BIS, R_PROPOSAL);
-
 test("an accepted entry whose proposal rewrites its own anchor line is applied while the SPEC holds its text", () => {
   const done = new Map([[1, { decision: "uebernommen" }]]);
   const base = { queue: "q", nr: 1, anchor: R_ANCHOR, bis: R_BIS, proposalPath: "q/01-a.md", proposalText: R_PROPOSAL,
@@ -183,148 +236,7 @@ test("the current text of an accepted entry is read where the entry wrote it, no
     accepted: true }).error, /0 times/, "its text gone from the SPEC: nothing to show, and the page says why");
 });
 
-test("fetchText reads with GET only; the GitHub token goes only to GitHub's API (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT)", async () => {
-  await assert.rejects(fetchText("https://example.org/x"), /origin/);
-  await assert.rejects(fetchText("https://api.github.com/x", { method: "PUT" }), /GET/);
-  await assert.rejects(fetchText("https://api.github.com/x", { method: "POST" }, "t"), /GET/);
-  await assert.rejects(fetchText("https://raw.githubusercontent.com/a/b/c", {}, "github_pat_11ABCDEF"), /token may only go/);
-  await assert.rejects(fetchText("https://api.github.com/x", { headers: { Authorization: "Bearer x" } }), /header/);
-  await assert.rejects(fetchText("https://api.github.com/x", { credentials: "include" }), /credential/);
-  assert.deepEqual([...ALLOWED_ORIGINS].sort(), ["https://api.github.com", "https://raw.githubusercontent.com"]);
-  // The one allowed way: GET to the API with the stored token, header built by fetchText itself.
-  const seen = [];
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async (u, init) => { seen.push([String(u), init.method, init.headers.Authorization]); return new Response("ok"); };
-  try {
-    assert.equal(await fetchText("https://api.github.com/repos/a/b", {}, "github_pat_t"), "ok");
-    assert.equal(await fetchText("https://raw.githubusercontent.com/a/b/c/d"), "ok");
-  } finally { globalThis.fetch = realFetch; }
-  assert.deepEqual(seen, [["https://api.github.com/repos/a/b", "GET", "Bearer github_pat_t"],
-    ["https://raw.githubusercontent.com/a/b/c/d", "GET", undefined]]);
-});
-
-test("the app never calls fetch directly — every request goes through fetchText", () => {
-  // ARC-003 decision 6: no module file but an adapter's calls fetch or touches browser storage — the dashboard's files and every
-  // kernel and feature file. A file's module is its Module line; a file naming no adapter is checked.
-  const adapters = adapterModules(), files = moduleFiles();
-  const checked = files.filter((f) => !headerModules(f.text).some((m) => adapters.has(m)));
-  assert.ok(adapters.has("MOD-git-host") && adapters.has("MOD-settings-store"), "the adapters are read from the group file");
-  assert.ok(!checked.some((f) => f.file === "git-host.mjs") && checked.some((f) => f.file === "dashboard-app.mjs")
-    && checked.some((f) => f.file === "artifacts.mjs") && checked.some((f) => f.file.startsWith("dashboard/")), "kernel and shell files are checked");
-  const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
-  for (const { file, text: app } of checked) assert.doesNotMatch(app.replace(/fetchText\(/g, ""), FORBIDDEN, file);
-  // counter-proof: access is caught, the word in an explanation is not
-  assert.match("localStorage.getItem('t')", FORBIDDEN);
-  assert.match("fetch(url)", FORBIDDEN);
-  assert.match("const s = globalThis.localStorage;", FORBIDDEN);
-  assert.doesNotMatch("saved in this browser (its <code>localStorage</code>)", FORBIDDEN);
-});
-
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
-
-import { missingLayout } from "../docs/assets/review-core.mjs";
-import { tokenLinkUrl, repositoryChoiceSteps } from "../docs/assets/dashboard/settings-view.mjs";
-import { stepHtml } from "../docs/assets/dashboard-app.mjs";
-import { commitFiles } from "../docs/assets/git-host.mjs";
-
-const click = { isTrusted: true };
-
-function fakeGitHub(files = {}) {
-  // Minimal git-data API: one branch "main" at commit c0 with tree t0.
-  const calls = [];
-  const fetchMock = async (u, init) => {
-    const url = new URL(u), m = init.method, path = url.pathname;
-    calls.push([m, path, init.headers?.Authorization, init.body ? JSON.parse(init.body) : null]);
-    const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
-    if (m === "GET" && path.endsWith("/git/ref/heads/main")) return ok({ object: { sha: "c0" } });
-    if (m === "GET" && path.endsWith("/git/commits/c0")) return ok({ tree: { sha: "t0" } });
-    if (m === "GET" && path.includes("/contents/")) {
-      const p = decodeURIComponent(path.split("/contents/")[1]);
-      return p in files ? ok({ sha: files[p] }) : new Response("{}", { status: 404 });
-    }
-    if (m === "POST" && path.endsWith("/git/trees")) return ok({ sha: "t1" });
-    if (m === "POST" && path.endsWith("/git/commits")) return ok({ sha: "c1", html_url: "https://github.com/a/b/commit/c1" });
-    if (m === "PATCH" && path.endsWith("/git/refs/heads/main")) return ok({ object: { sha: "c1" } });
-    return new Response("{}", { status: 500 });
-  };
-  return { calls, fetchMock };
-}
-
-async function withFetch(mock, f) {
-  const real = globalThis.fetch;
-  globalThis.fetch = mock;
-  try { return await f(); } finally { globalThis.fetch = real; }
-}
-
-// ONE GITHUB TOKEN SERVES EVERY FEATURE: parameter names as documented by GitHub,
-// https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
-const TOKEN_FIELDS = ["name", "description", "expires_in", "target_name"];
-const ONE_TOKEN = { contents: "write", issues: "write", actions: "write", metadata: "read" };
-
-test("THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE — exactly Contents, Issues, Actions write, Metadata read", () => {
-  const u = new URL(tokenLinkUrl("reader/agent-m"));
-  assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
-  assert.equal(u.searchParams.get("name"), "Agent M · reader/agent-m");
-  assert.equal(u.searchParams.get("expires_in"), "90");
-  assert.ok(u.searchParams.get("description"));
-  const perms = Object.fromEntries([...u.searchParams].filter(([k]) => !TOKEN_FIELDS.includes(k)));
-  assert.deepEqual(perms, ONE_TOKEN, "the link asks for exactly these permissions, no more, no less");
-});
-
-test("THE REPOSITORY CHOICE IS SPELLED OUT — both repositories named, 'Only select repositories' first", () => {
-  const s = repositoryChoiceSteps("reader/agent-m", "reader/thesis");
-  assert.match(s[0], /Only select repositories/);
-  assert.match(s[0], /All repositories/);
-  assert.ok(s.some((x) => x.includes("reader/agent-m")) && s.some((x) => x.includes("reader/thesis")));
-  assert.ok(s.some((x) => /github_pat_/.test(x)));
-  assert.equal(repositoryChoiceSteps("r/agent-m", "r/agent-m").filter((x) => x.includes("r/agent-m")).length, 1,
-    "the instance as its own product is named once");
-  const all = s.join("\n");
-  for (const p of ["Contents: read and write", "Issues: read and write", "Actions: read and write", "Metadata: read"]) {
-    assert.ok(all.includes(p), `the steps name ${p}`);
-  }
-});
-
-test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be rendered", () => {
-  const h = stepHtml({ title: "Step A", body: "<p>x</p>", explain: "A token is a key." });
-  assert.match(h, /class="step"/);
-  assert.match(h, /<details class="explain"><summary>What is this\?<\/summary>/);
-  assert.throws(() => stepHtml({ title: "Step A", body: "x", explain: "" }), /explain/);
-  assert.throws(() => stepHtml({ title: "Step A", body: "x" }), /explain/);
-});
-
-test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — no trusted click, no request", async () => {
-  const { calls, fetchMock } = fakeGitHub();
-  await withFetch(fetchMock, async () => {
-    const base = { repo: "a/b", branch: "main", files: [{ path: "x.md", content: "x\n" }], message: "m", token: "github_pat_t" };
-    await assert.rejects(commitFiles({ ...base }), /click/);
-    await assert.rejects(commitFiles({ ...base, click: { isTrusted: false } }), /click/);
-    await assert.rejects(commitFiles({ ...base, click, token: null }), /token/);
-  });
-  assert.equal(calls.length, 0);
-});
-
-test("one commit, fast-forward only, token only to the API", async () => {
-  const { calls, fetchMock } = fakeGitHub();
-  const r = await withFetch(fetchMock, () => commitFiles({ repo: "a/b", branch: "main", message: "accept UC-001",
-    token: "github_pat_t", click, files: [{ path: "docs/approvals/UC-001-abc.md", content: "kind: use-case\n" }] }));
-  assert.equal(r.sha, "c1");
-  assert.deepEqual(calls.map(([m, p]) => `${m} ${p}`), [
-    "GET /repos/a/b/git/ref/heads/main", "GET /repos/a/b/git/commits/c0", "POST /repos/a/b/git/trees",
-    "POST /repos/a/b/git/commits", "PATCH /repos/a/b/git/refs/heads/main"]);
-  assert.ok(calls.every(([, , auth]) => auth === "Bearer github_pat_t"));
-  const tree = calls[2][3], commit = calls[3][3], ref = calls[4][3];
-  assert.deepEqual(tree, { base_tree: "t0", tree: [{ path: "docs/approvals/UC-001-abc.md", mode: "100644", type: "blob", content: "kind: use-case\n" }] });
-  assert.deepEqual(commit, { message: "accept UC-001", tree: "t1", parents: ["c0"] });
-  assert.deepEqual(ref, { sha: "c1", force: false });
-});
-
-test("an edit is refused when the file changed since it was loaded", async () => {
-  const { calls, fetchMock } = fakeGitHub({ "docs/use-cases/UC-001-x.md": "newer" });
-  await withFetch(fetchMock, () => assert.rejects(commitFiles({ repo: "a/b", branch: "main", message: "edit", token: "github_pat_t",
-    click, files: [{ path: "docs/use-cases/UC-001-x.md", content: "mine\n", expectBlob: "older" }] }), /changed since/));
-  assert.ok(!calls.some(([m]) => m === "PATCH"), "nothing written");
-});
 
 test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
   const all = missingLayout([], "alice/thesis").map((f) => f.path).sort();
@@ -335,62 +247,8 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
 });
 
 // ---------------------------------------------------------------- products in the browser (UC-001)
-// THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER · A PRODUCT IS NAMED BY ITS ADDRESS ·
-// ADDING A PRODUCT CREATES ITS LAYOUT (and writes nothing into the instance repository)
-
-import { addProduct } from "../docs/assets/review-core.mjs";
-import { parseProductAddress } from "../docs/assets/git-host.mjs";
-import { createStore, PREFIX } from "../docs/assets/settings-store.mjs";
-
-function fakeStorage() {
-  const mem = new Map();
-  return { mem, getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)),
-    removeItem: (k) => mem.delete(k), get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null };
-}
-
-test("A PRODUCT IS NAMED BY ITS ADDRESS — the address as copied from the browser", () => {
-  const p = parseProductAddress("https://github.com/alice/thesis-tool");
-  assert.deepEqual(p, { address: "https://github.com/alice/thesis-tool", host: "github.com", repo: "alice/thesis-tool" });
-  for (const v of [" https://github.com/alice/thesis-tool/ ", "https://github.com/alice/thesis-tool.git", "https://github.com/alice/thesis-tool/tree/main"]) {
-    assert.equal(parseProductAddress(v).address, "https://github.com/alice/thesis-tool", v);
-  }
-  // Counter-proof: a bare owner/name is not an address; nor is anything outside https.
-  for (const v of ["alice/thesis-tool", "http://github.com/alice/thesis-tool", "https://github.com/alice", "https://github.com/../evil", "javascript:alert(1)", ""]) {
-    assert.ok(parseProductAddress(v).error, `refused: ${JSON.stringify(v)}`);
-  }
-  // A GitLab address is a GitLab product (GITLAB PRODUCTS ARE SUPPORTED) — see the GitLab section below.
-  assert.equal(parseProductAddress("https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool").kind, "gitlab");
-});
-
-test("the browser store keeps product addresses beside the token, once each", () => {
-  const st = fakeStorage(), s = createStore(st);
-  assert.deepEqual(s.getProducts(), []);
-  s.addProduct("https://github.com/alice/thesis-tool");
-  s.addProduct("https://github.com/alice/thesis-tool");
-  s.addProduct("https://github.com/alice/other");
-  assert.deepEqual(s.getProducts(), ["https://github.com/alice/thesis-tool", "https://github.com/alice/other"]);
-  assert.ok([...st.mem.keys()].every((k) => k.startsWith(PREFIX)));
-  st.setItem(PREFIX + "products", "not json");
-  assert.deepEqual(s.getProducts(), [], "a damaged entry reads as an empty list");
-});
-
-function productGitHub(tree) {
-  const g = fakeGitHub();
-  const inner = g.fetchMock;
-  g.fetchMock = async (u, init) => {
-    const path = new URL(u).pathname;
-    if (init.method === "GET" && /^\/repos\/[^/]+\/[^/]+$/.test(path)) {
-      g.calls.push(["GET", path, init.headers?.Authorization, null]);
-      return new Response(JSON.stringify({ default_branch: "main", private: true }), { status: 200 });
-    }
-    if (init.method === "GET" && path.includes("/git/trees/")) {
-      g.calls.push(["GET", path, init.headers?.Authorization, null]);
-      return new Response(JSON.stringify({ tree: tree.map((p) => ({ path: p, type: "blob" })) }), { status: 200 });
-    }
-    return inner(u, init);
-  };
-  return g;
-}
+// THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER · ADDING A PRODUCT CREATES ITS LAYOUT (and writes nothing into the
+// instance repository)
 
 test("THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the address and commits nothing to the instance", async () => {
   const st = fakeStorage(), store = createStore(st);
@@ -434,73 +292,9 @@ test("UC-001 5a: a refused write adds nothing to the list", async () => {
   assert.deepEqual(store.getProducts(), []);
 });
 
-test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
-  for (const u of [new URL("dashboard-app.mjs", ASSETS), ...viewFiles(), new URL("review-core.mjs", ASSETS), new URL("settings-store.mjs", ASSETS)]) {
-    const r = spawnSync(process.execPath, ["--check", u.pathname]);
-    assert.equal(r.status, 0, `${u.pathname}: ${r.stderr}`);
-  }
-});
-
-// ---------------------------------------------------------------- token at instance setup (UC-014), extended in UC-001
-
-import { extendTokenSteps } from "../docs/assets/dashboard/add-product-view.mjs";
-import { tokenListUrl } from "../docs/assets/git-host.mjs";
-
-test("UC-014: setup names only the instance", () => {
-  const s = repositoryChoiceSteps("reader/agent-m", null);
-  assert.ok(s.some((x) => x.includes("reader/agent-m")));
-  assert.ok(!s.some((x) => /null|undefined/.test(x)));
-});
-
-test("UC-001: extending the token names the token, adds the product, keeps the instance, copies nothing", () => {
-  assert.equal(tokenListUrl(), "https://github.com/settings/personal-access-tokens");
-  const s = extendTokenSteps("reader/agent-m", "reader/thesis").join("\n");
-  assert.match(s, /Agent M · reader\/agent-m/);      // the name tokenLinkUrl gave it
-  assert.match(s, /add “reader\/thesis”/);
-  assert.match(s, /keep “reader\/agent-m”/);
-  assert.match(s, /Update/);
-  assert.match(s, /nothing to copy/i);
-  const name = new URL(tokenLinkUrl("reader/agent-m")).searchParams.get("name");
-  assert.ok(s.includes(name), "the steps must name the token exactly as the setup link created it");
-});
-
 // ---------------------------------------------------------------- one commit per decision (queue 2026-09-24g, entry 05)
 // AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL · A STALE APPROVAL IS NOT APPLIED ·
 // SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER (UC-006 4–7, 4d, 5a; UC-008 3d)
-
-import {
-  acceptItems, planAcceptance, createReviewSession, decisionRow, replaceSection, sectionForEntry, missingNeeds,
-} from "../docs/assets/review-core.mjs";
-
-const QD = "docs/spec-freigaben/2026-09-24g_x";
-const WHEN = new Date("2026-09-29T16:03:00Z");
-const B_SPEC = "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nold ten\n";
-const B_P05 = "## 10. R\n\nnew ten\n\n## 11. X\n\n*(not yet approved)*\n";
-const B_P06 = "## 11. X\n\nrule of eleven\n";
-const B_INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n" +
-  "| 05 | `SPEC.md` | ## 10. R | — | — |\n| 06 | `SPEC.md` | ## 11. X | — | — |\n";
-const B_UC1 = "---\nid: UC-001\n---\n# one\n", B_UC2 = "---\nid: UC-002\n---\n# two\n";
-
-function batchRepo(over = {}) {
-  return { "SPEC.md": B_SPEC, [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/06-b.md`]: B_P06,
-    [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
-    "docs/use-cases/UC-001-a.md": B_UC1, "docs/use-cases/UC-002-b.md": B_UC2, ...over };
-}
-
-// What the dashboard showed: the proposal and the section beside it, each by its blob SHA.
-async function specItem(nr, proposalText, shownSection, anchor) {
-  const nn = String(nr).padStart(2, "0");
-  return { kind: "spec", queue: QD, qname: "2026-09-24g_x", nr, nn, proposalPath: `${QD}/${nn}-${nr === 5 ? "a" : "b"}.md`,
-    proposalBlob: await gitBlobSha(proposalText), sectionBlob: await gitBlobSha(shownSection), targetPath: "SPEC.md",
-    anchor, bis: null, needs: [] };
-}
-const ucItem = async (id, path, text) => ({ kind: "use-case", id, path, blob: await gitBlobSha(text) });
-
-function readerOf(files, seen = []) {
-  return async (head, path) => { seen.push(head); return path in files ? files[path] : null; };
-}
-
-const treeOf = (calls) => Object.fromEntries(calls.find(([m, p]) => m === "POST" && p.endsWith("/git/trees"))[3].tree.map((f) => [f.path, f.content]));
 
 test("decisionRow is the row tools/apply_approvals.py writes", () => {
   assert.equal(decisionRow(7, "spec-q-07-a99553a7b6f9.md", WHEN), "| 2026-09-29 16:03 UTC | 7 | uebernommen | approval:spec-q-07-a99553a7b6f9.md |\n");
@@ -621,110 +415,7 @@ test("an entry already written in the queue's decisions is not written twice", a
 });
 
 // ---------------------------------------------------------------- settings in one place (UC-042)
-// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS · AN EXPORT CAN BE LOCKED WITH A PASSPHRASE ·
-// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED · A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY ·
-// PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
-
-import {
-  setProductSetting, savePseudonymisation, saveCollaborators,
-} from "../docs/assets/review-core.mjs";
-import {
-  parseProductSettings, pseudonymisationOn, parseCollaborators, formatCollaborators, addCollaborator, removeCollaborator,
-} from "../docs/assets/pseudonymiser.mjs";
-import { tokenRefusal } from "../docs/assets/git-host.mjs";
-import {
-  TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, exportSettings, readSettingsFile, mergeSettings, PBKDF2_ITERATIONS,
-} from "../docs/assets/settings-store.mjs";
-
-const SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop";
-const FULL = { [TOKEN_KEY]: SECRET, [TOKEN_EXPIRY_KEY]: "2026-12-29",
-  [PRODUCTS_KEY]: JSON.stringify(["https://github.com/alice/thesis", "https://github.com/alice/other"]) };
-
-test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — an import of an export restores every setting", async () => {
-  const st = fakeStorage(), s = createStore(st);
-  s.setToken(SECRET, "2026-12-29");
-  s.addProduct("https://github.com/alice/thesis");
-  const file = await exportSettings(s.entries(), { now: WHEN });
-  assert.ok(file.includes(SECRET), "an open export carries the token itself");
-  const into = fakeStorage(), t = createStore(into);
-  const m = mergeSettings(t.entries(), await readSettingsFile(file));
-  t.putEntries(m.put);
-  assert.deepEqual(t.entries(), s.entries());
-  assert.equal(t.getToken(), SECRET);
-  assert.equal(t.getTokenExpiry(), "2026-12-29");
-  assert.deepEqual(t.getProducts(), ["https://github.com/alice/thesis"]);
-  // Counter-proof: a file of another format imports nothing.
-  await assert.rejects(readSettingsFile(JSON.stringify({ format: "something-else", settings: FULL })), /not an Agent M settings file/);
-});
-
-test("AN EXPORT CAN BE LOCKED WITH A PASSPHRASE — no secret in clear, imports with it, a wrong one imports nothing", async () => {
-  const file = await exportSettings(FULL, { passphrase: "correct horse", now: WHEN });
-  for (const v of Object.values(FULL)) assert.ok(!file.includes(v), `in clear: ${v}`);
-  assert.ok(!file.includes("SECRETVALUE"));
-  const locked = JSON.parse(file).locked;
-  assert.ok(locked.iterations >= 600000 && locked.iterations === PBKDF2_ITERATIONS, "a high iteration count, stored in the file");
-  assert.ok(locked.salt && locked.iv && locked.data, "salt, iv and ciphertext stored");
-  const other = JSON.parse(await exportSettings(FULL, { passphrase: "correct horse", now: WHEN })).locked;
-  assert.notEqual(other.salt, locked.salt, "a random salt per export");
-  assert.notEqual(other.iv, locked.iv, "a random IV per export");
-  assert.deepEqual(await readSettingsFile(file, "correct horse"), FULL);
-  await assert.rejects(readSettingsFile(file), (e) => e.locked === true);
-  await assert.rejects(readSettingsFile(file, "wrong horse"), (e) => e.wrongPassphrase === true && /nothing was imported/.test(e.message));
-  const tampered = JSON.parse(file);
-  tampered.locked.data = tampered.locked.data.slice(0, -4) + (tampered.locked.data.endsWith("AAAA") ? "BBBB" : "AAAA");
-  await assert.rejects(readSettingsFile(JSON.stringify(tampered), "correct horse"), (e) => e.wrongPassphrase === true);
-});
-
-test("UC-042 6a — an import keeps what this browser has and adds only what is missing, listing both", () => {
-  const current = { [TOKEN_KEY]: "github_pat_mine", [TOKEN_EXPIRY_KEY]: "2026-10-01",
-    [PRODUCTS_KEY]: JSON.stringify(["https://github.com/alice/thesis"]) };
-  const m = mergeSettings(current, { ...FULL, "agent-m.unknown": "x" });
-  assert.deepEqual(m.put, { [PRODUCTS_KEY]: JSON.stringify(["https://github.com/alice/thesis", "https://github.com/alice/other"]) });
-  assert.deepEqual(m.added, ["product https://github.com/alice/other"]);
-  assert.deepEqual(m.kept, ["GitHub token", "product https://github.com/alice/thesis"]);
-  assert.deepEqual(m.ignored, ["agent-m.unknown"]);
-  // A kept token keeps its own expiry date; the file's date belongs to the file's token.
-  assert.ok(!(TOKEN_EXPIRY_KEY in m.put));
-  // Into an empty browser, everything is added.
-  const e = mergeSettings({}, FULL);
-  assert.deepEqual(e.put, FULL);
-  assert.deepEqual(e.kept, []);
-});
-
-test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a refused request yields the token's name and the renewal link", async () => {
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response('{"message":"Bad credentials"}', { status: 401, statusText: "Unauthorized" });
-  let err;
-  try { await fetchText("https://api.github.com/repos/a/b", {}, "github_pat_old"); } catch (e) { err = e; } finally { globalThis.fetch = realFetch; }
-  const r = tokenRefusal(err);
-  assert.equal(r.token, "GitHub token");
-  assert.match(r.text, /GitHub token/);
-  assert.equal(r.renewUrl, "https://github.com/settings/personal-access-tokens");
-  assert.match(r.renew, /Regenerate token/);
-  assert.match(r.renew, /permissions and repositories/);
-  // Also for a refused write (commitFiles sets .status).
-  assert.ok(tokenRefusal(Object.assign(new Error("GET /git/ref/heads/main: 401 Bad credentials"), { status: 401 })));
-  // Counter-proof: a missing repository or a missing permission is not an expired token.
-  assert.equal(tokenRefusal(Object.assign(new Error("404 Not Found — https://api.github.com/repos/a/b"), { status: 404 })), null);
-  assert.equal(tokenRefusal(Object.assign(new Error("403 Forbidden"), { status: 403 })), null);
-});
-
-const SETTINGS_OFF = "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n";
-
-test("PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF — docs/settings.md, one line per setting", () => {
-  assert.equal(pseudonymisationOn(null), true, "no file: on");
-  assert.equal(pseudonymisationOn("# Settings\n"), true, "no setting: on");
-  assert.equal(pseudonymisationOn(SETTINGS_OFF), false);
-  assert.deepEqual(parseProductSettings(SETTINGS_OFF), { pseudonymisation: "off" });
-  const created = setProductSetting(null, "pseudonymisation", "off", "alice/thesis");
-  assert.match(created, /^# Settings of alice\/thesis\n/);
-  assert.deepEqual(parseProductSettings(created), { pseudonymisation: "off" });
-  // Switching back on removes the line; everything else of the file stays as it was.
-  const on = setProductSetting(SETTINGS_OFF, "pseudonymisation", null, "alice/thesis");
-  assert.equal(on, "# Settings of alice/thesis\n\nintro\n\n");
-  assert.equal(pseudonymisationOn(on), true);
-  assert.equal(setProductSetting(on, "pseudonymisation", "off", "alice/thesis"), "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n");
-});
+// A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
 
 test("A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY — switching off commits docs/settings.md on a click, after the notice", async () => {
   const st = fakeStorage();
@@ -749,29 +440,6 @@ test("A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY — switching off commits docs
   assert.equal(pseudonymisationOn(treeOf(g.calls)["docs/settings.md"]), true);
 });
 
-const PEOPLE = [{ name: "Jane Doe", account: "jdoe", agreed: "2026-09-30" }, { name: "Max Müller", account: "max-m", agreed: "2026-10-01" }];
-
-test("A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — docs/collaborators.md parses and formats losslessly", () => {
-  const text = formatCollaborators(PEOPLE, "alice/thesis");
-  assert.match(text, /^# Collaborators of alice\/thesis\n/);
-  assert.match(text, /\| Jane Doe \| @jdoe \| 2026-09-30 \|/);
-  assert.deepEqual(parseCollaborators(text), PEOPLE);
-  assert.deepEqual(parseCollaborators(null), []);
-  assert.deepEqual(parseCollaborators(formatCollaborators([], "alice/thesis")), []);
-});
-
-test("+ Collaborator needs the tick 'this person has agreed to be named'; Remove takes one off", () => {
-  const add = { name: "Ann Lee", account: "annlee", agreed: "2026-09-30" };
-  assert.throws(() => addCollaborator(PEOPLE, { ...add, consent: false }), /agreed to be named/);
-  const more = addCollaborator(PEOPLE, { ...add, consent: true });
-  assert.deepEqual(more.at(-1), add);
-  assert.throws(() => addCollaborator(more, { ...add, consent: true }), /already listed/);
-  for (const bad of [{ account: "not an account" }, { agreed: "30.09.2026" }, { name: "" }, { name: "A | B" }]) {
-    assert.throws(() => addCollaborator(PEOPLE, { ...add, ...bad, consent: true }), Error, JSON.stringify(bad));
-  }
-  assert.deepEqual(removeCollaborator(more, "annlee"), PEOPLE);
-});
-
 test("collaborators are saved by one commit of docs/collaborators.md, on a click", async () => {
   const { calls, fetchMock } = fakeGitHub();
   await withFetch(fetchMock, () => assert.rejects(saveCollaborators({ repo: "alice/thesis", branch: "main", token: "github_pat_t",
@@ -782,249 +450,10 @@ test("collaborators are saved by one commit of docs/collaborators.md, on a click
   assert.deepEqual(parseCollaborators(treeOf(calls)["docs/collaborators.md"]), PEOPLE);
 });
 
-test("the settings export is saved as a file only — never committed, fetched or put into an address", () => {
-  const app = dashboardText();
-  const body = (src) => (src.match(/async function saveExport\([\s\S]*?\n}\n/) || [""])[0];
-  const LEAK = /commitFiles|fetchText|location|data:|encodeURIComponent|URLSearchParams/;
-  const b = body(app);
-  assert.ok(b.includes("exportSettings(") && b.includes("new Blob("), "saveExport writes the export into a Blob");
-  assert.doesNotMatch(b, LEAK);
-  assert.equal(app.split("exportSettings(").length - 1, 1, "exportSettings is called only in saveExport");
-  // Counter-proof: an export that is committed is caught.
-  assert.match(body("async function saveExport(ev) {\n  const t = await exportSettings(x);\n  await commitFiles({ files: [t] });\n}\n"), LEAK);
-});
-
-// ---------------------------------------------------------------- the use-case key is `area` (was `stage`)
-
-test("the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere", () => {
-  const app = dashboardText();
-  const STAGE = /\bstages?\b/i;
-  assert.doesNotMatch(app, STAGE);
-  assert.match(app, /fields\.area\b/);
-  assert.match(app, /<th>Area<\/th>/);
-  assert.equal(parseFrontMatter("---\nid: UC-001\narea: setup\n---\n").fields.area, "setup");
-  // Counter-proof: the old column is caught.
-  assert.match("<td>${h(u.fields.stage)}</td>", STAGE);
-});
-
-test("status 'approved' is described truly for both routes — the dashboard's own commit and the workflow", () => {
-  const app = dashboardText();
-  const line = app.match(/^\s*approved: \["approved", "([^"]+)"\],$/m)?.[1];
-  assert.ok(line, "the label of status approved");
-  assert.doesNotMatch(line, /^Approval committed — the workflow writes it into the SPEC$/);
-  assert.match(line, /workflow/, "names the route without a token");
-  assert.match(line, /not (yet )?(written|in)/i, "says what the status means: approved, not yet in the SPEC");
-});
-
 // ---------------------------------------------------------------- GitLab products (queue 2026-09-24b)
-// GITLAB PRODUCTS ARE SUPPORTED · A GITLAB PRODUCT IS WRITTEN WITH A TOKEN · A GITLAB PRODUCT USES A PROJECT
-// ACCESS TOKEN · A PRODUCT IS NAMED BY ITS ADDRESS · A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT (UC-001 3c/3d,
-// UC-008 3c, UC-018 4b, UC-006, UC-042). The GitLab server is a mock of the REST API v4 as GitLab documents it
+// GITLAB PRODUCTS ARE SUPPORTED · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN · A PRODUCT IS NAMED BY ITS ADDRESS
+// (UC-001 3c/3d, UC-006). The GitLab server is a mock of the REST API v4 as GitLab documents it
 // (doc/api/repositories.md, repository_files.md, commits.md, branches.md); no request leaves this process.
-
-import { deriveTarget, gitlabRole } from "../docs/assets/review-core.mjs";
-import { gitlabTokenSteps, gitlabNoProjectTokens } from "../docs/assets/dashboard/add-product-view.mjs";
-import { gitlabWriteRefusal } from "../docs/assets/dashboard-app.mjs";
-import { expiryWarning, tokenBannerHtml, exportNotice } from "../docs/assets/dashboard/settings-view.mjs";
-import {
-  gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute,
-  gitlabTokenPageUrl, webFileUrl, authHeaders,
-} from "../docs/assets/git-host.mjs";
-import { GITLAB_TOKENS_KEY } from "../docs/assets/settings-store.mjs";
-
-const GL = "https://gitlab.example.org";
-const GL_ADDR = `${GL}/grp/sub/proj`;
-const GL_TOKEN = "glpat-projectTOKENvalue0123456789";
-const H0 = "a".repeat(40), H1 = "b".repeat(40), NEWC = "c".repeat(40);
-
-// A GitLab server with one project and branch "main" at H0. files: { path: text } at H0.
-// moveAt: after this many branch reads, the branch answers H1 (another commit arrived).
-// parent: the parent GitLab reports for the commit it wrote (default: the branch head).
-async function fakeGitLab({ files = {}, moveAt = null, parent = null, changed = [], postStatus = 201, postBody = null,
-  project = "grp/sub/proj", server = GL } = {}) {
-  const calls = [];
-  const base = `/api/v4/projects/${encodeURIComponent(project)}`;
-  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
-  let branchReads = 0;
-  const ok = (o, status = 200) => new Response(JSON.stringify(o), { status });
-  const fetchMock = async (u, init = {}) => {
-    const url = new URL(u), m = (init.method || "GET").toUpperCase(), h = init.headers || {};
-    calls.push({ origin: url.origin, method: m, path: url.pathname, query: Object.fromEntries(url.searchParams),
-      token: h["PRIVATE-TOKEN"], authorization: h.Authorization, body: init.body ? JSON.parse(init.body) : null });
-    if (url.origin !== server || !url.pathname.startsWith(base)) return ok({ message: "404 Project Not Found" }, 404);
-    const rest = url.pathname.slice(base.length);
-    if (rest === "" && m === "GET") return ok({ path_with_namespace: project, default_branch: "main", visibility: "private",
-      web_url: `${server}/${project}`, permissions: { project_access: { access_level: 30 } } });
-    if (rest === "/repository/branches/main" && m === "GET") {
-      branchReads += 1;
-      return ok({ name: "main", commit: { id: moveAt !== null && branchReads > moveAt ? H1 : H0 } });
-    }
-    if (rest.startsWith("/repository/commits/") && m === "GET") return ok({ id: H0 });
-    if (rest === "/repository/tree" && m === "GET") {
-      const all = [...new Set(Object.keys(files).flatMap((p) => p.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"))))]
-        .map((p) => ({ id: "t".repeat(40), path: p, type: "tree" }))
-        .concat(Object.keys(files).map((p) => ({ id: blobs[p], path: p, type: "blob" })));
-      const per = Number(url.searchParams.get("per_page") || 20), page = Number(url.searchParams.get("page") || 1);
-      return ok(all.slice((page - 1) * per, page * per));
-    }
-    if (rest.startsWith("/repository/files/") && m === "GET") {
-      const raw = rest.endsWith("/raw");
-      const p = decodeURIComponent(rest.slice("/repository/files/".length).replace(/\/raw$/, ""));
-      if (!(p in files)) return ok({ message: "404 File Not Found" }, 404);
-      return raw ? new Response(files[p], { status: 200 }) : ok({ file_path: p, blob_id: blobs[p], commit_id: H0, last_commit_id: "d".repeat(40) });
-    }
-    if (rest === "/repository/commits" && m === "POST") {
-      if (postStatus !== 201) return ok(postBody || { message: "refused" }, postStatus);
-      return ok({ id: NEWC, parent_ids: [parent || H0], web_url: `${server}/${project}/-/commit/${NEWC}` }, 201);
-    }
-    if (rest === "/repository/compare" && m === "GET") return ok({ diffs: changed.map((p) => ({ old_path: p, new_path: p })) });
-    return ok({ message: "unexpected" }, 500);
-  };
-  return { calls, fetchMock, blobs };
-}
-
-test("A PRODUCT IS NAMED BY ITS ADDRESS — GitLab addresses, nested groups, the server recognised from the address", () => {
-  const p = parseProductAddress("https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool");
-  assert.deepEqual(p, { address: "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool", host: "gitlab.rrze.fau.de",
-    repo: "fau-ai-taskforce/tools/thesis-tool", server: "https://gitlab.rrze.fau.de", kind: "gitlab" });
-  for (const v of ["https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool/", "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool.git",
-    "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool/-/tree/main", " https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool/-/blob/main/SPEC.md "]) {
-    assert.equal(parseProductAddress(v).address, "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool", v);
-  }
-  assert.equal(parseProductAddress("https://gitlab.com/alice/thesis").server, "https://gitlab.com");
-  assert.equal(parseProductAddress("https://git.example.org:8443/a/b").server, "https://git.example.org:8443");
-  // GitHub stays what it was.
-  assert.deepEqual(parseProductAddress("https://github.com/alice/thesis"), { address: "https://github.com/alice/thesis", host: "github.com", repo: "alice/thesis" });
-  // Counter-proof: no project path, a path that climbs, a credential in the address, plain http.
-  for (const v of ["https://gitlab.com/alice", "https://gitlab.com/alice/../bob", "https://gitlab.com/-/alice", "https://oauth2:glpat-x@gitlab.com/a/b",
-    "http://gitlab.com/a/b", "https://gitlab.com/a/b%2Fc"]) {
-    assert.ok(parseProductAddress(v).error, `refused: ${v}`);
-  }
-});
-
-test("A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a GitLab token reaches its own project's API and nothing else", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const auth = gitlabAuth(p, GL_TOKEN);
-  const api = gitlabApiBase(p);
-  assert.equal(api, `${GL}/api/v4/projects/grp%2Fsub%2Fproj`);
-  const seen = [];
-  const real = globalThis.fetch;
-  globalThis.fetch = async (u, init) => { seen.push([String(u), init.method, { ...init.headers }]); return new Response("{}"); };
-  try {
-    // Known positive: the issuing server's API for this project gets the token, as PRIVATE-TOKEN, and nothing else does.
-    await fetchText(`${api}/repository/tree?ref=main`, {}, auth);
-    assert.deepEqual(seen.at(-1), [`${api}/repository/tree?ref=main`, "GET", { "PRIVATE-TOKEN": GL_TOKEN }]);
-    // Reading a public GitLab project without a token: the origin is reachable for this product, no header is sent.
-    await fetchText(`${api}/repository/tree?ref=main`, {}, gitlabAuth(p, null));
-    assert.deepEqual(seen.at(-1)[2], {});
-    const n = seen.length;
-    // Known negatives: every other destination is refused before a request is made.
-    for (const [url, a, why] of [
-      ["https://gitlab.other.org/api/v4/projects/grp%2Fsub%2Fproj", auth, /may only go|not allowed/],      // another GitLab
-      [`${GL}/api/v4/projects/grp%2Fother`, auth, /may only go|not allowed/],                               // another project, same server
-      [`${GL}/api/v4/user`, auth, /may only go|not allowed/],                                                // same server, outside the project
-      [`${GL}/grp/sub/proj/-/raw/main/SPEC.md`, auth, /may only go|not allowed/],                            // same server, not the API
-      ["https://api.github.com/repos/a/b", auth, /may only go|not allowed/],                                 // GitHub
-      ["https://models.example.org/v1/chat/completions", auth, /not allowed|may only go/],                   // a model endpoint
-      [`${api}/repository/tree?private_token=${GL_TOKEN}`, auth, /never placed in a URL/],                   // the token in the URL
-      [`${api}/repository/tree`, "github_pat_11GITHUBTOKEN", /not allowed|may only go/],                    // the GitHub token to GitLab
-      [`${api}/repository/tree`, null, /not allowed/],                                                       // GitLab without naming the product
-    ]) {
-      await assert.rejects(fetchText(url, {}, a), why, url);
-    }
-    // Without a token as well: naming a GitLab product opens that project's API, and no other origin or path.
-    for (const url of ["https://gitlab.other.org/api/v4/projects/grp%2Fsub%2Fproj", "https://models.example.org/v1/chat/completions",
-      `${GL}/api/v4/projects/grp%2Fother`, `${GL}/api/v4/user`]) {
-      await assert.rejects(fetchText(url, {}, gitlabAuth(p, null)), /not allowed/, url);
-    }
-    await assert.rejects(fetchText(`${api}/repository/commits`, { method: "POST" }, auth), /GET/);
-    await assert.rejects(fetchText(`${api}/x`, { headers: { "PRIVATE-TOKEN": "x" } }, auth), /header/);
-    assert.equal(seen.length, n, "no refused request reached the network");
-  } finally { globalThis.fetch = real; }
-  // authHeaders: the same rule for writes.
-  assert.deepEqual(authHeaders(`${api}/repository/commits`, auth), { "PRIVATE-TOKEN": GL_TOKEN });
-  assert.deepEqual(authHeaders("https://api.github.com/repos/a/b", auth), {});
-  assert.deepEqual(authHeaders(`https://gitlab.other.org/api/v4/projects/grp%2Fsub%2Fproj`, auth), {});
-  assert.deepEqual(authHeaders(`${GL}/api/v4/projects/grp%2Fother/repository/commits`, auth), {}, "another project on the same server");
-  assert.deepEqual(authHeaders(`${GL}/api/v4/user`, auth), {}, "the same server outside the project");
-  assert.deepEqual(authHeaders(`${api}/x`, "github_pat_t"), {});
-  assert.deepEqual(authHeaders("https://api.github.com/repos/a/b", "github_pat_t"), { Authorization: "Bearer github_pat_t" });
-});
-
-test("GITLAB PRODUCTS ARE SUPPORTED — reading: the pinned commit, every page of the tree, raw files at that commit", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const files = { "SPEC.md": "# S\n", "docs/use-cases/UC-001-a.md": B_UC1 };
-  for (let i = 0; i < 130; i++) files[`docs/approvals/r${String(i).padStart(3, "0")}.md`] = `kind: use-case\nn: ${i}\n`;
-  const g = await fakeGitLab({ files });
-  const snap = await withFetch(g.fetchMock, () => gitlabSnapshot({ product: p, ref: "main", token: GL_TOKEN }));
-  assert.equal(snap.commit, H0);
-  assert.equal(snap.tree.length, 132, "all blobs of every page, no directories");
-  assert.equal(snap.tree.find((e) => e.path === "docs/use-cases/UC-001-a.md").sha, await gitBlobSha(B_UC1), "tree entries carry the blob SHA");
-  const treeCalls = g.calls.filter((c) => c.path.endsWith("/repository/tree"));
-  assert.ok(treeCalls.length >= 2, "paged");
-  assert.ok(treeCalls.every((c) => c.query.ref === H0 && c.query.recursive === "true"), "the tree of the pinned commit, not of the branch");
-  const text = await withFetch(g.fetchMock, () => gitlabReadFile({ product: p, commit: H0, path: "docs/use-cases/UC-001-a.md", token: GL_TOKEN }));
-  assert.equal(text, B_UC1);
-  assert.equal(g.calls.at(-1).query.ref, H0);
-  assert.equal(await withFetch(g.fetchMock, () => gitlabReadFile({ product: p, commit: H0, path: "nope.md", token: GL_TOKEN })), null);
-  assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN && c.authorization === undefined), "only to its server, only its token");
-});
-
-test("GitLab writes: one commit with several actions — create where absent, update with last_commit_id where present", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const g = await fakeGitLab({ files: { "SPEC.md": B_SPEC } });
-  const r = await withFetch(g.fetchMock, () => commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
-    files: [{ path: "SPEC.md", content: "new\n" }, { path: "docs/approvals/x.md", content: "kind: spec\n" }] }));
-  const posts = g.calls.filter((c) => c.method === "POST");
-  assert.equal(posts.length, 1, "exactly one commit");
-  assert.equal(posts[0].path, `/api/v4/projects/${encodeURIComponent("grp/sub/proj")}/repository/commits`);
-  assert.deepEqual(posts[0].body, { branch: "main", commit_message: "m", actions: [
-    { action: "update", file_path: "SPEC.md", content: "new\n", encoding: "text", last_commit_id: H0 },
-    { action: "create", file_path: "docs/approvals/x.md", content: "kind: spec\n", encoding: "text" }] });
-  assert.equal(posts[0].body.force, undefined, "never force");
-  assert.equal(posts[0].body.start_sha, undefined);
-  assert.equal(r.sha, NEWC);
-  assert.equal(r.url, `${GL}/grp/sub/proj/-/commit/${NEWC}`);
-  assert.deepEqual(r.changedMeanwhile, []);
-  assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN), "every request to its server with its token");
-});
-
-test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN — no token or no click: nothing is sent; the route is the token step", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const g = await fakeGitLab({ files: { "SPEC.md": B_SPEC } });
-  const base = { product: p, branch: "main", message: "m", files: [{ path: "x.md", content: "x\n" }] };
-  await withFetch(g.fetchMock, async () => {
-    await assert.rejects(writeFiles({ ...base, token: null, click }), /token/);
-    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN }), /click/);
-    await assert.rejects(writeFiles({ ...base, token: GL_TOKEN, click: { isTrusted: false } }), /click/);
-    await assert.rejects(writeFiles({ ...base, token: "github_pat_11GITHUBTOKEN", click }), /GitLab project token/);
-    await assert.rejects(commitFilesGitLab({ ...base, token: GL_TOKEN }), /click/, "the GitLab writer itself needs the click");
-    await assert.rejects(commitFilesGitLab({ ...base, token: null, click }), /token/, "and the token");
-  });
-  assert.equal(g.calls.length, 0);
-  assert.equal(writeRoute(p, null), "token-step");
-  assert.equal(writeRoute(p, GL_TOKEN), "commit");
-  const gh = parseProductAddress("https://github.com/alice/thesis");
-  assert.equal(writeRoute(gh, null), "github-web", "GitHub keeps its web-interface fallback");
-  assert.equal(writeRoute(gh, "github_pat_t"), "commit");
-});
-
-test("GitLab: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — a changed blob or a moved branch writes nothing", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const g = await fakeGitLab({ files: { "docs/use-cases/UC-001-a.md": "newer\n" } });
-  await withFetch(g.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "edit", token: GL_TOKEN, click,
-    files: [{ path: "docs/use-cases/UC-001-a.md", content: "mine\n", expectBlob: "older" }] }), /changed since/));
-  assert.ok(!g.calls.some((c) => c.method === "POST"), "nothing written");
-  // The branch moved between the read the files were computed from and the commit: nothing is written.
-  const m = await fakeGitLab({ files: { "SPEC.md": B_SPEC }, moveAt: 1 });
-  await withFetch(m.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
-    files: [{ path: "SPEC.md", content: "x\n" }] }), /moved on|reload/));
-  assert.ok(!m.calls.some((c) => c.method === "POST"), "nothing written");
-  // GitLab's own refusal (last_commit_id, or a file created meanwhile) is passed on, with its status.
-  const r = await fakeGitLab({ files: { "SPEC.md": B_SPEC }, postStatus: 400, postBody: { message: "The file has changed since you started editing it: SPEC.md" } });
-  await withFetch(r.fetchMock, () => assert.rejects(commitFilesGitLab({ product: p, branch: "main", message: "m", token: GL_TOKEN, click,
-    files: [{ path: "SPEC.md", content: "x\n" }] }), (e) => e.status === 400 && /changed since you started editing/.test(e.message)));
-});
 
 test("GitLab: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL — record, section and decision row in one commit, checked at the head", async () => {
   const p = parseProductAddress(GL_ADDR);
@@ -1114,30 +543,6 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; 
   assert.deepEqual(s2.getProducts(), []);
 });
 
-test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Maintainer, scope api, expiry", () => {
-  const p = parseProductAddress(GL_ADDR);
-  assert.equal(gitlabTokenPageUrl(p), `${GL_ADDR}/-/settings/access_tokens`);
-  const s = gitlabTokenSteps(p).join("\n");
-  for (const must of [/Agent M/, /role: Maintainer/, /\bapi\b/, /[Ee]xpir/, /Create project access token/, /glpat-/]) assert.match(s, must);
-  assert.doesNotMatch(s, /Developer/, "the role the SPEC no longer prescribes is not asked for");
-  assert.doesNotMatch(s, /Owner/, "no broader role is asked for");
-  // UC-001 3d: which of the two it is, and why a personal token is broader.
-  const self = gitlabNoProjectTokens(p);
-  assert.match(self, /Maintainer/);
-  assert.match(self, /personal access token/);
-  assert.match(self, /every project/);
-  const dotcom = gitlabNoProjectTokens(parseProductAddress("https://gitlab.com/alice/thesis"));
-  assert.match(dotcom, /Premium or Ultimate/, "on gitlab.com the subscription decides");
-  assert.doesNotMatch(self, /Premium/, "a self-managed server offers them with any licence");
-  // A refused write (403) with a Maintainer token: the branch is protected even against Maintainers, or the token lacks scope api
-  // or has a lower role — what GitLab answers 403 for; an expired token is a 401 and named elsewhere (tokenRefusal).
-  const refusal = gitlabWriteRefusal(Object.assign(new Error("403 Forbidden"), { status: 403 }), p);
-  for (const must of [/protected/, /Maintainers/, /\bapi\b/, /Maintainer/]) assert.match(refusal, must);
-  assert.doesNotMatch(refusal, /Developer/);
-  assert.doesNotMatch(refusal, /expired/, "an expired token is answered with 401, not 403");
-  assert.equal(gitlabWriteRefusal(Object.assign(new Error("400"), { status: 400 }), p), null);
-});
-
 test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer is shown as unable to write to a protected default branch", () => {
   assert.deepEqual(gitlabRole(40), { role: "Maintainer", canWrite: true, note: "" });
   assert.equal(gitlabRole(50).canWrite, true);
@@ -1151,65 +556,6 @@ test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer 
   const app = dashboardText();
   assert.match(app, /gitlabRole\(/, "the settings page takes the role check from the core");
   assert.doesNotMatch(app, /role Developer|role <em>Developer<\/em>|>= 30/, "the app names no Developer token any more");
-});
-
-test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project token by its product, renewed on its project's page", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const g = { fetchMock: async () => new Response('{"message":"401 Unauthorized"}', { status: 401, statusText: "Unauthorized" }) };
-  let err;
-  await withFetch(g.fetchMock, async () => { try { await fetchText(`${gitlabApiBase(p)}`, {}, gitlabAuth(p, GL_TOKEN)); } catch (e) { err = e; } });
-  const r = tokenRefusal(err, p);
-  assert.equal(r.token, `GitLab project token for ${GL_ADDR}`);
-  assert.equal(r.renewUrl, `${GL_ADDR}/-/settings/access_tokens`);
-  assert.match(r.renew, /Rotate/);
-  assert.equal(tokenRefusal(err).token, "GitHub token", "without a product it is the GitHub token, as before");
-  const w = expiryWarning("2026-10-05", new Date("2026-09-30T12:00:00Z"), p);
-  assert.match(w.text, /GitLab project token for .*proj/);
-  assert.equal(w.renewUrl, `${GL_ADDR}/-/settings/access_tokens`);
-  const b = tokenBannerHtml({ expires: null, refused: true, product: p });
-  assert.match(b, /GitLab project token/);
-  assert.ok(b.includes(`${GL_ADDR}/-/settings/access_tokens`));
-});
-
-test("GitLab tokens in the browser store: one per product, only for that product; removed with the product and by a clear", () => {
-  const st = fakeStorage(), s = createStore(st);
-  s.setToken("github_pat_t");
-  s.addProduct(GL_ADDR);
-  s.setGitLabToken(GL_ADDR, ` ${GL_TOKEN} `, "2026-12-29");
-  s.setGitLabToken("https://gitlab.com/alice/thesis", "glpat-other0123456789", null);
-  assert.deepEqual(s.getGitLabToken(GL_ADDR), { token: GL_TOKEN, expires: "2026-12-29" });
-  assert.equal(s.getGitLabToken(`${GL}/grp/sub/other`), null, "a project without its own token has none");
-  assert.equal(s.getToken(), "github_pat_t", "the GitHub token is a separate entry");
-  assert.ok([...st.mem.keys()].every((k) => k.startsWith(PREFIX)));
-  s.removeProduct(GL_ADDR);
-  assert.equal(s.getGitLabToken(GL_ADDR), null, "removing the product removes its token");
-  assert.ok(s.getGitLabToken("https://gitlab.com/alice/thesis"));
-  s.clearGitLabToken("https://gitlab.com/alice/thesis");
-  assert.equal(st.getItem(GITLAB_TOKENS_KEY), null, "the last token cleared leaves no entry");
-  s.setGitLabToken(GL_ADDR, GL_TOKEN, null);
-  s.clear();
-  assert.equal(st.mem.size, 0);
-});
-
-test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens included, merged per product", async () => {
-  const s = createStore(fakeStorage());
-  s.setGitLabToken(GL_ADDR, GL_TOKEN, "2026-12-29");
-  s.addProduct(GL_ADDR);
-  const file = await exportSettings(s.entries(), { now: WHEN });
-  assert.ok(file.includes(GL_TOKEN));
-  assert.match(exportNotice(s.entries()), /GitLab project token/);
-  const t = createStore(fakeStorage());
-  t.setGitLabToken("https://gitlab.com/alice/thesis", "glpat-mine0123456789", null);
-  t.setGitLabToken(GL_ADDR, "glpat-newer0123456789", "2027-01-01");
-  const m = mergeSettings(t.entries(), await readSettingsFile(file));
-  t.putEntries(m.put);
-  assert.deepEqual(t.getGitLabToken(GL_ADDR), { token: "glpat-newer0123456789", expires: "2027-01-01" }, "what this browser has is kept");
-  assert.ok(m.kept.includes(`GitLab project token for ${GL_ADDR}`));
-  const u = createStore(fakeStorage());
-  const m2 = mergeSettings(u.entries(), await readSettingsFile(file));
-  u.putEntries(m2.put);
-  assert.deepEqual(u.getGitLabToken(GL_ADDR), { token: GL_TOKEN, expires: "2026-12-29" });
-  assert.ok(m2.added.includes(`GitLab project token for ${GL_ADDR}`));
 });
 
 test("the dashboard is opened on a GitLab product by its address; its files link to GitLab", () => {
@@ -1229,57 +575,6 @@ test("the dashboard is opened on a GitLab product by its address; its files link
 // read from the server's commits of the record's path at the pinned commit. The servers are mocks of the documented endpoints
 // (GitHub: GET /repos/{o}/{r}/commits?path=&sha=, GET /repos/{o}/{r}/git/blobs/{sha}; GitLab: GET
 // /projects/:id/repository/commits?path=&ref_name=, GET /projects/:id/repository/blobs/:sha/raw).
-
-import {
-  recordsForId, lastAccepted, changedLines, readBlob,
-} from "../docs/assets/review-core.mjs";
-import { diffHtml } from "../docs/assets/dashboard-app.mjs";
-import { reviewedId } from "../docs/assets/artifacts.mjs";
-
-const UC_OLD = "docs/use-cases/UC-010-run-a-stage-in-github-actions.md", UC_NEW = "docs/use-cases/UC-010-run-a-job-in-github-actions.md";
-const A_TEXT = "---\nid: UC-010\ntitle: Run a job\nstage: runtime\n---\n# UC-010\n\nBody line one.\nBody line two.\n";
-const B_TEXT = A_TEXT.replace("stage: runtime", "area: runtime");
-const OLDER_TEXT = A_TEXT.replace("Body line one.", "An older first line.");
-const PIN = "f".repeat(40);
-
-// records: [{ text, file (the use case it names), date }] -> parsed records as the app keeps them, with their own path
-async function recordsOf(list) {
-  return Promise.all(list.map(async (r) => {
-    const blob = await gitBlobSha(r.text);
-    return { ...parseRecord(recordText(useCaseRecord(r.file, blob))), _path: approvalPath(reviewedId(r.file), blob), _date: r.date, _text: r.text };
-  }));
-}
-
-function fakeHistoryGitHub(recs, repo = "a/b") {
-  const calls = [];
-  const blobs = Object.fromEntries(recs.map((r) => [r.blob, r._text]));
-  const dates = Object.fromEntries(recs.map((r) => [r._path, r._date]));
-  const fetchMock = async (u, init = {}) => {
-    const url = new URL(u), p = url.pathname;
-    calls.push({ origin: url.origin, path: p, query: Object.fromEntries(url.searchParams), auth: init.headers?.Authorization, method: init.method });
-    const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
-    if (p === `/repos/${repo}/commits`) {
-      const d = dates[url.searchParams.get("path")];
-      return ok(d ? [{ sha: "c".repeat(40), commit: { committer: { date: d }, author: { date: "2000-01-01T00:00:00Z" } } }] : []);
-    }
-    const m = p.match(new RegExp(`^/repos/${repo}/git/blobs/([0-9a-f]{40})$`));
-    if (m && m[1] in blobs) {
-      const b64 = Buffer.from(blobs[m[1]], "utf8").toString("base64").replace(/(.{60})/g, "$1\n");
-      return ok({ sha: m[1], size: Buffer.byteLength(blobs[m[1]]), content: b64, encoding: "base64" });
-    }
-    return new Response('{"message":"Not Found"}', { status: 404, statusText: "Not Found" });
-  };
-  return { calls, fetchMock };
-}
-
-test("reviewedId: a reviewed file's identifier from its path — the same for a renamed file", () => {
-  assert.equal(reviewedId(UC_OLD), "UC-010");
-  assert.equal(reviewedId(UC_NEW), "UC-010");
-  assert.equal(reviewedId("docs/use-cases/README.md"), null);
-  const recs = [useCaseRecord(UC_OLD, "a".repeat(40)), useCaseRecord("docs/use-cases/UC-011-x.md", "b".repeat(40)),
-    specRecord({ queue: "q", entry: 1, proposal: "q/UC-010-named-like-a-use-case.md", blob: "c".repeat(40), target: "SPEC.md", anchor: "## 1", section: "d".repeat(40) })];
-  assert.deepEqual(recordsForId(recs, "UC-010"), [recs[0]], "only the records of that identifier, and no SPEC record");
-});
 
 test("A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT — one changed line shows exactly that line", async () => {
   const recs = await recordsOf([{ text: A_TEXT, file: UC_NEW, date: "2026-09-24T18:15:06Z" }]);
@@ -1374,166 +669,7 @@ test("A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT — GitLab: its com
   assert.ok(calls.every((c) => c.origin === GL && c.token === GL_TOKEN && c.auth === undefined), "only its server, only its project token");
 });
 
-test("the dashboard shows the last accepted text above a changed use case, with the core's diff", () => {
-  const app = dashboardText({ shell: false });
-  const view = app.match(/async function viewUseCase\([\s\S]*?\n}\n/)[0];
-  assert.ok(view.includes("accepted-diff"), "the panel is part of the use-case view");
-  assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "above the text");
-  assert.match(app, /lastAccepted\(/);
-  assert.doesNotMatch(app, /function (lineDiff|diffHtml)\(/, "one diff, in the core — not a second copy in the app");
-});
+// ---------------------------------------------------------------- the checks of the other modules (tests/review-core.d/)
 
-// ---------------------------------------------------------------- jump host and remote sessions (queue 2026-09-30, entries 01, 02)
-// EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE · THE DASHBOARD WRITES THE TUNNEL COMMANDS · A REVERSE TUNNEL
-// LISTENS ONLY ON THE JUMP HOST'S LOOPBACK · THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS (UC-011 1c, UC-042)
-
-import {
-  jumpHostProblem, nextFreePort, addRemoteSession, tunnelCommands, tunnelBindProblems, probeLocalPort,
-} from "../docs/assets/bridge-tunnel.mjs";
-import { JUMP_HOST_KEY, REMOTE_SESSIONS_KEY, KEYS } from "../docs/assets/settings-store.mjs";
-
-const JUMP = { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003,
-  reverseKey: "~/.ssh/agent-m-jump", forwardKey: "~/.ssh/id_ed25519" };
-const BRIDGE_TOKEN = "bridgeTOKEN-0123456789abcdef";
-
-test("EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE — the lowest free port; a full range refuses and says so", () => {
-  assert.equal(nextFreePort(JUMP, []), 20001);
-  let list = addRemoteSession(JUMP, [], { name: "lab-pc", bridgePort: 8765, token: BRIDGE_TOKEN });
-  assert.deepEqual(list, [{ name: "lab-pc", port: 20001, bridgePort: 8765, token: BRIDGE_TOKEN }]);
-  list = addRemoteSession(JUMP, list, { name: "gpu", bridgePort: 8765, token: "" });
-  assert.equal(list[1].port, 20002, "the next free one");
-  // A freed port is the lowest free port again.
-  const gap = addRemoteSession(JUMP, [list[1]], { name: "third", bridgePort: 8765 });
-  assert.equal(gap[1].port, 20001);
-  // A port chosen by hand must lie in the range and be free.
-  assert.throws(() => addRemoteSession(JUMP, list, { name: "x", port: 20002, bridgePort: 1 }), /20002.*gpu/);
-  assert.throws(() => addRemoteSession(JUMP, list, { name: "x", port: 20009, bridgePort: 1 }), /20001–20003/);
-  assert.equal(addRemoteSession(JUMP, list, { name: "x", port: 20003, bridgePort: 1 })[2].port, 20003);
-  assert.throws(() => addRemoteSession(JUMP, list, { name: "lab-pc", bridgePort: 1 }), /already/);
-  // Counter-proof: a range with no free port refuses a new session and says so.
-  const full = addRemoteSession(JUMP, list, { name: "x", bridgePort: 1 });
-  assert.throws(() => nextFreePort(JUMP, full), /No free port.*20001–20003/);
-  assert.throws(() => addRemoteSession(JUMP, full, { name: "y", bridgePort: 1 }), /No free port/);
-  const ports = full.map((s) => s.port);
-  assert.equal(new Set(ports).size, ports.length, "no two sessions share a port");
-});
-
-test("the jump host's settings are checked — a host, user or key name that could change the command is refused", () => {
-  assert.equal(jumpHostProblem(JUMP), null);
-  assert.equal(jumpHostProblem({ ...JUMP, host: "10.0.0.7" }), null);
-  for (const bad of [{ host: "" }, { host: "-oProxyCommand=x" }, { host: "a b" }, { host: "jump;rm -rf ~" }, { user: "" }, { user: "a b" },
-    { user: "-l" }, { portFrom: 20003, portTo: 20001 }, { portFrom: 80 }, { portTo: 70000 }, { portFrom: "x" },
-    { reverseKey: "-----BEGIN OPENSSH PRIVATE KEY-----" }, { forwardKey: "~/.ssh/id ed" }, { reverseKey: "-i" }, { forwardKey: "a\nb" }]) {
-    assert.ok(jumpHostProblem({ ...JUMP, ...bad }), JSON.stringify(bad));
-  }
-  assert.throws(() => addRemoteSession({ ...JUMP, host: "" }, [], { name: "a", bridgePort: 1 }), /host/i);
-  for (const bad of [{ name: "" }, { name: "a|b" }, { bridgePort: 0 }, { bridgePort: 70000 }, { token: "has space" }]) {
-    assert.throws(() => addRemoteSession(JUMP, [], { name: "a", bridgePort: 8765, ...bad }), Error, JSON.stringify(bad));
-  }
-});
-
-test("THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the settings, matching each other", () => {
-  const s = addRemoteSession(JUMP, [], { name: "lab-pc", bridgePort: 8765, token: BRIDGE_TOKEN })[0];
-  const c = tunnelCommands(JUMP, s);
-  assert.equal(c.reverse, "ssh -N -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes " +
-    "-i ~/.ssh/agent-m-jump -R 127.0.0.1:20001:127.0.0.1:8765 agentm@jump.example.org");
-  assert.equal(c.forward, "ssh -N -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes " +
-    "-i ~/.ssh/id_ed25519 -L 127.0.0.1:20001:127.0.0.1:20001 agentm@jump.example.org");
-  assert.equal(c.url, "http://localhost:20001");
-  // A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK: the jump-host end is bound to 127.0.0.1 explicitly.
-  assert.match(c.reverse, / -R 127\.0\.0\.1:20001:/);
-  for (const cmd of [c.reverse, c.forward]) {
-    assert.deepEqual(tunnelBindProblems(cmd), []);
-    assert.doesNotMatch(cmd, /0\.0\.0\.0|\*|GatewayPorts|\s-g\s/);
-    assert.ok(!cmd.includes(BRIDGE_TOKEN), "no bridge token in a command");
-  }
-  // Without key file names the key option is left to ssh's defaults, and nothing else changes.
-  const bare = tunnelCommands({ ...JUMP, reverseKey: "", forwardKey: "" }, s);
-  assert.doesNotMatch(bare.reverse + bare.forward, / -i /);
-  assert.match(bare.reverse, / -R 127\.0\.0\.1:20001:127\.0\.0\.1:8765 agentm@jump\.example\.org$/);
-  // Counter-proof: every other bind address of either end is caught.
-  for (const bad of ["ssh -N -R 0.0.0.0:20001:127.0.0.1:8765 u@h", "ssh -N -R *:20001:127.0.0.1:8765 u@h",
-    "ssh -N -R :20001:127.0.0.1:8765 u@h", "ssh -N -R 20001:127.0.0.1:8765 u@h", "ssh -N -R 192.168.1.5:20001:127.0.0.1:8765 u@h",
-    "ssh -N -L 0.0.0.0:20001:127.0.0.1:20001 u@h", "ssh -N -L 20001:127.0.0.1:20001 u@h", "ssh -N -R 127.0.0.1:20001:10.0.0.2:8765 u@h",
-    "ssh -N -g -L 127.0.0.1:20001:127.0.0.1:20001 u@h", "ssh -N -o GatewayPorts=yes -R 127.0.0.1:20001:127.0.0.1:8765 u@h",
-    "ssh -N u@h"]) {
-    assert.ok(tunnelBindProblems(bad).length, bad);
-  }
-});
-
-test("THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS — stored under their keys, exported and imported, cleared by a clear", async () => {
-  const st = fakeStorage(), s = createStore(st);
-  assert.ok(KEYS.includes(JUMP_HOST_KEY) && KEYS.includes(REMOTE_SESSIONS_KEY));
-  s.setJumpHost(JUMP);
-  const sessions = addRemoteSession(JUMP, [], { name: "lab-pc", bridgePort: 8765, token: BRIDGE_TOKEN });
-  s.setRemoteSessions(sessions);
-  assert.deepEqual(s.getJumpHost(), JUMP);
-  assert.deepEqual(s.getRemoteSessions(), sessions);
-  assert.ok([...st.mem.keys()].every((k) => k.startsWith(PREFIX)));
-  // Exported with the bridge token, named in the notice; imported into an empty browser as they were.
-  const file = await exportSettings(s.entries(), { now: WHEN });
-  assert.ok(file.includes(BRIDGE_TOKEN));
-  assert.match(exportNotice(s.entries()), /bridge token/i);
-  const t = createStore(fakeStorage());
-  const m = mergeSettings(t.entries(), await readSettingsFile(file));
-  t.putEntries(m.put);
-  assert.deepEqual(t.getJumpHost(), JUMP);
-  assert.deepEqual(t.getRemoteSessions(), sessions);
-  // UC-042 6a: a session this browser has is kept; one whose port is taken here is not added, and both are listed.
-  const u = createStore(fakeStorage());
-  u.setJumpHost(JUMP);
-  u.setRemoteSessions([{ name: "lab-pc", port: 20003, bridgePort: 1, token: "mine" }, { name: "other", port: 20001, bridgePort: 1, token: "" }]);
-  const m2 = mergeSettings(u.entries(), await readSettingsFile(file));
-  u.putEntries(m2.put);
-  assert.deepEqual(u.getRemoteSessions().map((x) => [x.name, x.port, x.token]), [["lab-pc", 20003, "mine"], ["other", 20001, ""]]);
-  assert.ok(m2.kept.some((k) => /lab-pc/.test(k)));
-  // Counter-proof: a session that is new here but whose port a session of this browser uses is not added — no two share a port.
-  const w = createStore(fakeStorage());
-  w.setJumpHost(JUMP);
-  w.setRemoteSessions([{ name: "other", port: 20001, bridgePort: 1, token: "" }]);
-  const m3 = mergeSettings(w.entries(), await readSettingsFile(file));
-  w.putEntries(m3.put);
-  assert.deepEqual(w.getRemoteSessions().map((x) => x.name), ["other"]);
-  assert.ok(m3.kept.some((k) => /lab-pc.*20001/.test(k)), "and the page says why");
-  // A CLEAR IS A REAL CLEAR: clearing removes them from storage.
-  s.clearRemoteSession("lab-pc");
-  assert.deepEqual(s.getRemoteSessions(), []);
-  assert.equal(st.getItem(REMOTE_SESSIONS_KEY), null, "the last session cleared leaves no entry");
-  s.setRemoteSessions(sessions);
-  s.clear();
-  assert.equal(st.mem.size, 0);
-  assert.equal(s.getJumpHost(), null);
-});
-
-test("a remote session is tested by asking whether anything answers at its local port — no token, nothing else", async () => {
-  const seen = [];
-  const ok = await withFetch(async (u, init) => { seen.push([String(u), init]); return new Response(null, { status: 200 }); },
-    () => probeLocalPort(20001));
-  assert.equal(ok, true);
-  assert.equal(seen[0][0], "http://localhost:20001/");
-  assert.equal(seen[0][1].mode, "no-cors");
-  assert.equal(seen[0][1].credentials, "omit");
-  assert.deepEqual(seen[0][1].headers ?? {}, {}, "no token, no header");
-  const down = await withFetch(async () => { throw new TypeError("Failed to fetch"); }, () => probeLocalPort(20001));
-  assert.equal(down, false);
-  for (const bad of [0, 70000, "20001/../x", "1e3", null]) await assert.rejects(probeLocalPort(bad), /port/, String(bad));
-});
-
-// ---------------------------------------------------------------- collaborators by the account syntax of the product's server
-
-test("A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — a GitLab product accepts GitLab user names, a GitHub product GitHub's", () => {
-  const add = { name: "Ann Lee", agreed: "2026-09-30", consent: true };
-  // GitLab: letters, digits, '_', '-', '.'; not starting with '-', not ending in '.', '.git' or '.atom' (lib/gitlab/path_regex.rb).
-  for (const a of ["ann.lee", "ann_lee", "a", "_x", "ann-lee.2"]) {
-    assert.equal(addCollaborator([], { ...add, account: a, gitlab: true }).at(-1).account, a, a);
-  }
-  for (const a of ["-ann", "ann.", "ann.git", "ann.atom", "ann lee", "ann@x"]) {
-    assert.throws(() => addCollaborator([], { ...add, account: a, gitlab: true }), /GitLab/, a);
-  }
-  // GitHub stays as it was: no '.' or '_'.
-  for (const a of ["ann.lee", "ann_lee", "-ann"]) assert.throws(() => addCollaborator([], { ...add, account: a }), /GitHub/, a);
-  assert.equal(addCollaborator([], { ...add, account: "ann-lee" }).at(-1).account, "ann-lee");
-  // The file keeps such names: a GitLab name with '.' and '_' survives formatting and parsing.
-  const list = [{ name: "Ann Lee", account: "ann.lee_2", agreed: "2026-09-30" }];
-  assert.deepEqual(parseCollaborators(formatCollaborators(list, "grp/proj")), list);
-});
+const FOLDER = new URL("./review-core.d/", import.meta.url);
+for (const f of readdirSync(FOLDER).filter((n) => n.endsWith(".mjs")).sort()) await import(new URL(f, FOLDER));
