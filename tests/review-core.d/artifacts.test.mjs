@@ -2,7 +2,7 @@
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
 // Module: MOD-artifacts
-// Guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER; UC-008
+// Guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER; A FINDING READS LIKE A COMPILER MESSAGE; UC-008
 // Level: unit
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
@@ -37,19 +37,35 @@ test("reviewedId: a reviewed file's identifier from its path — the same for a 
   assert.deepEqual(recordsForId(recs, "UC-010"), [recs[0]], "only the records of that identifier, and no SPEC record");
 });
 
-// ---------------------------------------------------------------- an edited use case keeps its identifier (ITM-010)
+// ---------------------------------------------------------------- an edited use case keeps its identifier (ITM-010, ITM-126)
 // AN EDITED FILE KEEPS ITS IDENTIFIER for a use case, as tests/architecture.test.mjs checks it for ARC and MOD files through
-// saveReviewedFile. Counter-proof: docs/measurements/2026-10-01_use-case-checks.md.
+// saveReviewedFile. Counter-proofs: docs/measurements/2026-10-01_use-case-checks.md, and for the finding's shape (ITM-126)
+// docs/measurements/2026-10-01_identifier-kept-finding.md.
+//
+// A FINDING READS LIKE A COMPILER MESSAGE: identifierKept returns null or a finding of the one shape of MOD-artifacts —
+// { artifact, line, kind, what, rule, fix } — naming the rule, the line of the `id`, what is wrong and the fix; the sentence a
+// person reads is written by the dashboard from it (ARC-003 decision 5).
 
-test("AN EDITED FILE KEEPS ITS IDENTIFIER — a use case whose text carries another identifier, or none, is refused", () => {
+const KEPT = "AN EDITED FILE KEEPS ITS IDENTIFIER";
+
+test("AN EDITED FILE KEEPS ITS IDENTIFIER — a use case whose text carries another identifier, or none, is refused with a finding", () => {
   const text = readFileSync(new URL("../fixtures/use-cases/UC-001-complete.md", import.meta.url), "utf8");
-  assert.equal(identifierKept("UC-001", text), null);
+  assert.equal(identifierKept("UC-001", text), null, "the same identifier: no finding");
   assert.equal(identifierKept("UC-001", text.replace("Export the list", "Export the whole list")), null, "an edit keeping the id passes");
-  for (const [edited, now] of [[text.replace("id: UC-001", "id: UC-002"), "UC-002"], [text.replace("id: UC-001\n", ""), "(none)"]]) {
-    const refused = identifierKept("UC-001", edited);
-    assert.equal(typeof refused, "string");
-    assert.match(refused, /opened as UC-001/);
-    assert.ok(refused.includes(`identifier ${now}`), refused);
-  }
+  // Another identifier: the finding names the line of the `id` (line 2, under the opening ---).
+  assert.deepEqual(identifierKept("UC-001", text.replace("id: UC-001", "id: UC-002")), {
+    artifact: "UC-001", line: 2, kind: "error", rule: KEPT,
+    what: "the file was opened as UC-001, but the text carries the identifier UC-002",
+    fix: "put back id: UC-001; a new identifier is a new file, proposed as such.",
+  });
+  // The `id` line further down the front matter: the finding names that line.
+  assert.equal(identifierKept("UC-001", text.replace("id: UC-001\n", "").replace("\n---\n", "\nid: UC-003\n---\n")).line,
+    text.slice(0, text.indexOf("\n---\n", 4)).split("\n").length, "the line of the moved id");
+  // No identifier: there is no `id` line, so the finding names line 1.
+  assert.deepEqual(identifierKept("UC-001", text.replace("id: UC-001\n", "")), {
+    artifact: "UC-001", line: 1, kind: "error", rule: KEPT,
+    what: "the file was opened as UC-001, but the text carries no identifier",
+    fix: "put back id: UC-001; a new identifier is a new file, proposed as such.",
+  });
   assert.equal(identifierKept(null, "## 1\n"), null, "a file without an identifier, such as a SPEC proposal, is not checked");
 });
