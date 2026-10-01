@@ -15,15 +15,18 @@ import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 import { browserStore, fileTexts, exportSettings, readSettingsFile, mergeSettings } from "./settings-store.mjs";
 import {
-  fetchText, gitBlobSha, deriveTarget, parseProductAddress, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
-  tokenLinkUrl, repositoryChoiceSteps, stepHtml, addProduct, writeFiles, writeRoute, isGitLab, gitlabAuth,
-  gitlabProject, gitlabSnapshot, gitlabReadFile, gitlabTokenPageUrl, gitlabTokenSteps, gitlabNoProjectTokens,
-  gitlabWriteRefusal, webFileUrl,
-  tokenListUrl, extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
-  specRecord, newFileUrl, editUrl, parseQueueIndex,
+  fetchText, parseProductAddress, writeFiles, writeRoute, isGitLab, gitlabAuth, gitlabProject, gitlabSnapshot, gitlabReadFile,
+  gitlabTokenPageUrl, webFileUrl, tokenListUrl, newFileUrl, editUrl, tokenRefusal,
+} from "./git-host.mjs";
+import {
+  gitBlobSha, deriveTarget, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, addProduct, gitlabTokenSteps, gitlabNoProjectTokens,
+  gitlabWriteRefusal,
+  extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
+  specRecord, parseQueueIndex,
   parseDecisions, acceptItems, createReviewSession, sectionForEntry, readByBlob, recordIndex, statusByNames, specStatusByNames,
   missingNeeds, itemLabel, needsMessage,
-  browserSettingsHtml, tokenBannerHtml, tokenRefusal, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
+  browserSettingsHtml, tokenBannerHtml, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
   PASSPHRASE_NOTICE, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
   pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
   addCollaborator, removeCollaborator, saveCollaborators, gitlabRole,

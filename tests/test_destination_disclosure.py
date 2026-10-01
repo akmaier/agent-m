@@ -6,9 +6,9 @@ from jsrun import js
 
 class DestinationDisclosure(unittest.TestCase):
     def test_disclosed_destinations_match_where_the_token_may_go(self):
-        v = js("return [core.TOKEN_DESTINATIONS, core.authHeaders('https://api.github.com/x', 't'),"
-               " core.authHeaders('https://raw.githubusercontent.com/x', 't'),"
-               " core.authHeaders('https://example.org/x', 't'), core.authHeaders('https://api.github.com/x', null)];")
+        v = js("return [gitHost.TOKEN_DESTINATIONS, gitHost.authHeaders('https://api.github.com/x', 't'),"
+               " gitHost.authHeaders('https://raw.githubusercontent.com/x', 't'),"
+               " gitHost.authHeaders('https://example.org/x', 't'), gitHost.authHeaders('https://api.github.com/x', null)];")
         dests, api, raw, other, none = v
         self.assertEqual(dests, ["https://api.github.com"])
         self.assertEqual(api, {"Authorization": "Bearer t"})

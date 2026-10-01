@@ -19,9 +19,10 @@ import {
   gitBlobSha, reviewedId, recordsForId, approvalPath, recordText, parseRecord, reviewedRecord, kindOfPath,
   deriveReviewedStatus, deriveUseCaseStatus, parseArchitecture, specRequirements, architecturePrerequisites,
   prerequisitesHtml, isCodePath, isTestPath, headerModules, moduleHeaders, impactList, impactHtml, componentDiagram,
-  acceptItems, planAcceptance, createReviewSession, saveReviewedFile, lastAccepted, changedLines, parseProductAddress,
+  acceptItems, planAcceptance, createReviewSession, saveReviewedFile, lastAccepted, changedLines,
   useCaseRecord, ARCHITECTURE_FILE,
 } from "../docs/assets/review-core.mjs";
+import { parseProductAddress } from "../docs/assets/git-host.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const files = {};

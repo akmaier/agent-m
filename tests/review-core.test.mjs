@@ -10,9 +10,10 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import {
   gitBlobSha, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
-  specRecord, newFileUrl, editUrl, extractSection, sectionText, parseQueueIndex, parseDecisions,
-  deriveUseCaseStatus, deriveSpecStatus, fetchText, ALLOWED_ORIGINS, MAX_URL_VALUE,
+  specRecord, extractSection, sectionText, parseQueueIndex, parseDecisions,
+  deriveUseCaseStatus, deriveSpecStatus,
 } from "../docs/assets/review-core.mjs";
+import { newFileUrl, editUrl, fetchText, ALLOWED_ORIGINS, MAX_URL_VALUE } from "../docs/assets/git-host.mjs";
 
 const gitHash = (s) => execFileSync("git", ["hash-object", "--stdin"], { input: s }).toString().trim();
 
@@ -192,8 +193,9 @@ test("the app never calls fetch directly — every request goes through fetchTex
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
 
 import {
-  tokenLinkUrl, repositoryChoiceSteps, stepHtml, commitFiles, missingLayout,
+  tokenLinkUrl, repositoryChoiceSteps, stepHtml, missingLayout,
 } from "../docs/assets/review-core.mjs";
+import { commitFiles } from "../docs/assets/git-host.mjs";
 
 const click = { isTrusted: true };
 
@@ -306,7 +308,8 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
 // THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER · A PRODUCT IS NAMED BY ITS ADDRESS ·
 // ADDING A PRODUCT CREATES ITS LAYOUT (and writes nothing into the instance repository)
 
-import { parseProductAddress, addProduct } from "../docs/assets/review-core.mjs";
+import { addProduct } from "../docs/assets/review-core.mjs";
+import { parseProductAddress } from "../docs/assets/git-host.mjs";
 import { createStore, PREFIX } from "../docs/assets/settings-store.mjs";
 
 function fakeStorage() {
@@ -410,7 +413,8 @@ test("every site module parses — the app itself is only run in a browser, so c
 
 // ---------------------------------------------------------------- token at instance setup (UC-014), extended in UC-001
 
-import { tokenListUrl, extendTokenSteps } from "../docs/assets/review-core.mjs";
+import { extendTokenSteps } from "../docs/assets/review-core.mjs";
+import { tokenListUrl } from "../docs/assets/git-host.mjs";
 
 test("UC-014: setup names only the instance", () => {
   const s = repositoryChoiceSteps("reader/agent-m", null);
@@ -592,10 +596,11 @@ test("an entry already written in the queue's decisions is not written twice", a
 // PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
 
 import {
-  tokenRefusal, parseProductSettings,
+  parseProductSettings,
   setProductSetting, pseudonymisationOn, savePseudonymisation, parseCollaborators, formatCollaborators,
   addCollaborator, removeCollaborator, saveCollaborators,
 } from "../docs/assets/review-core.mjs";
+import { tokenRefusal } from "../docs/assets/git-host.mjs";
 import {
   TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, exportSettings, readSettingsFile, mergeSettings, PBKDF2_ITERATIONS,
 } from "../docs/assets/settings-store.mjs";
@@ -787,10 +792,13 @@ test("status 'approved' is described truly for both routes — the dashboard's o
 // (doc/api/repositories.md, repository_files.md, commits.md, branches.md); no request leaves this process.
 
 import {
-  gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute,
-  gitlabTokenPageUrl, gitlabTokenSteps, gitlabNoProjectTokens, gitlabWriteRefusal, webFileUrl, deriveTarget,
-  expiryWarning, tokenBannerHtml, exportNotice, authHeaders, gitlabRole,
+  gitlabTokenSteps, gitlabNoProjectTokens, gitlabWriteRefusal, deriveTarget,
+  expiryWarning, tokenBannerHtml, exportNotice, gitlabRole,
 } from "../docs/assets/review-core.mjs";
+import {
+  gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute,
+  gitlabTokenPageUrl, webFileUrl, authHeaders,
+} from "../docs/assets/git-host.mjs";
 import { GITLAB_TOKENS_KEY } from "../docs/assets/settings-store.mjs";
 
 const GL = "https://gitlab.example.org";
