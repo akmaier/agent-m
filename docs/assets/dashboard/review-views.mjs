@@ -200,8 +200,51 @@ export function editPanel(app, path, text, blob) {
       <button class="btn" data-edit-reset>Reset</button>
     </p>
     <p class="result muted"></p>
+    <div class="edit-newer"></div>
     <div class="edit-diff"></div>
   </section>`.replace('data-edit-save="', `data-edit-blob="${h(blob || "")}" data-edit-save="`);
+}
+
+// A REFUSED SAVE KEEPS THE EDIT: a save the write path refused because the file on the branch is no longer the text the editor
+// opened (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE — git-host.mjs commitFiles, commitFilesGitLab: "<path> changed since
+// you opened it"). Any other refusal — the identifier, a permission, a limit — is not one: the file did not change.
+const changedMeanwhile = (e, path) => String(e?.message ?? "").startsWith(`${path} changed since you opened it`);
+
+// The newer version beside the edit, which stays in the editor: read once, at the branch (readAt — the dashboard's reader of a
+// file at a commit or branch), and kept in this browser by its blob SHA, where the next page that shows this commit's file finds
+// it without reading it again (fileText, readByBlob). Shown in full beside the edit as saved, with the difference between them.
+async function showNewer(app, ed, path, edited) {
+  const { T, SERVER, kept, REPO_KEY, diffHtml } = app;
+  const box = ed.querySelector(".edit-newer");
+  if (!box) return;
+  box.innerHTML = `<p class="muted">Reading the newer version on ${h(T.ref)}…</p>`;
+  try {
+    const text = await app.readAt(T.ref, path);
+    if (text === null) {
+      box.innerHTML = `<h4>Newer version on ${h(T.ref)}</h4><p class="warn"><code>${h(path)}</code> was deleted on ${h(T.ref)} after
+        you opened the editor. Your edit stays in the editor; copy it before you reload.</p>`;
+      return;
+    }
+    const blob = await gitBlobSha(text);
+    try { await kept.put(`${REPO_KEY}/${blob}`, text); } catch { /* not kept: the next page reads it again */ }
+    box.innerHTML = `<h4>Newer version on ${h(T.ref)}</h4>
+      <p class="muted small">Nothing was saved: <code>${h(path)}</code> was changed on ${h(T.ref)} after you opened the editor —
+        it is now blob <code>${h(blob.slice(0, 12))}</code>. Your edit stays in the editor; the newer text is beside it.</p>
+      <div class="side">
+        <section><h3>Your edit, as you saved it</h3><pre class="record">${h(edited)}</pre></section>
+        <section><h3>Newer version on ${h(T.ref)}</h3><pre class="record">${h(text)}</pre></section>
+      </div>
+      <h4>Difference — from the newer version to your edit</h4>
+      ${diffHtml(text, edited)}
+      <details class="explain"><summary>What is this?</summary><div>Someone — a person or a workflow — committed to this file on
+        ${h(SERVER)} after you opened the editor. Saving would have overwritten their change, so nothing was written
+        (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE). Your edit is not lost: it stays in the editor above. Lines marked
+        <em>-</em> are in the newer version only, lines marked <em>+</em> in your edit only. To save, copy your edit, reload the
+        page, open the editor on the newer text and carry your changes over.</div></details>`;
+  } catch (e) {
+    app.noteRefusal(e);
+    box.innerHTML = `<p class="warn">The newer version could not be read: ${h(app.errorText(e))}</p>`;
+  }
 }
 
 // ---------------------------------------------------------------- ticks and acceptance (UC-006 4d, UC-008 3d)
@@ -308,7 +351,12 @@ export function wireCommon(app, root, original, openedId = null) {
         openedId, expectBlob: b.dataset.editBlob || null });
       out.innerHTML = `Saved — <a href="${h(c.url)}" target="_blank" rel="noopener">commit ${h(c.sha.slice(0, 7))}</a>. Reloading…`;
       await app.reloadAndRoute();
-    } catch (e) { app.noteRefusal(e); out.textContent = app.writeErrorText(e); b.disabled = false; }
+    } catch (e) {
+      app.noteRefusal(e);
+      out.textContent = app.writeErrorText(e);
+      b.disabled = false;
+      if (changedMeanwhile(e, b.dataset.editSave)) await showNewer(app, ed, b.dataset.editSave, text);
+    }
   });
   ed.querySelector("[data-edit-commit]")?.addEventListener("click", async (ev) => {
     const text = ta.value.endsWith("\n") ? ta.value : ta.value + "\n";
