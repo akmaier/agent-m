@@ -1,0 +1,39 @@
+{
+  "realises-nothing.md": [
+    [6, "error", "A BACKLOG ITEM NAMES WHAT IT REALISES", "the item realises nothing"]
+  ],
+  "realises-missing.md": [
+    [1, "error", "A BACKLOG ITEM NAMES WHAT IT REALISES", "the item realises nothing"]
+  ],
+  "realises-scalar.md": [
+    [6, "error", "A BACKLOG ITEM NAMES WHAT IT REALISES", "realises is not a list"]
+  ],
+  "unknown-requirement.md": [
+    [7, "error", "A BACKLOG ITEM NAMES WHAT IT REALISES", "realises \"EXPORT AS PDF\" matches no requirement"]
+  ],
+  "unknown-use-case.md": [
+    [8, "error", "A BACKLOG ITEM NAMES WHAT IT REALISES", "realises \"UC-009\" matches no use case"]
+  ],
+  "not-a-name.md": [
+    [7, "error", "A BACKLOG ITEM NAMES WHAT IT REALISES", "realises \"export is a pdf\" is neither a requirement name nor a use case"],
+    [8, "error", "A BACKLOG ITEM NAMES WHAT IT REALISES", "realises \"MOD-export\" is neither a requirement name nor a use case"]
+  ],
+  "no-origin.md": [
+    [1, "error", "EVERY ARTIFACT NAMES ITS ORIGIN", "the item names no origin"]
+  ],
+  "empty-origin.md": [
+    [13, "error", "EVERY ARTIFACT NAMES ITS ORIGIN", "the item names no origin"]
+  ],
+  "no-id.md": [
+    [1, "error", "EVERY ARTIFACT HAS AN IDENTIFIER", "the item has no id"]
+  ],
+  "id-mismatch.md": [
+    [2, "error", "EVERY ARTIFACT HAS AN IDENTIFIER", "id \"ITM-015\" does not match the file name (ITM-014)"]
+  ],
+  "no-title.md": [
+    [1, "error", "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY", "the item has no title"]
+  ],
+  "no-front-matter.md": [
+    [1, "error", "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY", "the item has no front matter"]
+  ]
+}
