@@ -8,15 +8,16 @@
 import { canStore } from "../review-core.mjs";
 import {
   h, sharedOriginNotice, tokenLinkUrl, repositoryChoiceSteps, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, reachLine,
+  GITHUB_PERMISSIONS,
 } from "./settings-view.mjs";
 
 const EXPLAIN = {
   token: `A <em>token</em> is a key you create on GitHub and give to this page, so it can make commits for you — only in
     the repositories you select, only with the permissions Agent M's features need, and only until the date you
     choose. You can delete it on GitHub at any time; it then stops working immediately.<br><br>
-    <strong>Why these permissions?</strong> <em>Contents</em> (read and write) to save and accept — each is a commit;
-    <em>Issues</em> (read and write) for reports that become issues; <em>Actions</em> (read and write) to start a run;
-    <em>Metadata</em> (read), which GitHub requires for every token. One key covers all of them, so you create only one.<br><br>
+    <strong>Why these permissions?</strong> ${GITHUB_PERMISSIONS.map((p) =>
+      `<em>${h(p.permission)}</em> (${p.access === "read" ? "read" : "read and write"}): ${h(p.why)}`).join("; ")}.
+    One key covers all of them, so you create only one.<br><br>
     <strong>Why “Only select repositories”?</strong> GitHub preselects “All repositories”. That would let this page write
     to every repository you own. Choosing the two repositories named above limits it to what Agent M actually needs.`,
   store: `The token is saved in this browser only (its <code>localStorage</code>), never in a cookie, never in an

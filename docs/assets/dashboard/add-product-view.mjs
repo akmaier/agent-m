@@ -7,10 +7,10 @@
 // them are plain functions.
 
 import { canStore, addProduct } from "../review-core.mjs";
-import { parseProductAddress, isGitLab, gitlabTokenPageUrl, tokenListUrl } from "../git-host.mjs";
+import { parseProductAddress, isGitLab, gitlabTokenPageUrl, tokenListUrl, requiredPermissions } from "../git-host.mjs";
 import {
   h, sharedOriginNotice, tokenLinkUrl, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, checkGitLab, reachLine,
-  gitlabTokenProblem, today,
+  gitlabTokenProblem, today, GITHUB_PERMISSIONS, permissionLabel,
 } from "./settings-view.mjs";
 import { createKeyStep, storeKeyStep, wireStoreKey } from "./setup-view.mjs";
 
@@ -21,17 +21,20 @@ export function extendTokenSteps(instance, product) {
   return [
     `Click the token “${name}”, then “Edit”.`,
     `Under “Repository access” → “Select repositories”, add “${product}” — keep “${instance}” selected.`,
+    `Under “Permissions”, check that the token has ${GITHUB_PERMISSIONS.map(permissionLabel).join(", ")} — ` +
+      "a token created before Agent M asked for all of them may lack some; add what is missing.",
     "Press “Update” at the bottom. The token itself stays the same — nothing to copy, nothing to paste here.",
   ];
 }
 
 // UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the steps on the page gitlabTokenPageUrl (git-host.mjs) opens.
 export function gitlabTokenSteps(product) {
+  const GL = requiredPermissions(product).gitlab;
   return [
     `The button opens Settings → Access tokens of ${product.repo} on ${product.host}; there, press “Add new token”.`,
     "Token name: Agent M.",
     `Expiration date: a date of your choice — ${TOKEN_DAYS} days from today is a good default. Enter the same date below.`,
-    "Select a role: Maintainer — GitLab lets only Maintainers push to a protected default branch. Select scopes: api — nothing else.",
+    `Select a role: ${GL.role} — GitLab lets only Maintainers push to a protected default branch. Select scopes: ${GL.scope} — nothing else.`,
     "Press “Create project access token” and copy the token GitLab now shows — it starts with glpat- and is shown only once.",
   ];
 }
