@@ -106,6 +106,12 @@ class TestTheStateOfAnItem(unittest.TestCase):
 
     def test_counter_proof_the_pull_requests_and_jobs_of_another_item_change_nothing(self):
         got = self.state(prs=[pr(7, "ITM-016", state="merged"), pr(8, "ITM-017")], jobs=[job("JOB-a", "ITM-015", "failed")])
+        # Its own state stays ready; the two others hold the two slots of the limit, which refuses its start.
+        self.assertEqual((got["state"], kinds(got)), ("ready", ["wip-limit"]))
+        self.assertEqual([i["id"] for i in got["reasons"][0]["inProgress"]], ["ITM-015", "ITM-017"])
+
+    def test_counter_proof_a_pull_request_naming_a_longer_identifier_is_not_the_items(self):
+        got = self.state(prs=[pr(7, "x", head="team/ITM-0145", title="ITM-0145: another"), pr(8, "x", head="x/ITM-0147")])
         self.assertEqual(got, {"state": "ready", "reasons": []})
 
     def test_what_is_happening_is_shown_before_what_is_not_accepted(self):

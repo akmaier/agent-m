@@ -40,8 +40,9 @@ const finding = (artifact, line, kind, rule, what, fix) => ({ artifact, line, ki
 
 // Front matter: { fields: { key: { value: string | [string], line, items: [line] } }, end } — `end` is the index of the
 // line after the closing "---", 0 without front matter. A key with no value followed by "  - " lines is a list; `[]` is
-// the empty list; an empty value is "".
-function frontMatter(lines) {
+// the empty list; an empty value is "". Exported for the sprint records of work-items/flow.mjs, which share the form; it is
+// no interface of the module (ARC-020 decision 6).
+export function frontMatter(lines) {
   if (lines[0] !== "---") return { fields: {}, end: 0 };
   const fields = {};
   let last = null;
