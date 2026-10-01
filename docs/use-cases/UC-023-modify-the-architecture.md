@@ -70,7 +70,9 @@ after.
    - the requirements and use cases the changed file names — and those it no longer names.
 5. The reviewer presses **Accept** — one click. The dashboard commits the approval record under the
    reviewer's own account (UC-008 step 4). Accepting a change to the architecture does not change any
-   code.
+   code. A change that touches many files — a restructuring — is accepted on the architecture's review
+   page instead (UC-008 3e): every changed file with its difference and its impact list, every new file in
+   full, every withdrawn file with its note, and **Accept all N shown** for all of them in one commit.
 6. Agent M lists the affected modules with **Implement** next to each, which starts UC-024 with the
    module preselected.
 

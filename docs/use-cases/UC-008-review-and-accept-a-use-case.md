@@ -75,6 +75,11 @@ sequenceDiagram
 - **3d. The reviewer has read several use cases.** Each one read gets a tick; **Accept ticked** writes
   one commit with one record per ticked file, each naming the text that was shown. A file that changed
   after it was shown is left out and named.
+- **3e. The reviewer wants to accept every open use case at once.** **Review all** opens one page with
+  every open or changed use case in sequence — a changed one as its difference to the last accepted text
+  (2a), a new one in full. Below them, **Accept all N shown** — one click — writes one commit with one
+  record per use case on the page, each naming the text shown there. A use case that changed after the
+  page was built is left out and named.
 - **2a. The use case changed since it was last accepted.** Above the text, the dashboard shows the
   difference to the text the most recent approval record for this identifier names — also when the file
   was renamed since. The reviewer reads only what changed and accepts as in step 3.

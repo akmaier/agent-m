@@ -120,8 +120,10 @@ relationships … and the principles guiding its design and evolution" (book ch.
    - a duplicate adds its forcing requirements or use cases to the existing decision.
 
    Every file records Agent M version, participant, model and date.
-10. The author accepts each decision and module on its own, as a use case is accepted (UC-008). **Accept**
-    is enabled only when every requirement and use case the file names is accepted.
+10. The author accepts each decision and module on its own, as a use case is accepted (UC-008), or all of
+    them at once on the architecture's review page (UC-008 3e). **Accept** is enabled only when every
+    requirement and use case the file names is accepted; on the review page, a file for which that does not
+    hold is shown, left out of **Accept all N shown**, and named with what is still open.
 
 ```mermaid
 sequenceDiagram
