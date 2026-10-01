@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { repoServer, openDashboard, REPO } from "../app-harness.mjs";
 import { gitBlobSha, recordText, useCaseRecord, specRecord, approvalPath, createReviewSession } from "../../docs/assets/review-core.mjs";
 import { newFileUrl, parseProductAddress } from "../../docs/assets/git-host.mjs";
-import { acceptPanel } from "../../docs/assets/dashboard/review-views.mjs";
+import { acceptPanel, githubPath } from "../../docs/assets/dashboard/review-views.mjs";
 import * as shell from "../../docs/assets/dashboard-app.mjs";
 import { B_SPEC, B_P05, B_INDEX, QD, GL_ADDR } from "./helpers.mjs";
 
@@ -124,18 +124,15 @@ function panelApp(product, repo) {
   return { T, GITLAB: product.kind === "gitlab", SERVER: product.kind === "gitlab" ? product.host : "GitHub",
     session: createReviewSession(), token: () => "a-stored-token" };
 }
-const githubPageOf = (html) => {
-  const m = /\sdata-github-page="([^"]*)"/.exec(html);
-  return m ? unesc(m[1]) : null;
-};
 
 test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN: a GitLab product's refused write offers no GitHub page — its refusal is GitLab's", async () => {
   const p = parseProductAddress(GL_ADDR);
   const blob = await gitBlobSha(UC2_TEXT);
-  const html = acceptPanel(panelApp(p, p.repo), useCaseRecord(UC2, blob), approvalPath("UC-002", blob), "UC-002",
-    { kind: "use-case", id: "UC-002", path: UC2, blob });
+  const app = panelApp(p, p.repo), rec = useCaseRecord(UC2, blob), path = approvalPath("UC-002", blob);
+  const html = acceptPanel(app, rec, path, "UC-002", { kind: "use-case", id: "UC-002", path: UC2, blob });
   assert.match(html, /data-accept-key/, "Accept is offered, with the project's token");
-  assert.equal(githubPageOf(html), null, "no GitHub page to fall back to");
+  assert.equal(githubPath(app, rec, path), null, "no GitHub page to fall back to");
+  assert.doesNotMatch(html, /github\.com/);
   const e = Object.assign(new Error("POST /api/v4/projects/x/repository/commits: 403 Forbidden"), { status: 403 });
   assert.equal(shell.writeAccessRefused(e, p), false, "GitLab's 403 is not the GitHub path's refusal");
   assert.match(shell.writeRefusalText(e, p), /GitLab refused the write/);
@@ -148,12 +145,14 @@ test("UC-006 4c: a product's SPEC change refused for missing write access offers
   const path = approvalPath(`spec-${QD.split("/").pop()}-05`, blob);
   const item = { kind: "spec", queue: QD, nr: 5 };
   const product = parseProductAddress("https://github.com/alice/thesis-tool");
-  const forProduct = acceptPanel(panelApp(product, "alice/thesis-tool"), rec, path, "entry 05", item);
-  assert.match(forProduct, /data-accept-key/, "Accept is offered, with the token");
-  assert.equal(githubPageOf(forProduct), null, "no product carries the workflow that would apply a record committed on GitHub's page");
+  const forProduct = panelApp(product, "alice/thesis-tool");
+  assert.match(acceptPanel(forProduct, rec, path, "entry 05", item), /data-accept-key/, "Accept is offered, with the token");
+  assert.equal(githubPath(forProduct, rec, path), null, "no product carries the workflow that would apply a record committed on GitHub's page");
+  // A product's use case keeps its GitHub path (UC-008 3b): only the SPEC change is held back.
+  const ucBlob = await gitBlobSha(UC2_TEXT);
+  assert.ok(githubPath(forProduct, useCaseRecord(UC2, ucBlob), approvalPath("UC-002", ucBlob))?.startsWith("https://github.com/alice/thesis-tool/new/"));
   const own = parseProductAddress(`https://github.com/${REPO}`);
-  const forInstance = acceptPanel(panelApp(own, REPO), rec, path, "entry 05", item);
-  assert.equal(githubPageOf(forInstance), newFileUrl(REPO, "main", path, recordText(rec)), "the instance's workflow applies it");
+  assert.equal(githubPath(panelApp(own, REPO), rec, path), newFileUrl(REPO, "main", path, recordText(rec)), "the instance's workflow applies it");
 });
 
 test("writeAccessRefused: GitHub's 403 or 404 on a write is missing write access; counter-proof: a used-up limit, a 401 and another error are not", () => {
