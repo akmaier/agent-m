@@ -402,4 +402,8 @@ test("Agent M's own sprint 02: its goal, branch, closer and planner, the limit o
   const warm = await openDashboard({ server, hash: "#backlog", caches });
   t.diagnostic(`Agent M's own sprint 02, warm load: ${warm.requests.length} requests (${warm.requests.join(", ").replace(/handler GET \S+/g, "pull requests")})`);
   assert.equal(warm.main(), html);
+  const unfolded = await warm.click('[data-unfold="backlog"]');
+  assert.equal(files(unfolded).length, Object.keys(repo).filter((p) => /^docs\/backlog\/ITM-/.test(p)).length - selection.length);
+  t.diagnostic(`Agent M's own backlog unfolded: ${unfolded.length} requests (${files(unfolded).length} item files, ` +
+    `${pulls(unfolded).length} pages of pull requests: ${pulls(unfolded).map((r) => params(r).get("base")).join(", ")})`);
 });
