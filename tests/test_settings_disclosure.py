@@ -53,6 +53,15 @@ class ExportDisclosure(unittest.TestCase):
         empty = js("return settingsView.exportNotice({});")
         self.assertNotIn("GitHub token", empty, "counter-proof: a token that is not stored is not claimed")
 
+    def test_the_github_grant_names_every_write_of_the_one_token(self):
+        """ONE GITHUB TOKEN SERVES EVERY FEATURE: the one token writes commits, issues, pull requests and workflow runs, and
+        the export notice says so for each of them (ITM-125)."""
+        n = js("return settingsView.exportNotice({ [store.TOKEN_KEY]: 'github_pat_x' });")
+        grant = re.search(r"GitHub token, which (.*?) to every repository", n)
+        self.assertIsNotNone(grant, f"the notice states what the GitHub token grants: {n!r}")
+        for write in ("commits", "issues", "pull requests", "workflow runs"):
+            self.assertIn(write, grant.group(1), f"the GitHub token's grant names {write}")
+
     def test_a_forgotten_passphrase_is_stated_before_saving(self):
         self.assertIn("cannot be recovered", js("return settingsView.PASSPHRASE_NOTICE;"))
         app = dashboard_text()
