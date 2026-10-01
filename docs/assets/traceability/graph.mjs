@@ -18,11 +18,14 @@ import { isCodePath, kindOfPath, parseArchitecture } from "../artifacts.mjs";
 import { parseRequirements } from "../artifacts/requirements.mjs";
 import { parseUseCase } from "../artifacts/use-cases.mjs";
 import { headerTags } from "../artifacts/headers.mjs";
+import { parseQueueIndex, sectionForEntry } from "../review-core.mjs";
 
 const SPEC = "SPEC.md";
 // A queue entry of SPEC changes: docs/spec-freigaben/<queue>/<nn>-<slug>.md — not its rationale, index or decisions.
 const QUEUE_ENTRY = /^docs\/spec-freigaben\/[^/]+\/\d{2}-[^/]+\.md$/;
 const isQueueEntry = (path) => QUEUE_ENTRY.test(path) && !/\.begruendung\.md$/.test(path);
+const queueOf = (path) => path.slice(0, path.lastIndexOf("/"));
+const entryNr = (path) => Number(/\/(\d{2})-[^/]+\.md$/.exec(path)[1]);
 // An entry the approval engine found decided proposes nothing any more.
 const DECIDED = new Set(["applied", "superseded"]);
 
@@ -37,8 +40,9 @@ const same = (a, b) => FIELDS.every((k) => (a[k] ?? null) === (b[k] ?? null));
 // ---------------------------------------------------------------- the graph
 
 // linkGraph(snapshot) -> { nodes, edges, unknown, withdrawn } — snapshot: the files of one commit as
-//   files    { path: text } — SPEC.md, the queue entries, the use cases, the decisions and modules, code and tests; any other
-//            file is not read (a matrix kept by hand among them included);
+//   files    { path: text } — SPEC.md, the queue entries, the use cases, the decisions and modules, code and tests, and a
+//            queue's index.md, which names the section each of its entries replaces; any other file is not read (a matrix kept
+//            by hand among them included);
 //   headers  [{ path, modules, guards?, test }] — optional: the header lines of code files whose texts the caller did not keep
 //            (traceability.mjs moduleHeaders gives them); a path among `files` is read from its text instead;
 //   status   { [identifier or queue entry path]: status } — optional: the status the approval engine derived for a use case,
@@ -66,6 +70,25 @@ export function linkGraph(snapshot = {}) {
       status: "accepted" };
   }
 
+  // The live requirements of the SPEC section an entry replaces, by name — read only when the queue's index.md is among the
+  // files: its row for the entry names the anchor and end anchor (an entry its index does not list is read at its own first
+  // line, where the approval engine finds an entry's text); sectionForEntry gives the section, also one that another entry
+  // of the queue creates. Without the index, an anchor the SPEC does not hold, or no SPEC, the entry replaces no known section.
+  const replaced = (path) => {
+    const queue = queueOf(path), index = `${queue}/index.md`;
+    if (!has(files, index) || !spec.size) return [];
+    const listed = new Map(parseQueueIndex(text(index)).entries.map((e) => [e.nr, e]));
+    const own = new Map(paths.filter((p) => isQueueEntry(p) && queueOf(p) === queue).map((p) => [entryNr(p), text(p)]));
+    const entries = [...new Set([...listed.keys(), ...own.keys()])].sort((a, b) => a - b).map((nr) => ({
+      nr, anchor: listed.get(nr)?.anchor ?? String(own.get(nr) ?? "").split("\n")[0], bis: listed.get(nr)?.bis ?? null,
+      proposalText: own.get(nr) ?? "",
+    }));
+    const s = sectionForEntry({ specText: text(SPEC), entries, nr: entryNr(path) });
+    if (s.error) return [];
+    return [...parseRequirements(s.current).values()].filter((r) => !r.withdrawn && spec.get(r.name)?.withdrawn === false)
+      .map((r) => r.name);
+  };
+
   // Code and tests: their Module: and Guards: lines, from their text or from the headers the caller read.
   const code = (path, modules, guards, test) => {
     nodes[path] = test ? { id: path, kind: "test", path, modules, guards } : { id: path, kind: "code", path, modules, guards: [] };
@@ -77,11 +100,15 @@ export function linkGraph(snapshot = {}) {
     if (path === SPEC) continue;
     if (isQueueEntry(path)) {
       // An open entry proposes what it states otherwise than the SPEC: a name the SPEC lacks is added, a live one withdrawn or
-      // changed; a requirement it repeats word for word is not touched.
+      // changed; a requirement it repeats word for word is not touched. It replaces its section byte for byte (UC-006 step 6),
+      // so a live requirement of that section it no longer states — renamed in place, or left out — leaves the SPEC: withdrawn
+      // (A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED — the old name leaves, a new one is added).
       const st = status(path);
       if (DECIDED.has(st)) continue;
       nodes[path] = { id: path, kind: "proposal", path, status: st };
-      for (const r of parseRequirements(text(path)).values()) {
+      const stated = parseRequirements(text(path));
+      for (const name of replaced(path)) if (!stated.has(name)) edge(path, name, "proposes", { change: "withdraw" });
+      for (const r of stated.values()) {
         const now = spec.get(r.name);
         const change = !now ? (r.withdrawn ? null : "add") : same(now, r) ? null
           : r.withdrawn && !now.withdrawn ? "withdraw" : "change";
