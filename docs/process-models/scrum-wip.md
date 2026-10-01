@@ -65,6 +65,7 @@ fixed length; release tests have a role of their own.
 |---|---|
 | WIP limit | 4 |
 | Time box | none |
+| Sprints | yes |
 
 An item counts as in progress from the moment its team starts it until its pull request is merged into the
 sprint branch; an item waiting for review counts. A sprint works on the selection the Product Owner made at
