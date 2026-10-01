@@ -17,7 +17,9 @@ class ConfigClientSide(unittest.TestCase):
         self.assertEqual(v, ["github_pat_x", ["agent-m.github-token"]])
 
     def test_only_the_store_module_touches_browser_storage(self):
-        users = [f.name for f in ASSETS.glob("*.mjs") if STORAGE_ACCESS.search(f.read_text(encoding="utf-8"))]
+        # Every module file of the site, the dashboard's views under docs/assets/dashboard/ included (vendored libraries excepted).
+        files = [f for f in sorted(ASSETS.rglob("*.mjs")) if "vendor" not in f.relative_to(ASSETS).parts]
+        users = [f.name for f in files if STORAGE_ACCESS.search(f.read_text(encoding="utf-8"))]
         self.assertEqual(users, ["settings-store.mjs"])
 
     def test_counter_proof_access_not_the_word(self):

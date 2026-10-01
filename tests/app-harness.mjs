@@ -1,10 +1,11 @@
-// A browser for docs/assets/dashboard-app.mjs under node — used by tests/load-per-view.test.mjs and tests/review-page.test.mjs, no
-// test of its own.
+// A browser for docs/assets/dashboard-app.mjs under node — used by the tests that load the dashboard (load-per-view, review-page,
+// dashboard-shell, architecture), no test of its own.
 //
 // The app is the real module, imported fresh for every page load. Around it: a DOM that keeps what the app writes into its
 // elements, localStorage, the Cache Storage (shared between page loads when the test says so), and GitHub's REST API served
 // from a set of files — every request counted by what it reads. The git-data endpoints a commit uses (ref, commit, tree, update
-// of the ref, fast-forward only) are served too, and a commit changes the files. A button the app wired is found by its
+// of the ref, fast-forward only) are served too, and a commit changes the files; a test adds the servers its view talks to as
+// request handlers of its own. A button the app wired is found by its
 // attribute and clicked with an event the test gives — trusted or not. No request leaves this process.
 
 import { gitBlobSha } from "../docs/assets/review-core.mjs";
@@ -14,8 +15,10 @@ export const REPO = "akmaier/agent-m";
 export const TOKEN = "github_pat_HARNESS0123456789abcdefghij";
 
 // files: { path: text } — the repository at its default branch. history: texts of earlier commits, readable by their blob SHA.
-// dates: { path: ISO date } — when a record was committed.
-export async function repoServer({ files: given, history = [], dates = {}, repo = REPO }) {
+// dates: { path: ISO date } — when a record was committed. handlers: a test's own fakes, asked first and in order —
+// (url: URL, init) -> Response, or nothing for a request the handler does not answer; each request it answers is counted as
+// `handler <METHOD> <url>`. So a view's tests bring the servers that view talks to.
+export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [] }) {
   const files = { ...given };
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
   const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
@@ -33,6 +36,10 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
     pending += 1;
     try {
       await new Promise((r) => setTimeout(r, 0));
+      for (const handle of handlers) {
+        const answer = await handle(url, { ...init, method });
+        if (answer) { what = `handler ${method} ${url.origin}${p}${url.search}`; return answer; }
+      }
       // Without a token a public repository's files come from GitHub's raw host, at the commit the page pinned.
       const rawFile = url.origin === "https://raw.githubusercontent.com" && method === "GET"
         && new RegExp(`^/${repo}/[0-9a-f]{40}/(.+)$`).exec(p);

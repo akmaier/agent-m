@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Module: MOD-review-core
 """Write approved SPEC changes into SPEC.md — the workflow half of SPEC §10. stdlib only.
 
     python3 tools/apply_approvals.py            # from the repository root

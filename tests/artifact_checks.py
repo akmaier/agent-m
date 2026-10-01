@@ -1,3 +1,4 @@
+# Module: MOD-artifacts
 """Shared checks for the review artifacts under docs/ (SPEC §4, §10, §11).
 
 The checks are functions that return a list of problems, so that each test can run them once on
