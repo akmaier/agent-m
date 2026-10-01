@@ -1,0 +1,92 @@
+{
+  "transition-unknown-phase.md": [
+    [31, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the transition Closing → Review names Review, which is no phase of the model"]
+  ],
+  "transition-kind-invalid.md": [
+    [26, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the transition Planning → Building has the kind \"parallel\", not sequence, alternative or back"]
+  ],
+  "phase-unreached.md": [
+    [21, "THE MODEL DETERMINES THE PHASES AND THE GATES", "no transition reaches the phase Archiving"]
+  ],
+  "phase-duplicate.md": [
+    [19, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the phase Building is defined twice (first on line 18)"]
+  ],
+  "pair-unknown-phase.md": [
+    [37, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the verification pair Planning ↔ Retrospective names Retrospective, which is no phase of the model"]
+  ],
+  "gate-without-artifacts.md": [
+    [43, "A GATE NAMES WHAT IT CHECKS", "the gate Building → Checking names no artifacts it checks"]
+  ],
+  "gate-without-condition.md": [
+    [43, "A GATE NAMES WHAT IT CHECKS", "the gate Building → Checking names no condition that must hold"]
+  ],
+  "gate-without-decider.md": [
+    [43, "A GATE NAMES WHO DECIDES IT", "the gate Building → Checking names no decider"]
+  ],
+  "gate-decider-unknown.md": [
+    [44, "A GATE NAMES WHO DECIDES IT", "the gate Checking → Closing is decided by \"Release manager\", which is no role of the model and no CI check"]
+  ],
+  "gate-artifact-not-produced.md": [
+    [43, "A GATE NAMES WHAT IT CHECKS", "the gate Building → Checking checks ARC, which no phase up to Building produces"]
+  ],
+  "gate-unknown-phase.md": [
+    [44, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the gate Checking → Shipping names Shipping, which is no phase of the model"]
+  ],
+  "gate-between-malformed.md": [
+    [43, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the gate \"Building to Checking\" does not name two phases as \"From → To\""]
+  ],
+  "role-without-capabilities.md": [
+    [52, "A ROLE NAMES THE CAPABILITIES IT NEEDS", "the role Checker names no capabilities"]
+  ],
+  "role-filled-by-invalid.md": [
+    [50, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the role Owner is filled by \"anyone\", not by person, agent or either"]
+  ],
+  "role-duplicate.md": [
+    [53, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the role Owner is defined twice (first on line 50)"]
+  ],
+  "phase-without-role.md": [
+    [19, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the phase Checking names no role"]
+  ],
+  "phase-role-unknown.md": [
+    [19, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the phase Checking names the role Auditor, which the model does not define"]
+  ],
+  "no-kind.md": [
+    [1, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the model declares no kind of work"]
+  ],
+  "kind-invalid.md": [
+    [3, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the kind of work \"iterative\" is neither planned nor pulled"]
+  ],
+  "no-name.md": [
+    [1, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the model has no name"]
+  ],
+  "no-measure.md": [
+    [1, "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "the model names no progress measure"]
+  ],
+  "measure-unknown.md": [
+    [5, "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "the measure \"velocity\" is no progress measure Agent M knows"]
+  ],
+  "measure-not-fitting.md": [
+    [5, "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "the measure \"plan entries per phase\" does not fit pulled work"]
+  ],
+  "pulled-without-flow-control.md": [
+    [54, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "pulled work names neither a time box nor a WIP limit"]
+  ],
+  "pulled-with-both.md": [
+    [54, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "pulled work names both a time box and a WIP limit"]
+  ],
+  "wip-not-a-number.md": [
+    [58, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the WIP limit \"three\" is no positive whole number"]
+  ],
+  "sprints-invalid.md": [
+    [60, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "\"sometimes\" does not say whether the work runs in sprints (yes or no)"]
+  ],
+  "flow-row-unknown.md": [
+    [61, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the row \"Velocity\" is no part of the flow control (WIP limit, Time box, Sprints)"]
+  ],
+  "row-malformed.md": [
+    [28, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the row has 4 cells; the table Transitions has 3 columns"]
+  ],
+  "columns-wrong.md": [
+    [34, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the table Verification pairs has the columns Phase | Verified by, not Phase | Checked by"]
+  ]
+}
