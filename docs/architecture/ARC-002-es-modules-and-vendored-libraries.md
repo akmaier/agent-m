@@ -37,8 +37,6 @@ sanitiser; a Markdown parser and the Mermaid renderer are needed for `ARTIFACTS 
    - `dompurify` — every HTML string from Markdown passes `DOMPurify.sanitize` before it reaches
      the DOM;
    - `mermaid` — renders diagrams, with `securityLevel: "strict"`.
-3. The dashboard's own code never calls `fetch` or touches `localStorage` directly; the repository
-   checks already enforce this for `review-app.mjs` (ARC-003, ARC-005).
 
 ### Due diligence (read 2026-09-30)
 
@@ -88,4 +86,4 @@ when it permits redistribution in an MIT project with its notice kept.
 - The licence files travel with the vendored files; the README table is the product's own record of
   reuse and must be kept in step.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the rule on `fetch` and storage moved to ARC-003; open until accepted.*
