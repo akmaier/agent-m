@@ -14,7 +14,6 @@ changes no artifact and no approval.
   - ARC-006
 - Jobs, participants and runs
   - ARC-007
-  - ARC-008
   - ARC-009
   - ARC-010
   - ARC-019
@@ -24,10 +23,12 @@ changes no artifact and no approval.
   - ARC-013
 - Mail and personal data
   - ARC-014
-- Sources, derivation and traceability
-  - ARC-018
+- Conventions
   - ARC-020
 - Tests, CI and release
   - ARC-015
   - ARC-016
   - ARC-017
+- Withdrawn
+  - ARC-008
+  - ARC-018
