@@ -10,7 +10,7 @@
 // the authority (clickAuthority), and each write hands it to the write path, which refuses a write without one.
 
 import {
-  fetchText, parseProductAddress, isGitLab, commitFiles, repositoryInfo, readSnapshot, commitFilesGitLab, writeFiles,
+  parseProductAddress, isGitLab, commitFiles, repositoryInfo, readSnapshot, commitFilesGitLab, writeFiles,
 } from "../git-host.mjs";
 import { identifierKept, parseFrontMatter } from "../artifacts.mjs";
 import { missingNeeds, planAcceptance, missingLayout } from "../review-core.mjs";
@@ -108,11 +108,10 @@ export async function addProduct({ address, token, authority, store }) {
     return { commit, product };
   }
   const info = await repositoryInfo({ product, token });
-  // The paths of the default branch, read by the branch's name in one request. MOD-git-host provides no read of that shape:
-  // readSnapshot first resolves the branch to a commit, one request more (ITM-130 — a change request to akmaier).
-  const tree = JSON.parse(await fetchText(`https://api.github.com/repos/${product.repo}/git/trees/${encodeURIComponent(info.defaultBranch)}` +
-    "?recursive=1", {}, token));
-  const files = missingLayout(tree.tree.filter((e) => e.type === "blob").map((e) => e.path), product.repo);
+  // The paths of the default branch, through the read MOD-git-host provides: the branch resolved to one commit, then that
+  // commit's tree — one request more than the tree by the branch's name, on the one click of UC-001 step 5 (ITM-130).
+  const snap = await readSnapshot({ product, ref: info.defaultBranch, token });
+  const files = missingLayout(snap.tree.map((e) => e.path), product.repo);
   const commit = files.length
     ? await commitFiles({ repo: product.repo, branch: info.defaultBranch, token, authority, files,
       message: "Add the Agent M review layout (Agent M dashboard)" })

@@ -48,6 +48,11 @@ function productGitHub(tree) {
       g.calls.push(["GET", path, init.headers?.Authorization, null]);
       return new Response(JSON.stringify({ default_branch: "main", private: true }), { status: 200 });
     }
+    // The branch resolved to its commit (readSnapshot, ITM-130): "main" is at c0, as in fakeGitHub.
+    if (init.method === "GET" && /^\/repos\/[^/]+\/[^/]+\/commits\/main$/.test(path)) {
+      g.calls.push(["GET", path, init.headers?.Authorization, null]);
+      return new Response(JSON.stringify({ sha: "c0" }), { status: 200 });
+    }
     if (init.method === "GET" && path.includes("/git/trees/")) {
       g.calls.push(["GET", path, init.headers?.Authorization, null]);
       return new Response(JSON.stringify({ tree: tree.map((p) => ({ path: p, type: "blob" })) }), { status: 200 });
@@ -155,6 +160,21 @@ test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — each of the five writes 
     await withFetch(mock, () => call({ authority: clickAuthority(click) }));
     assert.equal(g.calls.filter(([m]) => m === "PATCH").length + gl.calls.filter((c) => c.method === "POST").length, 1, `${name}: one commit`);
   }
+});
+
+// Guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
+test("UC-001 5: Add product reads a GitHub product through readSnapshot — the branch resolved to one commit, then that commit's tree", async () => {
+  // ITM-130, back from Release testing (A1): the read MOD-git-host provides, one request more than the tree by the branch's
+  // name; the layout is computed from the tree of that commit, and the commit is written on the branch as before.
+  const store = createStore(fakeStorage()), g = productGitHub([]);
+  const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t",
+    authority: clickAuthority(click), store }));
+  assert.equal(r.commit.sha, "c1");
+  assert.deepEqual(g.calls.filter(([m]) => m === "GET").map(([, p]) => p), ["/repos/reader/thesis", "/repos/reader/thesis/commits/main",
+    "/repos/reader/thesis/git/trees/c0", "/repos/reader/thesis/git/ref/heads/main", "/repos/reader/thesis/git/commits/c0"]);
+  assert.ok(g.calls.every(([, , auth]) => auth === "Bearer github_pat_t"), "every request with the token, to GitHub");
+  // counter-proof: the tree is never read by the branch's name
+  assert.ok(!g.calls.some(([, p]) => p.endsWith("/git/trees/main")));
 });
 
 test("UC-001 5a: a refused write adds nothing to the list", async () => {

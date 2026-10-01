@@ -560,7 +560,7 @@ const HOST_PROVIDES = (() => {
 // ITM-130 · MOD-git-host's request helper is internal — Expected: no file whose Module: line names MOD-dashboard-app imports
 // `fetchText` (or the helper `request`) from a file of MOD-git-host. Known positive of the reader: a planted import of it is seen.
 test("release · ITM-130 EVERY ARTIFACT NAMES ITS ORIGIN: no file of the dashboard imports the git host's request helper",
-  { todo: "FINDING A1 — docs/assets/dashboard/writes.mjs:13 imports fetchText and addProduct calls it (:113) for a read readSnapshot provides — ITM-130 back to Development" }, () => {
+  () => {
     assert.deepEqual(importsOf('import {\n  fetchText as f, readFile,\n} from "../git-host.mjs";')[0].names, ["fetchText", "readFile"], "known positive");
     assert.ok(SHELL_FILES.length >= 5, SHELL_FILES.map(rel).join(", "));
     const helpers = SHELL_FILES.flatMap((f) => namesFrom(f, "MOD-git-host").filter((n) => n === "fetchText" || n === "request").map((n) => `${rel(f)}: ${n}`));
@@ -585,7 +585,7 @@ async function sends(f) {
   return sent;
 }
 test("release · ITM-130 EVERY ARTIFACT NAMES ITS ORIGIN: the dashboard reads through no name of the git host that MOD-git-host does not provide",
-  { todo: "FINDING A2 — docs/assets/dashboard/settings-view.mjs reads a GitLab project through gitlabProject, not in MOD-git-host's provides (and A1: writes.mjs through fetchText) — ITM-130 back to Development" }, async () => {
+  async () => {
     assert.ok((await sends(HOST.fetchText)).length > 0, "known positive: the probe sees fetchText send");
     assert.ok(HOST_PROVIDES.has("readSnapshot") && HOST_PROVIDES.has("readBlob"), "the provides list is read");
     const past = [];

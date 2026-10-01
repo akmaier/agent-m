@@ -15,13 +15,13 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { parseFrontMatter, headerModules } from "../../docs/assets/artifacts.mjs";
 import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitlabAuth, gitlabApiBase } from "../../docs/assets/git-host.mjs";
-import { tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE } from "../../docs/assets/dashboard/settings-view.mjs";
+import { tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab } from "../../docs/assets/dashboard/settings-view.mjs";
 import { createKeyStep } from "../../docs/assets/dashboard/setup-view.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
 import { extendTokenSteps, gitlabTokenSteps, gitlabNoProjectTokens } from "../../docs/assets/dashboard/add-product-view.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
 import * as shell from "../../docs/assets/dashboard-app.mjs";
-import { ASSETS, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } from "./helpers.mjs";
+import { ASSETS, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
 
 // Every module file of the site (vendored libraries excepted), with the modules its Module line names.
 const moduleFiles = () => readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
@@ -119,28 +119,79 @@ test("the kernel never reads through the git host — no kernel file imports any
   assert.deepEqual(gitHostImports('import { readBlob, REPO_RE } from "./git-host.mjs";'), ["readBlob", "REPO_RE"]);
 });
 
-// The dashboard's one direct read of the git host that has no provided counterpart of its shape: addProduct reads the paths
-// of a GitHub product's default branch by the branch's name, in one request; MOD-git-host's readSnapshot first resolves the
-// branch to a commit (ITM-130, a change request to akmaier). Named here, so that the exception cannot spread unnoticed.
-const DIRECT_READ = { file: "dashboard/writes.mjs", call: /fetchText\(`https:\/\/api\.github\.com\/repos\/\$\{product\.repo\}\/git\/trees\// };
-
 // Guards: UC-024
 test("the shells read only through what the git host provides — no file of the dashboard imports fetchText", () => {
   // MOD-git-host calls its request helper internal: the dashboard reads through readSnapshot, readFile, readBlob,
-  // commitsTouching and repositoryInfo (ITM-130). A namespace or dynamic import reaches the helper too. The one exception is
-  // DIRECT_READ, with exactly one call.
+  // commitsTouching and repositoryInfo (ITM-130). A namespace or dynamic import reaches the helper too. No exception: Add
+  // product reads a GitHub product's branch through readSnapshot (ITM-130, back from Release testing, finding A1).
   const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
   assert.ok(files.some((f) => f.file === "dashboard-app.mjs") && files.some((f) => f.file === "dashboard/settings-view.mjs")
-    && files.some((f) => f.file === "dashboard/reads.mjs"), "the shell's files are checked");
+    && files.some((f) => f.file === "dashboard/reads.mjs") && files.some((f) => f.file === "dashboard/writes.mjs"), "the shell's files are checked");
   const importing = files.filter((f) => gitHostImports(f.text).some((n) => n === "*" || n === "fetchText")).map((f) => f.file);
-  assert.deepEqual(importing, [DIRECT_READ.file], "only the one direct read without a provided counterpart");
-  const writes = files.find((f) => f.file === DIRECT_READ.file).text;
-  assert.equal(writes.match(/\bfetchText\(/g).length, 1, "one call of the helper in it");
-  assert.match(writes, DIRECT_READ.call, "and it is that read");
+  assert.deepEqual(importing, [], "no file of the dashboard imports the request helper");
   // counter-proof: the helper imported by name, by a namespace or dynamically is caught; a provided read is not
   assert.deepEqual(gitHostImports('import { readFile, fetchText as get } from "../git-host.mjs";'), ["readFile", "fetchText"]);
   assert.deepEqual(gitHostImports('import * as host from "./git-host.mjs";'), ["*"]);
   assert.deepEqual(gitHostImports('import { readSnapshot, repositoryInfo } from "./git-host.mjs";'), ["readSnapshot", "repositoryInfo"]);
+});
+
+// The git host's reads that MOD-git-host keeps to itself: the request helper and the GitLab reads behind readSnapshot,
+// readFile and repositoryInfo. Each sends a request; none is in MOD-git-host's `provides`.
+const GIT_HOST_INTERNAL_READS = ["fetchText", "request", "gitlabProject", "gitlabSnapshot", "gitlabReadFile"];
+// MOD-git-host's `provides`, read from its module file (ARC-020 decision 6: the public API).
+const gitHostProvides = () => new Set([...(/^provides:\n((?:\s+- .+\n)+)/m.exec(readFileSync(new URL("../../docs/architecture/MOD-git-host.md",
+  import.meta.url), "utf8"))?.[1] ?? "").matchAll(/- (\w+)/g)].map((m) => m[1]));
+
+// Guards: UC-024; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+test("the shells read only through what the git host provides — no file of the dashboard imports a read MOD-git-host keeps to itself", () => {
+  // ITM-130, back from Release testing (A2): checkGitLab reads a GitLab project through repositoryInfo, not gitlabProject.
+  const provides = gitHostProvides();
+  assert.ok(provides.has("repositoryInfo") && provides.has("readSnapshot") && provides.size >= 16, "the provides list is read");
+  for (const n of GIT_HOST_INTERNAL_READS) {
+    assert.ok(!provides.has(n), `${n} is not provided`);
+    assert.equal(typeof gitHost[n], "function", `${n} is a function of the git host`);
+  }
+  const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
+  const reading = files.flatMap((f) => gitHostImports(f.text).filter((n) => n === "*" || GIT_HOST_INTERNAL_READS.includes(n))
+    .map((n) => `${f.file}: ${n}`));
+  assert.deepEqual(reading, []);
+  // counter-proof: a GitLab read imported by name or under another name is caught; the provided read is not
+  assert.deepEqual(gitHostImports('import { repositoryInfo, gitlabProject as project } from "../git-host.mjs";')
+    .filter((n) => GIT_HOST_INTERNAL_READS.includes(n)), ["gitlabProject"]);
+});
+
+// checkGitLab (UC-001's Check, UC-042's Test of a GitLab token) reads the project through repositoryInfo and says what it said
+// before: reachable, private or public, the default branch, the role the token acts with and whether it can write; one
+// request, to the project's API with the project token. A server that reports neither a visibility nor a default branch did
+// not answer as a GitLab server.
+// Guards: A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001; UC-042
+test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the GitLab check reports reach, branch and role as before, in one request", async () => {
+  const p = parseProductAddress(GL_ADDR), app = { noteRefusal: () => {}, errorText: (e) => e.message };
+  const gl = await fakeGitLab({});
+  const x = await withFetch(gl.fetchMock, () => checkGitLab(app, p, GL_TOKEN));
+  assert.deepEqual(x, { ok: true, priv: true, branch: "main", role: "Developer", canWrite: false,
+    note: "role Developer cannot write to a protected default branch — the token needs role Maintainer", tokenUsed: true });
+  assert.deepEqual(gl.calls.map((c) => `${c.method} ${c.origin}${c.path} ${c.token}`),
+    [`GET ${GL}/api/v4/projects/${encodeURIComponent("grp/sub/proj")} ${GL_TOKEN}`]);
+  // A Maintainer token can write; a public project without a token is read without one.
+  const answer = (body) => async () => new Response(JSON.stringify(body), { status: 200 });
+  const m = await withFetch(answer({ path_with_namespace: "grp/sub/proj", visibility: "public", default_branch: "trunk",
+    permissions: { group_access: { access_level: 40 } } }), () => checkGitLab(app, p, null));
+  assert.deepEqual(m, { ok: true, priv: false, branch: "trunk", role: "Maintainer", canWrite: true, note: "", tokenUsed: false });
+});
+
+// Guards: A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001
+test("UC-001 — a server whose answer reports neither a visibility nor a default branch did not answer as a GitLab server", async () => {
+  const p = parseProductAddress(GL_ADDR), app = { noteRefusal: () => {}, errorText: (e) => e.message };
+  const answer = (body) => async () => new Response(JSON.stringify(body), { status: 200 });
+  for (const body of [{}, { hello: "world" }, null]) {
+    assert.deepEqual(await withFetch(answer(body), () => checkGitLab(app, p, GL_TOKEN)),
+      { ok: false, error: "gitlab.example.org did not answer as a GitLab server." }, JSON.stringify(body));
+  }
+  // known positive: a project that reports a visibility and no branch yet (an empty project) is reachable
+  const empty = await withFetch(answer({ path_with_namespace: "grp/sub/proj", visibility: "private", default_branch: null }),
+    () => checkGitLab(app, p, GL_TOKEN));
+  assert.equal(empty.ok, true);
 });
 
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
