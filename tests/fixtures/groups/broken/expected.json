@@ -1,0 +1,40 @@
+{
+  "mixed-kinds.md": {
+    "items": ["UC-001"],
+    "problems": [
+      [7, "error", "A GROUP HOLDS ONE KIND OF ARTIFACT", "EXPORT AS CSV is a requirement, not a use case"],
+      [9, "error", "A GROUP HOLDS ONE KIND OF ARTIFACT", "MOD-export is a module, not a use case"],
+      [10, "error", "A GROUP HOLDS ONE KIND OF ARTIFACT", "ITM-001 is a backlog item, not a use case"]
+    ]
+  },
+  "twice.md": {
+    "items": ["UC-001", "UC-002"],
+    "problems": [
+      [9, "error", "AN ITEM HAS ONE PLACE IN ITS HIERARCHY", "UC-001 is listed a second time (first on line 6)"]
+    ]
+  },
+  "title-like-an-identifier.md": {
+    "items": ["MOD-export", "MOD-csv-reader", "MOD-page"],
+    "problems": [
+      [5, "error", "A GROUP CARRIES NO IDENTIFIER", "the group title \"MOD-Kernel\" looks like an identifier"],
+      [7, "error", "A GROUP CARRIES NO IDENTIFIER", "the group title \"`MOD-page`\" looks like an identifier"],
+      [9, "error", "A GROUP CARRIES NO IDENTIFIER", "the group title \"UC-7 Export\" looks like an identifier"]
+    ]
+  },
+  "not-a-nested-list.md": {
+    "items": ["UC-001", "UC-002", "UC-003", "UC-004"],
+    "problems": [
+      [6, "error", "ARTIFACTS ARE ARRANGED IN NESTED GROUPS", "indented by 4 spaces, not by two more than the item above"],
+      [8, "error", "ARTIFACTS ARE ARRANGED IN NESTED GROUPS", "UC-003 stands under the member UC-002; only a group holds items"],
+      [9, "error", "ARTIFACTS ARE ARRANGED IN NESTED GROUPS", "not an item of the list (a line \"- …\")"],
+      [13, "error", "ARTIFACTS ARE ARRANGED IN NESTED GROUPS", "not an item of the list (a line \"- …\")"]
+    ]
+  },
+  "unknown-and-withdrawn.md": {
+    "items": ["ARC-001", {"id": "ARC-002", "withdrawn": true}, {"id": "ARC-003", "withdrawn": true}],
+    "problems": [
+      [7, "error", "EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN", "ARC-009 is no known architecture decision"],
+      [8, "warning", "THE NAME IS THE ID AND IT SURVIVES", "ARC-003 is withdrawn and stands outside the group Withdrawn"]
+    ]
+  }
+}
