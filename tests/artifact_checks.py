@@ -37,33 +37,74 @@ def front_matter(text: str) -> tuple[dict, str]:
     return fields, text[end + 5:]
 
 
-def use_case_problems(name: str, text: str) -> list[str]:
-    p = []
+# ---------------------------------------------------------------- use cases (SPEC §4, §10)
+# The twin of docs/assets/artifacts/use-cases.mjs useCaseProblems: the same checks in the same order, each finding's rule
+# and `what` word for word; tests/artifacts-twin.test.mjs compares the two on the same files.
+
+FIELDS = "A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION"
+REALISES = "A USE CASE REALISES NAMED REQUIREMENTS"
+MERMAID = "DIAGRAMS ARE MERMAID IN MARKDOWN"
+ONE_FILE = "ONE USE CASE, ONE FILE"
+MERMAID_OPEN = re.compile(r"^```mermaid\s*$")
+MD_IMAGE = re.compile(r"!\[[^\]]*\]\(\s*<?([^\s)>]+)")
+HTML_IMAGE = re.compile(r"""<img\b[^>]*?\bsrc\s*=\s*["']?([^"'\s>]+)""", re.I)
+IMAGE_TYPE = re.compile(r"\.(png|jpe?g|gif|svg|webp)$", re.I)
+
+
+def diagram_images(body: str) -> list[str]:
+    """The address of every Markdown image or HTML <img> whose address, without query or fragment, is an image file."""
+    found = [(m.start(), m.group(1)) for rx in (MD_IMAGE, HTML_IMAGE) for m in rx.finditer(body)
+             if IMAGE_TYPE.search(re.sub(r"[?#].*$", "", m.group(1)))]
+    return [t for _, t in sorted(found)]
+
+
+def use_case_findings(name: str, text: str, known_names=None) -> list[dict]:
+    """Every format error of a use case as {rule, what}. known_names: the requirements a name under `realises` must
+    match; None checks only the form of each name."""
+    out = []
+
+    def add(rule, what):
+        out.append({"rule": rule, "what": what})
+
     m = USE_CASE_NAME.match(name)
     if not m:
-        p.append(f"{name}: file name is not UC-<nnn>-<slug>.md")
+        add(ONE_FILE, "file name is not UC-<nnn>-<slug>.md")
     fields, body = front_matter(text)
     if not fields:
-        p.append(f"{name}: no front matter")
-        return p
+        add(ONE_FILE, "no front matter")
+        return out
     if m and fields.get("id") != f"UC-{m.group(1)}":
-        p.append(f"{name}: id {fields.get('id')!r} does not match the file name")
+        shown = f'"{fields["id"]}"' if isinstance(fields.get("id"), str) else "(none)"
+        add(ONE_FILE, f"id {shown} does not match the file name (UC-{m.group(1)})")
     for key in ("title", "area"):
         if not fields.get(key) or not isinstance(fields[key], str):
-            p.append(f"{name}: missing {key}")
+            add(FIELDS, f"missing {key}")
     if "stage" in fields:
-        p.append(f"{name}: key 'stage' is now 'area'")
-    for key in ("actors", "realises"):
-        if not isinstance(fields.get(key), list) or not fields[key]:
-            p.append(f"{name}: {key} must be a non-empty list")
+        add(FIELDS, "key 'stage' is now 'area'")
+    if not isinstance(fields.get("actors"), list) or not fields["actors"]:
+        add(FIELDS, "actors must be a non-empty list")
+    realises = fields.get("realises") if isinstance(fields.get("realises"), list) else None
+    if not realises:
+        add(REALISES, "realises must be a non-empty list")
+    known = None if known_names is None else set(known_names)
+    for n in realises or []:
+        if not is_requirement_name(n):
+            add(REALISES, f'realises: "{n}" is not a requirement name')
+        elif known is not None and n not in known:
+            add(REALISES, f'realises "{n}" matches no requirement')
+    lines = body.split("\n")
     for s in REQUIRED_SECTIONS:
-        if not re.search(rf"^{re.escape(s)}\s*$", body, re.M):
-            p.append(f"{name}: missing section {s!r}")
-    if "```mermaid" not in body:
-        p.append(f"{name}: no Mermaid diagram")
-    if re.search(r"!\[[^\]]*\]\([^)]*\.(png|jpe?g|gif|svg|webp)\)", body, re.I):
-        p.append(f"{name}: diagram stored as an image file")
-    return p
+        if not any(line.rstrip() == s for line in lines):
+            add(FIELDS, f"missing section {s!r}")
+    if not any(MERMAID_OPEN.match(line) for line in lines):
+        add(MERMAID, "no Mermaid diagram")
+    for target in diagram_images(body):
+        add(MERMAID, f"diagram stored as an image file ({target})")
+    return out
+
+
+def use_case_problems(name: str, text: str, known_names=None) -> list[str]:
+    return [f"{name}: {f['what']}" for f in use_case_findings(name, text, known_names)]
 
 
 # ---------------------------------------------------------------- architecture files (SPEC §11)
