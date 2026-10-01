@@ -7,7 +7,7 @@
 // Guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
 // Level: component
 //
-// Counter-proofs (a planted fault for each test): docs/measurements/2026-10-01_spec-entry-impact-list.md.
+// Counter-proofs (a planted fault for each test): docs/measurements/2026-10-02_spec-entry-impact-list.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -105,6 +105,18 @@ test("UC-006 3b: a withdrawn requirement's entry lists what still names it", asy
   assert.ok(section, "the entry shows an impact list");
   assert.deepEqual(listed(section), { "RULE TWO": { change: "withdraw", ids: ["UC-002", "ARC-001", "MOD-reader"] } });
   assert.match(section, /withdraw/i);
+});
+
+test("UC-006 3b: an entry whose impact list cannot be derived is not offered for acceptance, and says why", async () => {
+  // The server fails on one of the tests the list reads.
+  const failing = (url) => (url.pathname.endsWith(`/contents/${T3}`) ? new Response("{}", { status: 500 }) : undefined);
+  const srv = await repoServer({ files: FILES, handlers: [failing] });
+  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/01` });
+  const section = impactOf(page.main());
+  assert.ok(section, "the place of the list is shown");
+  assert.match(section, /<p class="warn">The impact list could not be derived:[^]*cannot be\s+accepted/);
+  assert.doesNotMatch(page.main(), /data-accept-key/, "no Accept without the list");
+  assert.match(page.main(), /In the SPEC now[^]*<h3>Proposed<\/h3>/, "the entry itself is still shown");
 });
 
 // ---------------------------------------------------------------- the requests a load of an entry makes
