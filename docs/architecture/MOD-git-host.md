@@ -74,7 +74,7 @@ this module reads no store.
 
 ## Testing
 
-Component tests with a fake `fetch` that records every request (`tests/git-host.test.mjs`,
+Component tests with a fake `fetch` that records every request (`tests/review-core.test.mjs`,
 `tests/test_no_credential_in_url.py`, `tests/test_token_scope_documented.py`): a GitHub token is never sent
 to a GitLab server and a GitLab token never to another project's API; no URL carries a credential or a
 text longer than a record; a write without an authority is refused, with one as counter-proof; a save
@@ -82,4 +82,4 @@ whose file changed meanwhile is refused; an existing tag and an existing result 
 a 401 names the refused token. The seams are `fetch` and the server's answers, recorded per host. A system
 test against a test repository on each host runs before a release (ARC-016). No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): every write takes an authority, the request helper is internal, the current state removed, rules decided by the shells left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01d: the checks the SPEC names for this module's rules are in its own test file (ARC-016 decision 1); open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): every write takes an authority, the request helper is internal, the current state removed, rules decided by the shells left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; open until accepted.*

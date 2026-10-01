@@ -76,4 +76,4 @@ its role assignment, practices, branches and its Definition of Done in its own r
   check can evaluate (a named CI check, a gate record) or it is shown as *checked by a person*.
 - Table parsing is strict: a malformed row is a validation error, not a guess.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01d: a pulled model may run in sprints without a time box; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — queue 2026-10-01e: a pulled model may run in sprints without a time box; open until accepted.*

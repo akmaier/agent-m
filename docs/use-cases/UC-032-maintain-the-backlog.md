@@ -21,7 +21,6 @@ realises:
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
   - CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
-  - A DECISION OF AN AGENT IN ITS ROLE IS COMMITTED DIRECTLY
 ---
 # UC-032 Maintain the backlog
 
@@ -126,8 +125,7 @@ sequenceDiagram
   view (UC-035).
 - **1c. The Product Owner is an agent.** It does steps 1–6 through its own runtime instead of the
   dashboard — reads the backlog, writes or adds items, saves the order, plans, starts and ends a sprint —,
-  and each is committed under its name as the role's decision (`A DECISION OF AN AGENT IN ITS ROLE IS
-  COMMITTED DIRECTLY`). What the role does not decide — a SPEC change, the acceptance of a use case, a
+  and commits each under its name. What the role does not decide — a SPEC change, the acceptance of a use case, a
   change to the process — it proposes to a person; a requirement it finds missing becomes a change request
   (UC-012).
 

@@ -63,16 +63,13 @@ agents, spawning is cheap, so the limit protects review capacity and budget inst
 *Check:* `tests/test_wip_limit.py`. With limit 2 and two items in progress, a third start is refused
 with the limit named. With one of the two done, the start succeeds.
 
-**A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT** *(Vibe Coding, ch. 7 §5; PO A. Maier, changed 2026-10-01)*
-When a product's model works in sprints, implementation jobs start only for items selected for the
-current sprint.
+**A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT** *(Vibe Coding, ch. 7 §5; changed PO A. Maier, 2026-10-01)*
+When a product's model works in sprints, implementation jobs start only for items selected for
+the current sprint.
 *Occasion:* in Scrum, sprint planning selects a subset of the product backlog into the sprint
 backlog, and the team works from that (ch. 7 §5). The process repository runs its own sprints the
-same way: sprint scope is fixed at planning (`SOFTWARE_MAINTENANCE.md`, phase 2). PO, 2026-10-01: a
-sprint keeps its selection without a time box too — Agent M's own model (`docs/process-models/scrum-wip.md`)
-controls the flow by a work-in-progress limit and works from the selection the Product Owner made.
-*Check:* `tests/test_time_box_selection.py` — an item outside the current sprint's selection is refused, in
-a sprint with a time box and in one without; counter-proof: a selected item starts.
+same way: sprint scope is fixed at planning (`SOFTWARE_MAINTENANCE.md`, phase 2).
+*Check:* `tests/test_time_box_selection.py`
 
 **A JOB GOES ONLY TO A HOLDER OF ITS ROLE** *(PO A. Maier, 2026-09-24)*
 A job is handed only to a participant that the product has assigned to the role the job belongs to.
@@ -213,33 +210,30 @@ whoever presses merge.
 *Check:* `tests/test_definition_of_done.py` — a pull request missing one condition is not mergeable;
 counter-proof: with all conditions met it is.
 
-**A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT** *(Vibe Coding, ch. 7 §5; PO A. Maier, changed 2026-10-01)*
+**A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT** *(Vibe Coding, ch. 7 §5; changed PO A. Maier, 2026-10-01)*
 A sprint of a product is closed only after a review of its increment is recorded: what was done,
 who took part, and the feedback, which enters the backlog as items.
 *Occasion:* the book: "at the end of the sprint, the review checks what was actually achieved", and
 the backlog is adapted from it (ch. 7 §5). Without a record, the inspection that Scrum rests on
-leaves no trace, and the feedback is lost with the meeting. PO, 2026-10-01: this holds for a sprint
-without a time box as well.
+leaves no trace, and the feedback is lost with the meeting.
 *Check:* `tests/test_time_box_close.py`
 
-**A SPRINT ENDS WITH A RETROSPECTIVE** *(Vibe Coding, ch. 7 §5; PO A. Maier, changed 2026-10-01)*
+**A SPRINT ENDS WITH A RETROSPECTIVE** *(Vibe Coding, ch. 7 §5; changed PO A. Maier, 2026-10-01)*
 A sprint of a product is closed only after its retrospective is recorded: what the team — people
 and agents — will change in how it works.
 *Occasion:* the book: "the retrospective reflects on how the team itself should improve before the
 next cycle". A change it decides for the process model goes through its configuration (UC-031); a
-change for the agents' instructions through their definition. PO, 2026-10-01: this holds for a sprint
-without a time box as well.
+change for the agents' instructions through their definition.
 *Check:* `tests/test_time_box_close.py`
 
 **A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN** *(PO A. Maier, 2026-09-24, changed 2026-10-01)*
-A product may give a phase or a sprint — with or without a time box — a branch of its own, into which
+A product may give a phase or a sprint a branch of its own, into which
 its work is merged; merging that branch into the default branch is then the gate at its end, decided
 by the role the model names for that gate — in Scrum the Product Owner, after the review of the
 increment.
 *Occasion:* PO, 2026-09-24: "an entire scrum phase can be assigned an additional branch in git; then
-the merge is the gate at the end of the phase, but this is optional." A sprint is not a phase in the
-book's sense (ch. 6: a phase groups activities), so both are named; PO, 2026-10-01: nor need a sprint be a
-time box — Agent M's own sprints have none and a branch `sprint/<nn>` each (`docs/process.md`). Releasing the
+the merge is the gate at the end of the phase, but this is optional." A sprint is not a
+phase in the book's sense (ch. 6: a phase groups activities), so both are named. Releasing the
 increment is the Product Owner's decision; the review informs it.
 *Check:* `tests/test_phase_branch.py`
 
@@ -321,14 +315,11 @@ person, every sprint, without being reminded.
 with a review and a retrospective recorded by that agent.
 
 **A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF** *(PO A. Maier, 2026-09-30, changed 2026-10-01)*
-When closing a sprint is assigned to an agent, its job starts by itself when the sprint ends — at the end of
-its time box or, in a sprint without one, when every selected item is done or the Product Owner ends it.
+When closing a sprint is assigned to an agent, its job starts by itself when the sprint's time box ends or, in a
+sprint without one, when every selected item is done.
 *Occasion:* the point of assigning it is that nobody has to remember; the time box's end date is already
-recorded with the sprint (UC-032). PO, 2026-10-01: a sprint without a time box ends when its selection is
-done or the Product Owner ends it (`docs/process.md`); both are read from the repository — the merged pull
-requests, and the end the Product Owner records with the sprint.
-*Check:* `tests/test_time_box_close.py` — a fixture sprint without a time box whose last selected item is
-merged starts its close; counter-proof: with one selected item not done and no end recorded, nothing starts.
+recorded with the sprint (UC-032).
+*Check:* `tests/test_time_box_close.py`
 
 **AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM** *(PO A. Maier, 2026-09-30)*
 A review recorded by an agent names the sources of its feedback — issues, mails, job records, test
