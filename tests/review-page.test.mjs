@@ -13,9 +13,10 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as core from "../docs/assets/review-core.mjs";
+import { parseArchitecture, reviewedId } from "../docs/assets/artifacts.mjs";
 import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
 
-const { gitBlobSha, recordText, useCaseRecord, reviewedRecord, approvalPath, parseRecord, parseArchitecture, reviewedId,
+const { gitBlobSha, recordText, useCaseRecord, reviewedRecord, approvalPath, parseRecord,
   architecturePrerequisites, deriveReviewedStatus, deriveUseCaseStatus, acceptItems } = core;
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records

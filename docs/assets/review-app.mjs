@@ -22,18 +22,21 @@ import {
   gitBlobSha, deriveTarget, sharedOriginNotice, canStore, TOKEN_GUIDANCE,
   tokenLinkUrl, repositoryChoiceSteps, stepHtml, addProduct, gitlabTokenSteps, gitlabNoProjectTokens,
   gitlabWriteRefusal,
-  extendTokenSteps, parseFrontMatter, parseRecord, recordText, approvalPath, useCaseRecord,
+  extendTokenSteps, parseRecord, recordText, approvalPath, useCaseRecord,
   specRecord, parseQueueIndex,
   parseDecisions, acceptItems, createReviewSession, sectionForEntry, readByBlob, recordIndex, statusByNames, specStatusByNames,
   missingNeeds, itemLabel, needsMessage,
   browserSettingsHtml, tokenBannerHtml, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, exportNotice,
   PASSPHRASE_NOTICE, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
-  pseudonymisationOn, pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation, parseCollaborators,
-  addCollaborator, removeCollaborator, saveCollaborators, gitlabRole,
-  diffHtml, reviewedId, recordsForId, lastAccepted,
-  ARCHITECTURE_FILE, parseArchitecture, reviewedRecord, architecturePrerequisites, prerequisitesHtml,
-  moduleHeaders, impactList, impactHtml, componentDiagram, saveReviewedFile, reviewPage,
+  pseudonymisationOffNotice, PSEUDONYMISATION_ON_NOTE, savePseudonymisation,
+  saveCollaborators, gitlabRole,
+  diffHtml, recordsForId, lastAccepted,
+  reviewedRecord, architecturePrerequisites, prerequisitesHtml,
+  impactHtml, saveReviewedFile, reviewPage,
 } from "./review-core.mjs";
+import { parseFrontMatter, reviewedId, ARCHITECTURE_FILE, parseArchitecture } from "./artifacts.mjs";
+import { moduleHeaders, impactList, componentDiagram } from "./traceability.mjs";
+import { pseudonymisationOn, parseCollaborators, addCollaborator, removeCollaborator } from "./pseudonymiser.mjs";
 import { jumpHostProblem, addRemoteSession, nextFreePort, probeLocalPort } from "./bridge-tunnel.mjs";
 
 const API = "https://api.github.com";

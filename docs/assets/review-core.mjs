@@ -16,6 +16,10 @@ import {
 } from "./git-host.mjs";
 import { jumpHostProblem, tunnelCommands } from "./bridge-tunnel.mjs";
 import { settingKeys, parseJson, sessionList, gitlabTokenMap } from "./settings-store.mjs";
+import { SLUG, reviewedId, kindOfPath, parseArchitecture, specRequirements, identifierKept } from "./artifacts.mjs";
+// The two save functions of the product settings below still write here; they read the settings line and the collaborators
+// file of the pseudonymiser until the writes leave the kernel (ITM-003, ITM-008).
+import { SETTING_LINE, formatCollaborators } from "./pseudonymiser.mjs";
 
 // ---------------------------------------------------------------- instance and products (SPEC §10)
 
@@ -72,26 +76,6 @@ export async function gitBlobSha(text) {
   all.set(body, head.length);
   const d = await crypto.subtle.digest("SHA-1", all);
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// ---------------------------------------------------------------- use-case front matter
-
-export function parseFrontMatter(text) {
-  if (!text.startsWith("---\n")) return { fields: {}, body: text };
-  const end = text.indexOf("\n---\n", 4);
-  if (end < 0) return { fields: {}, body: text };
-  const fields = {};
-  let key = null;
-  for (const line of text.slice(4, end).split("\n")) {
-    const m = line.match(/^([a-z][a-z0-9_-]*):\s*(.*)$/);
-    if (m) {
-      key = m[1];
-      fields[key] = m[2].trim() ? m[2].trim() : [];
-    } else if (key && /^\s+-\s+/.test(line) && Array.isArray(fields[key])) {
-      fields[key].push(line.replace(/^\s+-\s+/, "").trim());
-    }
-  }
-  return { fields, body: text.slice(end + 5) };
 }
 
 // ---------------------------------------------------------------- approval records
@@ -277,30 +261,7 @@ export function diffHtml(a, b) {
 // it. One request per record, and none when the identifier has only one record. Two records committed in the same second
 // cannot be ordered this way; the dashboard then says so instead of guessing.
 
-const REVIEWED_ID = /^([A-Z]+-\d{3,})-[^/]*\.md$/;
-// ONE MODULE, ONE FILE: docs/architecture/MOD-<slug>.md — the whole slug is the module's identifier.
-const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
-const MODULE_ID = new RegExp(`^(MOD-${SLUG})\\.md$`);
 const HEX40 = /^[0-9a-f]{40}$/;
-
-// The identifier of a reviewed file from its path (docs/use-cases/UC-010-<slug>.md -> UC-010,
-// docs/architecture/ARC-003-<slug>.md -> ARC-003, docs/architecture/MOD-review-core.md -> MOD-review-core), or null.
-export function reviewedId(path) {
-  const name = String(path ?? "").split("/").pop();
-  if (name.startsWith("MOD-")) return MODULE_ID.exec(name)?.[1] ?? null;
-  const m = REVIEWED_ID.exec(name);
-  return m ? m[1] : null;
-}
-
-// ONE REVIEW LAYOUT FOR EVERY PRODUCT: the kinds of reviewed file, each in its folder below docs/, named as its rule says
-// (ONE USE CASE, ONE FILE · ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE). The kind is the record's `kind`.
-const REVIEWED_KINDS = [
-  ["use-case", /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/],
-  ["architecture-decision", new RegExp(`^docs/architecture/ARC-\\d{3}-${SLUG}\\.md$`)],
-  ["module", new RegExp(`^docs/architecture/MOD-${SLUG}\\.md$`)],
-];
-export const kindOfPath = (path) => REVIEWED_KINDS.find(([, re]) => re.test(String(path ?? "")))?.[0] ?? null;
-export const ARCHITECTURE_FILE = new RegExp(`^docs/architecture/(?:ARC-\\d{3}-${SLUG}|MOD-${SLUG})\\.md$`);
 
 // Every approval record of that identifier, whatever path it names (not the records of SPEC changes).
 export const recordsForId = (records, id) => records.filter((r) => r.kind !== "spec" && r.file && reviewedId(r.file) === id);
@@ -441,112 +402,7 @@ export async function specStatusByNames({ index, entry, read }) {
   return deriveSpecStatus({ ...entry, records: [...(await read(named.map((n) => n.path))), ...other] });
 }
 
-// ---------------------------------------------------------------- architecture (SPEC §11; UC-022, UC-023)
-//
-// ONE ARCHITECTURE DECISION, ONE FILE: docs/architecture/ARC-<nnn>-<slug>.md. ONE MODULE, ONE FILE:
-// docs/architecture/MOD-<slug>.md. Both are reviewed like use cases (ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON); the
-// format is checked by tests/artifact_checks.py architecture_problems, which reads it the same way:
-//
-//   ARC — front matter: id (ARC-<nnn>), title, forced_by (a list of requirement names and UC-<nnn>, at least one);
-//         body sections ## Context, ## Decision, ## Alternatives, ## Consequences.
-//   MOD — front matter: id (MOD-<slug>), title, realises (requirement names and UC-<nnn>), follows (ARC-<nnn>),
-//         uses (MOD-<slug>.<interface>), provides (interface names) — each a list, possibly empty (`key:` or `key: []`);
-//         body sections ## Responsibility, ## Interfaces; each provided interface described in ## Interfaces by a
-//         bullet that starts with its name in backticks, `- \`name(…) -> …\` — …`, continued on indented lines.
-
-const UC_ID = /^UC-\d{3}$/;
-const ARC_ID = /^ARC-\d{3}$/;
-const IFACE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const USE_RE = new RegExp(`^(MOD-${SLUG})\\.([A-Za-z_][A-Za-z0-9_]*)$`);
-const ARC_SECTIONS = ["## Context", "## Decision", "## Alternatives", "## Consequences"];
-const MOD_SECTIONS = ["## Responsibility", "## Interfaces"];
-
-// A requirement is named by its name in capitals (THE NAME IS THE ID AND IT SURVIVES); other identifiers are not names.
-export const isRequirementName = (s) => typeof s === "string" && /[A-Z]/.test(s) && !/[a-z]/.test(s)
-  && !/^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-/.test(s);
-
-const asList = (v) => (v === "[]" ? [] : Array.isArray(v) ? v : null);
-
-function sectionOf(body, heading) {
-  const lines = body.split("\n");
-  const at = lines.findIndex((l) => l.trimEnd() === heading);
-  if (at < 0) return null;
-  const end = lines.findIndex((l, i) => i > at && /^#{1,2} /.test(l));
-  return lines.slice(at + 1, end < 0 ? lines.length : end);
-}
-
-// { name: its description } from the ## Interfaces section: a bullet `- \`name…` and the indented lines that continue it.
-function describedInterfaces(body) {
-  const out = {}, lines = sectionOf(body, "## Interfaces") || [];
-  for (let i = 0; i < lines.length; i++) {
-    const m = /^- `([A-Za-z_][A-Za-z0-9_]*)/.exec(lines[i]);
-    if (!m) continue;
-    const desc = [lines[i]];
-    while (i + 1 < lines.length && /^\s+\S/.test(lines[i + 1])) desc.push(lines[++i]);
-    out[m[1]] = desc.map((l) => l.trimEnd()).join("\n");
-  }
-  return out;
-}
-
-// An architecture file as the dashboard reads it -> { kind, id, title, names, requirements, useCases, follows, uses,
-// provides, interfaces, body, problems }. `names` are what forces a decision (forced_by) or what a module realises.
-export function parseArchitecture(path, text) {
-  const name = String(path).split("/").pop();
-  const kind = kindOfPath(path);
-  const { fields, body } = parseFrontMatter(String(text));
-  const problems = [];
-  const want = reviewedId(path);
-  if (kind !== "architecture-decision" && kind !== "module") problems.push(`${name}: not docs/architecture/ARC-<nnn>-<slug>.md or MOD-<slug>.md`);
-  if (!Object.keys(fields).length) problems.push(`${name}: no front matter`);
-  if (fields.id !== want) problems.push(`${name}: id ${JSON.stringify(fields.id ?? null)} does not match the file name (${want})`);
-  if (!fields.title || typeof fields.title !== "string") problems.push(`${name}: missing title`);
-  const list = (key, ok, what, nonEmpty = false) => {
-    const v = key in fields ? asList(fields[key]) : null;
-    if (v === null) { problems.push(`${name}: ${key} must be a list`); return []; }
-    if (nonEmpty && !v.length) problems.push(`${name}: ${key} must name at least one item`);
-    for (const x of v) if (!ok(x)) problems.push(`${name}: ${key}: ${JSON.stringify(x)} is not ${what}`);
-    return v;
-  };
-  const origin = (x) => UC_ID.test(x) || isRequirementName(x);
-  let names = [], follows = [], uses = [], provides = [];
-  const interfaces = describedInterfaces(body);
-  if (kind === "architecture-decision") {
-    names = list("forced_by", origin, "a use case (UC-<nnn>) or a requirement name", true);
-    for (const k of ["realises", "follows", "uses", "provides"]) if (k in fields) problems.push(`${name}: key ${k} belongs to a module`);
-  } else if (kind === "module") {
-    names = list("realises", origin, "a use case (UC-<nnn>) or a requirement name");
-    follows = list("follows", (x) => ARC_ID.test(x), "an architecture decision (ARC-<nnn>)");
-    uses = list("uses", (x) => USE_RE.test(x), "an interface of another module (MOD-<slug>.<interface>)")
-      .filter((x) => USE_RE.test(x)).map((x) => { const m = USE_RE.exec(x); return { module: m[1], iface: m[2] }; });
-    provides = list("provides", (x) => IFACE.test(x), "an interface name");
-    if ("forced_by" in fields) problems.push(`${name}: key forced_by belongs to an architecture decision`);
-    if (new Set(provides).size !== provides.length) problems.push(`${name}: provides names an interface twice`);
-    for (const i of provides) if (IFACE.test(i) && !(i in interfaces)) problems.push(`${name}: interface ${i} is not described in ## Interfaces`);
-  }
-  for (const s of kind === "module" ? MOD_SECTIONS : kind ? ARC_SECTIONS : []) {
-    if (!body.split("\n").some((l) => l.trimEnd() === s)) problems.push(`${name}: missing section ${s}`);
-  }
-  // ARC-020 decision 4: a withdrawn decision or module keeps its file, with `withdrawn: <date>`, perhaps `replaced_by`, and the
-  // reason as the section ## Withdrawn.
-  const withdrawn = typeof fields.withdrawn === "string" && fields.withdrawn
-    ? { date: fields.withdrawn, replacedBy: typeof fields.replaced_by === "string" && fields.replaced_by ? fields.replaced_by : null,
-      note: (sectionOf(body, "## Withdrawn") || []).join("\n").trim() }
-    : null;
-  return { kind, id: fields.id ?? want, title: typeof fields.title === "string" ? fields.title : "", names,
-    requirements: names.filter((n) => !UC_ID.test(n)), useCases: names.filter((n) => UC_ID.test(n)), follows, uses, provides,
-    interfaces, body, problems, withdrawn };
-}
-
-// The requirements of a SPEC: a line `**NAME** *(source)*`, the name in capitals; withdrawn when its source says so — the
-// source may run over several lines. -> Map(name -> { withdrawn })
-export function specRequirements(specText) {
-  const out = new Map();
-  for (const m of String(specText).matchAll(/^\*\*([^*\n]+)\*\*[ \t]+\*\(([\s\S]*?)\)\*/gm)) {
-    if (!isRequirementName(m[1])) continue;
-    out.set(m[1], { withdrawn: /withdrawn/i.test(m[2]) });
-  }
-  return out;
-}
+// ---------------------------------------------------------------- architecture prerequisites (SPEC §11; UC-022, UC-023)
 
 // ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS (UC-022 10a, UC-023 4b): every requirement the file names stands in the SPEC and
 // is not withdrawn, every use case it names is accepted. useCases: [{ id, path, blob, status, record }] as the page derived
@@ -604,83 +460,7 @@ async function architectureRefusal(it, text, get) {
   return null;
 }
 
-// ---------------------------------------------------------------- the impact list (UC-023 step 4, 4a, 4c)
-//
-// AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST: beside the difference to the last accepted text, the modules
-// that follow the changed decision or use an interface the change alters or removes, the code files and tests that name each
-// of them, and the requirements and use cases named before and after. Derived from the files at the commit shown; nothing is
-// stored. A code file names its module in a header line `Module: MOD-<slug>` among its first lines (UC-024 step 7).
-
-export const HEADER_LINES = 20;
-const CODE_EXT = new Set(["js", "mjs", "cjs", "ts", "tsx", "jsx", "mts", "cts", "py", "rb", "go", "rs", "java", "kt", "kts", "scala",
-  "c", "h", "cc", "cpp", "hpp", "cs", "swift", "m", "php", "pl", "lua", "r", "jl", "sh", "bash", "zsh", "ps1", "sql", "css", "scss",
-  "html", "vue", "svelte", "dart", "ex", "exs", "erl", "hs", "ml", "fs", "clj"]);
-const NOT_OWN = new Set(["vendor", "node_modules", "third_party", "third-party", ".git"]);
-
-export function isCodePath(path) {
-  const parts = String(path).split("/"), ext = /\.([A-Za-z0-9]+)$/.exec(parts[parts.length - 1])?.[1]?.toLowerCase();
-  return Boolean(ext && CODE_EXT.has(ext)) && !parts.slice(0, -1).some((p) => NOT_OWN.has(p));
-}
-
-export function isTestPath(path) {
-  const parts = String(path).split("/"), base = parts[parts.length - 1];
-  return parts.slice(0, -1).some((p) => ["test", "tests", "__tests__"].includes(p))
-    || /^test_[^/]+$|_test\.[A-Za-z0-9]+$|\.(test|spec)\.[A-Za-z0-9]+$/.test(base);
-}
-
-// The modules a file names in its header: a line of its first lines that is `Module: MOD-<slug>` behind a comment marker.
-export function headerModules(text) {
-  const out = [];
-  for (const l of String(text).split("\n").slice(0, HEADER_LINES)) {
-    const m = new RegExp(`^[^A-Za-z0-9'"\`]*Module:\\s*(MOD-${SLUG})\\b`).exec(l);
-    if (m && !out.includes(m[1])) out.push(m[1]);
-  }
-  return out;
-}
-
-// Every code file and test among `paths` that names a module -> [{ path, modules, test }], by path. read(path) -> text.
-export async function moduleHeaders({ paths, read }) {
-  const code = [...paths].filter(isCodePath).sort();
-  const texts = await Promise.all(code.map((p) => read(p)));
-  return code.map((path, i) => ({ path, modules: headerModules(texts[i] ?? ""), test: isTestPath(path) }))
-    .filter((f) => f.modules.length);
-}
-
-// before, after: parseArchitecture of the last accepted and of the current text; modules: every module at the commit shown;
-// headers: moduleHeaders at that commit.
-export function impactList({ before, after, modules, headers }) {
-  const id = after.id, affected = new Map();
-  const add = (mid, reason, breaks = false) => {
-    const a = affected.get(mid) || { id: mid, reasons: [], breaks: false };
-    a.reasons.push(reason);
-    a.breaks = a.breaks || breaks;
-    affected.set(mid, a);
-  };
-  let removed = [], altered = [];
-  if (after.kind === "architecture-decision") {
-    for (const m of modules) if (m.follows.includes(id)) add(m.id, `follows ${id}`);
-  } else {
-    removed = before.provides.filter((i) => !after.provides.includes(i));
-    altered = before.provides.filter((i) => after.provides.includes(i) && (before.interfaces[i] ?? "") !== (after.interfaces[i] ?? ""));
-    for (const m of modules) {
-      if (m.id === id) continue;
-      for (const u of m.uses) {
-        if (u.module !== id) continue;
-        if (removed.includes(u.iface)) add(m.id, `uses ${id}.${u.iface}, which the change removes`, true);
-        else if (altered.includes(u.iface)) add(m.id, `uses ${id}.${u.iface}, which the change alters`);
-      }
-    }
-  }
-  const order = [...affected.values()].sort((a, b) => Number(b.breaks) - Number(a.breaks) || a.id.localeCompare(b.id));
-  if (after.kind === "module") order.push({ id, reasons: ["the changed module itself"], breaks: false });
-  const files = (mid, test) => headers.filter((h) => h.test === test && h.modules.includes(mid)).map((h) => h.path);
-  const b = before.names, a = after.names;
-  return {
-    id, kind: after.kind, removedInterfaces: removed, alteredInterfaces: altered,
-    affected: order.map((x) => ({ ...x, code: files(x.id, false), tests: files(x.id, true) })),
-    names: { kept: a.filter((n) => b.includes(n)), added: a.filter((n) => !b.includes(n)), removed: b.filter((n) => !a.includes(n)) },
-  };
-}
+// ---------------------------------------------------------------- the impact list as the page shows it (UC-023 step 4)
 
 export function impactHtml(imp) {
   const li = (xs) => (xs.length ? xs.map((x) => `<code>${esc(x)}</code>`).join(", ") : "—");
@@ -701,37 +481,6 @@ export function impactHtml(imp) {
       that use a removed one first, marked <em>breaks</em> —, the code files and tests that name each in a header line
       <code>Module: MOD-…</code>, and the requirements and use cases the file names. Accepting changes no code: the code still
       reflects the old architecture until an implementation job changes it.</div></details>`;
-}
-
-// ---------------------------------------------------------------- the component diagram (UC-022 step 8, UC-025 step 5)
-
-const mermaidId = (id) => id.replace(/[^A-Za-z0-9]/g, "_");
-const mermaidText = (s) => String(s ?? "").replace(/[\r\n]+/g, " ").replace(/"/g, "#quot;").replace(/</g, "#lt;").replace(/>/g, "#gt;");
-
-// A Mermaid flowchart computed from the modules' `uses` and `provides`: one edge per used interface, from the user to the
-// provider; an interface that no module provides is drawn as a node of its own, marked missing.
-export function componentDiagram(modules) {
-  const mods = modules.filter((m) => m.kind === "module");
-  const byId = new Map(mods.map((m) => [m.id, m]));
-  const lines = ["flowchart LR"], missing = [];
-  for (const m of mods) lines.push(`  ${mermaidId(m.id)}["${mermaidText(m.id)}<br/>${mermaidText(m.title)}"]`);
-  for (const m of mods) {
-    for (const u of m.uses) {
-      const p = byId.get(u.module);
-      if (p && p.provides.includes(u.iface)) {
-        lines.push(`  ${mermaidId(m.id)} -->|"${mermaidText(u.iface)}"| ${mermaidId(p.id)}`);
-      } else {
-        const node = `missing_${mermaidId(u.module)}_${mermaidId(u.iface)}`;
-        if (!missing.includes(node)) missing.push(node);
-        lines.push(`  ${mermaidId(m.id)} -.->|"${mermaidText(u.iface)}"| ${node}["${mermaidText(`${u.module}.${u.iface}`)} — missing"]`);
-      }
-    }
-  }
-  if (missing.length) {
-    lines.push("  classDef missing stroke-dasharray: 4 3,stroke:#b42318,color:#b42318");
-    for (const n of missing) lines.push(`  class ${n} missing`);
-  }
-  return lines.join("\n") + "\n";
 }
 
 // ---------------------------------------------------------------- guided token setup (SPEC §7)
@@ -842,13 +591,8 @@ export function stepHtml({ title, body, explain }) {
 // file is still the text the editor opened (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE). openedId null: a file without
 // an identifier, such as a SPEC proposal.
 export async function saveReviewedFile({ repo = null, product = null, branch, token, click, path, text, openedId, expectBlob }) {
-  if (openedId) {
-    const now = parseFrontMatter(String(text)).fields.id ?? null;
-    if (now !== openedId) {
-      throw new Error(`The file was opened as ${openedId}, but the text now carries the identifier ${now ?? "(none)"} — an edited file keeps its ` +
-        "identifier. Nothing was saved; put the identifier back, or propose a new file for a new one.");
-    }
-  }
+  const refused = identifierKept(openedId, text);
+  if (refused) throw new Error(refused);
   return writeFiles({ repo, product, branch, token, click, message: `edit ${String(path).split("/").pop()} (Agent M dashboard)`,
     files: [{ path, content: text, expectBlob: expectBlob || null }] });
 }
@@ -1306,18 +1050,6 @@ export function exportNotice(entries = {}) {
 
 export const PRODUCT_SETTINGS_PATH = "docs/settings.md";
 export const COLLABORATORS_PATH = "docs/collaborators.md";
-const SETTING_LINE = /^- ([a-z][a-z0-9-]*):[ \t]*(.+?)[ \t]*$/;
-
-export function parseProductSettings(text) {
-  const out = {};
-  for (const line of String(text || "").split("\n")) {
-    const m = SETTING_LINE.exec(line);
-    if (m) out[m[1]] = m[2];
-  }
-  return out;
-}
-
-export const pseudonymisationOn = (text) => parseProductSettings(text).pseudonymisation !== "off";
 
 // Set one setting's line (value null removes it); every other line of the file stays as it was.
 export function setProductSetting(text, name, value, product) {
@@ -1353,42 +1085,6 @@ export async function savePseudonymisation({ repo, product = null, branch, token
     files: [{ path: PRODUCT_SETTINGS_PATH, content: setProductSetting(current, "pseudonymisation", off ? "off" : null, repo ?? product?.repo),
       expectBlob: currentBlob || null }] });
 }
-
-// A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT: docs/collaborators.md, one table row per person who agreed
-// to be named — name, account, date agreed.
-const ACCOUNT_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-// GitLab user names: letters, digits, '_', '-', '.'; not starting with '-', not ending in '.', '.git' or '.atom'
-// (NAMESPACE_FORMAT_REGEX_JS and NO_SUFFIX_REGEX of lib/gitlab/path_regex.rb, URL_MAX_LENGTH 255).
-const GITLAB_ACCOUNT_RE = /^(?:[A-Za-z0-9_.][A-Za-z0-9_.-]{0,254}[A-Za-z0-9_-]|[A-Za-z0-9_])$/;
-const accountOk = (a, gitlab) => (gitlab ? GITLAB_ACCOUNT_RE.test(a) && !/\.(git|atom)$/.test(a) : ACCOUNT_RE.test(a));
-
-export function parseCollaborators(text) {
-  const out = [];
-  for (const line of String(text || "").split("\n")) {
-    const m = /^\|\s*([^|]+?)\s*\|\s*@?([A-Za-z0-9_.-]+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/.exec(line);
-    if (m) out.push({ name: m[1], account: m[2], agreed: m[3] });
-  }
-  return out;
-}
-
-export function formatCollaborators(list, product) {
-  return `# Collaborators of ${product}\n\nPeople who agreed to be named in this repository, with the date they agreed. Anyone else is\n` +
-    "named only by their account. Changed on the Agent M dashboard (Settings).\n\n| Name | Account | Agreed on |\n|---|---|---|\n" +
-    list.map((c) => `| ${c.name} | @${c.account} | ${c.agreed} |\n`).join("");
-}
-
-// gitlab: the product is on a GitLab server, whose user names differ from GitHub's.
-export function addCollaborator(list, { name, account, agreed, consent, gitlab = false }) {
-  if (consent !== true) throw new Error("Tick “this person has agreed to be named” — without it, a person is named only by account.");
-  const n = String(name ?? "").trim(), a = String(account ?? "").trim().replace(/^@/, ""), d = String(agreed ?? "").trim();
-  if (!n || /[|\n]/.test(n)) throw new Error("Enter the person's name (without “|”).");
-  if (!accountOk(a, gitlab)) throw new Error(`“${a}” is not a ${gitlab ? "GitLab user" : "GitHub account"} name.`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("Enter the date they agreed as YYYY-MM-DD.");
-  if (list.some((c) => c.account.toLowerCase() === a.toLowerCase())) throw new Error(`@${a} is already listed.`);
-  return [...list, { name: n, account: a, agreed: d }];
-}
-
-export const removeCollaborator = (list, account) => list.filter((c) => c.account !== account);
 
 export async function saveCollaborators({ repo, product = null, branch, token, click, list, currentBlob }) {
   return writeFiles({ repo, product, branch, token, click, message: "collaborators: update (Agent M dashboard)",

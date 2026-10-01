@@ -10,6 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as core from "../docs/assets/review-core.mjs";
+import * as artifacts from "../docs/assets/artifacts.mjs";
 import * as settings from "../docs/assets/settings-store.mjs";
 import { fakeCaches } from "./app-harness.mjs";
 
@@ -77,7 +78,7 @@ test("STATUS IS DERIVED FROM THE RECORDS — from the names, equal to reading ev
       if (truth === "accepted") assert.equal(fx.records[byNames.record] !== undefined, true, `${path}: the record accepting it is named`);
       if (!unknown) {
         // An accepted file's name, or no name at all, decides without reading; otherwise only the records of its identifier are read.
-        const id = core.reviewedId(path);
+        const id = artifacts.reviewedId(path);
         if (byNames.byName) assert.deepEqual(r.read, [], path);
         else assert.ok(r.read.every((p) => p.startsWith(`docs/approvals/${id}-`)), `${path}: ${r.read}`);
       }
