@@ -76,3 +76,21 @@ Files it creates or changes:
 ## Needs a person
 
 No.
+
+## Back from Release testing (2026-10-02) — finding A5
+
+Finding **A5** of ITM-142 (`docs/measurements/2026-10-02_release-tests-sprint-02-a.md`, case 5, `{ todo }` in
+`tests/release-sprint-02-a-artifacts.test.mjs`): `identifierKept("UC-001", "---\r\nid: UC-001\r\n…")` returns the finding
+"the text carries no identifier", where the rule refuses only a text "whose identifier differs from the one it was opened
+with" and this item's criterion says "the same identifier returns `null`". Path: `artifacts.mjs` `identifierKept` →
+`parseFrontMatter` → `if (!text.startsWith("---\n")) return { fields: {}, body: text }` → `fields.id` undefined. Not reached
+through the dashboard's editor (a textarea gives LF), reached through `formatChecks` for a CR LF draft or file (ARC-007's
+correction loop). Under the tester's repair P03 the case passes and nothing else changes.
+
+The Product Owner sends the item **back to Development** (`docs/backlog/sprints/sprint-02.md`, *Decided on 2026-10-02*):
+developer-opus-a takes it up on a new branch, red first — the first commit removes the `{ todo }` mark of case 5 —, inside
+MOD-artifacts: `parseFrontMatter` reads a front matter with CR LF line ends (`---\r\n` … `\r\n---\r\n`) as it reads one with
+LF, trimming the CR of each field's value; `body` keeps the text's own bytes; an LF text is parsed byte for byte as today
+(every test of MOD-artifacts and every app-harness check unchanged). The cause is in the reader every function of
+MOD-artifacts shares; the test names the identifier rule, the counter-proof a CR LF text with another identifier, which is
+still named.

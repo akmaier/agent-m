@@ -78,6 +78,26 @@ Files it creates or changes:
 
 No.
 
+## Back from Release testing (2026-10-02) — finding C1
+
+Finding **C1** of ITM-144 (`docs/measurements/2026-10-01_release-tests-sprint-02-c.md`, case 5, `{ todo }` in
+`tests/release-sprint-02-c-artifacts.test.mjs`): a requirement written without any source — a bold name in capitals, the
+rule, `*Occasion:*` and `*Check:*` lines, no `*(…)*` on the name line — passes `formatChecks("requirement", …)`, where this
+item's own acceptance criterion says "a requirement without a source … is still an error". Path:
+`artifacts/checks.mjs` `requirementChecks` → `artifacts/requirements.mjs` `parseRequirements` → `HEAD` requires the `*(…)*`
+after the name → the name line is not read as a requirement → `requirementProblems` never runs for it. Ist: `[]`; Soll: one
+error under `A REQUIREMENT HAS FIVE FIELDS`, "no source", at that requirement's line. `formatChecks` is what a drafting job's
+correction loop sends back (ARC-007), so a participant that drops the source would not be told.
+
+The Product Owner sends the item **back to Development** (`docs/backlog/sprints/sprint-02.md`, *Decided on 2026-10-02*;
+the model's transition *Release testing → Development*): developer-opus-c takes it up on a new branch, red first — the
+first commit removes the `{ todo }` mark of case 5 —, inside MOD-artifacts. What must hold: a bold name in capitals that is
+followed, before the next blank line or heading, by an `*Occasion:*` or `*Check:*` line is a requirement without a source;
+bold prose, a bold label and a quoted name stay no requirement (release case 6; ITM-128's fixture of bold prose); every
+other release case of strand C and every existing test keeps its result — `parseRequirements` returns the same map for
+every text that has sources. The reader is shared (the link graph, the SPEC browser, the queue entries read through it), so
+the counter-proof covers a SPEC with a bold sentence between two requirements.
+
 ## From the sprint 02 planning
 
 The callers of what this item changes were checked at planning (sprint 01 retrospective, P7). `requirementProblems`

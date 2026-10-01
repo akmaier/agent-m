@@ -82,4 +82,34 @@ Files it creates or changes:
 
 ## Needs a person
 
-No — unless a read has no provided counterpart (see the acceptance criteria).
+No — unless a read has no provided counterpart (see the acceptance criteria). **Decided 2026-10-02: neither of the two
+reads left open has none** (below); no change request goes to `akmaier`.
+
+## Back from Release testing (2026-10-02) — findings A1 and A2
+
+Findings **A1** (case 9) and **A2** (case 10) of ITM-142 (`docs/measurements/2026-10-02_release-tests-sprint-02-a.md`,
+`{ todo }` in `tests/release-sprint-02-a-dashboard-app.test.mjs`), the two reads the implementer left open as "a change
+request to akmaier" (`docs/measurements/2026-10-01_reads-leave-the-kernel.md`, section 4). The Product Owner read both
+against MOD-git-host's `provides` and decides that each has a provided counterpart, so the item's own criterion — "no file of
+MOD-dashboard-app imports `fetchText`"; the stop only for a read without a counterpart — applies and the item goes **back to
+Development** (`docs/backlog/sprints/sprint-02.md`, *Decided on 2026-10-02*): developer-opus-a takes it up on a new
+branch, red first — the first commit removes the marks of cases 9 and 10 —, after ITM-126's re-opening (one developer, in
+this order; the files differ).
+
+- **A1 — `addProduct` reads a GitHub product's tree through `fetchText`** (`dashboard/writes.mjs`: `GET /repos/<repo>/git/trees/<branch>?recursive=1`).
+  Counterpart: `readSnapshot({ product, ref: info.defaultBranch, token })` — the branch resolved to a commit, then its tree:
+  one request more on the one click of UC-001 step 5, which is no load the page repeats. The implementer's reason for the
+  stop — the fake GitHub of `tests/review-core.d/dashboard-writes.test.mjs` does not answer `GET /commits/<ref>` — is a
+  fixture of the item's own module, not an interface: the fixture gains the route. The GitLab branch of the same function
+  already reads through `readSnapshot`.
+- **A2 — `checkGitLab` reads a GitLab project through `gitlabProject`** (`dashboard/settings-view.mjs`), not in `provides`,
+  to tell a GitLab server by `path_with_namespace`. Counterpart: `repositoryInfo({ product, token })`, which reads the same
+  project (`GET <server>/api/v4/projects/<id>`, the same URL the fixtures of the settings tests answer) and reports
+  `visibility`, `defaultBranch` and `role` — everything `checkGitLab` uses, the access level included (`gitlabRole(level)`
+  takes `role`). The server check rests on what is reported: an answer without `visibility` and without `defaultBranch` "did
+  not answer as a GitLab server" — the same sentence, the same strength (a server that is no GitLab answers neither). The
+  interface does not lack a field the check needs; `path_with_namespace` was the implementer's choice of evidence, not the
+  only one. Under the tester's repair P02 (neither `fetchText` nor `gitlabProject` imported) cases 9 and 10 pass.
+
+What must hold: `tests/review-core.d/dashboard-app.test.mjs` loses its `DIRECT_READ` exception; every test of ITM-130,
+ITM-132 and ITM-136 keeps its result, the fixtures gaining the one route; no sentence a person reads changes.

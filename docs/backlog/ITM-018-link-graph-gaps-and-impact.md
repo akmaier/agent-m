@@ -102,6 +102,28 @@ Further:
 
 No.
 
+## Back from Release testing (2026-10-02) — finding D1, the graph's half
+
+Finding **D1** of ITM-145 (`docs/measurements/2026-10-02_release-tests-sprint-02-d.md`, case 24, `{ todo }` in
+`tests/release-sprint-02-d-traceability.test.mjs`; the view's half is ITM-134's): an open entry whose proposal states the
+section without one of its requirements — TITLE renamed in place, or left out — draws no `proposes` edge to TITLE.
+Path: `traceability/graph.mjs` `linkGraph` → `isQueueEntry` → `for (const r of parseRequirements(text(path)).values())` — only
+the names the entry's text states → TITLE is not among them: no edge; the new name is not in the SPEC: `"add"`. Accepting
+such an entry replaces the section byte for byte (UC-006 step 6) and takes TITLE out of the SPEC without a withdrawal note
+while UC-001, UC-002, MOD-cover and `tests/title.test.mjs` still name it — the case the rule's occasion recalls. The
+dashboard's own editor proposes a rename as a withdrawal plus an addition (`A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED`);
+an entry written by hand or by a CI agent need not be, and those are the entries a reviewer sees.
+
+The Product Owner sends the item **back to Development** (`docs/backlog/sprints/sprint-02.md`, *Decided on 2026-10-02*):
+developer-opus-d takes it up on a new branch, red first — the first commit removes the mark of case 24 —, inside
+MOD-traceability, before ITM-134's re-opening. The graph learns which section an entry replaces from the files it is
+given: the queue's `index.md` (`docs/spec-freigaben/<queue>/index.md`, read with `parseQueueIndex` of MOD-review-core,
+which MOD-traceability uses) names each entry's anchor, and `extractSection`/`sectionForEntry` give the SPEC section it
+replaces; every live requirement of that section the entry no longer states is an edge `proposes` with `change:
+"withdraw"` (the name leaves the SPEC without a note) — or `"change"` where the entry states it under another name;
+which of the two is the developer's reading, recorded with the change. Without the index among the files, the graph
+behaves as today. `linkGraph(snapshot)`'s interface is unchanged: the index is one more file in `files`.
+
 ## From the sprint 02 planning
 
 The callers of what this item changes were checked at planning (sprint 01 retrospective, P7). `impactList` is

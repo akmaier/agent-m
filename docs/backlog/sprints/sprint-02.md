@@ -228,14 +228,15 @@ files.
 
 ### Gate *Release testing → Sprint review* — decisions
 
-Filled in by the Product Owner as each strand's release tests are merged; empty until then.
+Filled in by the Product Owner as each strand's release tests are merged. A row sent *back to Development* is decided
+again, in a second line of the same row, when the marks it names are gone (*Decided on 2026-10-02*, below).
 
 | Strand | Release-test item | Pull request | Green on `sprint/02` at | Decision | By, date |
 |---|---|---|---|---|---|
-| A | ITM-142 | | | | |
-| B | ITM-143 | | | | |
-| C | ITM-144 | | | | |
-| D | ITM-145 | | | | |
+| A | ITM-142 | #63 | `50441e2` — 25 green, 5 marked | **back to Development**: ITM-126 (A5), ITM-130 (A1, A2); A3 and A4 are accepted limitations, closed by ITM-151 | po-fable, 2026-10-02 |
+| B | ITM-143 | #62 | `190c17e` — 44 green, none marked | **passed** | po-fable, 2026-10-02 |
+| C | ITM-144 | #61 | `e1d04c5` — 22 green, 4 marked | **back to Development**: ITM-127 (C1); S1 is no defect — ITM-128's criterion corrected, the case follows it (tester-opus); G1 and G2 are accepted limitations, closed by ITM-153 and ITM-152 | po-fable, 2026-10-02 |
+| D | ITM-145 | #64 | `35b5766` — 31 green, 1 marked twice | **back to Development**: ITM-018, then ITM-134 (D1) | po-fable, 2026-10-02 |
 
 ## Not selected, and why
 
@@ -275,6 +276,66 @@ release tests should take it; and the release-test file whose marks they remove 
 cleanly from the `main` this sprint produces. They head the backlog order for sprint 03 (positions 41 to 43). The sprint
 01 gate *Release testing → Sprint review* is decided in `sprint-01.md` (*Addendum, 2026-10-01*): passed, with the three
 recorded as accepted limitations; the limitation of the sprint 01 merge is lifted.
+
+### Decided on 2026-10-02 — the four strands' release tests: what goes back, what becomes an item
+
+All 25 selected items are merged into `sprint/02` (head `35b5766`), the four release-test items last (#61 ITM-144, #62
+ITM-143, #63 ITM-142, #64 ITM-145). The records: `docs/measurements/2026-10-01_release-tests-sprint-02-c.md`,
+`2026-10-02_release-tests-sprint-02-{a,b,d}.md`. 133 release cases, 122 green on the increment, 11 marked for ten findings
+(`{ todo }` / `@unittest.expectedFailure`, each with its finding and item; D1 is marked in two files); every green case
+shown red under at least one planted fault. Decided by the Product Owner, `po-fable`, who implemented none of them.
+
+**How the gate's rule is applied.** *Branch and gates* says the gate is decided "only when no release test of the strand
+carries a mark". Read at planning for the case it foresaw — a red test on an item its developer can fix. Four of the ten
+findings are not that: A2 and G1 were recorded by the implementers as needing `akmaier` (an interface), A3/A4 and S1 rest on
+readings. Waiting for `akmaier` would leave the sprint unclosable on items the team cannot touch (`docs/process.md`,
+*Boundary*: "the item waits"). So, for this sprint, the Product Owner applies the rule as follows and records it here rather
+than rewording the rule mid-sprint: **a mark goes back to Development** when its fix lies inside the item's own text,
+modules and files and needs no person — the item is re-opened, red first, and the row is decided again when the mark is
+gone; **a mark is an accepted limitation** — as the three of sprint 01 — when it names a flow beyond the item's text, a
+reading the Product Owner settles otherwise, or a change only `akmaier` can make; each gets an item that removes its mark.
+A row whose remaining marks are all limitations is *passed*. Every mark is one of the two; none is left undecided.
+
+| Mark | Case, record | What the increment does | Decision | Where it goes |
+|---|---|---|---|---|
+| A1 | a 9 | `addProduct` reads a GitHub tree through `fetchText`, a read `readSnapshot` provides; the implementer stopped on a test fixture, not an interface | **back** — ITM-130's own criterion | ITM-130, developer-opus-a |
+| A2 | a 10 | `checkGitLab` reads through `gitlabProject`, not in `provides`; `repositoryInfo` reports `visibility`, `defaultBranch`, `role` — all the check needs; `path_with_namespace` was a choice of evidence, not a missing field | **back** — no change request to `akmaier` (ITM-130, *Back from Release testing*) | ITM-130, developer-opus-a |
+| A3, A4 | a 21, 22 | *Accept ticked*, *Accept all* and *Save* refused for missing write access give words, no GitHub route | **limitation** — ITM-133's criteria named the single *Accept*; the tester's readings R1, R2 adopted as the Product Owner's and built as a new item | ITM-151 (no person) |
+| A5 | a 5 | `identifierKept` refuses a CR LF text that keeps its identifier (`parseFrontMatter` needs `---\n`) | **back** — ITM-126's counter-proof | ITM-126, developer-opus-a |
+| C1 | c 5 | a requirement with no `*(…)*` on its name line is not read, so a missing source is no finding | **back** — ITM-127's own criterion | ITM-127, developer-opus-c |
+| S1 | c 26 | two Python whole-repository scans open `SPEC.md` as one file among all | **no defect** — the Scrum Master's reading of 2026-10-01 adopted: a scan is not "a test that reads the SPEC" in the sense of `KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE`; ITM-128's criterion corrected; the case's expectation follows it, changed by its author (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`) | tester-opus, on a branch of ITM-144 — one green commit, no code; ITM-158 later moves the watcher into CI's one run |
+| G1 | c 13 | the engine answers *open* for a job record — MOD-review-core's `deriveStatus` has no value for it | **limitation** — known at ITM-014's merge; needs `akmaier` | ITM-153 (akmaier: one value in the interface line) |
+| G2 | c 14 | `planAcceptance` writes `kind: use-case` for a job record | **limitation** — known at ITM-014's merge; inside the module | ITM-152 (no person) |
+| D1 | d 18, 24 | an entry that renames a requirement in place or drops it from its section shows no impact list and offers *Accept* — the graph reads only the names the entry states | **back** — the rule's own occasion; the graph learns the replaced section from the queue's `index.md` among its files, the view hands it over | ITM-018, then ITM-134, developer-opus-d |
+
+**The re-openings.** Each is the sprint's own selected item taken up again (the model's transition *Release testing →
+Development*), not an addition to the selection: a new branch `team/ITM-<nnn>` from `sprint/02`, first commit removes the
+mark named in the item's *Back from Release testing* section (red), the pull request makes it green, CI green, the
+Definition of Done of an implementation job. The Scrum Master starts them in this order under the limit of four: ITM-126
+(A), ITM-127 (C), ITM-018 (D) and the S1 case on ITM-144 (tester-opus) at once; ITM-130 (A) when ITM-126 is merged,
+ITM-134 (D) when ITM-018 is merged. Each merge into `sprint/02` is the gate *Development → Release testing* again, decided by
+the Product Owner with the usual comment; the strand's row above is then decided a second time, on the release tests
+re-run on the merged branch — expected *passed*, with A3/A4 (A) and G1/G2 (C) as its limitations.
+
+**What was not sent back, although inside one module.** G2: known and accepted when ITM-014 was merged (its note routes a
+failing check to an implementation item); re-pinning it does not make it a regression. A3/A4: ITM-133's text and criteria
+are met; what the cases ask for is more than the item said — an item, as the sprint 01 review's flows were.
+
+**Items filed, not added to this sprint** — the reasons of 2026-10-01 hold (UC-032 6a; an added item would hold a slot the
+re-openings need, and each starts cleanly from the `main` this sprint produces). They head the level-1 order, positions 41
+to 48, before ITM-148 to ITM-150: **ITM-151** (A3, A4), **ITM-152** (G2), **ITM-153** (G1; needs `akmaier`), and four
+from the sprint's other findings, none a release-test mark: **ITM-154** — the impact list costs 260 requests on a cold
+load of a changing entry of Agent M's own repository (ITM-134's record), more than a page without a token may make
+(needs `akmaier`: the way); **ITM-155** — *Accept ticked* on the SPEC list accepts an entry whose impact list was never
+shown; **ITM-156** — a requirement that names another in its text is not in that requirement's impact list; **ITM-157** —
+DOMPurify's defaults let a product artifact's image load from any host (ITM-050's record; `NO SERVER`'s check); **ITM-158**
+— the SPEC-read watcher doubles CI's Python step (46 s → 117 s). ITM-149 now depends on ITM-151 (both change
+`review-views.mjs`).
+
+**For `akmaier`, and only these:** ITM-153 — one more value of `deriveStatus` in MOD-review-core's interface; ITM-154 — a
+CI-derived index of the commit or a read added to MOD-git-host, a reading of `THE TRACEABILITY MATRIX IS DERIVED` and
+ARC-006. Nothing in this decision changes the SPEC, a use case or an architecture file; the S1 reading is a reading of a
+process rule's reach, recorded in ITM-128, which `akmaier` may overrule.
 
 ## Review of the increment
 
