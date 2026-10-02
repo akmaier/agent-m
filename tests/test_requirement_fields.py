@@ -4,7 +4,8 @@
 """SPEC §3 A REQUIREMENT HAS FIVE FIELDS — name, source with a date, rule, occasion and check.
 
 MOD-artifacts.parseRequirements reads every requirement of a SPEC or of a queue entry by its name with its
-fields; requirementProblems returns a finding for each missing field. The texts are the fixture
+fields; requirementProblems returns a finding for each missing field — a source missing or without a date
+among them, whether it is named by an identifier or as it is written (ITM-127). The texts are the fixture
 tests/fixtures/requirements/spec.md, never Agent M's own SPEC (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE); each
 counter-proof breaks a copy of one requirement.
 """
@@ -74,12 +75,61 @@ class RequirementFields(unittest.TestCase):
             "no rule": SPEC.replace("The export of a report is a PDF file.\n", ""),
             "no check": SPEC.replace("*Check:* `tests/test_export.py`\n", ""),
             "a source without a date": SPEC.replace("*(SRC-po, 2026-09-24)*\nThe export", "*(SRC-po)*\nThe export"),
+            "a source written without a date": SPEC.replace("*(SRC-po, 2026-09-24)*", "*(PO A. Maier)*"),
+            "no source": SPEC.replace("*(SRC-po, 2026-09-24)*", "*()*"),
+            "a date and no source": SPEC.replace("*(SRC-po, 2026-09-24)*", "*(2026-09-24)*"),
         }
         for label, text in broken.items():
             fs = findings(text, name)
             self.assertEqual(kinds(fs), [("error", RULE)], label)
             self.assertEqual((fs[0]["artifact"], fs[0]["line"]), (name, 13), label)
             self.assertTrue(fs[0]["what"] and fs[0]["fix"], label)
+
+    def test_counter_proof_a_missing_source_is_named_as_missing(self):
+        # Not "the source has no date": a source that is empty, or only a date, names no one who decided.
+        for source in ("*()*", "*( )*", "*(2026-09-24)*", "*(2026-09-24, 2026-09-30)*"):
+            fs = findings(SPEC.replace("*(SRC-po, 2026-09-24)*", source), "THE EXPORT IS A PDF")
+            self.assertEqual([(f["kind"], f["rule"], f["what"]) for f in fs], [("error", RULE, "no source")], source)
+        # The written source of the fixture is a source.
+        self.assertEqual(findings(SPEC, "A NAMED RULE STAYS ONE", []), [])
+
+    def test_a_requirement_written_without_any_source_is_read_and_its_source_named_as_missing(self):
+        # ITM-127, back from Release testing (finding C1): a bold name in capitals with no *(…)* after it, followed by its
+        # rule and its *Occasion:* or *Check:* line, is a requirement whose source is missing — read with its other fields,
+        # and one error "no source" at its own line. Expected for each spelling of the name line below.
+        name = "THE EXPORT IS A PDF"
+        for label, head in (("the name alone", f"**{name}**\n"), ("blanks after the name", f"**{name}**  \n"),
+                            ("a CR LF line end", f"**{name}**\r\n")):
+            text = SPEC.replace(f"**{name}** *(SRC-po, 2026-09-24)*\n", head)
+            r = requirements(text)
+            self.assertEqual(list(r), list(requirements(SPEC)), label)
+            got = r[name]
+            self.assertEqual((got["rule"], got["occasion"], got["check"], got["line"], got["withdrawn"]),
+                             ("The export of a report is a PDF file.", "the readers print it.", "`tests/test_export.py`", 13,
+                              False), label)
+            fs = findings(text, name)
+            self.assertEqual([(f["kind"], f["rule"], f["what"], f["line"]) for f in fs], [("error", RULE, "no source", 13)],
+                             label)
+        # With only its check after the rule, it is still a requirement — without a source and without an occasion.
+        text = SPEC.replace(f"**{name}** *(SRC-po, 2026-09-24)*\n", f"**{name}**\n").replace(
+            "*Occasion:* the readers print it.\n", "")
+        self.assertEqual(sorted(f["what"] for f in findings(text, name)), ["no occasion", "no source"])
+
+    def test_counter_proof_bold_prose_between_requirements_stays_no_requirement(self):
+        # The reader is shared (the link graph, the SPEC browser, the queue entries): bold prose — a line in capitals
+        # alone (also when a paragraph with a field line follows after a blank line), a label in capitals with text after
+        # it, a quoted name — between two requirements is no requirement, and every requirement is read with the same
+        # fields as without it. Expected: the same names and fields, lines aside.
+        prose = ("**THIS SECTION IS INFORMATIVE**\n\nIt explains the export.\n*Occasion:* a line after a blank line.\n\n"
+                 "**ALSO IN CAPITALS**\nA paragraph in bold capitals' wake, with no fields.\n\n"
+                 "**NOTE:** the exports are checked; see `THE EXPORT IS A PDF`.\n*Check:* not a field of a requirement.\n\n"
+                 # A blank just inside the asterisks makes no bold text in Markdown, so no name.
+                 "**NOT BOLD IN MARKDOWN **\nA rule after it.\n*Check:* `tests/test_export.py`\n\n")
+        anchor = "**THE PRODUCT IS NOT SOLD**"
+        text = SPEC.replace(anchor, prose + anchor)
+        self.assertEqual(text.count(prose), 1)
+        strip = lambda reqs: {n: {k: v for k, v in x.items() if k != "line"} for n, x in reqs.items()}  # noqa: E731
+        self.assertEqual(strip(requirements(text)), strip(requirements(SPEC)))
 
 
 if __name__ == "__main__":

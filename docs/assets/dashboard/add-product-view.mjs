@@ -28,6 +28,20 @@ export function extendTokenSteps(instance, product) {
   ];
 }
 
+// UC-001 2a: GitHub's page for a new repository.
+export const NEW_REPOSITORY_URL = "https://github.com/new";
+
+// UC-001 2a · the product repository does not exist yet: GitHub answered 404 for it. GitHub answers a private repository the
+// key does not reach with the same 404, so both ways on are named — create it, or let the key reach it (Step A). With a folded
+// explanation of the choices on GitHub's page (EVERY STEP EXPLAINS ITSELF).
+export function missingRepositoryHtml(repo) {
+  const [owner, name] = String(repo).split("/");
+  return `<p>GitHub has no repository ${h(repo)} that your key can see. If it does not exist yet, create it on
+    <a href="${NEW_REPOSITORY_URL}" target="_blank" rel="noopener">GitHub's page for a new repository ↗</a>, add it to your key
+    (Step A) and press Check again. If it exists and is private, your key does not reach it yet — do Step A.</p>
+    <details class="explain"><summary>What is this?</summary><div>${EXPLAIN.newRepository(owner, name)}</div></details>`;
+}
+
 // UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the steps on the page gitlabTokenPageUrl (git-host.mjs) opens.
 export function gitlabTokenSteps(product) {
   const GL = requiredPermissions(product).gitlab;
@@ -78,6 +92,14 @@ const EXPLAIN = {
   extend: `Your key was created for this instance only, on purpose: it can write nowhere else. A new product has to
     be added to it once. GitHub lets you change which repositories an existing key reaches; the key's text stays
     the same, so there is nothing to copy into Agent M. You can remove the product from the key again the same way.`,
+  newRepository: (owner, name) => `GitHub's page for a new repository asks a few things. The <em>owner</em> is the account
+    or organisation the repository belongs to — for this address, <code>${h(owner)}</code>. The <em>repository name</em> is
+    the last part of the address — <code>${h(name)}</code>. <em>Public</em> means anyone can read it and only the people you
+    allow can change it; <em>private</em> means only you and the people you add can see it — both work with Agent M. Choose
+    to add a README: a repository without any file has no branch yet, and Agent M writes its layout onto the default
+    branch. A <em>.gitignore</em> and a licence are optional here; a product states its licence in a <code>LICENSE</code>
+    file, which you can add now or later. Then create the repository, come back to this page, add it to your key in
+    Step A and press Check.`,
   check: `Agent M reads the product repository with your key. For a private repository, success proves the key
     reaches it. A public repository can be read by anyone, so there the proof comes with the first write in Step C —
     if the key does not reach it yet, Step C says so and nothing is written.`,
@@ -120,13 +142,14 @@ function gitlabSteps(app, parsed) {
 }
 
 function wireGitLabSteps(app, parsed) {
-  const { store, tokenState } = app;
+  const { store } = app;
   const ack = document.getElementById("gl-ack"), tok = document.getElementById("gl-token"), exp = document.getElementById("gl-expires");
   const btn = document.getElementById("gl-store"), out = document.getElementById("gl-check-out");
   const check = async () => {
     out.textContent = `Reading ${parsed.address}…`;
     const x = await checkGitLab(app, parsed, store.getGitLabToken(parsed.address)?.token);
-    if (x.ok) tokenState.gitlab[parsed.address] = { ok: today(), refused: false };
+    // The project token's last test, kept beside it (UC-042 step 1): the settings page shows it after a reload too.
+    if (x.ok) store.setGitLabTokenTest(parsed.address, { ok: today() });
     out.innerHTML = reachLine([parsed.address, x]);
     const go = document.getElementById("add-go");
     go.disabled = !store.getGitLabToken(parsed.address);
@@ -139,9 +162,9 @@ function wireGitLabSteps(app, parsed) {
     if (!canStore(ack.checked)) return;
     const bad = gitlabTokenProblem(v, exp.value);
     if (bad) { out.textContent = bad; return; }
+    // A new value starts untested (MOD-settings-store setGitLabToken); the check below tests it.
     store.setGitLabToken(parsed.address, v, exp.value);
     tok.value = "";
-    tokenState.gitlab[parsed.address] = {};
     await check();
   });
 }
@@ -186,9 +209,17 @@ async function viewAddProduct(app, preset = "") {
       const b = stepHtml({ title: "Step B · Check",
         body: `<p><button class="btn" id="add-check-btn" ${valid ? "" : "disabled"}>Check</button></p><p id="add-check" class="muted"></p>`,
         explain: EXPLAIN.check });
-      steps.innerHTML = a + b + c;
+      steps.innerHTML = `<div id="add-step-a">${a}</div>` + b + c;
       document.getElementById("add-check-btn").addEventListener("click", async () => {
-        document.getElementById("add-check").innerHTML = reachLine([repo, await checkReach(app, repo)]);
+        const x = await checkProduct(app, repo);
+        document.getElementById("add-check").innerHTML = reachLine([repo, x]) + (x.status === 404 ? missingRepositoryHtml(repo) : "");
+        // UC-001 3a: only a read of a private repository proves that the key reaches it — a public one is read by any key
+        // (step 4) — so only then is Step A shown as done; after any other answer Step A shows its instructions.
+        document.getElementById("add-step-a").innerHTML = x.ok && x.priv ? stepHtml({
+          title: "Step A · Let your key reach the product — done",
+          body: `<p>✓ Your key already reaches ${h(repo)} — nothing to do on GitHub. It read this private repository, which only
+            a key that reaches it can. Go on with Step C.</p>`,
+          explain: EXPLAIN.extend }) : a;
       });
     } else {
       steps.innerHTML = createKeyStep(app, [T.instance, product]) + storeKeyStep(app) + c;
@@ -201,6 +232,14 @@ async function viewAddProduct(app, preset = "") {
   };
   input.addEventListener("input", render);
   render();
+}
+
+// UC-001 Step B on GitHub: the read of checkReach (settings-view.mjs), with the status of a refused read kept beside its text —
+// a 404 is UC-001 2a. -> checkReach's answer, and `status` when the read was refused.
+async function checkProduct(app, repo) {
+  let status = null;
+  const x = await checkReach({ ...app, errorText: (e, p) => { status = e?.status ?? null; return app.errorText(e, p); } }, repo);
+  return x.ok ? x : { ...x, status };
 }
 
 // UC-001 Step C: the layout goes into the product repository; the address into this browser's list only. A GitLab
@@ -223,7 +262,10 @@ function wireAddGo(app, parsed) {
         <a class="btn primary" href="${h(productHref(parsed))}">Open ${h(repo)} →</a>`;
     } catch (e) {
       noteRefusal(e, gl ? parsed : null);
-      out.textContent = app.rateLimitText(e, gl ? parsed : null) || (gl ? gitlabWriteRefusal(e, parsed) || errorText(e, parsed)
+      const limit = app.rateLimitText(e, gl ? parsed : null);
+      // UC-001 2a: GitHub answers 404 — the repository does not exist yet, or the key does not see it; nothing was written.
+      if (!limit && !gl && e.status === 404) { out.innerHTML = missingRepositoryHtml(repo); b.disabled = false; return; }
+      out.textContent = limit || (gl ? gitlabWriteRefusal(e, parsed) || errorText(e, parsed)
         : /403|404/.test(e.message)
           ? `Your key cannot write to ${repo} yet (${e.message}). Do Step A — add the product to your key on GitHub — and click again.`
           : errorText(e, null));

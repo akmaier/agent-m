@@ -41,7 +41,6 @@ import { hierarchy, parseGroupFile } from "./groups.mjs";
 export const FORMAT_KINDS = ["requirement", "use-case", "architecture-decision", "module", "test", "group-file"];
 
 const ORIGIN = "EVERY ARTIFACT NAMES ITS ORIGIN";
-const KEPT = "AN EDITED FILE KEEPS ITS IDENTIFIER";
 const SURVIVES = "THE NAME IS THE ID AND IT SURVIVES";
 const MERMAID = "DIAGRAMS ARE MERMAID IN MARKDOWN";
 
@@ -54,14 +53,11 @@ function nameSet(knownNames) {
   return new Set(knownNames instanceof Map ? knownNames.keys() : knownNames);
 }
 
-// AN EDITED FILE KEEPS ITS IDENTIFIER: identifierKept decides; the finding names the line of the id.
+// AN EDITED FILE KEEPS ITS IDENTIFIER: identifierKept decides and returns the finding, which names the line of the id; it is
+// taken as it comes.
 function keptFindings(openedId, text) {
-  if (!openedId || identifierKept(openedId, text) === null) return [];
-  const { fields } = parseFrontMatter(text);
-  const now = typeof fields.id === "string" && fields.id ? fields.id : null;
-  return [finding(openedId, "id" in fields ? keyLine(text, "id") : 1, "error", KEPT,
-    `the file was opened as ${openedId}, but the text carries ${now ? `the identifier ${now}` : "no identifier"}`,
-    `put back id: ${openedId}; a new identifier is a new file, proposed as such.`)];
+  const f = identifierKept(openedId, text);
+  return f ? [shape(f)] : [];
 }
 
 // ---------------------------------------------------------------- requirement

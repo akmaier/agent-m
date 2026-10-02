@@ -62,5 +62,5 @@ test("the dashboard has an Architecture tab that lists, reviews, accepts and edi
   assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "the difference above the text");
   assert.match(app, /componentDiagram\(/);
   assert.match(app, /saveReviewedFile\(/);
-  assert.doesNotMatch(app, /function (impactList|componentDiagram|parseArchitecture)\(/, "one implementation, in the core");
+  assert.doesNotMatch(app, /function (impactList|architectureImpact|linkGraph|componentDiagram|parseArchitecture)\(/, "one implementation, in the core");
 });

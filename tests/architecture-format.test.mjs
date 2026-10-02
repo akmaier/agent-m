@@ -9,7 +9,8 @@
 // UC-023). Moved out of tests/architecture.test.mjs and tests/review-page.test.mjs, unchanged, when those were split by module.
 //
 // The product is the fixture under tests/fixtures/architecture/. Counter-proofs are listed in
-// docs/measurements/2026-09-30_review-dashboard-mutations.md §8.
+// docs/measurements/2026-09-30_review-dashboard-mutations.md §8 and, for specRequirements on fixture text (ITM-128), in
+// docs/measurements/2026-10-01_no-test-reads-the-own-spec.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -101,17 +102,39 @@ test("parseArchitecture — a module: realises, follows, uses MOD-x.interface, p
 
 // ---------------------------------------------------------------- ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
 
+// The requirements planted after the fixture's sections in the test below, in the shapes the repository's own SPEC has.
+const LATER = [
+  "## 85. Withdrawn and live",
+  "",
+  "**OLD RULE ON ONE LINE** *(PO, 2026-09-23, reworded 2026-09-24 — withdrawn 2026-09-24)*",
+  "*Withdrawn:* replaced by `RULE ONE REPLACES IT`. The name is not reused.",
+  "",
+  "**RULE ONE REPLACES IT** *(PO, 2026-09-24, extended 2026-09-24)*",
+  "The rule that replaces the old one, right after it.",
+  "*Check:* none",
+  "",
+  "**A RENAMED RULE IS WITHDRAWN AND ADDED** *(PO, 2026-09-24)*",
+  "A rule whose name holds the word, and whose source does not.",
+  "*Check:* none",
+  "",
+].join("\n");
+
 test("specRequirements — the names in SPEC.md; a withdrawn one is marked; prose in bold is no requirement", () => {
   const r = specRequirements(files["SPEC.md"]);
   assert.deepEqual([...r.keys()], ["RULE ONE", "THE READER'S RULE", "OLD RULE"]);
   assert.deepEqual([...r.values()].map((x) => x.withdrawn), [false, false, true],
     "a source that runs over two lines is read whole — OLD RULE's withdrawal stands on its second line");
-  // The known positive: every requirement a use case of this repository realises is found in its SPEC.
-  const real = specRequirements(readFileSync(new URL("../SPEC.md", import.meta.url), "utf8"));
-  assert.ok(real.size > 250);
-  assert.ok(real.get("ACCEPTANCE IS A COMMIT IN GITHUB").withdrawn);
-  assert.equal(real.get("ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON").withdrawn, false);
-  assert.equal(real.get("A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED").withdrawn, false, "WITHDRAWN in the name is not a withdrawal");
+  // The known positive, on fixture text — no test reads the repository's own SPEC.md (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE,
+  // ITM-128): the fixture's section under 84 headings of its own, then the cases the real SPEC supplied — a withdrawal
+  // written on one line, the live requirement that replaces it right after it, a live name that holds the word WITHDRAWN.
+  const sections = Array.from({ length: 84 }, (_, i) => files["SPEC.md"]
+    .replace("## 1. Rules", `## ${i + 1}. Rules`)
+    .replace(/^\*\*([^*\n]+)\*\* \*\(/gm, `**$1 ${i + 1}** *(`));
+  const long = specRequirements([...sections, LATER].join("\n"));
+  assert.ok(long.size > 250);
+  assert.ok(long.get("OLD RULE ON ONE LINE").withdrawn);
+  assert.equal(long.get("RULE ONE REPLACES IT").withdrawn, false);
+  assert.equal(long.get("A RENAMED RULE IS WITHDRAWN AND ADDED").withdrawn, false, "WITHDRAWN in the name is not a withdrawal");
 });
 
 // ---------------------------------------------------------------- a withdrawn file (from tests/review-page.test.mjs)

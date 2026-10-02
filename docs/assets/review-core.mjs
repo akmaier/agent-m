@@ -2,36 +2,16 @@
 //
 // SPEC §10: acceptance is a commit by the accepting person, on the server that hosts the repository
 // (GitHub or a GitLab server), that adds an approval record; the record names the exact text by its git
-// blob SHA; status is derived from the records, never stored. The dashboard reads with GET only
-// (fetchText). This module never writes: it returns the files of a commit (planAcceptance, missingLayout), and the
-// dashboard commits them on a person's click (docs/assets/dashboard/writes.mjs; ARC-003). Each token goes only to the API of
-// the server that issued it (fetchText, authHeaders) — the requests themselves are made in git-host.mjs. The SPEC-section logic
-// mirrors tools/apply_approvals.py (the workflow side); tests/review-core.test.mjs checks that both hash the same bytes.
+// blob SHA; status is derived from the records, never stored. This module never reads and never writes (ARC-003 decisions
+// 1 and 2): what it reads is handed to it as a port (lastAccepted's committedAt and read, readByBlob's read, planAcceptance's
+// read), and it returns the files of a commit (planAcceptance, missingLayout), which the dashboard commits on a person's click
+// (docs/assets/dashboard/writes.mjs). The requests themselves are made in git-host.mjs, whose reads the dashboard hands in
+// (docs/assets/dashboard/reads.mjs). The SPEC-section logic mirrors tools/apply_approvals.py (the workflow side);
+// tests/review-core.test.mjs checks that both hash the same bytes.
 //
 // Module: MOD-review-core
 
-import { fetchText, REPO_RE, parseProductAddress, isGitLab, gitlabAuth, gitlabApiBase } from "./git-host.mjs";
 import { SLUG, reviewedId, kindOfPath, parseArchitecture, specRequirements } from "./artifacts.mjs";
-
-// ---------------------------------------------------------------- instance and products (SPEC §10)
-
-export const UPSTREAM = "akmaier/agent-m";
-
-// The product is chosen with ?repo=owner/name (GitHub) or ?product=<address> (GitHub or GitLab). A GitLab
-// product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read from GitLab).
-export function deriveTarget({ hostname, pathname, search }) {
-  const owner = hostname.endsWith(".github.io") ? hostname.split(".")[0] : null;
-  const name = pathname.split("/").filter(Boolean)[0];
-  const instance = owner && name ? `${owner}/${name}` : UPSTREAM;
-  const q = new URLSearchParams(search || "");
-  const refOk = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..");
-  const ref = refOk ? q.get("ref") : "main";
-  const chosen = q.get("product") ? parseProductAddress(q.get("product")) : null;
-  if (chosen && !chosen.error && chosen.kind === "gitlab") return { instance, repo: chosen.repo, ref, product: chosen, refGiven: Boolean(refOk) };
-  const wanted = chosen && !chosen.error ? chosen.repo : q.get("repo");
-  const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
-  return { instance, repo, ref };
-}
 
 // ---------------------------------------------------------------- storing in this browser (SPEC §7)
 
@@ -215,23 +195,20 @@ export const changedLines = (a, b) => lineDiff(a, b).filter(([k]) => k !== " ");
 //
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT: the text named by the most recent approval record for the same
 // identifier, matched by identifier and not by path, so that a renamed file (UC-010) still finds what was accepted before.
-// AN APPROVAL NAMES THE EXACT TEXT: that text is read from the server by the blob SHA the record names, and refused unless it
+// AN APPROVAL NAMES THE EXACT TEXT: that text is read by the blob SHA the record names (the port `read`), and refused unless it
 // hashes to that SHA.
 //
 // "Most recent" is the record committed last. How that is found without loading the history of the repository: for each
-// record of the identifier, the server's list of commits is asked for the newest commit that touches that record's path, at
-// the commit the dashboard has pinned (GitHub: GET /repos/{o}/{r}/commits?path=<record>&sha=<pinned>&per_page=1, its
-// commit.committer.date; GitLab: GET /projects/:id/repository/commits?path=<record>&ref_name=<pinned>&per_page=1, its
-// committed_date). A record is never edited after it is added (docs/approvals/README.md), so that commit is the one that added
-// it. One request per record, and none when the identifier has only one record. Two records committed in the same second
-// cannot be ordered this way; the dashboard then says so instead of guessing.
+// record of the identifier, the port `committedAt` gives the date of the newest commit that touches that record's path, at
+// the commit the dashboard has pinned (the dashboard asks the server's list of commits for it: MOD-git-host commitsTouching,
+// docs/assets/dashboard/reads.mjs). A record is never edited after it is added (docs/approvals/README.md), so that commit is
+// the one that added it. One request per record, and none when the identifier has only one record. Two records committed in
+// the same second cannot be ordered this way; the dashboard then says so instead of guessing.
 
 const HEX40 = /^[0-9a-f]{40}$/;
 
 // Every approval record of that identifier, whatever path it names (not the records of SPEC changes).
 export const recordsForId = (records, id) => records.filter((r) => r.kind !== "spec" && r.file && reviewedId(r.file) === id);
-
-const b64text = (s) => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s+/g, "")), (c) => c.charCodeAt(0)));
 
 // A file's text by its blob SHA: from `cache` when it holds a text that hashes to that SHA — git never changes the text
 // behind a SHA —, otherwise by read(), and then kept in `cache` if what was read hashes to the SHA. A cached text that does
@@ -251,48 +228,16 @@ export async function readByBlob({ sha, read, cache = null, key = null }) {
   return text;
 }
 
-// The exact text of a blob, read by its SHA from the product's server; refused unless it hashes to that SHA.
-// GitHub: product absent or a github.com product (repo); GitLab: a GitLab product (its own project token).
-// cache, cacheKey: where this browser keeps file texts by blob SHA (readByBlob).
-export async function readBlob({ product = null, repo = null, blob, token = null, cache = null, cacheKey = null }) {
-  if (!HEX40.test(String(blob))) throw new Error(`not a blob SHA: ${blob}`);
-  const text = await readByBlob({ sha: blob, cache, key: cacheKey, read: async () => {
-    if (isGitLab(product)) return fetchText(`${gitlabApiBase(product)}/repository/blobs/${blob}/raw`, {}, gitlabAuth(product, token));
-    const r = repo ?? product?.repo;
-    if (!REPO_RE.test(r) || r.includes("..")) throw new Error(`not a repository: ${r}`);
-    const j = JSON.parse(await fetchText(`https://api.github.com/repos/${r}/git/blobs/${blob}`,
-      { headers: { Accept: "application/vnd.github+json" } }, token));
-    return j.encoding === "base64" ? b64text(j.content) : String(j.content ?? "");
-  } });
-  if (await gitBlobSha(text) !== blob) throw new Error(`the text read for blob ${blob.slice(0, 12)} does not match that blob SHA`);
-  return text;
-}
-
-// When the record at `path` was committed: the date of the newest commit touching it at `commit` -> ISO string.
-export async function recordCommittedAt({ product = null, repo = null, commit, path, token = null }) {
-  const q = (ref) => `path=${encodeURIComponent(path)}&${ref}=${encodeURIComponent(commit)}&per_page=1`;
-  if (isGitLab(product)) {
-    const list = JSON.parse(await fetchText(`${gitlabApiBase(product)}/repository/commits?${q("ref_name")}`, {}, gitlabAuth(product, token)));
-    if (!list.length) throw new Error(`${path}: no commit found`);
-    return list[0].committed_date;
-  }
-  const r = repo ?? product?.repo;
-  const list = JSON.parse(await fetchText(`https://api.github.com/repos/${r}/commits?${q("sha")}`,
-    { headers: { Accept: "application/vnd.github+json" } }, token));
-  if (!list.length) throw new Error(`${path}: no commit found`);
-  return list[0].commit.committer.date;
-}
-
 // The last accepted text of identifier `id`: { record, text, committedAt, count } or null when it has no record.
-// records: parsed records, each with `_path`, its own path in docs/approvals/.
-// cache, repoKey: this browser's file texts by blob SHA (readByBlob), kept under `${repoKey}/${blob}`.
-export async function lastAccepted({ product = null, repo = null, commit, token = null, records, id, cache = null, repoKey = null }) {
+// records: parsed records, each with `_path`, its own path in docs/approvals/. Ports (ARC-003 decision 2):
+// committedAt(path) -> when the record at `path` was committed, as a date string; read(blob) -> the text of a blob SHA.
+// The text read is refused unless it hashes to the SHA the record names.
+export async function lastAccepted({ records, id, committedAt, read }) {
   const mine = recordsForId(records, id);
   if (!mine.length) return null;
-  let record = mine[0], committedAt = null;
+  let record = mine[0], at = null;
   if (mine.length > 1) {
-    const dated = await Promise.all(mine.map(async (r) =>
-      ({ r, at: await recordCommittedAt({ product, repo, commit, path: r._path, token }) })));
+    const dated = await Promise.all(mine.map(async (r) => ({ r, at: await committedAt(r._path) })));
     const t = (d) => Date.parse(d.at);
     if (dated.some((d) => Number.isNaN(t(d)))) throw new Error(`the commit date of an approval record of ${id} could not be read`);
     dated.sort((a, b) => t(b) - t(a));
@@ -300,10 +245,13 @@ export async function lastAccepted({ product = null, repo = null, commit, token 
       throw new Error(`two approval records of ${id} were committed at the same time (${dated[0].at}), so which is the last cannot be told: ` +
         `${dated[0].r._path}, ${dated[1].r._path}`);
     }
-    ({ r: record, at: committedAt } = dated[0]);
+    ({ r: record, at } = dated[0]);
   }
-  const text = await readBlob({ product, repo, blob: record.blob, token, cache, cacheKey: repoKey ? `${repoKey}/${record.blob}` : null });
-  return { record, text, committedAt, count: mine.length };
+  const text = await read(record.blob);
+  if (typeof text !== "string" || await gitBlobSha(text) !== record.blob) {
+    throw new Error(`the text read for blob ${String(record.blob).slice(0, 12)} does not match that blob SHA`);
+  }
+  return { record, text, committedAt: at, count: mine.length };
 }
 
 // ---------------------------------------------------------------- status from the names in the tree (load per view)

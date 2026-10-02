@@ -13,7 +13,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repoServer, fakeCaches, openDashboard, REPO, TOKEN } from "./app-harness.mjs";
+import {
+  repoServer, fakeCaches, openDashboard, REPO, TOKEN, richDocument, press, settle, reEsc, unesc, attrOf,
+} from "./app-harness.mjs";
 import { gitBlobSha, recordText, useCaseRecord, approvalPath, specRecord } from "../docs/assets/review-core.mjs";
 import { exportSettings } from "../docs/assets/settings-store.mjs";
 import { B_SPEC, B_P05, B_P06, B_INDEX, QD, GL, GL_ADDR, GL_TOKEN, fakeGitLab } from "./review-core.d/helpers.mjs";
@@ -22,181 +24,9 @@ const TRUSTED = { isTrusted: true }, SCRIPTED = { isTrusted: false };
 const API = "https://api.github.com";
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
 
-// ---------------------------------------------------------------- what the harness's document lacks, added for these flows
-//
-// tests/app-harness.mjs keeps the listeners of the controls it finds in an element's HTML by an attribute selector ([data-x]),
-// and page.click fires them in <main>. Three kinds of control these flows click are not reached that way; richDocument() adds
-// them on top of the harness's document, whose own controls stay the objects they were (page.click works as before):
-//  1. an element found by its id (document.getElementById) keeps the listeners a view adds and can be fired — Add product,
-//     Store and check, Check, the settings page's Save buttons are wired that way. Its value, checked, disabled and hidden start
-//     from its tag, and new HTML that writes the same id again makes it a new element, as in a browser;
-//  2. the edit panel a view finds by its classes (`.panel.edit`), with its textarea, preview, result and buttons — no other class
-//     selector is answered, so every other view behaves as under the harness alone;
-//  3. a control whose HTML a view sets (a form built inside it) is searched in that HTML.
-// It is installed after the first page load and before the view under test is opened (page.go), so that the view's wiring
-// reaches it.
+// richDocument and press — what the harness's document lacks for these flows, and a person's click on what it adds — are in
+// tests/app-harness.mjs, beside the harness, so that other tests of the dashboard's editor use them too.
 
-const ATTR = /^\[([\w-]+)(?:="([^"]*)")?\]$/;
-const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const unesc = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-const attrOf = (tag, name) => { const m = new RegExp(`\\s${name}="([^"]*)"`).exec(tag); return m ? unesc(m[1]) : null; };
-const flagOf = (tag, name) => new RegExp(`\\s${name}(?=[\\s>=/])`).test(tag);
-// The positions the harness finds an attribute selector at, in the same order as its controls.
-const needle = (sel) => {
-  const m = ATTR.exec(sel);
-  return m[2] === undefined ? new RegExp(`\\s${m[1]}(?=[\\s=>])`, "g") : new RegExp(`\\s${m[1]}="${reEsc(m[2])}"`, "g");
-};
-
-// A control of our own, of the harness's shape, for HTML a view writes into a control.
-function ownControl(tag) {
-  const listeners = [], dataset = {};
-  for (const m of tag.matchAll(/\sdata-([\w-]+)(?:="([^"]*)")?/g)) dataset[m[1].replace(/-(\w)/g, (_, c) => c.toUpperCase())] = unesc(m[2] ?? "");
-  const c = { tag, dataset, disabled: flagOf(tag, "disabled"), checked: flagOf(tag, "checked"), value: attrOf(tag, "value") ?? "",
-    textContent: "", innerHTML: "", hidden: false,
-    addEventListener(type, f) { listeners.push([type, f]); },
-    fire(type, ev) { for (const [t, f] of [...listeners]) if (t === type) f({ ...ev, currentTarget: c, target: c }); },
-    getAttribute: (n) => attrOf(tag, n), closest() { return c; }, focus() {} };
-  return withInner(c);
-}
-// A control's querySelector searches the HTML a view set into it; an attribute selector it does not find, and any other
-// selector, answer as before.
-function withInner(c) {
-  if (c.__inner) return c;
-  const before = c.querySelector, beforeAll = c.querySelectorAll;
-  let html = null, found = null;
-  const all = (sel) => {
-    if (html !== c.innerHTML) { html = c.innerHTML; found = new Map(); }
-    const out = [];
-    let i = 0;
-    for (const hit of String(html).matchAll(needle(sel))) {
-      const key = `${sel}#${i++}`;
-      if (!found.has(key)) found.set(key, ownControl(html.slice(html.lastIndexOf("<", hit.index), html.indexOf(">", hit.index) + 1)));
-      out.push(found.get(key));
-    }
-    return out;
-  };
-  c.__inner = true;
-  c.querySelector = (sel) => (ATTR.test(sel) && all(sel)[0]) || (before ? before.call(c, sel) : null);
-  c.querySelectorAll = (sel) => (ATTR.test(sel) ? all(sel) : beforeAll ? beforeAll.call(c, sel) : []);
-  return c;
-}
-
-// The start tags of `html` in [from, to) that a simple selector — `tag`, `.a`, `.a.b`, `tag.a` — matches, with where each ends.
-function tagsMatching(html, sel, from = 0, to = html.length) {
-  const [, name, cls] = /^([a-z]*)((?:\.[\w-]+)*)$/.exec(sel) || [];
-  if (name === undefined) return [];
-  const want = cls.split(".").filter(Boolean), out = [];
-  for (const m of html.slice(from, to).matchAll(/<([a-z][\w-]*)([^<>]*)>/g)) {
-    const at = from + m.index, tag = m[0];
-    const classes = (attrOf(tag, "class") || "").split(/\s+/);
-    if ((name && m[1] !== name) || !want.every((k) => classes.includes(k))) continue;
-    out.push({ at, tag, name: m[1], end: closing(html, m[1], at + tag.length) });
-  }
-  return out;
-}
-function closing(html, name, from) {
-  if (["input", "br", "img"].includes(name)) return from;
-  const re = new RegExp(`<(/?)${name}\\b[^<>]*>`, "g");
-  re.lastIndex = from;
-  let depth = 1;
-  for (let m; (m = re.exec(html));) { depth += m[1] ? -1 : 1; if (depth === 0) return m.index; }
-  return html.length;
-}
-
-function richDocument() {
-  const doc = globalThis.document, harnessGet = doc.getElementById;
-  const els = new Map(), nodes = new WeakMap();
-  const tagOf = (id) => {
-    const re = new RegExp(`<[^<>]*\\sid="${reEsc(id)}"[^<>]*>`);
-    for (const el of els.values()) { const m = re.exec(el.innerHTML); if (m) return m[0]; }
-    return null;
-  };
-  const reset = (el, tag) => {
-    el.listeners = [];
-    el.disabled = flagOf(tag, "disabled");
-    el.checked = flagOf(tag, "checked");
-    el.hidden = flagOf(tag, "hidden");
-    el.value = attrOf(tag, "value") ?? "";
-  };
-  // New HTML: an id it writes again is a new element; the nodes found in the old HTML are gone.
-  const renew = (owner, html) => {
-    nodes.set(owner, new Map());
-    for (const m of html.matchAll(/<[^<>]*\sid="([^"]+)"[^<>]*>/g)) if (els.has(m[1]) && els.get(m[1]) !== owner) reset(els.get(m[1]), m[0]);
-  };
-  // A part of an element's HTML found by its classes — the edit panel —, and the parts and controls inside it.
-  const node = (owner, from, to, tag, name) => {
-    const listeners = [];
-    const html = () => owner.innerHTML;
-    const inside = (sel) => {
-      if (ATTR.test(sel)) {
-        const hits = [...html().matchAll(needle(sel))].map((h) => h.index);
-        return owner.querySelectorAll(sel).filter((_, i) => hits[i] >= from && hits[i] < to);
-      }
-      return tagsMatching(html(), sel, from, to).map((t) => nodeAt(owner, t, sel));
-    };
-    const n = { tag, hidden: flagOf(tag, "hidden"), innerHTML: "", textContent: "", outerHTML: "",
-      value: name === "textarea" ? unesc(html().slice(from + tag.length, to)) : attrOf(tag, "value") ?? "",
-      addEventListener(type, f) { listeners.push([type, f]); },
-      fire(type, ev = {}) { for (const [t, f] of [...listeners]) if (t === type) f({ ...ev, currentTarget: n, target: n }); },
-      querySelector: (sel) => inside(sel)[0] ?? null, querySelectorAll: (sel) => (ATTR.test(sel) || /^[\w.-]+$/.test(sel) ? inside(sel) : []),
-      closest() { return n; }, focus() {} };
-    return n;
-  };
-  const nodeAt = (owner, t, sel) => {
-    const kept = nodes.get(owner) ?? nodes.set(owner, new Map()).get(owner);
-    const key = `${sel}@${t.at}`;
-    if (!kept.has(key)) kept.set(key, node(owner, t.at, t.end, t.tag, t.name));
-    return kept.get(key);
-  };
-  const augment = (el) => {
-    if (el.__rich) return el;
-    el.__rich = true;
-    const d = Object.getOwnPropertyDescriptor(el, "innerHTML");
-    Object.defineProperty(el, "innerHTML", { configurable: true, enumerable: true, get: d.get,
-      set(v) { d.set.call(el, v); renew(el, String(v)); } });
-    el.listeners = [];
-    el.addEventListener = (type, f) => el.listeners.push([type, f]);
-    el.fire = (type, ev = {}) => { for (const [t, f] of [...el.listeners]) if (t === type) f({ ...ev, currentTarget: el, target: el }); };
-    const qs = el.querySelector, qsa = el.querySelectorAll;
-    el.querySelector = (sel) => {
-      if (ATTR.test(sel)) { const c = qs.call(el, sel); return c && withInner(c); }
-      return sel === ".panel.edit" ? (tagsMatching(el.innerHTML, sel).map((t) => nodeAt(el, t, sel))[0] ?? null) : qs.call(el, sel);
-    };
-    el.querySelectorAll = (sel) => (ATTR.test(sel) ? qsa.call(el, sel).map(withInner) : qsa.call(el, sel));
-    const tag = tagOf(el.id);
-    if (tag) reset(el, tag);
-    return el;
-  };
-  doc.getElementById = (id) => {
-    const el = harnessGet(id);
-    if (!els.has(id)) els.set(id, el);
-    return augment(el);
-  };
-  for (const id of ["main", "product", "token-banner", "tabs", "repo-line"]) doc.getElementById(id);
-  return {
-    byId: (id) => doc.getElementById(id),
-    edit: () => doc.getElementById("main").querySelector(".panel.edit"),
-  };
-}
-
-// Until the page has had nothing in flight for a while (as the harness waits after a click).
-async function settle(server) {
-  let idle = 0, seen = server.requests.length;
-  while (idle < 40) {
-    await new Promise((r) => setTimeout(r, 0));
-    if (server.pending === 0 && server.requests.length === seen) idle += 1;
-    else { idle = 0; seen = server.requests.length; }
-  }
-}
-// A click on a control or an element, as a person makes it: a disabled one cannot be clicked. -> the requests it made.
-async function press(server, el, ev = TRUSTED) {
-  if (!el) throw new Error("nothing to click");
-  if (el.disabled) throw new Error(`disabled — a person cannot click ${el.tag || el.id}`);
-  const from = server.requests.length;
-  el.fire("click", ev);
-  await settle(server);
-  return server.requests.slice(from);
-}
 // A checkbox ticked (or unticked) by a person.
 async function tick(server, el, on = true) {
   el.checked = on;
@@ -477,7 +307,8 @@ test("UC-008 3c: a GitLab product without its project token is read, but offers 
   assert.ok(!srv.seen.some((r) => r.url.startsWith(`${API}/repos/grp`)), "nothing of the product goes to GitHub");
 });
 
-test("UC-008 4a: a commit the server refuses (no write access) writes nothing; the page says so and names the way through GitHub's page", async () => {
+// Changed by ITM-133 (UC-008 4a): the way through GitHub's page is offered as a link beside the refusal, not only named.
+test("UC-008 4a: a commit the server refuses (no write access) writes nothing; the page says so and offers the way through GitHub's page as a link", async () => {
   const refuse = (url, init) => (init.method === "POST" && url.pathname.endsWith("/git/trees")
     ? json({ message: "Resource not accessible by personal access token" }, 403) : undefined);
   const srv = await ucServer({}, [refuse]);
@@ -486,9 +317,10 @@ test("UC-008 4a: a commit the server refuses (no write access) writes nothing; t
   assert.deepEqual(srv.writes, []);
   const accept = inMain("[data-accept-key]");
   assert.equal(accept.disabled, false, "Accept can be pressed again");
-  assert.equal(accept.closest(".panel").querySelector(".result").textContent,
-    `Your token cannot write to ${REPO} (POST /git/trees: 403 Resource not accessible by personal access token). ` +
-    "Extend it in Settings, or remove it to use GitHub's page instead.");
+  const result = accept.closest(".panel").querySelector(".result").innerHTML;
+  assert.ok(result.startsWith(`Your token cannot write to ${REPO} (POST /git/trees: 403 Resource not accessible by personal access token). ` +
+    "Extend it in Settings, or commit the record on GitHub&#39;s page instead"), result);
+  assert.match(result, new RegExp(`href="https://github\\.com/${reEsc(REPO)}/new/main\\?filename=docs%2Fapprovals%2FUC-002-`));
 });
 
 // ================================================================ UC-006 Approve a specification change
@@ -1214,8 +1046,8 @@ async function downloaded(f) {
 
 test("UC-042 step 6: the export states what it contains and what each secret grants; Export saves every browser setting, the token included, and sends nothing", async () => {
   const { srv, dom, page } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([PRODUCT_ADDR]) } });
-  assert.ok(page.main().includes("The file contains every setting of this browser in full, including your GitHub token, which writes — commits, issues " +
-    "and workflow runs — to every repository it was given, under your account. It opens all of that to whoever holds the file — keep it like a " +
+  assert.ok(page.main().includes("The file contains every setting of this browser in full, including your GitHub token, which writes — commits, issues, " +
+    "pull requests and workflow runs — to every repository it was given, under your account. It opens all of that to whoever holds the file — keep it like a " +
     "password, or lock it with a passphrase."));
   let made;
   const [file] = await downloaded(async () => { made = await press(srv, dom.byId("export-go")); });

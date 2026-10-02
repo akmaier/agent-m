@@ -1,43 +1,45 @@
 // Dashboard — the browser runtime's composition root and router. SPEC §10; ARC-003 (shells).
 //
 // Reads one pinned commit of the product — on GitHub (two API calls, then immutable raw files) or on a
-// GitLab server (its REST API v4, at the same pinned commit) — and renders use cases and SPEC change
+// GitLab server (its REST API v4, at the same pinned commit) — through the reads the git host provides (readSnapshot,
+// readFile, repositoryInfo; dashboard/reads.mjs for a blob and the last accepted text), and renders use cases and SPEC change
 // proposals. A page load reads only the commit and its tree; each view then reads the files it shows, each by its blob
 // SHA and kept in this browser by that SHA, so that a file is read again only when it changed. With a stored token, a
 // person's click commits an edit or an acceptance: the button's trusted click becomes the authority of the git host's one
 // write path (dashboard/writes.mjs clickAuthority; ARC-003 decision 3); an accepted SPEC change is written in
 // the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
-// without its project token is read-only and links to the step that stores it. Every read goes through fetchText (GET only), and each token only to
-// the API of the server that issued it.
+// without its project token is read-only and links to the step that stores it. Every read goes through the git host (GET
+// only), and each token only to the API of the server that issued it.
 //
 // Module: MOD-dashboard-app
 //
 // The views are files of their own, docs/assets/dashboard/<view>-view.mjs, and the settings page's sections
 // docs/assets/dashboard/settings/<section>.mjs — each loaded by its name from one table (DASHBOARD), which also makes the tab
-// bar. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a stylesheet of
-// its own beside style.css; a section module exports `renderSection(app, box)`. Both get `app`, this page's context: what is
-// read, what is kept, and the helpers every view uses.
+// bar. Which of the table's files are built is read from one data file beside them, docs/assets/dashboard/built.json, so that a
+// page load asks for no file that is not there (one 404 each on GitHub Pages); an item that adds a view adds its file and its
+// line there. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a
+// stylesheet of its own beside style.css; a section module exports `renderSection(app, box)`. Both get `app`, this page's
+// context: what is read, what is kept, and the helpers every view uses.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
+import builtFiles from "./dashboard/built.json" with { type: "json" };
 import { browserStore, fileTexts } from "./settings-store.mjs";
 import {
-  fetchText, parseProductAddress, isGitLab, gitlabProject, gitlabSnapshot, gitlabReadFile, tokenRefusal, usedUpLimit,
+  REPO_RE, parseProductAddress, isGitLab, readSnapshot, readFile, repositoryInfo, tokenRefusal, usedUpLimit,
 } from "./git-host.mjs";
 import {
-  deriveTarget, parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff,
-  architecturePrerequisites,
+  parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
 } from "./review-core.mjs";
 import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
 
-const API = "https://api.github.com";
-const RAW = "https://raw.githubusercontent.com";
 
 // ---------------------------------------------------------------- the views and the settings sections (one table)
 //
 // Every view and every settings section the accepted use cases call for, in the order of the tab bar and of the settings page.
-// A view or section whose file does not exist yet is not shown; a later item adds one as a new file, without editing this one.
+// A view or section whose file is not built yet — not named in dashboard/built.json — is not shown and not asked for; a later
+// item adds one as a new file and one line of built.json, without editing this one.
 // view: the route (#<view>/…); tab: its label in the tab bar, if it has a tab. section: a part of the settings page; built in:
 // written by settings-view.mjs itself.
 export const DASHBOARD = [
@@ -94,8 +96,12 @@ export function tabsHtml(views) {
     ? ` title="${h(v.title)}"` : ""}>${v.icon ? `<span aria-hidden="true">${h(v.icon)}</span> ` : ""}${h(v.tab)}</a>`).join("\n");
 }
 
-// A view's file, loaded once per page. A file that is not there yet: a browser's import of it fails with a TypeError, node's
-// with ERR_MODULE_NOT_FOUND. A file that is there but fails otherwise is shown, so that opening it names the error.
+// The table's files that are built (dashboard/built.json). Whether a view or section is there is read from this list, never by
+// asking the server for its file: each file that is not there would cost one 404 per page load.
+const built = new Set(builtFiles);
+// A view's file, loaded once per page. A file the list names that is not there after all: a browser's import of it fails with a
+// TypeError, node's with ERR_MODULE_NOT_FOUND. A file that is there but fails otherwise is shown, so that opening it names the
+// error.
 const modules = new Map();
 function loadFile(file) {
   if (!modules.has(file)) modules.set(file, import(new URL(`dashboard/${file}`, import.meta.url).href));
@@ -103,7 +109,7 @@ function loadFile(file) {
 }
 const notThere = (e) => e?.code === "ERR_MODULE_NOT_FOUND" || e instanceof TypeError;
 async function present(file) {
-  try { await loadFile(file); return true; } catch (e) { return !notThere(e); }
+  return built.has(file);
 }
 
 // A view may bring a stylesheet of its own beside style.css: its module exports `stylesheet`, a file name in
@@ -173,15 +179,27 @@ export function rateLimitText(e, product = null, now = new Date()) {
   return which + when + after;
 }
 
+// UC-008 4a: a write GitHub refused because the token cannot write to the repository — 403 or 404 —, and not because a rate
+// limit is used up (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN) or the token itself was refused (401, tokenRefusal).
+// Never a GitLab product's: there is no GitHub page to fall back to (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
+export function writeAccessRefused(e, product) {
+  if (!e || isGitLab(product) || usedUpLimit(e)) return false;
+  return e.status ? e.status === 403 || e.status === 404 : /403|404/.test(e.message || "");
+}
+
 // Why a write was refused, in the product's terms — a used-up limit first, then GitLab's 403, then GitHub's 403 or 404 as the
-// token's missing permission; null when none of these applies (the caller then shows errorText).
-export function writeRefusalText(e, product, now = new Date()) {
+// token's missing permission; null when none of these applies (the caller then shows errorText). githubPage: GitHub's
+// new-file page prefilled with the approval record, which the caller shows beside the text as a link (UC-008 4a); without it
+// the GitHub path is named only.
+export function writeRefusalText(e, product, now = new Date(), { githubPage = null } = {}) {
   const limit = rateLimitText(e, product, now);
   if (limit) return limit;
   if (isGitLab(product)) return gitlabWriteRefusal(e, product);
-  return /403|404/.test(e?.message || "")
-    ? `Your token cannot write to ${product.repo} (${e.message}). Extend it in Settings, or remove it to use GitHub's page instead.`
-    : null;
+  if (!writeAccessRefused(e, product)) return null;
+  return `Your token cannot write to ${product.repo} (${e.message}). ` + (githubPage
+    ? "Extend it in Settings, or commit the record on GitHub's page instead: without write access GitHub makes your commit a " +
+      "pull request, and the acceptance counts once a maintainer merges it."
+    : "Extend it in Settings, or remove it to use GitHub's page instead.");
 }
 
 // The page shown when the product's commit cannot be read: the server's answer, and what it means here. A used-up rate limit
@@ -210,6 +228,26 @@ export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date
 }
 
 // ---------------------------------------------------------------- instance, product, token
+
+export const UPSTREAM = "akmaier/agent-m";
+
+// AN INSTANCE IS A FORK OF AGENT M: the instance is the repository of the Pages address this page is served from
+// (<owner>.github.io/<name>/), else Agent M itself. The product is chosen with ?repo=owner/name (GitHub) or ?product=<address>
+// (GitHub or GitLab). A GitLab product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read
+// from GitLab). Moved here from docs/assets/review-core.mjs (ITM-130): it reads the page's own address.
+export function deriveTarget({ hostname, pathname, search }) {
+  const owner = hostname.endsWith(".github.io") ? hostname.split(".")[0] : null;
+  const name = pathname.split("/").filter(Boolean)[0];
+  const instance = owner && name ? `${owner}/${name}` : UPSTREAM;
+  const q = new URLSearchParams(search || "");
+  const refOk = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..");
+  const ref = refOk ? q.get("ref") : "main";
+  const chosen = q.get("product") ? parseProductAddress(q.get("product")) : null;
+  if (chosen && !chosen.error && chosen.kind === "gitlab") return { instance, repo: chosen.repo, ref, product: chosen, refGiven: Boolean(refOk) };
+  const wanted = chosen && !chosen.error ? chosen.repo : q.get("repo");
+  const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
+  return { instance, repo, ref };
+}
 
 // The instance is the fork this page is served from; the product is chosen with ?repo= or ?product= (SPEC §10). Set by start().
 let T, GITLAB, SERVER, store, kept, REPO_KEY;
@@ -240,20 +278,11 @@ function once(key, f) {
 
 async function loadSnapshot() {
   const before = state.commit;
-  if (GITLAB) {
-    // GITLAB PRODUCTS ARE SUPPORTED: its default branch unless ?ref= names one, resolved to one commit.
-    if (!T.refGiven) T.ref = (await gitlabProject({ product: T.product, token: token() })).default_branch || T.ref;
-    const snap = await gitlabSnapshot({ product: T.product, ref: T.ref, token: token() });
-    state.commit = snap.commit;
-    state.tree = snap.tree;
-  } else {
-    const [owner, name] = T.repo.split("/");
-    const commitJson = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/commits/${encodeURIComponent(T.ref)}`,
-      { headers: { Accept: "application/vnd.github+json" } }, token()));
-    state.commit = commitJson.sha;
-    const tree = JSON.parse(await fetchText(`${API}/repos/${owner}/${name}/git/trees/${state.commit}?recursive=1`, {}, token()));
-    state.tree = tree.tree.filter((e) => e.type === "blob");
-  }
+  // GITLAB PRODUCTS ARE SUPPORTED: its default branch unless ?ref= names one, resolved to one commit.
+  if (GITLAB && !T.refGiven) T.ref = (await repositoryInfo({ product: T.product, token: token() })).defaultBranch || T.ref;
+  const snap = await readSnapshot({ product: T.product, ref: T.ref, token: token() });
+  state.commit = snap.commit;
+  state.tree = snap.tree;
   state.byPath = new Map(state.tree.map((e) => [e.path, e]));
   if (state.commit !== before) { memo = new Map(); state.records = null; verified.clear(); }
 }
@@ -261,26 +290,16 @@ async function loadSnapshot() {
 // Without a token, files come from GitHub's raw host (public repositories). With a token, they come
 // through the API, the only place the token may go (SPEC §7 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT) —
 // which is also what makes private repositories readable. A GitLab product is read through its own
-// server's API, with its project token if one is stored.
-const encP = (path) => path.split("/").map(encodeURIComponent).join("/");
-const raw = (path) => (GITLAB
-  ? gitlabReadFile({ product: T.product, commit: state.commit, path, token: token() }).then((t) => t ?? "")
-  : token()
-    ? fetchText(`${API}/repos/${T.repo}/contents/${encP(path)}?ref=${state.commit}`,
-      { headers: { Accept: "application/vnd.github.raw+json" } }, token())
-    : fetchText(`${RAW}/${T.repo}/${state.commit}/${encP(path)}`));
+// server's API, with its project token if one is stored (MOD-git-host readFile). A file the pinned tree names is there: a
+// GitLab product's that its server does not find is shown empty, a GitHub product's is an error, as before ITM-130.
+async function raw(path) {
+  const text = await readFile({ product: T.product, commit: state.commit, path, token: token() });
+  if (text === null && !GITLAB) throw Object.assign(new Error(`404 Not Found — ${path} at ${state.commit}`), { status: 404 });
+  return text ?? "";
+}
 
 // A file on the commit an acceptance is written on (dashboard/writes.mjs acceptItems); null if it is absent.
-async function readAt(head, path) {
-  if (GITLAB) return gitlabReadFile({ product: T.product, commit: head, path, token: token() });
-  try {
-    return await fetchText(`${API}/repos/${T.repo}/contents/${encP(path)}?ref=${encodeURIComponent(head)}`,
-      { headers: { Accept: "application/vnd.github.raw+json" } }, token());
-  } catch (e) {
-    if (/^404\b/.test(e.message)) return null;
-    throw e;
-  }
-}
+const readAt = (head, path) => readFile({ product: T.product, commit: head, path, token: token() });
 
 // The product shown, for a write (writeFiles): a GitLab product by itself, a GitHub one by its repository.
 const writeTarget = () => (GITLAB ? { product: T.product } : { repo: T.repo });
@@ -362,22 +381,21 @@ async function reloadAndRoute() {
 // (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-008 3c, UC-018 4b).
 const tokenStepLink = () => `#add/${encodeURIComponent(T.product.address)}`;
 
-// Why a write was refused, in the product's terms (writeRefusalText).
-const writeErrorText = (e) => writeRefusalText(e, T.product) || errorText(e);
+// Why a write was refused, in the product's terms (writeRefusalText); githubPage: the GitHub path the caller links beside it.
+const writeErrorText = (e, githubPage = null) => writeRefusalText(e, T.product, new Date(), { githubPage }) || errorText(e);
 
 // ---------------------------------------------------------------- tokens refused or expiring (SPEC §7)
 
 const shownSecrets = new Set(); // keys revealed by Show on this page; any other view hides them again
-// This page's last answers about the tokens: the GitHub token, and each GitLab project token by its address.
-const tokenState = { ok: null, refused: false, gitlab: {}, sessions: {} };
 
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a 401 anywhere marks the token that was used as refused —
 // the GitHub token, or the project token of the GitLab product (`product`) — and the line at the top of every
-// view says which token and where it is renewed.
+// view says which token and where it is renewed. The mark is the token's last test, kept in this browser beside the token
+// (MOD-settings-store), so that it holds after a reload too (UC-042 step 1); a successful Test, a new value or a Clear replace it.
 function noteRefusal(e, product = T.product) {
   if (tokenRefusal(e)) {
-    if (isGitLab(product)) tokenState.gitlab[product.address] = { refused: true, ok: null };
-    else { tokenState.refused = true; tokenState.ok = null; }
+    if (isGitLab(product)) store.setGitLabTokenTest(product.address, { refused: true });
+    else store.setTokenTest({ refused: true });
     showBanner();
     if (document.getElementById("browser-settings")) renderBrowserSettings(app);
   }
@@ -391,10 +409,12 @@ const errorText = (e, product = T.product) => {
   return r ? `${r.text} Renew it with the link at the top of the page.` : e.message;
 };
 const gitlabShown = () => (GITLAB ? store.getGitLabToken(T.product.address) : null);
+// The line at the top of every view: the GitHub token, and the shown GitLab product's project token, each expiring or refused at
+// its last use (its kept last test).
 function showBanner() {
   const el = document.getElementById("token-banner"), gl = gitlabShown();
-  if (el) el.innerHTML = (ghToken() ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: tokenState.refused }) : "")
-    + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(tokenState.gitlab[T.product.address]?.refused), product: T.product }) : "");
+  if (el) el.innerHTML = (ghToken() ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
+    + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(gl.tested?.refused), product: T.product }) : "");
 }
 
 // ---------------------------------------------------------------- the product selector
@@ -430,10 +450,11 @@ function renderProductSelector() {
 let app = null;
 function context() {
   return {
-    T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, API, DASHBOARD,
+    T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, DASHBOARD,
     ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
-    recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets, tokenState,
+    recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets,
     main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,
+    writeAccessRefused: (e) => writeAccessRefused(e, T.product),
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
     seq: () => routeSeq,
     setFlash: (text) => { flash = text; },
@@ -466,7 +487,7 @@ async function route() {
     await available;
     // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
     const v = DASHBOARD.find((x) => x.view && x.view === kind);
-    const views = v ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
+    const views = v && built.has(v.file) ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
     if (views?.routes?.[v.view]) {
       linkStylesheet(views.stylesheet);
       await views.routes[v.view](app, a, b);
@@ -478,8 +499,8 @@ async function route() {
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
     const gl = gitlabShown();
     document.getElementById("token-banner").innerHTML = (ghToken()
-      ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: tokenState.refused }) : "")
-      + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(tokenState.gitlab[T.product.address]?.refused), product: T.product }) : "");
+      ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
+      + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(gl.tested?.refused), product: T.product }) : "");
     if (flash) {
       main().insertAdjacentHTML("afterbegin", `<section class="panel notice flash"><p>${flash}</p></section>`);
       flash = null;

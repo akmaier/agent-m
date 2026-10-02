@@ -9,7 +9,8 @@
 //
 // The request helper (request, fetchText) and the authority check (requireAuthority) are exported for the module's other
 // files: a later file of the git host — issues, pull requests, workflows, tags — sends through the same helper and takes the
-// same authority.
+// same authority. Other modules read through the reads it provides (readSnapshot, readFile, readBlob, commitsTouching,
+// repositoryInfo), not through the helper.
 
 export const ALLOWED_ORIGINS = new Set(["https://api.github.com", "https://raw.githubusercontent.com"]);
 export const MAX_URL_VALUE = 1000; // NO TEXT TRAVELS IN A URL — a record is ~400 bytes
@@ -294,6 +295,97 @@ export async function gitlabReadFile({ product, commit, path, token = null }) {
     if (e.status === 404) return null;
     throw e;
   }
+}
+
+// ---------------------------------------------------------------- reading a product, on either host
+//
+// The reads this module provides (MOD-git-host): a pinned snapshot, one file at a commit, a text by its blob SHA, the commits
+// that touch a path, and what the server reports about the repository. Each goes through the one request helper (fetchText,
+// GET only), each token only to the server that issued it. product: as parseProductAddress gives it — a GitLab product by its
+// server and project, a github.com one by its `repo`. Moved here from docs/assets/review-core.mjs and the dashboard's files,
+// which read through these since ITM-130; the requests are the ones they made.
+
+const GITHUB_API = "https://api.github.com", GITHUB_RAW = "https://raw.githubusercontent.com";
+const GITHUB_JSON = { Accept: "application/vnd.github+json" };
+const HEX40 = /^[0-9a-f]{40}$/;
+
+// The git blob SHA of a text, as `git hash-object` computes it — what readBlob checks a text it read against.
+async function blobSha(text) {
+  const body = new TextEncoder().encode(text);
+  const head = new TextEncoder().encode(`blob ${body.length}\0`);
+  const all = new Uint8Array(head.length + body.length);
+  all.set(head);
+  all.set(body, head.length);
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-1", all))].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+const b64text = (s) => new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s+/g, "")), (c) => c.charCodeAt(0)));
+
+// The branch, tag or commit `ref` resolved to one commit, and every blob of it — so that a view shows one state.
+// -> { commit, tree: [{ path, sha }] }
+export async function readSnapshot({ product, ref, token = null }) {
+  if (isGitLab(product)) return gitlabSnapshot({ product, ref, token });
+  const api = `${GITHUB_API}/repos/${product.repo}`;
+  const commit = JSON.parse(await fetchText(`${api}/commits/${encodeURIComponent(ref)}`, { headers: GITHUB_JSON }, token)).sha;
+  const tree = JSON.parse(await fetchText(`${api}/git/trees/${commit}?recursive=1`, {}, token));
+  return { commit, tree: tree.tree.filter((e) => e.type === "blob").map((e) => ({ path: e.path, sha: e.sha })) };
+}
+
+// One file's exact text at a commit, or null if it does not exist there. On GitHub with a token through the API — the only
+// place the token may go, which is also what makes a private repository readable —, without one from GitHub's raw host.
+export async function readFile({ product, commit, path, token = null }) {
+  if (isGitLab(product)) return gitlabReadFile({ product, commit, path, token });
+  try {
+    return token
+      ? await fetchText(`${GITHUB_API}/repos/${product.repo}/contents/${encPath(path)}?ref=${encodeURIComponent(commit)}`,
+        { headers: { Accept: "application/vnd.github.raw+json" } }, token)
+      : await fetchText(`${GITHUB_RAW}/${product.repo}/${commit}/${encPath(path)}`);
+  } catch (e) {
+    if (e.status === 404) return null;
+    throw e;
+  }
+}
+
+// A text by its blob SHA, from the product's server; refused unless it hashes to that SHA (AN APPROVAL NAMES THE EXACT TEXT).
+// A blob that is not a SHA, or a GitHub repository that is not one, is refused before anything is sent.
+export async function readBlob({ product, blob, token = null }) {
+  if (!HEX40.test(String(blob))) throw new Error(`not a blob SHA: ${blob}`);
+  let text;
+  if (isGitLab(product)) {
+    text = await fetchText(`${gitlabApiBase(product)}/repository/blobs/${blob}/raw`, {}, gitlabAuth(product, token));
+  } else {
+    const r = product?.repo;
+    if (!REPO_RE.test(r) || r.includes("..")) throw new Error(`not a repository: ${r}`);
+    const j = JSON.parse(await fetchText(`${GITHUB_API}/repos/${r}/git/blobs/${blob}`, { headers: GITHUB_JSON }, token));
+    text = j.encoding === "base64" ? b64text(j.content) : String(j.content ?? "");
+  }
+  if (await blobSha(text) !== blob) throw new Error(`the text read for blob ${blob.slice(0, 12)} does not match that blob SHA`);
+  return text;
+}
+
+// The newest commits, at most `limit`, that touch `path` at `commit`, newest first -> [{ sha, date, author }]: date is when
+// the commit was committed. GitHub: GET /repos/{o}/{r}/commits?path=&sha=&per_page=; GitLab:
+// GET /projects/:id/repository/commits?path=&ref_name=&per_page=.
+export async function commitsTouching({ product, commit, path, token = null, limit }) {
+  if (!Number.isInteger(limit) || limit < 1) throw new Error("commitsTouching needs a limit of at least one commit");
+  const q = (ref) => `path=${encodeURIComponent(path)}&${ref}=${encodeURIComponent(commit)}&per_page=${limit}`;
+  if (isGitLab(product)) {
+    const list = JSON.parse(await fetchText(`${gitlabApiBase(product)}/repository/commits?${q("ref_name")}`, {}, gitlabAuth(product, token)));
+    return list.map((c) => ({ sha: c.id, date: c.committed_date, author: c.author_name ?? null }));
+  }
+  const list = JSON.parse(await fetchText(`${GITHUB_API}/repos/${product.repo}/commits?${q("sha")}`, { headers: GITHUB_JSON }, token));
+  return list.map((c) => ({ sha: c.sha, date: c.commit?.committer?.date, author: c.author?.login ?? c.commit?.author?.name ?? null }));
+}
+
+// What the server reports about the repository -> { visibility: "public" | "private" | "internal", defaultBranch, role? }.
+// role: on GitLab the access level the token acts with (10 Guest … 50 Owner), null when the server names none.
+export async function repositoryInfo({ product, token = null }) {
+  if (isGitLab(product)) {
+    const r = await gitlabProject({ product, token });
+    return { visibility: r?.visibility, defaultBranch: r?.default_branch,
+      role: r?.permissions?.project_access?.access_level ?? r?.permissions?.group_access?.access_level ?? null };
+  }
+  const r = JSON.parse(await fetchText(`${GITHUB_API}/repos/${product.repo}`, { headers: GITHUB_JSON }, token));
+  return { visibility: r.visibility ?? (r.private ? "private" : "public"), defaultBranch: r.default_branch };
 }
 
 // ONE commit on a GitLab product, made with the person's project token on the authority it is given (as commitFiles), through

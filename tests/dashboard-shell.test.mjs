@@ -1,16 +1,18 @@
 // The dashboard shell — the tab bar written from the table of views, each view loaded by its name, a view or settings section
-// whose file is not there not shown, a view's own stylesheet, and the request handlers a view's tests bring to the harness.
+// whose file is not there not shown, and not asked for, a view's own stylesheet, and the request handlers a view's tests bring
+// to the harness.
 // Run: node --test tests/
 //
 // Module: MOD-dashboard-app
-// Guards: EVERY SETTING IS REACHED FROM ONE PAGE; UC-001; UC-006; UC-008; UC-014; UC-022; UC-023; UC-042
+// Guards: EVERY SETTING IS REACHED FROM ONE PAGE; UC-001; UC-006; UC-008; UC-014; UC-022; UC-023; UC-024; UC-042
 // Level: component
 //
 // The real dashboard (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock. The counter-proofs
-// are recorded in docs/measurements/2026-10-01_dashboard-shell.md.
+// are recorded in docs/measurements/2026-10-01_dashboard-shell.md and docs/measurements/2026-10-01_no-request-for-a-view-not-built.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import { existsSync, mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,22 +20,44 @@ import { pathToFileURL } from "node:url";
 import { repoServer, openDashboard } from "./app-harness.mjs";
 import { DASHBOARD } from "../docs/assets/dashboard-app.mjs";
 
+// What a page asks the server for below docs/assets/dashboard/: in a browser every import of a view or section file is a request
+// to GitHub Pages, and one for a file that is not there is answered 404. Under node the harness's fetch does not see imports, so
+// node's module resolution records them — every import, of a file that exists or not, by its path below docs/assets/dashboard/.
+const VIEWS = new URL("../docs/assets/dashboard/", import.meta.url);
+const imported = [];
+registerHooks({
+  resolve(specifier, context, next) {
+    let url = null;
+    try { url = new URL(specifier, context.parentURL); } catch { /* a bare specifier: no file of the site */ }
+    if (url?.protocol === "file:" && url.href.startsWith(VIEWS.href)) imported.push(decodeURIComponent(url.pathname.slice(VIEWS.pathname.length)));
+    return next(specifier, context);
+  },
+});
+
+// Every address of today: none, each view of the table by its name — built or not —, the pages within the built views, and
+// one that no view answers.
+const ADDRESSES = ["", ...DASHBOARD.filter((x) => x.view).map((x) => `#${x.view}`), "#uc/UC-001", "#review/uc", "#review/arc",
+  "#add/https%3A%2F%2Fgitlab.com%2Fa%2Fb", "#nothing"];
+const isThere = (file) => existsSync(new URL(file, VIEWS));
+
 const UC = "docs/use-cases/UC-001-add-a-product.md";
 const FILES = {
   "SPEC.md": "# SPEC\n",
   [UC]: "---\nid: UC-001\ntitle: Add a product\narea: setup\nrealises:\n  - NO SERVER\n---\n# UC-001 Add a product\n",
 };
 
-// The tab bar docs/index.html carried before the views had files of their own, link for link.
+// The tab bar docs/index.html carried before the views had files of their own, link for link — and the tab of each view built
+// since, in the table's order: Backlog (ITM-147).
 const TABS_BEFORE = [
   '<a href="#uc" role="tab" id="tab-uc">Use cases</a>',
   '<a href="#arc" role="tab" id="tab-arc">Architecture</a>',
   '<a href="#spec" role="tab" id="tab-spec">SPEC changes</a>',
+  '<a href="#backlog" role="tab" id="tab-backlog">Backlog</a>',
   '<a href="#how" role="tab" id="tab-how">How acceptance works</a>',
   '<a href="#settings" role="tab" id="tab-settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
 ];
 
-test("with every view file of today, the tab bar shows the tabs it showed before, in their order", async () => {
+test("with every view file of today, the tab bar shows the tabs it showed before and those built since, in their order", async () => {
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
   assert.deepEqual(page.el("tabs").split("\n"), TABS_BEFORE);
 });
@@ -67,6 +91,37 @@ test("a view or settings section whose file is not there yet is not shown, and i
   // Counter-proof: a view whose file is there has its tab, and a built-in section is on the page.
   assert.match(page.el("tabs"), /id="tab-how"/);
   assert.match(page.main(), /id="product-settings"/);
+});
+
+// Guards: UC-024
+test("a load of every address of today asks for no view or settings file that is not built — no 404 per planned view", async () => {
+  const asked = new Map(); // address -> the files below docs/assets/dashboard/ its page load and its navigation asked for
+  const server = await repoServer({ files: FILES });
+  for (const hash of ADDRESSES) {
+    const from = imported.length;
+    const page = await openDashboard({ server, hash });
+    await page.go("#settings"); // the settings page names every section of the table
+    await page.go(hash);
+    asked.set(hash || "(none)", imported.slice(from));
+  }
+  const missing = [...asked].flatMap(([hash, files]) => files.filter((f) => !isThere(f)).map((f) => `${hash}: ${f}`));
+  assert.deepEqual(missing, [], "a page asked for files that are not there");
+  // The recording sees what a page asks for: the files of the views shown are among it.
+  const all = new Set([...asked.values()].flat());
+  for (const f of ["review-views.mjs", "settings-view.mjs", "how-view.mjs", "add-product-view.mjs", "setup-view.mjs"]) {
+    assert.ok(all.has(f), `the recording saw ${f}: ${[...all].join(", ")}`);
+  }
+});
+
+// Guards: UC-024
+test("the list of built files beside the views names exactly the files of the table that are there", () => {
+  const built = JSON.parse(readFileSync(new URL("built.json", VIEWS), "utf8"));
+  assert.ok(Array.isArray(built) && built.every((f) => typeof f === "string"), "a JSON list of file names below docs/assets/dashboard/");
+  assert.equal(new Set(built).size, built.length, "each file once");
+  const named = new Set(DASHBOARD.filter((x) => x.file).map((x) => x.file));
+  assert.deepEqual(built.filter((f) => !named.has(f)), [], "the list names only files the table names");
+  assert.deepEqual(built.filter((f) => !isThere(f)), [], "the list names only files that are there");
+  assert.deepEqual([...named].filter((f) => isThere(f) && !built.includes(f)), [], "every file of the table that is there is listed");
 });
 
 test("a request handler a test brings answers before the harness's own GitHub", async () => {

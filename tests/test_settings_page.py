@@ -37,9 +37,10 @@ def keys_without_place(store_source: str, page_html: str) -> list[str]:
     return [k for k in keys_written(store_source) if f'data-setting-key="{k}"' not in page_html]
 
 
-def page(entries: dict, shown=(), now="2026-09-30", state=None) -> str:
+def page(entries: dict, shown=(), now="2026-09-30") -> str:
+    # The last test of each setting is kept in the browser beside it (ITM-136), so the entries carry it.
     return js(f"return settingsView.browserSettingsHtml({{ entries: {json.dumps(entries)}, shown: {json.dumps(list(shown))},"
-              f" now: new Date('{now}T12:00:00Z'), tokenState: {json.dumps(state)} }});")
+              f" now: new Date('{now}T12:00:00Z') }});")
 
 
 def full_entries() -> dict:
@@ -58,7 +59,7 @@ class EverySettingOnOnePage(unittest.TestCase):
         # A key built any other way (a template, a variable) would escape the check above.
         src = STORE.read_text(encoding="utf-8")
         for call in re.findall(r"setItem\(([^,]+),", src):
-            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|JUMP_HOST_KEY|REMOTE_SESSIONS_KEY|k)$", call)
+            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|TOKEN_TEST_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|JUMP_HOST_KEY|REMOTE_SESSIONS_KEY|k)$", call)
         self.assertIn("KEYS.includes(k)", src, "putEntries writes only the named keys")
 
     def test_counter_proof_a_key_without_a_place_fails(self):
@@ -75,6 +76,15 @@ class TestedAndCleared(unittest.TestCase):
             self.assertIn("data-test=", body, name)
             self.assertIn("data-clear=", body, name)
         self.assertIn('data-remove-product="https://github.com/alice/thesis"', html)
+
+    def test_the_last_test_is_read_from_the_browser(self):
+        # UC-042 step 1 (ITM-136): the line shows the last test kept in this browser beside the token, not one of this page only.
+        kept = js("return { [store.TOKEN_KEY]: '" + SECRET + "', [store.TOKEN_TEST_KEY]: JSON.stringify({ ok: '2026-09-29' }) };")
+        self.assertIn('<p class="state">✓ works — tested 2026-09-29</p>', page(kept))
+        refused = js("return { [store.TOKEN_KEY]: '" + SECRET + "', [store.TOKEN_TEST_KEY]: JSON.stringify({ refused: true }) };")
+        self.assertIn('<p class="state">✗ refused — GitHub did not accept it at the last use</p>', page(refused))
+        # Counter-proof: without a kept test the line says so.
+        self.assertIn('<p class="state">stored — not tested on this page yet</p>', page({"agent-m.github-token": SECRET}))
 
     def test_counter_proof_a_row_without_clear_is_seen(self):
         body = '<div class="setting" data-setting-row="x"><button data-test="x">Test</button></div><!--/setting-->'
@@ -172,9 +182,11 @@ GL_ADDR = "https://gitlab.example.org/grp/sub/proj"
 GL_SECRET = "glpat-GITLABSECRETvalue0123456789"
 
 
-def gitlab_entries(expires="2026-12-29") -> dict:
+def gitlab_entries(expires="2026-12-29", tested=None) -> dict:
+    # tested: the token's last test, kept beside it in its entry (ITM-136), or none.
+    extra = f", tested: {json.dumps(tested)}" if tested is not None else ""
     return js("return { [store.GITLAB_TOKENS_KEY]: JSON.stringify({ '" + GL_ADDR + "': { token: '" + GL_SECRET + "', expires: '"
-              + expires + "' } }), [store.PRODUCTS_KEY]: JSON.stringify(['" + GL_ADDR + "']) };")
+              + expires + "'" + extra + " } }), [store.PRODUCTS_KEY]: JSON.stringify(['" + GL_ADDR + "']) };")
 
 
 class GitLabTokensOnThePage(unittest.TestCase):
@@ -206,7 +218,7 @@ class GitLabTokensOnThePage(unittest.TestCase):
 
     def test_expiry_warned_and_refusal_named(self):
         self.assertIn("⚠", self.line(page(gitlab_entries("2026-10-05"))))
-        refused = page(gitlab_entries(), state={"gitlab": {GL_ADDR: {"refused": True}}})
+        refused = page(gitlab_entries(tested={"refused": True}))
         self.assertIn("refused", self.line(refused))
 
     def test_counter_proof_no_token_no_line_but_the_setting_keeps_its_place(self):

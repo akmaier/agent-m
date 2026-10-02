@@ -9,6 +9,8 @@ import {
   gitBlobSha, specRecord, approvalPath, parseQueueIndex, parseDecisions, sectionForEntry, specStatusByNames, needsMessage,
 } from "../review-core.mjs";
 import { h, badge, counts, tickCell, tickBox, batchBar, acceptPanel, editPanel, wireAccept, wireCommon } from "./review-views.mjs";
+import { linkGraph, requirementImpact } from "../traceability.mjs";
+import { ARCHITECTURE_FILE, isCodePath, isTestPath } from "../artifacts.mjs";
 
 // The SPEC change queues: each with its index and its decisions — what the list needs to name every queue and entry.
 const queueHeads = (app) => app.once("queues", async () => {
@@ -107,19 +109,78 @@ function entryNote(e) {
   return e.error ? ` <span class="warn">${h(e.error)}</span>` : "";
 }
 
+// ---------------------------------------------------------------- the impact list of an entry (UC-006 3b)
+//
+// A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST: for every requirement of the SPEC that the entry changes or withdraws, the
+// use cases, decisions, modules and tests that name it (MOD-traceability requirementImpact), derived from the files of the commit
+// shown. Which requirements the entry touches is read from the SPEC, the proposal and the queue's index.md alone — the index names
+// the section the entry replaces, so a requirement of that section the entry no longer states (renamed in place, or left out) is
+// touched as withdrawn (linkGraph); an entry whose heading another entry of the queue creates comes with that entry, whose text
+// holds its section. Only for an entry that touches one are the use cases, the architecture files and the tests read — each by
+// its blob SHA, so a file read once is not read again. An entry decided already (in SPEC, superseded) proposes nothing
+// (linkGraph), and a SPEC other than the product's SPEC.md has no graph.
+
+const USE_CASE = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
+const TOUCHES = new Set(["change", "withdraw"]);
+const touchedBy = (graph, entry) => graph.edges.filter((x) => x.from === entry && x.kind === "proposes" && TOUCHES.has(x.change));
+
+// entries: the entries of the entry's queue (queueEntries). -> [{ name, change, artifacts: [{ id, kind, path, via }] }]: the
+// requirements the entry leaves out of its section first, then those it states, in the order it states them.
+async function entryImpact(app, e, entries) {
+  if (!e.proposalPath || e.targetPath !== "SPEC.md") return [];
+  // The index is the text the queue view read (queueHeads), kept by `once`: no request of its own.
+  const index = `${e.dir}/index.md`;
+  const creators = entries.filter((x) => e.needs.includes(x.nr) && x.proposalPath);
+  const [specText, indexText] = await Promise.all([app.fileText("SPEC.md"), app.fileText(index)]);
+  const own = { "SPEC.md": specText, [index]: indexText,
+    ...Object.fromEntries(creators.map((x) => [x.proposalPath, x.proposalText])), [e.proposalPath]: e.proposalText };
+  const status = Object.fromEntries([...creators, e].map((x) => [x.proposalPath, x.status]));
+  if (!touchedBy(linkGraph({ files: own, status }), e.proposalPath).length) return [];
+  const paths = app.state.tree.map((x) => x.path)
+    .filter((p) => USE_CASE.test(p) || ARCHITECTURE_FILE.test(p) || (isCodePath(p) && isTestPath(p)));
+  const texts = await Promise.all(paths.map((p) => app.fileText(p)));
+  const graph = linkGraph({ files: { ...Object.fromEntries(paths.map((p, i) => [p, texts[i]])), ...own }, status });
+  return touchedBy(graph, e.proposalPath).map((x) => ({ name: x.to, change: x.change, artifacts: requirementImpact(graph, x.to) }));
+}
+
+const KIND = { "use-case": "Use case", "architecture-decision": "Decision", module: "Module", test: "Test" };
+const VIA = { realises: "realises it", forced_by: "is forced by it", guards: "guards it" };
+
+function specImpactHtml(impact) {
+  const artifact = (a) => `<li data-impact="${h(a.id)}">${KIND[a.kind] ?? h(a.kind)}
+    ${a.kind === "use-case" ? `<a href="#uc/${h(a.id)}">${h(a.id)}</a>` : a.kind === "test" ? "" : `<a href="#arc/${h(a.id)}">${h(a.id)}</a>`}
+    — ${VIA[a.via] ?? h(a.via)} · <code>${h(a.path)}</code></li>`;
+  const req = (r) => `<div class="impact-req" data-requirement="${h(r.name)}" data-change="${h(r.change)}">
+    <p class="small"><strong>${h(r.name)}</strong> — ${r.change === "withdraw" ? "withdrawn" : "changed"} by this entry;
+      ${r.artifacts.length ? `named by ${r.artifacts.length} ${r.artifacts.length === 1 ? "artifact" : "artifacts"}:`
+        : "nothing in the repository names it."}</p>
+    ${r.artifacts.length ? `<ul class="names">${r.artifacts.map(artifact).join("")}</ul>` : ""}</div>`;
+  return `<section class="panel impact" id="spec-impact"><h3>Impact of this change</h3>
+    ${impact.error ? `<p class="warn">The impact list could not be derived: ${h(impact.error)} — without it, this entry cannot be
+      accepted. Reload to try again.</p>` : impact.list.map(req).join("")}
+    <details class="explain"><summary>What is this?</summary><div>Before an existing requirement is changed or withdrawn, the
+      dashboard lists what hangs on it (A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST): the use cases that realise it, the
+      architecture decisions it forces, the modules that realise it and the tests whose <code>Guards:</code> line names it —
+      derived from the repository at the commit shown. Accepting changes none of them: each still names the requirement as it
+      was until it is changed in its own review.</div></details></section>`;
+}
+
 // One entry: its queue's entries (an entry may need another of its queue), and its rationale.
 async function viewSpecEntry(app, qname, nn) {
   const { session, openQueues, main, md, renderMermaid, diffHtml } = app;
   const seq = app.seq();
   const q = (await queueHeads(app)).find((x) => x.name === qname);
-  const e = q && (await queueEntries(app, q)).find((x) => x.nn === nn);
+  const entries = q ? await queueEntries(app, q) : [];
+  const e = entries.find((x) => x.nn === nn);
   if (seq !== app.seq()) return;
   if (!e) { main().innerHTML = `<p class="warn">No entry ${h(qname)}/${h(nn)}.</p>`; return; }
   openQueues.add(q.name);
-  const rationale = e.rationalePath ? await app.fileText(e.rationalePath) : "";
+  const [rationale, impact] = await Promise.all([e.rationalePath ? app.fileText(e.rationalePath) : "",
+    entryImpact(app, e, entries).then((list) => ({ list }), (err) => { app.noteRefusal(err); return { list: [], error: app.errorText(err) }; })]);
   if (seq !== app.seq()) return;
   const waits = e.needs.length > 0 && ["open", "stale"].includes(e.status) && Boolean(e.proposalPath);
-  const canAccept = specAcceptable(e) && !waits;
+  // The impact list is part of the proposal: an entry whose list could not be derived is not offered for acceptance.
+  const canAccept = specAcceptable(e) && !waits && !impact.error;
   const rec = canAccept ? specRecord({ queue: e.dir, entry: e.nr, proposal: e.proposalPath, blob: e.proposalBlob,
     target: e.targetPath, anchor: e.anchor, section: e.sectionBlob }) : null;
   const item = specItem(q, e);
@@ -146,6 +207,7 @@ async function viewSpecEntry(app, qname, nn) {
       <section><h3>Proposed</h3><div class="md doc">${md(e.proposalText)}</div></section>
     </div>
     <section class="panel"><h3>Difference</h3>${diffHtml(e.current, e.proposalText)}</section>
+    ${impact.list.length || impact.error ? specImpactHtml(impact) : ""}
     ${rationale ? `<section class="panel md rationale"><h3>Rationale</h3>${md(rationale.replace(/^# .*\n/, ""))}</section>` : ""}
     <section class="panel"><button class="btn" data-toggle-edit>Edit proposal…</button></section>
     ${rec ? acceptPanel(app, rec, approvalPath(`spec-${q.name}-${e.nn}`, e.proposalBlob), `entry ${e.nn}`, item) : waitPanel}

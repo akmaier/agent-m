@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-dashboard-app
 # Guards: AN INSTANCE IS A FORK OF AGENT M
 # Level: unit
 """SPEC §10 AN INSTANCE IS A FORK OF AGENT M — the dashboard derives its repository from its address."""
@@ -8,7 +8,7 @@ from jsrun import js
 
 
 def target(host, path, search=""):
-    return js(f"return core.deriveTarget({{hostname: '{host}', pathname: '{path}', search: '{search}'}});")
+    return js(f"return dashboardApp.deriveTarget({{hostname: '{host}', pathname: '{path}', search: '{search}'}});")
 
 
 class InstanceTarget(unittest.TestCase):

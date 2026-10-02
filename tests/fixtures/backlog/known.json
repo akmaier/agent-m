@@ -1,0 +1,4 @@
+{
+  "requirements": ["EXPORT IS A PDF", "THE THESIS HAS A TITLE PAGE", "THE TITLE PAGE NAMES THE SUPERVISOR"],
+  "useCases": ["UC-001", "UC-003"]
+}

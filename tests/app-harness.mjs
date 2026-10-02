@@ -1,5 +1,5 @@
 // A browser for docs/assets/dashboard-app.mjs under node — used by the tests that load the dashboard (load-per-view, review-page,
-// dashboard-shell, architecture), no test of its own.
+// dashboard-shell, architecture, dashboard-review-flows, review-core.d/refused-save), no test of its own.
 //
 // The app is the real module, imported fresh for every page load. Around it: a DOM that keeps what the app writes into its
 // elements, localStorage, the Cache Storage (shared between page loads when the test says so), and GitHub's REST API served
@@ -125,7 +125,7 @@ export function fakeCaches() {
 // A control the app finds by an attribute selector — `[data-x]` or `[data-x="v"]` — in an element's HTML: it keeps the listeners
 // the app adds, and the test fires them. Any other selector finds nothing, as before.
 const ATTR_SELECTOR = /^\[([\w-]+)(?:="([^"]*)")?\]$/;
-const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 function control(tag) {
   const listeners = [], sink = { textContent: "", innerHTML: "", hidden: false, disabled: false };
   const dataset = {};
@@ -136,7 +136,9 @@ function control(tag) {
     value: "", hidden: false,
     addEventListener(type, f) { listeners.push([type, f]); },
     fire(type, ev) { for (const [t, f] of listeners) if (t === type) f({ ...ev, currentTarget: c, target: c }); },
-    closest() { return c; }, querySelector: () => sink, querySelectorAll: () => [], focus() {} };
+    closest() { return c; }, querySelector: () => sink, querySelectorAll: () => [], focus() {},
+    // An attribute of its tag, as a browser's element answers it (the settings page finds a remote session's line this way).
+    getAttribute: (name) => attrOf(tag, name) };
   return c;
 }
 function find(html, sel, found) {
@@ -177,7 +179,7 @@ function localStorageWith(entries) {
 }
 
 // Until the page has had nothing in flight for a while: no request open, none new.
-async function settle(server) {
+export async function settle(server) {
   let idle = 0, seen = server.requests.length;
   while (idle < 40) {
     await new Promise((r) => setTimeout(r, 0));
@@ -241,4 +243,173 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
     },
   };
   return page;
+}
+
+// ---------------------------------------------------------------- what the harness's document lacks, added for the flows
+//
+// Moved here unchanged from tests/dashboard-review-flows.test.mjs (written by ITM-123), so that the checks of the dashboard's
+// editor in other files (tests/review-core.d/refused-save.test.mjs) use the same document.
+//
+// The harness above keeps the listeners of the controls it finds in an element's HTML by an attribute selector ([data-x]),
+// and page.click fires them in <main>. Three kinds of control these flows click are not reached that way; richDocument() adds
+// them on top of the harness's document, whose own controls stay the objects they were (page.click works as before):
+//  1. an element found by its id (document.getElementById) keeps the listeners a view adds and can be fired — Add product,
+//     Store and check, Check, the settings page's Save buttons are wired that way. Its value, checked, disabled and hidden start
+//     from its tag, and new HTML that writes the same id again makes it a new element, as in a browser;
+//  2. the edit panel a view finds by its classes (`.panel.edit`), with its textarea, preview, result and buttons — no other class
+//     selector is answered, so every other view behaves as under the harness alone;
+//  3. a control whose HTML a view sets (a form built inside it) is searched in that HTML.
+// It is installed after the first page load and before the view under test is opened (page.go), so that the view's wiring
+// reaches it.
+
+const ATTR = ATTR_SELECTOR;
+export const unesc = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+export const attrOf = (tag, name) => { const m = new RegExp(`\\s${name}="([^"]*)"`).exec(tag); return m ? unesc(m[1]) : null; };
+const flagOf = (tag, name) => new RegExp(`\\s${name}(?=[\\s>=/])`).test(tag);
+// The positions the harness finds an attribute selector at, in the same order as its controls.
+const needle = (sel) => {
+  const m = ATTR.exec(sel);
+  return m[2] === undefined ? new RegExp(`\\s${m[1]}(?=[\\s=>])`, "g") : new RegExp(`\\s${m[1]}="${reEsc(m[2])}"`, "g");
+};
+
+// A control of our own, of the harness's shape, for HTML a view writes into a control.
+function ownControl(tag) {
+  const listeners = [], dataset = {};
+  for (const m of tag.matchAll(/\sdata-([\w-]+)(?:="([^"]*)")?/g)) dataset[m[1].replace(/-(\w)/g, (_, c) => c.toUpperCase())] = unesc(m[2] ?? "");
+  const c = { tag, dataset, disabled: flagOf(tag, "disabled"), checked: flagOf(tag, "checked"), value: attrOf(tag, "value") ?? "",
+    textContent: "", innerHTML: "", hidden: false,
+    addEventListener(type, f) { listeners.push([type, f]); },
+    fire(type, ev) { for (const [t, f] of [...listeners]) if (t === type) f({ ...ev, currentTarget: c, target: c }); },
+    getAttribute: (n) => attrOf(tag, n), closest() { return c; }, focus() {} };
+  return withInner(c);
+}
+// A control's querySelector searches the HTML a view set into it; an attribute selector it does not find, and any other
+// selector, answer as before.
+function withInner(c) {
+  if (c.__inner) return c;
+  const before = c.querySelector, beforeAll = c.querySelectorAll;
+  let html = null, found = null;
+  const all = (sel) => {
+    if (html !== c.innerHTML) { html = c.innerHTML; found = new Map(); }
+    const out = [];
+    let i = 0;
+    for (const hit of String(html).matchAll(needle(sel))) {
+      const key = `${sel}#${i++}`;
+      if (!found.has(key)) found.set(key, ownControl(html.slice(html.lastIndexOf("<", hit.index), html.indexOf(">", hit.index) + 1)));
+      out.push(found.get(key));
+    }
+    return out;
+  };
+  c.__inner = true;
+  c.querySelector = (sel) => (ATTR.test(sel) && all(sel)[0]) || (before ? before.call(c, sel) : null);
+  c.querySelectorAll = (sel) => (ATTR.test(sel) ? all(sel) : beforeAll ? beforeAll.call(c, sel) : []);
+  return c;
+}
+
+// The start tags of `html` in [from, to) that a simple selector — `tag`, `.a`, `.a.b`, `tag.a` — matches, with where each ends.
+function tagsMatching(html, sel, from = 0, to = html.length) {
+  const [, name, cls] = /^([a-z]*)((?:\.[\w-]+)*)$/.exec(sel) || [];
+  if (name === undefined) return [];
+  const want = cls.split(".").filter(Boolean), out = [];
+  for (const m of html.slice(from, to).matchAll(/<([a-z][\w-]*)([^<>]*)>/g)) {
+    const at = from + m.index, tag = m[0];
+    const classes = (attrOf(tag, "class") || "").split(/\s+/);
+    if ((name && m[1] !== name) || !want.every((k) => classes.includes(k))) continue;
+    out.push({ at, tag, name: m[1], end: closing(html, m[1], at + tag.length) });
+  }
+  return out;
+}
+function closing(html, name, from) {
+  if (["input", "br", "img"].includes(name)) return from;
+  const re = new RegExp(`<(/?)${name}\\b[^<>]*>`, "g");
+  re.lastIndex = from;
+  let depth = 1;
+  for (let m; (m = re.exec(html));) { depth += m[1] ? -1 : 1; if (depth === 0) return m.index; }
+  return html.length;
+}
+
+export function richDocument() {
+  const doc = globalThis.document, harnessGet = doc.getElementById;
+  const els = new Map(), nodes = new WeakMap();
+  const tagOf = (id) => {
+    const re = new RegExp(`<[^<>]*\\sid="${reEsc(id)}"[^<>]*>`);
+    for (const el of els.values()) { const m = re.exec(el.innerHTML); if (m) return m[0]; }
+    return null;
+  };
+  const reset = (el, tag) => {
+    el.listeners = [];
+    el.disabled = flagOf(tag, "disabled");
+    el.checked = flagOf(tag, "checked");
+    el.hidden = flagOf(tag, "hidden");
+    el.value = attrOf(tag, "value") ?? "";
+  };
+  // New HTML: an id it writes again is a new element; the nodes found in the old HTML are gone.
+  const renew = (owner, html) => {
+    nodes.set(owner, new Map());
+    for (const m of html.matchAll(/<[^<>]*\sid="([^"]+)"[^<>]*>/g)) if (els.has(m[1]) && els.get(m[1]) !== owner) reset(els.get(m[1]), m[0]);
+  };
+  // A part of an element's HTML found by its classes — the edit panel —, and the parts and controls inside it.
+  const node = (owner, from, to, tag, name) => {
+    const listeners = [];
+    const html = () => owner.innerHTML;
+    const inside = (sel) => {
+      if (ATTR.test(sel)) {
+        const hits = [...html().matchAll(needle(sel))].map((h) => h.index);
+        return owner.querySelectorAll(sel).filter((_, i) => hits[i] >= from && hits[i] < to);
+      }
+      return tagsMatching(html(), sel, from, to).map((t) => nodeAt(owner, t, sel));
+    };
+    const n = { tag, hidden: flagOf(tag, "hidden"), innerHTML: "", textContent: "", outerHTML: "",
+      value: name === "textarea" ? unesc(html().slice(from + tag.length, to)) : attrOf(tag, "value") ?? "",
+      addEventListener(type, f) { listeners.push([type, f]); },
+      fire(type, ev = {}) { for (const [t, f] of [...listeners]) if (t === type) f({ ...ev, currentTarget: n, target: n }); },
+      querySelector: (sel) => inside(sel)[0] ?? null, querySelectorAll: (sel) => (ATTR.test(sel) || /^[\w.-]+$/.test(sel) ? inside(sel) : []),
+      closest() { return n; }, focus() {} };
+    return n;
+  };
+  const nodeAt = (owner, t, sel) => {
+    const kept = nodes.get(owner) ?? nodes.set(owner, new Map()).get(owner);
+    const key = `${sel}@${t.at}`;
+    if (!kept.has(key)) kept.set(key, node(owner, t.at, t.end, t.tag, t.name));
+    return kept.get(key);
+  };
+  const augment = (el) => {
+    if (el.__rich) return el;
+    el.__rich = true;
+    const d = Object.getOwnPropertyDescriptor(el, "innerHTML");
+    Object.defineProperty(el, "innerHTML", { configurable: true, enumerable: true, get: d.get,
+      set(v) { d.set.call(el, v); renew(el, String(v)); } });
+    el.listeners = [];
+    el.addEventListener = (type, f) => el.listeners.push([type, f]);
+    el.fire = (type, ev = {}) => { for (const [t, f] of [...el.listeners]) if (t === type) f({ ...ev, currentTarget: el, target: el }); };
+    const qs = el.querySelector, qsa = el.querySelectorAll;
+    el.querySelector = (sel) => {
+      if (ATTR.test(sel)) { const c = qs.call(el, sel); return c && withInner(c); }
+      return sel === ".panel.edit" ? (tagsMatching(el.innerHTML, sel).map((t) => nodeAt(el, t, sel))[0] ?? null) : qs.call(el, sel);
+    };
+    el.querySelectorAll = (sel) => (ATTR.test(sel) ? qsa.call(el, sel).map(withInner) : qsa.call(el, sel));
+    const tag = tagOf(el.id);
+    if (tag) reset(el, tag);
+    return el;
+  };
+  doc.getElementById = (id) => {
+    const el = harnessGet(id);
+    if (!els.has(id)) els.set(id, el);
+    return augment(el);
+  };
+  for (const id of ["main", "product", "token-banner", "tabs", "repo-line"]) doc.getElementById(id);
+  return {
+    byId: (id) => doc.getElementById(id),
+    edit: () => doc.getElementById("main").querySelector(".panel.edit"),
+  };
+}
+
+// A click on a control or an element, as a person makes it: a disabled one cannot be clicked. -> the requests it made.
+export async function press(server, el, ev = { isTrusted: true }) {
+  if (!el) throw new Error("nothing to click");
+  if (el.disabled) throw new Error(`disabled — a person cannot click ${el.tag || el.id}`);
+  const from = server.requests.length;
+  el.fire("click", ev);
+  await settle(server);
+  return server.requests.slice(from);
 }

@@ -1,0 +1,9 @@
+[
+  "add-product-view.mjs",
+  "backlog-view.mjs",
+  "how-view.mjs",
+  "review-views.mjs",
+  "settings-view.mjs",
+  "setup-view.mjs",
+  "spec-changes-view.mjs"
+]
