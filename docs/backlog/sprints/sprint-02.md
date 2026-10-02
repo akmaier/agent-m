@@ -234,9 +234,16 @@ again, in a second line of the same row, when the marks it names are gone (*Deci
 | Strand | Release-test item | Pull request | Green on `sprint/02` at | Decision | By, date |
 |---|---|---|---|---|---|
 | A | ITM-142 | #63 | `50441e2` — 25 green, 5 marked | **back to Development**: ITM-126 (A5), ITM-130 (A1, A2); A3 and A4 are accepted limitations, closed by ITM-151 | po-fable, 2026-10-02 |
+| A | ITM-142, re-run after #66 (ITM-126, A5) and #70 (ITM-130, A1, A2) | #63, #66, #70 | `87b3268` — 28 green, 2 marked | **passed**, with A3 and A4 as accepted limitations (ITM-151) | po-fable, 2026-10-02 |
 | B | ITM-143 | #62 | `190c17e` — 44 green, none marked | **passed** | po-fable, 2026-10-02 |
 | C | ITM-144 | #61 | `e1d04c5` — 22 green, 4 marked | **back to Development**: ITM-127 (C1); S1 is no defect — ITM-128's criterion corrected, the case follows it (tester-opus); G1 and G2 are accepted limitations, closed by ITM-153 and ITM-152 | po-fable, 2026-10-02 |
+| C | ITM-144, re-run after #67 (ITM-127, C1) and #68 (case 26, S1, by tester-opus) | #61, #67, #68 | `87b3268` — 24 green, 2 marked | **passed**, with G1 and G2 as accepted limitations (ITM-153, ITM-152) | po-fable, 2026-10-02 |
 | D | ITM-145 | #64 | `35b5766` — 31 green, 1 marked twice | **back to Development**: ITM-018, then ITM-134 (D1) | po-fable, 2026-10-02 |
+| D | ITM-145, re-run after #65 (ITM-018, D1) and #69 (ITM-134, D1) | #64, #65, #69 | `87b3268` — 33 green, none marked | **passed** | po-fable, 2026-10-02 |
+
+**All four rows carry a decision** (A, C and D in their second line, B in its first): the close of the sprint may start —
+by `scrum-master-session` (`closer`; *Branch and gates* above). What the second decision rests on: *Decided again on
+2026-10-02*, below.
 
 ## Not selected, and why
 
@@ -336,6 +343,56 @@ DOMPurify's defaults let a product artifact's image load from any host (ITM-050'
 CI-derived index of the commit or a read added to MOD-git-host, a reading of `THE TRACEABILITY MATRIX IS DERIVED` and
 ARC-006. Nothing in this decision changes the SPEC, a use case or an architecture file; the S1 reading is a reading of a
 process rule's reach, recorded in ITM-128, which `akmaier` may overrule.
+
+### Decided again on 2026-10-02 — the second decision of strands A, C and D: all rows passed, the close may start
+
+The six re-openings are merged into `sprint/02`, head `87b3268`, each through its pull request, in this order (the merge
+commits on `sprint/02`): #68 `a00bd53` (ITM-144, case 26 — S1, by tester-opus), #66 `83d0627` (ITM-126 — A5), #65 `65bce2d`
+(ITM-018 — D1, the graph's half), #67 `3c0dd5e` (ITM-127 — C1), #69 `7764ac5` (ITM-134 — D1, the view's half), #70 `87b3268`
+(ITM-130 — A1, A2); each merge was the gate *Development → Release testing*, decided by the Product Owner. Each of the five
+re-opened items removed the mark its *Back from Release testing* section names, red first (each record below names its red,
+tests-only commit); #68 changed case 26's expectation to ITM-128's corrected criterion in one green commit, no code, by the
+case's author. The records:
+`docs/measurements/2026-10-02_crlf-front-matter.md` (A5), `2026-10-02_reads-through-what-the-git-host-provides.md` (A1, A2),
+`2026-10-02_requirement-without-source.md` (C1), `2026-10-02_entry-section-impact.md` and
+`2026-10-02_entry-impact-from-the-index.md` (D1), and the addendum of 2026-10-02 in
+`2026-10-01_release-tests-sprint-02-c.md` (S1: the two scans open 756 and 903 of the 903 other committed Markdown files,
+case 26 is green without a mark). `sprint-02.md` itself is the same on `main` and on `sprint/02`.
+
+**Verified by the Product Owner on `87b3268`**, both suites run as CI runs them (`.github/workflows/tests.yml`), on a
+checkout of that commit: `node --test tests/*.test.mjs` — 502 tests, 493 pass, 0 fail, 9 todo; `cd tests && python3 -m
+unittest` — 366 tests, OK, 5 expected failures. The strands' release cases on that commit — strand A (`tests/release-sprint-02-a-*`)
+30, 28 green, 2 marked; strand C (`tests/release-sprint-02-c-*`, `tests/test_release_sprint_02_c.py`) 26, 24 green, 2 marked;
+strand D (`tests/release-sprint-02-d-*`, `tests/test_release_sprint_02_d.py`) 33, 33 green, none marked. Every mark that the
+first decision sent back is gone: A1, A2, A5, C1, S1, D1 (both files). No new mark was added.
+
+**The marks that remain, each an accepted limitation with its item** — the gate's rule as applied above (*How the gate's
+rule is applied*): a row whose remaining marks are all limitations is *passed*.
+
+| Mark | File | Decided | Item |
+|---|---|---|---|
+| R1, R2, R3 | `tests/release-sprint-01-dashboard-app.test.mjs` (3 `{ todo }`) | sprint 01 gate, `sprint-01.md` *Addendum, 2026-10-01* | ITM-148, ITM-149, ITM-150 |
+| A3, A4 | `tests/release-sprint-02-a-dashboard-app.test.mjs` (2 `{ todo }`) | first decision of strand A, above | ITM-151 |
+| G1, G2 | `tests/release-sprint-02-c-review-core.test.mjs` (2 `{ todo }`) | first decision of strand C, above | ITM-153 (G1, needs `akmaier`), ITM-152 (G2) |
+| G1, G2 | `tests/review-core.d/gates.test.mjs` (2 `{ todo }`) — ITM-014's own counter-proofs, the same findings, not release tests | ITM-014's merge; named in ITM-152 and ITM-153 as the second mark each item removes | ITM-153, ITM-152 |
+
+Those are the 9 `todo` cases of the Node suite. The Python suite's 5 expected failures are no release-test marks and no
+mark of a strand of this sprint; they were known before the sprint's release tests were written (ITM-014's
+`docs/measurements/2026-10-01_approval-gates-counter-proofs.md`, ITM-016's `2026-10-01_apply-approvals-in-the-engine.md`)
+and are recorded here so that the list is complete: **F1** (`tests/test_spec_gate.py`) and the twin comparisons **F1, F2,
+F3** (`tests/test_apply_approvals.py`, `TwinWhereThePythonToolIsWrong`) — `tools/apply_approvals.py` reads with universal
+newlines; they stand until **ITM-017** retires the tool, as both records say; **V1** (`tests/test_verbatim.py`) — blank lines
+that end an approved proposal are not written by either writer; marked by ITM-014 so that neither answer is pinned, "the
+Product Owner's call", **no item yet**: it is a reading of `THE APPROVED TEXT IS TAKEN VERBATIM` and is left open here —
+it is not decided by this gate and goes to the close as an open question for the retrospective, with the Product Owner to
+answer it or to ask `akmaier`.
+
+**Decisions** (the second line of each row in the table above): **A passed** with A3 and A4 as accepted limitations
+(ITM-151); **C passed** with G1 and G2 as accepted limitations (ITM-153, ITM-152); **D passed** without a limitation. With B
+passed on 2026-10-02 in its first line, **all four rows carry a decision; the close of sprint 02 may start** — the review of
+the increment, the retrospective and the decision on every unfinished item by `scrum-master-session` (`closer`), then the
+Product Owner's decision on the merge of `sprint/02` into `main`. No selected item is unfinished: all 25 are merged, the five
+release-test items included. Nothing in this decision changes the SPEC, a use case or an architecture file.
 
 ## Review of the increment
 
