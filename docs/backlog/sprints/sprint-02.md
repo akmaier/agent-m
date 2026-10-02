@@ -466,6 +466,13 @@ Cost: unknown — no runtime reported one (`NO COST IS GUESSED`).
 | The impact list of a SPEC entry costs ~200 requests cold on Agent M's own repository | ITM-154 filed (the way needs akmaier — reserved: an interface or a derived index) |
 | Module files lag the code (new uses, provides, interface details) | collected in ITM-138 (module files are akmaier's to change and accept) |
 
+### Direction for the sprint 03 planning
+
+akmaier, 2026-10-02: "the job dashboard for agent-m completion should feature a progress-bar on the main page of the github
+page." — the Product Owner plans sprint 03 with this as its direction: a progress bar of Agent M's own completion on the
+dashboard's main page, derived like the Backlog tab (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`, `PROGRESS IS SHOWN IN
+THE MODEL'S OWN MEASURE`; UC-035), within the dashboard's request economy.
+
 ### For akmaier
 
 Nothing is proposed. Three items wait for a decision the SPEC reserves to akmaier when they come up: ITM-138 (module
