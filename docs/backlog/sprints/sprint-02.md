@@ -2,7 +2,7 @@
 id: sprint-02
 goal: Agent M watches itself — the backlog tab shows its own sprint live from the item files, the sprint file and the pull requests; the sprint 01 increment and every strand of this sprint are release-tested; and the dashboard's findings from the first review are closed
 start: 2026-10-01
-end:
+end: 2026-10-02
 selection:
   - ITM-141
   - ITM-125
@@ -396,8 +396,77 @@ release-test items included. Nothing in this decision changes the SPEC, a use ca
 
 ## Review of the increment
 
-*Recorded at the close by `scrum-master-session`.*
+*Recorded at the close on 2026-10-02 by `scrum-master-session` (the coordinating Claude Code session, claude-opus-5-5).*
+
+**No stakeholder took part.** The feedback below comes from the teams' pull requests and reports, the release testers'
+measurement records, the Product Owner's gate decisions and akmaier's messages in the session (`AN AGENT'S REVIEW NAMES
+WHERE ITS FEEDBACK CAME FROM`). Issue tracker: empty. Mailbox: none connected.
+
+**Done — all 25 selected items, merged into `sprint/02` through 31 pull requests (#40–#70), each with green CI:**
+
+| Strand | Items (pull requests) |
+|---|---|
+| T — release testing | ITM-141 (#48), ITM-142 (#63), ITM-143 (#62), ITM-144 (#61, #68), ITM-145 (#64) |
+| A — dashboard hub | ITM-126 (#40, #66), ITM-129 (#47), ITM-130 (#51, #70), ITM-133 (#54), ITM-136 (#57) |
+| B — process dashboard slice | ITM-027 (#42), ITM-033 (#45), ITM-034 (#53), ITM-147 (#58) |
+| C — artifact checks and engine | ITM-127 (#43, #67), ITM-128 (#46), ITM-146 (#49), ITM-014 (#52), ITM-016 (#55) |
+| D — review findings and traceability | ITM-125 (#41), ITM-131 (#44), ITM-132 (#50), ITM-050 (#56), ITM-018 (#59, #65), ITM-134 (#60, #69) |
+
+**The increment.** The **Backlog tab** — akmaier's wish of 2026-10-01, "watch how Agent M assembles itself" — shows the
+running sprint's board under the WIP limit, derived from the sprint file, the item files and the pull requests, and the
+backlog in order on unfold; 34 requests cold, 3 warm. Process models are read and validated; backlog items, sprints and
+item states are derived; pull requests are read on both hosts; the link graph gives coverage gaps and impact lists, also on
+a SPEC change entry; the approval engine applies approvals byte for byte; the kernel neither reads nor writes through the
+git host; a refused save shows the newer version; settings keep their last test; the dashboard requests no unbuilt view.
+
+**Release testing.** All four strands were release-tested by `tester-opus`, who implemented none of the items; the
+sprint 01 increment too (ITM-141). Five findings went back to Development and are fixed (A1, A2, A5, C1, D1); S1 was
+settled as a reading; the rest are accepted limitations with items (A3/A4 → ITM-151, G1 → ITM-153, G2 → ITM-152; R1–R3
+of sprint 01 → ITM-148–150). Gate table above: all four rows passed.
+
+**State.** On `sprint/02`: Python 366 tests OK (5 expected failures: F1–F3 until ITM-017, V1 → ITM-159), node 502 tests,
+493 pass, 0 fail, 9 todo (all accepted limitations with items). At the start of the sprint: Python 172, node 244.
+
+**Feedback entered into the backlog as items:** ITM-148–158 (filed by the Product Owner during the sprint), ITM-159
+(V1, trailing blank lines of an approved proposal), ITM-160 (an untested setting's wording), ITM-161 (a refused token
+cleared by its next successful use); module-file gaps found this sprint added to ITM-138.
+
+**Unfinished items:** none.
 
 ## Retrospective
 
-*Recorded at the close by `scrum-master-session`.*
+*Recorded at the close on 2026-10-02 by `scrum-master-session`.* akmaier's rule since 2026-10-01: the team solves what it
+can itself; only what the SPEC reserves to a person goes to akmaier. Changes to the process model, the Definition of Done
+or a participant's instructions are still not applied by an agent's retrospective (`AN AGENT'S RETROSPECTIVE CHANGES NO
+PROCESS BY ITSELF`) — none was needed this sprint.
+
+### Numbers
+
+25 items, 31 pull requests, two days (2026-10-01 to 2026-10-02); the limit of four held, four developers and the tester
+in parallel; 5 items went back from Release testing once and came back green; no item stopped for a missing person.
+Cost: unknown — no runtime reported one (`NO COST IS GUESSED`).
+
+### What went well
+
+- Release testing per strand, by a participant that implemented nothing, found 14 real deviations the implementers'
+  tests did not — among them a requirement without a source passing the format check (C1) and a dropped requirement
+  without an impact list (D1). The sprint 01 gap is closed.
+- Teams stopped at the boundary of their item instead of widening it (ITM-125, ITM-008 last sprint), and the Product
+  Owner decided within minutes, in the backlog, without akmaier.
+- Every view change reported its requests per load; the economy held (Backlog tab 3 requests warm).
+
+### What did not go well, and what the team changed itself
+
+| Finding | Changed by the team |
+|---|---|
+| Planning missed that a changed sentence was asserted by another module's test (ITM-125) | the Product Owner's planning practice: grep the sentence across `tests/` and list every asserting test in the item (recorded at ITM-125) |
+| `sprint/02` lagged `main`'s backlog and model commits (the `Sprints | yes` row) | the Scrum Master merges `main` into the sprint branch after every backlog commit of the Product Owner (done twice) |
+| A release test re-ran both suites, doubling CI's Python step (46 → 117 s) | ITM-158 filed; briefs tell testers not to re-run suites inside a test |
+| Local baseline runs were spoiled by editing test files while a suite ran | briefs: run the suites on a clean tree, scratch scripts as `.txt` in the item's own scratch folder |
+| The impact list of a SPEC entry costs ~200 requests cold on Agent M's own repository | ITM-154 filed (the way needs akmaier — reserved: an interface or a derived index) |
+| Module files lag the code (new uses, provides, interface details) | collected in ITM-138 (module files are akmaier's to change and accept) |
+
+### For akmaier
+
+Nothing is proposed. Three items wait for a decision the SPEC reserves to akmaier when they come up: ITM-138 (module
+files), ITM-153 (one more `deriveStatus` value in MOD-review-core), ITM-154 (how the impact list gets its index).

@@ -115,3 +115,11 @@ Files it creates or changes:
 
 Yes — `akmaier` changes and accepts the module files (`docs/process.md`, *Boundary*; `ACCEPTANCE IS A COMMIT BY THE
 ACCEPTING PERSON`). No open question: what `provides` lists is decided by ARC-020 decision 6.
+
+## From the sprint 02 review
+
+More module-file gaps of the same kind, found in sprint 02 (ARC-020 decision 6; the module files are akmaier's to change and accept):
+- MOD-traceability imports `parseQueueIndex` and `sectionForEntry` of MOD-review-core (ITM-018, PR #65); its `uses` names neither, and MOD-review-core's `provides` lists neither, nor `extractSection`.
+- MOD-pseudonymiser's `provides` lacks `setProductSetting`, `PRODUCT_SETTINGS_PATH`, `COLLABORATORS_PATH` (ITM-124); MOD-settings-store's interface line lacks the kept last-test entries (ITM-136); MOD-work-items' `itemState` names `wip` without its shape and carries start refusals in `reasons` (ITM-034); MOD-review-core's `lastAccepted` also returns `committedAt` (ITM-130).
+- The dashboard still imports non-provided names of MOD-git-host that send no request: `REPO_RE`, `isGitLab`, the link builders, `tokenIdentity`, `writeRoute`, `writeFiles`, `commitFilesGitLab` (ITM-130's record).
+
