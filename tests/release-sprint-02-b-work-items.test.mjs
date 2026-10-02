@@ -7,8 +7,10 @@
 // Guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; A BACKLOG ITEM NAMES WHAT IT REALISES; EVERY ARTIFACT NAMES ITS ORIGIN; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; AGILE IMPLEMENTATION STARTS FROM THE BACKLOG; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032; UC-033
 // Level: release
 //
-// Two kinds of input. This very repository — its docs/backlog/ with order.md and the sprint files, read with fs because there
-// are more of them than a command line holds; Agent M's own SPEC.md is not read (its requirement names are not needed: an item's
+// Two kinds of input. This very repository — its docs/backlog/ with order.md and the sprint files frozen as they were while
+// sprint 02 ran (the copy tests/fixtures/sprint-02-running/docs/backlog/, from sprint/02 at 87b3268, sprint-02.md's end empty;
+// the live backlog changes at every close), and its docs/use-cases/, read with fs because there are more of them than a
+// command line holds; Agent M's own SPEC.md is not read (its requirement names are not needed: an item's
 // form is checked with `requirements: null`). And fixtures written from the use cases: an item that realises nothing, an order
 // that names an item twice, an issue classified as a bug or a change, a Scrum product with limit 2, a Kanban product.
 // Whether a start is allowed is read as itemState says it (its interface, MOD-work-items): allowed exactly when the state is
@@ -21,7 +23,10 @@ import { parseItem, itemProblems, backlogOrder, itemFromIssue } from "../docs/as
 import { sprint, itemState } from "../docs/assets/work-items/flow.mjs";
 
 const ROOT = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
+// docs/backlog/ as it was while sprint 02 ran (sprint/02 at 87b3268), not the live one; every other path from this repository.
+const FROZEN = new URL("tests/fixtures/sprint-02-running/", ROOT);
+const base = (path) => (path.startsWith("docs/backlog/") ? FROZEN : ROOT);
+const read = (path) => readFileSync(new URL(path, base(path)), "utf8");
 
 const LIVES = "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY";
 const NAMES = "A BACKLOG ITEM NAMES WHAT IT REALISES";
@@ -30,8 +35,8 @@ const SELECTED = "A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT";
 const AGILE = "AGILE IMPLEMENTATION STARTS FROM THE BACKLOG";
 const ACCEPTED = "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED";
 
-// This repository's backlog: every docs/backlog/ITM-<nnn>-<slug>.md, read with fs.
-const ITEM_FILES = readdirSync(new URL("docs/backlog/", ROOT)).filter((f) => /^ITM-\d{3}-.+\.md$/.test(f)).sort()
+// This repository's backlog while sprint 02 ran: every docs/backlog/ITM-<nnn>-<slug>.md of the frozen copy, read with fs.
+const ITEM_FILES = readdirSync(new URL("docs/backlog/", FROZEN)).filter((f) => /^ITM-\d{3}-.+\.md$/.test(f)).sort()
   .map((f) => `docs/backlog/${f}`);
 const ITEMS = ITEM_FILES.map((p) => parseItem(p, read(p)));
 const USE_CASES = readdirSync(new URL("docs/use-cases/", ROOT)).map((f) => /^(UC-\d{3})-/.exec(f)?.[1]).filter(Boolean);
