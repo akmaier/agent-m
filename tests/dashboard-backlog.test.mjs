@@ -333,18 +333,23 @@ test("API economy: a load reads the sprint, the order, the selected items and on
 
 // ---------------------------------------------------------------- Agent M's own sprint
 
-// Agent M's own backlog, sprint records, declaration, model, use cases and approval records, read from this checkout, and a SPEC
-// that holds every requirement name its items realise — no test reads Agent M's own SPEC.md (ITM-128). The pull requests are a
-// stub of those into sprint/02, with this item's own open.
+// Agent M's own backlog and sprint records as they stood while sprint 02 ran — the frozen copy
+// tests/fixtures/sprint-02-running/docs/backlog/ (from sprint/02 at 87b3268, sprint-02.md's end empty), served at the live paths,
+// as the release tests of strand B serve it: the live docs/backlog/ changes at every sprint close and planning (sprint 03's record
+// made sprint-02 a closed sprint), the recorded pull requests below do not —; the declaration, the model, the use cases and the
+// approval records from this checkout; and a SPEC that holds every requirement name its items realise — no test reads Agent M's
+// own SPEC.md (ITM-128). The pull requests are a stub of those into sprint/02, with this item's own open.
+const FROZEN = new URL("fixtures/sprint-02-running/", import.meta.url);
 function agentM() {
   const f = {};
-  const walk = (dir) => {
-    for (const e of readdirSync(new URL(dir, ROOT), { withFileTypes: true })) {
+  const walk = (dir, base) => {
+    for (const e of readdirSync(new URL(dir, base), { withFileTypes: true })) {
       const p = `${dir}${e.name}`;
-      if (e.isDirectory()) walk(`${p}/`); else if (p.endsWith(".md")) f[p] = read(p);
+      if (e.isDirectory()) walk(`${p}/`, base); else if (p.endsWith(".md")) f[p] = readFileSync(new URL(p, base), "utf8");
     }
   };
-  for (const d of ["docs/backlog/", "docs/use-cases/", "docs/approvals/"]) walk(d);
+  walk("docs/backlog/", FROZEN);
+  for (const d of ["docs/use-cases/", "docs/approvals/"]) walk(d, ROOT);
   f["docs/process.md"] = read("docs/process.md");
   f["docs/process-models/scrum-wip.md"] = read("docs/process-models/scrum-wip.md");
   const names = new Set();

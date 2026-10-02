@@ -9,7 +9,8 @@ realises:
 modules:
   - MOD-dashboard-app
   - MOD-settings-store
-depends_on: []
+depends_on:
+  - ITM-157
 origin: sprint 02 review (ITM-136's report, point 1)
 ---
 # ITM-161 A token kept as refused is shown as working again after its next successful request
@@ -46,3 +47,20 @@ Files it creates or changes:
 
 - Job kind: **implementation** — the first commit holds only tests, and CI on it is red (`AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST`).
 - Level: **1** — browser and hosted CI; nothing installed.
+
+## Depends on
+
+- ITM-157 — changes `docs/assets/dashboard-app.mjs` before this item (sprint 03, strand A); ITM-160 changes
+  `tests/dashboard-settings-last-test.test.mjs` before it (same strand).
+
+## From the sprint 03 planning
+
+The Product Owner adopts the Scrum Master's reading: the last use decides. A refusal is a `401` (`tokenRefusal`,
+`git-host.mjs`), noted by `noteRefusal` in `dashboard-app.mjs` through `store.setTokenTest({ refused: true })`; the success
+this item notes is a request that carried the stored token and was answered — the page's own reads included —, written as
+a successful *Test* is (`{ ok: <date> }`), for the GitHub token and for a GitLab product token (`setGitLabTokenTest`) alike.
+Callers checked: the kept state is read by `settings-view.mjs`, `setup-view.mjs` and `add-product-view.mjs` (ITM-136's list)
+and only written here; their expectations hold. Tests that assert the refused line: `tests/dashboard-settings-last-test.test.mjs`
+(listed), `tests/dashboard-review-flows.test.mjs` ("UC-042 1b": the refusal is the `GET /repos/<repo>` of *Test* and no successful
+request lies between it and the assertion) and `tests/test_settings_page.py` (a rendered page, no request) — both expected to
+hold; the implementer runs them and lists them in the pull request if one changes.

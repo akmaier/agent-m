@@ -39,8 +39,20 @@ Files it creates or changes:
 - `docs/assets/dashboard/settings-view.mjs`
 - `tests/test_settings_page.py`
 - `tests/dashboard-settings-last-test.test.mjs`
+- `tests/dashboard-review-flows.test.mjs` (added at the sprint 03 planning, below)
 
 ## Kind and level
 
 - Job kind: **implementation** — the first commit holds only tests, and CI on it is red (`AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST`).
 - Level: **1** — browser and hosted CI; nothing installed.
+
+## From the sprint 03 planning
+
+The sentence grep of the Product Owner's planning practice (sprint 02 retrospective, ITM-125): "not tested on this page yet"
+is written twice in `docs/assets/dashboard/settings-view.mjs` — the token lines (`tokenStateLine`, "stored — not tested on
+this page yet") and the remote session's line ("not tested on this page yet"), whose last test the store keeps too
+(`settings-store.mjs`, a session's `tested`); both lose "on this page". It is asserted in `tests/dashboard-settings-last-test.test.mjs`
+(eight places), `tests/test_settings_page.py` (one) and `tests/dashboard-review-flows.test.mjs` (one, line "UC-042 step 1",
+`<p class="state">stored — not tested on this page yet</p>`) — the third file was not in the list and is added; each changes
+that one expectation. No release test asserts the sentence. ITM-150 changes `settings-view.mjs` and `tests/test_settings_page.py`
+after this item (same strand).

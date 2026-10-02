@@ -14,6 +14,8 @@ depends_on:
   - ITM-018
   - ITM-134
   - ITM-151
+  - ITM-148
+  - ITM-155
 origin: release tests of sprint 01 (ITM-141)
 ---
 # ITM-149 A product's SPEC change without a token is not offered GitHub's page — a token is required, because no product carries the apply workflow
@@ -112,6 +114,9 @@ Further:
 - ITM-134 — changes `docs/assets/dashboard/spec-changes-view.mjs` first (sprint 02, strand D)
 - ITM-151 — changes `runAccept` and the save handler of `docs/assets/dashboard/review-views.mjs` first (added 2026-10-02:
   both items change that file; the earlier one in the order goes first)
+- ITM-148 — removes its own mark from `tests/release-sprint-01-dashboard-app.test.mjs` before this item (sprint 03, strand C;
+  added at the sprint 03 planning)
+- ITM-155 — changes `docs/assets/dashboard/spec-changes-view.mjs` before this item (sprint 03, strand C; added at the sprint 03 planning)
 
 ## Needs a person
 
