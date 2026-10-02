@@ -9,9 +9,10 @@ docs/assets/work-items/flow.mjs (MOD-work-items): sprint(text) reads a sprint re
 start, end, selection, closer and branch —, with a problem for a record that is not one; in a sprint without a time box,
 `end` stays empty until the sprint ends. itemState refuses the start of an item outside the running sprint's selection,
 with no sprint running, or with the sprint ended or not yet begun (the day is passed in; a kernel reads no clock).
-Agent M's own sprint records are read as they stand — the backlog of the instance's own product, not its SPEC, which no
-test reads. The fixture product is tests/flow_fixture.py's. Counter-proofs:
-docs/measurements/2026-10-01_sprints-wip-and-selection.md.
+Agent M's own sprint records are read as they stand only to check that they parse — the backlog of the instance's own
+product, not its SPEC, which no test reads; what a sprint of Agent M's holds is read from a frozen copy under
+tests/fixtures/flow/agent-m/, since the live records change at every sprint close. The fixture product is
+tests/flow_fixture.py's. Counter-proofs: docs/measurements/2026-10-01_sprints-wip-and-selection.md.
 """
 import json
 import re
@@ -116,8 +117,12 @@ class TestAgentMsOwnSprints(unittest.TestCase):
             self.assertEqual(s["selection"], self.table_items(path), path.name)
             self.assertEqual(sorted(set(s["selection"]) - items), [], path.name)
 
+    # Agent M's own sprint records as they stood while sprint 02 ran (docs/backlog/sprints/ at 87b3268, `end:` empty in
+    # sprint-02.md), frozen: a test of the live records' state would break at every sprint close.
+    FROZEN = FIX / "agent-m"
+
     def test_sprint_01_is_closed_and_sprint_02_runs(self):
-        one, two = sprint_file(self.OWN / "sprint-01.md"), sprint_file(self.OWN / "sprint-02.md")
+        one, two = sprint_file(self.FROZEN / "sprint-01.md"), sprint_file(self.FROZEN / "sprint-02.md")
         self.assertEqual((one["end"], one["branch"], len(one["selection"])), ("2026-10-01", "sprint/01", 15))
         self.assertEqual((two["end"], two["branch"], two["closer"], two["plannedBy"]),
                          (None, "sprint/02", "scrum-master-session", "po-fable"))
