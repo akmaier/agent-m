@@ -8,8 +8,11 @@
 // Level: release
 //
 // The page is the real docs/assets/dashboard-app.mjs in tests/app-harness.mjs, served this very repository: its docs/process.md,
-// docs/process-models/scrum-wip.md, docs/backlog/ with order.md and the sprint files, docs/use-cases/ and docs/approvals/ — read
-// with fs, there are more files than a command line holds. Agent M's own SPEC.md is not read: the page is served a SPEC whose
+// docs/process-models/scrum-wip.md, docs/use-cases/ and docs/approvals/ — read with fs, there are more files than a command line
+// holds —, and its docs/backlog/ with order.md and the sprint files frozen as they were while sprint 02 ran: the copy
+// tests/fixtures/sprint-02-running/docs/backlog/, taken from sprint/02 at 87b3268 (sprint-02.md's end empty), served at the
+// same paths. The live backlog changes at every close (the close of sprint 02 sets its end), as the recorded pull requests below
+// would not; the board this file tests is the one of the running sprint, so its backlog is frozen as the pull requests are. Agent M's own SPEC.md is not read: the page is served a SPEC whose
 // requirements are the names this backlog's items realise, plus two names no item realises and one withdrawn one, so that which
 // requirements count as accepted is known here without reading it. The pull requests come from a fake of GitHub's list of pull
 // requests that replays those of sprint 02 into sprint/02 as recorded once from GitHub on 2026-10-01 (`gh pr list --base
@@ -24,8 +27,11 @@ import { createHash } from "node:crypto";
 import { repoServer, openDashboard, fakeCaches, TOKEN } from "./app-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
-const list = (dir, re) => readdirSync(new URL(dir, ROOT)).filter((f) => re.test(f)).sort().map((f) => `${dir}${f}`);
+// docs/backlog/ as it was while sprint 02 ran (sprint/02 at 87b3268), not the live one; every other path from this repository.
+const FROZEN = new URL("tests/fixtures/sprint-02-running/", ROOT);
+const base = (path) => (path.startsWith("docs/backlog/") ? FROZEN : ROOT);
+const read = (path) => readFileSync(new URL(path, base(path)), "utf8");
+const list = (dir, re) => readdirSync(new URL(dir, base(dir))).filter((f) => re.test(f)).sort().map((f) => `${dir}${f}`);
 const blobSha = (t) => createHash("sha1").update(`blob ${Buffer.byteLength(t)}\0`).update(t).digest("hex");
 
 // ---------------------------------------------------------------- this repository, as the page is served it
