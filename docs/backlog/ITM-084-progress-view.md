@@ -71,7 +71,16 @@ Further:
 
 - ITM-035 — progress
 - ITM-037 — job records
+- ITM-162 — the bar on the main page, whose reads and slot the view shares (sprint 03)
 
 ## Needs a person
 
 No.
+
+## From the sprint 03 planning
+
+The first slice of UC-035 step 2 — the product's completion as items per state, on the main page — was cut out as
+ITM-162 (akmaier's direction of 2026-10-02), the way ITM-147 was cut out of ITM-083. This item keeps the Progress view:
+the chart in the model's measure over time, the gates, *Blocked*, *Who works on what* and the trace behind a cell; it
+links the bar to Progress once the view exists and takes the bar's counting over from `progress` (ITM-035). It depends on
+ITM-162 for the bar's reads and slot, which the view shares.

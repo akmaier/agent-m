@@ -8,7 +8,8 @@ realises:
   - UC-008
 modules:
   - MOD-dashboard-app
-depends_on: []
+depends_on:
+  - ITM-162
 origin: sprint 02 review input (ITM-050's measurement record)
 ---
 # ITM-157 The dashboard renders no image from a host the page does not name — a product artifact's image loads from the git hosts only
@@ -80,7 +81,8 @@ Further:
 
 ## Depends on
 
-- nothing
+- ITM-162 — changes `docs/assets/dashboard-app.mjs` before this item (sprint 03, strand B; added at the sprint 03 planning:
+  both change the shell, the bar first)
 
 ## Needs a person
 

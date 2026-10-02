@@ -85,3 +85,10 @@ Further:
 ## Needs a person
 
 No — `requirementImpact(graph, name) -> [artifact]` keeps its shape; a new kind among the artifacts is no change to the interface line. If the view's two lines are needed, MOD-dashboard-app is added for `dashboard/spec-changes-view.mjs` at refinement.
+
+## From the sprint 03 planning
+
+Checked in the code: `dashboard/spec-changes-view.mjs` shows an artifact's kind and edge as the graph names them when its
+tables have no entry (`KIND[a.kind] ?? h(a.kind)`, `VIA[a.via] ?? h(a.via)`), so the entry page lists a requirement of kind
+`requirement` via `names` without a change to the view. The item changes MOD-traceability only; MOD-dashboard-app is not
+added, and the item shares no file with ITM-155 and ITM-149, which change that view in this sprint.

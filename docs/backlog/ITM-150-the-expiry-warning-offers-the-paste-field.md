@@ -14,6 +14,9 @@ depends_on:
   - ITM-130
   - ITM-133
   - ITM-136
+  - ITM-160
+  - ITM-161
+  - ITM-149
 origin: release tests of sprint 01 (ITM-141)
 ---
 # ITM-150 The expiry warning offers the paste field for the renewed token — beside Renew, on every page, for the GitHub token and a GitLab project token alike
@@ -111,6 +114,11 @@ Further:
 - ITM-133 — changes `docs/assets/dashboard-app.mjs` first (sprint 02, strand A)
 - ITM-136 — the last change to both files in sprint 02: the token's test state moves from memory into the store, and the
   reset this item makes on *Store* goes to where ITM-136 keeps it
+- ITM-160 — changes `docs/assets/dashboard/settings-view.mjs` and `tests/test_settings_page.py` before this item (sprint 03,
+  strand A; added at the sprint 03 planning)
+- ITM-161 — changes `docs/assets/dashboard-app.mjs` before this item (sprint 03, strand A; added at the sprint 03 planning)
+- ITM-149 — removes its own mark from `tests/release-sprint-01-dashboard-app.test.mjs` before this item (sprint 03, strand D;
+  added at the sprint 03 planning)
 
 ## Needs a person
 

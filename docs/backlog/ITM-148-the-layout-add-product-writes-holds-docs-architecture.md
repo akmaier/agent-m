@@ -12,6 +12,8 @@ modules:
   - MOD-dashboard-app
 depends_on:
   - ITM-130
+  - ITM-152
+  - ITM-160
 origin: release tests of sprint 01 (ITM-141)
 ---
 # ITM-148 The layout Add product writes holds docs/architecture/ — on GitHub and on GitLab alike
@@ -107,6 +109,8 @@ Further:
 
 - ITM-130 — changes `docs/assets/review-core.mjs`, `tests/review-core.test.mjs` and
   `tests/review-core.d/dashboard-writes.test.mjs` first (sprint 02, strand A)
+- ITM-152 — changes `docs/assets/review-core.mjs` before this item (sprint 03, strand C; added at the sprint 03 planning)
+- ITM-160 — changes `tests/dashboard-review-flows.test.mjs` before this item (sprint 03, strand A; added at the sprint 03 planning)
 
 ## Needs a person
 

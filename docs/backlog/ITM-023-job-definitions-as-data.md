@@ -90,3 +90,11 @@ No.
 P6 of the sprint 01 retrospective: an item names only checks it can build inside its modules and files.
 `tests/test_correction_loop.py` runs the correction loop, which ITM-024 builds; this item's part of `A FINDING READS
 LIKE A COMPILER MESSAGE` — the template — is checked in its own test file.
+
+## From the sprint 03 planning
+
+P6 again: `tests/test_destination_disclosure.py` exists and carries `Module: MOD-git-host` (the GitHub token's disclosure
+and `A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`); it is not this item's to change. This item's half of `THE PAGE STATES
+WHAT IT SENDS WHERE` — `disclosure` of a job definition — is checked in `tests/job-harness.test.mjs`. The two Python files
+it names, `tests/test_derivation_context.py` and `tests/test_prompted_change_context.py`, do not exist yet and are created
+here. `docs/assets/jobs/propose-backlog-items/` (ITM-033) is the one job folder of today; the loader reads it.

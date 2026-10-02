@@ -83,3 +83,11 @@ Further:
 ## Needs a person
 
 No.
+
+## From the sprint 03 planning
+
+The progress bar on the main page (ITM-162, akmaier's direction of 2026-10-02) counts items per state with `itemState`
+over the order and the pull requests in the shell until `progress` exists; when this item builds `progress`, the bar reads
+its numbers from it and nothing else changes (ITM-147's precedent with `parseDeclaration`). This item keeps `derivePlan`,
+`progress` for the three measures with gates passed, pending and not reached, and the two checks the SPEC names; it still
+depends on ITM-030 for the workflow the gates need.
