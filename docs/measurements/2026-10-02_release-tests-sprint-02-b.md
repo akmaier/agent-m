@@ -200,3 +200,38 @@ word, as here), `tests/test_progress_derived.py` and `tests/dashboard-backlog.te
 written, the explanations, the cleared stores, on fixture pull requests). New here: the board over the recorded pull requests of
 sprint 02, the limit reached and an item waiting for acceptance at the page, the exact uncovered names with a withdrawn one among
 the candidates, the planned model's tab, and a check of what the Cache Storage holds.
+
+## Addendum 2026-10-02 — the backlog frozen as it was while sprint 02 ran
+
+**MESSUNG** — 2026-10-02, branch `team/frozen-sprint-input-143` from `sprint/02` at `87b3268`, by `tester-opus`
+(claude-opus-5-5); macOS, Node 25.9.0, Python 3.14.6. The entries above stand as they were measured.
+
+**What broke.** The close of sprint 02 by `scrum-master-session` (local commit `3e91a80`) sets `end: 2026-10-02` in
+`docs/backlog/sprints/sprint-02.md`, rewrites `order.md`, changes ITM-138 and files ITM-159 to ITM-161. Case 40 then failed:
+`ITM-001: not selected` — expected `/not selected for sprint sprint-02/`, the page said `… ready sprint sprint-02 has ended
+(2026-10-02)`. The page was right: it was served the live backlog, in which sprint 02 had ended. The defect was in the test's
+input — a release test of the running sprint's board read a backlog that changes at every close — not in its expectation.
+
+**The change.** `docs/backlog/` as it stood on `sprint/02` at `87b3268` (`end:` empty in `sprint-02.md`) is copied byte for
+byte to `tests/fixtures/sprint-02-running/docs/backlog/` (`git archive 87b3268 docs/backlog`; 161 files: 158 items,
+`order.md`, `sprint-01.md`, `sprint-02.md`). Both files that read the backlog take every `docs/backlog/` path from that copy
+and serve it at the same path, as the pull requests of sprint 02 were already replayed from a recording:
+
+| File | Cases whose input is now the frozen backlog |
+|---|---|
+| `tests/release-sprint-02-b-dashboard-app.test.mjs` | all ten (35–44): the page is served the frozen items, order and sprint files |
+| `tests/release-sprint-02-b-work-items.test.mjs` | 19 (this backlog parses), 24 (this backlog's order), 29 (this sprint's record, sprint 01's too) |
+
+No expectation changed. Not frozen, because they are no sprint or backlog state: `docs/process.md`,
+`docs/process-models/scrum-wip.md` (read by `release-sprint-02-b-process-model.test.mjs` and the page), `docs/use-cases/`
+and `docs/approvals/`. Every expectation over them is computed in the test from their current texts. The other cases of
+the work-items and process-model files read fixtures written in the test.
+
+**Counter-proof**, with the close's changes to `docs/backlog/` applied to the live tree (`git diff 87b3268 3e91a80 --
+docs/backlog | git apply`, not committed): before the change, the three files ran `tests 44, pass 43, fail 1` (case 40, as
+above); after it, `tests 44, pass 44, fail 0`. And that the copy is what is read: with `end: 2026-10-02` written into the
+copy's `sprint-02.md` instead, case 40 is red again (`pass 43, fail 1`); the copy restored, it equals `87b3268`'s
+`docs/backlog/` (`git diff --no-index`, no difference).
+
+Commands on the live tree restored: `cd tests && python3 -m unittest` → `Ran 366 tests … OK (expected failures=5)`;
+`node --test tests/*.test.mjs` → `tests 502, pass 493, fail 0, todo 9` (the recorded findings).
