@@ -8,7 +8,8 @@
 // Guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
 // Level: component
 //
-// The counter-proof of every test here (a planted fault and its red result): docs/measurements/2026-10-01_settings-last-test.md.
+// The counter-proof of every test here (a planted fault and its red result): docs/measurements/2026-10-01_settings-last-test.md;
+// of the section "the last use decides" (ITM-161): docs/measurements/2026-10-03_refused-token-cleared-by-its-next-success.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -35,14 +36,19 @@ const agentEntries = () => {
 };
 
 // The instance's repository on GitHub. While `world.refuseGitHub` is set, GitHub's API refuses every request that carries the
-// stored token with 401, as it does a token that expired or was regenerated; a GitLab server answers its project's API — Test's
-// request with the project token — with 401 while `world.refuseGitLab` is set; and localhost answers on the session ports in
-// `world.up`.
-async function instanceWorld() {
-  const world = { refuseGitHub: false, refuseGitLab: false, up: new Set() };
-  world.srv = await repoServer({ files: { "SPEC.md": "# S\n", "docs/use-cases/README.md": "# Use cases\n" }, handlers: [
+// stored token with 401, as it does a token that expired or was regenerated; while `world.limitGitHub` is set, it answers such a
+// request with 403 and a used-up limit of the account (X-RateLimit-Remaining: 0 of 5000), as it does when the account's hourly
+// limit is spent; a GitLab server answers its project's API — Test's request with the project token — with 401 while
+// `world.refuseGitLab` is set; and localhost answers on the session ports in `world.up`. files: more files of the repository.
+async function instanceWorld(files = {}) {
+  const world = { refuseGitHub: false, limitGitHub: false, refuseGitLab: false, up: new Set() };
+  world.srv = await repoServer({ files: { "SPEC.md": "# S\n", "docs/use-cases/README.md": "# Use cases\n", ...files }, handlers: [
     (url, init) => (world.refuseGitHub && url.origin === API && init.headers?.Authorization === `Bearer ${TOKEN}`
       ? json({ message: "Bad credentials" }, 401) : undefined),
+    (url, init) => (world.limitGitHub && url.origin === API && init.headers?.Authorization === `Bearer ${TOKEN}`
+      ? new Response(JSON.stringify({ message: "API rate limit exceeded" }), { status: 403, headers: { "Content-Type": "application/json",
+        "X-RateLimit-Limit": "5000", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 1800) } })
+      : undefined),
     (url) => {
       if (url.origin !== GL || !url.pathname.startsWith("/api/v4/projects/")) return undefined;
       return world.refuseGitLab ? json({ message: "401 Unauthorized" }, 401)
@@ -285,4 +291,85 @@ test("UC-042 6a: an import that keeps this browser's own token keeps its own las
   await press(world.srv, mine.dom.byId("import-go"));
   assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "this browser's token is kept");
   assert.equal(stateOf(row(mine.box, "github-token")), "stored — not tested yet", "with its own state");
+});
+
+// ---------------------------------------------------------------- the last use decides (ITM-161)
+//
+// UC-042 step 1 says "✗ refused — the server refused it at the last use": the last use decides. A request that carried the stored
+// token and was answered — any request of the page, its own reads included, not only Test — replaces a kept refusal of that token
+// by ✓ works with the date of that day, as a successful Test writes it. An answer that says nothing about the token — a used-up
+// rate limit (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN) — leaves the refusal standing, and a success of one token
+// clears no other token's refusal. The state that is kept is the stored value under the token's key ({"ok": "<date>"}).
+
+const ARC_FILE = { "docs/architecture/ARC-001-one.md": "---\nid: ARC-001\ntitle: One\n---\n# ARC-001 One\n\nText.\n" };
+const keptTest = () => JSON.parse(globalThis.localStorage.getItem("agent-m.github-token-tested") ?? "null");
+
+// The page's own read: the architecture view reads its file through GitHub's API with the stored token. Refused once, read again
+// with the token accepted, the kept refusal is gone — in the browser, at the top of the page, and on the settings page.
+test("UC-042 step 1 · 1b: a kept refusal of the GitHub token is replaced by its next successful request — the page's own read", async () => {
+  const world = await instanceWorld(ARC_FILE);
+  const page = await openDashboard({ server: world.srv, hash: "#uc" });
+  world.refuseGitHub = true;
+  await page.go("#arc");
+  assert.deepEqual(keptTest(), { refused: true }, "the read with the token was refused");
+  assert.ok(page.el("token-banner").includes("GitHub refused your GitHub token"), "named at the top");
+  world.refuseGitHub = false;
+  await page.go("#arc");
+  assert.deepEqual(keptTest(), { ok: TODAY }, "the same read, answered: written as a successful Test is");
+  assert.equal(page.el("token-banner"), "", "no refusal at the top any more");
+  const again = await reload(world);
+  assert.equal(stateOf(row(again.box, "github-token")), `✓ works — tested ${TODAY}`, "and on its line after a reload");
+});
+
+// The settings page's own read of the instance (the repository's reach, not Test) after a reload: the line is no longer refused.
+test("UC-042 step 1: a GitHub token refused by Test and answered at the next page load is shown as working, not refused", async () => {
+  const world = await instanceWorld();
+  const { box } = await settingsPage(world);
+  world.refuseGitHub = true;
+  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
+  assert.equal(stateOf(row(box, "github-token")), "✗ refused — GitHub did not accept it at the last use");
+  world.refuseGitHub = false;
+  const again = await reload(world);
+  assert.equal(stateOf(row(again.box, "github-token")), `✓ works — tested ${TODAY}`);
+  assert.equal(again.page.el("token-banner"), "", "no refusal at the top");
+});
+
+// A GitLab project token: refused by its Test, then answered when the products' check reads the project with it.
+test("UC-042 step 1: a kept refusal of a GitLab project token is replaced by its next successful request", async () => {
+  const world = await instanceWorld();
+  const { box } = await settingsPage(world, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
+    "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }) });
+  world.refuseGitLab = true;
+  await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
+  assert.match(gitlabLine(box), /<span class="state">✗ refused — gitlab\.example\.org did not accept it at the last use<\/span>/);
+  world.refuseGitLab = false;
+  await press(world.srv, inBox(box, '[data-test="agent-m.products"]'));
+  assert.match(gitlabLine(box), new RegExp(`<span class="state">✓ works — tested ${TODAY}</span>`), "on this page");
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m.gitlab-tokens"))[GL_ADDR].tested, { ok: TODAY }, "kept");
+});
+
+// A used-up rate limit is no answer about the token: the refusal kept before it stands.
+test("UC-042 step 1 · A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN: a rate-limited 403 neither clears nor sets a refusal", async () => {
+  const world = await instanceWorld();
+  const { box } = await settingsPage(world);
+  world.refuseGitHub = true;
+  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
+  world.refuseGitHub = false;
+  world.limitGitHub = true;
+  const again = await reload(world);
+  assert.equal(stateOf(row(again.box, "github-token")), "✗ refused — GitHub did not accept it at the last use", "still refused");
+  assert.deepEqual(keptTest(), { refused: true });
+});
+
+// A success clears only the refusal of the token it carried: the GitLab project token answered leaves the GitHub token refused.
+test("UC-042 step 1: a successful request with one token leaves another token's kept refusal standing", async () => {
+  const world = await instanceWorld();
+  const { box } = await settingsPage(world, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
+    "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }) });
+  world.refuseGitHub = true;
+  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
+  await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
+  assert.match(gitlabLine(box), new RegExp(`<span class="state">✓ works — tested ${TODAY}</span>`), "the GitLab token answered");
+  assert.equal(stateOf(row(box, "github-token")), "✗ refused — GitHub did not accept it at the last use", "the GitHub token stays refused");
+  assert.deepEqual(keptTest(), { refused: true });
 });
