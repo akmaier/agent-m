@@ -32,7 +32,7 @@ import {
 import {
   parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
 } from "./review-core.mjs";
-import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
+import { tokenBannerHtml, renderBrowserSettings, loadProductSettings, today } from "./dashboard/settings-view.mjs";
 import { fillProgressBar, onMainPage } from "./dashboard/progress-bar.mjs";
 
 
@@ -476,7 +476,8 @@ const shownSecrets = new Set(); // keys revealed by Show on this page; any other
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a 401 anywhere marks the token that was used as refused —
 // the GitHub token, or the project token of the GitLab product (`product`) — and the line at the top of every
 // view says which token and where it is renewed. The mark is the token's last test, kept in this browser beside the token
-// (MOD-settings-store), so that it holds after a reload too (UC-042 step 1); a successful Test, a new value or a Clear replace it.
+// (MOD-settings-store), so that it holds after a reload too (UC-042 step 1); a successful Test, a new value, a Clear, or the
+// token's next answered request (noteAnswer) replace it.
 function noteRefusal(e, product = T.product) {
   if (tokenRefusal(e)) {
     if (isGitLab(product)) store.setGitLabTokenTest(product.address, { refused: true });
@@ -485,6 +486,32 @@ function noteRefusal(e, product = T.product) {
     if (document.getElementById("browser-settings")) renderBrowserSettings(app);
   }
   return e;
+}
+
+// UC-042 step 1, "refused at the last use" — the last use decides (ITM-161): a request that carried a stored token and was answered
+// (2xx) replaces that token's kept refusal by ✓ works with today's date, as a successful Test writes it — any request of this page,
+// its own reads included, whichever module sent it. Every request reaches the server through the browser's `fetch` (MOD-git-host
+// sends each token there, as its only header); the page watches the answers there and reads the token from the request's headers:
+// the GitHub token as `Authorization: Bearer`, a GitLab project token as `PRIVATE-TOKEN`. Any other answer says nothing new here:
+// a 401 is noted by noteRefusal where the request was made, a used-up rate limit (403 or 429) is not about the token (A USED-UP
+// RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN), and a 403 or 404 for a missing permission or repository is not a success.
+function sentToken(input, init) {
+  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+  const bearer = /^Bearer\s+(\S+)$/i.exec(headers.get("authorization") || "");
+  return bearer ? bearer[1] : headers.get("private-token");
+}
+function noteAnswer(response, input, init) {
+  if (!response?.ok || !store.tokenAnswered(sentToken(input, init), today())) return;
+  showBanner();
+  if (document.getElementById("browser-settings")) renderBrowserSettings(app);
+}
+function watchAnswers(send) {
+  return async (input, init) => {
+    const response = await send(input, init);
+    // Watching never fails a request: where the answer cannot be kept (storage full, say), the kept state stays as it was.
+    try { noteAnswer(response, input, init); } catch { /* the caller still gets the answer */ }
+    return response;
+  };
 }
 // Any refusal, in words: a used-up rate limit by its name, a refused token with where it is renewed, else the server's answer.
 const errorText = (e, product = T.product) => {
@@ -606,6 +633,8 @@ async function start() {
   GITLAB = isGitLab(T.product);
   SERVER = GITLAB ? T.product.host : "GitHub";
   store = browserStore();
+  // Every answer to a request with a stored token, before the page's first request (noteAnswer).
+  globalThis.fetch = watchAnswers(globalThis.fetch);
   // The texts of files read before, by blob SHA (settings-store.mjs; cleared by "Clear everything").
   kept = fileTexts();
   // The product's key among the texts this browser keeps: its server and repository.

@@ -1,0 +1,31 @@
+{
+  "kind": "change-use-case",
+  "role": "Requirements Engineer",
+  "capabilities": ["draft text"],
+  "inputs": ["instruction", "useCase", "requirements", "useCases"],
+  "output": {
+    "type": "object",
+    "required": ["text"],
+    "additionalProperties": false,
+    "properties": {
+      "text": { "type": "string", "minLength": 1 },
+      "justifications": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["artifact", "rule", "what", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "artifact": { "type": "string" },
+            "rule": { "type": "string" },
+            "what": { "type": "string" },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "checks": ["formatChecks"],
+  "rounds": 5,
+  "result": "commit"
+}
