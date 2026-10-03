@@ -51,6 +51,9 @@ uses:
   - MOD-artifacts.hierarchy
   - MOD-artifacts.applyMoves
   - MOD-artifacts.formatChecks
+  - MOD-artifacts.ARCHITECTURE_FILE
+  - MOD-artifacts.isCodePath
+  - MOD-artifacts.isTestPath
   - MOD-review-core.gitBlobSha
   - MOD-review-core.deriveStatus
   - MOD-review-core.deriveSpecStatus
@@ -62,6 +65,28 @@ uses:
   - MOD-review-core.prerequisites
   - MOD-review-core.proposeEdit
   - MOD-review-core.requirementHistory
+  - MOD-review-core.approvalPath
+  - MOD-review-core.architecturePrerequisites
+  - MOD-review-core.canStore
+  - MOD-review-core.createReviewSession
+  - MOD-review-core.gitlabRole
+  - MOD-review-core.itemLabel
+  - MOD-review-core.missingLayout
+  - MOD-review-core.missingNeeds
+  - MOD-review-core.needsMessage
+  - MOD-review-core.parseDecisions
+  - MOD-review-core.parseQueueIndex
+  - MOD-review-core.parseRecord
+  - MOD-review-core.readByBlob
+  - MOD-review-core.recordIndex
+  - MOD-review-core.recordText
+  - MOD-review-core.recordsForId
+  - MOD-review-core.reviewedRecord
+  - MOD-review-core.sectionForEntry
+  - MOD-review-core.specRecord
+  - MOD-review-core.specStatusByNames
+  - MOD-review-core.statusByNames
+  - MOD-review-core.useCaseRecord
   - MOD-traceability.linkGraph
   - MOD-traceability.tracesTo
   - MOD-traceability.coverageGaps
@@ -72,6 +97,7 @@ uses:
   - MOD-traceability.auditRows
   - MOD-traceability.auditMarkdown
   - MOD-traceability.componentDiagram
+  - MOD-traceability.moduleHeaders
   - MOD-job-harness.loadDefinition
   - MOD-job-harness.contextFits
   - MOD-job-harness.disclosure
@@ -144,6 +170,12 @@ uses:
   - MOD-pseudonymiser.parseCollaborators
   - MOD-pseudonymiser.formatCollaborators
   - MOD-pseudonymiser.namedPersons
+  - MOD-pseudonymiser.PRODUCT_SETTINGS_PATH
+  - MOD-pseudonymiser.COLLABORATORS_PATH
+  - MOD-pseudonymiser.pseudonymisationOn
+  - MOD-pseudonymiser.setProductSetting
+  - MOD-pseudonymiser.addCollaborator
+  - MOD-pseudonymiser.removeCollaborator
   - MOD-git-host.parseProductAddress
   - MOD-git-host.readSnapshot
   - MOD-git-host.readFile
@@ -160,12 +192,28 @@ uses:
   - MOD-git-host.workflows
   - MOD-git-host.tags
   - MOD-git-host.requiredPermissions
+  - MOD-git-host.REPO_RE
+  - MOD-git-host.isGitLab
+  - MOD-git-host.newFileUrl
+  - MOD-git-host.editUrl
+  - MOD-git-host.webFileUrl
+  - MOD-git-host.tokenListUrl
+  - MOD-git-host.gitlabTokenPageUrl
+  - MOD-git-host.commitFilesGitLab
+  - MOD-git-host.writeFiles
+  - MOD-git-host.writeRoute
+  - MOD-git-host.tokenIdentity
   - MOD-settings-store.browserStore
   - MOD-settings-store.settingKeys
   - MOD-settings-store.exportSettings
   - MOD-settings-store.readSettingsFile
   - MOD-settings-store.mergeSettings
   - MOD-settings-store.fileTexts
+  - MOD-settings-store.parseJson
+  - MOD-settings-store.sessionList
+  - MOD-settings-store.gitlabTokenMap
+  - MOD-settings-store.tokenTest
+  - MOD-settings-store.sessionTest
   - MOD-participants.endpointDriver
   - MOD-participants.cliDriver
   - MOD-participants.diagnoseEndpoint
@@ -174,9 +222,11 @@ uses:
   - MOD-mailbox.mailbox
   - MOD-bridge-server.bridgeClient
   - MOD-bridge-tunnel.jumpHostProblem
-  - MOD-bridge-tunnel.allocatePort
+  - MOD-bridge-tunnel.nextFreePort
   - MOD-bridge-tunnel.tunnelCommands
   - MOD-bridge-tunnel.webServerConfig
+  - MOD-bridge-tunnel.addRemoteSession
+  - MOD-bridge-tunnel.probeLocalPort
 provides: []
 ---
 # MOD-dashboard-app The dashboard: composition root, pages and texts, and the click
@@ -208,4 +258,4 @@ contains secrets; a save is made only after a trusted click, and a synthetic `cl
 nothing, as counter-proof; a refused save keeps the edit. The seams are `fetch` and the browser's storage.
 Wording and layout are reviewed by a person, not tested. No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): a thin composition root holding every text and turning a click into write authority, the current state removed, rules other modules check left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — each rule under one module (ARC-020 decision 5): `THE PAGE STATES WHAT IT SENDS WHERE` stays with MOD-job-harness, whose `disclosure` computes what is sent where; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): a thin composition root holding every text and turning a click into write authority, the current state removed, rules other modules check left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); revised on 2026-10-01 by Claude (claude-opus-5-5) against commit b09cb03fbe9a8f311d75626fb2629a48968bfade — each rule under one module (ARC-020 decision 5): `THE PAGE STATES WHAT IT SENDS WHERE` stays with MOD-job-harness, whose `disclosure` computes what is sent where; revised on 2026-10-03 by Claude (claude-opus-5-5) against commit 230662f4a7d0fe40cae0b00b8973d1d752eb609f — ITM-138, akmaier's option A: the names other modules use are provided and used as the code has them; open until accepted.*

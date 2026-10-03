@@ -49,6 +49,13 @@ provides:
   - hierarchy
   - applyMoves
   - formatChecks
+  - SLUG
+  - kindOfPath
+  - ARCHITECTURE_FILE
+  - specRequirements
+  - isCodePath
+  - isTestPath
+  - headerModules
 ---
 # MOD-artifacts Reads, writes and checks the text formats of the review layout
 
@@ -79,6 +86,13 @@ traceability or acceptance.
 - `hierarchy(tree, items) -> { tree, problems }` — the groups with every known item placed once; items no group names at the top level, marked *not yet placed*; a member of another kind, a member twice, an unknown or withdrawn member, a title that looks like an identifier are problems.
 - `applyMoves(tree, moves) -> { tree, refused }` — create, rename, move, delete-empty; a move into a group of another kind, or deleting a non-empty group, is refused with its reason.
 - `formatChecks(kind, text, context) -> [finding]` — every format check of one artifact kind at once (requirement, use case, decision, module, test, group file), each finding naming the artifact, the line, the rule and the expected correction; the named checks a job definition lists are taken from here.
+- `SLUG -> pattern source` — the slug of an identifier, `[a-z0-9]+(?:-[a-z0-9]+)*`, for a caller that builds a pattern of `MOD-<slug>` or of a record's name.
+- `kindOfPath(path) -> "use-case" | "architecture-decision" | "module" | null` — the kind of a reviewed file from its path below `docs/use-cases/` or `docs/architecture/`, which is the `kind` of its approval record.
+- `ARCHITECTURE_FILE -> RegExp` — matches the path of a decision `docs/architecture/ARC-<nnn>-<slug>.md` or of a module `docs/architecture/MOD-<slug>.md`.
+- `specRequirements(specText) -> Map(name -> { withdrawn, … })` — the requirements of a SPEC, as `parseRequirements` reads them.
+- `isCodePath(path) -> boolean` — a file with a code extension that lies in no `vendor/`, `node_modules/`, `third_party/` or `.git/` folder.
+- `isTestPath(path) -> boolean` — a path in a `test`, `tests` or `__tests__` folder, or a file named `test_*`, `*_test.*`, `*.test.*` or `*.spec.*`.
+- `headerModules(text) -> ["MOD-<slug>"]` — the modules the `Module:` lines behind a comment marker name among a file's first 20 lines, each once.
 
 ## Testing
 
@@ -88,4 +102,4 @@ rule 5). The Python twin in `tests/artifact_checks.py` runs over the repository'
 compares both on the same fixtures so that the two readers cannot drift. No seams: nothing is read or
 sent. Nothing here depends on a model.
 
-*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over MOD-groups and the format parts of the former review core, SPEC queue, traceability and harness modules; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); open until accepted.*
+*Drafted on 2026-10-01 by Claude (claude-opus-5-5) for the Agent M repository at commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): takes over MOD-groups and the format parts of the former review core, SPEC queue, traceability and harness modules; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); revised on 2026-10-03 by Claude (claude-opus-5-5) against commit 230662f4a7d0fe40cae0b00b8973d1d752eb609f — ITM-138, akmaier's option A: the names other modules use are provided and used as the code has them; open until accepted.*

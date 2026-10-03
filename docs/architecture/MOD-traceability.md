@@ -29,8 +29,14 @@ uses:
   - MOD-artifacts.parseArchitecture
   - MOD-artifacts.headerTags
   - MOD-artifacts.reviewedId
+  - MOD-artifacts.headerModules
+  - MOD-artifacts.isCodePath
+  - MOD-artifacts.isTestPath
+  - MOD-artifacts.kindOfPath
   - MOD-review-core.deriveStatus
   - MOD-review-core.deriveSpecStatus
+  - MOD-review-core.parseQueueIndex
+  - MOD-review-core.sectionForEntry
 provides:
   - linkGraph
   - tracesTo
@@ -42,6 +48,7 @@ provides:
   - auditRows
   - auditMarkdown
   - componentDiagram
+  - moduleHeaders
 ---
 # MOD-traceability The link graph of one commit and every derived view
 
@@ -67,6 +74,7 @@ the outcomes of the release commit. Gaps are lists; nothing here blocks.
 - `auditRows(graph, outcomes, release) -> { summary, rows }` — one row per requirement valid at the release, with its sources, tests by level with outcome or rate and counter-proof, and the acceptance of the report; gaps included.
 - `auditMarkdown(audit) -> string` — the self-contained export naming tag, commit, source versions with hashes and the blob SHAs of report and approvals.
 - `componentDiagram(graph) -> mermaid` — one box per module, one arrow per used interface; an interface no module provides is drawn dashed and marked missing.
+- `moduleHeaders({ paths, read }) -> [{ path, modules, test }]` — every code file and test among `paths` whose `Module:` lines name a module, by path, with whether it is a test; `read(path)` is a port; what a caller that keeps no texts gives `linkGraph` as its headers.
 
 ## Testing
 
@@ -75,4 +83,4 @@ each view against an expected list written in the test, with a counter-proof per
 interface not marked *breaks*, a cycle not refused, a requirement without test left out of the audit).
 The component diagram is parsed by Mermaid in the test. No seams beyond the snapshot passed in; no model.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the run order taken over from the run engine, the header format given to MOD-artifacts; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the run order taken over from the run engine, the header format given to MOD-artifacts; revised on 2026-10-03 by Claude (claude-opus-5-5) against commit 230662f4a7d0fe40cae0b00b8973d1d752eb609f — ITM-138, akmaier's option A: the names other modules use are provided and used as the code has them; open until accepted.*

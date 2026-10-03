@@ -35,6 +35,9 @@ uses:
   - MOD-artifacts.parseRequirements
   - MOD-artifacts.parseArchitecture
   - MOD-artifacts.reviewedId
+  - MOD-artifacts.SLUG
+  - MOD-artifacts.kindOfPath
+  - MOD-artifacts.specRequirements
 provides:
   - gitBlobSha
   - deriveStatus
@@ -48,6 +51,28 @@ provides:
   - proposeEdit
   - requirementHistory
   - applyApprovals
+  - canStore
+  - useCaseRecord
+  - reviewedRecord
+  - specRecord
+  - recordText
+  - parseRecord
+  - approvalPath
+  - parseQueueIndex
+  - parseDecisions
+  - recordsForId
+  - readByBlob
+  - recordIndex
+  - statusByNames
+  - specStatusByNames
+  - architecturePrerequisites
+  - gitlabRole
+  - sectionForEntry
+  - itemLabel
+  - needsMessage
+  - missingNeeds
+  - createReviewSession
+  - missingLayout
 ---
 # MOD-review-core The approval engine
 
@@ -67,7 +92,7 @@ files, and a shell commits them on its authority (ARC-003).
 - `gitBlobSha(text) -> Promise<sha1hex>` — the git blob SHA of a text, byte for byte as `git hash-object` computes it (Web Crypto SHA-1 over `blob <n>\0` + UTF-8 bytes).
 - `deriveStatus(path, currentBlob, records) -> "open" | "accepted" | "changed" | "record"` — accepted exactly when a record of the file's kind and path names its current blob; never stored. A path of no reviewed kind — a job, gate, approval or test result record — is `"record"`: evidence, never open (`A RECORD IS EVIDENCE, NOT A PROPOSAL`).
 - `deriveSpecStatus(entry, specText, decisions, records) -> "open" | "approved" | "stale" | "applied" | "superseded"` — derived; an applied entry is looked up where it wrote its text (its proposal's first line), not at its old anchor.
-- `lastAccepted({ records, id, committedAt, read }) -> { record, text, count } | null` — of all records naming this identifier (matched by identifier, not path), the one committed last, and its text read by its blob SHA and refused unless it hashes to that SHA; `committedAt(path)` and `read(blob)` are ports; two records at the same instant raise an error naming both instead of guessing.
+- `lastAccepted({ records, id, committedAt, read }) -> { record, text, committedAt, count } | null` — of all records naming this identifier (matched by identifier, not path), the one committed last, with its commit date (`null` when it is the only record), and its text read by its blob SHA and refused unless it hashes to that SHA; `committedAt(path)` and `read(blob)` are ports; two records at the same instant raise an error naming both instead of guessing.
 - `lineDiff(a, b) -> [[" "|"+"|"-", line]]` — the one line difference used by every view (edits, drafts, last accepted text, SPEC entries).
 - `reviewSession() -> { show(item), tick(key, on), items() }` — what the page showed and what the reviewer ticked; only a shown item can be ticked, and it names the exact blob shown.
 - `reviewPage(files) -> { counted, notCounted: [{ file, reason }] }` — for the review page of one area (`SEVERAL FILES ARE ACCEPTED IN ONE CLICK`): of the open and changed files it shows, those **Accept all N shown** may accept, and those it shows but may not — a decision or module naming a requirement or use case that is not accepted — each with what is still open. The acceptance itself is `planAcceptance`.
@@ -76,6 +101,28 @@ files, and a shell commits them on its authority (ARC-003).
 - `proposeEdit({ spec, queues, section, edited, why, impact, author, today }) -> { path, files }` — a SPEC edit as an entry of the author's open queue of today (or a new one), with the current section, the rationale and the impact list it is given; `SPEC.md` is never among the files. A changed name becomes a withdrawal plus a new requirement.
 - `requirementHistory(name, records, sectionAt) -> [{ date, person, commit, before, after }]` — every accepted change to a requirement's text, from the approval records and the texts of its section at each accepting commit (`sectionAt` is a port).
 - `applyApprovals({ read, now }) -> { files, report, refused }` — what the instance's apply workflow writes for every `kind: spec` record not yet applied: the same checks and the same bytes as `planAcceptance`; a stale or malformed record is refused and named. It replaces `tools/apply_approvals.py`, which a later refactoring job retires; until then the Python tool stays as it is, and a test compares both outputs.
+- `canStore(acknowledged) -> boolean` — whether a value may be stored in this browser: only when the person ticked the acknowledgement (`true`).
+- `useCaseRecord(file, blob) -> { kind: "use-case", file, blob }` — the approval record of a use case.
+- `reviewedRecord(file, blob) -> { kind, file, blob }` — the approval record of any reviewed file, its kind from its path (`kindOfPath`); a path of no reviewed kind is refused with an error.
+- `specRecord({ queue, entry, proposal, blob, target, anchor, section }) -> record` — the approval record of a SPEC entry (`kind: spec`), its entry number padded to two digits.
+- `recordText(record) -> text` — a record's file text: one `key: value` line per field, in the fixed order of its kind.
+- `parseRecord(text) -> { key: value }` — the fields of a record file.
+- `approvalPath(id, blob) -> "docs/approvals/<id>-<first 12 hex of blob>.md"` — where the record that accepts a text is written.
+- `parseQueueIndex(text) -> { target, entries: [{ nr, file, anchor, bis }] }` — a queue's `index.md`: the target file of all its entries and one entry per table row; `bis` is `null` where the row has none.
+- `parseDecisions(text) -> Map(nr -> { when, decision, ref })` — a queue's `entscheidungen.md`, one row per decided entry.
+- `recordsForId(records, id) -> [record]` — every approval record of a reviewed file's identifier, whatever path it names; the records of SPEC changes are left out.
+- `readByBlob({ sha, read, cache?, key? }) -> text` — a text by its blob SHA: from `cache` only when the kept text hashes to that SHA, otherwise through the port `read()`, and then kept if what was read hashes to the SHA; every access to the cache is caught.
+- `recordIndex(paths) -> { byId, spec, unknown }` — the approval records a tree names, from their file names alone: by identifier, by SPEC entry (`<queue folder>#<nr>`), and the names of neither form.
+- `statusByNames({ index, path, blob, ids?, read, verify? }) -> { status, record, byName }` — a reviewed file's status as `deriveReviewedStatus` gives it, from the record names where they decide and otherwise from the records read through the port `read(paths)`; with `verify` always from the records' content.
+- `specStatusByNames({ index, entry, read }) -> status` — a SPEC entry's status as `deriveSpecStatus` gives it, reading only the records named for that entry.
+- `architecturePrerequisites({ arch, specText, useCases }) -> { open: [{ name, reason }], useCases }` — the requirements a decision or module names that are not in the SPEC or are withdrawn there, and the use cases it names that are not accepted; `useCases` the accepted ones it rests on, each with the record that accepts it.
+- `gitlabRole(level) -> { role, canWrite, note }` — the role of a GitLab access level and whether it can write to a protected default branch (Maintainer or Owner); `note` says why not.
+- `sectionForEntry({ specText, entries, nr, accepted? }) -> { current, needs, spec } | { error, needs: [] }` — the SPEC section a queue entry replaces and the entries of its queue that must be written before it because they create its anchor; an accepted entry's section is read where it wrote it.
+- `itemLabel(item) -> text` — the label a reviewed item is named by: `<queue> <nn>` for a SPEC entry, its identifier otherwise.
+- `needsMessage(item, missing) -> text` — the sentence naming the entries of its queue that an entry must be accepted with or after.
+- `missingNeeds(items) -> [{ item, missing, message }]` — the ticked SPEC entries whose anchor an entry of their queue creates that is not ticked.
+- `createReviewSession() -> { key, show, wasShown, get, isTicked, tick, untick, items }` — what the page showed and what the reviewer ticked; only a shown item can be ticked, and its tick names the item as it was shown.
+- `missingLayout(existingPaths, product) -> [{ path, content }]` — the files of the review layout a product's tree lacks — the README files of use cases, approval records and SPEC queues, `SPEC.md` and `CHANGELOG.md` — each with its first text.
 
 ## Testing
 
@@ -86,4 +133,4 @@ the tests answer from fixtures. Each rule has a counter-proof among the recorded
 order, a tickable unshown file. `applyApprovals` and `tools/apply_approvals.py` are run on the same
 records and must write byte-identical files. No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the approval engine, taking over MOD-spec-queue and MOD-apply-workflow and giving its format parsing to MOD-artifacts; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); revised on 2026-10-03 by Claude (claude-opus-5-5) — akmaier's decision on ITM-153 (G1): `deriveStatus` answers `"record"` for a record; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the approval engine, taking over MOD-spec-queue and MOD-apply-workflow and giving its format parsing to MOD-artifacts; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 726cfb4 — the review page of queue 2026-10-01c (PR #23); revised on 2026-10-03 by Claude (claude-opus-5-5) — akmaier's decision on ITM-153 (G1): `deriveStatus` answers `"record"` for a record; revised on 2026-10-03 by Claude (claude-opus-5-5) against commit 230662f4a7d0fe40cae0b00b8973d1d752eb609f — ITM-138, akmaier's option A: the names other modules use are provided and used as the code has them; open until accepted.*

@@ -29,6 +29,12 @@ provides:
   - parseCollaborators
   - formatCollaborators
   - namedPersons
+  - PRODUCT_SETTINGS_PATH
+  - COLLABORATORS_PATH
+  - pseudonymisationOn
+  - setProductSetting
+  - addCollaborator
+  - removeCollaborator
 ---
 # MOD-pseudonymiser Personal data: whether a text may enter a repository
 
@@ -54,6 +60,12 @@ product setting it obeys still carries the name *pseudonymisation*.
 - `parseCollaborators(text) -> [{ name, account, agreed }]` — `docs/collaborators.md`, one row per person who agreed to be named.
 - `formatCollaborators(list, product) -> text` — the canonical file; a person is added only with the tick that they agreed, and an account in the syntax of the product's server.
 - `namedPersons(text, collaborators, accounts) -> [finding]` — a name in a generated artifact that is neither an account nor a listed collaborator, reported as a warning.
+- `PRODUCT_SETTINGS_PATH -> "docs/settings.md"` — the product's settings file, one line `- name: value` per setting; a setting not listed has its default.
+- `COLLABORATORS_PATH -> "docs/collaborators.md"` — the file of the people who agreed to be named.
+- `pseudonymisationOn(settingsText) -> boolean` — on unless the product's settings file says `- pseudonymisation: off`.
+- `setProductSetting(text, name, value, product) -> text` — the settings file with one setting's line set, or removed for `null`; every other line stays as it was; a missing file is started with its heading.
+- `addCollaborator(list, { name, account, agreed, consent, gitlab? }) -> list` — the list with one more person; refused without the tick that they agreed, for a name with `|`, an account not in the syntax of the product's server, a date not `YYYY-MM-DD`, or an account already listed.
+- `removeCollaborator(list, account) -> list` — the list without that account.
 
 ## Testing
 
@@ -66,4 +78,4 @@ The seams are the checkers' drivers. Whether a person slips through all three ch
 and is measured as a rate on a fixed set of mails, reported, not gated (ARC-016 kind 4); the gate itself is
 deterministic given the verdicts.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 8b299337b2e61b80cb4a4415ff4e7c865d7a2dfe — SPEC queue 2026-09-30k as accepted: report data rewritten without persons and checked by three LLMs, surrogates withdrawn; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 2e6d8e4752b55b0707ec5e69c229914cb5d15fe8 — the mail's rewriting and checking kept inside the mail modules, at the PO's request; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the three checks as a loop check, the choice of checkers, and the collaborators; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 8b299337b2e61b80cb4a4415ff4e7c865d7a2dfe — SPEC queue 2026-09-30k as accepted: report data rewritten without persons and checked by three LLMs, surrogates withdrawn; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 2e6d8e4752b55b0707ec5e69c229914cb5d15fe8 — the mail's rewriting and checking kept inside the mail modules, at the PO's request; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): the three checks as a loop check, the choice of checkers, and the collaborators; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-03 by Claude (claude-opus-5-5) against commit 230662f4a7d0fe40cae0b00b8973d1d752eb609f — ITM-138, akmaier's option A: the names other modules use are provided and used as the code has them; open until accepted.*

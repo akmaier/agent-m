@@ -40,6 +40,17 @@ provides:
   - workflows
   - tags
   - requiredPermissions
+  - REPO_RE
+  - isGitLab
+  - newFileUrl
+  - editUrl
+  - webFileUrl
+  - tokenListUrl
+  - gitlabTokenPageUrl
+  - commitFilesGitLab
+  - writeFiles
+  - writeRoute
+  - tokenIdentity
 ---
 # MOD-git-host Talks to GitHub and GitLab servers
 
@@ -70,7 +81,18 @@ this module reads no store.
 - `pullRequests({ product, token }) -> { list(filter), get(n), merge(n, authority) }` — pull or merge requests and their CI status.
 - `workflows({ product, token }) -> { dispatch(name, inputs, authority), runs(filter), cancel(id, authority), log(id) }` — GitHub Actions workflow dispatch or a GitLab pipeline trigger, and their live state.
 - `tags({ product, token }) -> { list(), create(name, commit, authority) }` — release tags; creating an existing tag is refused (`A VERSION IS NOT REWRITTEN`).
-- `requiredPermissions(host) -> { github: [{ permission, access, why }] } | { gitlab: { role, scope, why } }` — the one list the prefilled token link, the settings page, the CI secret setup and their tests read: on GitHub *Contents*, *Issues* and *Pull requests* read and write, *Actions* and *Workflows* read and write, *Metadata* read (`ONE GITHUB TOKEN SERVES EVERY FEATURE`); on GitLab a project access token with role *Maintainer* and scope `api` (`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`).
+- `requiredPermissions(host) -> { github: [{ permission, param, access, why }] } | { gitlab: { role, scope, why } }` — `host` a server name or a product; `param` is the permission's parameter name on GitHub's prefilled token page; the one list the prefilled token link, the settings page, the CI secret setup and their tests read: on GitHub *Contents*, *Issues* and *Pull requests* read and write, *Actions* and *Workflows* read and write, *Metadata* read (`ONE GITHUB TOKEN SERVES EVERY FEATURE`); on GitLab a project access token with role *Maintainer* and scope `api` (`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`).
+- `REPO_RE -> RegExp` — a GitHub repository `owner/name`.
+- `isGitLab(product) -> boolean` — the product is a project on a GitLab server (`kind: "gitlab"`).
+- `newFileUrl(repo, ref, path, value) -> url` — GitHub's new-file page, prefilled with the file name and a value; a value longer than `MAX_URL_VALUE` is refused.
+- `editUrl(repo, ref, path) -> url` — GitHub's edit page of a file.
+- `webFileUrl(product, ref, path) -> url` — a file on the web page of its product's server, GitHub or GitLab.
+- `tokenListUrl() -> url` — the list of the person's fine-grained GitHub tokens, where one is created and renewed.
+- `gitlabTokenPageUrl(product) -> url` — a GitLab project's *Access tokens* page.
+- `commitFilesGitLab({ product, branch, files, message, token, authority }) -> { sha, url, base, parent, changedMeanwhile }` — the write path to a GitLab project, one commit through its commits API: refused without an `authority` or a token; an existing file is written with `last_commit_id`, a new one with `create`; a file with `expectBlob` that changed is refused, and nothing is written when the branch moved while the commit was prepared; the files changed between the head read and the commit's parent are returned.
+- `writeFiles(args) -> commit` — the write path for a product of either host: `commitFilesGitLab` for a GitLab product, refusing a GitHub token there, `commitFiles` otherwise.
+- `writeRoute(product, token) -> "commit" | "github-web" | "token-step"` — how Accept and Save work for a product: a commit with a token; without one, GitHub's web interface, or on GitLab the step that stores the project token.
+- `tokenIdentity(product) -> { token, renewUrl, renew, server }` — the token a product is written with, by name, where it is renewed and the text that says how.
 
 ## Testing
 
@@ -82,4 +104,4 @@ whose file changed meanwhile is refused; an existing tag and an existing result 
 a 401 names the refused token. The seams are `fetch` and the server's answers, recorded per host. A system
 test against a test repository on each host runs before a release (ARC-016). No model is involved.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): every write takes an authority, the request helper is internal, the current state removed, rules decided by the shells left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; open until accepted.*
+*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): every write takes an authority, the request helper is internal, the current state removed, rules decided by the shells left to them; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit 069522c1cd5696307322bea74bad3953924a38e0 — PO follow-up: the CI runtime's entry as a shell of its own (MOD-ci-entry), and the three rules of queues 2026-10-01 and 2026-10-01b cited; revised on 2026-10-03 by Claude (claude-opus-5-5) against commit 230662f4a7d0fe40cae0b00b8973d1d752eb609f — ITM-138, akmaier's option A: the names other modules use are provided and used as the code has them; open until accepted.*
