@@ -33,7 +33,8 @@
 // ✗ refused at the last use — is kept beside the setting it describes, so that its line shows it after a reload too: the GitHub
 // token's in TOKEN_TEST_KEY beside the token and its expiry date; a GitLab project token's as `tested` in its entry of the map; a
 // remote session's as `tested` in its entry of the list. A new value starts untested (an old test never sticks to a new token),
-// and clearing a setting clears its test with it (A CLEAR IS A REAL CLEAR); an export carries them like every other entry.
+// and clearing a setting clears its test with it (A CLEAR IS A REAL CLEAR); an export carries them like every other entry. A
+// token's kept refusal is replaced by its next answered request too (tokenAnswered): the last use decides (ITM-161).
 
 export const PREFIX = "agent-m.";
 export const TOKEN_KEY = PREFIX + "github-token";
@@ -120,6 +121,25 @@ export function createStore(storage) {
       if (t) map[address].tested = t;
       else delete map[address].tested;
       storage.setItem(GITLAB_TOKENS_KEY, JSON.stringify(map));
+    },
+    // UC-042 step 1, "refused at the last use" — the last use decides (ITM-161): a request that carried `token` was answered on
+    // `day` ("YYYY-MM-DD"). A kept refusal of that token — the GitHub token, or a GitLab project token stored under any address —
+    // is replaced by { ok: day }, as a successful Test writes it. A token not tested yet, one kept as working, and every other
+    // token stay as they are. -> whether a refusal was replaced.
+    tokenAnswered(token, day) {
+      if (!token) return false;
+      let replaced = false;
+      if (token === this.getToken() && this.getTokenTest()?.refused) {
+        this.setTokenTest({ ok: day });
+        replaced = true;
+      }
+      for (const [address, t] of Object.entries(this.gitLabTokens())) {
+        if (t.token === token && t.tested?.refused) {
+          this.setGitLabTokenTest(address, { ok: day });
+          replaced = true;
+        }
+      }
+      return replaced;
     },
     clearGitLabToken(address) {
       const map = this.gitLabTokens();

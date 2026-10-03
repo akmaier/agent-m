@@ -334,16 +334,22 @@ test("UC-042 step 1: a GitHub token refused by Test and answered at the next pag
   assert.equal(again.page.el("token-banner"), "", "no refusal at the top");
 });
 
-// A GitLab project token: refused by its Test, then answered when the products' check reads the project with it.
+// A GitLab project token: refused by its Test, then answered when the products' check (Test on the product list, not on the token)
+// reads the project with it. The page reads its product list when it loads and when the list changes; the entries are stored after
+// the load here, so the person's Remove of another product makes the page read the list with the GitLab product in it.
 test("UC-042 step 1: a kept refusal of a GitLab project token is replaced by its next successful request", async () => {
   const world = await instanceWorld();
-  const { box } = await settingsPage(world, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
+  const OTHER = "https://github.com/alice/thesis";
+  const { box } = await settingsPage(world, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR, OTHER]),
     "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }) });
   world.refuseGitLab = true;
   await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
   assert.match(gitlabLine(box), /<span class="state">✗ refused — gitlab\.example\.org did not accept it at the last use<\/span>/);
   world.refuseGitLab = false;
+  await press(world.srv, among(box, "data-remove-product", OTHER));
+  const before = world.srv.requests.length;
   await press(world.srv, inBox(box, '[data-test="agent-m.products"]'));
+  assert.ok(world.srv.requests.slice(before).some((r) => r.startsWith(`handler GET ${GL}/api/v4/projects/`)), "the check read the project");
   assert.match(gitlabLine(box), new RegExp(`<span class="state">✓ works — tested ${TODAY}</span>`), "on this page");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m.gitlab-tokens"))[GL_ADDR].tested, { ok: TODAY }, "kept");
 });
