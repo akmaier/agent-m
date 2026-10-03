@@ -98,7 +98,8 @@ test("THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the addr
   assert.ok(calls.length && calls.every(([, p]) => p.startsWith("/repos/reader/thesis")),
     "every request goes to the product repository — none to the instance");
   assert.deepEqual(Object.keys(treeOf(calls)).sort(),
-    ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
+    ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/architecture/README.md", "docs/spec-freigaben/README.md",
+      "docs/use-cases/README.md"]);
   // Counter-proof: after a clear, the list is empty.
   store.clear();
   assert.deepEqual(store.getProducts(), []);
@@ -107,7 +108,8 @@ test("THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the addr
 
 test("UC-001 5b: a product with the complete layout is only added to the list; no click, nothing at all", async () => {
   const store = createStore(fakeStorage());
-  const full = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/UC-001-x.md"];
+  const full = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/architecture/MOD-x.md", "docs/spec-freigaben/README.md",
+    "docs/use-cases/UC-001-x.md"];
   const g = productGitHub(full);
   const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", authority: clickAuthority(click), store }));
   assert.equal(r.commit, null);
@@ -408,7 +410,7 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; 
   const posts = g.calls.filter((c) => c.method === "POST");
   assert.equal(posts.length, 1);
   assert.deepEqual(posts[0].body.actions.map((a) => [a.action, a.file_path]).sort(), [["create", "CHANGELOG.md"], ["create", "docs/approvals/README.md"],
-    ["create", "docs/spec-freigaben/README.md"], ["create", "docs/use-cases/README.md"]]);
+    ["create", "docs/architecture/README.md"], ["create", "docs/spec-freigaben/README.md"], ["create", "docs/use-cases/README.md"]]);
   assert.deepEqual(store.getProducts(), [GL_ADDR]);
   assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN), "only the product's server, only its token");
   // Counter-proof: a refused write adds nothing to the list.

@@ -172,10 +172,18 @@ test("the current text of an accepted entry is read where the entry wrote it, no
 
 test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
   const all = missingLayout([], "alice/thesis").map((f) => f.path).sort();
-  assert.deepEqual(all, ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
+  assert.deepEqual(all, ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/architecture/README.md",
+    "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
   const some = missingLayout(["SPEC.md", "docs/use-cases/UC-001-x.md"], "alice/thesis").map((f) => f.path).sort();
-  assert.deepEqual(some, ["CHANGELOG.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md"]);
+  assert.deepEqual(some, ["CHANGELOG.md", "docs/approvals/README.md", "docs/architecture/README.md", "docs/spec-freigaben/README.md"]);
   assert.match(missingLayout([], "alice/thesis").find((f) => f.path === "SPEC.md").content, /VERBINDLICH \(SPEC\)/);
+  // ONE REVIEW LAYOUT FOR EVERY PRODUCT (UC-001 5, ITM-148): docs/architecture/ holds the decisions and modules; its README
+  // says so, as the other three READMEs say what their folders hold.
+  assert.match(missingLayout([], "alice/thesis").find((f) => f.path === "docs/architecture/README.md").content,
+    /`ARC-<nnn>-<slug>\.md`[\s\S]*`MOD-<slug>\.md`[\s\S]*Agent M dashboard/);
+  // Counter-proof: a product with any file under docs/architecture/ gets no README there (the prefix rule).
+  const arch = missingLayout(["docs/architecture/ARC-001-x.md"], "alice/thesis").map((f) => f.path).sort();
+  assert.deepEqual(arch, ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
 });
 
 // ---------------------------------------------------------------- one commit per decision (queue 2026-09-24g, entry 05)

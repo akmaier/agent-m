@@ -189,18 +189,26 @@ export function writeAccessRefused(e, product) {
 }
 
 // Why a write was refused, in the product's terms — a used-up limit first, then GitLab's 403, then GitHub's 403 or 404 as the
-// token's missing permission; null when none of these applies (the caller then shows errorText). githubPage: GitHub's
-// new-file page prefilled with the approval record, which the caller shows beside the text as a link (UC-008 4a); without it
-// the GitHub path is named only.
-export function writeRefusalText(e, product, now = new Date(), { githubPage = null } = {}) {
+// token's missing permission; null when none of these applies (the caller then shows errorText). The GitHub route the caller
+// shows beside the text (UC-008 4a, UC-018 6b): githubPage — GitHub's new-file page prefilled with the approval record, as a
+// link; githubPages — the number of such pages of a batch, one per record (UC-008 3d, 3e); githubEdit — GitHub's editor of the
+// edited file, opened with the text on the clipboard (UC-008 3b). Without one the GitHub path is named only.
+export function writeRefusalText(e, product, now = new Date(), { githubPage = null, githubPages = 0, githubEdit = false } = {}) {
   const limit = rateLimitText(e, product, now);
   if (limit) return limit;
   if (isGitLab(product)) return gitlabWriteRefusal(e, product);
   if (!writeAccessRefused(e, product)) return null;
-  return `Your token cannot write to ${product.repo} (${e.message}). ` + (githubPage
-    ? "Extend it in Settings, or commit the record on GitHub's page instead: without write access GitHub makes your commit a " +
-      "pull request, and the acceptance counts once a maintainer merges it."
-    : "Extend it in Settings, or remove it to use GitHub's page instead.");
+  return `Your token cannot write to ${product.repo} (${e.message}). ` + (githubEdit
+    ? "Extend it in Settings, or commit your edit in GitHub's editor instead — the button copies your text and opens the editor: " +
+      "without write access GitHub makes your commit a pull request, and the edit counts once a maintainer merges it."
+    : githubPages
+      ? "Extend it in Settings, or commit the records on GitHub's pages instead — GitHub's page commits one file at a time, so " +
+        "there is one page per record: without write access GitHub makes each commit a pull request, and each acceptance counts " +
+        "once a maintainer merges it."
+      : githubPage
+        ? "Extend it in Settings, or commit the record on GitHub's page instead: without write access GitHub makes your commit a " +
+          "pull request, and the acceptance counts once a maintainer merges it."
+        : "Extend it in Settings, or remove it to use GitHub's page instead.");
 }
 
 // The page shown when the product's commit cannot be read: the server's answer, and what it means here. A used-up rate limit
@@ -346,8 +354,82 @@ let routeSeq = 0;
 
 const main = () => document.getElementById("main");
 
+// A product's text, as HTML. NO SERVER: showing it calls no origin the page does not name (ITM-157) — an image, or anything else
+// a browser loads on its own while showing the text, comes only from the product's repository server (imageOrigins) or a data:
+// address. Two routes reach an image: Markdown's own ![alt](address), decided as marked renders it, and HTML written into the
+// text, decided by DOMPurify's hook (resourceGuard), set for this call only. Mermaid blocks are left as they are.
 function md(text) {
-  return DOMPurify.sanitize(marked.parse(text, { gfm: true }));
+  const origins = imageOrigins(T?.product);
+  const html = marked.parse(text, { gfm: true, renderer: markdownRenderer(origins) });
+  if (!DOMPurify.isSupported) return DOMPurify.sanitize(html); // no DOM to sanitise in (node): no hook to set
+  const guard = resourceGuard(origins);
+  DOMPurify.addHook("uponSanitizeElement", guard);
+  try {
+    return DOMPurify.sanitize(html);
+  } finally {
+    DOMPurify.removeHook("uponSanitizeElement", guard);
+  }
+}
+
+// The origins a product's text may load images from: the repository server the page reads the product from — GitHub's raw host
+// for a GitHub product, the GitLab server for a GitLab one. No other.
+export function imageOrigins(product) {
+  if (!product) return [];
+  return [isGitLab(product) ? product.server : "https://raw.githubusercontent.com"];
+}
+
+// Whether showing `address` loads from one of `origins` — or loads nothing (no address), or is a data: address. An address
+// without a scheme of its own (relative, or //host/…) resolves against the page or names another host: not one of them.
+function loadsFrom(address, origins) {
+  const a = String(address ?? "").trim();
+  if (!a || /^data:/i.test(a)) return true;
+  try { return origins.includes(new URL(a).origin); } catch { return false; }
+}
+
+// What a person reads in place of an image that is not loaded: its address, so that nothing is hidden from the reviewer.
+const notLoadedText = (address, alt) =>
+  `[image${alt ? ` “${alt}”` : ""} not loaded — not on this product's repository server: ${String(address ?? "").trim()}]`;
+
+// Markdown's images: one from the product's repository server, or data:, as marked renders it; any other as its address.
+function markdownRenderer(origins) {
+  const r = new marked.Renderer(), image = r.image;
+  r.image = function (token) {
+    return loadsFrom(token.href, origins) ? image.call(this, token) : h(notLoadedText(token.href, token.text));
+  };
+  return r;
+}
+
+// The addresses a browser loads on its own while showing an element (not on a click): srcset's candidates (each a run of
+// non-white characters, trailing commas off; a width or density after it is no address); a CSS text's url(…). A CSS text with an
+// escape, an at-rule or an image-set is not read further: it counts as loading from elsewhere.
+const srcsetAddresses = (v) => String(v).trim().split(/\s+/).map((x) => x.replace(/^,+|,+$/g, ""))
+  .filter((x) => x && !/^\d+(\.\d+)?[wxh]$/i.test(x));
+const cssLoadsFrom = (css, origins) => !/[\\@]|image-set|image\(|src\(/i.test(css)
+  && [...String(css).matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi)].every((m) => loadsFrom(m[2], origins));
+const LOADING_HREF = new Set(["image", "use", "feimage"]);
+
+// DOMPurify's hook (uponSanitizeElement) for a product's text: an <img> from another host is replaced by its address as text;
+// from any other element, an attribute that loads from another host — src, srcset, poster, background, data, an SVG image's
+// href — and a style that does are removed, and a <style> that does is removed whole. A link's href is loaded only on a click
+// and is kept. origins: imageOrigins of the product shown.
+export function resourceGuard(origins) {
+  return (node) => {
+    if (node?.nodeType !== 1 || typeof node.getAttribute !== "function") return;
+    const tag = String(node.nodeName).toLowerCase();
+    if (tag === "img" && !loadsFrom(node.getAttribute("src"), origins)) {
+      node.replaceWith(node.ownerDocument.createTextNode(notLoadedText(node.getAttribute("src"), node.getAttribute("alt"))));
+      return;
+    }
+    if (tag === "style") {
+      if (!cssLoadsFrom(node.textContent, origins)) node.remove();
+      return;
+    }
+    const drop = (name, ok) => { const v = node.getAttribute(name); if (v !== null && !ok(v)) node.removeAttribute(name); };
+    for (const name of ["src", "poster", "background", "data"]) drop(name, (v) => loadsFrom(v, origins));
+    drop("srcset", (v) => srcsetAddresses(v).every((a) => loadsFrom(a, origins)));
+    if (LOADING_HREF.has(tag)) for (const name of ["href", "xlink:href"]) drop(name, (v) => loadsFrom(v, origins));
+    drop("style", (v) => cssLoadsFrom(v, origins));
+  };
 }
 
 let mermaidReady = false;
@@ -382,8 +464,10 @@ async function reloadAndRoute() {
 // (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-008 3c, UC-018 4b).
 const tokenStepLink = () => `#add/${encodeURIComponent(T.product.address)}`;
 
-// Why a write was refused, in the product's terms (writeRefusalText); githubPage: the GitHub path the caller links beside it.
-const writeErrorText = (e, githubPage = null) => writeRefusalText(e, T.product, new Date(), { githubPage }) || errorText(e);
+// Why a write was refused, in the product's terms (writeRefusalText); github: the GitHub route the caller shows beside it —
+// the one record's page, or writeRefusalText's options ({ githubPages }, { githubEdit }).
+const writeErrorText = (e, github = null) => writeRefusalText(e, T.product, new Date(),
+  typeof github === "string" ? { githubPage: github } : github || {}) || errorText(e);
 
 // ---------------------------------------------------------------- tokens refused or expiring (SPEC §7)
 

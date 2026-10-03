@@ -512,6 +512,9 @@ export async function planAcceptance({ items, read, now = new Date() }) {
       if (en.anchor !== it.anchor || (en.bis ?? null) !== (it.bis ?? null)) { out(it, "the queue's index changed after it was shown"); continue; }
       const recPath = approvalPath(`spec-${it.qname}-${it.nn}`, it.proposalBlob), recName = recPath.split("/").pop();
       if (applied.has(recName)) { out(it, "already written into the SPEC"); continue; }
+      // A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST: an entry that changes or withdraws a requirement (`touches`, as the
+      // entry page derived it) is written only if its impact list was shown — on every route that accepts it (UC-006 3b, 4d).
+      if (it.touches && it.impactShown !== true) { out(it, "its impact list was not shown — open it"); continue; }
       const prop = await get(it.proposalPath);
       if (prop === null) { out(it, "the proposal no longer exists"); continue; }
       if (await gitBlobSha(prop) !== it.proposalBlob) { out(it, "the proposal changed after it was shown — open it again"); continue; }
@@ -545,6 +548,7 @@ export function missingLayout(existingPaths, product) {
   const out = [];
   const add = (path, dirPrefix, content) => { if (!have.has(path) && !(dirPrefix && hasPrefix(dirPrefix))) out.push({ path, content }); };
   add("docs/use-cases/README.md", "docs/use-cases/", `# Use cases of ${product}\n\nOne file per use case, \`UC-<nnn>-<slug>.md\`. Reviewed on the Agent M dashboard.\n`);
+  add("docs/architecture/README.md", "docs/architecture/", "# Architecture\n\nOne file per decision, `ARC-<nnn>-<slug>.md`, and one per module, `MOD-<slug>.md`. Reviewed on the Agent M dashboard.\n");
   add("docs/approvals/README.md", "docs/approvals/", "# Approval records\n\nOne file per acceptance, written by the Agent M dashboard. Never edited to change a status.\n");
   add("docs/spec-freigaben/README.md", "docs/spec-freigaben/", "# SPEC change queues\n\nOne folder per queue; each entry is accepted on the Agent M dashboard.\n");
   add("SPEC.md", null, `# ${product} — Specification\n\n**VERBINDLICH (SPEC)**\n\nNo requirement yet. Requirements enter through the approval queues in \`docs/spec-freigaben/\`.\n`);
