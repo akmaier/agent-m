@@ -8,13 +8,13 @@ belongs in `PLAN.md`, in `docs/measurements/`, or in the code, and does not bind
 
 **No section of this file is written by hand.** Each change is proposed in
 `docs/spec-freigaben/<date>_<name>/`, shown on the review dashboard beside the text it would replace,
-and written only when the Product Owner accepts it there (§10, `ACCEPTANCE IS A COMMIT BY THE
-ACCEPTING PERSON`).
+and written only when the Product Owner accepts it there (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING
+PERSON`).
 
-**Form of a requirement** (from `SOFTWARE_MAINTENANCE.md`, *"Wie eine Anforderung aussieht"*):
-a **name** in capitals that is the ID and never changes, a **source with a date**, one **rule**
-stated as a single testable sentence, an **occasion** of one or two lines, and the **check** that
-guards it. One statement per requirement — an "and" in the rule means it is two.
+**Form of a requirement:** a **name** in capitals that is its identifier and never changes, its
+**source**, one **rule** stated as a single testable sentence, and the **check** that guards it. One
+statement per requirement — an "and" in the rule means it is two. Why a rule exists is recorded with
+the decision that accepted it; its history is in the version history.
 
 ---
 ## 0. Hard product rules
