@@ -1093,6 +1093,28 @@ Every accepted requirement is realised by a module, or is named by the decision 
 module keeps.
 *Check:* `tests/test_architecture_coverage.py` — a requirement without a place is a warning.
 
+**THE USE-CASE MAPPING IS REVIEWED** *(PO A. Maier)*
+A reviewing participant checks, for every step of every accepted use case, that the interfaces the architecture
+names for it carry the step out — with the inputs the step needs, the results it produces and the refusals it can meet.
+*Check:* `tests/test_architecture_review.py` — on a fixed set of drafts with planted wrong mappings, how often the
+reviewer finds them is measured as a rate, reported and not gated.
+
+**THE ARCHITECTURE IS REVIEWED AGAINST THE SPECIFICATION** *(PO A. Maier)*
+A reviewing participant checks, for every accepted requirement, that the module or decision the architecture places
+it with keeps it.
+*Check:* `tests/test_architecture_review.py` — on a fixed set of drafts with planted unkept requirements, how often
+the reviewer finds them is measured as a rate, reported and not gated.
+
+**NO REVIEWER IS THE DRAFTER** *(PO A. Maier)*
+The reviewing participant of an architecture draft is not the participant that drafted it and does not use its model.
+*Check:* `tests/test_architecture_review.py` — a reviewer that is the drafter, or uses its model, is refused before
+anything is sent; counter-proof: another participant with another model is accepted.
+
+**A REVIEWER'S FINDING IS A WARNING** *(PO A. Maier)*
+A finding of the reviewing participant of an architecture draft is a warning.
+*Check:* `tests/test_correction_loop.py` — a reviewer's finding answered with a justification ends the loop;
+counter-proof: an unanswered one does not.
+
 **ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS** *(PO A. Maier)*
 An architecture decision can be accepted only when every requirement and use case it names is
 accepted.
@@ -1111,10 +1133,11 @@ accepted.
 A drafted architecture decision runs, in the correction loop and before a person sees it, through the checks of
 `AN INTERFACE STATES ITS TYPES`, `A TYPE IS DEFINED ONCE, IN MACHINE-READABLE FORM`, `EVERY TYPE HAS A SAMPLE`,
 `EVERY INTERFACE HAS AN EXAMPLE`, `EVERY NAME IN AN ARCHITECTURE RESOLVES`,
-`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`, `EVERY USE-CASE STEP IS CARRIED BY AN INTERFACE` and
-`EVERY REQUIREMENT HAS ITS PLACE IN THE ARCHITECTURE`.
-*Check:* `tests/test_correction_loop.py` — a fixture draft with an untyped interface is sent back, and the person sees
-only the corrected draft.
+`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`, `EVERY USE-CASE STEP IS CARRIED BY AN INTERFACE`,
+`EVERY REQUIREMENT HAS ITS PLACE IN THE ARCHITECTURE`, `THE USE-CASE MAPPING IS REVIEWED` and
+`THE ARCHITECTURE IS REVIEWED AGAINST THE SPECIFICATION`.
+*Check:* `tests/test_correction_loop.py` — a fixture draft with an untyped interface is sent back, and so is a
+fixture reviewer's finding; the person sees only the corrected draft.
 
 **A REUSE DECISION RECORDS ITS DUE DILIGENCE** *(Vibe Coding, ch. 6 §5)*
 An architecture decision that adopts an external library, service or API records, for the chosen
