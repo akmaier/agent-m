@@ -18,7 +18,7 @@ realises:
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
   - STATUS IS DERIVED FROM THE RECORDS
   - THE NAME IS THE ID AND IT SURVIVES
-  - A REQUIREMENT HAS FIVE FIELDS
+  - A REQUIREMENT HAS FOUR FIELDS
   - ONE STATEMENT PER REQUIREMENT
   - A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
@@ -58,7 +58,7 @@ current text, accepted in UC-006. Requirements move because understanding moves 
    including rendered Mermaid diagrams. It notes the blob SHA of what it opened — the use-case file,
    or, for a requirement, the SPEC section that holds it.
 3. The author edits. The preview follows each keystroke. Agent M marks, without blocking:
-   - for a requirement: a missing one of the five fields, and a conjunction in the rule
+   - for a requirement: a missing one of the four fields, and a conjunction in the rule
      (`ONE STATEMENT PER REQUIREMENT`);
    - for a use case: a missing actor, precondition, main flow, alternative flows or postcondition,
      and a name under `realises` that matches no requirement.
@@ -108,15 +108,15 @@ sequenceDiagram
 - **1a. The author edits an open proposal**, not the SPEC. That is UC-006 alternative flow 3a: the
   entry itself is saved directly, because it is already a proposal; no second queue is created.
 - **3a. The author changes a requirement's name.** The dashboard says that the name is the
-  identifier. On save, the proposal withdraws the old name, with the withdrawal note, and adds a new
-  requirement under the new name; the impact list shows everything that still names the old one.
+  identifier. On save, the proposal holds the section without the old name and with the requirement under the new
+  one; the impact list shows everything that still names the old one.
 - **3b. The author changes a use case's `id`.** *Save* is disabled and the reason is shown: an
   identifier never changes. A use case that should become two is split by keeping this one and adding
   a new one (UC-007 or UC-019).
 - **3c. A mark from step 3 remains.** The author may save anyway; the mark stays visible to the
   reviewer. The decision on the text is made at acceptance, not in the editor.
 - **3d. The author adds a new requirement** instead of changing one: **+ Requirement** in a section
-  of the browser opens the editor with the five fields empty. Saving proposes the section with the
+  of the browser opens the editor with the four fields empty. Saving proposes the section with the
   addition, exactly as in step 6.
 - **3e. The author wants a requirement or use case in another group.** That is not an edit: the
   editor changes text only, never a group. A link opens the arrangement (UC-021), which commits the
@@ -144,4 +144,4 @@ sequenceDiagram
   names its SHA (UC-008).
 - A requirement: a queue entry holds the edited section beside the current one; `SPEC.md` is
   unchanged until the entry is accepted (UC-006).
-- No identifier changed; a renamed requirement left a withdrawal note behind.
+- No identifier changed; a renamed requirement leaves the SPEC under its old name when the proposal is accepted.

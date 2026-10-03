@@ -27,8 +27,7 @@ realises:
 **Goal.** The reader finds their way through a product's requirements — by chapter, by version, by
 status — and sees for each one where it comes from, what realises and checks it, what is about to
 change it, and how it got to its current wording. The same page shows the product's coverage: which
-requirements nothing realises yet, and which use cases realise nothing. (This absorbs the former
-UC-009 *Inspect traceability coverage*, withdrawn on 2026-09-24.) The browser is the "higher-level view" a reader
+requirements nothing realises yet, and which use cases realise nothing. The browser is the "higher-level view" a reader
 looks for before reading details (Vibe Coding, ch. 9 §1), applied to the specification.
 
 ## Actors
@@ -54,12 +53,11 @@ looks for before reading details (Vibe Coding, ch. 9 §1), applied to the specif
    each requirement once under its group by its name, or at the top level if no group names it. Each group shows how many
    requirements it holds and how many of them no use case realises. Each requirement carries a status:
    - *in SPEC* — accepted;
-   - *change proposed* or *withdrawal proposed* — an open queue entry would change it;
-   - *proposed* — an open queue entry would add it, shown at the top level until a group names it;
-   - *withdrawn* — kept with its withdrawal note.
+   - *change proposed* or *removal proposed* — an open queue entry would change or remove it;
+   - *proposed* — an open queue entry would add it, shown at the top level until a group names it.
 4. The reader narrows the tree by typing part of a name or rule, or by filter: status, source,
    constrains product or process, realised or not.
-5. The reader opens a requirement. The browser shows its five fields and, beside them:
+5. The reader opens a requirement. The browser shows its four fields and, beside them:
    - **Sources** — each with the version and the part the product links (UC-015);
    - **Use cases** that realise it, with their review status (UC-008);
    - **Architecture elements**, **modules** and **tests** that name it;
@@ -96,7 +94,7 @@ sequenceDiagram
     D-->>R: requirement tree with statuses and counts
     R->>D: open a requirement
     D->>G: read approval records and history of its section
-    D-->>R: five fields, sources, use cases, ARC, MOD, TST, proposals, history
+    D-->>R: four fields, sources, use cases, ARC, MOD, TST, proposals, history
     R->>D: follow a link, or Edit / Change by prompt
     R->>D: Gaps
     D-->>R: unrealised requirements, use cases without requirement, unknown names
@@ -108,22 +106,22 @@ sequenceDiagram
   vYYYY.MINOR.PATCH*; open proposals, *Edit* and *Change by prompt* are hidden, because they concern
   the current text only.
 - **1b. The reader compares two versions.** The reader picks a second version; the tree marks
-  requirements added, changed and withdrawn between them, and a changed one opens with the difference.
+  requirements added, changed and removed between them, and a changed one opens with the difference.
   On **Gaps**, it marks what became covered and what lost its coverage in between.
 - **1c. The product has no release yet.** Only *current* is offered, with a pointer to UC-013.
 - **2a. The repository is private and no token reaches it.** As UC-008 1a: the browser says so and
   shows nothing.
 - **2b. The product has no architecture elements, modules or tests yet.** Those lists read *none
   yet*, with a folded note on which phase produces them; nothing is hidden.
-- **3a. A requirement has been withdrawn.** It stays in its group, greyed, with its note; its
-  history and everything that still names it remain visible.
+- **3a. A group names a requirement the SPEC no longer has.** The tree shows it as an unknown member; everything
+  that still names it is listed under *unknown names* on **Gaps**.
 - **5a. Nothing realises or checks the requirement.** The lists say *none*; the gap is also listed on
   **Gaps** (step 7), and blocks nothing.
 - **7a. There are no gaps.** **Gaps** says so; it does not hide.
 - **7b. The chosen version predates Agent M's artifacts.** **Gaps** shows what exists at that commit and
   says what is missing, instead of an empty matrix without explanation.
 - **5b. An artifact names a requirement that does not exist in the chosen version.** It is listed
-  under *unknown names*, with the note that the name was withdrawn, if it was.
+  under *unknown names*.
 - **5c. Two open proposals touch the same requirement.** Both are listed; the browser notes that
   accepting one makes the other stale.
 - **5d. The section was written before any approval record existed** (for example, the initial SPEC).
