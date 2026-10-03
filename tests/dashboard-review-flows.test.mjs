@@ -524,8 +524,8 @@ test("UC-001 main flow: Step A names the token, the product and the instance; Ch
   // Step C · Add the product.
   await press(srv, dom.byId("add-go"));
   assert.equal(ps.writes.length, 1, "one commit into the product");
-  assert.deepEqual(Object.keys(ps.writes[0].files).sort(), ["CHANGELOG.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md"],
-    "only what is missing — the product's own SPEC and use cases are kept");
+  assert.deepEqual(Object.keys(ps.writes[0].files).sort(), ["CHANGELOG.md", "docs/approvals/README.md", "docs/architecture/README.md",
+    "docs/spec-freigaben/README.md"], "only what is missing — the product's own SPEC and use cases are kept");
   assert.equal(ps.writes[0].message, "Add the Agent M review layout (Agent M dashboard)");
   assert.equal(ps.files["SPEC.md"], "# Thesis — its own SPEC\n");
   assert.deepEqual(srv.writes, [], "nothing is written into the instance");
