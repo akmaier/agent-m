@@ -279,8 +279,7 @@ test("release · gates: a job record without approval is not open; a use case wi
 
 // A RECORD IS EVIDENCE, NOT A PROPOSAL — never accepted: an acceptance handed a job record writes no approval record for it.
 // Expected: no file of the commit names the job record. Finding G2 of ITM-014.
-test("release · gates: an acceptance handed a job record writes no approval record for it",
-  { todo: "finding G2 (ITM-014, docs/measurements/2026-10-01_approval-gates-counter-proofs.md) — back to Development: planAcceptance writes kind: use-case for it" }, async () => {
+test("release · gates: an acceptance handed a job record writes no approval record for it", async () => {
     const JOB = "docs/jobs/JOB-20261001-0900-a1b2.md", text = "# JOB-20261001-0900-a1b2\n\nstarted\n";
     const repo = fixture({ [JOB]: text });
     const plan = await planAcceptance({ items: [{ kind: "use-case", id: "JOB-20261001-0900-a1b2", path: JOB, blob: await blob(text) }], read: reader(repo), now: NOW });
