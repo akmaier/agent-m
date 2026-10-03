@@ -5,3 +5,4 @@ Append-only.
 | 2026-10-03 12:55 UTC | 2 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-02-311d174cc1a4.md |
 | 2026-10-03 12:56 UTC | 3 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-03-e372c7e1035c.md |
 | 2026-10-03 12:57 UTC | 4 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-04-0c6f6ebf4c9d.md |
+| 2026-10-03 12:58 UTC | 5 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-05-c2103a68c3f1.md |
