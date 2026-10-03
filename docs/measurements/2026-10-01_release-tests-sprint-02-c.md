@@ -234,3 +234,113 @@ tests/*.test.mjs` → `tests 494, pass 479, fail 0, todo 15`, before and after (
 **Left as it was.** Case 25 (node) still expects nothing seen: no node test opens `SPEC.md`, so the corrected criterion and the
 stricter expectation agree today; a node scan would turn it red, and the node watcher records no frames to tell one. Moving the
 watcher into CI's one run is ITM-158, not done here.
+
+## Addendum, 2026-10-03 — the watcher sees CI's one run of the two suites (ITM-158)
+
+**MESSUNG** — 2026-10-03, branch `team/ITM-158` from `sprint/03` at `fc61996`, by `tester-opus` (claude-opus-5-5), the author of
+cases 24 to 26. Locally macOS, Node 25.9.0, Python 3.14.6; CI `ubuntu-latest`, Node 22. Pull request #79. The text above stays as
+it was measured; this entry stands beside it.
+
+**Why.** Cases 25 and 26 ran both suites a second time under the watcher. That doubled CI's Python step (record above: "about 70
+seconds"). And the nested node run is where the one flaky observation of sprint 02 happened (`6d94ba2`, below): there a node
+failure was reported as an unnamed `# fail 1` inside a Python assertion. ITM-158: the watcher sees CI's one run instead, and a
+failure names the case.
+
+**What changed.**
+
+| File | Change |
+|---|---|
+| `tests/spec_watch/sitecustomize.py` | the Python half of the watcher, until now a string in the test file. It does nothing without `RELEASE_WATCH_FILE` and `RELEASE_WATCH_LOG`. Its frames carry the function name. It notes its start with its command line (`python start …`). One log line per note. |
+| `tests/spec_watch/watch.mjs` | the node half, until now a string in the test file. It does nothing without the two variables. A note carries the test file:line frames of the read (until now: the process's script). It notes its start (`node start <script>`). One log line per note. |
+| `tests/spec_watch/seen.py` | the two helpers `committed_markdown` and `not_from_a_scan`, moved out of the test file, and `check`, which CI's last step runs on the log. **Red (1)** on a read by name, each one listed with its line. **Not measured (2)** when no `python -m unittest` or some `tests/*.test.mjs` did not start under the watcher. **Green (0)** otherwise, with the scans' opens listed. |
+| `.github/workflows/tests.yml` | `RELEASE_WATCH_FILE`, `RELEASE_WATCH_READS` and `PYTHONPATH` are set on the job. `RELEASE_WATCH_LOG` and `NODE_OPTIONS` are set on the two suite steps only, because the checkout and setup actions run on node too. A last step, *No test opens Agent M's own SPEC.md*, runs `seen.py`. |
+| `tests/test_release_sprint_02_c.py` | cases 25 and 26 leave (they ran the suites). Case 24 stays and now drives the watcher's files and `check`. |
+
+**The expected results did not change.** Case 25 expected nothing seen from node. Case 26 expected every Python open to come
+from a whole-repository scan. Both are now the last step's green, on the same lines, with the same `not_from_a_scan`. Case 24's
+planted readers are all still seen and the fixture's SPEC.md is still not. Case 24 gained four expectations:
+- each read by name names its case (node `a.test.mjs:<line>`; Python `test_a.py:<line> test_reads`);
+- `check` is red on the planted reads and lists exactly them, and the scan's open is not among them;
+- `check` answers *not measured* without the suite's start or a node file's start;
+- every note is one line. The planted repository gained one `python -c` child with a two-line script, and one argument with a line break for its `node -e` child.
+
+**Timings, from the workflow's own step times.**
+
+| Run | Commit | Python step | Node step | Last step | Job |
+|---|---|---|---|---|---|
+| before — `sprint/03`, push, run 36950512879 | `fc61996` | 114 s | 29 s | — | 2 min 26 s |
+| before — `main`, push, run 37115225640 | `ae9a84b` | 110 s | 30 s | — | 2 min 23 s |
+| after — push, run 37117208297 | `c0177e0` | **44 s** | 30 s | 0 s | 1 min 16 s |
+| after — pull request (merge into `sprint/03`), run 37117223405 | `c0177e0` | **46 s** | 30 s | 0 s | 1 min 20 s |
+
+ITM-144's record names 46 s for the Python step before ITM-144. Locally, at `fc61996`, the Python suite took 145 s and node 22 s.
+At `c0177e0`, the Python suite took 65 s with the watcher and 59 s without it (the watcher's own cost), node 23 s, and `seen.py`
+under 1 s.
+
+**Counts.**
+
+| Where | Python (`cd tests && python3 -m unittest -v`) | Node (`node --test tests/*.test.mjs`) | Last step |
+|---|---|---|---|
+| local, `fc61996` (before) | 366, OK (expected failures=5) | 502 — 493 pass, 0 fail, 9 todo | — |
+| local, `8bbca20` and `c0177e0`, clean tree | 364, OK (expected failures=5) | 502 — 493 pass, 0 fail, 9 todo | green, 2 scan opens |
+| CI push, `c0177e0` | 364, OK (expected failures=5) | 502 — 493 pass, 0 fail, 9 todo | green, 2 scan opens |
+| CI pull request (merge with `sprint/03` of that hour) | 367, OK (expected failures=5) | 518 — 511 pass, 0 fail, 7 todo | green, 2 scan opens |
+
+366 → 364: the two cases that ran the suites.
+
+**Counter-proofs** (`scratchpad/itm158-tester-opus/plant.txt`, `mutate.txt`; each planted fault removed after its run):
+
+| Id | Planted | Result |
+|---|---|---|
+| K1 | a read of `SPEC.md` by name: a new test in `tests/test_artifact_format.py` (`(ROOT / "SPEC.md").read_text()`) and one in `tests/architecture-format.test.mjs` (`readFileSync(new URL("../SPEC.md", import.meta.url))`) | local: both suites green, the last step **red**, listing exactly `test_artifact_format.py:148 test_planted_read_by_name` and `architecture-format.test.mjs:176`. **CI**: pushed alone on a branch of its own (`team/ITM-158-plant-k1` at `b2499b5`, deleted after; run 37117235155): the Python and node steps green, *No test opens Agent M's own SPEC.md* **red** with the same two lines |
+| K2 | the Python step without the watcher (`PYTHONPATH=`) | at `8bbca20`: **green**. A weakness of the first commit: the Python reads that counted as evidence (5) came from Python processes that node tests start in the node step (`python -c`). Fixed in `c0177e0`, which requires a watched `python -m unittest`. At `c0177e0`: **not measured** (exit 2) |
+| K3 | the node step without `NODE_OPTIONS` | **not measured**, every node test file listed |
+| M1 | `seen.py`: every open counts as a scan | case 24 red |
+| M2 | `watch.mjs`: no frames (only the script, as before) | case 24 red |
+| M3 | `seen.py`: never *not measured* | case 24 red |
+| M4 | `sitecustomize.py`: frames without the function | case 24 red |
+| M5 | `sitecustomize.py`: notes not kept on one line | case 24 red (the `-c` start line) |
+| M6 | `test_release_sprint_02_c.py`: the node half left out of `NODE_OPTIONS` | case 24 red |
+| M7 | `watch.mjs`: no start note | case 24 red |
+| M8 | `sitecustomize.py`: no start note | case 24 red |
+| M9 | `watch.mjs`: notes not kept on one line | case 24 red (a line that is no note) |
+
+Before the line rule was in place, K1's run at `6bfea24` listed 17 lines, 15 of them fragments of a `python -c` script's start
+note (`6bfea24` was the second commit before its amend; it was never pushed). On a clean tree they would have turned the last step red. The rule and M5/M9 came out of that run.
+
+**Readings on the increment** (`c0177e0`, clean tree, local log): 1080 committed Markdown files besides `SPEC.md` (half: 540).
+
+| Call site | Opens SPEC.md | Other committed Markdown it opened |
+|---|---|---|
+| `test_products_folder.py:78 test_instance_repository_names_no_product \| :70 named_products` | yes | 1080 |
+| `test_artifact_format.py:94 test_every_artifact_of_this_repository_is_markdown_with_mermaid_diagrams` | yes | 770 |
+| `test_release_sprint_02_d.py:71 setUpClass` | no | 1080 |
+| `test_no_backend.py:177 … \| :102 read` | no | 772 |
+| `test_approval_records.py:27`, `test_groups.py:209 … :35` | no | 263 each |
+
+The same two scans as on 2026-10-02 (S1), now with 1080 files instead of 903. Python processes started under the watcher: 5, of
+them one `-m unittest`. Node processes: 667 (CI: 667 on push, 669 on the pull request).
+
+**The flaky observation on `6d94ba2`** (pull request #72, run 36945639246, attempt 1, job 110647022705): the Python step failed at
+case 25, `test_no_node_test_opens_agent_ms_own_spec`. The assertion message held only the last 2000 characters of the nested
+node run's output: `# tests 502 … # fail 1 … # todo 9`, preceded by the tail of an unrelated passing case. The failing case's name
+lies before that tail and is not in the log. CI's own node step did not run, because the Python step had failed. Attempt 2 was
+green. Which node case failed is **not known and not claimed here**. What ITM-158 changes is that there is no nested run left to
+lose it in: a node failure is reported by CI's own node step under its name. A failure of the watcher's step lists each read by
+name with its test file and line.
+
+**Readings where the documents were open.**
+
+1. "The watcher's two helpers move to a file the workflow names" (ITM-158, *Files*). Read as `committed_markdown` and
+   `not_from_a_scan`, which moved to `tests/spec_watch/seen.py`; the last step runs that file. The two hooks needed files of
+   their own beside it: a `sitecustomize` must be named so, and node's `--import` takes a module file.
+2. "A last step reads the log and fails when it is not empty" is read together with the item's third criterion (the S1
+   expectation "is kept by the workflow's step"). So the step fails when a line remains that is not a scan's open, a read note
+   or a start note. The *not measured* answer is added under CLAUDE.md §6a.2: a log the watcher never wrote to would otherwise
+   be green.
+3. "The failure names the failing case". A node note names the test file and line of the read. `node:test` offers a loaded
+   module no name for the running test, and the file:line points into it. A node process that a Python test starts with `-e`
+   names its first argument, not the Python test, because node does not see the Python frames. Such a read is still red, but
+   it is named less precisely (case 24's `node -e` child).
+4. `NODE_OPTIONS` sits on the two suite steps, not on the job. Set on the job, it would load the watcher into
+   `actions/checkout`'s node before the checkout had brought the file.
