@@ -723,8 +723,10 @@ A release raises the version, adds a dated entry to the changelog, and sets the 
 *Check:* `tests/test_release_artifacts.py`
 
 **AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT** *(PO A. Maier)*
-Every generated artifact records the Agent M version, the model, and the date of its generation.
-*Check:* `tests/test_artifact_provenance.py`
+The commit that writes a generated artifact names the Agent M version, the participant and the model that
+produced it.
+*Check:* `tests/test_artifact_provenance.py` — the commit names them, and the artifact's own text names none of
+them.
 
 **A VERSION IS NOT REWRITTEN** *(PO A. Maier)*
 A released version is never re-tagged or overwritten; a correction is a new version.
@@ -1055,6 +1057,42 @@ The architecture decision that designs a module states the module's responsibili
 format of every file it reads or writes.
 *Check:* `tests/test_architecture_files.py`
 
+**AN INTERFACE STATES ITS TYPES** *(PO A. Maier)*
+Every interface of a module states the type of each parameter, of its result and of every refusal it can return.
+*Check:* `tests/test_architecture_files.py` — an interface with a parameter, result or refusal without a type is an
+error.
+
+**A TYPE IS DEFINED ONCE, IN MACHINE-READABLE FORM** *(PO A. Maier)*
+Every data structure and file format an architecture uses is defined once, in machine-readable form, in the
+architecture decision that designs the module owning it.
+*Check:* `tests/test_architecture_files.py` — a type used but defined nowhere, or defined twice, is an error.
+
+**EVERY TYPE HAS A SAMPLE** *(PO A. Maier)*
+Every data structure and file format an architecture defines has at least one sample that conforms to its definition.
+*Check:* `tests/test_architecture_files.py` — every sample is validated against its definition without a model;
+counter-proof: a sample missing a required field is an error.
+
+**EVERY INTERFACE HAS AN EXAMPLE** *(PO A. Maier)*
+Every interface of a module has at least one example: an input and the result or refusal it gives.
+*Check:* `tests/test_architecture_files.py` — every example's input and result conform to the interface's types.
+
+**EVERY NAME IN AN ARCHITECTURE RESOLVES** *(PO A. Maier)*
+Every requirement, use case, decision, module, interface and type an architecture decision names exists.
+*Check:* `tests/test_architecture_files.py` — an unknown name is an error.
+
+**MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE** *(PO A. Maier)*
+The modules an architecture designs use each other's interfaces without a cycle.
+*Check:* `tests/test_architecture_files.py` — a cycle is an error that names its modules.
+
+**EVERY USE-CASE STEP IS CARRIED BY AN INTERFACE** *(PO A. Maier)*
+For every step of every accepted use case, the architecture names the module interfaces that carry it out.
+*Check:* `tests/test_architecture_coverage.py` — a step that no interface carries is a warning.
+
+**EVERY REQUIREMENT HAS ITS PLACE IN THE ARCHITECTURE** *(PO A. Maier)*
+Every accepted requirement is realised by a module, or is named by the decision it forces as a rule that no single
+module keeps.
+*Check:* `tests/test_architecture_coverage.py` — a requirement without a place is a warning.
+
 **ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS** *(PO A. Maier)*
 An architecture decision can be accepted only when every requirement and use case it names is
 accepted.
@@ -1068,6 +1106,15 @@ accepted.
 `CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES` apply to the derivation of architecture decisions, with
 "requirement" read as "architecture decision" and "source" read as "the requirement or use case that forces it".
 *Check:* `tests/test_derivation_classes.py` — the same battery, with architecture fixtures.
+
+**AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT** *(PO A. Maier)*
+A drafted architecture decision runs, in the correction loop and before a person sees it, through the checks of
+`AN INTERFACE STATES ITS TYPES`, `A TYPE IS DEFINED ONCE, IN MACHINE-READABLE FORM`, `EVERY TYPE HAS A SAMPLE`,
+`EVERY INTERFACE HAS AN EXAMPLE`, `EVERY NAME IN AN ARCHITECTURE RESOLVES`,
+`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`, `EVERY USE-CASE STEP IS CARRIED BY AN INTERFACE` and
+`EVERY REQUIREMENT HAS ITS PLACE IN THE ARCHITECTURE`.
+*Check:* `tests/test_correction_loop.py` — a fixture draft with an untyped interface is sent back, and the person sees
+only the corrected draft.
 
 **A REUSE DECISION RECORDS ITS DUE DILIGENCE** *(Vibe Coding, ch. 6 §5)*
 An architecture decision that adopts an external library, service or API records, for the chosen
@@ -1095,6 +1142,12 @@ counter-proof with a record whose package does not exist in the registry.
 Before a change to an accepted architecture decision is accepted, the modules it designs, their code files and
 tests, and the requirements that reference it are shown beside the change.
 *Check:* `tests/review-core.test.mjs`
+
+**SKELETONS, DOCUMENTATION, SAMPLES AND TESTS ARE GENERATED FROM THE ARCHITECTURE** *(PO A. Maier)*
+From an accepted architecture decision, each module's source skeleton, its interface documentation, its sample input
+files and one failing test per example are generated without a model.
+*Check:* `tests/test_generate_from_architecture.py` — two generations give identical files, every generated sample
+conforms to its type, and every generated test fails against the skeleton.
 
 **AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST** *(Vibe Coding, ch. 13 §5)*
 The first commit of an implementation job that adds or changes behaviour contains only tests, and the
