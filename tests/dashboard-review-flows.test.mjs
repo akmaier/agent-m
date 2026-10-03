@@ -797,7 +797,7 @@ test("UC-042 step 1: one page — each browser setting is a line with its state,
   assert.match(html, /<h3>Before you store anything<\/h3>[^]*every other GitHub Pages site of akmaier is served from the same address/i);
   assert.deepEqual([...browser.matchAll(/data-setting-row="([^"]+)"/g)].map((m) => m[1]),
     ["github-token", "products", "gitlab-tokens", "jump-host", "remote-sessions"]);
-  assert.match(browser, /<p class="state">stored — not tested on this page yet<\/p>/);
+  assert.match(browser, /<p class="state">stored — not tested yet<\/p>/);
   assert.match(browser, /<input class="secret" type="password" readonly value="github_pat_HARNESS0123456789abcdefghij"/);
   assert.match(browser, /data-show="agent-m\.github-token">Show</);
   for (const b of ["data-test", "data-change", "data-clear"]) assert.ok(browser.includes(`${b}="agent-m.github-token"`), b);
