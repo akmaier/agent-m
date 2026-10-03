@@ -1,155 +1,518 @@
 ---
 id: ARC-009
-title: Participants are reached behind one driver interface — hosted model endpoints from the browser, local model servers and CLI agents through the bridge, CI agents by workflow dispatch
+title: Participants are reached by one route per type; a model endpoint is called from the browser in its own wire format, and one it cannot reach is named with what would work instead
 forced_by:
   - A PARTICIPANT HAS ONE OF FIVE TYPES
-  - ONE DEFINITION, THREE DRIVERS
-  - A RUNTIME IS INTERCHANGEABLE
   - AN UNSUPPORTED ENDPOINT SAYS SO
   - BROWSER REACHABILITY IS MEASURED, NOT ASSUMED
-  - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-  - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
-  - THE BRIDGE FINDS THE INSTALLED AGENTS
-  - THE LOCAL BRIDGE REQUIRES A TOKEN
-  - A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST
-  - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
   - NO COST IS GUESSED
-  - A REUSE DECISION RECORDS ITS DUE DILIGENCE
+  - NO SECRET IN THE REPOSITORY
   - UC-003
-  - UC-010
-  - UC-011
   - UC-017
+keeps:
+  - BROWSER REACHABILITY IS MEASURED, NOT ASSUMED
 ---
-# ARC-009 Participants behind one driver interface
+# ARC-009 Participants behind one route each
 
 ## Context
 
-A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
-agent (`A PARTICIPANT HAS ONE OF FIVE TYPES`). The harness (ARC-007) and the run engine (ARC-010)
-must not care which. Each non-person type is reached differently: an endpoint by HTTPS, a CI agent
-through a workflow on the git server, a CLI or sandboxed agent through the bridge (ARC-011, ARC-012).
-Book ch. 10: the plug-in pattern — a stable extension contract, with each plug-in behind it.
+A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed agent (UC-017). The
+job harness (ARC-007) and the run engine (ARC-010) do not care which: a drafting job needs an answer to a prompt, an
+agent's job a task handed over and its facts reported back. Each type is reached differently — an endpoint over HTTPS,
+a CI agent through a workflow of the product, a CLI or sandboxed agent through the bridge (UC-011). Book ch. 10: the
+plug-in pattern, a stable contract with each plug-in behind it.
 
-What the endpoints and SDKs document about calls from a web page was read on 2026-09-30 and is recorded
-in `docs/measurements/2026-09-30_architecture-open-points.md`, point 7 (*measurement §7*):
-
-- **Anthropic** — the SDK allows browsers only on request: "Enable browser support by explicitly
-  setting `dangerouslyAllowBrowser` to `true`."
-  (`https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/typescript.md`), and then sends
-  `'anthropic-dangerous-direct-browser-access': 'true'`
-  (`https://github.com/anthropics/anthropic-sdk-typescript/blob/main/src/client.ts`). The header's name
-  appears in neither that page nor the API overview. The server's CORS answer is not documented.
-- **OpenAI** — the SDK: "Web browsers: disabled by default to avoid exposing your secret API
-  credentials." (`https://github.com/openai/openai-node/blob/master/README.md`); it sends no extra
-  header. No CORS statement was found in OpenAI's documentation; on 2025-10-15 OpenAI staff wrote about
-  missing CORS answers "Yes, I can confirm this is a bug"
-  (`https://community.openai.com/t/chat-completions-api-endpoint-down-blocked-any-web-browser-request/1362527`).
-- **LiteLLM proxy** — `LITELLM_CORS_ORIGINS` "Defaults to * (all origins) when not set"
-  (`https://docs.litellm.ai/docs/proxy/config_settings`).
-- **vLLM OpenAI server** — "--allowed-origins ¶ Allowed origins. Default: ['*']"
-  (`https://docs.vllm.ai/en/latest/cli/serve/`).
-- **Ollama** — "Ollama allows cross-origin requests from `127.0.0.1` and `0.0.0.0` by default.";
-  "Additional origins can be configured with `OLLAMA_ORIGINS`."
-  (`https://raw.githubusercontent.com/ollama/ollama/main/docs/faq.mdx`).
-
-A model server on the person's own machine is a loopback destination for the browser, so what the
-browsers do with a call to loopback would apply to it too (measurement §3, cited in ARC-012) — and
-Ollama would additionally need `OLLAMA_ORIGINS` set to the Pages origin by the person.
+Model endpoints speak one of two wire formats: the OpenAI-compatible chat completions — hosted gateways, vLLM, LiteLLM,
+Ollama — or Anthropic's Messages API. What the endpoints and their SDKs document about calls from a web page is
+recorded in `docs/measurements/2026-09-30_architecture-open-points.md`, point 7: Anthropic answers a browser only when
+the request opts in with the header `anthropic-dangerous-direct-browser-access: true`, which its own SDK sets; the
+self-hosted gateways allow every origin by default; whether the hosted endpoints answer a browser at all is not
+documented. A key belongs to its endpoint and to the browser that holds it (ARC-005).
 
 ## Decision
 
-**One interface, four routes.** A driver is an object with:
+1. **One route per type.** A person works on the dashboard; a model endpoint is called from the browser, or — for a
+   model server on the person's own machine — through the bridge on that machine; a CI agent runs in a workflow of the
+   product; a CLI or sandboxed agent is reached through the bridge. Every route gives a drafting job the same answer —
+   the text, and the usage and cost as reported, never estimated — so that the job's loop does not know which route
+   answered.
+2. **Two wire formats, chosen by address** (`MOD-participants.endpointFormat`): the Anthropic Messages API for
+   `https://api.anthropic.com`, the OpenAI-compatible chat completions for every other address. The request carries
+   the key only in that endpoint's own header and, for Anthropic, the header that opts into calls from a browser
+   (`MOD-participants.chatRequest`). No SDK is vendored: two request shapes over the fetch port are smaller than
+   either SDK and keep the key's way inside this adapter.
+3. **An answer is read, never guessed** (`MOD-participants.readAnswer`): its text and the usage the endpoint reported; a
+   refused key, another error and a body in no form of the API are refused with the endpoint's own message.
+4. **An endpoint that does not answer the browser says so.** `MOD-participants.chat` refuses such a turn as
+   `unreachable`. `MOD-participants.testEndpoint` — the test the settings page runs when an endpoint is configured
+   (UC-003 step 4), and runs again when a job's turn is refused so — names the reason — no cross-origin permission for
+   this site, a header it requires, or the endpoint offline — and the routes that would work instead: a CI agent, or
+   the bridge on a machine of the person's. No generic failure is reported.
+5. **Browser reachability is measured before release.** Before the browser route to an endpoint kind is released, a
+   preflight and a real call from the instance's Pages origin — to `api.anthropic.com` with and without the opt-in
+   header, to `api.openai.com`, and to a self-hosted gateway — are made on current browsers and recorded with their
+   date in `docs/measurements/`.
 
-- `describe()` — type, processing place, capabilities, where it runs (for the run panel);
-- `send(job, message) -> answer` — one turn for drafting jobs (used by the harness);
-- `start(job) -> handle`, `state(handle)`, `log(handle)`, `cancel(handle)` — for jobs that run on
-  their own (implementation, test generation, CI generation);
-- every call returns the cost or usage when the runtime reports one, and nothing otherwise
-  (`NO COST IS GUESSED`).
-
-1. **Hosted model endpoint (`MOD-participants`, route *browser*)** — from the browser, two wire
-   formats: the OpenAI-compatible chat-completions format and the Anthropic Messages format. For
-   Anthropic the request carries `anthropic-dangerous-direct-browser-access: true`, as the SDK source
-   above sets it. No SDK is vendored: two request shapes over `fetch` are smaller than either SDK and
-   keep the key's route inside the adapter. A refused cross-origin call is named with its reason and the
-   routes that would work — CI, or the bridge (`AN UNSUPPORTED ENDPOINT SAYS SO`).
-2. **Local model server (`MOD-participants`, route *bridge*)** — Ollama, vLLM, LiteLLM or any
-   OpenAI-compatible server on the machine of a bridge is reached **through that bridge**, which calls
-   it on the same machine. The browser sends the same request shape to the bridge (`POST
-   /endpoint/chat`, ARC-012) with the bridge token; the bridge forwards it to the server address named
-   in the bridge's own settings, which must be a loopback address, and returns the answer. No browser
-   CORS rule and no `OLLAMA_ORIGINS` applies: the bridge is not a browser. The browser reaches the bridge
-   directly on loopback, or — in Safari, or for a bridge on another machine — over the HTTPS route
-   through the jump host (ARC-013). A server key, where one is needed, goes in the request body
-   to the bridge and from there only to that server.
-3. **CI agent (`MOD-ci-generator`)** — a `workflow_dispatch` of Agent M's job workflow in the
-   product repository (GitHub) or a pipeline trigger (GitLab), with the job identifier as input. The
-   workflow checks out Agent M's definitions and runs the same code with Node; the agent authenticates
-   and the job writes with the credentials ARC-015 names. A self-hosted runner is used only when the git
-   server reports the repository as private.
-4. **CLI agent and sandboxed agent (`MOD-participants`)** — a request to the bridge, which runs
-   the agent with its own login (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`). Three agents,
-   invoked as their documentation describes (read 2026-09-30):
-   - Claude Code: `claude -p "<prompt>" --output-format json`; the JSON includes `total_cost_usd`,
-     which the documentation calls a client-side estimate
-     (`https://code.claude.com/docs/en/headless.md`);
-   - Codex: `codex exec --json "<prompt>"`; stdout is JSON Lines with `turn.completed` events that
-     carry token `usage`, no cost (`https://developers.openai.com/codex/noninteractive.md`);
-   - opencode: `opencode serve` starts a headless HTTP server with an OpenAPI description, default
-     `--hostname 127.0.0.1 --port 4096` (`https://opencode.ai/docs/server/`).
-   A sandboxed agent is the same driver talking to a bridge at the tunnel's local address or its HTTPS
-   route.
-
-### Due diligence of the three agent CLIs (read 2026-09-30)
-
-Sources as in ARC-002 (npm registry, npm downloads API, GitHub API). Agent M does not redistribute
-any of them; the person installs them (`THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT`).
-
-| Agent | Licence | Against MIT | Releases | Issues | Adoption |
-|---|---|---|---|---|---|
-| Claude Code (`@anthropic-ai/claude-code`, anthropics/claude-code) | proprietary: `LICENSE.md` "© Anthropic PBC. All rights reserved. Use is subject to Anthropic's Commercial Terms of Service"; npm field `SEE LICENSE IN README.md` | **marked — not compatible for redistribution**; used only as the person's own installation | first 2025-02-24, latest 2.1.285 on 2026-09-29, 315 versions in 12 months | 13 121 open, 82 504 closed, 78 018 closed and 87 506 opened in 12 months | 54 078 057 downloads last month; 148 688 stars |
-| Codex (`@openai/codex`, openai/codex) | Apache-2.0 | compatible | first 2025-04-16, latest 0.159.2 on 2026-09-30, 5 053 versions in 12 months | 19 624 open, 11 597 closed, 10 583 closed and 29 321 opened in 12 months | 87 380 253; 127 396 stars |
-| opencode (`opencode-ai`, anomalyco/opencode) | MIT | compatible | first 2025-05-31, latest 1.18.33 on 2026-09-28, 10 650 versions in 12 months | 4 747 open, 23 587 closed, 22 476 closed and 26 464 opened in 12 months | 9 369 030; 211 114 stars |
-
-The local model servers of decision 2 are not reused by Agent M: the person runs them, and Agent M
-speaks the OpenAI-compatible request shape to them. No due diligence is recorded for them here; a
-product that uses one declares it as a resource (UC-040).
+```mermaid
+flowchart LR
+    J["drafting job"] --> R{"participant's type"}
+    R -- "model endpoint" --> B["browser: chatRequest → fetch → readAnswer"]
+    R -- "server on the person's machine" --> BR["bridge on that machine"]
+    R -- "CI agent" --> W["workflow of the product"]
+    R -- "CLI or sandboxed agent" --> BR
+    B --> A["ChatAnswer: text, usage, cost"]
+    BR --> A
+    W --> A
+```
 
 ## Alternatives
 
-- **Local model servers called directly from the browser** — rejected: the browser treats them as
-  loopback — blocked in Safari, one prompt elsewhere (ARC-012) —, and Ollama answers only `127.0.0.1`
-  and `0.0.0.0` until the person sets `OLLAMA_ORIGINS` (measurement §7): a configuration step on each
-  machine, and a server-side permission for every page of the owner's Pages origin. Through the bridge
-  neither is needed.
-- **One agent only** — rejected: `THE BRIDGE FINDS THE INSTALLED AGENTS` names three; the person
-  already pays for one of them.
-- **The vendors' SDKs in the browser** (Anthropic, OpenAI) — rejected for the reasons in point 1;
-  they would also add their own key handling beside the browser store (ARC-003).
-- **A CI agent reached by SSH from GitHub's machines** — rejected: it needs an SSH key stored on
-  GitHub and a host reachable from the internet; the self-hosted runner connects out and needs
-  neither (UC-017 3b).
-- **Agent Client Protocol or MCP as the one wire protocol to all agents** — not chosen now: the
-  three CLIs document the invocations above; a common protocol would be a second adapter layer
-  without a present need (YAGNI). Revisit when two of them document the same protocol.
+- **Local model servers called directly from the browser** — the browser treats them as loopback, blocked in some
+  browsers and asked about in others, and Ollama answers only its own origins until the person sets `OLLAMA_ORIGINS`;
+  through the bridge neither is needed.
+- **The vendors' SDKs in the browser** — larger than the two request shapes, and each holds the key in a way of its own
+  beside the browser's store (ARC-005).
+- **One wire protocol to all agents, such as the Agent Client Protocol or MCP** — a second adapter layer without a
+  present need (YAGNI).
 
 ## Consequences
 
-- Each CLI's output format is a moving target: all three release several times a week (table
-  above). The CLI driver keeps one small parser per agent, each with a recorded-output fixture
-  (`COMMIT TESTS CALL NO PAID SERVICE`); a parse failure is reported as such, never as an empty
-  result.
-- The cost reported by Claude Code is an estimate by the tool; the job record labels it with its
-  source. Codex reports usage only; its cost stays unknown unless the participant declares a price.
-- The bridge forwards only to loopback addresses from its own settings, so a page that holds a bridge
-  token cannot use the bridge to reach other hosts on the person's network.
-- A local model server used by a participant needs the bridge — Agent M's second level (UC-044). A
-  self-hosted gateway on another host (LiteLLM, vLLM) answers any origin by default and stays a
-  browser-route endpoint.
-- **Open measurement — hosted endpoint CORS.** The actual CORS answers of `api.anthropic.com` (with and
-  without the header) and of `api.openai.com` are not documented; measurement: a preflight from
-  `Origin: https://akmaier.github.io` to each `/v1/…` endpoint in the form of
-  `docs/measurements/2026-09-30_gitlab-cors.md`, and one real browser call with a test key, recorded
-  before the endpoint driver is released (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`).
+- The routes through the bridge and through a workflow are designed with the bridge and with the product's CI
+  workflow; they give the answer of decision 1.
+- No commit test calls a paid endpoint: every example of this adapter runs on recorded exchanges, and a real call per
+  endpoint kind belongs to the nightly runs.
+- No use-case step is realised here. The steps of UC-003 and UC-017 are actions on the settings and participants pages;
+  they are realised where those are designed, by their interfaces together with these.
 
-*Drafted on 2026-09-30 by Claude (claude-opus-5-5) for the Agent M repository at commit 1605b2dcfe907fb1df6e394af3fdbec80f379dbc; revised on 2026-09-30 by Claude (claude-opus-5-5) against commit 1110607b6dc4d9c888549a23a680fbe4b38dd3f1 — SPEC and use cases as accepted that day, and `docs/measurements/2026-09-30_architecture-open-points.md`; revised on 2026-10-01 by Claude (claude-opus-5-5) against commit d0e5631081876203e719a2508d673d904e7768db — the leaner architecture of the architecture review, as the PO approved it (UC-023): module names, the CI credentials referred to ARC-015, the HTTPS route to ARC-013; open until accepted.*
+## Modules
+
+### MOD-participants
+
+```json module
+{
+  "id": "MOD-participants",
+  "folder": "src/participants/",
+  "layer": "adapter",
+  "responsibility": "Reaches a model endpoint from the browser in its wire format — the OpenAI-compatible chat completions or the Anthropic Messages API —: the request it is sent, the answer read from its response with the usage it reports, one turn of a chat, and the test that names why an endpoint cannot be called from the browser and what would work instead.",
+  "realises": ["AN UNSUPPORTED ENDPOINT SAYS SO"],
+  "owns": ["ChatMessage", "HttpRequest", "HttpResponse", "ChatAnswer", "EndpointTest"],
+  "uses": ["MOD-contracts"]
+}
+```
+
+```json interface
+{
+  "id": "MOD-participants.endpointFormat",
+  "summary": "The wire format of an endpoint: the Anthropic Messages API for the address https://api.anthropic.com, the OpenAI-compatible chat completions for every other.",
+  "params": [{ "name": "endpoint", "type": "Endpoint" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the hub",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null }
+      },
+      "result": "openai"
+    },
+    {
+      "name": "Anthropic",
+      "input": {
+        "endpoint": { "name": "claude", "url": "https://api.anthropic.com", "model": "claude-sonnet-5", "key": "ant-key-example", "via": "browser", "tested": null }
+      },
+      "result": "anthropic"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-participants.chatRequest",
+  "summary": "The request of one turn in the endpoint's format: the key only in that endpoint's header — for Anthropic with the header that opts into calls from a browser —, the system messages as the Messages API's system field, and the answer's token limit.",
+  "params": [
+    { "name": "endpoint", "type": "Endpoint" },
+    { "name": "messages", "type": "ChatMessage[]" },
+    { "name": "maxTokens", "type": "integer" }
+  ],
+  "result": "HttpRequest",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "chat completions",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null },
+        "messages": [
+          { "role": "system", "content": "Answer briefly." },
+          { "role": "user", "content": "Name the model you are." }
+        ],
+        "maxTokens": 64
+      },
+      "result": {
+        "method": "POST",
+        "url": "https://hub.nhr.fau.de/api/llmgw/v1/chat/completions",
+        "headers": { "content-type": "application/json", "authorization": "Bearer hub-key-example" },
+        "body": {
+          "model": "llama-3.3-70b",
+          "max_tokens": 64,
+          "messages": [
+            { "role": "system", "content": "Answer briefly." },
+            { "role": "user", "content": "Name the model you are." }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Messages",
+      "input": {
+        "endpoint": { "name": "claude", "url": "https://api.anthropic.com", "model": "claude-sonnet-5", "key": "ant-key-example", "via": "browser", "tested": null },
+        "messages": [
+          { "role": "system", "content": "Answer briefly." },
+          { "role": "user", "content": "Name the model you are." }
+        ],
+        "maxTokens": 64
+      },
+      "result": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "headers": { "content-type": "application/json", "x-api-key": "ant-key-example", "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        "body": {
+          "model": "claude-sonnet-5",
+          "max_tokens": 64,
+          "system": "Answer briefly.",
+          "messages": [{ "role": "user", "content": "Name the model you are." }]
+        }
+      }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-participants.readAnswer",
+  "summary": "The answer an endpoint gave: its text and the usage it reported, never estimated; a refused key, another error and an answer in no form of the API each refused with the endpoint's own message.",
+  "params": [{ "name": "endpoint", "type": "Endpoint" }, { "name": "response", "type": "HttpResponse" }],
+  "result": "ChatAnswer",
+  "async": false,
+  "refusals": [
+    { "code": "unauthorised", "when": "the endpoint answers 401 or 403" },
+    { "code": "endpoint-error", "when": "the endpoint answers another status than 200" },
+    { "code": "not-an-answer", "when": "the body is in no form of the endpoint's API" }
+  ],
+  "examples": [
+    {
+      "name": "chat completions",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null },
+        "response": {
+          "status": 200,
+          "body": {
+            "choices": [{ "message": { "role": "assistant", "content": "OK" } }],
+            "usage": { "prompt_tokens": 14, "completion_tokens": 1 }
+          }
+        }
+      },
+      "result": { "text": "OK", "usage": { "inputTokens": 14, "outputTokens": 1, "minutes": null }, "cost": null }
+    },
+    {
+      "name": "Messages",
+      "input": {
+        "endpoint": { "name": "claude", "url": "https://api.anthropic.com", "model": "claude-sonnet-5", "key": "ant-key-example", "via": "browser", "tested": null },
+        "response": {
+          "status": 200,
+          "body": {
+            "content": [{ "type": "text", "text": "I am Claude." }],
+            "usage": { "input_tokens": 18, "output_tokens": 5 }
+          }
+        }
+      },
+      "result": {
+        "text": "I am Claude.",
+        "usage": { "inputTokens": 18, "outputTokens": 5, "minutes": null },
+        "cost": null
+      }
+    },
+    {
+      "name": "a refused key",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null },
+        "response": { "status": 401, "body": { "error": { "message": "invalid api key" } } }
+      },
+      "refused": "unauthorised"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-participants.chat",
+  "summary": "One turn with an endpoint the browser calls: the request sent through the fetch port and the answer read; an endpoint reached through a bridge is refused here, and one that does not answer the browser is refused as unreachable — MOD-participants.testEndpoint then names why and what works instead.",
+  "params": [
+    { "name": "endpoint", "type": "Endpoint" },
+    { "name": "messages", "type": "ChatMessage[]" },
+    { "name": "maxTokens", "type": "integer" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "ChatAnswer",
+  "async": true,
+  "refusals": [
+    { "code": "unreachable", "when": "no response reaches the browser" },
+    { "code": "not-from-the-browser", "when": "the endpoint is reached through a bridge" },
+    { "code": "unauthorised", "when": "the endpoint refuses the key" },
+    { "code": "endpoint-error", "when": "the endpoint answers another status than 200" },
+    { "code": "not-an-answer", "when": "the body is in no form of the endpoint's API" }
+  ],
+  "examples": [
+    {
+      "name": "Anthropic from the browser",
+      "input": {
+        "endpoint": { "name": "claude", "url": "https://api.anthropic.com", "model": "claude-sonnet-5", "key": "ant-key-example", "via": "browser", "tested": null },
+        "messages": [
+          { "role": "system", "content": "Answer briefly." },
+          { "role": "user", "content": "Name the model you are." }
+        ],
+        "maxTokens": 64,
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.anthropic.com/v1/messages",
+              "body": {
+                "model": "claude-sonnet-5",
+                "max_tokens": 64,
+                "system": "Answer briefly.",
+                "messages": [{ "role": "user", "content": "Name the model you are." }]
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "content": [{ "type": "text", "text": "I am Claude." }],
+                "usage": { "input_tokens": 18, "output_tokens": 5 }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "text": "I am Claude.",
+        "usage": { "inputTokens": 18, "outputTokens": 5, "minutes": null },
+        "cost": null
+      }
+    },
+    {
+      "name": "no answer to the browser",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null },
+        "messages": [
+          { "role": "system", "content": "Answer briefly." },
+          { "role": "user", "content": "Name the model you are." }
+        ],
+        "maxTokens": 64,
+        "fetch": []
+      },
+      "refused": "unreachable"
+    },
+    {
+      "name": "a server on the person's machine",
+      "input": {
+        "endpoint": { "name": "ollama", "url": "http://127.0.0.1:11434/v1", "model": "qwen3:8b", "key": "", "via": "bridge", "tested": null },
+        "messages": [
+          { "role": "system", "content": "Answer briefly." },
+          { "role": "user", "content": "Name the model you are." }
+        ],
+        "maxTokens": 64,
+        "fetch": []
+      },
+      "refused": "not-from-the-browser"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-participants.testEndpoint",
+  "summary": "The short test request of a configured endpoint: whether it answers the browser and, when it does not, why — named, never a generic failure — and the routes that would work instead.",
+  "params": [{ "name": "endpoint", "type": "Endpoint" }, { "name": "fetch", "type": "FetchPort" }],
+  "result": "EndpointTest",
+  "async": true,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the hub answers",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1/chat/completions",
+              "body": {
+                "model": "llama-3.3-70b",
+                "max_tokens": 16,
+                "messages": [{ "role": "user", "content": "Answer with the single word OK." }]
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "choices": [{ "message": { "role": "assistant", "content": "OK" } }],
+                "usage": { "prompt_tokens": 14, "completion_tokens": 1 }
+              }
+            }
+          }
+        ]
+      },
+      "result": { "ok": true, "reason": "", "alternatives": [] }
+    },
+    {
+      "name": "Anthropic does not answer the browser",
+      "input": {
+        "endpoint": { "name": "claude", "url": "https://api.anthropic.com", "model": "claude-sonnet-5", "key": "ant-key-example", "via": "browser", "tested": null },
+        "fetch": []
+      },
+      "result": {
+        "ok": false,
+        "reason": "claude did not answer the browser: it may not accept calls from a web page — no cross-origin permission for this site, or a header it requires —, or it is offline",
+        "alternatives": ["a CI agent, whose workflow calls the endpoint on the git server's machines (UC-010)", "the bridge on a machine of yours, which calls the endpoint there (UC-011)"]
+      }
+    },
+    {
+      "name": "a wrong key",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1/chat/completions",
+              "body": {
+                "model": "llama-3.3-70b",
+                "max_tokens": 16,
+                "messages": [{ "role": "user", "content": "Answer with the single word OK." }]
+              }
+            },
+            "response": { "status": 401, "body": { "error": { "message": "invalid api key" } } }
+          }
+        ]
+      },
+      "result": { "ok": false, "reason": "hub refused the key: invalid api key", "alternatives": [] }
+    }
+  ]
+}
+```
+
+## Types
+
+```json type
+{
+  "$id": "ChatMessage",
+  "description": "A message of a chat: system, user or assistant, and its text.",
+  "type": "object",
+  "required": ["role", "content"],
+  "additionalProperties": false,
+  "properties": {
+    "role": { "type": "string", "enum": ["system", "user", "assistant"] },
+    "content": { "type": "string" }
+  },
+  "examples": [{ "role": "user", "content": "Name the model you are." }]
+}
+```
+
+```json type
+{
+  "$id": "HttpRequest",
+  "description": "A request as the fetch port sends it: method, address, headers, and a body sent as JSON.",
+  "type": "object",
+  "required": ["method", "url", "headers", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "url": { "type": "string", "pattern": "^https?://" },
+    "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+    "body": {}
+  },
+  "examples": [
+    {
+      "method": "POST",
+      "url": "https://hub.nhr.fau.de/api/llmgw/v1/chat/completions",
+      "headers": { "content-type": "application/json", "authorization": "Bearer hub-key-example" },
+      "body": {
+        "model": "llama-3.3-70b",
+        "max_tokens": 64,
+        "messages": [
+          { "role": "system", "content": "Answer briefly." },
+          { "role": "user", "content": "Name the model you are." }
+        ]
+      }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "HttpResponse",
+  "description": "A response as the fetch port gives it: status, headers, and the body, parsed as JSON when declared so.",
+  "type": "object",
+  "required": ["status"],
+  "additionalProperties": false,
+  "properties": {
+    "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+    "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+    "body": {}
+  },
+  "examples": [
+    {
+      "status": 200,
+      "body": {
+        "choices": [{ "message": { "role": "assistant", "content": "OK" } }],
+        "usage": { "prompt_tokens": 14, "completion_tokens": 1 }
+      }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ChatAnswer",
+  "description": "An endpoint's answer: its text, the usage it reported — null where it reported none —, and its cost — null, since no endpoint reports one in its answer.",
+  "type": "object",
+  "required": ["text", "usage", "cost"],
+  "additionalProperties": false,
+  "properties": {
+    "text": { "type": "string" },
+    "usage": { "$ref": "UsageOrNone" },
+    "cost": { "$ref": "MoneyOrNone" }
+  },
+  "examples": [{ "text": "OK", "usage": { "inputTokens": 14, "outputTokens": 1, "minutes": null }, "cost": null }]
+}
+```
+
+```json type
+{
+  "$id": "EndpointTest",
+  "description": "The result of an endpoint's test: whether it answered the browser, why not, and the routes that would work instead.",
+  "type": "object",
+  "required": ["ok", "reason", "alternatives"],
+  "additionalProperties": false,
+  "properties": {
+    "ok": { "type": "boolean" },
+    "reason": { "type": "string" },
+    "alternatives": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "ok": false,
+      "reason": "claude did not answer the browser: it may not accept calls from a web page — no cross-origin permission for this site, or a header it requires —, or it is offline",
+      "alternatives": ["a CI agent, whose workflow calls the endpoint on the git server's machines (UC-010)", "the bridge on a machine of yours, which calls the endpoint there (UC-011)"]
+    }
+  ]
+}
+```
