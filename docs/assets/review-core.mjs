@@ -512,6 +512,9 @@ export async function planAcceptance({ items, read, now = new Date() }) {
       if (en.anchor !== it.anchor || (en.bis ?? null) !== (it.bis ?? null)) { out(it, "the queue's index changed after it was shown"); continue; }
       const recPath = approvalPath(`spec-${it.qname}-${it.nn}`, it.proposalBlob), recName = recPath.split("/").pop();
       if (applied.has(recName)) { out(it, "already written into the SPEC"); continue; }
+      // A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST: an entry that changes or withdraws a requirement (`touches`, as the
+      // entry page derived it) is written only if its impact list was shown — on every route that accepts it (UC-006 3b, 4d).
+      if (it.touches && it.impactShown !== true) { out(it, "its impact list was not shown — open it"); continue; }
       const prop = await get(it.proposalPath);
       if (prop === null) { out(it, "the proposal no longer exists"); continue; }
       if (await gitBlobSha(prop) !== it.proposalBlob) { out(it, "the proposal changed after it was shown — open it again"); continue; }

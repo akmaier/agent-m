@@ -3,7 +3,7 @@
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
 // Module: MOD-review-core
-// Guards: A GENERATED ARTIFACT IS A PROPOSAL; A RECORD IS EVIDENCE, NOT A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+// Guards: A GENERATED ARTIFACT IS A PROPOSAL; A RECORD IS EVIDENCE, NOT A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
 // Level: unit
 //
 // The product is tests/fixtures/gates/: a use case, an architecture decision, a module and a queue of two SPEC entries,
@@ -223,4 +223,37 @@ test("A RECORD IS EVIDENCE, NOT A PROPOSAL — useCaseRecord refuses a path that
     assert.throws(() => useCaseRecord(path, blob), new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} is not a use case`), path);
   }
   assert.deepEqual(useCaseRecord(UC, blob), { kind: "use-case", file: UC, blob });
+});
+
+// ---------------------------------------------------------------- a SPEC entry and its impact list (ITM-155)
+
+// A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST · UC-006 3b, 4d — ITM-155: "the list is part of the proposal", on every route
+// that accepts an entry. The item of a SPEC entry carries whether the entry changes or withdraws a requirement (`touches`) and
+// whether its impact list was shown (`impactShown`), as the item of a decision or module carries `changed` and `impactShown`.
+// Expected: an entry that touches a requirement without `impactShown: true` is left out — nothing is written for it, it is
+// named with the reason "its impact list was not shown — open it" — while an adding entry ticked with it is written.
+// Counter-proofs: the same entry with `impactShown: true`, and an entry that adds only (no `touches`), are planned byte for byte
+// as they were before ITM-155.
+test("A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST — a SPEC entry that touches a requirement is not written unless its impact list was shown; counter-proof: shown, or adding only, it is written as before", async () => {
+  const t0 = fixture();
+  const one = await specItem(t0, 1), two = await specItem(t0, 2);
+  const before = (await accept(t0, [one])).plan, both = (await accept(t0, [one, two])).plan;
+  assert.deepEqual(before.leftOut, [], "the fixture's entry is written as it stands");
+
+  for (const unshown of [{ ...one, touches: true }, { ...one, touches: true, impactShown: false }]) {
+    const { plan } = await accept(t0, [unshown]);
+    assert.deepEqual(plan.files, [], "nothing is written for an entry whose impact list was not shown");
+    assert.deepEqual(plan.accepted, []);
+    assert.deepEqual(plan.leftOut, [{ label: `${QNAME} 01`, reason: "its impact list was not shown — open it" }]);
+  }
+  // Ticked together with an adding entry: the adding entry is written as it is alone, the touching one is left out and named.
+  const mixed = (await accept(t0, [{ ...one, touches: true }, two])).plan;
+  assert.deepEqual(mixed.accepted, [`${QNAME} 02`]);
+  assert.deepEqual(mixed.leftOut.map((l) => l.label), [`${QNAME} 01`]);
+  assert.deepEqual(mixed.files, (await accept(t0, [two])).plan.files, "the adding entry as it is written alone");
+
+  // Counter-proofs: shown, the touching entry is planned as before; an entry that adds only needs no list.
+  assert.deepEqual((await accept(t0, [{ ...one, touches: true, impactShown: true }])).plan, before);
+  assert.deepEqual((await accept(t0, [{ ...one, touches: false }])).plan, before);
+  assert.deepEqual((await accept(t0, [{ ...one, touches: true, impactShown: true }, two])).plan, both);
 });

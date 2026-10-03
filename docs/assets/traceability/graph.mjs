@@ -9,8 +9,8 @@
 // ARC-006, *Traceability is computed from one pinned commit*: the nodes are the requirements of the SPEC and of the open
 // queues, the use cases, the decisions and modules, the code files and the tests; the edges are the names each one states —
 // a use case's `realises`, a decision's `forced_by`, a module's `realises`, `follows` and `uses`, the `Module:` line of code
-// and tests and the `Guards:` line of a test (ARC-020), and the requirements an open queue entry would add, change or
-// withdraw. Every edge names its target by identifier — a requirement by its name, every other artifact by its identifier,
+// and tests and the `Guards:` line of a test (ARC-020), the requirements a requirement of the SPEC names in backticks, and the
+// requirements an open queue entry would add, change or withdraw. Every edge names its target by identifier — a requirement by its name, every other artifact by its identifier,
 // code and tests by their path — never by a section, a line or a file name (A REFERENCE NAMES THE IDENTIFIER, NOT THE
 // POSITION). A name no node carries is kept as an unknown name, with the note whether it was withdrawn.
 
@@ -51,7 +51,7 @@ const same = (a, b) => FIELDS.every((k) => (a[k] ?? null) === (b[k] ?? null));
 // "proposed" when only an open entry adds it }, a use case or decision { id, kind, path, title, status }, a module the same with
 // its `names`, `follows`, `uses`, `provides` and `interfaces`, a code file or test { id: path, kind: "code" | "test", path,
 // modules, guards }, a queue entry { id: path, kind: "proposal", path, status }. edges [{ from, to, kind }] — kind one of
-// realises, forced_by, follows, uses (with `iface`), module, guards, proposes (with `change`: add, change or withdraw).
+// realises, forced_by, follows, uses (with `iface`), module, guards, names, proposes (with `change`: add, change or withdraw).
 // unknown [{ name, withdrawn, from }] — every name an edge points at that no node carries, by name; withdrawn [name] — the
 // requirements, decisions and modules the commit keeps as withdrawn.
 export function linkGraph(snapshot = {}) {
@@ -153,6 +153,20 @@ export function linkGraph(snapshot = {}) {
     code(h.path, [...(h.modules ?? [])], [...(h.guards ?? [])], Boolean(h.test));
   }
 
+  // A requirement of the SPEC references another by its name in backticks in its rule, occasion or check — the form the SPEC
+  // uses for a reference, which requirementProblems tells from a conjunction; a name may wrap over a line, as a code span
+  // does. Only a name the commit holds as a requirement is one — a live one, or one the SPEC keeps as withdrawn —; another
+  // word in capitals in backticks (a file, a command) is not. A requirement naming itself draws no edge; a withdrawn one
+  // keeps only its note and names nothing.
+  const withdrawnRequirements = new Set([...spec.values()].filter((r) => r.withdrawn).map((r) => r.name));
+  const isRequirement = (n) => (has(nodes, n) && nodes[n].kind === "requirement") || withdrawnRequirements.has(n);
+  for (const r of spec.values()) {
+    if (r.withdrawn) continue;
+    const named = [r.rule, r.occasion, r.check].flatMap((t) => [...String(t ?? "").matchAll(/`([^`]*)`/g)])
+      .map((m) => m[1].replace(/\s+/g, " ").trim());
+    for (const n of sorted(named)) if (n !== r.name && isRequirement(n)) edge(r.name, n, "names");
+  }
+
   // Every name an edge points at that no node carries, with what names it; a proposal's own targets are its business.
   const unknown = new Map();
   for (const e of edges) {
@@ -203,9 +217,11 @@ export function tracesTo(graph, name) {
 
 // requirementImpact(graph, name) -> [{ id, kind, path, via }] — every artifact that names a requirement, to be shown beside a
 // proposal that changes it (A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST): the use cases realising it, the decisions it
-// forces, the modules realising it and the tests guarding it, in that order. A withdrawn name lists what still names it; a
-// name nothing states lists nothing. A queue entry is a proposal, not an artifact that hangs on the requirement.
-const IMPACT = [["use-case", "realises"], ["architecture-decision", "forced_by"], ["module", "realises"], ["test", "guards"]];
+// forces, the modules realising it, the tests guarding it and the requirements of the SPEC naming it in backticks, in that
+// order. A withdrawn name lists what still names it; a name nothing states lists nothing. A queue entry is a proposal, not an
+// artifact that hangs on the requirement.
+const IMPACT = [["use-case", "realises"], ["architecture-decision", "forced_by"], ["module", "realises"], ["test", "guards"],
+  ["requirement", "names"]];
 export function requirementImpact(graph, name) {
   return IMPACT.flatMap(([kind, via]) => naming(graph, name, kind, via)
     .map((id) => ({ id, kind, path: graph.nodes[id].path, via })));
