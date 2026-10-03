@@ -4,15 +4,19 @@ kind: pulled
 adapted_from: scrum
 measure: items per state over time
 ---
+
 # Scrum with a work-in-progress limit
 
 **REGISTER**
 
-A process model of this instance (UC-031, ARC-019 decision 1), adapted from the shipped Scrum model
-`docs/assets/process-models/scrum.md`. That file is not in the repository yet; backlog item ITM-028 writes the
-shipped catalogue. What this adaptation changes (PO decision, 2026-10-01): the flow is controlled by a
-work-in-progress limit of 4 instead of a time box; sprints keep a selection the Product Owner makes and have no
-fixed length; release tests have a role of their own.
+A process model of this instance (UC-031), adapted from the shipped Scrum model: the flow is controlled by a
+work-in-progress limit of 4 instead of a time box; sprints keep a selection the Product Owner makes and have no fixed
+length; release tests have a role of their own.
+
+An item counts as in progress from the moment its team starts it until its pull request is merged into the sprint
+branch; an item waiting for review counts. A sprint works on the selection the Product Owner made at Sprint planning.
+It ends when every selected item is done or the Product Owner ends it; then the review of its increment and the
+retrospective are recorded, and then the Product Owner decides the merge of the sprint branch into `main`.
 
 ## Phases
 
@@ -66,9 +70,3 @@ fixed length; release tests have a role of their own.
 | WIP limit | 4 |
 | Time box | none |
 | Sprints | yes |
-
-An item counts as in progress from the moment its team starts it until its pull request is merged into the
-sprint branch; an item waiting for review counts. A sprint works on the selection the Product Owner made at
-Sprint planning. It ends when every selected item is done or the Product Owner ends it; then the review of its
-increment and the retrospective are recorded, and then the Product Owner decides the merge of the sprint branch
-into `main`.
