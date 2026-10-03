@@ -7,3 +7,4 @@ Append-only.
 | 2026-10-03 12:57 UTC | 4 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-04-0c6f6ebf4c9d.md |
 | 2026-10-03 12:58 UTC | 5 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-05-c2103a68c3f1.md |
 | 2026-10-03 12:58 UTC | 6 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-06-967d1cd27270.md |
+| 2026-10-03 12:59 UTC | 7 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-07-cb5bc6ba3cd3.md |
