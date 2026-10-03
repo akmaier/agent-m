@@ -324,6 +324,11 @@ class OwnGroupFile(unittest.TestCase):
         if pattern is None:
             return None
         out = []
+        if kind == "module":
+            # A module is designed in a json module block of an architecture decision (ARC-020 decision 2).
+            for f in sorted(DOCS.glob("architecture/ARC-*.md")):
+                for block in re.findall(r"```json module\n(.*?)\n```", read(f), re.S):
+                    out.append({"id": json.loads(block)["id"], "withdrawn": False})
         for f in sorted(DOCS.glob(pattern)):
             fields, _ = front_matter(read(f))
             out.append({"id": fields.get("id"), "withdrawn": bool(fields.get("withdrawn"))})

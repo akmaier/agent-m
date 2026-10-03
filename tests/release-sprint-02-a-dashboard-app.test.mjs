@@ -515,7 +515,7 @@ test("release · ITM-129 UC-024: every tab and view of today is shown; a view wh
 //
 // ITM-142: "no shell file reads past what MOD-git-host provides; the dashboard's reads behave as before". From the accepted
 // architecture: MOD-git-host's "request helper … is internal and no caller sets a header" and its `provides` list
-// (docs/architecture/MOD-git-host.md); ARC-003 decision 6, "no module file but the adapters' calls fetch". A file belongs to a
+// (the interfaces of MOD-git-host in docs/architecture/ARC-004-*.md, ARC-020); ARC-003 decision 6, "no module file but the adapters' calls fetch". A file belongs to a
 // module by its `Module:` line (ARC-020). The kernel's half — no kernel file imports from the git host — is in
 // tests/release-sprint-02-a-review-core.test.mjs.
 
@@ -551,10 +551,12 @@ function namesFrom(file, module) {
   return out;
 }
 const SHELL_FILES = codeFiles().filter((f) => moduleOf(f) === "MOD-dashboard-app");
+// MOD-git-host's interfaces, read from the json interface blocks of the decision that designs it (ARC-020 decision 2).
 const HOST_PROVIDES = (() => {
-  const t = fs.readFileSync(path.join(ROOT, "docs/architecture/MOD-git-host.md"), "utf8");
-  const block = /^provides:\n((?:\s+- .+\n)+)/m.exec(t)?.[1] ?? "";
-  return new Set([...block.matchAll(/- (\w+)/g)].map((m) => m[1]));
+  const arc = fs.readdirSync(path.join(ROOT, "docs/architecture")).find((f) => /^ARC-004-.+\.md$/.test(f));
+  const t = fs.readFileSync(path.join(ROOT, "docs/architecture", arc), "utf8");
+  return new Set([...t.matchAll(/```json interface\n([\s\S]*?)\n```/g)].map((m) => JSON.parse(m[1]).id)
+    .filter((id) => id.startsWith("MOD-git-host.")).map((id) => id.slice("MOD-git-host.".length)));
 })();
 
 // ITM-130 · MOD-git-host's request helper is internal — Expected: no file whose Module: line names MOD-dashboard-app imports

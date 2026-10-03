@@ -1,7 +1,7 @@
 # Modules of Agent M — groups
 
-The hierarchy of this kind of artifact, one group per list item, each member by its identifier (UC-021,
-ARC-020). A group has no identifier; an item not listed here is shown at the top level. Changing this file
+The hierarchy of this kind of artifact, one group per list item, each member by its identifier (UC-021).
+A group has no identifier; an item not listed here is shown at the top level. Changing this file
 changes no artifact and no approval.
 
 - Kernel
@@ -30,16 +30,3 @@ changes no artifact and no approval.
   - MOD-dashboard-app
   - MOD-bridge-app
   - MOD-ci-entry
-- Withdrawn
-  - MOD-groups
-  - MOD-spec-queue
-  - MOD-apply-workflow
-  - MOD-job-definitions
-  - MOD-job-records
-  - MOD-resources
-  - MOD-release
-  - MOD-participant-ci
-  - MOD-participant-endpoint
-  - MOD-participant-cli
-  - MOD-mail-api
-  - MOD-bridge-mail

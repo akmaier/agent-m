@@ -137,17 +137,6 @@ test("specRequirements — the names in SPEC.md; a withdrawn one is marked; pros
   assert.equal(long.get("A RENAMED RULE IS WITHDRAWN AND ADDED").withdrawn, false, "WITHDRAWN in the name is not a withdrawal");
 });
 
-// ---------------------------------------------------------------- a withdrawn file (from tests/review-page.test.mjs)
-
-test("parseArchitecture: a withdrawn decision or module carries its date, its replacement and its note", () => {
-  const p = "docs/architecture/ARC-008-correction-loop-as-one-harness.md";
-  const w = parseArchitecture(p, readFileSync(new URL(`../${p}`, import.meta.url), "utf8")).withdrawn;
-  assert.equal(w.date, "2026-10-01");
-  assert.equal(w.replacedBy, "ARC-007");
-  assert.match(w.note, /^Merged into ARC-007 on 2026-10-01/);
-  assert.equal(parseArchitecture(ARC, base[ARC]).withdrawn, null, "counter-proof: a file not withdrawn has none");
-});
-
 // ---------------------------------------------------------------- module headers, which the impact list reads
 
 test("module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code", async () => {
