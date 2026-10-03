@@ -1613,7 +1613,7 @@ named in the mail.
 *Check:* `tests/test_mail_privacy.py` — deterministic: every address and display name from the mail's
 headers, and every address and phone number found in its body, is absent from the issue text. How
 often the participant's neutral text still contains personal data is measured as a rate on a fixed
-set of mails (§4.0a rule 4), reported, not gated.
+set of mails, reported, not gated.
 
 **A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK** *(PO A. Maier)*
 An issue is created from a mail only as the direct result of a person's click on the proposed issue
@@ -1783,8 +1783,7 @@ A product names the resources it is built with, tested on or calls at runtime in
 `docs/resources.md`; counter-proof: a resource entry written anywhere else is not found and fails.
 
 **A RESOURCE IS USED, A PARTICIPANT DEVELOPS** *(PO A. Maier)*
-Whatever does work on the product's artifacts is declared as a participant (§5), never as a
-resource.
+Whatever does work on the product's artifacts is declared as a participant, never as a resource.
 *Check:* `tests/test_resources.py` — a resource entry carrying participant fields (capabilities,
 role) is rejected; counter-proof: the same entry without them is accepted.
 
