@@ -708,7 +708,7 @@ test("release · ITM-133 UC-008 4a: a GitLab product's refused Accept offers no 
 // Expected: nothing is written; the page says the token cannot write and offers GitHub's new-file page for UC-001's record and
 // for UC-003's, each prefilled with its record.
 test("release · ITM-133 UC-008 3d·4a: Accept ticked refused for missing write access offers the GitHub path for each ticked record",
-  { todo: "FINDING A3 — docs/assets/dashboard/review-views.mjs runAccept: a batch (Accept ticked, Accept all) refused for missing write access gets the sentence only, no GitHub path — ITM-133 back to Development" }, async () => {
+  async () => {
     const w = await world({ refuse: noWrite() });
     const page = await open(w, { hash: "#uc/UC-001" });
     const tick = async () => { const c = page.byId("main").querySelector("[data-tick]"); c.checked = true; c.fire("change", {}); };
@@ -728,7 +728,7 @@ test("release · ITM-133 UC-008 3d·4a: Accept ticked refused for missing write 
 // the token cannot write, keeps the edit, and offers GitHub's route for the edit as without a token (UC-008 3b): GitHub's editor
 // of the file — a link to it, or the control that copies the text and opens it.
 test("release · ITM-133 UC-008 3a·4a: a Save refused for missing write access offers GitHub's editor for the file",
-  { todo: "FINDING A4 — docs/assets/dashboard/review-views.mjs wireCommon: a Save refused for missing write access shows the sentence only, no GitHub route for the edit — ITM-133 back to Development" }, async () => {
+  async () => {
     const w = await world({ refuse: noWrite() });
     const page = await open(w, { hash: "#uc/UC-001" });
     const edited = ucText(w, UC1).replace("opens the report.", "opens the report, NO-WRITE-ACCESS.");
