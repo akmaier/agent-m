@@ -56,14 +56,15 @@ addition, with the requirement it comes from.
 
 1. **Models and practices are Markdown files of one format**: front matter `name`, `kind` — `planned`, `pulled`, or
    `practice` —, `adapted_from`, and `measure` for a model or `fits` — the models or kinds of work it fits — for a
-   practice; then a title, an introduction, and one table under each fixed heading: `## Phases`, `## Transitions`,
-   `## Verification pairs`, `## Gates`, `## Roles`, and for pulled work `## Flow control` with the rows WIP limit,
-   Time box and Sprints. A gate's decider is a role of the model, or `` CI check `<name>` ``. The shipped catalogue lies
-   in `src/process-model/catalogue/`; an instance's own definitions in `docs/process-models/` of the instance. Reading
-   is strict: a table with other columns or a row with another number of cells is an error, never a guess. The kinds of
-   artifact a phase produces or a gate checks are an identifier prefix — `UC`, `ARC`, `MOD`, `TST`, `ITM`, `SRC`,
-   `RES`, `JOB` — standing as a word, and `requirement` where a comma-separated entry begins with *requirement* or
-   *requirements*; other words name no kind.
+   practice, and for a model what it is for — `manages`, the risk it manages well, `accepts`, the risk it accepts,
+   `suits`, a project it suits, and `chapter`, the book chapter that explains it —; then a title, an introduction, and
+   one table under each fixed heading: `## Phases`, `## Transitions`, `## Verification pairs`, `## Gates`, `## Roles`,
+   and for pulled work `## Flow control` with the rows WIP limit, Time box and Sprints. A gate's decider is a role of
+   the model, or `` CI check `<name>` ``. The shipped catalogue lies in `src/process-model/catalogue/`; an instance's
+   own definitions in `docs/process-models/` of the instance. Reading is strict: a table with other columns or a row
+   with another number of cells is an error, never a guess. The kinds of artifact a phase produces or a gate checks are
+   an identifier prefix — `UC`, `ARC`, `MOD`, `TST`, `ITM`, `SRC`, `RES`, `JOB` — standing as a word, and `requirement`
+   where a comma-separated entry begins with *requirement* or *requirements*; other words name no kind.
 2. **Validation before use.** `MOD-process-model.validateModel` names every error beside its line; a product may
    declare only a definition without errors, and each model of the shipped catalogue passes.
 3. **The participant register** is the first table of `docs/participants.md` of the instance — name, type, model,
@@ -155,7 +156,7 @@ flowchart LR
   "layer": "kernel",
   "responsibility": "Reads, validates and writes process models and practices, the instance's participant register and a product's declaration, derives the product's workflow, decides its gates from their records, and checks the Definition of Done.",
   "realises": ["THE PROCESS MODEL IS DECLARED PER PRODUCT", "THE CATALOGUE IS DATA", "THE MODEL DETERMINES THE PHASES AND THE GATES", "A PROCESS REQUIREMENT ADDS TO THE MODEL", "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "A PRACTICE IS NOT A MODEL", "A GATE NAMES WHAT IT CHECKS", "PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE", "A PARTICIPANT HAS ONE OF FIVE TYPES", "A PARTICIPANT DECLARES ITS CAPABILITIES", "A ROLE NAMES THE CAPABILITIES IT NEEDS", "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA", "A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL", "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "A GATE NAMES WHO DECIDES IT", "A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS", "THE GATE IS RECORDED", "A PRODUCT DECLARES ITS DEFINITION OF DONE", "THE DEFAULT DEFINITION OF DONE IS THE JOB RULES", "A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN", "WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET"],
-  "owns": ["Decider", "Phase", "Transition", "VerificationPair", "ModelGate", "ModelRole", "FlowControl", "ProcessModel", "Participant", "ParticipantRegister", "Restriction", "Assignability", "RoleAssignment", "Branch", "DoneCondition", "DeclaredCondition", "AddedGate", "AddedArtifact", "Declaration", "WorkflowPhase", "WorkflowGate", "WorkflowRole", "WorkflowArtifact", "Workflow", "GateRecordInput", "GateRecord", "CheckResult", "GateQuestion", "GateState", "DoneFacts", "DoneResult", "InvalidAssignment", "ModelChange", "ModelFileContent", "DeclarationFileContent", "ParticipantRow", "GateRecordFields", "ProcessModelFile", "DeclarationFile", "ParticipantRegisterFile", "GateRecordFile"],
+  "owns": ["Decider", "Phase", "Transition", "VerificationPair", "ModelGate", "ModelRole", "FlowControl", "ModelAbout", "ProcessModel", "Participant", "ParticipantRegister", "Restriction", "Assignability", "RoleAssignment", "Branch", "DoneCondition", "DeclaredCondition", "AddedGate", "AddedArtifact", "Declaration", "WorkflowPhase", "WorkflowGate", "WorkflowRole", "WorkflowArtifact", "Workflow", "GateRecordInput", "GateRecord", "CheckResult", "GateQuestion", "GateState", "DoneFacts", "DoneResult", "InvalidAssignment", "ModelChange", "ModelFileContent", "DeclarationFileContent", "ParticipantRow", "GateRecordFields", "ProcessModelFile", "DeclarationFile", "ParticipantRegisterFile", "GateRecordFile"],
   "uses": ["MOD-contracts"]
 }
 ```
@@ -178,6 +179,7 @@ flowchart LR
         "adaptedFrom": "",
         "measure": "plan entries per phase",
         "fits": [],
+        "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
         "title": "V-model",
         "intro": "Every accepted requirement passes every phase; each later phase checks an earlier one.",
         "phases": [
@@ -267,6 +269,7 @@ flowchart LR
         "adaptedFrom": "",
         "measure": "",
         "fits": ["v-model", "pulled"],
+        "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
         "title": "DevOps",
         "intro": "A release is deployed after validation, once its deployment check is green.",
         "phases": [
@@ -298,6 +301,59 @@ flowchart LR
         "lines": { "kind": 3, "measure": 1 },
         "problems": []
       }
+    },
+    {
+      "name": "a model that says what it is for",
+      "input": { "text": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" },
+      "result": {
+        "name": "kanban",
+        "kind": "pulled",
+        "adaptedFrom": "",
+        "measure": "items per state over time",
+        "fits": [],
+        "about": { "manages": "work that arrives unpredictably and must flow without long waits", "accepts": "no fixed delivery date for a set of items", "suits": "maintaining a product that receives issues every week", "chapter": "Vibe Coding, ch. 7 §4" },
+        "title": "Kanban",
+        "intro": "Work is pulled from the backlog as capacity frees up.",
+        "phases": [
+          { "name": "Backlog", "role": "Product Owner", "produces": "ITM", "kinds": ["ITM"], "line": 18 },
+          { "name": "Doing", "role": "Developers", "produces": "MOD, TST", "kinds": ["MOD", "TST"], "line": 19 },
+          { "name": "Done", "role": "Product Owner", "produces": "the merged item", "kinds": [], "line": 20 }
+        ],
+        "transitions": [
+          { "from": "Backlog", "to": "Doing", "kind": "sequence", "line": 26 },
+          { "from": "Doing", "to": "Done", "kind": "sequence", "line": 27 }
+        ],
+        "pairs": [],
+        "gates": [
+          {
+            "between": "Doing → Done",
+            "from": "Doing",
+            "to": "Done",
+            "artifacts": "MOD",
+            "kinds": ["MOD"],
+            "condition": "CI is green",
+            "decider": { "check": "tests" },
+            "line": 38
+          }
+        ],
+        "roles": [
+          {
+            "name": "Product Owner",
+            "filledBy": "person",
+            "capabilities": ["read the repository", "write to the repository"],
+            "line": 44
+          },
+          {
+            "name": "Developers",
+            "filledBy": "agent",
+            "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+            "line": 45
+          }
+        ],
+        "flow": { "wipLimit": 3, "timeBox": "", "sprints": false, "line": 47 },
+        "lines": { "kind": 3, "measure": 4 },
+        "problems": []
+      }
     }
   ]
 }
@@ -321,6 +377,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "plan entries per phase",
           "fits": [],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "V-model",
           "intro": "Every accepted requirement passes every phase; each later phase checks an earlier one.",
           "phases": [
@@ -412,6 +469,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "story points",
           "fits": [],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "Broken",
           "intro": "",
           "phases": [
@@ -481,6 +539,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "items per state over time",
           "fits": [],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "Unbounded",
           "intro": "",
           "phases": [{ "name": "Doing", "role": "Developers", "produces": "MOD", "kinds": ["MOD"], "line": 12 }],
@@ -522,6 +581,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "",
           "fits": ["v-model", "pulled"],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "DevOps",
           "intro": "A release is deployed after validation, once its deployment check is green.",
           "phases": [
@@ -555,6 +615,61 @@ flowchart LR
         }
       },
       "result": "---\nname: devops\nkind: practice\nfits: v-model, pulled\n---\n\n# DevOps\n\nA release is deployed after validation, once its deployment check is green.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Deployment | Operator | the deployed release |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Validation | Deployment | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Validation → Deployment | TST | the deployment check is green | CI check `deploy` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Operator | agent | read the repository, run code and tests |\n"
+    },
+    {
+      "name": "a model that says what it is for",
+      "input": {
+        "model": {
+          "name": "kanban",
+          "kind": "pulled",
+          "adaptedFrom": "",
+          "measure": "items per state over time",
+          "fits": [],
+          "about": { "manages": "work that arrives unpredictably and must flow without long waits", "accepts": "no fixed delivery date for a set of items", "suits": "maintaining a product that receives issues every week", "chapter": "Vibe Coding, ch. 7 §4" },
+          "title": "Kanban",
+          "intro": "Work is pulled from the backlog as capacity frees up.",
+          "phases": [
+            { "name": "Backlog", "role": "Product Owner", "produces": "ITM", "kinds": ["ITM"], "line": 18 },
+            { "name": "Doing", "role": "Developers", "produces": "MOD, TST", "kinds": ["MOD", "TST"], "line": 19 },
+            { "name": "Done", "role": "Product Owner", "produces": "the merged item", "kinds": [], "line": 20 }
+          ],
+          "transitions": [
+            { "from": "Backlog", "to": "Doing", "kind": "sequence", "line": 26 },
+            { "from": "Doing", "to": "Done", "kind": "sequence", "line": 27 }
+          ],
+          "pairs": [],
+          "gates": [
+            {
+              "between": "Doing → Done",
+              "from": "Doing",
+              "to": "Done",
+              "artifacts": "MOD",
+              "kinds": ["MOD"],
+              "condition": "CI is green",
+              "decider": { "check": "tests" },
+              "line": 38
+            }
+          ],
+          "roles": [
+            {
+              "name": "Product Owner",
+              "filledBy": "person",
+              "capabilities": ["read the repository", "write to the repository"],
+              "line": 44
+            },
+            {
+              "name": "Developers",
+              "filledBy": "agent",
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "line": 45
+            }
+          ],
+          "flow": { "wipLimit": 3, "timeBox": "", "sprints": false, "line": 47 },
+          "lines": { "kind": 3, "measure": 4 },
+          "problems": []
+        }
+      },
+      "result": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n"
     }
   ]
 }
@@ -1054,6 +1169,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "plan entries per phase",
           "fits": [],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "V-model",
           "intro": "Every accepted requirement passes every phase; each later phase checks an earlier one.",
           "phases": [
@@ -1140,6 +1256,7 @@ flowchart LR
             "adaptedFrom": "",
             "measure": "",
             "fits": ["v-model", "pulled"],
+            "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
             "title": "DevOps",
             "intro": "A release is deployed after validation, once its deployment check is green.",
             "phases": [
@@ -1391,6 +1508,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "plan entries per phase",
           "fits": [],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "Mini",
           "intro": "",
           "phases": [
@@ -1415,6 +1533,7 @@ flowchart LR
             "adaptedFrom": "",
             "measure": "",
             "fits": ["v-model", "pulled"],
+            "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
             "title": "DevOps",
             "intro": "A release is deployed after validation, once its deployment check is green.",
             "phases": [
@@ -1934,6 +2053,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "plan entries per phase",
           "fits": [],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "V-model",
           "intro": "Every accepted requirement passes every phase; each later phase checks an earlier one.",
           "phases": [
@@ -2019,6 +2139,7 @@ flowchart LR
           "adaptedFrom": "",
           "measure": "plan entries per phase",
           "fits": [],
+          "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
           "title": "V-model",
           "intro": "Every accepted requirement passes every phase; each later phase checks an earlier one.",
           "phases": [
@@ -2378,10 +2499,29 @@ flowchart LR
 
 ```json type
 {
-  "$id": "ProcessModel",
-  "description": "A process model or a practice as its file holds it: name, kind of work — planned, pulled or practice —, the model it was adapted from, its measure, the models or kinds a practice fits, title and introduction, its parts, the lines of kind and measure, and the problems found in reading.",
+  "$id": "ModelAbout",
+  "description": "What a model is for, each empty where its file does not say: the risk it manages well, the risk it accepts, a project it suits, and the book chapter that explains it.",
   "type": "object",
-  "required": ["name", "kind", "adaptedFrom", "measure", "fits", "title", "intro", "phases", "transitions", "pairs", "gates", "roles", "flow", "lines", "problems"],
+  "required": ["manages", "accepts", "suits", "chapter"],
+  "additionalProperties": false,
+  "properties": {
+    "manages": { "type": "string" },
+    "accepts": { "type": "string" },
+    "suits": { "type": "string" },
+    "chapter": { "type": "string" }
+  },
+  "examples": [
+    { "manages": "work that arrives unpredictably and must flow without long waits", "accepts": "no fixed delivery date for a set of items", "suits": "maintaining a product that receives issues every week", "chapter": "Vibe Coding, ch. 7 §4" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ProcessModel",
+  "description": "A process model or a practice as its file holds it: name, kind of work — planned, pulled or practice —, the model it was adapted from, its measure, the models or kinds a practice fits, what a model is for, title and introduction, its parts, the lines of kind and measure, and the problems found in reading.",
+  "type": "object",
+  "required": ["name", "kind", "adaptedFrom", "measure", "fits", "about", "title", "intro", "phases", "transitions", "pairs", "gates", "roles", "flow", "lines", "problems"],
   "additionalProperties": false,
   "properties": {
     "name": { "type": "string" },
@@ -2389,6 +2529,7 @@ flowchart LR
     "adaptedFrom": { "type": "string" },
     "measure": { "type": "string" },
     "fits": { "type": "array", "items": { "type": "string" } },
+    "about": { "$ref": "ModelAbout" },
     "title": { "type": "string" },
     "intro": { "type": "string" },
     "phases": { "type": "array", "items": { "$ref": "Phase" } },
@@ -2412,6 +2553,7 @@ flowchart LR
       "adaptedFrom": "",
       "measure": "",
       "fits": ["v-model", "pulled"],
+      "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
       "title": "DevOps",
       "intro": "A release is deployed after validation, once its deployment check is green.",
       "phases": [
