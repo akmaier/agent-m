@@ -5,6 +5,7 @@ area: 4 architecture
 actors:
   - Author
   - Deriving participant
+  - Reviewing participant
   - Package registry
   - Product repository
 realises:
@@ -20,6 +21,10 @@ realises:
   - MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
   - EVERY USE-CASE STEP IS CARRIED BY AN INTERFACE
   - EVERY REQUIREMENT HAS ITS PLACE IN THE ARCHITECTURE
+  - THE USE-CASE MAPPING IS REVIEWED
+  - THE ARCHITECTURE IS REVIEWED AGAINST THE SPECIFICATION
+  - NO REVIEWER IS THE DRAFTER
+  - A REVIEWER'S FINDING IS A WARNING
   - AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT
   - ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
   - THE DERIVATION RULES HOLD FOR ARCHITECTURE
@@ -50,8 +55,9 @@ realises:
 
 **Goal.** Agent M turns the product's accepted requirements and use cases into architecture decisions so precise that
 module skeletons, interface documentation, sample input files and one failing test per example can be generated from
-them without a model. The deriving participant corrects every finding of the architecture checks before the author
-sees a draft; the author accepts decision by decision.
+them without a model. Before the author sees a draft, it passes two kinds of check: checks without a model, of its form
+and completeness, and a review by a second participant, of whether the architecture carries out every use case and
+keeps every requirement. The deriving participant corrects what both find; the author accepts decision by decision.
 
 Architecture is "the fundamental organization of a system, embodied in its components, their relationships … and the
 principles guiding its design and evolution" (book ch. 10 §1, after IEEE 1471). In Agent M every part of it stands in
@@ -71,6 +77,8 @@ an architecture decision, one file `docs/architecture/ARC-<nnn>-<slug>.md`:
 - **Author** — decides which decisions are proposed, and which library is chosen.
 - **Deriving participant** — a model endpoint or agent from the instance's list (UC-017) that drafts the decisions and
   corrects them until the checks pass.
+- **Reviewing participant** — another model endpoint or agent from the instance's list, using another model, that checks
+  whether the draft carries out every use-case step and keeps every requirement.
 - **Package registry** — npm, PyPI, crates.io, Maven Central or the candidate's source repository; supplies the facts
   for the due diligence.
 - **Product repository** — receives the proposals.
@@ -78,7 +86,7 @@ an architecture decision, one file `docs/architecture/ARC-<nnn>-<slug>.md`:
 ## Precondition
 
 - The product has accepted requirements and accepted use cases (UC-006, UC-008).
-- At least one participant that can *draft text* is configured (UC-017).
+- At least two participants that can *draft text* and use different models are configured (UC-017).
 
 ## Main flow
 
@@ -86,17 +94,19 @@ an architecture decision, one file `docs/architecture/ARC-<nnn>-<slug>.md`:
    existing decisions with the modules they design, and — preselected — the requirements and use cases that no decision
    covers yet. A folded **What is this?** explains decisions, modules, interfaces and types with the table above and
    points to book ch. 10.
-2. The author adjusts the selection and chooses the deriving participant. Agent M offers only participants that can
-   *draft text*, shows where each processes data, and leaves out any whose place a linked source forbids for content
-   that would be sent.
+2. The author adjusts the selection and chooses the deriving participant and the reviewing participant. Agent M offers
+   only participants that can *draft text*, shows where each processes data, and leaves out any whose place a linked
+   source forbids for content that would be sent; as reviewer it offers only participants that are not the deriving one
+   and use another model.
 3. Agent M assembles the input: the selected requirements and use cases, **every existing decision of the product** —
    accepted and open —, the product's process requirements, and, from the single definition, the architecture prompt
    with the method of step 5, the book's principles (ch. 10 §3: divide and conquer, design to test, KISS, YAGNI, DRY,
    least astonishment, open-closed, interfaces before implementations) and its pattern families (ch. 10: layers,
-   pipe-and-filter, repository, plug-in, client-server, broker, service orientation). It checks that the input fits
-   the participant's context.
-4. The run panel shows the destination, what is sent, and how many existing decisions are included; the author presses
-   **Run** — that click is the decision.
+   pipe-and-filter, repository, plug-in, client-server, broker, service orientation). For the reviewer it assembles the
+   selected requirements and use cases and, from the single definition, the review prompt. It checks that each input
+   fits its participant's context.
+4. The run panel shows both destinations, what is sent to each, and how many existing decisions are included; the
+   author presses **Run** — that click is the decision.
 5. The participant drafts by this method:
    1. **Operations from use cases.** For every step of every selected use case — main flow and alternative flows — it
       names the operation that carries the step out, the data the step reads and writes, and the actor's action that
@@ -117,16 +127,28 @@ an architecture decision, one file `docs/architecture/ARC-<nnn>-<slug>.md`:
    **change** of a named existing decision, **duplicate** of one, or **conflict** with one.
 6. **Checks and corrections, before the author sees anything.** Candidates of this run that say the same are merged,
    and a candidate whose name or normalised text equals an existing decision is a duplicate without a model (as in
-   UC-005 step 6). Agent M then runs the architecture checks on every candidate, without a model:
-   - errors — a parameter, result or refusal without a type; a type used but defined nowhere, or defined twice; a type
-     without a sample, or a sample that does not conform to it; an interface without an example, or an example that
-     does not conform to its types; a requirement, use case, decision, module, interface or type that does not
-     resolve; a dependency cycle between modules;
-   - warnings — a use-case step that no interface carries; a requirement without a place.
+   UC-005 step 6). Every candidate then passes two kinds of check:
+   1. **Without a model**, of form and completeness:
+      - errors — a parameter, result or refusal without a type; a type used but defined nowhere, or defined twice; a
+        type without a sample, or a sample that does not conform to it; an interface without an example, or an example
+        that does not conform to its types; a requirement, use case, decision, module, interface or type that does not
+        resolve; a dependency cycle between modules;
+      - warnings — a use-case step that no interface carries; a requirement without a place.
+   2. **By the reviewing participant**, of consistency, once a candidate has no error left. It receives the candidate
+      with the selected requirements and use cases, and checks:
+      - for every use-case step, that the interfaces named for it carry the step out — with the inputs the step needs,
+        the results it produces and the refusals it can meet — and that the step's sequence of calls reaches its
+        postcondition;
+      - for every requirement, that the module or decision the candidate places it with keeps it: an interface, a type
+        or a decision that enforces the rule, not only names it.
 
-   Each finding goes back to the participant as a compiler-like message; the participant fixes every error and fixes or
+      Each finding of the reviewer names the step or requirement, the interfaces or decision concerned, and what does
+      not fit; it is a warning.
+
+   Every finding goes back to the deriving participant as a compiler-like message; it fixes every error and fixes or
    justifies every warning, until no finding is left, the round limit is reached, or a round leaves the findings
-   unchanged. Conflicts are not sent back. Agent M then assigns `ARC-<nnn>` to new decisions.
+   unchanged. After each correction the checks of 6.1 run again, and the review of 6.2 again on a candidate without
+   errors. Conflicts are not sent back. Agent M then assigns `ARC-<nnn>` to new decisions.
 7. **The due diligence.** For every reuse candidate and each alternative, Agent M reads from the package registry and the
    source repository: whether the package exists, its licence, the dates of its releases, its open and closed issues,
    and its adoption (dependents or downloads). Each fact is stored with the address it was read from and the date
@@ -135,7 +157,8 @@ an architecture decision, one file `docs/architecture/ARC-<nnn>-<slug>.md`:
 8. The review panel shows the candidates grouped by class, each beside the existing decision it refers to; the
    realisation — every use-case step with the interfaces that carry it; the place of every requirement; the reuse
    candidates side by side in a due-diligence table; a component diagram computed from the modules' dependencies; and
-   the rounds, with any finding left after the last one. The author may move a candidate to another class, resolve
+   the rounds, with any finding left after the last one and every warning the deriving participant answered with a
+   justification, beside the reviewer's finding it answers. The author may move a candidate to another class, resolve
    conflicts, pick a different alternative for a reuse decision, or drop a candidate.
 9. The author presses **Write proposals** — one click. Agent M commits to the product's default branch, where each
    file is open:
@@ -155,6 +178,7 @@ sequenceDiagram
     actor A as Author
     participant M as Agent M
     participant P as Deriving participant
+    participant V as Reviewing participant
     participant R as Package registry
     participant G as Product repository
     A->>M: Architecture, select requirements and use cases, choose participant
@@ -164,9 +188,11 @@ sequenceDiagram
     M->>P: selection, existing architecture, method, principles
     P-->>M: decisions with modules, interfaces, types, realisation
     loop until no finding, the round limit, or no change
-        M->>M: merge, exact duplicates, architecture checks
-        M->>P: findings as compiler messages
-        P-->>M: corrected draft
+        M->>M: merge, exact duplicates, checks without a model
+        M->>V: draft without errors, requirements, use cases
+        V-->>M: findings: steps not carried out, requirements not kept
+        M->>P: all findings as compiler messages
+        P-->>M: corrected draft, justified warnings
     end
     M->>R: look up each reuse candidate and alternative
     R-->>M: existence, licence, releases, issues, adoption
@@ -180,7 +206,9 @@ sequenceDiagram
 
 - **1a. The product has no accepted requirements or no accepted use cases.** Agent M says which, and links to UC-006
   and UC-008; nothing is derived from open artifacts.
-- **3a. The input does not fit into the participant's context.** Nothing is sent. Agent M says how many decisions exist
+- **2a. No participant qualifies as reviewer.** **Run** stays disabled and names the reason: no other participant that
+  can *draft text*, none with another model, or none whose place the content may go to.
+- **3a. The input does not fit into a participant's context.** Nothing is sent. Agent M says how many decisions exist
   and how much fits, and offers a participant with a larger context or a smaller selection; it never leaves existing
   architecture out silently.
 - **4a. The author does not press Run.** Nothing is sent.
@@ -191,6 +219,8 @@ sequenceDiagram
   (ch. 10 §3); the author decides.
 - **6a. Findings are left after the last round.** The draft is shown with each finding left, in the compiler form; the
   author decides whether to write it, change it on the dashboard, or drop it.
+- **6b. The reviewer's answer cannot be read.** It counts as a review not done, never as one without findings; Agent M
+  asks again within the round limit, and if no answer can be read the draft is shown marked *not reviewed*.
 - **7a. A reuse candidate is not found in its registry.** It is not proposed. The panel lists it as "not found — the
   name may be invented", with the address that was queried.
 - **7b. The registry cannot be read from the browser.** Agent M names the reason and offers a participant that can
@@ -209,6 +239,7 @@ sequenceDiagram
 
 - The product repository holds one open file per proposed decision under `docs/architecture/`; nothing counts as
   accepted before a person accepts it.
-- Every proposed decision passed the architecture checks, or is shown with the findings left after the last round.
+- Every proposed decision passed the checks without a model and the review, or is shown with the findings left after
+  the last round.
 - No proposal duplicates an existing decision: changes stand under their existing identifiers.
 - Every reuse decision carries a due diligence whose facts name where and when they were read.
