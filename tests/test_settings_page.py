@@ -84,7 +84,7 @@ class TestedAndCleared(unittest.TestCase):
         refused = js("return { [store.TOKEN_KEY]: '" + SECRET + "', [store.TOKEN_TEST_KEY]: JSON.stringify({ refused: true }) };")
         self.assertIn('<p class="state">✗ refused — GitHub did not accept it at the last use</p>', page(refused))
         # Counter-proof: without a kept test the line says so.
-        self.assertIn('<p class="state">stored — not tested on this page yet</p>', page({"agent-m.github-token": SECRET}))
+        self.assertIn('<p class="state">stored — not tested yet</p>', page({"agent-m.github-token": SECRET}))
 
     def test_counter_proof_a_row_without_clear_is_seen(self):
         body = '<div class="setting" data-setting-row="x"><button data-test="x">Test</button></div><!--/setting-->'

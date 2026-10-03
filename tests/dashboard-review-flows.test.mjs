@@ -483,7 +483,8 @@ test("UC-006 4d counter-proof: the dependent entry ticked alone cannot be accept
 // ================================================================ UC-001 Add a managed product
 
 const PRODUCT = "alice/thesis", PRODUCT_ADDR = `https://github.com/${PRODUCT}`;
-const LAYOUT = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"];
+const LAYOUT = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/architecture/README.md", "docs/spec-freigaben/README.md",
+  "docs/use-cases/README.md"];
 const stored = (key) => globalThis.localStorage.getItem(key);
 
 // The product's repository, a second server behind the instance's: GitHub's API under /repos/alice/thesis goes to it.
@@ -523,8 +524,8 @@ test("UC-001 main flow: Step A names the token, the product and the instance; Ch
   // Step C · Add the product.
   await press(srv, dom.byId("add-go"));
   assert.equal(ps.writes.length, 1, "one commit into the product");
-  assert.deepEqual(Object.keys(ps.writes[0].files).sort(), ["CHANGELOG.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md"],
-    "only what is missing — the product's own SPEC and use cases are kept");
+  assert.deepEqual(Object.keys(ps.writes[0].files).sort(), ["CHANGELOG.md", "docs/approvals/README.md", "docs/architecture/README.md",
+    "docs/spec-freigaben/README.md"], "only what is missing — the product's own SPEC and use cases are kept");
   assert.equal(ps.writes[0].message, "Add the Agent M review layout (Agent M dashboard)");
   assert.equal(ps.files["SPEC.md"], "# Thesis — its own SPEC\n");
   assert.deepEqual(srv.writes, [], "nothing is written into the instance");
@@ -797,7 +798,7 @@ test("UC-042 step 1: one page — each browser setting is a line with its state,
   assert.match(html, /<h3>Before you store anything<\/h3>[^]*every other GitHub Pages site of akmaier is served from the same address/i);
   assert.deepEqual([...browser.matchAll(/data-setting-row="([^"]+)"/g)].map((m) => m[1]),
     ["github-token", "products", "gitlab-tokens", "jump-host", "remote-sessions"]);
-  assert.match(browser, /<p class="state">stored — not tested on this page yet<\/p>/);
+  assert.match(browser, /<p class="state">stored — not tested yet<\/p>/);
   assert.match(browser, /<input class="secret" type="password" readonly value="github_pat_HARNESS0123456789abcdefghij"/);
   assert.match(browser, /data-show="agent-m\.github-token">Show</);
   for (const b of ["data-test", "data-change", "data-clear"]) assert.ok(browser.includes(`${b}="agent-m.github-token"`), b);

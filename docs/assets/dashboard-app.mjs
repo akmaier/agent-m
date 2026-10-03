@@ -33,6 +33,7 @@ import {
   parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
 } from "./review-core.mjs";
 import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
+import { fillProgressBar, onMainPage } from "./dashboard/progress-bar.mjs";
 
 
 // ---------------------------------------------------------------- the views and the settings sections (one table)
@@ -491,6 +492,8 @@ async function route() {
   routeSeq += 1;
   const [kind, a, b] = location.hash.replace(/^#/, "").split("/");
   markTab(kind === "review" ? a : kind);
+  // The progress bar stands on the main page only (ITM-162): away from it, its slot is emptied at once.
+  if (!onMainPage(kind, a)) fillProgressBar(app, { kind, a });
   // The views of the repository read what they show first.
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
@@ -506,6 +509,8 @@ async function route() {
       linkStylesheet(uc.stylesheet);
       await uc.routes.uc(app);
     }
+    // The progress bar of the product's completion, above the view — filled after it, on the main page only (ITM-162).
+    await fillProgressBar(app, { kind, a });
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
     const gl = gitlabShown();
     document.getElementById("token-banner").innerHTML = (ghToken()

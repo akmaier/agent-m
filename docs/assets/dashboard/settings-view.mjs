@@ -137,7 +137,7 @@ function tokenStateLine(token, expires, tested, now, server = "GitHub") {
   const w = expiryWarning(expires, now);
   if (w) return `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(expires)}`;
   if (tested?.ok) return `✓ works — tested ${esc(tested.ok)}`;
-  return "stored — not tested on this page yet";
+  return "stored — not tested yet";
 }
 
 // The browser section: one row per setting, each with Test and Clear (A BROWSER SETTING IS TESTED AND
@@ -186,7 +186,7 @@ export function browserSettingsHtml({ entries = {}, shown = [], now = new Date()
     const st = t.tested;
     const w = ok ? expiryWarning(t.expires, now, p) : null;
     const state = st?.refused ? `✗ refused — ${esc(ok ? p.host : "the server")} did not accept it at the last use`
-      : w ? `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(t.expires)}` : st?.ok ? `✓ works — tested ${esc(st.ok)}` : "stored — not tested on this page yet";
+      : w ? `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(t.expires)}` : st?.ok ? `✓ works — tested ${esc(st.ok)}` : "stored — not tested yet";
     return `<div class="gitlab-token">
       <p><strong>${esc(a)}</strong> — <span class="state">${state}</span></p>
       <p>${secretFieldHtml({ key: showKey, value: t.token, shown: shown.includes(showKey), label: `Stored GitLab project token for ${a}` })}</p>
@@ -240,7 +240,7 @@ export function browserSettingsHtml({ entries = {}, shown = [], now = new Date()
     try { cmds = jump && !jumpBad ? tunnelCommands(jump, s) : null; } catch { cmds = null; }
     const showKey = `${K_SESSIONS} ${s.name}`, st = sessionTest(s.tested);
     const state = st?.up ? `✓ something answered at localhost:${esc(s.port)} — tested ${esc(st.up)}`
-      : st?.down ? `✗ nothing answered at localhost:${esc(s.port)} — start both commands` : "not tested on this page yet";
+      : st?.down ? `✗ nothing answered at localhost:${esc(s.port)} — start both commands` : "not tested yet";
     const copy = (c) => `<pre class="cmd">${esc(c)}</pre><button class="btn small" data-copy="${esc(c)}">Copy</button>`;
     return `<div class="remote-session">
       <p><strong>${esc(s.name)}</strong> — port ${esc(s.port)} on the jump host · bridge port ${esc(s.bridgePort)} · <span class="state">${state}</span></p>

@@ -1,17 +1,20 @@
 # Module: MOD-dashboard-app
 # Guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 # Level: component
-"""SPEC §13 PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — for the item states of the Backlog tab (ITM-147); the job states
-are checked here by ITM-085.
+"""SPEC §13 PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — for the item states of the Backlog tab (ITM-147) and the progress
+bar on the main page (ITM-162); the job states are checked here by ITM-085.
 
 Everything the process dashboard shows is computed from the repositories and the runtimes. In the app harness
 (tests/app-harness.mjs), the real dashboard shows the Backlog tab of a fixture product with a sprint, an order, three items
 and a fake of GitHub's pulls API; then all local storage and the cached file texts are deleted and the page is loaded again:
 it shows the same board and the same item states. Counter-proof: a state planted into local storage changes nothing shown.
+The same for the bar beside the board: the main page of the same product, loaded again after deleting all local storage and the
+cached file texts, shows the same bar with the same counts; counts planted into local storage change nothing shown.
 
 The page runs in node, asked from here; node reads every file itself (never through the command line, whose length Linux
 limits). Counter-proofs: docs/measurements/2026-10-01_backlog-tab.md.
 """
+import functools
 import json
 import subprocess
 import unittest
@@ -61,15 +64,28 @@ const first = await openDashboard({ server: await server(), hash: "#backlog", ca
 const kept = await openDashboard({ server: await server(), hash: "#backlog", caches });
 const cleared = await openDashboard({ server: await server(), hash: "#backlog", caches: fakeCaches(), token: null });
 const withState = await withPlanted(planted, async () => openDashboard({ server: await server(), hash: "#backlog", caches }));
+// The bar on the main page (the address without a fragment), in its slot outside <main>, and the numbers it carries.
+const bar = (page) => page.el("progress-bar");
+const numbers = (html) => Object.fromEntries([...html.matchAll(/\sdata-(total|done|in-progress|blocked|not-started|percent-done)="(\d+)"/g)]
+  .map((m) => [m[1], Number(m[2])]));
+const barCaches = fakeCaches();
+const barFirst = await openDashboard({ server: await server(), hash: "", caches: barCaches });
+const barKept = await openDashboard({ server: await server(), hash: "", caches: barCaches });
+const barCleared = await openDashboard({ server: await server(), hash: "", caches: fakeCaches(), token: null });
+const barPlanted = await withPlanted(planted, async () => openDashboard({ server: await server(), hash: "", caches: barCaches }));
 const out = { first: first.main(), kept: kept.main(), cleared: cleared.main(), planted: withState.main(), states: states(first.main()),
-  plantedStates: states(withState.main()) };
+  plantedStates: states(withState.main()),
+  bar: { first: bar(barFirst), kept: bar(barKept), cleared: bar(barCleared), planted: bar(barPlanted), numbers: numbers(bar(barFirst)),
+    plantedNumbers: numbers(bar(barPlanted)) } };
 process.stdout.write(JSON.stringify(out));
 """
 
-PLANTED = {k: json.dumps({"ITM-001": "done", "ITM-002": "blocked", "ITM-003": "ready"})
-           for k in ["agent-m.item-states", "agent-m.backlog", "agent-m.board", "agent-m.sprint", "agent-m.progress"]}
+PLANTED = {k: json.dumps({"ITM-001": "done", "ITM-002": "blocked", "ITM-003": "ready", "total": 99, "done": 99, "percent": 100})
+           for k in ["agent-m.item-states", "agent-m.backlog", "agent-m.board", "agent-m.sprint", "agent-m.progress",
+                     "agent-m.progress-bar"]}
 
 
+@functools.lru_cache(maxsize=None)
 def run_page() -> dict:
     code = (SCRIPT.replace("__HARNESS__", json.dumps((TESTS / "app-harness.mjs").as_uri()))
             .replace("__MODEL__", json.dumps(str(TESTS / "fixtures" / "flow" / "scrum-wip.md")))
@@ -97,6 +113,28 @@ class ItemStatesAreDerived(unittest.TestCase):
         self.assertEqual(len(self.page["plantedStates"]), 3, "the board is shown with the state planted")
         self.assertEqual(self.page["planted"], self.page["first"])
         self.assertEqual(self.page["plantedStates"], self.page["states"])
+
+
+class TheBarIsDerived(unittest.TestCase):
+    """The progress bar beside the board (ITM-162): the same product's main page."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.bar = run_page()["bar"]
+
+    def test_the_bar_shows_the_derived_counts(self):
+        self.assertEqual(self.bar["numbers"], {"total": 3, "done": 1, "in-progress": 1, "blocked": 0, "not-started": 1,
+                                               "percent-done": 33})
+
+    def test_deleting_local_storage_and_the_cached_texts_shows_the_same_bar(self):
+        self.assertIn("data-progress-bar", self.bar["first"])
+        self.assertEqual(self.bar["kept"], self.bar["first"], "a load from the kept texts")
+        self.assertEqual(self.bar["cleared"], self.bar["first"], "a load after deleting local storage and the kept texts")
+
+    def test_counter_proof_counts_planted_into_local_storage_change_nothing_shown(self):
+        self.assertIn("data-progress-bar", self.bar["planted"], "the bar is shown with the counts planted")
+        self.assertEqual(self.bar["planted"], self.bar["first"])
+        self.assertEqual(self.bar["plantedNumbers"], self.bar["numbers"])
 
 
 if __name__ == "__main__":
