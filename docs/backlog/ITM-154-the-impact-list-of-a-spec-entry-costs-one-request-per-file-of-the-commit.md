@@ -99,3 +99,7 @@ Further:
 **Yes — `akmaier`:** the way (above) — a CI-derived index of the commit, or a read added to MOD-git-host's interface — is a
 reading of `THE TRACEABILITY MATRIX IS DERIVED` and ARC-006, or a change to an accepted module (`docs/process.md`, *Boundary*).
 The item waits until then.
+
+## Decided by akmaier, 2026-10-03
+
+Way (a): a CI-derived index per commit, read in one request and checked against the commit shown. akmaier: "of course this counts as derived" (`THE TRACEABILITY MATRIX IS DERIVED`). The item no longer needs a person; the Product Owner cuts it at the next planning.

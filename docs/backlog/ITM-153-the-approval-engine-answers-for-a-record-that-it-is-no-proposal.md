@@ -97,3 +97,7 @@ path of no reviewed kind (proposed `"record"`), accepted by an approval record u
 views (`review-views.mjs`, `spec-changes-view.mjs`) and `tests/status-by-names.test.mjs`, all of which hand it use cases,
 decisions, modules or SPEC entries, so their expectations hold. The release test file lies on `sprint/02` until that sprint
 is merged; this item starts from a `main` that holds it.
+
+## Decided by akmaier, 2026-10-03
+
+Yes: `deriveStatus` gains the value `"record"` for a path of no reviewed kind (job, gate, approval, test result record). The interface line of `docs/architecture/MOD-review-core.md` is changed accordingly and waits for akmaier's acceptance on the dashboard; this item is ready once that approval record exists (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`).
