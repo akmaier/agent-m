@@ -226,7 +226,7 @@ test("release · Backlog tab: an item realising a use case changed since its acc
   const waits = SELECTION.filter((id) => expectedState(id) === "ready" && ITEMS.get(id).realises.includes("UC-033")).sort();
   assert.ok(waits.length > 0, "a ready item of the sprint realises UC-033");
   const expected = Object.fromEntries(STATES.map((s) => [s, EXPECTED_BOARD[s].filter((id) => !waits.includes(id))]));
-  expected["waiting for acceptance"] = waits;
+  expected["waiting for acceptance"] = [...EXPECTED_BOARD["waiting for acceptance"], ...waits].sort();
   assert.deepEqual(boardOf(html).columns, expected);
   for (const id of waits) assert.match(text(card(html, id)), /UC-033/, `${id}: names UC-033`);
 });
