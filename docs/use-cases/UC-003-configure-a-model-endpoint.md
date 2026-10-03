@@ -60,7 +60,7 @@ sequenceDiagram
   through the bridge.
 - **4b. The key is wrong.** Agent M shows the endpoint's error message; the key stays stored until
   the author changes or clears it.
-- **6. The author clears the configuration.** Agent M removes the entries from `localStorage`,
+- **2b. The author clears the configuration.** Agent M removes the entries from `localStorage`,
   not only from the form, and confirms that nothing is stored.
 
 ## Postcondition
