@@ -11,9 +11,9 @@
 // exist (tests/status-by-names.test.mjs, tests/architecture.test.mjs, tests/review-core.test.mjs): the round trip from the
 // engine's own acceptance commit (planAcceptance) to the status the engine then derives from the tree (recordIndex,
 // statusByNames, specStatusByNames) — a file counts as accepted because the record the engine wrote names its text, and only
-// that text — and how the engine treats a record that is no reviewed file. Two cases fail on the current code; they are
-// marked { todo } with their finding and stay red until the finding is decided
-// (docs/measurements/2026-10-01_approval-gates-counter-proofs.md).
+// that text — and how the engine treats a record that is no reviewed file. One case fails on the current code (G1); it is
+// marked { todo } with its finding and stays red until the finding is decided
+// (docs/measurements/2026-10-01_approval-gates-counter-proofs.md); G2 was closed by ITM-152.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ import * as core from "../../docs/assets/review-core.mjs";
 import { reviewedId } from "../../docs/assets/artifacts.mjs";
 
 const { gitBlobSha, parseRecord, recordIndex, statusByNames, specStatusByNames, parseQueueIndex, parseDecisions, planAcceptance,
-  sectionForEntry, deriveReviewedStatus, reviewedRecord, reviewPage } = core;
+  sectionForEntry, deriveReviewedStatus, reviewedRecord, useCaseRecord, reviewPage } = core;
 
 const FIX = fileURLToPath(new URL("../fixtures/gates/", import.meta.url));
 function fixture() {
@@ -178,10 +178,9 @@ test("A RECORD IS EVIDENCE, NOT A PROPOSAL — a job record without approval is 
 
 // A RECORD IS EVIDENCE, NOT A PROPOSAL — an acceptance commit holds no approval record for a record. Expected: an acceptance
 // that names a job record — under the kind the views give a use case — writes nothing and names the job record as left out.
-// FINDING G2: planAcceptance takes the kind of a ticked file from the item, not from its path, and writes
-// `kind: use-case` / `file: docs/jobs/JOB-….md` as an approval record.
-test("A RECORD IS EVIDENCE, NOT A PROPOSAL — an acceptance that names a job record writes no approval record",
-  { todo: "FINDING G2 — planAcceptance writes an approval record (kind: use-case, file: docs/jobs/JOB-….md) for a job record handed to it as a use case; the kind is taken from the item, not from the path" }, async () => {
+// Finding G2 of ITM-014 (planAcceptance took the kind of a ticked file from the item, not from its path, and wrote
+// `kind: use-case` / `file: docs/jobs/JOB-….md` as an approval record), closed by ITM-152.
+test("A RECORD IS EVIDENCE, NOT A PROPOSAL — an acceptance that names a job record writes no approval record", async () => {
     const t0 = fixture();
     const jobItem = { kind: "use-case", id: "JOB-20261001-0900-a1b2", path: JOB, blob: await gitBlobSha(t0[JOB]) };
     let plan;
@@ -189,3 +188,39 @@ test("A RECORD IS EVIDENCE, NOT A PROPOSAL — an acceptance that names a job re
     assert.deepEqual(plan.files, [], "no approval record for a job record");
     assert.deepEqual(plan.leftOut.map((l) => l.label), [jobItem.id]);
   });
+
+// A RECORD IS EVIDENCE, NOT A PROPOSAL · UC-008 (the commit of step 4 holds records of reviewed files only) — ITM-152. Expected:
+// handed a job record, a gate record, an approval record and a test result record — under the kind a view gives a use case, and
+// one of them under the kind of a decision — beside the fixture's use case, the engine's acceptance commit holds exactly one
+// file, the use case's record naming the text shown; the four records are left out, each under its label and with a reason,
+// and no file of the commit names any of them. Counter-proof: the use case in the same call is written as it is alone.
+test("A RECORD IS EVIDENCE, NOT A PROPOSAL — an acceptance handed a job, gate, approval or test result record leaves each out with its reason; counter-proof: a use case in the same call is written", async () => {
+  const GATE = "docs/jobs/JOB-20261001-0900-a1b2/gates/G-1.md", APPROVAL = "docs/approvals/UC-001-0123456789ab.md";
+  const RESULT = "docs/test-results/2026-10-01_a7b4b9f.md";
+  const t0 = { ...fixture(), [GATE]: "# G-1\n\npassed\n", [APPROVAL]: "kind: use-case\nfile: x\nblob: y\n", [RESULT]: "# 2026-10-01\n\nall green\n" };
+  const rec = async (kind, id, path) => ({ kind, id, path, blob: await gitBlobSha(t0[path]), requires: [] });
+  const records = [await rec("use-case", "JOB-20261001-0900-a1b2", JOB), await rec("architecture-decision", "G-1", GATE),
+    await rec("use-case", "UC-001-0123456789ab", APPROVAL), await rec("use-case", "2026-10-01_a7b4b9f", RESULT)];
+  const ucItem = await item(t0, UC);
+  const alone = (await accept(t0, [ucItem])).plan;
+  const { plan } = await accept(t0, [records[0], ucItem, ...records.slice(1)]);
+  assert.deepEqual(plan.files, alone.files, "counter-proof: the use case is written as it is alone");
+  assert.equal(plan.files.length, 1);
+  assert.deepEqual(parseRecord(plan.files[0].content), { kind: "use-case", file: UC, blob: ucItem.blob });
+  assert.deepEqual(plan.accepted, ["UC-001"]);
+  assert.deepEqual(plan.leftOut.map((l) => l.label), records.map((r) => r.id));
+  for (const l of plan.leftOut) assert.ok(String(l.reason ?? "").trim(), `${l.label}: named with its reason`);
+  for (const r of records) assert.deepEqual(plan.files.filter((f) => f.content.includes(r.path)), [], `${r.path}: no file names it`);
+});
+
+// A RECORD IS EVIDENCE, NOT A PROPOSAL — ITM-152: the record of a use case is made for a use case only, as reviewedRecord refuses
+// a path that is no reviewed file. Expected: useCaseRecord throws, naming the path, for a job record, a gate record, an approval
+// record, a test result record, an architecture decision and a module; counter-proof: for the use case it returns its record.
+test("A RECORD IS EVIDENCE, NOT A PROPOSAL — useCaseRecord refuses a path that is no use case; counter-proof: a use case gets its record", async () => {
+  const blob = await gitBlobSha("x\n");
+  for (const path of [JOB, "docs/jobs/JOB-20261001-0900-a1b2/gates/G-1.md", "docs/approvals/UC-001-0123456789ab.md",
+    "docs/test-results/2026-10-01_a7b4b9f.md", ARC, MOD]) {
+    assert.throws(() => useCaseRecord(path, blob), new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} is not a use case`), path);
+  }
+  assert.deepEqual(useCaseRecord(UC, blob), { kind: "use-case", file: UC, blob });
+});

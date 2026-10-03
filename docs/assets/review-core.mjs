@@ -34,7 +34,10 @@ export async function gitBlobSha(text) {
 const UC_KEYS = ["kind", "file", "blob"];
 const SPEC_KEYS = ["kind", "queue", "entry", "proposal", "blob", "target", "anchor", "section"];
 
+// A RECORD IS EVIDENCE, NOT A PROPOSAL: the record of a use case is made for a use case only, as reviewedRecord refuses a path
+// that is no reviewed file.
 export function useCaseRecord(file, blob) {
+  if (kindOfPath(file) !== "use-case") throw new Error(`${file} is not a use case (docs/use-cases/UC-<nnn>-<slug>.md)`);
   return { kind: "use-case", file, blob };
 }
 
@@ -481,6 +484,9 @@ export async function planAcceptance({ items, read, now = new Date() }) {
   const get = async (p) => { if (!texts.has(p)) texts.set(p, await read(p)); return texts.get(p); };
   const out = (it, reason) => leftOut.push({ label: itemLabel(it), reason });
   for (const it of items.filter((x) => x.kind !== "spec")) {
+    // A RECORD IS EVIDENCE, NOT A PROPOSAL: a path of none of the three reviewed kinds — a job, gate, approval or test result
+    // record, or any other file — gets no approval record, whatever kind the item claims.
+    if (!kindOfPath(it.path)) { out(it, "it is no use case, architecture decision or module — a record is evidence and is never accepted"); continue; }
     const text = await get(it.path);
     if (text === null) { out(it, "the file no longer exists"); continue; }
     if (await gitBlobSha(text) !== it.blob) { out(it, "the file changed after it was shown — open it again"); continue; }
