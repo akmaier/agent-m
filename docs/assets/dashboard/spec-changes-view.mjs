@@ -8,7 +8,9 @@
 import {
   gitBlobSha, specRecord, approvalPath, parseQueueIndex, parseDecisions, sectionForEntry, specStatusByNames, needsMessage,
 } from "../review-core.mjs";
-import { h, badge, counts, tickCell, tickBox, batchBar, acceptPanel, editPanel, wireAccept, wireCommon } from "./review-views.mjs";
+import {
+  h, badge, counts, tickCell, tickBox, batchBar, acceptPanel, editPanel, wireAccept, wireCommon, productSpecTokenNeeded,
+} from "./review-views.mjs";
 import { linkGraph, requirementImpact } from "../traceability.mjs";
 import { ARCHITECTURE_FILE, isCodePath, isTestPath } from "../artifacts.mjs";
 
@@ -77,13 +79,15 @@ const specAcceptable = (e) => Boolean(!e.error && e.proposalPath && ["open", "st
 // page. A queue whose entries are all accepted is named with their number and opened on request: only then are its proposals
 // read, to show whether each still stands in the SPEC.
 async function viewSpec(app, open = null) {
-  const { GITLAB, session, openQueues, main } = app;
+  const { T, GITLAB, session, openQueues, main } = app;
   const seq = app.seq();
   if (open) openQueues.add(open);
   const queues = await Promise.all((await queueHeads(app)).map(async (q) =>
     ({ ...q, entries: q.accepted && !openQueues.has(q.name) ? null : await queueEntries(app, q) })));
   if (seq !== app.seq()) return;
   const all = queues.flatMap((q) => q.entries || []);
+  // UC-006 4c: without a token, a product's SPEC change is not accepted through GitHub's page — no product carries the workflow.
+  const productSpec = !app.token() && !GITLAB && T.repo !== T.instance;
   const folded = queues.filter((q) => !q.entries), foldedEntries = folded.reduce((n, q) => n + q.idx.entries.length, 0);
   main().innerHTML = `
     <section class="head"><h2>SPEC changes</h2><p>${counts(all)}${folded.length ? ` · ${foldedEntries} accepted
@@ -91,7 +95,9 @@ async function viewSpec(app, open = null) {
     <p class="muted">Each entry proposes the text of one SPEC section. ${app.token()
       ? "Accepting it commits the approval and writes the proposal into the SPEC byte for byte, in one commit."
       : GITLAB ? `Accepting on GitLab needs this project's token — <a href="${h(app.tokenStepLink())}">store it</a>.`
-      : "Accept it here; the workflow writes it into <code>SPEC.md</code> byte for byte once your approval commit arrives."}</p></section>
+      : productSpec ? ""
+      : "Accept it here; the workflow writes it into <code>SPEC.md</code> byte for byte once your approval commit arrives."}</p>
+    ${productSpec ? productSpecTokenNeeded(app, "Accepting") : ""}</section>
     ${batchBar(app)}
     ${queues.map((q) => !q.entries ? `
       <section class="queue closed" id="queue-${h(q.name)}">

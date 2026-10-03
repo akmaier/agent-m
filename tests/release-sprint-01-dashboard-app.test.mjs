@@ -895,7 +895,7 @@ test("release · UC-006 4b: without a token, Accept and Edit open GitHub's pages
 // product's SPEC change without a token, the dashboard offers no GitHub page that would commit an approval record nothing will
 // ever apply, and says that accepting needs a token.
 test("release · UC-006 4c: a product's SPEC change without a token is not offered GitHub's page; a token is required",
-  { todo: "FINDING R2 — a product's SPEC entry without a token offers GitHub's new-file page, as for the instance (backlog item to be added by the Product Owner)" }, async () => {
+  async () => {
     const product = await productServer({ files: { "SPEC.md": SPEC, ...queue(Q, "2026-01-01a · wording", [["01", "## 2. More"]], { [`${Q}/01-rule-two.md`]: PROPOSAL }) } });
     const w = await world({ product });
     const page = await open(w, { token: null, search: `?repo=${PRODUCT}`, hash: ENTRY });
