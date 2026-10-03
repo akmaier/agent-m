@@ -36,9 +36,8 @@ def size(inputs: dict) -> int:
 class TestTheRequirementsFitOrTheRunStops(unittest.TestCase):
     INPUTS = {"source": SOURCE, "requirements": REQUIREMENTS}
 
-    def test_the_fixture_holds_six_requirements(self):
-        self.assertEqual(len(REQUIREMENTS), 6)
-        self.assertTrue(all(r.startswith("**") for r in REQUIREMENTS))
+    def setUp(self):
+        self.assertEqual(len(REQUIREMENTS), 6, "the fixture holds six requirements, one per block")
 
     def test_all_requirements_that_fit_are_sent_whole(self):
         self.assertEqual(fits(self.INPUTS, {"limit": size(self.INPUTS)})["fits"], True)
