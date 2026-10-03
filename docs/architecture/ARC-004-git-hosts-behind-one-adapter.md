@@ -17,10 +17,18 @@ forced_by:
   - AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
   - A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
   - ONE GITHUB TOKEN SERVES EVERY FEATURE
+  - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
+  - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
   - UC-001
   - UC-006
   - UC-008
   - UC-018
+  - UC-024
+  - UC-035
+  - UC-036
+  - UC-041
+keeps:
+  - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
 ---
 # ARC-004 GitHub and GitLab behind one adapter
 
@@ -60,6 +68,20 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    most 1 000 characters, so that no reviewed text travels in a URL — and its editor for any other text; a GitLab product
    has no such page and needs its project token. The page of a token, the page of a file and the permissions one token
    needs are given by the adapter, so that every view names them alike.
+9. **Pull requests and CI.** The adapter reads a repository's pull requests with their states and times
+   (`MOD-git-host.pullRequests`) and the conclusion of each CI check on a commit (`MOD-git-host.checks`) — on GitHub
+   the newest run of each workflow of the commit, which the one token reads with its Actions permission, so a CI check
+   is named by its workflow; on GitLab each job's commit status. It opens a pull request
+   (`MOD-git-host.openPullRequest`); it starts a workflow with inputs (`MOD-git-host.dispatchWorkflow`), lists its runs
+   (`MOD-git-host.workflowRuns`) and cancels one (`MOD-git-host.cancelRun`) — on GitLab the project's pipelines, with
+   the inputs as variables. A token that may not start a workflow is refused, and the server's page that starts it by
+   hand is given instead (`MOD-git-host.workflowPageUrl`).
+10. **Code enters a default branch only through a pull request with green CI.** `MOD-git-host.writeFiles` refuses to
+   bring any file other than `SPEC.md` or a Markdown file under `docs/` — code, tests, workflows, pages — onto the
+   repository's default branch. `MOD-git-host.mergePullRequest` merges only at the head commit the caller saw, and only
+   when every CI check on it is green and at least one ran; a caller asks for it once the product's Definition of Done
+   holds. Whether the server itself enforces merging only on green is read (`MOD-git-host.branchProtection`), so that a
+   page can say when it does not, and link to where it is set.
 
 ```mermaid
 flowchart LR
@@ -90,6 +112,9 @@ flowchart LR
   two requests and then only the files it shows.
 - On GitLab a file that a write only read — and did not write — can change between the head check and the commit; the
   head check narrows the gap, it does not close it.
+- No use-case step is realised here. The steps of UC-024, UC-035, UC-036 and UC-041 that read pull requests and CI or
+  merge, start and cancel are actions on the dashboard's pages and in the runtimes; they are realised where those are
+  designed, by their interfaces together with these.
 
 ## Modules
 
@@ -123,6 +148,13 @@ flowchart LR
     "CommitInfo",
     "RepositoryInfo",
     "CommitResult",
+    "PullRequest",
+    "MergeDone",
+    "WorkflowInputs",
+    "Dispatched",
+    "WorkflowRun",
+    "CancelRequested",
+    "BranchProtection",
     "Permission",
     "GitLabPermission",
     "Permissions"
@@ -934,7 +966,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-git-host.writeFiles",
-  "summary": "One commit of the files given on the head the caller read, on an authority; refused when the branch moved meanwhile.",
+  "summary": "One commit of the files given on the head the caller read, on an authority; refused when the branch moved meanwhile, and when a file other than SPEC.md or a Markdown file under docs/ would reach the repository's default branch.",
   "params": [
     { "name": "product", "type": "Product" },
     { "name": "branch", "type": "string" },
@@ -952,6 +984,10 @@ flowchart LR
     { "code": "no-token", "when": "no token is given" },
     { "code": "nothing-to-write", "when": "no file is given" },
     { "code": "wrong-token", "when": "a GitHub token is given for a GitLab product" },
+    {
+      "code": "code-on-default-branch",
+      "when": "a file other than SPEC.md or Markdown under docs/ would reach the default branch"
+    },
     { "code": "moved", "when": "the branch moved on after the head the caller read" },
     {
       "code": "token-refused",
@@ -1152,6 +1188,1153 @@ flowchart LR
         "fetch": []
       },
       "refused": "no-authority"
+    },
+    {
+      "name": "a workflow file on the default branch",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "branch": "main",
+        "head": "a100000000000000000000000000000000000000",
+        "files": [{ "path": ".github/workflows/agent-m.yml", "text": "name: agent-m\n" }],
+        "message": "ci: add the workflow",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          }
+        ]
+      },
+      "refused": "code-on-default-branch"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.pullRequests",
+  "summary": "Every pull request of a repository into a branch — every branch for an empty base —, newest first, over all pages: number, title, state — open, merged or closed —, head branch and commit, base, when it was opened, merged and closed, whether it is a draft, and its page.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "base", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "PullRequest[]",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a merged and an open one on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "base": "main",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1&base=main"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 71,
+                  "title": "ITM-014: export a chapter as PDF",
+                  "state": "open",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-014", "sha": "a100000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-07T10:30:00Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "html_url": "https://github.com/alice/thesis/pull/71"
+                },
+                {
+                  "number": 70,
+                  "title": "ITM-015: write a chapter in the editor",
+                  "state": "closed",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-015", "sha": "f500000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-06T10:00:00Z",
+                  "merged_at": "2026-10-07T15:00:00Z",
+                  "closed_at": "2026-10-07T15:00:00Z",
+                  "html_url": "https://github.com/alice/thesis/pull/70"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "number": 71,
+          "title": "ITM-014: export a chapter as PDF",
+          "state": "open",
+          "head": "item/ITM-014",
+          "base": "main",
+          "headSha": "a100000000000000000000000000000000000000",
+          "created": "2026-10-07T10:30:00Z",
+          "merged": "",
+          "closed": "",
+          "draft": false,
+          "url": "https://github.com/alice/thesis/pull/71"
+        },
+        {
+          "number": 70,
+          "title": "ITM-015: write a chapter in the editor",
+          "state": "merged",
+          "head": "item/ITM-015",
+          "base": "main",
+          "headSha": "f500000000000000000000000000000000000000",
+          "created": "2026-10-06T10:00:00Z",
+          "merged": "2026-10-07T15:00:00Z",
+          "closed": "2026-10-07T15:00:00Z",
+          "draft": false,
+          "url": "https://github.com/alice/thesis/pull/70"
+        }
+      ]
+    },
+    {
+      "name": "an open merge request on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "base": "",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/merge_requests?state=all&per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "iid": 12,
+                  "title": "ITM-014: export a chapter as PDF",
+                  "state": "opened",
+                  "draft": false,
+                  "source_branch": "item/ITM-014",
+                  "target_branch": "main",
+                  "sha": "a100000000000000000000000000000000000000",
+                  "created_at": "2026-10-07T10:30:00.000Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "web_url": "https://gitlab.example.org/group/tools/thesis/-/merge_requests/12"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "number": 12,
+          "title": "ITM-014: export a chapter as PDF",
+          "state": "open",
+          "head": "item/ITM-014",
+          "base": "main",
+          "headSha": "a100000000000000000000000000000000000000",
+          "created": "2026-10-07T10:30:00Z",
+          "merged": "",
+          "closed": "",
+          "draft": false,
+          "url": "https://gitlab.example.org/group/tools/thesis/-/merge_requests/12"
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.checks",
+  "summary": "The conclusion of every CI check on a commit — success, failure, cancelled, skipped, neutral, or pending while it runs —: on GitHub each workflow's newest run of the commit, read with the one token's Actions permission, named by its workflow; on GitLab each job's latest commit status.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "commit", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "CheckResult[]",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-commit", "when": "the commit is no 40-character SHA" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "GitHub's workflow runs",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "commit": "b200000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=b200000000000000000000000000000000000000&per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  {
+                    "name": "tests",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_sha": "b200000000000000000000000000000000000000"
+                  },
+                  {
+                    "name": "lint",
+                    "status": "in_progress",
+                    "conclusion": null,
+                    "head_sha": "b200000000000000000000000000000000000000"
+                  },
+                  {
+                    "name": "tests",
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "head_sha": "b200000000000000000000000000000000000000"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": [
+        { "name": "tests", "on": "b200000000000000000000000000000000000000", "conclusion": "success" },
+        { "name": "lint", "on": "b200000000000000000000000000000000000000", "conclusion": "pending" }
+      ]
+    },
+    {
+      "name": "GitLab's commit statuses",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "commit": "b200000000000000000000000000000000000000",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits/b200000000000000000000000000000000000000/statuses?per_page=100"
+            },
+            "response": { "status": 200, "body": [{ "name": "tests", "status": "failed" }] }
+          }
+        ]
+      },
+      "result": [{ "name": "tests", "on": "b200000000000000000000000000000000000000", "conclusion": "failure" }]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.openPullRequest",
+  "summary": "A new pull request from a branch into another, with its title and description, on an authority.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "head", "type": "string" },
+    { "name": "base", "type": "string" },
+    { "name": "title", "type": "string" },
+    { "name": "body", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "PullRequest",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "moved", "when": "the server refuses the pull request, as when one for the same branches is open" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a sprint's increment into main",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "head": "sprint/04",
+        "base": "main",
+        "title": "sprint-04: the increment",
+        "body": "Merges the increment of sprint-04 after its review.",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/pulls",
+              "body": {
+                "title": "sprint-04: the increment",
+                "head": "sprint/04",
+                "base": "main",
+                "body": "Merges the increment of sprint-04 after its review."
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "number": 73,
+                "title": "sprint-04: the increment",
+                "state": "open",
+                "draft": false,
+                "head": { "ref": "sprint/04", "sha": "d300000000000000000000000000000000000000" },
+                "base": { "ref": "main" },
+                "created_at": "2026-10-16T15:00:00Z",
+                "merged_at": null,
+                "closed_at": null,
+                "html_url": "https://github.com/alice/thesis/pull/73"
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "number": 73,
+        "title": "sprint-04: the increment",
+        "state": "open",
+        "head": "sprint/04",
+        "base": "main",
+        "headSha": "d300000000000000000000000000000000000000",
+        "created": "2026-10-16T15:00:00Z",
+        "merged": "",
+        "closed": "",
+        "draft": false,
+        "url": "https://github.com/alice/thesis/pull/73"
+      }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.mergePullRequest",
+  "summary": "The merge of a pull request at the head commit the caller saw, on an authority; refused while a CI check on that head is not green or none ran, when the pull request has commits after it, or when the server will not merge it.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "headSha", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "MergeDone",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-green", "when": "a CI check on the head is not green, or none ran" },
+    { "code": "moved", "when": "the pull request has commits after the head the caller saw" },
+    {
+      "code": "not-mergeable",
+      "when": "the server will not merge it: a check it requires has not passed, or the branches conflict"
+    },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "merged on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "number": 71,
+        "headSha": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "agent-login" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=a100000000000000000000000000000000000000&per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  {
+                    "name": "tests",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_sha": "a100000000000000000000000000000000000000"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://api.github.com/repos/alice/thesis/pulls/71/merge",
+              "body": { "sha": "a100000000000000000000000000000000000000", "merge_method": "merge" }
+            },
+            "response": {
+              "status": 200,
+              "body": { "sha": "b200000000000000000000000000000000000000", "merged": true }
+            }
+          }
+        ]
+      },
+      "result": { "sha": "b200000000000000000000000000000000000000" }
+    },
+    {
+      "name": "a check still red",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "number": 71,
+        "headSha": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=a100000000000000000000000000000000000000&per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  {
+                    "name": "tests",
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "head_sha": "a100000000000000000000000000000000000000"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "refused": "not-green"
+    },
+    {
+      "name": "a commit after the head seen",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "number": 71,
+        "headSha": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=a100000000000000000000000000000000000000&per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  {
+                    "name": "tests",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_sha": "a100000000000000000000000000000000000000"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://api.github.com/repos/alice/thesis/pulls/71/merge",
+              "body": { "sha": "a100000000000000000000000000000000000000", "merge_method": "merge" }
+            },
+            "response": { "status": 409, "body": { "message": "Head branch was modified" } }
+          }
+        ]
+      },
+      "refused": "moved"
+    },
+    {
+      "name": "a check the server requires not passed",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "number": 71,
+        "headSha": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=a100000000000000000000000000000000000000&per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  {
+                    "name": "tests",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_sha": "a100000000000000000000000000000000000000"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://api.github.com/repos/alice/thesis/pulls/71/merge",
+              "body": { "sha": "a100000000000000000000000000000000000000", "merge_method": "merge" }
+            },
+            "response": { "status": 405, "body": { "message": "Required status check \"lint\" is expected." } }
+          }
+        ]
+      },
+      "refused": "not-mergeable"
+    },
+    {
+      "name": "merged on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "number": 12,
+        "headSha": "a100000000000000000000000000000000000000",
+        "token": "glpat-example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits/a100000000000000000000000000000000000000/statuses?per_page=100"
+            },
+            "response": { "status": 200, "body": [{ "name": "tests", "status": "success" }] }
+          },
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/merge_requests/12/merge",
+              "body": { "sha": "a100000000000000000000000000000000000000" }
+            },
+            "response": { "status": 200, "body": { "merge_commit_sha": "b200000000000000000000000000000000000000" } }
+          }
+        ]
+      },
+      "result": { "sha": "b200000000000000000000000000000000000000" }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.dispatchWorkflow",
+  "summary": "A run of a workflow on a branch with its inputs, on an authority: GitHub's workflow dispatch, a GitLab pipeline with the inputs as variables; the page of the run or of the workflow.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "workflow", "type": "string" },
+    { "name": "ref", "type": "string" },
+    { "name": "inputs", "type": "WorkflowInputs" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "Dispatched",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given" },
+    { "code": "no-token", "when": "no token is given" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a job's workflow on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "workflow": "agent-m-job.yml",
+        "ref": "main",
+        "inputs": { "job": "JOB-20261010-0915-1b1b" },
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/dispatches",
+              "body": { "ref": "main", "inputs": { "job": "JOB-20261010-0915-1b1b" } }
+            },
+            "response": { "status": 204 }
+          }
+        ]
+      },
+      "result": { "url": "https://github.com/alice/thesis/actions/workflows/agent-m-job.yml" }
+    },
+    {
+      "name": "a token that may not start workflows",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "workflow": "agent-m-job.yml",
+        "ref": "main",
+        "inputs": { "job": "JOB-20261010-0915-1b1b" },
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/dispatches",
+              "body": { "ref": "main", "inputs": { "job": "JOB-20261010-0915-1b1b" } }
+            },
+            "response": { "status": 403, "body": { "message": "Resource not accessible by personal access token" } }
+          }
+        ]
+      },
+      "refused": "no-access"
+    },
+    {
+      "name": "a pipeline on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "workflow": "agent-m-job",
+        "ref": "main",
+        "inputs": { "JOB": "JOB-20261010-0915-1b1b" },
+        "token": "glpat-example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/pipeline",
+              "body": { "ref": "main", "variables": [{ "key": "JOB", "value": "JOB-20261010-0915-1b1b" }] }
+            },
+            "response": {
+              "status": 201,
+              "body": { "id": 551, "web_url": "https://gitlab.example.org/group/tools/thesis/-/pipelines/551" }
+            }
+          }
+        ]
+      },
+      "result": { "url": "https://gitlab.example.org/group/tools/thesis/-/pipelines/551" }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.workflowPageUrl",
+  "summary": "The server's page that starts a workflow by hand — GitHub's page of the workflow, GitLab's new pipeline —, opened when the token may not start it.",
+  "params": [{ "name": "product", "type": "Product" }, { "name": "workflow", "type": "string" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "workflow": "agent-m-job.yml"
+      },
+      "result": "https://github.com/alice/thesis/actions/workflows/agent-m-job.yml"
+    },
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "workflow": "agent-m-job"
+      },
+      "result": "https://gitlab.example.org/group/tools/thesis/-/pipelines/new"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.workflowRuns",
+  "summary": "The latest runs of a workflow — GitLab's pipelines of the project —, newest first: their identifier, title, status — queued, running or completed —, conclusion once completed, start and page.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "workflow", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "WorkflowRun[]",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "two runs on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "workflow": "agent-m-job.yml",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/runs?per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  {
+                    "id": 9002,
+                    "display_title": "JOB-20261010-1100-3d3d",
+                    "status": "in_progress",
+                    "conclusion": null,
+                    "created_at": "2026-10-10T11:00:05Z",
+                    "html_url": "https://github.com/alice/thesis/actions/runs/9002"
+                  },
+                  {
+                    "id": 9001,
+                    "display_title": "JOB-20261010-0915-1b1b",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "created_at": "2026-10-10T09:15:05Z",
+                    "html_url": "https://github.com/alice/thesis/actions/runs/9001"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "id": 9002,
+          "title": "JOB-20261010-1100-3d3d",
+          "status": "running",
+          "conclusion": "",
+          "created": "2026-10-10T11:00:05Z",
+          "url": "https://github.com/alice/thesis/actions/runs/9002"
+        },
+        {
+          "id": 9001,
+          "title": "JOB-20261010-0915-1b1b",
+          "status": "completed",
+          "conclusion": "success",
+          "created": "2026-10-10T09:15:05Z",
+          "url": "https://github.com/alice/thesis/actions/runs/9001"
+        }
+      ]
+    },
+    {
+      "name": "a running pipeline on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "workflow": "agent-m-job",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/pipelines?per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 551,
+                  "name": "JOB-20261010-0915-1b1b",
+                  "ref": "main",
+                  "status": "running",
+                  "created_at": "2026-10-10T09:15:05.120Z",
+                  "web_url": "https://gitlab.example.org/group/tools/thesis/-/pipelines/551"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "id": 551,
+          "title": "JOB-20261010-0915-1b1b",
+          "status": "running",
+          "conclusion": "",
+          "created": "2026-10-10T09:15:05Z",
+          "url": "https://gitlab.example.org/group/tools/thesis/-/pipelines/551"
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.cancelRun",
+  "summary": "The cancel of a workflow run or pipeline, on an authority; the server ends it, and a later read of the runs shows it cancelled.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "run", "type": "integer" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "CancelRequested",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "moved", "when": "the run has already ended" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a running job's workflow",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "run": 9002,
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/runs/9002/cancel"
+            },
+            "response": { "status": 202, "body": {} }
+          }
+        ]
+      },
+      "result": { "run": 9002, "cancelling": true }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.branchProtection",
+  "summary": "Whether the server protects a branch and requires checks to pass before a merge, and the page where that is set — so that a page can say when the server does not enforce merging only on green.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "branch", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "BranchProtection",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a protected branch on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "branch": "main",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/branches/main" },
+            "response": {
+              "status": 200,
+              "body": {
+                "name": "main",
+                "protected": true,
+                "protection": { "required_status_checks": { "contexts": ["tests"] } }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "protected": true,
+        "checksRequired": true,
+        "settingsUrl": "https://github.com/alice/thesis/settings/branches"
+      }
+    },
+    {
+      "name": "no protection on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "branch": "main",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/protected_branches/main"
+            },
+            "response": { "status": 404, "body": { "message": "404 Not found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis" },
+            "response": { "status": 200, "body": { "only_allow_merge_if_pipeline_succeeds": false } }
+          }
+        ]
+      },
+      "result": {
+        "protected": false,
+        "checksRequired": false,
+        "settingsUrl": "https://gitlab.example.org/group/tools/thesis/-/settings/repository"
+      }
     }
   ]
 }
@@ -1497,6 +2680,136 @@ flowchart LR
       "sha": "b200000000000000000000000000000000000000",
       "url": "https://github.com/alice/thesis/commit/b200000000000000000000000000000000000000"
     }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "PullRequest",
+  "description": "A pull request — a merge request on GitLab —: number, title, state, head branch and its commit, base branch, when it was opened, merged and closed — empty while it was not —, whether it is a draft, and its page.",
+  "type": "object",
+  "required": ["number", "title", "state", "head", "base", "headSha", "created", "merged", "closed", "draft", "url"],
+  "additionalProperties": false,
+  "properties": {
+    "number": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string" },
+    "state": { "type": "string", "enum": ["open", "merged", "closed"] },
+    "head": { "type": "string" },
+    "base": { "type": "string" },
+    "headSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "created": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "merged": { "type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$" },
+    "closed": { "type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$" },
+    "draft": { "type": "boolean" },
+    "url": { "type": "string", "pattern": "^https://" }
+  },
+  "examples": [
+    {
+      "number": 70,
+      "title": "ITM-015: write a chapter in the editor",
+      "state": "merged",
+      "head": "item/ITM-015",
+      "base": "main",
+      "headSha": "f500000000000000000000000000000000000000",
+      "created": "2026-10-06T10:00:00Z",
+      "merged": "2026-10-07T15:00:00Z",
+      "closed": "2026-10-07T15:00:00Z",
+      "draft": false,
+      "url": "https://github.com/alice/thesis/pull/70"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "MergeDone",
+  "description": "The commit a merge made.",
+  "type": "object",
+  "required": ["sha"],
+  "additionalProperties": false,
+  "properties": { "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" } },
+  "examples": [{ "sha": "b200000000000000000000000000000000000000" }]
+}
+```
+
+```json type
+{
+  "$id": "WorkflowInputs",
+  "description": "A workflow's inputs by name — on GitLab its variables.",
+  "type": "object",
+  "additionalProperties": { "type": "string" },
+  "examples": [{ "job": "JOB-20261010-0915-1b1b" }]
+}
+```
+
+```json type
+{
+  "$id": "Dispatched",
+  "description": "The page where a started run is seen: GitLab's pipeline, or GitHub's page of the workflow, since its dispatch names no run.",
+  "type": "object",
+  "required": ["url"],
+  "additionalProperties": false,
+  "properties": { "url": { "type": "string", "pattern": "^https://" } },
+  "examples": [{ "url": "https://github.com/alice/thesis/actions/workflows/agent-m-job.yml" }]
+}
+```
+
+```json type
+{
+  "$id": "WorkflowRun",
+  "description": "A run of a workflow: identifier, title, status, conclusion once completed — empty before —, start and page.",
+  "type": "object",
+  "required": ["id", "title", "status", "conclusion", "created", "url"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string" },
+    "status": { "type": "string", "enum": ["queued", "running", "completed"] },
+    "conclusion": { "type": "string", "enum": ["", "success", "failure", "cancelled", "skipped", "neutral"] },
+    "created": { "type": "string" },
+    "url": { "type": "string", "pattern": "^https://" }
+  },
+  "examples": [
+    {
+      "id": 9001,
+      "title": "JOB-20261010-0915-1b1b",
+      "status": "completed",
+      "conclusion": "success",
+      "created": "2026-10-10T09:15:05Z",
+      "url": "https://github.com/alice/thesis/actions/runs/9001"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "CancelRequested",
+  "description": "A run whose cancel the server accepted.",
+  "type": "object",
+  "required": ["run", "cancelling"],
+  "additionalProperties": false,
+  "properties": { "run": { "type": "integer", "minimum": 1 }, "cancelling": { "type": "boolean" } },
+  "examples": [{ "run": 9002, "cancelling": true }]
+}
+```
+
+```json type
+{
+  "$id": "BranchProtection",
+  "description": "Whether a branch is protected, whether checks must pass before a merge into it, and where that is set.",
+  "type": "object",
+  "required": ["protected", "checksRequired", "settingsUrl"],
+  "additionalProperties": false,
+  "properties": {
+    "protected": { "type": "boolean" },
+    "checksRequired": { "type": "boolean" },
+    "settingsUrl": { "type": "string", "pattern": "^https://" }
+  },
+  "examples": [
+    { "protected": true, "checksRequired": true, "settingsUrl": "https://github.com/alice/thesis/settings/branches" }
   ]
 }
 ```
