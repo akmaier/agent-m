@@ -19,6 +19,8 @@ forced_by:
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
   - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
   - A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+  - NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
+  - NO COST IS GUESSED
   - A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
   - A PRODUCT DECLARES ITS DEFINITION OF DONE
   - THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
@@ -65,9 +67,13 @@ addition, with the requirement it comes from.
 2. **Validation before use.** `MOD-process-model.validateModel` names every error beside its line; a product may
    declare only a definition without errors, and each model of the shipped catalogue passes.
 3. **The participant register** is the first table of `docs/participants.md` of the instance — name, type, model,
-   capabilities, processing place, route. A type is one of the five, a capability one of the six; a participant that
-   works with a language model names its model; one that is not a person names where it processes data; a cell holding
-   a credential is an error.
+   context, price, capabilities, processing place, route. A type is one of the five, a capability one of the six; a
+   participant that works with a language model names its model, and may name how many tokens its model's context
+   holds and its price as `<input> / <output> <currency> per million tokens`; one that is not a person names where it
+   processes data; a cell holding a credential is an error. A job is not sent to a participant whose context is not
+   declared, since what it is sent cannot be checked against it (`MOD-job-harness.contextFits`); usage it reports
+   without a declared price stays *price unknown* (`MOD-run-engine.jobCost`). The register gives these rules their
+   facts; the modules named keep them. The text around the table is kept (`MOD-process-model.formatParticipants`).
 4. **A product's declaration** is `docs/process.md` of its repository: front matter `model`, `model_file`,
    `model_version` — the commit of the instance that holds the definition, so that a product keeps the version it
    declared — and `sprint_close`; then the tables `## Roles` and `## Branches`, the list `## Practices`, the list
@@ -550,21 +556,23 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-model.parseParticipants",
-  "summary": "The instance's participant register: one participant per row, with every error — a type not of the five, a participant working with a language model without its model, one that is not a person without its processing place, a capability not of the six, a credential in a cell.",
+  "summary": "The instance's participant register: one participant per row — with the context its model holds and its price where declared —, the text before and after the table, and every error — a type not of the five, a participant working with a language model without its model, a context that is no number of tokens, a price not in the form <input> / <output> <currency> per million tokens, one that is not a person without its processing place, a capability not of the six, a credential in a cell.",
   "params": [{ "name": "text", "type": "string" }],
   "result": "ParticipantRegister",
   "async": false,
   "refusals": [],
   "examples": [
     {
-      "name": "four participants",
-      "input": { "text": "# Participants of this instance\n\n| Name | Type | Model | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|\n| alice | person | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n" },
+      "name": "five participants",
+      "input": { "text": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n" },
       "result": {
         "participants": [
           {
             "name": "alice",
             "type": "person",
             "model": "",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text", "read the repository", "write to the repository"],
             "place": "",
             "route": "the GitHub account `alice`",
@@ -574,42 +582,63 @@ flowchart LR
             "name": "hub-writer",
             "type": "model endpoint",
             "model": "llama-3.3-70b",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text"],
             "place": "NHR@FAU, Erlangen",
             "route": "the endpoint hub of this browser",
             "line": 6
           },
           {
+            "name": "gw-writer",
+            "type": "model endpoint",
+            "model": "gateway-model",
+            "context": 32000,
+            "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+            "capabilities": ["draft text"],
+            "place": "a gateway in Frankfurt, Germany",
+            "route": "the endpoint gw of this browser",
+            "line": 7
+          },
+          {
             "name": "ci-dev",
             "type": "CI agent",
             "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "GitHub's machines, a provider in the USA",
             "route": "the workflow agent-m-job",
-            "line": 7
+            "line": 8
           },
           {
             "name": "cli-dev",
             "type": "CLI agent",
             "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
             "place": "this machine",
             "route": "the bridge on the Mac of `alice`",
-            "line": 8
+            "line": 9
           }
         ],
-        "problems": []
+        "problems": [],
+        "before": "# Participants of this instance",
+        "after": "Every participant that works with a language model names its model."
       }
     },
     {
       "name": "a row with four errors",
-      "input": { "text": "| Name | Type | Model | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|\n| bot | CLI agent | — | read the repository, sing | — | token github_pat_11AAAAAAAAAAAAAAAAAAAA |\n" },
+      "input": { "text": "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| bot | CLI agent | — | — | — | read the repository, sing | — | token github_pat_11AAAAAAAAAAAAAAAAAAAA |\n" },
       "result": {
         "participants": [
           {
             "name": "bot",
             "type": "CLI agent",
             "model": "",
+            "context": null,
+            "price": null,
             "capabilities": ["read the repository", "sing"],
             "place": "",
             "route": "token github_pat_11AAAAAAAAAAAAAAAAAAAA",
@@ -621,8 +650,116 @@ flowchart LR
           { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "bot names no processing place", "rule": "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA", "fix": "name where the data given to it is processed" },
           { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "bot declares \"sing\", which is no capability", "rule": "A PARTICIPANT DECLARES ITS CAPABILITIES", "fix": "name capabilities of: draft text, read the repository, write to the repository, run code and tests, use tools, reach the web" },
           { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "the row of bot holds a credential", "rule": "NO SECRET IN THE REPOSITORY", "fix": "remove it; name where the credential is held instead" }
-        ]
+        ],
+        "before": "",
+        "after": ""
       }
+    },
+    {
+      "name": "a context and a price that cannot be read",
+      "input": { "text": "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| gw | model endpoint | gateway-model | lots | cheap | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n" },
+      "result": {
+        "participants": [
+          {
+            "name": "gw",
+            "type": "model endpoint",
+            "model": "gateway-model",
+            "context": null,
+            "price": null,
+            "capabilities": ["draft text"],
+            "place": "a gateway in Frankfurt, Germany",
+            "route": "the endpoint gw of this browser",
+            "line": 3
+          }
+        ],
+        "problems": [
+          { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "the context of gw is \"lots\", not a number of tokens", "rule": "NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY", "fix": "write how many tokens its model's context holds, such as 128000, or leave it empty" },
+          { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "the price of gw is \"cheap\"", "rule": "NO COST IS GUESSED", "fix": "write <input> / <output> <currency> per million tokens, such as 0.2 / 0.6 EUR per million tokens, or leave it empty" }
+        ],
+        "before": "",
+        "after": ""
+      }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-process-model.formatParticipants",
+  "summary": "The canonical text of the register: the text before the table, one row per participant, and the text after it.",
+  "params": [{ "name": "register", "type": "ParticipantRegister" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the register as read",
+      "input": {
+        "register": {
+          "participants": [
+            {
+              "name": "alice",
+              "type": "person",
+              "model": "",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository"],
+              "place": "",
+              "route": "the GitHub account `alice`",
+              "line": 5
+            },
+            {
+              "name": "hub-writer",
+              "type": "model endpoint",
+              "model": "llama-3.3-70b",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text"],
+              "place": "NHR@FAU, Erlangen",
+              "route": "the endpoint hub of this browser",
+              "line": 6
+            },
+            {
+              "name": "gw-writer",
+              "type": "model endpoint",
+              "model": "gateway-model",
+              "context": 32000,
+              "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+              "capabilities": ["draft text"],
+              "place": "a gateway in Frankfurt, Germany",
+              "route": "the endpoint gw of this browser",
+              "line": 7
+            },
+            {
+              "name": "ci-dev",
+              "type": "CI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "place": "GitHub's machines, a provider in the USA",
+              "route": "the workflow agent-m-job",
+              "line": 8
+            },
+            {
+              "name": "cli-dev",
+              "type": "CLI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+              "place": "this machine",
+              "route": "the bridge on the Mac of `alice`",
+              "line": 9
+            }
+          ],
+          "problems": [],
+          "before": "# Participants of this instance",
+          "after": "Every participant that works with a language model names its model."
+        }
+      },
+      "result": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n"
     }
   ]
 }
@@ -655,6 +792,8 @@ flowchart LR
             "name": "alice",
             "type": "person",
             "model": "",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text", "read the repository", "write to the repository"],
             "place": "",
             "route": "the GitHub account `alice`",
@@ -664,28 +803,45 @@ flowchart LR
             "name": "hub-writer",
             "type": "model endpoint",
             "model": "llama-3.3-70b",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text"],
             "place": "NHR@FAU, Erlangen",
             "route": "the endpoint hub of this browser",
             "line": 6
           },
           {
+            "name": "gw-writer",
+            "type": "model endpoint",
+            "model": "gateway-model",
+            "context": 32000,
+            "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+            "capabilities": ["draft text"],
+            "place": "a gateway in Frankfurt, Germany",
+            "route": "the endpoint gw of this browser",
+            "line": 7
+          },
+          {
             "name": "ci-dev",
             "type": "CI agent",
             "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "GitHub's machines, a provider in the USA",
             "route": "the workflow agent-m-job",
-            "line": 7
+            "line": 8
           },
           {
             "name": "cli-dev",
             "type": "CLI agent",
             "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
             "place": "this machine",
             "route": "the bridge on the Mac of `alice`",
-            "line": 8
+            "line": 9
           }
         ],
         "restrictions": [{ "source": "SRC-iec-62304", "permitted": ["this machine"] }]
@@ -700,6 +856,13 @@ flowchart LR
         },
         {
           "participant": "hub-writer",
+          "ok": false,
+          "missing": ["read the repository", "write to the repository", "run code and tests"],
+          "allowed": true,
+          "placeWarnings": ["SRC-iec-62304"]
+        },
+        {
+          "participant": "gw-writer",
           "ok": false,
           "missing": ["read the repository", "write to the repository", "run code and tests"],
           "allowed": true,
@@ -1935,6 +2098,8 @@ flowchart LR
             "name": "alice",
             "type": "person",
             "model": "",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text", "read the repository", "write to the repository"],
             "place": "",
             "route": "the GitHub account `alice`",
@@ -1944,28 +2109,45 @@ flowchart LR
             "name": "hub-writer",
             "type": "model endpoint",
             "model": "llama-3.3-70b",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text"],
             "place": "NHR@FAU, Erlangen",
             "route": "the endpoint hub of this browser",
             "line": 6
           },
           {
+            "name": "gw-writer",
+            "type": "model endpoint",
+            "model": "gateway-model",
+            "context": 32000,
+            "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+            "capabilities": ["draft text"],
+            "place": "a gateway in Frankfurt, Germany",
+            "route": "the endpoint gw of this browser",
+            "line": 7
+          },
+          {
             "name": "ci-dev",
             "type": "CI agent",
             "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "GitHub's machines, a provider in the USA",
             "route": "the workflow agent-m-job",
-            "line": 7
+            "line": 8
           },
           {
             "name": "cli-dev",
             "type": "CLI agent",
             "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
             "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
             "place": "this machine",
             "route": "the bridge on the Mac of `alice`",
-            "line": 8
+            "line": 9
           }
         ]
       },
@@ -2208,14 +2390,16 @@ flowchart LR
 ```json type
 {
   "$id": "Participant",
-  "description": "A participant of the instance: name, one of the five types, the model it works with or empty, its capabilities, where it processes data or empty, how Agent M reaches it, and its line.",
+  "description": "A participant of the instance: name, one of the five types, the model it works with or empty, how many tokens that model's context holds and its price per million input and output tokens — each null where not declared —, its capabilities, where it processes data or empty, how Agent M reaches it, and its line.",
   "type": "object",
-  "required": ["name", "type", "model", "capabilities", "place", "route", "line"],
+  "required": ["name", "type", "model", "context", "price", "capabilities", "place", "route", "line"],
   "additionalProperties": false,
   "properties": {
     "name": { "type": "string" },
     "type": { "type": "string" },
     "model": { "type": "string" },
+    "context": { "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+    "price": { "$ref": "PriceOrNone" },
     "capabilities": { "type": "array", "items": { "type": "string" } },
     "place": { "type": "string" },
     "route": { "type": "string" },
@@ -2223,13 +2407,15 @@ flowchart LR
   },
   "examples": [
     {
-      "name": "cli-dev",
-      "type": "CLI agent",
-      "model": "claude-opus-5-5",
-      "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
-      "place": "this machine",
-      "route": "the bridge on the Mac of `alice`",
-      "line": 8
+      "name": "gw-writer",
+      "type": "model endpoint",
+      "model": "gateway-model",
+      "context": 32000,
+      "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+      "capabilities": ["draft text"],
+      "place": "a gateway in Frankfurt, Germany",
+      "route": "the endpoint gw of this browser",
+      "line": 7
     }
   ]
 }
@@ -2238,13 +2424,15 @@ flowchart LR
 ```json type
 {
   "$id": "ParticipantRegister",
-  "description": "The participants of the register and its problems.",
+  "description": "The participants of the register, its problems, and the text before and after its table.",
   "type": "object",
-  "required": ["participants", "problems"],
+  "required": ["participants", "problems", "before", "after"],
   "additionalProperties": false,
   "properties": {
     "participants": { "type": "array", "items": { "$ref": "Participant" } },
-    "problems": { "type": "array", "items": { "$ref": "Finding" } }
+    "problems": { "type": "array", "items": { "$ref": "Finding" } },
+    "before": { "type": "string" },
+    "after": { "type": "string" }
   },
   "examples": [
     {
@@ -2253,6 +2441,8 @@ flowchart LR
           "name": "bot",
           "type": "CLI agent",
           "model": "",
+          "context": null,
+          "price": null,
           "capabilities": ["read the repository", "sing"],
           "place": "",
           "route": "token github_pat_11AAAAAAAAAAAAAAAAAAAA",
@@ -2264,7 +2454,9 @@ flowchart LR
         { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "bot names no processing place", "rule": "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA", "fix": "name where the data given to it is processed" },
         { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "bot declares \"sing\", which is no capability", "rule": "A PARTICIPANT DECLARES ITS CAPABILITIES", "fix": "name capabilities of: draft text, read the repository, write to the repository, run code and tests, use tools, reach the web" },
         { "artifact": "docs/participants.md", "line": 3, "kind": "error", "what": "the row of bot holds a credential", "rule": "NO SECRET IN THE REPOSITORY", "fix": "remove it; name where the credential is held instead" }
-      ]
+      ],
+      "before": "",
+      "after": ""
     }
   ]
 }
@@ -3038,18 +3230,20 @@ flowchart LR
   "$id": "ParticipantRow",
   "description": "A row of the participant register as the markdown-table syntax reads it.",
   "type": "object",
-  "required": ["Name", "Type", "Model", "Capabilities", "Processing place", "Route"],
+  "required": ["Name", "Type", "Model", "Context", "Price", "Capabilities", "Processing place", "Route"],
   "additionalProperties": false,
   "properties": {
     "Name": { "type": "string", "minLength": 1 },
     "Type": { "type": "string", "enum": ["person", "model endpoint", "CI agent", "CLI agent", "sandboxed agent"] },
     "Model": { "type": "string" },
+    "Context": { "type": "string", "pattern": "^([1-9][0-9]*|—)$" },
+    "Price": { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)? / [0-9]+(\\.[0-9]+)? [A-Z]{3} per million tokens|—)$" },
     "Capabilities": { "type": "string" },
     "Processing place": { "type": "string" },
     "Route": { "type": "string" }
   },
   "examples": [
-    { "Name": "alice", "Type": "person", "Model": "—", "Capabilities": "draft text", "Processing place": "—", "Route": "the GitHub account `alice`" }
+    { "Name": "gw-writer", "Type": "model endpoint", "Model": "gateway-model", "Context": "32000", "Price": "0.2 / 0.6 EUR per million tokens", "Capabilities": "draft text", "Processing place": "a gateway in Frankfurt, Germany", "Route": "the endpoint gw of this browser" }
   ]
 }
 ```
@@ -3104,7 +3298,7 @@ flowchart LR
   "path": "docs/participants.md",
   "syntax": "markdown-table",
   "content": "ParticipantRow[]",
-  "examples": ["# Participants of this instance\n\n| Name | Type | Model | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|\n| alice | person | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n"]
+  "examples": ["# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n"]
 }
 ```
 

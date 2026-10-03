@@ -578,6 +578,8 @@ flowchart LR
           "name": "hub-writer",
           "type": "model endpoint",
           "model": "llama-3.3-70b",
+          "context": null,
+          "price": null,
           "capabilities": ["draft text"],
           "place": "NHR@FAU, Erlangen",
           "route": "the endpoint hub of this browser",
