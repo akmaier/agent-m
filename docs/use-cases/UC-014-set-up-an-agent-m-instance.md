@@ -7,7 +7,9 @@ actors:
   - GitHub
 realises:
   - AN INSTANCE IS A FORK OF AGENT M
-  - THE PAGES ROOT IS DOCS
+  - THE PAGES ROOT IS THE REPOSITORY ROOT
+  - THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
+  - DOCUMENTS ARE REVIEWED AND EDITED UNDER DOCS
   - NO SERVER
   - THE SHARED PAGES ORIGIN IS DISCLOSED
   - EVERY STEP EXPLAINS ITSELF
@@ -48,7 +50,7 @@ their own settings, their own list of products.
    *Create fork*.
 3. **Step 2 · Turn on the dashboard.** Now that the owner is known, a button opens exactly
    `github.com/<owner>/agent-m/settings/pages`; the page says what to choose there — *Deploy from a
-   branch*, `main`, `/docs`, *Save*. GitHub lets no one but the owner switch this on.
+   branch*, `main`, `/ (root)`, *Save*. GitHub lets no one but the owner switch this on.
 4. **Step 3 · Turn on the workflows — optional now.** The instance's workflows are needed only to fetch
    EU legal texts (UC-004) and to write an accepted change of the instance's own SPEC without a token
    (UC-006, 4c); the page says so and offers **Later**. When a feature first needs them, the dashboard
@@ -79,7 +81,8 @@ leaves the licence of every product to the person.
    corrected if they changed it on GitHub — and presses **Store and check**. Agent M stores both in
    `localStorage` and checks that the token reaches the instance; it will warn fourteen days before the
    token expires (UC-042).
-9. The dashboard shows the instance, ready: its own use cases, and **+ Add product** (UC-001). Nothing has
+9. The main page shows the instance, ready: no product and no job yet, and **+ Add product** (UC-001); the
+   instance's own specification, use cases and architecture are reviewed on the page under `docs/`. Nothing has
    been installed on the person's computer, and nothing needs to be for Agent M's first level; the Agent M
    Bridge app for local agents, IMAP mail and machines on their own network is optional (UC-044).
 
@@ -92,7 +95,7 @@ sequenceDiagram
     participant D as Dashboard (fork Pages)
     U->>D: Get your own Agent M, GitHub name
     U->>G: Step 1 fork
-    U->>G: Step 2 Pages from main /docs (direct link)
+    U->>G: Step 2 Pages from main, root (direct link)
     U->>G: Step 3 enable Actions (direct link)
     U->>D: open owner.github.io/agent-m
     D-->>U: Finish setting up, Step A
@@ -127,8 +130,8 @@ sequenceDiagram
 
 ## Postcondition
 
-- The person has a dashboard at their own address, served from `docs/` of their fork; no server was
-  set up.
+- The person has a dashboard at their own address, served from the root of their fork's default branch; no
+  server was set up.
 - One token, limited to the instance repository, is stored in this browser. Adding a product later
   extends this token; it never needs a second one.
 - The fork also carries Agent M's own specification and use cases; the person does not have to

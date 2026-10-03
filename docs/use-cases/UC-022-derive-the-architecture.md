@@ -127,7 +127,8 @@ an architecture decision, one file `docs/architecture/ARC-<nnn>-<slug>.md`:
    **change** of a named existing decision, **duplicate** of one, or **conflict** with one.
 6. **Checks and corrections, before the author sees anything.** Candidates of this run that say the same are merged,
    and a candidate whose name or normalised text equals an existing decision is a duplicate without a model (as in
-   UC-005 step 6). Every candidate then passes two kinds of check:
+   UC-005 step 6). Agent M gives every new candidate the next free identifier `ARC-<nnn>`, which it keeps. Every
+   candidate then passes two kinds of check:
    1. **Without a model**, of form and completeness:
       - errors — a parameter, result or refusal without a type; a type used but defined nowhere, or defined twice; a
         type without a sample, or a sample that does not conform to it; an interface without an example, or an example
@@ -148,7 +149,7 @@ an architecture decision, one file `docs/architecture/ARC-<nnn>-<slug>.md`:
    Every finding goes back to the deriving participant as a compiler-like message; it fixes every error and fixes or
    justifies every warning, until no finding is left, the round limit is reached, or a round leaves the findings
    unchanged. After each correction the checks of 6.1 run again, and the review of 6.2 again on a candidate without
-   errors. Conflicts are not sent back. Agent M then assigns `ARC-<nnn>` to new decisions.
+   errors. Conflicts are not sent back.
 7. **The due diligence.** For every reuse candidate and each alternative, Agent M reads from the package registry and the
    source repository: whether the package exists, its licence, the dates of its releases, its open and closed issues,
    and its adoption (dependents or downloads). Each fact is stored with the address it was read from and the date
