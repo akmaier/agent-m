@@ -189,18 +189,26 @@ export function writeAccessRefused(e, product) {
 }
 
 // Why a write was refused, in the product's terms — a used-up limit first, then GitLab's 403, then GitHub's 403 or 404 as the
-// token's missing permission; null when none of these applies (the caller then shows errorText). githubPage: GitHub's
-// new-file page prefilled with the approval record, which the caller shows beside the text as a link (UC-008 4a); without it
-// the GitHub path is named only.
-export function writeRefusalText(e, product, now = new Date(), { githubPage = null } = {}) {
+// token's missing permission; null when none of these applies (the caller then shows errorText). The GitHub route the caller
+// shows beside the text (UC-008 4a, UC-018 6b): githubPage — GitHub's new-file page prefilled with the approval record, as a
+// link; githubPages — the number of such pages of a batch, one per record (UC-008 3d, 3e); githubEdit — GitHub's editor of the
+// edited file, opened with the text on the clipboard (UC-008 3b). Without one the GitHub path is named only.
+export function writeRefusalText(e, product, now = new Date(), { githubPage = null, githubPages = 0, githubEdit = false } = {}) {
   const limit = rateLimitText(e, product, now);
   if (limit) return limit;
   if (isGitLab(product)) return gitlabWriteRefusal(e, product);
   if (!writeAccessRefused(e, product)) return null;
-  return `Your token cannot write to ${product.repo} (${e.message}). ` + (githubPage
-    ? "Extend it in Settings, or commit the record on GitHub's page instead: without write access GitHub makes your commit a " +
-      "pull request, and the acceptance counts once a maintainer merges it."
-    : "Extend it in Settings, or remove it to use GitHub's page instead.");
+  return `Your token cannot write to ${product.repo} (${e.message}). ` + (githubEdit
+    ? "Extend it in Settings, or commit your edit in GitHub's editor instead — the button copies your text and opens the editor: " +
+      "without write access GitHub makes your commit a pull request, and the edit counts once a maintainer merges it."
+    : githubPages
+      ? "Extend it in Settings, or commit the records on GitHub's pages instead — GitHub's page commits one file at a time, so " +
+        "there is one page per record: without write access GitHub makes each commit a pull request, and each acceptance counts " +
+        "once a maintainer merges it."
+      : githubPage
+        ? "Extend it in Settings, or commit the record on GitHub's page instead: without write access GitHub makes your commit a " +
+          "pull request, and the acceptance counts once a maintainer merges it."
+        : "Extend it in Settings, or remove it to use GitHub's page instead.");
 }
 
 // The page shown when the product's commit cannot be read: the server's answer, and what it means here. A used-up rate limit
@@ -382,8 +390,10 @@ async function reloadAndRoute() {
 // (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-008 3c, UC-018 4b).
 const tokenStepLink = () => `#add/${encodeURIComponent(T.product.address)}`;
 
-// Why a write was refused, in the product's terms (writeRefusalText); githubPage: the GitHub path the caller links beside it.
-const writeErrorText = (e, githubPage = null) => writeRefusalText(e, T.product, new Date(), { githubPage }) || errorText(e);
+// Why a write was refused, in the product's terms (writeRefusalText); github: the GitHub route the caller shows beside it —
+// the one record's page, or writeRefusalText's options ({ githubPages }, { githubEdit }).
+const writeErrorText = (e, github = null) => writeRefusalText(e, T.product, new Date(),
+  typeof github === "string" ? { githubPage: github } : github || {}) || errorText(e);
 
 // ---------------------------------------------------------------- tokens refused or expiring (SPEC §7)
 

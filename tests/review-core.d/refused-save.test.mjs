@@ -115,7 +115,9 @@ test("A REFUSED SAVE KEEPS THE EDIT counter-proof: a save the server refuses for
   const { srv, dom, ta, made } = await refusedSave({ list: "#uc", hash: "#uc/UC-002", path: UC2, edit, newer: null, handlers: [refuse] });
   assert.deepEqual(srv.writes, []);
   assert.equal(ta.value, edit, "the edit stays");
-  assert.match(dom.edit().querySelector(".result").textContent, /Your token cannot write to/);
+  // Changed by ITM-151 (UC-018 6b): the refusal is now written as HTML, with GitHub's editor beside it — read from both.
+  const said = dom.edit().querySelector(".result");
+  assert.match(`${said.textContent} ${said.innerHTML}`, /Your token cannot write to/);
   assert.equal(dom.edit().querySelector(".edit-newer")?.innerHTML ?? "", "", "no newer version: the file did not change");
   assert.ok(!made.includes(`file ${UC2}`), "and none is read");
 }));
