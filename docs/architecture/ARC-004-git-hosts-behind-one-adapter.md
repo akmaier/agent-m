@@ -19,6 +19,7 @@ forced_by:
   - ONE GITHUB TOKEN SERVES EVERY FEATURE
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
+  - THE NAME IS THE ID AND IT SURVIVES
   - UC-001
   - UC-006
   - UC-008
@@ -61,9 +62,12 @@ different causes — a token that has expired, a permission it lacks, a rate lim
 6. **Head first, then write.** A caller reads the branch's head, reads there what its checks need, plans the files on it,
    and passes the head to the write; a branch that moved meanwhile refuses the write and nothing is written. A write
    needs an authority of ARC-003; without one, nothing is sent.
-7. **Releases and the token's account.** The release tags of a repository are its tags `vYYYY.MINOR.PATCH`, newest version
-   first. The account a token acts as is read from the server — on GitLab the user name of the project token's bot —, so
-   that what a person writes is filed under their account.
+7. **Releases, history and the token's account.** The release tags of a repository are its tags `vYYYY.MINOR.PATCH`,
+   newest version first. What a folder's version history holds — each path, when it first appeared and when it was
+   removed or renamed away — is read from the changes of each commit touching it (`MOD-git-host.pathHistory`): a page
+   learns from one scan per folder when each file entered the repository, and every identifier the history holds, so
+   that one withdrawn from the files is not given again (ARC-024). The account a token acts as is read from the server —
+   on GitLab the user name of the project token's bot —, so that what a person writes is filed under their account.
 8. **The server's own pages.** Without a token, GitHub's new-file page is opened with a record as its prefilled value — at
    most 1 000 characters, so that no reviewed text travels in a URL — and its editor for any other text; a GitLab product
    has no such page and needs its project token. The page of a token, the page of a file and the permissions one token
@@ -146,6 +150,7 @@ flowchart LR
     "TreeEntry",
     "Snapshot",
     "CommitInfo",
+    "PathHistory",
     "RepositoryInfo",
     "CommitResult",
     "PullRequest",
@@ -738,6 +743,187 @@ flowchart LR
       },
       "result": [
         { "sha": "c000000000000000000000000000000000000000", "date": "2026-10-03T14:08:00Z", "author": "akmaier" }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.pathHistory",
+  "summary": "What the version history of a folder holds: every path that a commit touching the folder, up to the one given, added — when it first appeared, and when it was removed or renamed away if the commit no longer holds it —, oldest first, read from each such commit's changes.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "commit", "type": "string" },
+    { "name": "folder", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "PathHistory[]",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "an item added and later removed on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "commit": "c000000000000000000000000000000000000000",
+        "folder": "docs/backlog/",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/commits?path=docs%2Fbacklog&sha=c000000000000000000000000000000000000000&per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "c000000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-08T09:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                },
+                {
+                  "sha": "f500000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-05T08:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/commits/f500000000000000000000000000000000000000"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "f500000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md", "status": "added" },
+                  { "filename": "docs/backlog/ITM-017-print-a-chapter.md", "status": "added" },
+                  { "filename": "docs/backlog/order.md", "status": "modified" }
+                ]
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/commits/c000000000000000000000000000000000000000"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c000000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "docs/backlog/ITM-017-print-a-chapter.md", "status": "removed" },
+                  { "filename": "docs/backlog/order.md", "status": "modified" },
+                  { "filename": "README.md", "status": "removed" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+          "added": "2026-10-05T08:00:00Z",
+          "removed": ""
+        },
+        {
+          "path": "docs/backlog/ITM-017-print-a-chapter.md",
+          "added": "2026-10-05T08:00:00Z",
+          "removed": "2026-10-08T09:00:00Z"
+        },
+        { "path": "docs/backlog/order.md", "added": "2026-10-05T08:00:00Z", "removed": "" }
+      ]
+    },
+    {
+      "name": "a renamed item on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "commit": "c000000000000000000000000000000000000000",
+        "folder": "docs/backlog/",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits?path=docs%2Fbacklog&ref_name=c000000000000000000000000000000000000000&per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": "c000000000000000000000000000000000000000",
+                  "committed_date": "2026-10-08T09:00:00.000Z",
+                  "author_name": "alice"
+                }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits/c000000000000000000000000000000000000000/diff?per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "old_path": "docs/backlog/ITM-009-export.md",
+                  "new_path": "docs/backlog/ITM-009-export-a-chapter.md",
+                  "new_file": false,
+                  "renamed_file": true,
+                  "deleted_file": false
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "path": "docs/backlog/ITM-009-export.md",
+          "added": "2026-10-08T09:00:00Z",
+          "removed": "2026-10-08T09:00:00Z"
+        },
+        { "path": "docs/backlog/ITM-009-export-a-chapter.md", "added": "2026-10-08T09:00:00Z", "removed": "" }
       ]
     }
   ]
@@ -2632,6 +2818,24 @@ flowchart LR
     {
       "commit": "c000000000000000000000000000000000000000",
       "tree": [{ "path": "SPEC.md", "blob": "f500000000000000000000000000000000000000" }]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "PathHistory",
+  "description": "A path a folder held in its version history: when it first appeared, and when it was removed or renamed away — empty while the commit read holds it.",
+  "type": "object",
+  "required": ["path", "added", "removed"],
+  "additionalProperties": false,
+  "properties": { "path": { "type": "string" }, "added": { "type": "string" }, "removed": { "type": "string" } },
+  "examples": [
+    {
+      "path": "docs/backlog/ITM-017-print-a-chapter.md",
+      "added": "2026-10-05T08:00:00Z",
+      "removed": "2026-10-08T09:00:00Z"
     }
   ]
 }

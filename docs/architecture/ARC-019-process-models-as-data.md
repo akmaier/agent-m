@@ -91,7 +91,14 @@ addition, with the requirement it comes from.
    decision and why; who committed it and when, the version history keeps. `MOD-process-model.gateDecision` counts only
    a record of a holder of the deciding role who did not do the work it checks, on the current text; a record on an
    earlier text shows the gate as passed on that text and not on this one. A gate decided by a CI check passes on that
-   check's success on the current commit.
+   check's success on the current text. A gate leaving one of the phases whose jobs a run starts — from the first phase
+   that produces `MOD`, each that produces `MOD` or `TST` (ARC-010 decision 4) — is passed by each job of that phase
+   before its merge, and with it by the item the job implements; any other gate is passed by the product. The current
+   text of a gate passed by a job or an item is the head commit of its pull request; of a gate passed by the product,
+   the newest commit that changed a path of what it checks — every artifact of the kinds its artifacts name, all of the
+   product's (`MOD-process-model.gatePaths`) —, so that a gate record, a change of the backlog or a merge of code leaves
+   a design gate passed, and any change of the design does not. A gate whose artifacts name no kind with a path checks
+   no text, and its record counts on any commit.
 7. **The Definition of Done** is the four job rules and the conditions the product adds
    (`MOD-process-model.definitionOfDone`); `MOD-process-model.doneCheck` decides it from the facts the product's CI
    gathers for a pull request and names every condition that fails.
@@ -1592,8 +1599,32 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-process-model.gatePaths",
+  "summary": "Where everything of the kinds a gate checks lies in a product: SPEC.md for requirements, docs/use-cases/ for UC, docs/architecture/ for ARC, the folders of the product's modules for MOD, tests/ for TST, docs/backlog/ for ITM, docs/sources.md for SRC and docs/resources.md for RES; none for JOB or a word that names no kind.",
+  "params": [{ "name": "kinds", "type": "string[]" }, { "name": "folders", "type": "string[]" }],
+  "result": "string[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "a design gate",
+      "input": { "kinds": ["ARC"], "folders": ["src/export/", "src/pages/"] },
+      "result": ["docs/architecture/"]
+    },
+    {
+      "name": "a gate on the product's code and tests",
+      "input": { "kinds": ["MOD", "TST"], "folders": ["src/export/", "src/pages/"] },
+      "result": ["src/export/", "src/pages/", "tests/"]
+    },
+    { "name": "a gate on no kind of artifact", "input": { "kinds": [], "folders": ["src/export/"] }, "result": [] }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-process-model.gateDecision",
-  "summary": "Whether a gate is passed for what it checks, on its current text: by a record of one of the deciding role's holders who did not do the work, or by its CI check's success on that text; passed on an earlier text, refused, or waiting with who may decide.",
+  "summary": "Whether a gate is passed for what it checks, on its current text — on any, for a gate that checks none: by a record of one of the deciding role's holders who did not do the work, or by its CI check's success on that text; passed on an earlier text, refused, or waiting with who may decide.",
   "params": [{ "name": "question", "type": "GateQuestion" }],
   "result": "GateState",
   "async": false,
@@ -1712,6 +1743,35 @@ flowchart LR
         }
       },
       "result": { "state": "passed", "by": "CI check tests", "record": "" }
+    },
+    {
+      "name": "a gate that checks no text",
+      "input": {
+        "question": {
+          "gate": {
+            "between": "Validation → Release",
+            "from": "Validation",
+            "to": "Release",
+            "artifacts": "the validation report",
+            "kinds": [],
+            "condition": "the report is signed",
+            "decider": { "role": "Architect" },
+            "line": 0,
+            "practice": "",
+            "requirement": "",
+            "source": "",
+            "holders": ["alice"]
+          },
+          "subject": "thesis-tool",
+          "on": "",
+          "worker": "cli-dev",
+          "records": [
+            { "path": "docs/jobs/gates/thesis-tool-validation-release-bd0000000000.md", "from": "Validation", "to": "Release", "subject": "thesis-tool", "on": "bd00000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the report is signed" }
+          ],
+          "checks": []
+        }
+      },
+      "result": { "state": "passed", "by": "alice", "record": "docs/jobs/gates/thesis-tool-validation-release-bd0000000000.md" }
     }
   ]
 }
@@ -3031,14 +3091,14 @@ flowchart LR
 ```json type
 {
   "$id": "GateQuestion",
-  "description": "What a gate's decision is derived from: the gate of the workflow, what passes it, the text it is decided on, the participant whose work it checks, the gate records, and the CI checks.",
+  "description": "What a gate's decision is derived from: the gate of the workflow, what passes it, the text it is decided on — empty for a gate that checks none —, the participant whose work it checks, the gate records, and the CI checks.",
   "type": "object",
   "required": ["gate", "subject", "on", "worker", "records", "checks"],
   "additionalProperties": false,
   "properties": {
     "gate": { "$ref": "WorkflowGate" },
     "subject": { "type": "string" },
-    "on": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "on": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
     "worker": { "type": "string" },
     "records": { "type": "array", "items": { "$ref": "GateRecord" } },
     "checks": { "type": "array", "items": { "$ref": "CheckResult" } }

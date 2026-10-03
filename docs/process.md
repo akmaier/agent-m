@@ -1,7 +1,7 @@
 ---
 model: scrum-wip
 model_file: docs/process-models/scrum-wip.md
-model_version: a6c336801ae85c019ab4e4897fa608913121faac
+model_version: 4c60cfe5a8bc8c00dcf6705b5decb42823b73a63
 sprint_close: scrum-master-session
 ---
 

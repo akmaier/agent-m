@@ -46,9 +46,10 @@ the step depends only on the records.
 ## Decision
 
 1. **The engine is pure functions in the kernel** (`MOD-run-engine`). `MOD-run-engine.nextJobs` computes, from a
-   snapshot read at one commit — the run's plan, its jobs, the gate records, the CI check results, the product's head,
-   and for a backlog its items with their facts and the running sprint —, the jobs to start now, what waits and why,
-   whether the run is done, and the limit that stopped it. Nothing is remembered between calls.
+   snapshot read at one commit — the run's plan, its jobs, the gate records, the CI check results, the commit each gate
+   its jobs wait for is decided on (ARC-019 decision 6), and for a backlog its items with their facts and the running
+   sprint —, the jobs to start now, what waits and why, whether the run is done, and the limit that stopped it. Nothing
+   is remembered between calls.
 2. **The queue is the job records.** A job's record is `docs/jobs/JOB-<yyyymmdd>-<hhmm>-<hex4>.md` in the repository
    of the product it works on: written at its start with its kind, phase, role, participant, runtime, run and slot,
    the item and modules it works on, its inputs, the job it retries, the Agent M version and the model; extended by
@@ -77,12 +78,12 @@ the step depends only on the records.
    costs its jobs' runtimes reported reach its cost limit, or a job reached its correction-round limit, and says which.
 7. **State and cost are derived** (`MOD-run-engine.jobState`, `MOD-run-engine.jobCost`): the end state a record holds;
    the live state the job's runtime reports; *ended without record* when the runtime is reachable and does not know the
-   job; the last recorded state, with a note, when it cannot be reached. A cancel is a record of its own,
-   `docs/jobs/cancels/<job>.md`; the job shows as cancelling until its runtime confirms. A cost is shown only as the
-   runtime reported it, or as its reported usage at the participant's declared price; otherwise the usage with *price
-   unknown*, or *unknown*. One list holds every job of every product the instance manages, with its product, what it
-   works on, its kind, participant, runtime, state, elapsed time, cost and log — waiting at a gate first, then by state,
-   each newest first (`MOD-run-engine.jobList`).
+   job; the last recorded state, with a note, when it cannot be reached or was not asked. A cancel is a record of its
+   own, `docs/jobs/cancels/<job>.md`; the job shows as cancelling until its runtime confirms. A cost is shown only as
+   the runtime reported it, or as its reported usage at the participant's declared price; otherwise the usage with
+   *price unknown*, or *unknown*. One list holds every job of every product the instance manages, with its product, what
+   it works on, its kind, participant, runtime, state, elapsed time, cost and log — waiting at a gate first, then by
+   state, each newest first (`MOD-run-engine.jobList`).
 8. **A sprint's close starts by itself** when its closer is not a person, the sprint has ended, and no close record
    exists (`MOD-run-engine.closeDue`).
 
@@ -146,7 +147,7 @@ sequenceDiagram
   "layer": "kernel",
   "responsibility": "Everything about a job that is the same in every runtime and needs no runtime: its identifier, its record and the cancel record, its state from the records and what its runtime reports, its cost as reported, one list of every job of every product, the order of modules by their interfaces, the plan of a run, the jobs a run starts next, and whether a sprint's close starts by itself.",
   "realises": ["A JOB GOES ONLY TO A HOLDER OF ITS ROLE", "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "A JOB IDENTIFIER IS NEVER REUSED", "ONE DASHBOARD SHOWS EVERY JOB", "NO COST IS GUESSED", "PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION", "A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS", "A RUN FOLLOWS THE MODULES' INTERFACES", "A RUN SETS UP CI BEFORE IT IMPLEMENTS", "A RUN HAS LIMITS FIXED AT ITS START", "A RUN IS A JOB THAT NAMES ITS JOBS", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER", "A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF"],
-  "owns": ["JobStateEntry", "Money", "MoneyOrNone", "Usage", "UsageOrNone", "Limits", "LimitsOrNone", "JobAssignment", "JobRecord", "CancelInput", "CancelRecord", "CancelRecordOrNone", "LiveState", "LiveStateOrNone", "JobStateShown", "Price", "PriceOrNone", "CostShown", "JobEntry", "JobRow", "ModuleUses", "ModuleWaves", "RunInput", "RunSlot", "RunPlan", "RunJob", "RunItem", "RunSnapshot", "JobSpec", "NextJobs", "CloseDue", "JobRecordContent", "CancelRecordFields", "JobRecordFile", "CancelRecordFile"],
+  "owns": ["JobStateEntry", "Money", "MoneyOrNone", "Usage", "UsageOrNone", "Limits", "LimitsOrNone", "JobAssignment", "JobRecord", "CancelInput", "CancelRecord", "CancelRecordOrNone", "LiveState", "LiveStateOrNone", "JobStateShown", "Price", "PriceOrNone", "CostShown", "JobEntry", "JobRow", "ModuleUses", "ModuleWaves", "RunInput", "RunSlot", "RunPlan", "RunJob", "RunItem", "GateText", "RunSnapshot", "JobSpec", "NextJobs", "CloseDue", "JobRecordContent", "CancelRecordFields", "JobRecordFile", "CancelRecordFile"],
   "uses": ["MOD-contracts", "MOD-process-model", "MOD-work-items"]
 }
 ```
@@ -403,7 +404,7 @@ sequenceDiagram
 ```json interface
 {
   "id": "MOD-run-engine.jobState",
-  "summary": "A job's state, one of the seven, with a note: an end state its record holds; for a cancelled job, cancelled once its runtime confirms and its live state with \"cancelling\" before; the live state its runtime reports; ended without record when the runtime is reachable and does not know the job; the last recorded state when the runtime cannot be reached.",
+  "summary": "A job's state, one of the seven, with a note: an end state its record holds; for a cancelled job, cancelled once its runtime confirms and its live state with \"cancelling\" before; the live state its runtime reports; ended without record when the runtime is reachable and does not know the job; the last recorded state when the runtime cannot be reached or was not asked.",
   "params": [
     { "name": "record", "type": "JobRecord" },
     { "name": "cancel", "type": "CancelRecordOrNone" },
@@ -514,9 +515,44 @@ sequenceDiagram
           "jobs": []
         },
         "cancel": null,
-        "live": null
+        "live": { "reachable": false, "state": "" }
       },
       "result": { "state": "queued", "note": "bridge cannot be reached; this is the state last recorded" }
+    },
+    {
+      "name": "a runtime not asked",
+      "input": {
+        "record": {
+          "id": "JOB-20261010-0915-1b1b",
+          "path": "docs/jobs/JOB-20261010-0915-1b1b.md",
+          "kind": "implement",
+          "phase": "Implementation",
+          "role": "Developers",
+          "participant": "cli-dev",
+          "runtime": "bridge",
+          "run": "JOB-20261010-0900-0a0a",
+          "slot": "Implementation/MOD-a",
+          "item": "",
+          "modules": ["MOD-a"],
+          "inputs": ["docs/architecture/ARC-004-the-store.md"],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "claude-opus-5-5",
+          "log": "",
+          "selection": [],
+          "limits": null,
+          "assignments": [],
+          "states": [{ "at": "2026-10-10T09:15:00Z", "state": "queued", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": []
+        },
+        "cancel": null,
+        "live": null
+      },
+      "result": { "state": "queued", "note": "bridge was not asked; this is the state last recorded" }
     },
     {
       "name": "cancelled, not yet confirmed",
@@ -1852,7 +1888,7 @@ sequenceDiagram
           "jobs": [],
           "gateRecords": [],
           "checks": [],
-          "head": "c300000000000000000000000000000000000000",
+          "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
           "items": [],
           "sprint": null,
           "sprints": false,
@@ -2017,7 +2053,7 @@ sequenceDiagram
           ],
           "gateRecords": [],
           "checks": [],
-          "head": "c300000000000000000000000000000000000000",
+          "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
           "items": [],
           "sprint": null,
           "sprints": false,
@@ -2184,7 +2220,7 @@ sequenceDiagram
             { "path": "docs/jobs/gates/thesis-tool-design-implementation-c30000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis-tool", "on": "c300000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has an ARC" }
           ],
           "checks": [],
-          "head": "c300000000000000000000000000000000000000",
+          "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
           "items": [],
           "sprint": null,
           "sprints": false,
@@ -2206,6 +2242,162 @@ sequenceDiagram
           }
         ],
         "waiting": [],
+        "done": false,
+        "stop": ""
+      }
+    },
+    {
+      "name": "the design changed after its gate passed",
+      "input": {
+        "snapshot": {
+          "run": "JOB-20261010-0900-0a0a",
+          "plan": {
+            "product": "thesis-tool",
+            "kind": "planned",
+            "slots": [
+              {
+                "key": "configure-ci",
+                "kind": "configure-ci",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "unit": "",
+                "item": "",
+                "modules": [],
+                "after": [],
+                "gates": [],
+                "meets": []
+              },
+              {
+                "key": "Implementation/MOD-a",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "unit": "MOD-a",
+                "item": "",
+                "modules": ["MOD-a"],
+                "after": ["configure-ci"],
+                "gates": ["Design → Implementation"],
+                "meets": ["Implementation → Testing"]
+              },
+              {
+                "key": "Implementation/MOD-d",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "unit": "MOD-d",
+                "item": "",
+                "modules": ["MOD-d"],
+                "after": ["configure-ci"],
+                "gates": ["Design → Implementation"],
+                "meets": ["Implementation → Testing"]
+              },
+              {
+                "key": "Implementation/MOD-b",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "unit": "MOD-b",
+                "item": "",
+                "modules": ["MOD-b"],
+                "after": ["configure-ci", "Implementation/MOD-a"],
+                "gates": ["Design → Implementation"],
+                "meets": ["Implementation → Testing"]
+              },
+              {
+                "key": "Implementation/MOD-c",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "unit": "MOD-c",
+                "item": "",
+                "modules": ["MOD-c"],
+                "after": ["configure-ci", "Implementation/MOD-b"],
+                "gates": ["Design → Implementation"],
+                "meets": ["Implementation → Testing"]
+              },
+              {
+                "key": "Testing/selection",
+                "kind": "test-battery",
+                "phase": "Testing",
+                "role": "Tester",
+                "participant": "ci-dev",
+                "unit": "selection",
+                "item": "",
+                "modules": ["MOD-a", "MOD-d", "MOD-b", "MOD-c"],
+                "after": ["Implementation/MOD-a", "Implementation/MOD-d", "Implementation/MOD-b", "Implementation/MOD-c"],
+                "gates": [],
+                "meets": ["Testing → Validation"]
+              }
+            ],
+            "gates": [
+              {
+                "between": "Design → Implementation",
+                "from": "Design",
+                "to": "Implementation",
+                "artifacts": "ARC",
+                "kinds": ["ARC"],
+                "condition": "every requirement has an ARC, and the design is accepted",
+                "decider": { "role": "Architect" },
+                "line": 41,
+                "practice": "",
+                "requirement": "",
+                "source": "",
+                "holders": ["alice"]
+              },
+              {
+                "between": "Implementation → Testing",
+                "from": "Implementation",
+                "to": "Testing",
+                "artifacts": "MOD",
+                "kinds": ["MOD"],
+                "condition": "CI is green",
+                "decider": { "check": "tests" },
+                "line": 42,
+                "practice": "",
+                "requirement": "",
+                "source": "",
+                "holders": []
+              },
+              {
+                "between": "Testing → Validation",
+                "from": "Testing",
+                "to": "Validation",
+                "artifacts": "TST",
+                "kinds": ["TST"],
+                "condition": "every unit's verification is recorded",
+                "decider": { "role": "Tester" },
+                "line": 41,
+                "practice": "",
+                "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                "source": "IEC 62304, 5.5.5",
+                "holders": ["ci-dev"]
+              }
+            ],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 }
+          },
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 }
+          ],
+          "gateRecords": [
+            { "path": "docs/jobs/gates/thesis-tool-design-implementation-c30000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis-tool", "on": "c300000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has an ARC" }
+          ],
+          "checks": [],
+          "texts": [{ "gate": "Design → Implementation", "on": "c400000000000000000000000000000000000000" }],
+          "items": [],
+          "sprint": null,
+          "sprints": false,
+          "wipLimit": null,
+          "inProgress": 0
+        }
+      },
+      "result": {
+        "start": [],
+        "waiting": ["Implementation/MOD-a: Design → Implementation was passed by alice on an earlier text and waits for a decision on the current one", "Implementation/MOD-d: Design → Implementation was passed by alice on an earlier text and waits for a decision on the current one"],
         "done": false,
         "stop": ""
       }
@@ -2372,7 +2564,7 @@ sequenceDiagram
             { "path": "docs/jobs/gates/thesis-tool-design-implementation-c30000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis-tool", "on": "c300000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has an ARC" }
           ],
           "checks": [],
-          "head": "c300000000000000000000000000000000000000",
+          "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
           "items": [],
           "sprint": null,
           "sprints": false,
@@ -2528,7 +2720,7 @@ sequenceDiagram
             { "path": "docs/jobs/gates/thesis-tool-design-implementation-c30000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis-tool", "on": "c300000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has an ARC" }
           ],
           "checks": [],
-          "head": "c300000000000000000000000000000000000000",
+          "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
           "items": [],
           "sprint": null,
           "sprints": false,
@@ -2706,7 +2898,7 @@ sequenceDiagram
             { "path": "docs/jobs/gates/thesis-tool-design-implementation-c30000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis-tool", "on": "c300000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has an ARC" }
           ],
           "checks": [],
-          "head": "c300000000000000000000000000000000000000",
+          "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
           "items": [],
           "sprint": null,
           "sprints": false,
@@ -2778,7 +2970,7 @@ sequenceDiagram
           "jobs": [],
           "gateRecords": [],
           "checks": [],
-          "head": "c300000000000000000000000000000000000000",
+          "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
           "items": [
             {
               "item": {
@@ -3639,10 +3831,25 @@ sequenceDiagram
 
 ```json type
 {
-  "$id": "RunSnapshot",
-  "description": "What the next jobs of a run are computed from, read at one commit: the run, its plan, its jobs, the gate records and CI check results, the head commit of the product, and — for items — the items with their facts, the running sprint, whether the work runs in sprints, the WIP limit and how many items count against it.",
+  "$id": "GateText",
+  "description": "A gate a run's jobs wait for, which the product passes, and the commit it is decided on: the newest commit that changed a path of what it checks — empty for a gate that checks none.",
   "type": "object",
-  "required": ["run", "plan", "jobs", "gateRecords", "checks", "head", "items", "sprint", "sprints", "wipLimit", "inProgress"],
+  "required": ["gate", "on"],
+  "additionalProperties": false,
+  "properties": {
+    "gate": { "type": "string", "pattern": "^.+ → .+$" },
+    "on": { "type": "string", "pattern": "^([0-9a-f]{40})?$" }
+  },
+  "examples": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }]
+}
+```
+
+```json type
+{
+  "$id": "RunSnapshot",
+  "description": "What the next jobs of a run are computed from, read at one commit: the run, its plan, its jobs, the gate records and CI check results, the commit each gate its jobs wait for is decided on, and — for items — the items with their facts, the running sprint, whether the work runs in sprints, the WIP limit and how many items count against it.",
+  "type": "object",
+  "required": ["run", "plan", "jobs", "gateRecords", "checks", "texts", "items", "sprint", "sprints", "wipLimit", "inProgress"],
   "additionalProperties": false,
   "properties": {
     "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
@@ -3650,7 +3857,7 @@ sequenceDiagram
     "jobs": { "type": "array", "items": { "$ref": "RunJob" } },
     "gateRecords": { "type": "array", "items": { "$ref": "GateRecord" } },
     "checks": { "type": "array", "items": { "$ref": "CheckResult" } },
-    "head": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "texts": { "type": "array", "items": { "$ref": "GateText" } },
     "items": { "type": "array", "items": { "$ref": "RunItem" } },
     "sprint": { "$ref": "SprintOrNone" },
     "sprints": { "type": "boolean" },
@@ -3662,122 +3869,155 @@ sequenceDiagram
       "run": "JOB-20261010-0900-0a0a",
       "plan": {
         "product": "thesis-tool",
-        "kind": "pulled",
+        "kind": "planned",
         "slots": [
           {
-            "key": "Development/ITM-014",
-            "kind": "implement",
-            "phase": "Development",
+            "key": "configure-ci",
+            "kind": "configure-ci",
+            "phase": "Implementation",
             "role": "Developers",
-            "participant": "ci-dev",
-            "unit": "ITM-014",
-            "item": "ITM-014",
-            "modules": ["MOD-export"],
+            "participant": "cli-dev",
+            "unit": "",
+            "item": "",
+            "modules": [],
             "after": [],
             "gates": [],
-            "meets": ["Development → Sprint review"]
+            "meets": []
           },
           {
-            "key": "Development/ITM-015",
+            "key": "Implementation/MOD-a",
             "kind": "implement",
-            "phase": "Development",
+            "phase": "Implementation",
             "role": "Developers",
+            "participant": "cli-dev",
+            "unit": "MOD-a",
+            "item": "",
+            "modules": ["MOD-a"],
+            "after": ["configure-ci"],
+            "gates": ["Design → Implementation"],
+            "meets": ["Implementation → Testing"]
+          },
+          {
+            "key": "Implementation/MOD-d",
+            "kind": "implement",
+            "phase": "Implementation",
+            "role": "Developers",
+            "participant": "cli-dev",
+            "unit": "MOD-d",
+            "item": "",
+            "modules": ["MOD-d"],
+            "after": ["configure-ci"],
+            "gates": ["Design → Implementation"],
+            "meets": ["Implementation → Testing"]
+          },
+          {
+            "key": "Implementation/MOD-b",
+            "kind": "implement",
+            "phase": "Implementation",
+            "role": "Developers",
+            "participant": "cli-dev",
+            "unit": "MOD-b",
+            "item": "",
+            "modules": ["MOD-b"],
+            "after": ["configure-ci", "Implementation/MOD-a"],
+            "gates": ["Design → Implementation"],
+            "meets": ["Implementation → Testing"]
+          },
+          {
+            "key": "Implementation/MOD-c",
+            "kind": "implement",
+            "phase": "Implementation",
+            "role": "Developers",
+            "participant": "cli-dev",
+            "unit": "MOD-c",
+            "item": "",
+            "modules": ["MOD-c"],
+            "after": ["configure-ci", "Implementation/MOD-b"],
+            "gates": ["Design → Implementation"],
+            "meets": ["Implementation → Testing"]
+          },
+          {
+            "key": "Testing/selection",
+            "kind": "test-battery",
+            "phase": "Testing",
+            "role": "Tester",
             "participant": "ci-dev",
-            "unit": "ITM-015",
-            "item": "ITM-015",
-            "modules": ["MOD-pages"],
-            "after": [],
+            "unit": "selection",
+            "item": "",
+            "modules": ["MOD-a", "MOD-d", "MOD-b", "MOD-c"],
+            "after": ["Implementation/MOD-a", "Implementation/MOD-d", "Implementation/MOD-b", "Implementation/MOD-c"],
             "gates": [],
-            "meets": ["Development → Sprint review"]
+            "meets": ["Testing → Validation"]
           }
         ],
         "gates": [
           {
-            "between": "Development → Sprint review",
-            "from": "Development",
-            "to": "Sprint review",
-            "artifacts": "MOD",
-            "kinds": ["MOD"],
-            "condition": "CI is green",
-            "decider": { "role": "Product Owner" },
-            "line": 28,
+            "between": "Design → Implementation",
+            "from": "Design",
+            "to": "Implementation",
+            "artifacts": "ARC",
+            "kinds": ["ARC"],
+            "condition": "every requirement has an ARC, and the design is accepted",
+            "decider": { "role": "Architect" },
+            "line": 41,
             "practice": "",
             "requirement": "",
             "source": "",
             "holders": ["alice"]
+          },
+          {
+            "between": "Implementation → Testing",
+            "from": "Implementation",
+            "to": "Testing",
+            "artifacts": "MOD",
+            "kinds": ["MOD"],
+            "condition": "CI is green",
+            "decider": { "check": "tests" },
+            "line": 42,
+            "practice": "",
+            "requirement": "",
+            "source": "",
+            "holders": []
+          },
+          {
+            "between": "Testing → Validation",
+            "from": "Testing",
+            "to": "Validation",
+            "artifacts": "TST",
+            "kinds": ["TST"],
+            "condition": "every unit's verification is recorded",
+            "decider": { "role": "Tester" },
+            "line": 41,
+            "practice": "",
+            "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+            "source": "IEC 62304, 5.5.5",
+            "holders": ["ci-dev"]
           }
         ],
-        "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 }
+        "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 }
       },
-      "jobs": [],
-      "gateRecords": [],
-      "checks": [],
-      "head": "c300000000000000000000000000000000000000",
-      "items": [
+      "jobs": [
+        { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
         {
-          "item": {
-            "id": "ITM-014",
-            "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md",
-            "title": "Export a chapter as PDF",
-            "kind": "implementation",
-            "realises": ["A CHAPTER IS EXPORTED", "UC-003"],
-            "modules": ["MOD-export"],
-            "dependsOn": ["ITM-009"],
-            "origins": ["https://github.com/alice/thesis/issues/57"],
-            "outcome": "The author presses Export on a chapter and receives a PDF of it.",
-            "criteria": ["The PDF holds the chapter's text and figures."],
-            "notes": ""
-          },
-          "facts": {
-            "added": "2026-10-05T08:00:00Z",
-            "accepted": [{ "name": "UC-003", "at": "2026-10-01T10:00:00Z" }],
-            "jobs": [],
-            "pullRequests": [],
-            "proposals": [],
-            "rejections": []
-          }
+          "id": "JOB-20261010-0915-1b1b",
+          "slot": "Implementation/MOD-a",
+          "run": "JOB-20261010-0900-0a0a",
+          "participant": "cli-dev",
+          "started": "2026-10-10T09:15:00Z",
+          "state": "done",
+          "cost": { "amount": 4, "currency": "USD" },
+          "rounds": 5
         },
-        {
-          "item": {
-            "id": "ITM-015",
-            "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
-            "title": "Write a chapter in the editor",
-            "kind": "implementation",
-            "realises": ["NO SERVER", "UC-002"],
-            "modules": ["MOD-pages"],
-            "dependsOn": [],
-            "origins": ["UC-002"],
-            "outcome": "Write a chapter in the editor.",
-            "criteria": [],
-            "notes": ""
-          },
-          "facts": {
-            "added": "2026-10-05T08:00:00Z",
-            "accepted": [
-              { "name": "NO SERVER", "at": "2026-09-01T10:00:00Z" },
-              { "name": "UC-002", "at": "2026-09-01T10:00:00Z" },
-              { "name": "ONE CLICK", "at": "2026-09-01T10:00:00Z" },
-              { "name": "UC-001", "at": "2026-09-01T10:00:00Z" }
-            ],
-            "jobs": [],
-            "pullRequests": [],
-            "proposals": [],
-            "rejections": []
-          }
-        }
+        { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
       ],
-      "sprint": {
-        "id": "sprint-04",
-        "path": "docs/backlog/sprints/sprint-04.md",
-        "goal": "The author exports and writes chapters",
-        "start": "2026-10-05",
-        "end": "",
-        "timeBoxEnd": "2026-10-18",
-        "selection": ["ITM-014", "ITM-015"],
-        "closer": "cli-dev",
-        "branch": "sprint/04"
-      },
-      "sprints": true,
+      "gateRecords": [
+        { "path": "docs/jobs/gates/thesis-tool-design-implementation-c30000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis-tool", "on": "c300000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has an ARC" }
+      ],
+      "checks": [],
+      "texts": [{ "gate": "Design → Implementation", "on": "c300000000000000000000000000000000000000" }],
+      "items": [],
+      "sprint": null,
+      "sprints": false,
       "wipLimit": null,
       "inProgress": 0
     }
