@@ -1,6 +1,6 @@
 # A requirement that names another is in its impact list — counter-proofs and suites (ITM-156)
 
-**MESSUNG** — 2026-10-03, branch `team/ITM-156` from `sprint/03` at `37449fc`, tests at `e8cb8cf`, macOS, Node 25.9.0,
+**MESSUNG** — 2026-10-03, branch `team/ITM-156` from `sprint/03` at `73aa7a0`, tests at `e8cb8cf`, macOS, Node 25.9.0,
 Python 3.14.6. CI runs Node 22. developer-opus-d (claude-opus-5-5).
 
 ## Path, before and after
@@ -20,7 +20,7 @@ existing code. No other module changed; `requirementImpact(graph, name) -> [arti
 
 ## Suites
 
-| | before (`37449fc`) | tests only (`e8cb8cf`) | after |
+| | before (`73aa7a0`) | tests only (`e8cb8cf`) | after |
 |---|---|---|---|
 | `node --test tests/*.test.mjs` | 526 — 522 pass, 4 todo | not run (the commit changes two Python files only) | 526 — 522 pass, 4 todo |
 | `cd tests && python3 -m unittest` | 367, OK (5 expected failures) | 371, 2 failures (5 expected failures) | 371, OK (5 expected failures) |
@@ -63,7 +63,7 @@ architecture route, the view's default for a kind other than use case and test.
 
 ## Agent M's own SPEC
 
-Read with a scratch script (`scratchpad/probe.mjs`, not committed) over `SPEC.md` at `37449fc`: 322 live requirements; 147
+Read with a scratch script (`scratchpad/probe.mjs`, not committed) over `SPEC.md` at `73aa7a0`: 322 live requirements; 147
 backticked references from one live requirement to another, 29 of them wrapped over a line. 19 other words in capitals stand in
 backticks (`LICENSE`, `POST`, `FETCH`, `GITHUB_TOKEN`, `INBOX`, …); with every capitals word taken as a reference they would have
 been 19 unknown names. None of the backticked names is one of the 11 requirements the SPEC keeps as withdrawn.
