@@ -2,3 +2,4 @@
 
 Append-only.
 | 2026-10-03 12:54 UTC | 1 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-01-65ad9cfe6e47.md |
+| 2026-10-03 12:55 UTC | 2 | uebernommen | approval:spec-2026-10-03_ohne-geschichte-02-311d174cc1a4.md |
