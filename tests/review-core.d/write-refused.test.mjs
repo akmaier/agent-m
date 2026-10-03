@@ -10,14 +10,17 @@
 // The real dashboard runs in tests/app-harness.mjs against the harness's GitHub fake, which refuses the write; the accept panel
 // of a GitLab product and of a product's SPEC change is rendered on its own (review-views.mjs acceptPanel). These tests run
 // inside the process of tests/review-core.test.mjs, so each puts back the globals the harness sets when it ends. Counter-proofs:
-// docs/measurements/2026-10-01_write-refused-offers-the-github-path.md.
+// docs/measurements/2026-10-01_write-refused-offers-the-github-path.md; for the batch and the save (ITM-151),
+// docs/measurements/2026-10-03_refused-batch-and-save-offer-the-github-route.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repoServer, openDashboard, REPO } from "../app-harness.mjs";
+import { repoServer, openDashboard, richDocument, press, REPO } from "../app-harness.mjs";
 import { gitBlobSha, recordText, useCaseRecord, specRecord, approvalPath, createReviewSession } from "../../docs/assets/review-core.mjs";
 import { newFileUrl, parseProductAddress } from "../../docs/assets/git-host.mjs";
 import { acceptPanel, githubPath } from "../../docs/assets/dashboard/review-views.mjs";
+// The helpers ITM-151 adds are read off the module, so that a missing one fails its own test, not the file.
+import * as views from "../../docs/assets/dashboard/review-views.mjs";
 import * as shell from "../../docs/assets/dashboard-app.mjs";
 import { B_SPEC, B_P05, B_INDEX, QD, GL_ADDR } from "./helpers.mjs";
 
@@ -48,9 +51,13 @@ const contentsJson = (srv) => (url, init) => {
 const UC2 = "docs/use-cases/UC-002-show-the-status.md";
 const UC2_TEXT = "---\nid: UC-002\ntitle: Show the status\narea: review\nactors:\n  - Reviewer\nrealises:\n  - RULE ONE\n---\n" +
   "# UC-002 Show the status\n\n## Main flow\n\n1. The dashboard shows the status.\n";
+// A second use case, for the batches of UC-008 3d and 3e (ITM-151).
+const UC3 = "docs/use-cases/UC-003-name-the-reviewer.md";
+const UC3_TEXT = "---\nid: UC-003\ntitle: Name the reviewer\narea: review\nactors:\n  - Reviewer\nrealises:\n  - RULE ONE\n---\n" +
+  "# UC-003 Name the reviewer\n\n## Main flow\n\n1. The dashboard names who accepted.\n";
 const FILES = {
   "SPEC.md": B_SPEC, [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
-  "docs/use-cases/README.md": "# Use cases\n", "docs/approvals/README.md": "# Approval records\n", [UC2]: UC2_TEXT,
+  "docs/use-cases/README.md": "# Use cases\n", "docs/approvals/README.md": "# Approval records\n", [UC2]: UC2_TEXT, [UC3]: UC3_TEXT,
 };
 
 // The server refuses the commit's first write (the tree) with `status` and `headers`.
@@ -165,4 +172,153 @@ test("writeAccessRefused: GitHub's 403 or 404 on a write is missing write access
   assert.equal(shell.writeAccessRefused(err(401, "Bad credentials"), gh), false);
   assert.equal(shell.writeAccessRefused(err(422, "Update is not a fast forward"), gh), false);
   assert.equal(shell.writeAccessRefused(null, gh), false);
+});
+
+// ================================================================ ITM-151 — a refused batch and a refused save (UC-008 3d, 3e, 3a with 4a; UC-018 6b)
+//
+// The same route for every acceptance commit and for the edit: a batch refused for missing write access links GitHub's new-file
+// page of each of its records — GitHub's page commits one file at a time, as the Accept all panel says without a token —, and a
+// refused Save offers GitHub's editor of the file, the control Edit offers without a token (UC-008 3b: the text to the clipboard,
+// the editor opened; NO TEXT TRAVELS IN A URL). Counter-proofs: a used-up rate limit, a refused token (401) and a GitLab product
+// get none; a save refused because the file changed meanwhile keeps ITM-131's newer version and gets none.
+
+const LIMIT = () => ({ "X-RateLimit-Limit": "5000", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 1800) });
+const REFUSALS = {
+  limit: () => refuseWrite(403, LIMIT(), "API rate limit exceeded"),
+  token: () => refuseWrite(401, {}, "Bad credentials"),
+};
+const triedCommit = (srv) => srv.requests.some((r) => r.startsWith("handler POST") && r.endsWith("/git/trees"));
+// The new-file page of a use case's record, as the accept panel links it without a token.
+async function recordPage(path, id, text) {
+  const blob = await gitBlobSha(text);
+  return newFileUrl(REPO, "main", approvalPath(id, blob), recordText(useCaseRecord(path, blob)));
+}
+const resultOf = (sel) => { const out = inMain(sel).closest(".panel").querySelector(".result"); return { text: out.textContent, html: out.innerHTML }; };
+
+// UC-002 and UC-003 opened and ticked with a token, Accept ticked pressed by a person, the commit refused as `refuse` says.
+async function refusedTicked(refuse) {
+  const srv = await instance([refuse]);
+  const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
+  const tick = () => { const c = inMain("[data-tick]"); c.checked = true; c.fire("change", {}); };
+  tick();
+  await page.go("#uc/UC-003");
+  tick();
+  await page.click("[data-accept-ticked]");
+  return { srv, page, result: resultOf("[data-accept-ticked]") };
+}
+// The review page of the use cases, Accept all pressed by a person, the commit refused as `refuse` says.
+async function refusedAll(refuse) {
+  const srv = await instance([refuse]);
+  const page = await openDashboard({ server: srv, hash: "#review/uc" });
+  assert.match(page.main(), /data-accept-all/, "known positive: the review page offers Accept all");
+  await page.click("[data-accept-all]");
+  return { srv, page, result: resultOf("[data-accept-all]") };
+}
+
+for (const [what, run] of [["UC-008 3d·4a: Accept ticked", refusedTicked], ["UC-008 3e·4a: Accept all", refusedAll]]) {
+  test(`${what} refused for missing write access writes nothing; the page says so and links GitHub's new-file page of each record, prefilled with it`, () => isolated(async () => {
+    const { srv, result } = await run(refuseWrite(403));
+    assert.ok(triedCommit(srv), "known positive: the commit was tried and refused");
+    assert.deepEqual(srv.writes, [], "nothing is written");
+    assert.match(`${result.text} ${result.html}`, /Your token cannot write to akmaier\/agent-m/, "the page says so");
+    assert.match(`${result.text} ${result.html}`, /403/, "with the server's answer");
+    const want = [await recordPage(UC2, "UC-002", UC2_TEXT), await recordPage(UC3, "UC-003", UC3_TEXT)];
+    assert.deepEqual(hrefs(result.html).filter((x) => x.startsWith(NEW_PAGE)).sort(), [...want].sort(),
+      "one link per record: GitHub's new-file page prefilled with it");
+    for (const x of want) {
+      assert.ok(!x.includes(encodeURIComponent("The dashboard shows the status")) && !x.includes(encodeURIComponent("names who accepted")),
+        "NO TEXT TRAVELS IN A URL: the record, never the use case's text");
+    }
+    assert.match(result.html, /UC-002/);
+    assert.match(result.html, /UC-003/, "each link names its record");
+    assert.match(result.html, /pull request/, "says that without write access each commit becomes a pull request");
+    assert.match(result.html, /maintainer merges/, "which counts once a maintainer merges it");
+  }));
+
+  test(`${what} counter-proof: refused for a used-up rate limit or a refused token (401), it offers no GitHub page`, () => isolated(async () => {
+    for (const [why, refuse] of Object.entries(REFUSALS)) {
+      const { srv, result } = await run(refuse());
+      assert.ok(triedCommit(srv), `${why}: known positive: the commit was tried`);
+      assert.deepEqual(srv.writes, [], why);
+      const said = `${result.text} ${result.html}`;
+      assert.match(said, why === "limit" ? /used up/ : /GitHub refused your GitHub token/, `${why}: named as what it is — ${said}`);
+      assert.doesNotMatch(said, /cannot write|pull request/, `${why}: not blamed on the token's access`);
+      assert.ok(!hrefs(result.html).some((x) => x.startsWith("https://github.com/")), `${why}: no GitHub page offered`);
+    }
+  }));
+}
+
+// The context the refusal helpers read, for a product shown with a stored token: the shell's own refusal rules for that product.
+function refusalApp(product, repo) {
+  return { ...panelApp(product, repo), writeAccessRefused: (e) => shell.writeAccessRefused(e, product),
+    writeErrorText: (e, o) => shell.writeRefusalText(e, product, new Date(), typeof o === "string" ? { githubPage: o } : o || {}) || e.message };
+}
+const denied = (status, message) => Object.assign(new Error(`POST /x/git/trees: ${status} ${message}`), { status, headers: new Headers() });
+
+test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN: a GitLab product's refused batch gets no GitHub page; counter-proof: a GitHub product's does", async () => {
+  const blob = await gitBlobSha(UC2_TEXT), item = { kind: "use-case", id: "UC-002", path: UC2, blob };
+  const gl = parseProductAddress(GL_ADDR), gh = parseProductAddress(`https://github.com/${REPO}`);
+  const glApp = refusalApp(gl, gl.repo), ghApp = refusalApp(gh, REPO);
+  assert.equal(views.reviewItemPage(glApp, item), null, "Accept all: no page for a GitLab record");
+  assert.equal(views.reviewItemPage(ghApp, item), await recordPage(UC2, "UC-002", UC2_TEXT), "known positive: GitHub's page for a GitHub record");
+  const e = denied(403, "Forbidden");
+  const pages = [{ label: "UC-002", url: "https://github.com/x/y/new/main?filename=a" }];
+  assert.equal(views.refusedAcceptHtml(glApp, e, pages, true), null, "a GitLab 403 shows GitLab's refusal only");
+  assert.match(views.refusedAcceptHtml(ghApp, e, pages, true) ?? "", /href="https:\/\/github\.com\/x\/y\/new\/main/, "known positive");
+});
+
+// UC-002's editor opened with a token, `edit` typed, `newer` committed by someone else (or none), Save pressed by a person.
+async function refusedSave({ edit, refuse = null, newer = null }) {
+  const srv = await instance(refuse ? [refuse] : []);
+  const page = await openDashboard({ server: srv, hash: "#uc" });
+  const dom = richDocument();
+  await page.go("#uc/UC-002");
+  await page.click("[data-toggle-edit]");
+  const ta = dom.edit().querySelector("textarea");
+  ta.value = edit;
+  if (newer !== null) await srv.change(UC2, newer);
+  await press(srv, inMain("[data-edit-save]"));
+  const out = dom.edit().querySelector(".result");
+  return { srv, dom, ta, result: { text: out.textContent, html: out.innerHTML } };
+}
+const EDIT = UC2_TEXT.replace("shows the status.", "shows the status, NO-WRITE-ACCESS.");
+const editControls = (html) => [...String(html).matchAll(/<button[^>]*\sdata-edit-commit="([^"]*)"[^>]*>/g)].map((m) => unesc(m[1]));
+
+test("UC-008 3a·4a, UC-018 6b: a Save refused for missing write access writes nothing, keeps the edit, says so and offers GitHub's editor of the file — the text to the clipboard, never in a URL", () => isolated(async () => {
+  const { srv, ta, result } = await refusedSave({ edit: EDIT, refuse: refuseWrite(403) });
+  assert.ok(triedCommit(srv), "known positive: the commit was tried and refused");
+  assert.deepEqual(srv.writes, [], "nothing is written");
+  assert.equal(ta.value, EDIT, "the edit stays in the editor");
+  assert.match(`${result.text} ${result.html}`, /Your token cannot write to akmaier\/agent-m/, "the page says so");
+  assert.match(`${result.text} ${result.html}`, /403/, "with the server's answer");
+  assert.deepEqual(editControls(result.html), [UC2], "the control that copies the text and opens GitHub's editor of the file");
+  assert.match(unesc(result.html), /GitHub's editor/, "named as GitHub's editor");
+  assert.match(result.html, /pull request/, "says that without write access the commit becomes a pull request");
+  assert.ok(!hrefs(result.html).some((x) => x.includes("NO-WRITE-ACCESS") || x.includes(encodeURIComponent("NO-WRITE-ACCESS"))),
+    "NO TEXT TRAVELS IN A URL");
+  assert.ok(!hrefs(result.html).some((x) => x.startsWith(NEW_PAGE)), "no new-file page: the edit is not an approval record");
+}));
+
+test("UC-018 6b counter-proof: a Save refused for a used-up limit, a refused token (401) or a text changed meanwhile offers no GitHub editor", () => isolated(async () => {
+  for (const [why, refuse] of Object.entries(REFUSALS)) {
+    const { srv, ta, result } = await refusedSave({ edit: EDIT, refuse: refuse() });
+    assert.ok(triedCommit(srv), `${why}: known positive: the commit was tried`);
+    assert.deepEqual(srv.writes, [], why);
+    assert.equal(ta.value, EDIT, `${why}: the edit stays`);
+    assert.deepEqual(editControls(result.html), [], `${why}: no GitHub editor offered — ${result.text} ${result.html}`);
+    assert.doesNotMatch(`${result.text} ${result.html}`, /cannot write|pull request/, `${why}: not blamed on the token's access`);
+  }
+  // ITM-131: the file changed after the editor opened — the newer version beside the edit, and no GitHub route.
+  const { srv, dom, result } = await refusedSave({ edit: EDIT, newer: UC2_TEXT + "\nA line someone else added.\n" });
+  assert.deepEqual(srv.writes, []);
+  assert.match(result.text, /changed since you opened it/, "known positive: ITM-131's refusal");
+  assert.match(dom.edit().querySelector(".edit-newer")?.innerHTML ?? "", /Newer version on main/, "the newer version shown");
+  assert.deepEqual(editControls(result.html), [], "no GitHub editor offered");
+}));
+
+test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN: a GitLab product's refused Save gets no GitHub editor; counter-proof: a GitHub product's does", () => {
+  const gl = parseProductAddress(GL_ADDR), gh = parseProductAddress(`https://github.com/${REPO}`);
+  const e = denied(403, "Forbidden");
+  assert.equal(views.refusedSaveHtml(refusalApp(gl, gl.repo), e, UC2), null, "GitLab's refusal only");
+  assert.deepEqual(editControls(views.refusedSaveHtml(refusalApp(gh, REPO), e, UC2) ?? ""), [UC2], "known positive");
 });
