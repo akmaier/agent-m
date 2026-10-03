@@ -160,5 +160,45 @@ class AnEntryThatLeavesARequirementOutOfItsSection(unittest.TestCase):
                              "return traceability.tracesTo(g, 'RULE ONE').proposals;", {ENTRY: "applied"}), [])
 
 
+# ITM-156 (module MOD-traceability, level unit): a requirement is an artifact of the SPEC too. A requirement whose rule,
+# occasion or check names another in backticks — the form the SPEC uses for a reference, which requirementProblems tells
+# from a conjunction — references it, so it stands in that requirement's impact list as { kind: "requirement", via:
+# "names" }, after the use cases, decisions, modules and tests. A backticked name may wrap over a line, as a Markdown code
+# span does. Counter-proofs: the words of a name in prose, without backticks, are no reference; a requirement naming itself
+# is not its own impact; a withdrawn requirement's note is no live artifact; the open queue entry still changes no list.
+RULE_TWO = ("**RULE TWO** *(PO, 2026-10-03)*\nThe second rule.\n*Occasion:* the reworded `RULE ONE` left a gap.\n"
+            "*Check:* none\n\n")
+RULE_THREE = ("**RULE THREE** *(PO, 2026-10-03)*\nThe third rule, as `RULE THREE` says of itself.\n*Occasion:* the reader of `RULE\n"
+              "ONE` asked for it.\n*Check:* none\n\n")
+RULE_PROSE = ("**RULE IN PROSE** *(PO, 2026-10-03)*\nA rule that speaks of RULE ONE without naming it.\n"
+              "*Occasion:* RULE ONE was too narrow.\n*Check:* none\n\n")
+NAMING = {**FILES, "SPEC.md": FILES["SPEC.md"].replace("**OLD RULE**", RULE_TWO + RULE_THREE + RULE_PROSE + "**OLD RULE**")}
+ARTIFACTS_OF_RULE_ONE = ["UC-001", "ARC-001", "MOD-reader", "tests/reader.test.js"]
+
+
+class ARequirementNamingARequirement(unittest.TestCase):
+    def test_a_requirement_naming_another_in_backticks_is_in_its_impact_list(self):
+        listed = impact(NAMING, "RULE ONE")
+        self.assertEqual([a["id"] for a in listed], ARTIFACTS_OF_RULE_ONE + ["RULE THREE", "RULE TWO"])
+        self.assertEqual(listed[-2:], [
+            {"id": "RULE THREE", "kind": "requirement", "path": "SPEC.md", "via": "names"},
+            {"id": "RULE TWO", "kind": "requirement", "path": "SPEC.md", "via": "names"},
+        ])
+        # The edge is read from the SPEC's text at the commit, never stored: the graph holds it as an edge `names`.
+        self.assertEqual(sorted(run(NAMING, "return g.edges.filter((e) => e.kind === 'names');"), key=lambda e: e["from"]), [
+            {"from": "RULE THREE", "to": "RULE ONE", "kind": "names"},
+            {"from": "RULE TWO", "to": "RULE ONE", "kind": "names"},
+        ])
+
+    def test_counter_proof_a_name_in_prose_itself_or_a_withdrawal_note_is_not_listed(self):
+        ids = [a["id"] for a in impact(NAMING, "RULE ONE")]
+        self.assertNotIn("RULE IN PROSE", ids, "the words of a name without backticks are no reference")
+        self.assertNotIn("OLD RULE", ids, "a withdrawn requirement's note is no live artifact")
+        self.assertEqual(impact(NAMING, "RULE THREE"), [], "a requirement naming itself is not its own impact")
+        self.assertEqual(impact(FILES, "RULE ONE"), impact(NAMING, "RULE ONE")[:4], "without the naming rules, the four")
+        # The open queue entry changes no list, a requirement naming RULE ONE among the SPEC's or not.
+        self.assertEqual(impact({**NAMING, ENTRY: PROPOSAL}, "RULE ONE"), impact(NAMING, "RULE ONE"))
+
+
 if __name__ == "__main__":
     unittest.main()
