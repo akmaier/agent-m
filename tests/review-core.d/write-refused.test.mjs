@@ -10,7 +10,8 @@
 // The real dashboard runs in tests/app-harness.mjs against the harness's GitHub fake, which refuses the write; the accept panel
 // of a GitLab product and of a product's SPEC change is rendered on its own (review-views.mjs acceptPanel). These tests run
 // inside the process of tests/review-core.test.mjs, so each puts back the globals the harness sets when it ends. Counter-proofs:
-// docs/measurements/2026-10-01_write-refused-offers-the-github-path.md.
+// docs/measurements/2026-10-01_write-refused-offers-the-github-path.md; for the batch and the save (ITM-151),
+// docs/measurements/2026-10-03_refused-batch-and-save-offer-the-github-route.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -291,7 +292,7 @@ test("UC-008 3a·4a, UC-018 6b: a Save refused for missing write access writes n
   assert.match(`${result.text} ${result.html}`, /Your token cannot write to akmaier\/agent-m/, "the page says so");
   assert.match(`${result.text} ${result.html}`, /403/, "with the server's answer");
   assert.deepEqual(editControls(result.html), [UC2], "the control that copies the text and opens GitHub's editor of the file");
-  assert.match(result.html, /GitHub's editor/, "named as GitHub's editor");
+  assert.match(unesc(result.html), /GitHub's editor/, "named as GitHub's editor");
   assert.match(result.html, /pull request/, "says that without write access the commit becomes a pull request");
   assert.ok(!hrefs(result.html).some((x) => x.includes("NO-WRITE-ACCESS") || x.includes(encodeURIComponent("NO-WRITE-ACCESS"))),
     "NO TEXT TRAVELS IN A URL");

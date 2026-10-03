@@ -132,6 +132,37 @@ export function githubPath(app, record, path) {
 // only; the panel that shows the button sets it, the click that is refused reads it.
 const githubPages = new Map();
 
+// UC-008 3e: the GitHub path of an item of a review page — its record's new-file page, as Accept all lists it without a token.
+export function reviewItemPage(app, it) {
+  const rec = it.kind === "use-case" ? useCaseRecord(it.path, it.blob) : reviewedRecord(it.path, it.blob);
+  return githubPath(app, rec, approvalPath(it.id, it.blob));
+}
+
+// UC-008 4a for every acceptance commit: what a refusal for missing write access shows — the sentence and the GitHub path of
+// the records it would have written (pages: [{ label, url | null }]); one link for the one record of Accept, one per record for
+// a batch (Accept ticked, Accept all: GitHub's page commits one file at a time). null when the refusal is not for missing write
+// access (a used-up limit, a refused token, GitLab's refusal) or no record has a page — the caller then shows the text alone.
+export function refusedAcceptHtml(app, e, pages, batch) {
+  if (!app.writeAccessRefused(e)) return null;
+  const linked = pages.filter((p) => p.url), none = pages.filter((p) => !p.url);
+  if (!linked.length) return null;
+  const open = (url) => `<a class="btn small" href="${h(url)}" target="_blank" rel="noopener">Open in GitHub to commit ↗</a>`;
+  if (!batch) return `${h(app.writeErrorText(e, linked[0].url))} ${open(linked[0].url)}`;
+  return h(app.writeErrorText(e, { githubPages: linked.length }))
+    + linked.map((p) => `<br>${h(p.label)} — ${open(p.url)}`).join("")
+    + (none.length ? `<br>No GitHub page for ${none.map((p) => `<strong>${h(p.label)}</strong>`).join(", ")}: accepting it needs a
+      token that can write here.` : "");
+}
+
+// UC-018 6b, as in UC-008 4a: a save refused for missing write access offers GitHub's editor of the file — the control Edit
+// offers without a token, which copies the text and opens the editor (UC-008 3b; NO TEXT TRAVELS IN A URL). null for any other
+// refusal: a file changed meanwhile (its newer version is shown instead), a used-up limit, a refused token, a GitLab product.
+export function refusedSaveHtml(app, e, path) {
+  if (app.GITLAB || changedMeanwhile(e, path) || !app.writeAccessRefused(e)) return null;
+  return `${h(app.writeErrorText(e, { githubEdit: true }))} <button class="btn small" data-edit-commit="${h(path)}">Copy &amp; open
+    GitHub editor ↗</button>`;
+}
+
 // `item` is what this page showed the reviewer (see session); with a token, Accept commits exactly that.
 export function acceptPanel(app, record, path, what, item) {
   const { T, SERVER, session } = app;
@@ -286,9 +317,9 @@ export function batchBar(app) {
 }
 
 // ev: the event of the accept button's click handler — it becomes the authority of the write (clickAuthority), or none.
-// githubPage: the GitHub path of the one record the button accepts (githubPath), linked beside a refusal for missing write
-// access (UC-008 4a); none for a batch.
-async function runAccept(app, ev, items, b, out, githubPage = null) {
+// pageOf(item): the GitHub path of an item's record (githubPath), linked beside a refusal for missing write access (UC-008 4a);
+// batch: whether the button accepts several records (Accept ticked, Accept all), each then with its own page.
+async function runAccept(app, ev, items, b, out, pageOf = () => null, batch = true) {
   const { T, session } = app;
   b.disabled = true;
   out.textContent = "Checking the current texts and committing…";
@@ -305,10 +336,8 @@ async function runAccept(app, ev, items, b, out, githubPage = null) {
     await app.reloadAndRoute();
   } catch (e) {
     app.noteRefusal(e);
-    if (githubPage && app.writeAccessRefused(e)) {
-      out.innerHTML = `${h(app.writeErrorText(e, githubPage))} <a class="btn small" href="${h(githubPage)}" target="_blank"
-        rel="noopener">Open in GitHub to commit ↗</a>`;
-    } else out.textContent = app.writeErrorText(e);
+    const html = refusedAcceptHtml(app, e, items.map((it) => ({ label: itemLabel(it), url: pageOf(it) })), batch);
+    if (html) out.innerHTML = html; else out.textContent = app.writeErrorText(e);
     b.disabled = false;
   }
 }
@@ -318,7 +347,8 @@ async function runAccept(app, ev, items, b, out, githubPage = null) {
 export function wireAccept(app, root, scope = root) {
   const { session } = app;
   scope.querySelectorAll("[data-accept-key]").forEach((b) => b.addEventListener("click", (ev) => {
-    runAccept(app, ev, [session.get(b.dataset.acceptKey)], b, b.closest(".panel").querySelector(".result"), githubPages.get(b.dataset.acceptKey) || null);
+    runAccept(app, ev, [session.get(b.dataset.acceptKey)], b, b.closest(".panel").querySelector(".result"),
+      () => githubPages.get(b.dataset.acceptKey) || null, false);
   }));
   scope.querySelectorAll("[data-tick]").forEach((c) => c.addEventListener("change", () => {
     session.tick(c.dataset.tick, c.checked);
@@ -331,7 +361,8 @@ export function wireAccept(app, root, scope = root) {
 function wireBatch(app, root) {
   root.querySelector("[data-accept-ticked]")?.addEventListener("click", (ev) => {
     const b = ev.currentTarget;
-    runAccept(app, ev, app.session.items(), b, b.closest(".panel").querySelector(".result"));
+    runAccept(app, ev, app.session.items(), b, b.closest(".panel").querySelector(".result"),
+      (it) => githubPages.get(app.session.key(it)) || null);
   });
 }
 
@@ -351,6 +382,14 @@ export function wireCommon(app, root, original, openedId = null) {
   if (!ed) return;
   const ta = ed.querySelector("textarea"), pv = ed.querySelector(".preview");
   let timer = null;
+  // UC-008 3b: the text to the clipboard and GitHub's editor of the file opened — without a token, and beside a save refused for
+  // missing write access (refusedSaveHtml).
+  async function openEditor(ev) {
+    const c = ev.currentTarget, text = ta.value.endsWith("\n") ? ta.value : ta.value + "\n";
+    await navigator.clipboard.writeText(text);
+    window.open(editUrl(T.repo, T.ref, c.dataset.editCommit), "_blank", "noopener");
+    c.textContent = "Copied — paste in GitHub's editor, then commit ✓";
+  }
   async function update() {
     const { body } = parseFrontMatter(ta.value);
     pv.innerHTML = md(body);
@@ -371,17 +410,16 @@ export function wireCommon(app, root, original, openedId = null) {
       await app.reloadAndRoute();
     } catch (e) {
       app.noteRefusal(e);
-      out.textContent = app.writeErrorText(e);
+      const route = refusedSaveHtml(app, e, b.dataset.editSave);
+      if (route) {
+        out.innerHTML = route;
+        out.querySelector?.("[data-edit-commit]")?.addEventListener("click", openEditor);
+      } else out.textContent = app.writeErrorText(e);
       b.disabled = false;
       if (changedMeanwhile(e, b.dataset.editSave)) await showNewer(app, ed, b.dataset.editSave, text);
     }
   });
-  ed.querySelector("[data-edit-commit]")?.addEventListener("click", async (ev) => {
-    const text = ta.value.endsWith("\n") ? ta.value : ta.value + "\n";
-    await navigator.clipboard.writeText(text);
-    window.open(editUrl(T.repo, T.ref, ev.currentTarget.dataset.editCommit), "_blank", "noopener");
-    ev.currentTarget.textContent = "Copied — paste in GitHub's editor, then commit ✓";
-  });
+  ed.querySelector("[data-edit-commit]")?.addEventListener("click", openEditor);
 }
 
 // ---------------------------------------------------------------- views
@@ -787,11 +825,8 @@ function acceptAllPanel(app, page) {
     <p>Without a token stored in this browser the dashboard cannot write one commit for all of them: GitHub's page commits one file
     at a time. Each record below opens prefilled; press <em>Commit changes…</em> there, then reload this page. A token in
     <a href="#settings">Settings</a> makes this one click.</p>
-    <ol>${page.items.map((it) => {
-      const path = approvalPath(it.id, it.blob), rec = it.kind === "use-case" ? useCaseRecord(it.path, it.blob) : reviewedRecord(it.path, it.blob);
-      return `<li>${h(it.id)} — <a class="btn small" href="${h(newFileUrl(T.repo, T.ref, path, recordText(rec)))}" target="_blank"
-        rel="noopener">Open in GitHub to commit ↗</a></li>`;
-    }).join("")}</ol>
+    <ol>${page.items.map((it) => `<li>${h(it.id)} — <a class="btn small" href="${h(reviewItemPage(app, it))}" target="_blank"
+      rel="noopener">Open in GitHub to commit ↗</a></li>`).join("")}</ol>
     ${blocked}
     ${explain}
   </section>`;
@@ -830,7 +865,7 @@ async function viewReviewAll(app, area) {
     ${page.shown.length ? acceptAllPanel(app, page) : ""}`;
   main().querySelector("[data-accept-all]")?.addEventListener("click", (ev) => {
     const b = ev.currentTarget;
-    runAccept(app, ev, page.items, b, b.closest(".panel").querySelector(".result"));
+    runAccept(app, ev, page.items, b, b.closest(".panel").querySelector(".result"), (it) => reviewItemPage(app, it));
   });
   await renderMermaid(main());
 }
