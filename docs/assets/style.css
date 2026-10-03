@@ -117,6 +117,17 @@ p.notice { border: 1px solid var(--warn); background: var(--warn-bg); padding: .
 .banner-slot { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
 .banner-slot:empty { display: none; }
 .token-banner p { margin: .3rem 0; }
+/* The progress bar on the main page (ITM-162): a stacked bar of the backlog's items by state, with its legend. */
+.progress-bar p { margin: .3rem 0; }
+.progress-bar .bar { display: flex; height: .9rem; border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+  background: var(--open-bg); margin: .4rem 0; }
+.progress-bar .seg { display: block; height: 100%; }
+.progress-bar .legend { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; padding: 0; margin: .2rem 0; }
+.progress-bar .dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; vertical-align: -.05rem; }
+.seg-done { background: var(--ok); }
+.seg-in-progress { background: var(--accent); }
+.seg-blocked { background: var(--bad); }
+.seg-not-started { background: var(--open-bg); border: 1px solid var(--line); box-sizing: border-box; }
 .setting { border-top: 1px solid var(--line); padding: .6rem 0; }
 .setting:first-child { border-top: none; }
 .setting h4 { margin: 0 0 .3rem; font-size: .95rem; }
