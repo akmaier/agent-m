@@ -82,6 +82,27 @@ class UnrealisedRequirements(unittest.TestCase):
         self.assertNotIn("OLD RULE", [u["name"] for u in g["unknownNames"]])
 
 
+    # ITM-156 (module MOD-traceability, level unit): a requirement that names a withdrawn one in backticks still references
+    # it, so the withdrawn name is reported among the unknown names with its withdrawal note and what names it — as a use
+    # case or module naming it is. Counter-proof: a word in capitals in backticks that is no requirement of the SPEC (a file
+    # name, a command) is no reference and no unknown name; nor is a withdrawn name in prose, without backticks.
+    def test_a_withdrawn_requirement_a_live_one_names_is_reported_with_its_note(self):
+        naming = ("**RULE FOUR** *(PO, 2026-10-03)*\nA rule that takes over from `OLD\nRULE`.\n"
+                  "*Check:* none\n\n")
+        g = gaps({**FILES, "SPEC.md": FILES["SPEC.md"].replace("**OLD RULE**", naming + "**OLD RULE**")})
+        self.assertIn({"name": "OLD RULE", "withdrawn": True, "from": ["RULE FOUR"]}, g["unknownNames"])
+        # Named by a use case as well, it is one unknown name with both.
+        g = gaps({**FILES, "SPEC.md": FILES["SPEC.md"].replace("**OLD RULE**", naming + "**OLD RULE**"),
+                  UC3: use_case(["OLD RULE"])})
+        self.assertIn({"name": "OLD RULE", "withdrawn": True, "from": ["RULE FOUR", "UC-003"]}, g["unknownNames"])
+
+    def test_counter_proof_a_capitals_word_in_backticks_or_a_name_in_prose_is_no_unknown_name(self):
+        prose = ("**RULE FIVE** *(PO, 2026-10-03)*\nA rule that keeps the `LICENSE` file and sends no `POST`.\n"
+                 "*Occasion:* OLD RULE was too narrow.\n*Check:* none\n\n")
+        g = gaps({**FILES, "SPEC.md": FILES["SPEC.md"].replace("**OLD RULE**", prose + "**OLD RULE**")})
+        self.assertEqual(g["unknownNames"], gaps(FILES)["unknownNames"])
+
+
 class ModuleGaps(unittest.TestCase):
     def test_each_module_row_names_what_it_realises_follows_its_code_and_its_tests(self):
         rows = {r["id"]: r for r in modules(FILES)["rows"]}
