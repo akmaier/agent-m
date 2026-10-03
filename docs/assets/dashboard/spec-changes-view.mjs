@@ -58,8 +58,19 @@ const queueEntries = (app, q) => app.once(`queue:${q.dir}`, async () => {
 const specTarget = (p) => p.replace(/^`|`$/g, "").replace(/^products\/[^/]+\//, "");
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const specItem = (q, e) => ({ kind: "spec", queue: e.dir, qname: q.name, nr: e.nr, nn: e.nn, proposalPath: e.proposalPath,
-  proposalBlob: e.proposalBlob, sectionBlob: e.sectionBlob, targetPath: e.targetPath, anchor: e.anchor, bis: e.bis, needs: e.needs });
+// impact: what the entry page derived ({ list } or { error }), or none where only the item's key is needed. An entry that changes
+// or withdraws a requirement — or whose list could not be derived, so that this is not known — `touches`; `impactShown` when its
+// list was shown, as the architecture views set it (A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; planAcceptance).
+const specItem = (q, e, impact = null) => ({ kind: "spec", queue: e.dir, qname: q.name, nr: e.nr, nn: e.nn, proposalPath: e.proposalPath,
+  proposalBlob: e.proposalBlob, sectionBlob: e.sectionBlob, targetPath: e.targetPath, anchor: e.anchor, bis: e.bis, needs: e.needs,
+  ...(impact && (impact.error || impact.list.length) ? { touches: true } : {}),
+  ...(impact && !impact.error && impact.list.length ? { impactShown: true } : {}) });
+// A ticked entry whose impact list was not shown: Accept ticked leaves it out, and the list says so beside it.
+const unshownImpact = (app, key) => {
+  const it = app.session.isTicked(key) ? app.session.get(key) : null;
+  return it?.touches && it.impactShown !== true
+    ? ` <span class="warn small">— its impact list was not shown: open it before accepting</span>` : "";
+};
 const specAcceptable = (e) => Boolean(!e.error && e.proposalPath && ["open", "stale"].includes(e.status));
 
 // Every queue with its index and decisions; the entries of a queue with an entry still undecided, and of each queue opened on this
@@ -94,7 +105,7 @@ async function viewSpec(app, open = null) {
         <table class="list"><thead><tr>${app.token() ? "<th>Tick</th>" : ""}<th>Nr</th><th>Section</th><th>Status</th></tr></thead><tbody>
         ${q.entries.map((e) => `<tr>${tickCell(app, session.key(specItem(q, e)), specAcceptable(e))}
           <td><a href="#spec/${h(q.name)}/${h(e.nn)}">${h(e.nn)}</a></td>
-          <td><a href="#spec/${h(q.name)}/${h(e.nn)}">${h(e.anchor.replace(/^#+\s*/, ""))}</a>${entryNote(e)}</td>
+          <td><a href="#spec/${h(q.name)}/${h(e.nn)}">${h(e.anchor.replace(/^#+\s*/, ""))}</a>${entryNote(e)}${unshownImpact(app, session.key(specItem(q, e)))}</td>
           <td>${badge(e.status)}</td></tr>`).join("")}
         </tbody></table>
       </section>`).join("")}`;
@@ -183,7 +194,7 @@ async function viewSpecEntry(app, qname, nn) {
   const canAccept = specAcceptable(e) && !waits && !impact.error;
   const rec = canAccept ? specRecord({ queue: e.dir, entry: e.nr, proposal: e.proposalPath, blob: e.proposalBlob,
     target: e.targetPath, anchor: e.anchor, section: e.sectionBlob }) : null;
-  const item = specItem(q, e);
+  const item = specItem(q, e, impact);
   // A QUEUE IS ACCEPTED IN ITS ORDER: not offered alone while another entry must create its heading.
   const waitPanel = waits ? `<section class="panel accept"><h3>Accept entry ${h(e.nn)}</h3>
       <p class="notice">${h(needsMessage(item, e.needs))}</p>

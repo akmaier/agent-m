@@ -8,11 +8,12 @@
 // Level: component
 //
 // Counter-proofs (a planted fault for each test): docs/measurements/2026-10-02_spec-entry-impact-list.md; for the two cases of an
-// entry that takes a requirement out of its section, docs/measurements/2026-10-02_entry-impact-from-the-index.md.
+// entry that takes a requirement out of its section, docs/measurements/2026-10-02_entry-impact-from-the-index.md; for the two cases
+// of Accept ticked on the SPEC list (ITM-155), docs/measurements/2026-10-03_spec-list-accept-without-impact-list.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repoServer, fakeCaches, openDashboard } from "./app-harness.mjs";
+import { repoServer, fakeCaches, openDashboard, settle } from "./app-harness.mjs";
 
 // ---------------------------------------------------------------- the fixture product
 //
@@ -182,4 +183,74 @@ test("UC-006 3b: the requests one load of an entry makes, with an empty and with
   // The list reads the use cases, the architecture files and the tests of the commit, each once — and no other code file.
   assert.deepEqual(graphReads(one.cold).sort(), [UC1, UC2, UC3, ARC1, MODR, T1, T3].map((p) => `file ${p}`).sort());
   assert.ok(!one.cold.includes("file src/reader.mjs"), "a code file that is no test names no requirement and is not read");
+});
+
+// ---------------------------------------------------------------- Accept ticked on the SPEC list (UC-006 4d) — ITM-155
+//
+// A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST "on every route that accepts an entry": the list's Accept ticked writes the
+// items the entry pages showed (session), and an entry page offers its tick also to an entry that waits for another of its queue
+// — then whether or not its impact list could be derived. The item carries whether the list was shown; the engine
+// (planAcceptance) leaves out an entry that touches a requirement without it, and the list says so beside the ticked entry.
+
+const tickOn = async (srv) => {
+  const c = globalThis.document.getElementById("main").querySelector("[data-tick]");
+  assert.ok(c, "the page offers a tick");
+  c.checked = true;
+  c.fire("change", {});
+  await settle(srv);
+};
+// The SPEC list's row of one entry.
+const rowOf = (html, nn) => new RegExp(`<tr>(?:(?!</tr>).)*?href="#spec/${QNAME}/${nn}"(?:(?!</tr>).)*</tr>`, "s").exec(html)?.[0] ?? "";
+const recordOf = (files, nn) => Object.keys(files).filter((p) => p.startsWith(`docs/approvals/spec-${QNAME}-${nn}-`));
+
+test("UC-006 4d · ITM-155: an entry ticked while its impact list could not be shown is left out by Accept ticked on the SPEC list, named with the reason; opened with its list shown, the same click writes it", async () => {
+  // While `broken`, the server fails on one of the tests the list reads: entry 05's list cannot be derived.
+  let broken = true;
+  const failing = (url) => (broken && url.pathname.endsWith(`/contents/${T3}`) ? new Response("{}", { status: 500 }) : undefined);
+  const srv = await repoServer({ files: SPLIT, handlers: [failing] });
+  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
+  assert.match(impactOf(page.main()), /The impact list could not be derived/, "entry 05's list is not shown");
+  await tickOn(srv); // the entry waits for entry 04: its page offers the tick
+  broken = false;
+  await page.go(`#spec/${QNAME}/04`);
+  await tickOn(srv);
+  await page.go("#spec");
+  assert.match(rowOf(page.main(), "05"), /its impact list was not shown/, "the list says beside the ticked entry that it must be opened first");
+  assert.doesNotMatch(rowOf(page.main(), "04"), /its impact list was not shown/);
+  await page.click("[data-accept-ticked]");
+  assert.equal(srv.writes.length, 1, "one commit");
+  const w = srv.writes[0].files;
+  assert.equal(recordOf(w, "04").length, 1, "entry 04 is written");
+  assert.deepEqual(recordOf(w, "05"), [], "nothing is written for entry 05");
+  assert.ok(!w["SPEC.md"].includes(P05), "entry 05's text is not in the SPEC");
+  assert.match(page.main(), new RegExp(`Left out <strong>${QNAME} 05</strong>: its impact list was not shown — open it`));
+
+  // Opened again, its list shown: ticked there, the same click on the list writes it.
+  await page.go(`#spec/${QNAME}/05`);
+  assert.deepEqual(listed(impactOf(page.main())), { "RULE THREE": { change: "withdraw", ids: ["UC-003", T3] } });
+  await tickOn(srv);
+  await page.go("#spec");
+  assert.doesNotMatch(rowOf(page.main(), "05"), /its impact list was not shown/);
+  await page.click("[data-accept-ticked]");
+  assert.equal(srv.writes.length, 2);
+  assert.equal(recordOf(srv.writes[1].files, "05").length, 1, "entry 05 is written");
+  assert.ok(srv.writes[1].files["SPEC.md"].includes(P05.trimEnd()), "with its text in the SPEC");
+});
+
+test("UC-006 4d · ITM-155 counter-proof: an adding entry and a changing entry whose list was shown on its page are written by Accept ticked on the SPEC list", async () => {
+  const srv = await repoServer({ files: FILES });
+  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/02` });
+  assert.equal(impactOf(page.main()), null, "entry 02 adds only: no list");
+  await tickOn(srv);
+  await page.go(`#spec/${QNAME}/01`);
+  assert.ok(impactOf(page.main()), "entry 01's list is shown");
+  await tickOn(srv);
+  await page.go("#spec");
+  assert.doesNotMatch(page.main(), /its impact list was not shown/);
+  await page.click("[data-accept-ticked]");
+  assert.equal(srv.writes.length, 1, "one commit");
+  const w = srv.writes[0].files;
+  assert.equal(recordOf(w, "01").length, 1, "the changing entry, its list shown, is written");
+  assert.equal(recordOf(w, "02").length, 1, "the adding entry is written");
+  assert.doesNotMatch(page.main(), /Left out/);
 });
