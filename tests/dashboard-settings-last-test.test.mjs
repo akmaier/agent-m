@@ -367,6 +367,22 @@ test("UC-042 step 1 · A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN: a
   assert.deepEqual(keptTest(), { refused: true });
 });
 
+// Watching the answers never fails a request: a browser whose storage refuses to write (full, say) still shows what was read with
+// the token, and the refusal stays kept, as nothing could be written.
+test("UC-042 step 1: a browser that cannot write its storage still gets the answer — the read is shown, the refusal stays kept", async () => {
+  const world = await instanceWorld(ARC_FILE);
+  const page = await openDashboard({ server: world.srv, hash: "#uc" });
+  world.refuseGitHub = true;
+  await page.go("#arc");
+  assert.deepEqual(keptTest(), { refused: true });
+  globalThis.localStorage.setItem = () => { throw new DOMException("The quota has been exceeded.", "QuotaExceededError"); };
+  world.refuseGitHub = false;
+  await page.go("#arc");
+  assert.ok(page.main().includes("ARC-001"), "the architecture file is shown");
+  assert.doesNotMatch(page.main(), /QuotaExceeded|quota has been exceeded/, "no storage error in place of the file");
+  assert.deepEqual(keptTest(), { refused: true }, "nothing written");
+});
+
 // A success clears only the refusal of the token it carried: the GitLab project token answered leaves the GitHub token refused.
 test("UC-042 step 1: a successful request with one token leaves another token's kept refusal standing", async () => {
   const world = await instanceWorld();

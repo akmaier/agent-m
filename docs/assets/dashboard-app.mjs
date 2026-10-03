@@ -508,7 +508,8 @@ function noteAnswer(response, input, init) {
 function watchAnswers(send) {
   return async (input, init) => {
     const response = await send(input, init);
-    noteAnswer(response, input, init);
+    // Watching never fails a request: where the answer cannot be kept (storage full, say), the kept state stays as it was.
+    try { noteAnswer(response, input, init); } catch { /* the caller still gets the answer */ }
     return response;
   };
 }

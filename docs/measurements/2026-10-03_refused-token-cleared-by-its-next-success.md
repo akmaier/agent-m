@@ -98,3 +98,39 @@ Every new case is red on at least one fault.
 The implementation commit, on a clean tree: `node --test tests/*.test.mjs` — 537 tests, 533 pass, 0 fail, 4 todo;
 `cd tests && python3 -m unittest` — 367 tests, OK (5 expected failures). Before the item, on `37449fc`: 532 tests (528 pass, 0 fail,
 4 todo) and 367 tests, OK (5 expected failures).
+
+## 7. Addendum, 2026-10-03 (same day, third commit): the watcher never fails a request
+
+Sections 1–6 describe the implementation commit `d3e1320`; they stay as written. CI on `d3e1320`: runs `37119397933` (push) and
+`37119399640` (pull request) — **success**.
+
+**Finding after `d3e1320`.** Section 2, reading 4 says the watcher never changes the answer. On `d3e1320` that did not hold in one
+case: `watchAnswers` called `noteAnswer` without a guard, so an error while noting the answer — a storage whose `setItem` throws, as
+a full `localStorage` does (`QuotaExceededError`) — was thrown from the browser's `fetch` itself, and the request that had been
+answered failed for its caller. Path: `fetch` (wrapped) → `noteAnswer` → `store.tokenAnswered` → `setTokenTest` →
+`storage.setItem` throws → the view's read fails → `route`'s `catch` → `<main>` shows `<p class="warn">The quota has been
+exceeded.</p>` in place of the architecture page (seen at that node with the probe `scratchpad/itm161/probe3.test.mjs`, the guard
+removed). MOD-settings-store's architecture names a storage that throws as a case to simulate. A blocked storage does not reach
+this: `browserStore` falls back to an in-memory stand-in that does not throw.
+
+**Change.** `dashboard-app.mjs` `watchAnswers`: `try { noteAnswer(…) } catch {}` — the caller gets the answer, and the kept state
+stays as it was.
+
+**New case** (same file, header, module and level as in section 3):
+
+| Case | Expected |
+|---|---|
+| N6 a storage that refuses to write | refused at the architecture view's read; `localStorage.setItem` then throws `QuotaExceededError`; the same read answered → `<main>` shows the architecture page (contains `ARC-001`, no storage error), the kept value stays `{"refused":true}` |
+
+N6 is red on the code of `d3e1320` (assertion "the architecture file is shown": actual `false`) and green with the guard; the known
+positive of the check is that green run (`<main>` begins with the architecture page's head, *Architecture*, open 1).
+
+**Counter-proofs, rerun on the final tree** with `scratchpad/itm161/mutate.py`, fault F7 added; F1–F6 turn the same cases red as in
+section 5:
+
+| Fault | File | Red |
+|---|---|---|
+| F7 an error while noting the answer fails the request (the `try/catch` removed) | `dashboard-app.mjs` | N6 |
+
+**Green, final tree:** `node --test tests/*.test.mjs` — 538 tests, 534 pass, 0 fail, 4 todo; `cd tests && python3 -m unittest` —
+367 tests, OK (5 expected failures).
