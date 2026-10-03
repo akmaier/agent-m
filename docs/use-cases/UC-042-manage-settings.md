@@ -82,8 +82,8 @@ on the instance or product, so they are changed by a commit.
    as public, that the data will be published. The person ticks *I have read this* and presses **Save**;
    the setting is committed to the product's `docs/settings.md`.
 5. **Collaborators** (per product) lists the people who agreed to be named in the repository, each with
-   name, account and the date they agreed. **+ Collaborator** takes the three and a tick *this person
-   has agreed to be named*; **Save** commits `docs/collaborators.md`.
+   name and account. **+ Collaborator** takes both and a tick *this person has agreed to be named*;
+   **Save** commits `docs/collaborators.md`, and the commit records who added them when.
 6. At the bottom, **Export settings** saves a file with every browser setting, tokens, keys and
    passwords included, after a one-line notice that the file opens the person's repositories and mail to
    whoever holds it — optionally locked with a passphrase the person chooses, without which the file
