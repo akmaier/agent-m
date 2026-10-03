@@ -83,7 +83,7 @@ const among = (box, attr, value) => box().querySelectorAll(`[${attr}]`).find((c)
 test("UC-042 step 1: a successful Test of the GitHub token is shown after a reload — ✓ works with the date of that test", async () => {
   const world = await instanceWorld();
   const { box } = await settingsPage(world);
-  assert.equal(stateOf(row(box, "github-token")), "stored — not tested on this page yet", "before any test");
+  assert.equal(stateOf(row(box, "github-token")), "stored — not tested yet", "before any test");
   await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
   assert.equal(stateOf(row(box, "github-token")), `✓ works — tested ${TODAY}`);
   const again = await reload(world);
@@ -129,9 +129,9 @@ test("UC-042 step 2: a new token stored with Change starts untested — the last
   await settle(world.srv);
   dom.byId("token-input").value = "github_pat_RENEWED0123456789abcdefghij";
   await press(world.srv, dom.byId("token-save"));
-  assert.equal(stateOf(row(box, "github-token")), "stored — not tested on this page yet");
+  assert.equal(stateOf(row(box, "github-token")), "stored — not tested yet");
   const again = await reload(world);
-  assert.equal(stateOf(row(again.box, "github-token")), "stored — not tested on this page yet", "after the reload too");
+  assert.equal(stateOf(row(again.box, "github-token")), "stored — not tested yet", "after the reload too");
 });
 
 // ---------------------------------------------------------------- A CLEAR IS A REAL CLEAR · EVERY SETTING IS REACHED FROM ONE PAGE
@@ -144,7 +144,7 @@ test("UC-042 step 2 · A CLEAR IS A REAL CLEAR: Clear removes the kept date and 
   await press(world.srv, inBox(box, '[data-clear="agent-m.github-token"]'));
   assert.deepEqual(agentEntries(), {}, "nothing of the token is left — its last test neither");
   const again = await settingsPage(world, { "agent-m.github-token": TOKEN });
-  assert.equal(stateOf(row(again.box, "github-token")), "stored — not tested on this page yet", "the same token stored again starts untested");
+  assert.equal(stateOf(row(again.box, "github-token")), "stored — not tested yet", "the same token stored again starts untested");
 });
 
 test("UC-042 step 6 · A CLEAR IS A REAL CLEAR: Clear everything removes every kept test result", async () => {
@@ -179,7 +179,7 @@ test("UC-042 step 1: a GitLab project token's last test — works, then refused 
   const entries = { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
     "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }) };
   const { box } = await settingsPage(world, entries);
-  assert.match(gitlabLine(box), /<span class="state">stored — not tested on this page yet<\/span>/);
+  assert.match(gitlabLine(box), /<span class="state">stored — not tested yet<\/span>/);
   await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
   let again = await reload(world);
   assert.match(gitlabLine(again.box), new RegExp(`<span class="state">✓ works — tested ${TODAY}</span>`), "works, after the reload");
@@ -203,7 +203,7 @@ test("UC-042 step 2: a GitLab project token changed or cleared takes its last te
   form.querySelector("[data-gl-expires]").value = day(80);
   await press(world.srv, form.querySelector("[data-gl-store]"));
   let again = await reload(world);
-  assert.match(gitlabLine(again.box), /<span class="state">stored — not tested on this page yet<\/span>/, "the new value starts untested");
+  assert.match(gitlabLine(again.box), /<span class="state">stored — not tested yet<\/span>/, "the new value starts untested");
   await press(world.srv, among(again.box, "data-test-gitlab", GL_ADDR));
   await press(world.srv, among(again.box, "data-clear-gitlab", GL_ADDR));
   assert.ok(!Object.values(agentEntries()).some((v) => v.includes(TODAY)), "no date of a test is left");
@@ -229,6 +229,17 @@ test("UC-042 step 1: a remote session's last test — something answered, or not
   assert.match(sessionLine(again.box), /<span class="state">✗ nothing answered at localhost:20001 — start both commands<\/span>/);
   await press(world.srv, among(again.box, "data-clear-session", "lab-pc"));
   assert.equal(globalThis.localStorage.getItem("agent-m.remote-sessions"), null, "cleared with its session");
+});
+
+test("UC-042 step 1: a remote session never tested reads \"not tested yet\" — its last test is kept, so it is not \"on this page\" (ITM-160)", async () => {
+  const world = await instanceWorld();
+  const entries = { "agent-m.github-token": TOKEN,
+    "agent-m.jump-host": JSON.stringify({ host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003, reverseKey: "", forwardKey: "" }),
+    "agent-m.remote-sessions": JSON.stringify([{ name: "lab-pc", port: 20001, bridgePort: 8765, token: "bridgeTOKEN-0123456789abcdef" }]) };
+  const { box } = await settingsPage(world, entries);
+  assert.match(sessionLine(box), /<span class="state">not tested yet<\/span>/, "before any test");
+  const again = await reload(world);
+  assert.match(sessionLine(again.box), /<span class="state">not tested yet<\/span>/, "after a reload too");
 });
 
 // ---------------------------------------------------------------- SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
@@ -273,5 +284,5 @@ test("UC-042 6a: an import that keeps this browser's own token keeps its own las
   mine.dom.byId("import-file").files = [{ text: async () => file }];
   await press(world.srv, mine.dom.byId("import-go"));
   assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "this browser's token is kept");
-  assert.equal(stateOf(row(mine.box, "github-token")), "stored — not tested on this page yet", "with its own state");
+  assert.equal(stateOf(row(mine.box, "github-token")), "stored — not tested yet", "with its own state");
 });
