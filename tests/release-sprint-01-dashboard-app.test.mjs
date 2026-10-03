@@ -392,8 +392,7 @@ test("release · UC-001 2–5: a GitHub product is added — Step A names the to
 // UC-001 step 5 · ONE REVIEW LAYOUT FOR EVERY PRODUCT — the layout Add product writes holds docs/architecture/ too, where the
 // product's architecture decisions and modules are reviewed. Expected: the commit into a product without a layout writes a file
 // under docs/architecture/ — on GitHub and on a GitLab server alike.
-test("release · UC-001 5: the layout written into a new product holds docs/architecture/",
-  { todo: "FINDING R1 — the layout Add product writes has no docs/architecture/ (backlog item to be added by the Product Owner)" }, async () => {
+test("release · UC-001 5: the layout written into a new product holds docs/architecture/", async () => {
     const product = await productServer();
     const w = await world({ product });
     const page = await open(w, { hash: "#add" });

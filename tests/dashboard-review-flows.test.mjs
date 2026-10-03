@@ -483,7 +483,8 @@ test("UC-006 4d counter-proof: the dependent entry ticked alone cannot be accept
 // ================================================================ UC-001 Add a managed product
 
 const PRODUCT = "alice/thesis", PRODUCT_ADDR = `https://github.com/${PRODUCT}`;
-const LAYOUT = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"];
+const LAYOUT = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/architecture/README.md", "docs/spec-freigaben/README.md",
+  "docs/use-cases/README.md"];
 const stored = (key) => globalThis.localStorage.getItem(key);
 
 // The product's repository, a second server behind the instance's: GitHub's API under /repos/alice/thesis goes to it.
