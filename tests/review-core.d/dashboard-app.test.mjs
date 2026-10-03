@@ -138,15 +138,19 @@ test("the shells read only through what the git host provides — no file of the
 // The git host's reads that MOD-git-host keeps to itself: the request helper and the GitLab reads behind readSnapshot,
 // readFile and repositoryInfo. Each sends a request; none is in MOD-git-host's `provides`.
 const GIT_HOST_INTERNAL_READS = ["fetchText", "request", "gitlabProject", "gitlabSnapshot", "gitlabReadFile"];
-// MOD-git-host's `provides`, read from its module file (ARC-020 decision 6: the public API).
-const gitHostProvides = () => new Set([...(/^provides:\n((?:\s+- .+\n)+)/m.exec(readFileSync(new URL("../../docs/architecture/MOD-git-host.md",
-  import.meta.url), "utf8"))?.[1] ?? "").matchAll(/- (\w+)/g)].map((m) => m[1]));
+// MOD-git-host's interfaces, read from the json interface blocks of the decision that designs it (ARC-020 decision 2).
+const gitHostProvides = () => {
+  const dir = new URL("../../docs/architecture/", import.meta.url);
+  const arc = readdirSync(dir).find((f) => /^ARC-004-.+\.md$/.test(f));
+  return new Set([...readFileSync(new URL(arc, dir), "utf8").matchAll(/```json interface\n([\s\S]*?)\n```/g)]
+    .map((m) => JSON.parse(m[1]).id).filter((id) => id.startsWith("MOD-git-host.")).map((id) => id.slice("MOD-git-host.".length)));
+};
 
 // Guards: UC-024; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
 test("the shells read only through what the git host provides — no file of the dashboard imports a read MOD-git-host keeps to itself", () => {
   // ITM-130, back from Release testing (A2): checkGitLab reads a GitLab project through repositoryInfo, not gitlabProject.
   const provides = gitHostProvides();
-  assert.ok(provides.has("repositoryInfo") && provides.has("readSnapshot") && provides.size >= 16, "the provides list is read");
+  assert.ok(provides.has("repositoryInfo") && provides.has("readSnapshot") && provides.size >= 10, "the interfaces are read");
   for (const n of GIT_HOST_INTERNAL_READS) {
     assert.ok(!provides.has(n), `${n} is not provided`);
     assert.equal(typeof gitHost[n], "function", `${n} is a function of the git host`);
