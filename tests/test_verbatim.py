@@ -13,9 +13,11 @@ writers write the same bytes.
 
 The proposal with umlauts and a dash of tests/test_apply_approvals.py and the dashboard's whole-SPEC comparisons in
 tests/review-core.d/dashboard-writes.test.mjs stay as they are; this file adds the bytes they do not hold.
-Two behaviours are not pinned as correct: a proposal with CR LF line ends (the dashboard writes it as it is; the workflow
-refuses it, which writes no other text either — the refusal is reported with the pull request), and a proposal ending in
-blank lines (FINDING V1, expected to fail). Counter-proofs: docs/measurements/2026-10-01_approval-gates-counter-proofs.md.
+One behaviour is not pinned as correct: a proposal with CR LF line ends (the dashboard writes it as it is; the workflow
+refuses it, which writes no other text either — the refusal is reported with the pull request). The blank lines that end a
+proposal are the separator, not its text (finding V1 of ITM-014, settled as the Product Owner's reading at the sprint 03
+planning, 2026-10-02; ITM-159). Counter-proofs: docs/measurements/2026-10-01_approval-gates-counter-proofs.md,
+docs/measurements/2026-10-03_blank-lines-ending-a-proposal-counter-proofs.md.
 """
 import json
 import shutil
@@ -117,19 +119,36 @@ class Verbatim(unittest.TestCase):
         finally:
             p.tmp.cleanup()
 
-    @unittest.expectedFailure
     def test_blank_lines_at_the_end_of_a_proposal_are_written(self):
-        # FINDING V1: both writers strip the newlines at the end of a proposal and write one (review-core.mjs replaceSection,
-        # `proposal.replace(/\n+$/, "")`; apply_approvals.py, `prop.rstrip("\n")`), so blank lines that end an approved
-        # proposal are not written. Expected: the SPEC holds the proposal byte for byte, its final blank line included.
-        proposal = VARIANTS["a tab"] + "\n"
-        p = Product(proposal)
-        try:
-            self.assertEqual(p.dashboard()[1], outside(p.spec, proposal))
-            self.assertEqual(p.workflow()[2], outside(p.spec, proposal))
-        finally:
-            p.tmp.cleanup()
+        """The blank lines that end an approved proposal are the separator, not its text.
 
+        The Product Owner's reading, sprint 03 planning, 2026-10-02 (ITM-159; finding V1 of ITM-014): the approved text is
+        the proposal's content; the blank lines that end a proposal file are the separator between SPEC sections, as the
+        heading's position is the SPEC's own layout. THE APPROVED TEXT IS TAKEN VERBATIM holds when the content is written
+        byte for byte and the section keeps its one line break at its end — so the SPEC's bytes and the current text the
+        next proposal is shown against (extractSection) do not differ while no word changed (NO PROPOSAL WITHOUT THE
+        CURRENT TEXT BESIDE IT). A line break inside the content is kept: two trailing spaces, and a line that ends the
+        text before a blank line.
+        Expected, for a proposal ending in one and in two blank lines: the SPEC is the old one with the section replaced by
+        the content and one line break, byte for byte, on both writers.
+        """
+        content = (HEAD + "Rule two holds  \nacross a line break.\n"
+                   "A line that ends the text before a blank line.\n\nA second paragraph after it.")
+        for blank in (1, 2):
+            proposal = content + "\n" + "\n" * blank
+            with self.subTest(blank_lines=blank):
+                p = Product(proposal)
+                try:
+                    want = outside(p.spec, content + "\n")
+                    self.assertIn(content + "\n## 3. Last", want)
+                    left_out, by_dashboard = p.dashboard()
+                    self.assertEqual(left_out, [])
+                    self.assertEqual(by_dashboard, want, "dashboard")
+                    rc, report, by_workflow = p.workflow()
+                    self.assertEqual(rc, 0, report)
+                    self.assertEqual(by_workflow, want, "workflow")
+                finally:
+                    p.tmp.cleanup()
 
 if __name__ == "__main__":
     unittest.main()
