@@ -8,7 +8,9 @@
 # An audit hook notes every `open` of the watched file and every `git` started inside the watched file's folder that names it,
 # each with the test file:line frames it came from ("<file>:<line> <function>", innermost last). With RELEASE_WATCH_READS it
 # also notes every other file of that folder a process opens ("python read <path> <- …"), so that a whole-repository scan can
-# be told from a read by name (ITM-128's corrected criterion). The watcher's own opens are not noted.
+# be told from a read by name (ITM-128's corrected criterion). The watcher's own opens are not noted. Every process notes that it
+# started, with its command line ("python start <arguments>"), so that a run of the suite the watcher missed is told from one
+# in which it saw nothing.
 import os
 import sys
 
@@ -20,14 +22,17 @@ if _WATCH and _LOG:
     _open = open
     _busy = []  # the watcher's own opens (the log, the source lines of the frames) are not noted
 
+    def _write(line):  # one line of the log per note: a `-c` script or a git argument may hold line breaks
+        with _open(_LOG, "a", encoding="utf-8") as fh:
+            fh.write(line.replace("\r", " ").replace("\n", " ") + "\n")
+
     def _note(what):
         import traceback
         _busy.append(1)
         try:
             where = " | ".join(f"{os.path.basename(f.filename)}:{f.lineno} {f.name}" for f in traceback.extract_stack()[:-2]
                                if os.path.basename(f.filename).startswith(("test", "release")))
-            with _open(_LOG, "a", encoding="utf-8") as fh:
-                fh.write(f"python {what} <- {where or sys.argv[0]}\n")
+            _write(f"python {what} <- {where or sys.argv[0]}")
         finally:
             _busy.pop()
 
@@ -51,3 +56,8 @@ if _WATCH and _LOG:
                 _note("git " + " ".join(words))
 
     sys.addaudithook(_hook)
+    _busy.append(1)
+    try:  # this process started under the watcher — its command line, so that the suite's own process can be told
+        _write("python start " + " ".join(getattr(sys, "orig_argv", sys.argv)[1:]))
+    finally:
+        _busy.pop()

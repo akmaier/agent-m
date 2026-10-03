@@ -27,7 +27,7 @@ tests/spec_watch/watch.mjs (through NODE_OPTIONS); they note every open of the w
 the repository that names it, with the test file:line frames it came from, and the Python half every other file of the
 repository that is opened, so that a scan can be told from a read by name. CI's last step reads the log
 (tests/spec_watch/seen.py): red on a read by name, each one listed with its test file and line; not measured — red as well —
-when a Python process noted nothing or a node test file did not start under the watcher. A test that reads the file under any
+when no `python -m unittest` or a node test file did not start under the watcher. A test that reads the file under any
 spelling of its path, through any reader, is seen; a fixture's SPEC.md is another file and is not.
 
 What stays here is the known positive (CLAUDE.md §6a.2: a negative result counts only once the probe has hit a known positive):
@@ -48,8 +48,8 @@ WATCH = ROOT / "tests" / "spec_watch"  # the folder .github/workflows/tests.yml 
 _spec = importlib.util.spec_from_file_location("spec_watch_seen", WATCH / "seen.py")
 seen_py = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(seen_py)
-committed_markdown, not_from_a_scan, check, STARTED = (seen_py.committed_markdown, seen_py.not_from_a_scan, seen_py.check,
-                                                       seen_py.STARTED)
+committed_markdown, not_from_a_scan, check = seen_py.committed_markdown, seen_py.not_from_a_scan, seen_py.check
+STARTED, PY_STARTED = seen_py.STARTED, seen_py.PY_STARTED
 
 
 def watched(cmd: list, cwd: Path, watch: Path, reads: bool = False) -> tuple:
@@ -98,16 +98,17 @@ class TheWatcherSeesAKnownRead(unittest.TestCase):
                 await readFile(new URL("./fixtures/SPEC.md", import.meta.url).pathname, "utf8");
             '''), encoding="utf-8")
             (repo / "tests" / "test_a.py").write_text(textwrap.dedent('''
-                import subprocess, unittest
+                import subprocess, sys, unittest
                 from pathlib import Path
                 HERE = Path(__file__).resolve().parent
                 class T(unittest.TestCase):
                     def test_reads(self):
+                        subprocess.run([sys.executable, "-c", "import sys\\nprint(sys.argv)", "a\\nb"], capture_output=True, check=True)
                         open(HERE.parent / "SPEC.md").read()
                         (HERE / ".." / "SPEC.md").read_text()
                         subprocess.run(["git", "-C", str(HERE.parent), "show", "HEAD:SPEC.md"], capture_output=True, check=True)
                         (HERE / "fixtures" / "SPEC.md").read_text()
-                        subprocess.run(["node", "-e", "require('fs').readFileSync(process.argv[1])", str(HERE.parent / "SPEC.md")], check=True)
+                        subprocess.run(["node", "-e", "require('fs').readFileSync(process.argv[2])", "a\\nb", str(HERE.parent / "SPEC.md")], check=True)
             '''), encoding="utf-8")
             (repo / "tests" / "test_scan.py").write_text(textwrap.dedent('''
                 import subprocess, unittest
@@ -125,10 +126,15 @@ class TheWatcherSeesAKnownRead(unittest.TestCase):
                                     repo / "SPEC.md", reads=True)
             self.assertEqual(py.returncode, 0, py.stderr[-1500:])
             markdown = committed_markdown(repo)
-        # Every node process notes its start — the node test file among them —, so that CI can tell a run the watcher missed.
+        # Every process notes its start — the node test file, the Python suite's command line —, so that CI can tell a run the
+        # watcher missed.
         self.assertTrue(any(l.startswith(STARTED) and l.endswith("/tests/a.test.mjs") for l in logged_node), logged_node)
-        seen_node = [l for l in logged_node if not l.startswith(STARTED)]
-        seen_all = [l for l in logged_py if not l.startswith(STARTED)]
+        self.assertIn(PY_STARTED + "-m unittest -q test_a test_scan", logged_py)
+        # One note, one line — also for a `-c` script and an argument with line breaks.
+        self.assertIn(PY_STARTED + "-c import sys print(sys.argv) a b", logged_py)
+        self.assertEqual([l for l in logged_node + logged_py if not l.startswith(("python ", "node "))], [])
+        seen_node = [l for l in logged_node if not l.startswith((STARTED, PY_STARTED))]
+        seen_all = [l for l in logged_py if not l.startswith((STARTED, PY_STARTED))]
         seen_py = [l for l in seen_all if not l.startswith("python read ")]
         # A reader may open the file through another (readFileSync through openSync on some versions): each planted way of
         # opening it must be seen at least once.
@@ -152,10 +158,12 @@ class TheWatcherSeesAKnownRead(unittest.TestCase):
         self.assertEqual(code, 1, report)
         self.assertEqual([l for l in report.splitlines()[1:]], ["  " + l for l in not_from_a_scan(seen_node + seen_all, markdown)])
         self.assertNotIn("test_scan.py", report)
-        # Not measured, never green, when the watcher's own lines are missing: no Python read noted, or a node test file
-        # that did not start under it.
-        self.assertEqual(check([l for l in logged_node + logged_py if not l.startswith("python read ")], markdown,
-                               ["tests/a.test.mjs"])[0], 2)
+        # Not measured, never green, when the watcher's own lines are missing: no `python -m unittest` that started under it —
+        # a Python process a node test starts, reading files, is not the suite —, or a node test file that did not start under it.
+        no_suite = [l for l in logged_node + logged_py if not l.startswith(PY_STARTED) and "test_a.py" not in l
+                    and not l.startswith(("node fs", "node git"))] + [PY_STARTED + "-c pass"]
+        self.assertTrue(any(l.startswith("python read ") for l in no_suite), no_suite)
+        self.assertEqual(check(no_suite, markdown, ["tests/a.test.mjs"])[0], 2)
         self.assertEqual(check(logged_node + logged_py, markdown, ["tests/a.test.mjs", "tests/b.test.mjs"])[0], 2)
         self.assertEqual(check([l for l in logged_py if "test_a.py" not in l and not l.startswith(("node fs", "node git"))],
                                markdown, [])[0], 0)

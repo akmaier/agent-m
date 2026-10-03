@@ -9,7 +9,7 @@
 # exit 0 — the watcher ran in CI's Python processes and in every node test file, and every open of Agent M's own SPEC.md it saw
 #          comes from a whole-repository scan;
 # exit 1 — an open of SPEC.md by name: each one printed with the test file:line frames it came from;
-# exit 2 — not measured: no log, no Python process noted a read, or a node test file did not start under the watcher.
+# exit 2 — not measured: no log, no `python -m unittest` process started under the watcher, or a node test file did not.
 """An open of SPEC.md comes from a whole-repository scan when its call site — the same chain of test file:line frames — opens, in
 the same run, more than half of the repository's other committed Markdown files. A test that opens SPEC.md by name does so from
 a line that opens it alone (or with a handful of others), and stays a finding; a `git` command or a node process naming the file
@@ -20,6 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 STARTED = "node start "
+PY_STARTED = "python start "
 
 
 def committed_markdown(repo: Path) -> set:
@@ -31,13 +32,13 @@ def committed_markdown(repo: Path) -> set:
 def not_from_a_scan(seen: list, markdown: set) -> list:
     """The watcher's lines on SPEC.md that do not come from a whole-repository scan (ITM-128's corrected criterion): all but a
     Python open whose call site — its chain of test file:line frames — opened, in the same run, more than half of `markdown`.
-    A git command or a node process naming the file is no scan. A node process's start is no line on SPEC.md."""
+    A git command or a node process naming the file is no scan. A process's start is no line on SPEC.md."""
     reads = {}
     for line in seen:
         if line.startswith("python read "):
             what, _, frames = line.rpartition(" <- ")
             reads.setdefault(frames, set()).add(what[len("python read "):])
-    return [line for line in seen if not line.startswith(("python read ", STARTED))
+    return [line for line in seen if not line.startswith(("python read ", STARTED, PY_STARTED))
             and not (line.startswith("python open ")
                      and 2 * len(reads.get(line.rpartition(" <- ")[2], set()) & markdown) > len(markdown))]
 
@@ -48,8 +49,9 @@ def check(seen: list, markdown: set, node_tests: list) -> tuple:
     started = {Path(l[len(STARTED):]).as_posix() for l in seen if l.startswith(STARTED)}
     unwatched = [t for t in node_tests if not any(s == t or s.endswith("/" + t) for s in started)]
     python_reads = sum(l.startswith("python read ") for l in seen)
-    if not python_reads or unwatched:
-        why = ([] if python_reads else ["no Python process noted a read — the Python watcher did not run (PYTHONPATH)"]) \
+    suite = any(l.startswith(PY_STARTED) and "unittest" in l[len(PY_STARTED):].split() for l in seen)
+    if not suite or unwatched:
+        why = ([] if suite else ["no `python -m unittest` process started under the watcher (PYTHONPATH)"]) \
             + [f"{t} did not start under the watcher (NODE_OPTIONS)" for t in unwatched]
         return 2, "SPEC-read watcher: NOT MEASURED\n" + "\n".join("  " + w for w in why)
     found = not_from_a_scan(seen, markdown)

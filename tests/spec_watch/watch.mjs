@@ -22,7 +22,8 @@ if (process.env.RELEASE_WATCH_FILE && process.env.RELEASE_WATCH_LOG) {
   const real = (p) => { try { return fs.realpathSync.native(p); } catch { return path.resolve(p); } };
   const WATCH = real(process.env.RELEASE_WATCH_FILE), LOG = process.env.RELEASE_WATCH_LOG;
   const BASE = path.basename(WATCH), HOME = path.dirname(WATCH);
-  const append = fs.appendFileSync;
+  // One line of the log per note: an `-e` script argument or a command's words may hold line breaks.
+  const append = (log, line) => fs.appendFileSync(log, line.replace(/[\r\n]+$/, "").replace(/[\r\n]/g, " ") + "\n");
   const frames = () => {
     const limit = Error.stackTraceLimit;
     Error.stackTraceLimit = 50;
