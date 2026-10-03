@@ -21,7 +21,7 @@ practices, branches, the Definition of Done and who closes a sprint. PO decision
 
 | Role | Participants |
 |---|---|
-| Product Owner | po-fable |
+| Product Owner | po-opus |
 | Scrum Master | scrum-master-session |
 | Developers | developer-opus-a, developer-opus-b, developer-opus-c, developer-opus-d |
 | Release tester | tester-opus |
@@ -54,7 +54,7 @@ BACKLOG`, `A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN`).
   review of its increment and the retrospective are recorded, and then the Product Owner decides the merge of
   `sprint/<nn>` into `main`.
 - Closing a sprint — its review, its retrospective and the decisions on its unfinished items — is assigned to
-  scrum-master-session (`CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT`), not to po-fable: the merge of
+  scrum-master-session (`CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT`), not to po-opus: the merge of
   `sprint/<nn>` into `main` checks the review and the retrospective, and the Product Owner who decides it must
   not have written them (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`). A change to this
   declaration, to the model or to a participant's instructions that a retrospective recommends is proposed,
@@ -73,5 +73,5 @@ Until Agent M's own features carry them, SPEC changes and the acceptance of use 
 and modules stay with the person `akmaier`: a SPEC change is agreed with `akmaier` and accepted by an approval
 record committed under that account, and so is every use case, decision and module
 (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`, `A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN`).
-No other participant — the Product Owner po-fable included — changes SPEC.md, a use case or an architecture
+No other participant — the Product Owner po-opus included — changes SPEC.md, a use case or an architecture
 file, or accepts one; a gap found during a sprint becomes a change request to `akmaier`, and the item waits.
