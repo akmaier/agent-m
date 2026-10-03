@@ -120,6 +120,16 @@ export function gitlabTokenNeeded(app, what) {
     project's token</a></p>`;
 }
 
+// UC-006 4c, the product's half: a product's SPEC change is accepted with a token only. Accepting commits the record and the
+// section together (AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL); GitHub's page could commit the record alone, and only
+// the instance carries the workflow that writes the section after it (WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE
+// CHANGE). The link is UC-001 step A, as the product's settings link it (UC-042 3a). Shown on the entry and on the list's head.
+export function productSpecTokenNeeded(app, what) {
+  return `<p class="notice">${h(what)} needs a token that can write to <strong>${h(app.T.repo)}</strong>: no product carries the
+    workflow that writes an approval committed on GitHub's page into its SPEC, so the change would stay approved and never be
+    written. <a class="btn primary" href="${h(app.tokenStepLink())}">Give your token access to it</a></p>`;
+}
+
 // UC-008 4a: the GitHub path for a record — GitHub's new-file page prefilled with it, the page Accept opens without a token —,
 // offered beside a commit refused for missing write access. None for a GitLab product (A GITLAB PRODUCT IS WRITTEN WITH A
 // TOKEN), nor for a product's SPEC change: no product carries the workflow that would write it (UC-006 4c).
@@ -199,6 +209,21 @@ export function acceptPanel(app, record, path, what, item) {
         : `Nothing else is changed. If the text changed since this page loaded, nothing is written.${record.kind === "use-case" ? ""
           : " The requirements and use cases this file names are checked again on the commit written on; if one is no longer accepted there, nothing is written."}`}
       Edit the text later, and it shows as changed again.</div></details>
+  </section>`;
+  }
+  // GitHub's web interface without a token — except where no page would do: a product's SPEC change (githubPath is null).
+  if (!githubPath(app, record, path)) {
+    return `
+  <section class="panel accept">
+    <h3>Accept ${h(what)}</h3>
+    ${productSpecTokenNeeded(app, "Accepting")}
+    <details class="explain"><summary>What is this?</summary><div>Accepting a SPEC change is one commit under your own account:
+      the approval record, the section of <code>${h(record.target)}</code> replaced by the proposal byte for byte, and the
+      decision in the queue's <code>entscheidungen.md</code>. Without a token the dashboard cannot make that commit, and GitHub's
+      own page can commit only the record — for the instance's own SPEC a workflow then writes the section, but a product's
+      repository carries no such workflow. Step A of adding a product shows how to let your token reach
+      <code>${h(T.repo)}</code>; the token is stored in this browser and sent only to GitHub. Editing the proposal works without
+      it.</div></details>
   </section>`;
   }
   const url = newFileUrl(T.repo, T.ref, path, text);
