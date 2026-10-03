@@ -94,4 +94,8 @@ still resolves to the other host); the case was given a relative path (`pictures
 
 ## 5. Green
 
-GREEN
+Commit `e272720` (the implementation, the relative-path case, this record), on a clean tree: `node --test tests/*.test.mjs` — 524
+tests, 517 pass, 0 fail, 7 todo; `cd tests && python3 -m unittest` — 369 tests OK (5 expected failures). Every existing app-harness
+check is unchanged and passes: the files `md` renders carry no image — a grep for `![…](` and `<img` over `docs/` and `SPEC.md`
+hits only this item, this record and two measurement records of 2026-10-01, which no view hands to `md` (its callers are listed
+in §1) —, and the harness passes HTML through DOMPurify unchanged, so `md`'s output for them is marked's as before.
