@@ -21,11 +21,8 @@ the repository, run code and tests, use tools, reach the web.
 | developer-opus-c | CLI agent | claude-opus-5-5 | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of `akmaier`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
 | developer-opus-d | CLI agent | claude-opus-5-5 | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of `akmaier`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
 | tester-opus | CLI agent | claude-opus-5-5 | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of `akmaier`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
+| reviewer-sonnet | CLI agent | claude-sonnet-5 | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | a Claude Code subagent that `scrum-master-session` starts on the Mac of `akmaier` to review architecture drafts, reading only; reached without the Agent M Bridge until it exists (ITM-102) |
 
-`akmaier` is the one person: the only participant who accepts SPEC changes, use cases, architecture decisions and
-modules, by approval records committed under that account (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`).
-The developers are one participant per parallel team; adding a team is adding a row. `developer-opus-d` was named
-`scrum-master-opus` until 2026-10-01 and closed sprint 01 under that name; since then the Scrum Master is
-`scrum-master-session` (PO decision akmaier, 2026-10-01).
-`po-opus` was `po-fable` (claude-fable-5-1) until 2026-10-03 and planned and gated sprints 01 to 03 under that name;
-since then the Product Owner runs on Opus 5.5 (PO decision akmaier, 2026-10-03: Fable used too many tokens).
+`akmaier` is the one person: the only participant who accepts SPEC changes, use cases and architecture decisions,
+by approval records committed under that account (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`).
+The developers are one participant per parallel team; adding a team is adding a row.
