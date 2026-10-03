@@ -1,4 +1,8 @@
 # Continuous integration: every push and pull request runs the whole suite.
+# Both suites run once, under the SPEC-read watcher of tests/test_release_sprint_02_c.py (ITM-128, ITM-144, ITM-158): every
+# Python process loads tests/spec_watch/sitecustomize.py, every node process tests/spec_watch/watch.mjs, and the last step reads
+# what they noted — red when a test opens Agent M's own SPEC.md by name, each one named by its test file and line.
+# NODE_OPTIONS is set on the two suite steps only, not on the job: the actions of the other steps run on node too.
 name: tests
 
 on:
@@ -11,6 +15,10 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_WATCH_FILE: ${{ github.workspace }}/SPEC.md
+      RELEASE_WATCH_READS: "1"
+      PYTHONPATH: ${{ github.workspace }}/tests/spec_watch
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,5 +26,13 @@ jobs:
           node-version: "22"
       - name: Python checks
         run: cd tests && python3 -m unittest -v
+        env:
+          RELEASE_WATCH_LOG: ${{ runner.temp }}/spec-watch.log
+          NODE_OPTIONS: --import=file://${{ github.workspace }}/tests/spec_watch/watch.mjs
       - name: Dashboard core
         run: node --test tests/*.test.mjs
+        env:
+          RELEASE_WATCH_LOG: ${{ runner.temp }}/spec-watch.log
+          NODE_OPTIONS: --import=file://${{ github.workspace }}/tests/spec_watch/watch.mjs
+      - name: No test opens Agent M's own SPEC.md
+        run: python3 tests/spec_watch/seen.py "$RUNNER_TEMP/spec-watch.log"

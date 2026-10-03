@@ -4,6 +4,9 @@
 # Release test of sprint 02, strand C (ITM-144), written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md,
 # who implemented none of the strand's items; started on sprint/02 at a7b4b9f, 2026-10-01. Case 26 changed by its author,
 # tester-opus (claude-opus-5-5), on sprint/02 at 5957157, 2026-10-02, to ITM-128's corrected criterion (S1 decided no defect).
+# Cases 25 and 26 moved by their author, tester-opus (claude-opus-5-5), on sprint/03 at fc61996, 2026-10-03, into CI's one run
+# of the two suites (ITM-158): .github/workflows/tests.yml runs both under the watcher of tests/spec_watch/ and its last step
+# reads the log with tests/spec_watch/seen.py.
 """ITM-128: no test of the repository opens Agent M's own SPEC.md — its acceptance criterion "No file under tests/ opens the
 repository's own SPEC.md as a source of expected values; reading a fixture's SPEC.md stays allowed", after the process rule KEIN
 SPEC-ZUGRIFF AUS PRODUKT-CODE ("Kein Produkt-Code öffnet ein SPEC-Dokument zum Lesen — kein Test, kein Skript, kein Generator").
@@ -12,21 +15,25 @@ The rule ITM-128 realises, ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS, is checked 
 
 The criterion as the Product Owner corrected it on 2026-10-02 (ITM-128, *Acceptance criteria*): "A whole-repository scan — a
 test that opens every committed file, or every artifact, of the repository to check each against a rule — … opens SPEC.md as
-one file among all and does not fall under this criterion". Read here so that it is checked without a list of today's scans: an
+one file among all and does not fall under this criterion". Read so that it is checked without a list of today's scans: an
 open of SPEC.md comes from a whole-repository scan when its call site — the same chain of test file:line frames — opens, in the
-same run, more than half of the repository's other committed Markdown files. A test that opens SPEC.md by name does so from a
-line that opens it alone (or with a handful of others), and stays a finding; a `git` command or a node process naming the file
-is never a scan.
+same run, more than half of the repository's other committed Markdown files (tests/spec_watch/seen.py). A test that opens
+SPEC.md by name does so from a line that opens it alone (or with a handful of others), and stays a finding; a `git` command or a
+node process naming the file is never a scan.
 
-Checked over the repository's files by running them, not by reading them: both suites run once more, as CI runs them, with a
-watcher in every process they start — a Python audit hook (sitecustomize, for every Python process) and a module that node
-loads first (NODE_OPTIONS, for every node process) — which notes every open of the watched file and every `git` command run
-inside the repository that names it, a Python open with the test file:line frames it came from. A test that reads the file under
-any spelling of its path, through any reader, is seen; a fixture's SPEC.md is another file and is not. For the Python suite the
-watcher also notes every other file of the repository that is opened, with its frames, so that a scan can be told from a read by
-name. The watcher, and the telling apart, are first shown on a planted repository (CLAUDE.md §6a.2: a negative result counts
-only once the probe has hit a known positive). This file does not run itself.
+Checked over the repository's files by running them, not by reading them — in CI's one run of the two suites (ITM-158): every
+Python process loads tests/spec_watch/sitecustomize.py (an audit hook, through PYTHONPATH) and every node process
+tests/spec_watch/watch.mjs (through NODE_OPTIONS); they note every open of the watched file and every `git` command run inside
+the repository that names it, with the test file:line frames it came from, and the Python half every other file of the
+repository that is opened, so that a scan can be told from a read by name. CI's last step reads the log
+(tests/spec_watch/seen.py): red on a read by name, each one listed with its test file and line; not measured — red as well —
+when a Python process noted nothing or a node test file did not start under the watcher. A test that reads the file under any
+spelling of its path, through any reader, is seen; a fixture's SPEC.md is another file and is not.
+
+What stays here is the known positive (CLAUDE.md §6a.2: a negative result counts only once the probe has hit a known positive):
+the same files and the same reading, on a planted repository. This file runs no suite.
 """
+import importlib.util
 import os
 import subprocess
 import sys
@@ -36,123 +43,38 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TESTS = ROOT / "tests"
-THIS = Path(__file__).stem
+WATCH = ROOT / "tests" / "spec_watch"  # the folder .github/workflows/tests.yml names
 
-# Every Python process: an audit hook on `open` and on starting a `git` that names the file inside the watched folder.
-SITECUSTOMIZE = textwrap.dedent('''
-    import os, sys
-    _WATCH = os.path.realpath(os.environ["RELEASE_WATCH_FILE"]); _LOG = os.environ["RELEASE_WATCH_LOG"]
-    _BASE, _HOME = os.path.basename(_WATCH), os.path.dirname(_WATCH)
-    _READS = bool(os.environ.get("RELEASE_WATCH_READS"))  # also note every other file of the folder that is opened
-    _open = open
-    _busy = []  # the watcher's own opens (the log, the source lines of the frames) are not noted
-    def _note(what):
-        import traceback
-        _busy.append(1)
-        try:
-            where = " | ".join(f"{os.path.basename(f.filename)}:{f.lineno}" for f in traceback.extract_stack()[:-2]
-                               if os.path.basename(f.filename).startswith(("test", "release")))
-            with _open(_LOG, "a", encoding="utf-8") as fh:
-                fh.write(f"python {what} <- {where or sys.argv[0]}\\n")
-        finally:
-            _busy.pop()
-    def _hook(event, args):
-        if _busy:
-            return
-        if event == "open" and isinstance(args[0], (str, bytes, os.PathLike)):
-            real = os.path.realpath(os.fsdecode(args[0]))
-            if real == _WATCH:
-                _note("open " + os.fsdecode(args[0]))
-            elif _READS and real.startswith(_HOME + os.sep):
-                _note("read " + os.path.relpath(real, _HOME))
-        elif event == "subprocess.Popen":
-            argv = args[1] if isinstance(args[1], (list, tuple)) else [args[1]]
-            words = [os.fsdecode(a) for a in argv if isinstance(a, (str, bytes, os.PathLike))]
-            cwd = os.path.realpath(os.fsdecode(args[2]) if args[2] else os.getcwd())
-            if "-C" in words[1:-1]:  # git -C <dir> runs in <dir>
-                cwd = os.path.realpath(os.path.join(cwd, words[words.index("-C", 1) + 1]))
-            if words and os.path.basename(words[0]) == "git" and any(_BASE in w for w in words) \\
-                    and (cwd + os.sep).startswith(_HOME + os.sep):
-                _note("git " + " ".join(words))
-    sys.addaudithook(_hook)
-''')
-
-# Every node process: the readers of node:fs and node:fs/promises, and the starters of node:child_process, wrapped.
-NODE_HOOK = textwrap.dedent('''
-    import fs from "node:fs";
-    import cp from "node:child_process";
-    import { syncBuiltinESMExports } from "node:module";
-    import path from "node:path";
-    import { fileURLToPath } from "node:url";
-    const real = (p) => { try { return fs.realpathSync.native(p); } catch { return path.resolve(p); } };
-    const WATCH = real(process.env.RELEASE_WATCH_FILE), LOG = process.env.RELEASE_WATCH_LOG;
-    const BASE = path.basename(WATCH), HOME = path.dirname(WATCH);
-    const note = (what) => fs.appendFileSync(LOG, `node ${what} <- ${process.argv[1] ?? "?"}\\n`);
-    const asPath = (p) => (p instanceof URL ? fileURLToPath(p) : Buffer.isBuffer(p) ? p.toString()
-      : typeof p === "string" ? (p.startsWith("file:") ? fileURLToPath(p) : p) : null);
-    const hit = (p) => { const s = asPath(p); return s !== null && real(s) === WATCH; };
-    const wrap = (obj, names, label) => { for (const n of names) { const f = obj[n]; if (typeof f !== "function") continue;
-      obj[n] = function (p, ...rest) { if (hit(p)) note(`${label}.${n} ${asPath(p)}`); return f.call(this, p, ...rest); }; } };
-    wrap(fs, ["readFileSync", "readFile", "openSync", "open", "createReadStream"], "fs");
-    wrap(fs.promises, ["readFile", "open"], "fs.promises");
-    for (const n of ["spawn", "spawnSync", "execFile", "execFileSync", "exec", "execSync"]) {
-      const f = cp[n];
-      cp[n] = function (cmd, ...rest) {
-        const args = Array.isArray(rest[0]) ? rest[0] : [], opts = (Array.isArray(rest[0]) ? rest[1] : rest[0]) || {};
-        const words = [String(cmd), ...args.map(String)].join(" ");
-        let cwd = real(typeof opts === "object" && opts.cwd ? (opts.cwd instanceof URL ? fileURLToPath(opts.cwd) : String(opts.cwd)) : process.cwd());
-        const c = args.map(String).indexOf("-C");
-        if (c >= 0 && c + 1 < args.length) cwd = real(path.resolve(cwd, String(args[c + 1])));  // git -C <dir> runs in <dir>
-        if (/^(?:\\S*\\/)?git(?:\\s|$)/.test(words) && words.includes(BASE) && (cwd + path.sep).startsWith(HOME + path.sep)) note(`git ${words}`);
-        return f.call(this, cmd, ...rest);
-      };
-    }
-    syncBuiltinESMExports();
-''')
+_spec = importlib.util.spec_from_file_location("spec_watch_seen", WATCH / "seen.py")
+seen_py = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(seen_py)
+committed_markdown, not_from_a_scan, check, STARTED = (seen_py.committed_markdown, seen_py.not_from_a_scan, seen_py.check,
+                                                       seen_py.STARTED)
 
 
 def watched(cmd: list, cwd: Path, watch: Path, reads: bool = False) -> tuple:
-    """Run cmd with the watcher in every Python and node process it starts -> (completed process, the lines it noted). With
-    `reads`, a Python process also notes every other file it opens in the watched file's folder ("python read <path> <- …")."""
+    """Run cmd with the watcher in every Python and node process it starts, as CI's steps set it -> (completed process, the
+    lines it noted). With `reads`, a Python process also notes every other file it opens in the watched file's folder
+    ("python read <path> <- …")."""
     with tempfile.TemporaryDirectory() as d:
-        d = Path(d)
-        (d / "sitecustomize.py").write_text(SITECUSTOMIZE, encoding="utf-8")
-        (d / "watch.mjs").write_text(NODE_HOOK, encoding="utf-8")
-        log = d / "seen.log"
+        log = Path(d) / "seen.log"
         log.write_text("", encoding="utf-8")
-        env = dict(os.environ, RELEASE_WATCH_FILE=str(watch), RELEASE_WATCH_LOG=str(log),
-                   **({"RELEASE_WATCH_READS": "1"} if reads else {}),
-                   PYTHONPATH=os.pathsep.join(filter(None, [str(d), os.environ.get("PYTHONPATH")])),
-                   NODE_OPTIONS=" ".join(filter(None, [f"--import={(d / 'watch.mjs').as_uri()}", os.environ.get("NODE_OPTIONS")])))
+        hook = f"--import={(WATCH / 'watch.mjs').as_uri()}"
+        env = {k: v for k, v in os.environ.items() if not k.startswith("RELEASE_WATCH_")}
+        env.update(RELEASE_WATCH_FILE=str(watch), RELEASE_WATCH_LOG=str(log), **({"RELEASE_WATCH_READS": "1"} if reads else {}),
+                   PYTHONPATH=os.pathsep.join([str(WATCH)] + [p for p in env.get("PYTHONPATH", "").split(os.pathsep)
+                                                                if p and p != str(WATCH)]),
+                   NODE_OPTIONS=" ".join([hook] + [o for o in env.get("NODE_OPTIONS", "").split() if o != hook]))
         run = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True)
         return run, [l for l in log.read_text(encoding="utf-8").splitlines() if l]
-
-
-def committed_markdown(repo: Path) -> set:
-    """The repository's committed Markdown files other than SPEC.md — what a whole-repository scan opens beside it."""
-    out = subprocess.run(["git", "-C", str(repo), "ls-files", "-z", "--", "*.md"], capture_output=True, text=True, check=True)
-    return {f for f in out.stdout.split("\0") if f and f != "SPEC.md"}
-
-
-def not_from_a_scan(seen: list, markdown: set) -> list:
-    """The watcher's lines on SPEC.md that do not come from a whole-repository scan (ITM-128's corrected criterion): all but a
-    Python open whose call site — its chain of test file:line frames — opened, in the same run, more than half of `markdown`.
-    A git command or a node process naming the file is no scan."""
-    reads = {}
-    for line in seen:
-        if line.startswith("python read "):
-            what, _, frames = line.rpartition(" <- ")
-            reads.setdefault(frames, set()).add(what[len("python read "):])
-    return [line for line in seen if not line.startswith("python read ")
-            and not (line.startswith("python open ")
-                     and 2 * len(reads.get(line.rpartition(" <- ")[2], set()) & markdown) > len(markdown))]
 
 
 class TheWatcherSeesAKnownRead(unittest.TestCase):
     """The known positive: a planted SPEC.md in a scratch repository, opened in every way a test could, is seen each time; the
     fixture SPEC.md beside it, opened the same ways, is not. And the telling apart of case 26: the open by a test that scans
-    every committed file is told to come from a scan; each open by name, the git command and the node read are not."""
+    every committed file is told to come from a scan; each open by name, the git command and the node read are not. And the
+    reading CI's last step makes: red on the planted reads, each named by its test file and line; not measured without the
+    watcher's lines."""
 
     def test_every_way_of_opening_the_watched_file_is_seen_and_a_fixture_is_not(self):
         with tempfile.TemporaryDirectory() as d:
@@ -197,12 +119,16 @@ class TheWatcherSeesAKnownRead(unittest.TestCase):
                         for f in filter(None, out.stdout.split("\\0")):
                             (ROOT / f).read_bytes()
             '''), encoding="utf-8")
-            node, seen_node = watched(["node", "--test", "tests/a.test.mjs"], repo, repo / "SPEC.md")
+            node, logged_node = watched(["node", "--test", "tests/a.test.mjs"], repo, repo / "SPEC.md")
             self.assertEqual(node.returncode, 0, node.stdout[-1500:] + node.stderr[-1500:])
-            py, seen_all = watched([sys.executable, "-m", "unittest", "-q", "test_a", "test_scan"], repo / "tests", repo / "SPEC.md",
-                                   reads=True)
+            py, logged_py = watched([sys.executable, "-m", "unittest", "-q", "test_a", "test_scan"], repo / "tests",
+                                    repo / "SPEC.md", reads=True)
             self.assertEqual(py.returncode, 0, py.stderr[-1500:])
             markdown = committed_markdown(repo)
+        # Every node process notes its start — the node test file among them —, so that CI can tell a run the watcher missed.
+        self.assertTrue(any(l.startswith(STARTED) and l.endswith("/tests/a.test.mjs") for l in logged_node), logged_node)
+        seen_node = [l for l in logged_node if not l.startswith(STARTED)]
+        seen_all = [l for l in logged_py if not l.startswith(STARTED)]
         seen_py = [l for l in seen_all if not l.startswith("python read ")]
         # A reader may open the file through another (readFileSync through openSync on some versions): each planted way of
         # opening it must be seen at least once.
@@ -217,24 +143,22 @@ class TheWatcherSeesAKnownRead(unittest.TestCase):
         self.assertEqual(len(scan), 1, seen_py)
         self.assertEqual(not_from_a_scan(seen_all, markdown), [l for l in seen_py if l not in scan])
         self.assertEqual(not_from_a_scan(seen_node, markdown), seen_node)
-
-
-class NoTestOpensAgentMsOwnSpec(unittest.TestCase):
-    """Both suites, run as CI runs them, with Agent M's own SPEC.md watched. Expected: the suites run; no node test opens it,
-    and every Python open of it comes from a whole-repository scan (ITM-128's corrected criterion)."""
-
-    def test_no_node_test_opens_agent_ms_own_spec(self):
-        files = sorted(str(p.relative_to(ROOT)) for p in TESTS.glob("*.test.mjs"))
-        run, seen = watched(["node", "--test", *files], ROOT, ROOT / "SPEC.md")
-        self.assertTrue(files and run.returncode == 0, run.stdout[-2000:] + run.stderr[-2000:])
-        self.assertEqual(seen, [])
-
-    def test_every_python_open_of_agent_ms_own_spec_comes_from_a_whole_repository_scan(self):
-        # Finding S1 (2026-10-01) decided no defect on 2026-10-02: the two scans it saw open SPEC.md as one file among all.
-        modules = sorted(p.stem for p in TESTS.glob("test*.py") if p.stem != THIS)
-        run, seen = watched([sys.executable, "-m", "unittest", "-q", *modules], TESTS, ROOT / "SPEC.md", reads=True)
-        self.assertTrue(modules and run.returncode == 0, run.stderr[-2000:])
-        self.assertEqual(not_from_a_scan(seen, committed_markdown(ROOT)), [])
+        # Each read by name names the case it came from: the node test file and line, the Python test file, line and function.
+        self.assertTrue(all(" <- a.test.mjs:" in l for l in seen_node), seen_node)
+        self.assertTrue(all("test_a.py:" in l and " test_reads" in l for l in seen_py if l not in scan
+                            and not l.startswith("node ")), seen_py)
+        # CI's last step on these lines: red, every read by name listed with the line that names its case; the scan's open not.
+        code, report = check(logged_node + logged_py, markdown, ["tests/a.test.mjs"])
+        self.assertEqual(code, 1, report)
+        self.assertEqual([l for l in report.splitlines()[1:]], ["  " + l for l in not_from_a_scan(seen_node + seen_all, markdown)])
+        self.assertNotIn("test_scan.py", report)
+        # Not measured, never green, when the watcher's own lines are missing: no Python read noted, or a node test file
+        # that did not start under it.
+        self.assertEqual(check([l for l in logged_node + logged_py if not l.startswith("python read ")], markdown,
+                               ["tests/a.test.mjs"])[0], 2)
+        self.assertEqual(check(logged_node + logged_py, markdown, ["tests/a.test.mjs", "tests/b.test.mjs"])[0], 2)
+        self.assertEqual(check([l for l in logged_py if "test_a.py" not in l and not l.startswith(("node fs", "node git"))],
+                               markdown, [])[0], 0)
 
 
 if __name__ == "__main__":
