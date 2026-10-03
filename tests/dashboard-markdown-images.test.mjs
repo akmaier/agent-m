@@ -160,8 +160,8 @@ test("DOMPurify's hook: an <img> in HTML loads from the product's repository ser
   const own = el("img", { src: `${RAW}/${REPO}/main/a.png`, alt: "own" });
   const data = el("img", { src: DATA });
   const foreign = el("img", { src: FOREIGN, alt: "a tracker" });
-  const relative = el("img", { src: "//images.other-host.example/b.png" });
-  for (const n of [own, data, foreign, relative]) guard(n, { tagName: "img" });
+  const relative = el("img", { src: "//images.other-host.example/b.png" }), path = el("img", { src: "pictures/c.png" });
+  for (const n of [own, data, foreign, relative, path]) guard(n, { tagName: "img" });
   assert.equal(own.replacedBy, null, "the product's own image is kept");
   assert.equal(own.getAttribute("src"), `${RAW}/${REPO}/main/a.png`);
   assert.equal(data.replacedBy, null, "the data: image is kept");
@@ -169,6 +169,7 @@ test("DOMPurify's hook: an <img> in HTML loads from the product's repository ser
   assert.ok(foreign.replacedBy.textContent.includes(FOREIGN), "the text is its address");
   assert.equal(relative.replacedBy?.nodeType, 3, "an address without its own scheme names another host too");
   assert.ok(relative.replacedBy.textContent.includes("//images.other-host.example/b.png"));
+  assert.equal(path.replacedBy?.nodeType, 3, "a relative address resolves against the page, not the repository server");
   const text = el("#text");
   text.nodeType = 3;
   guard(text, { tagName: "#text" });
