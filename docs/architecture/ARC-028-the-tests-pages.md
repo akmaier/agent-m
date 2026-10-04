@@ -1,6 +1,6 @@
 ---
 id: ARC-028
-title: The tests pages are a shell at tests.html of the Pages site that reads a product's tests, result records and what its server holds at one commit and writes only on a person's click; a feature computes the schedule, the runs of a commit, the browser, one test and the release from them
+title: The tests pages are a shell at tests.html of the Pages site that reads a product's tests, result records and what its server holds at one commit and writes only on a person's click; a feature computes the schedule, the runs of a commit, the browser, one test, the release and the audit of a release from them
 forced_by:
   - THE TEST SCHEDULE IS DECLARED PER PRODUCT
   - THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE
@@ -11,11 +11,21 @@ forced_by:
   - A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY
   - A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
   - A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+  - RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+  - A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
   - THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+  - AN APPROVAL NAMES THE EXACT TEXT
   - A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
   - ACCEPTING THE RELEASE TEST REPORT RELEASES
   - A VERSION IS NOT REWRITTEN
   - THE TRACEABILITY MATRIX IS DERIVED
+  - THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+  - A REQUIREMENT NAMES WHAT IT CONSTRAINS
+  - A SOURCE DECLARES ITS AUTHORITY
+  - A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+  - THE GATE IS RECORDED
+  - THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
+  - ARTIFACTS ARE MARKDOWN
   - UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
   - A ROLE NAMES THE CAPABILITIES IT NEEDS
   - THE PAGE STATES WHAT IT SENDS WHERE
@@ -28,6 +38,7 @@ forced_by:
   - UC-027
   - UC-028
   - UC-029
+  - UC-030
 keeps:
   - NO SECRET IN THE REPOSITORY
 ---
@@ -35,14 +46,15 @@ keeps:
 
 ## Context
 
-A product's tests are shown and run from four places: its schedule and the CI configuration generated from it (UC-027),
+A product's tests are shown and run from five places: its schedule and the CI configuration generated from it (UC-027),
 the outcomes of one commit and the run of what has not run on it (UC-028), the tests themselves with what each guards
-and how its outcomes developed (UC-029), and the release, whose candidate runs every test and whose report a person
-accepts (UC-013). What the pages show is in the product repository and on its server: the test files and what their
-cases declare, the counter-proofs and release test reports (ARC-027), the schedule and the generated configuration
-(ARC-015), the result records on the branch `test-results` (ARC-027), and the pull requests, checks, tags and pipeline
-schedules the server reports (ARC-004). The pages are static (ARC-001) and store nothing of their own: every view is
-computed again from the repository at each visit (UC-029).
+and how its outcomes developed (UC-029), the release, whose candidate runs every test and whose report a person accepts
+(UC-013), and the audit of a release, which shows for every requirement the evidence that it was verified (UC-030). What
+the pages show is in the product repository and on its server: the test files and what their cases declare, the
+counter-proofs and release test reports (ARC-027), the schedule and the generated configuration (ARC-015), the result
+records on the branch `test-results` (ARC-027), and the pull requests, checks, tags and pipeline schedules the server
+reports (ARC-004). The pages are static (ARC-001) and store nothing of their own: every view is computed again from the
+repository at each visit (UC-029).
 
 ## Decision
 
@@ -51,9 +63,9 @@ computed again from the repository at each visit (UC-029).
    reads the product and its server through `MOD-git-host`, writes on a person's click
    (`MOD-review-page.clickAuthority`), and holds every text and all HTML of the page — the folded explanations of each
    level, occasion and step included.
-2. **Route** (`MOD-tests-page.route`): the fragment names the view — `schedule`, `runs` (the default), `browser`, `test`
-   or `release` —, the product by its address, and where the view needs them a commit, a test, a version, and two
-   release tags to compare.
+2. **Route** (`MOD-tests-page.route`): the fragment names the view — `schedule`, `runs` (the default), `browser`,
+   `test`, `release` or `audit` —, the product by its address, and where the view needs them a commit, a test, a
+   version, and two release tags to compare.
 3. **What is read at a commit.** The tests — the test files with their cases, the schedule or the book's default, the
    counter-proofs, the release test reports and the CI files — through the review page's read port, which keeps texts by
    blob (`MOD-tests-page.readTests`, `MOD-test-views.testsOf`), with the commit's message and date
@@ -115,6 +127,40 @@ computed again from the repository at each visit (UC-029).
 9. **Secrets are named, never asked for.** The pages name the secrets a product's CI reads and open the page where they
    are stored; no page asks for a secret's value, and no file the pages write holds one — the generated configuration
    names the secrets only (ARC-015).
+10. **The audit of a release** (UC-030). The view `audit` lists the release tags to pick from
+    (`MOD-tests-page.readRefs`) and reads the release a version names (`MOD-tests-page.readAudit`) at the commit its tag
+    names: the tests and counter-proofs (`MOD-test-views.testsOf`); the requirements of `SPEC.md`, the product's links
+    to its sources, its declaration, the gate records — each with when it entered the repository, the oldest of the
+    commits touching it (`MOD-git-host.commitsTouching`), as the main page reads a gate record (ARC-024 decision 3) —,
+    and who implemented what from the job records, backlog items and decisions (`MOD-test-views.auditOf`,
+    `MOD-test-records.implementers`); and the result records of that commit and of the previous release's, whose rates
+    it is compared with (`MOD-test-records.commitOutcomes`). The release test report and its approval record are read at
+    the default branch's head, since the tag names the tested commit and the acceptance is the commit after it
+    (ARC-027 decision 9): the report's status from the records' content (`MOD-review-core.statusByNames`), the record
+    naming its text with the limitations it was accepted with (`MOD-review-core.parseRecord`), and who committed that
+    record and when (`MOD-git-host.commitsTouching`); a report that names another commit than the tag's is no evidence
+    of the release. The register's entries are read from the instance (`MOD-library-page.readLibrary`); a version is
+    never overwritten (ARC-032), so the version a link names reads at the instance's head as it did at the release.
+    `MOD-test-views.auditView` gives one row per requirement: what it constrains: the process where the product's
+    declaration records a gate or an artifact the requirement adds (ARC-019 decision 4), the product otherwise; the
+    sources its source names, with authority, version, identifier, part and the link's hash checked against the
+    register's (`MOD-source-library.versionHash`); the tests whose files guard it, by level, with outcome or rate and
+    the records behind it — who ran each and when —, the counter-proof with its writer and when it was recorded, and
+    whether the writer implemented what the file guards (ARC-027 decision 10); the gates and artifacts the declaration
+    adds, each gate with its records — who decided, on which text, and when the record was committed
+    (`THE GATE IS RECORDED`); its gaps — no test, a test that failed, was skipped or did not run, a flaky test, a rate
+    worse than the previous release's —; and whether its evidence is accepted. The summary counts the rows with passing
+    evidence and with each gap, and the release tests written by the implementer, each count with the rows and tests it
+    counts; the limitations come first, each with the rows it concerns. The filters — normative sources, one source, one
+    level, only gaps — select rows and change none. Where the release predates the records, the view names the parts it
+    cannot derive. A row opens the test's file at the release's commit and the approval record at the commit that added
+    it (`MOD-git-host.fileUrl`), and each record's run by the page of its log. *Export* gives one Markdown document of
+    every row (`MOD-test-views.auditDocument`) — each record it names with its time — that names only files of the
+    product repository and states the register's authorities and identifiers itself, so that anyone with the repository
+    checks it without Agent M; the page hands it to the browser's download, as the settings export is
+    (ARC-005 decision 7), and shows it rendered for printing. *Commit export* writes it on a click to
+    `docs/audits/<tag>.md` of the default branch (`MOD-tests-page.commitAudit`), a record written once
+    (ARC-006 decision 1).
 
 ```mermaid
 flowchart LR
@@ -126,7 +172,8 @@ flowchart LR
     GH["MOD-git-host"]
     R["product repository<br/>and test-results"]
     P -->|"route, click"| TP
-    TP -->|"tests, records, names, server state"| TV
+    TP -->|"tests, records, names, server state,<br/>a release and its acceptance"| TV
+    TP -->|"register"| LP["MOD-library-page"]
     TV --> TR
     TV --> CG
     TP -->|"read, pull request, merge, dispatch, tag"| GH --> R
@@ -145,6 +192,11 @@ flowchart LR
   `CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI`.
 - **The writer of a test stored a second time, in the test file** — not chosen: the counter-proof names it (ARC-027),
   and a second place could disagree.
+- **The audit read at the tag's commit alone** — not possible: the report and its approval record are committed after
+  the tested commit the tag names (ARC-027 decision 9).
+- **The committed audit written again on a later export** — rejected: a record is written once (ARC-006 decision 1), so
+  that the evidence an auditor took away stays checkable; the view always shows the current state.
+- **The export as a PDF** — not chosen: `ARTIFACTS ARE MARKDOWN`; the browser prints the rendered document.
 - **The release's tag set before its commit** — not chosen: a tag is never moved, so a commit that failed after the tag
   would leave a release without its report; the commit comes first, and a tag that failed is set again.
 
@@ -155,6 +207,16 @@ flowchart LR
   *Pull requests*, *Actions* and, for the generated workflow file, *Workflows* (`MOD-git-host.requiredPermissions`).
 - A test without a counter-proof — a user test, a test awaiting its implementation — shows no writer until the job
   records name who wrote it (ARC-010).
+- `A REQUIREMENT NAMES WHAT IT CONSTRAINS` is not placed here. ARC-019 holds that where a requirement lives names what
+  it constrains — a requirement in a product's SPEC constrains that product, and Agent M's own rules for the process are
+  requirements of Agent M — and that a product's requirement asking more of its process adds a gate or an artifact,
+  which the product's declaration records with the requirement it comes from (ARC-019 decision 4); a field on each
+  requirement is among its alternatives not chosen. The audit shows the process where the declaration records such an
+  addition, the product otherwise. Missing is the requirement's own statement: the four fields of a requirement
+  (ARC-006 decision 4) carry none, and the candidate that names what it constrains (UC-005 5, 5b) comes with the
+  derivation of requirements.
+- A committed audit is a record of what the view showed and is never read back: the view is derived again at each
+  visit (`THE TRACEABILITY MATRIX IS DERIVED`), and an audit committed before its report was accepted stays as committed.
 - The nightly run's lateness is read from the records alone. On GitHub, scheduled workflows of a public repository are
   disabled after a period without activity; the page names that possibility and links the workflow's page (UC-027 7a).
 - Not realised here:
@@ -168,15 +230,21 @@ flowchart LR
     also shows the run's progress, which needs the run named by the commit it tests — the configuration ARC-015
     generates names its runs by the workflow alone —, and runs through the local bridge (ARC-011, ARC-012); both are
     designed with the job runtimes and the bridge;
-  - UC-028 2a and UC-029 5b — whether the server still keeps a run's log is not read: what its API answers for a run
-    whose logs were deleted is measured first. The outcomes stay readable from the records;
-  - UC-029 5a — a removed test in its history needs its declaration at older commits, read through
-    `MOD-git-host.pathHistory`; designed with the audit (UC-030), which reads the tests of releases;
-  - UC-013 3 — the levels, rates and report of the release panel are `MOD-test-views.releaseView`; the step also shows
-    the candidate's run on the job dashboard (UC-036), which needs the run's progress as UC-028 6 does, and every
-    requirement with the evidence that guards it, the audit view of UC-030; it is carried once both are designed;
-  - UC-013 2a — whether only the implementing participant can run the release tests is read from the job records
-    (ARC-010), designed with the job runtimes.
+  - UC-028 2a, UC-029 5b and UC-030 2d — whether the server still keeps a run's log is not read: what its API answers
+    for a run whose logs were deleted is measured first. The outcomes stay readable from the records;
+  - UC-029 5a — a removed test is marked at the commit that removed its case, which needs the case's declaration at
+    each commit that touched its file (`MOD-git-host.commitsTouching`, `MOD-test-records.testCases`); the audit reads
+    the tests of one commit, and that read across commits is not designed yet;
+  - UC-030 2a — the view shows evidence not accepted, and the summary says so first; offering *Accept* for the report of
+    a release already tagged is not designed: `MOD-test-records.planRelease` plans the acceptance with the release's tag
+    and refuses a version released, and an acceptance of the report alone — its record with the reason of every test
+    that did not pass — needs a plan of its own;
+  - UC-013 3 — the levels, rates and report of the release panel are `MOD-test-views.releaseView`, and every
+    requirement with the evidence that guards it is `MOD-test-views.auditView`; the step also shows the candidate's run
+    on the job dashboard (UC-036), which needs the run's progress as UC-028 6 does; it is carried once that is designed;
+  - UC-013 2a — who implemented what is read from the job records (`MOD-test-records.implementers`); whether only those
+    participants can run the release tests is decided with the job runtimes, which assign the participants of a run
+    (ARC-010).
 
 ## Modules
 
@@ -187,10 +255,10 @@ flowchart LR
   "id": "MOD-test-views",
   "folder": "src/test-views/",
   "layer": "feature",
-  "responsibility": "Computes what the tests pages show of a product — its schedule against the CI configuration and the server, the outcomes of a commit and the panel that runs more, its tests grouped and filtered, one test with its history, and its release — from one commit through read ports and from what the server reports, given as data; it reads nothing itself.",
-  "realises": ["THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE", "THE PAGE STATES WHAT IT SENDS WHERE", "THE TRACEABILITY MATRIX IS DERIVED"],
-  "owns": ["TestsState", "RecordsRead", "GuardNames", "ScheduleServer", "ScheduleInput", "ScheduleRowView", "OccasionRun", "ConfigurationState", "SchedulePullRequest", "NightlyOnServer", "ScheduleView", "ScheduleChangeInput", "ScheduleChange", "PullHead", "RunChoices", "NotRunLevel", "RunsInput", "RunsView", "TestRunPanelInput", "KindRunner", "TestRunPanel", "BrowserInput", "BrowserRow", "TestGroup", "BrokenGuard", "BrowserView", "TestViewInput", "ReleaseRate", "TestView", "ReleaseInputs", "NextVersions", "ReleaseView"],
-  "uses": ["MOD-contracts", "MOD-test-records", "MOD-ci-generator", "MOD-review-core", "MOD-artifacts", "MOD-architecture"]
+  "responsibility": "Computes what the tests pages show of a product — its schedule against the CI configuration and the server, the outcomes of a commit and the panel that runs more, its tests grouped and filtered, one test with its history, its release, and the audit of a release with its document — from one commit through read ports and from what the server reports, given as data; it reads nothing itself.",
+  "realises": ["THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE", "THE PAGE STATES WHAT IT SENDS WHERE", "THE TRACEABILITY MATRIX IS DERIVED", "THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE"],
+  "owns": ["TestsState", "RecordsRead", "GuardNames", "ScheduleServer", "ScheduleInput", "ScheduleRowView", "OccasionRun", "ConfigurationState", "SchedulePullRequest", "NightlyOnServer", "ScheduleView", "ScheduleChangeInput", "ScheduleChange", "PullHead", "RunChoices", "NotRunLevel", "RunsInput", "RunsView", "TestRunPanelInput", "KindRunner", "TestRunPanel", "BrowserInput", "BrowserRow", "TestGroup", "BrokenGuard", "BrowserView", "TestViewInput", "ReleaseRate", "TestView", "ReleaseInputs", "NextVersions", "ReleaseView", "AuditState", "AuditAcceptance", "AuditFilters", "AuditInput", "AuditSource", "AuditTest", "AuditGate", "AuditArtifact", "AuditRow", "AuditCount", "AuditLimitation", "AuditView"],
+  "uses": ["MOD-contracts", "MOD-test-records", "MOD-ci-generator", "MOD-review-core", "MOD-artifacts", "MOD-architecture", "MOD-source-library", "MOD-process-model", "MOD-run-engine", "MOD-work-items"]
 }
 ```
 
@@ -4507,6 +4575,3230 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-test-views.auditOf",
+  "summary": "What the audit reads at a release's commit through the read ports: the requirements of SPEC.md, the product's links to its sources, its declaration, the gate records each with when it entered the repository, and who implemented what — from the job records, the backlog items and the decisions —; the files it reads that the commit does not hold, and those that cannot be read, named apart.",
+  "params": [
+    { "name": "snapshot", "type": "Snapshot" },
+    { "name": "files", "type": "ReadPort" },
+    { "name": "enteredAt", "type": "ReadPort" }
+  ],
+  "result": "AuditState",
+  "async": true,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the thesis at v2026.3.0",
+      "input": {
+        "snapshot": {
+          "commit": "c100000000000000000000000000000000000000",
+          "tree": [
+            { "path": "README.md", "blob": "38246d7a0e7972d08fd8936ccfef885ab3ccf3d3" },
+            { "path": "SPEC.md", "blob": "2b2c36ba13ba78baa2bf12d608940489c365596e" },
+            { "path": "docs/architecture/ARC-002-export.md", "blob": "3a6e752ca43ff261d329a9a5b76b113ae3a181de" },
+            { "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "blob": "2032f2079965776e551ce780c5c5f244a84037e9" },
+            { "path": "docs/jobs/JOB-20261005-0900-1a1a.md", "blob": "87881941661e618ba6f25b8e9a55ec041ed1112e" },
+            { "path": "docs/jobs/JOB-20261006-0900-2b2b.md", "blob": "31983d247e0733ca23a23ec1bcac9d12897069e4" },
+            { "path": "docs/jobs/JOB-20261007-0900-3c3c.md", "blob": "691e7a7d7f7acdc8023017827981ca199e95c6d3" },
+            { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "blob": "4954d11b548d2cabf9248196c22cf0b7cf0aecee" },
+            { "path": "docs/process.md", "blob": "713016a3e80decab142e6ea9ad768bcc71fce1fb" },
+            { "path": "docs/sources.md", "blob": "df217d3e38af245cc1da1c326b431d0f41fd5b2f" },
+            { "path": "docs/tests/counter-proofs/TST-014.md", "blob": "90e888adf083bb0d0a867e53778372c9b02da594" },
+            { "path": "docs/tests/counter-proofs/TST-021.md", "blob": "dfeec9d45280be7f475dfa14b89fa720271bc96b" },
+            { "path": "docs/use-cases/UC-003-export-a-chapter.md", "blob": "159ddc97b31591f90ccce7aac8bb7e310aeac8af" },
+            { "path": "tests/export.test.mjs", "blob": "eef2e745eb0f37cff09ce84eea02ee2def8445d0" },
+            { "path": "tests/release-export.test.mjs", "blob": "cbc971de30cdcd79a3567b29144af819eda86274" },
+            { "path": "tests/review.test.mjs", "blob": "0679f1a5b1371aced695084514f236a05bc89f6b" },
+            { "path": "tests/user/export.md", "blob": "71d9ecf6534c4d40d6e869a9a1c621b662af4ba5" }
+          ]
+        },
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(SRC-thesis-guide, 3.2)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n\n**THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE** *(SRC-faculty-style)*\nEvery thesis cites in the faculty's style.\n*Check:* no automatic check; at review.\n\n## 4. Process\n\n**UNIT VERIFICATION IS DOCUMENTED** *(SRC-iec-62304, 5.5.5)*\nEvery software unit's verification is documented.\n*Check:* `tests/test_unit_records.py`\n", "docs/sources.md": "# Requirement sources\n\n| Source | Version | SHA-256 | Part | Look at again |\n|---|---|---|---|---|\n| SRC-iec-62304 | 2 | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | safety class B | — |\n| SRC-thesis-guide | 1 | ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7 | — | — |\n", "docs/process.md": "---\nmodel: v-model\nmodel_file: src/process-model/catalogue/v-model.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\nThe declaration of this product's process (UC-002).\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Analyst | alice |\n| Architect | alice |\n| Developers | cli-dev |\n| Tester | ci-dev |\n| Operator | ci-dev |\n\n## Practices\n\n- devops\n\n## Branches\n\n| Phase or time box | Branch |\n|---|---|\n| Implementation | `implementation` |\n\n## Definition of Done\n\nThe job rules hold for every pull request, and these conditions besides:\n\n- CI check `lint` — the linter passes\n- a second developer has read the change\n\n## Gates added by requirements\n\n| Requirement | Between | Artifacts | Condition | Decider |\n|---|---|---|---|---|\n| UNIT VERIFICATION IS DOCUMENTED | Testing → Validation | TST | every unit's verification is recorded | Tester |\n\n## Artifacts added by requirements\n\n| Requirement | Phase | Artifacts |\n|---|---|---|\n| UNIT VERIFICATION IS DOCUMENTED | Testing | the unit verification report |\n\n## Releases\n\nA release is cut from `main` once Validation is passed.\n", "docs/jobs/gates/thesis-testing-validation-bf0000000000.md": "gate: Testing → Validation\nsubject: thesis\non: bf00000000000000000000000000000000000000\ndecider: ci-dev\ndecision: passed\nreason: every unit's verification is recorded in docs/tests/units.md\n", "docs/jobs/JOB-20261005-0900-1a1a.md": "---\nid: JOB-20261005-0900-1a1a\nkind: implement\nphase: Implementation\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem:\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261005-0900-1a1a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-05T09:00:00Z | queued | — |\n| 2026-10-05T11:00:00Z | done | — |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n", "docs/jobs/JOB-20261006-0900-2b2b.md": "---\nid: JOB-20261006-0900-2b2b\nkind: implement-item\nphase: Implementation\nrole: Developers\nparticipant: ci-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-014\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261006-0900-2b2b\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-06T09:00:00Z | queued | — |\n| 2026-10-06T10:00:00Z | failed | CI stayed red |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n", "docs/jobs/JOB-20261007-0900-3c3c.md": "---\nid: JOB-20261007-0900-3c3c\nkind: test-battery\nphase: Testing\nrole: Tester\nparticipant: alice\nruntime: bridge\nrun:\nslot:\nitem:\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261007-0900-3c3c\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-07T09:00:00Z | queued | — |\n| 2026-10-07T12:00:00Z | done | — |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - UC-003\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - A CHAPTER IS EXPORTED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nA chapter is exported as a PDF.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"A CHAPTER IS EXPORTED\"],\"owns\":[],\"uses\":[]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n\n## Realisation\n\n| Step | Interfaces |\n|---|---|\n| UC-003 1 | MOD-export.run |\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "README.md": "# Thesis\n" },
+        "enteredAt": { "docs/jobs/gates/thesis-testing-validation-bf0000000000.md": "2026-10-08T17:00:00Z" }
+      },
+      "result": {
+        "requirements": [
+          { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+          { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+          { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 },
+          { "name": "A CHAPTER IS EXPORTED", "source": "SRC-thesis-guide, 3.2", "rule": "A chapter is exported as a PDF with its figures.", "check": "`tests/export.test.mjs`", "section": "3. Export", "line": 21 },
+          { "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "source": "SRC-faculty-style", "rule": "Every thesis cites in the faculty's style.", "check": "no automatic check; at review.", "section": "3. Export", "line": 25 },
+          { "name": "UNIT VERIFICATION IS DOCUMENTED", "source": "SRC-iec-62304, 5.5.5", "rule": "Every software unit's verification is documented.", "check": "`tests/test_unit_records.py`", "section": "4. Process", "line": 31 }
+        ],
+        "links": [
+          {
+            "source": "SRC-iec-62304",
+            "version": 2,
+            "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5",
+            "part": "safety class B",
+            "lookAgain": []
+          },
+          {
+            "source": "SRC-thesis-guide",
+            "version": 1,
+            "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7",
+            "part": "",
+            "lookAgain": []
+          }
+        ],
+        "declaration": {
+          "model": "v-model",
+          "modelFile": "src/process-model/catalogue/v-model.md",
+          "modelVersion": "5a00000000000000000000000000000000000000",
+          "sprintClose": "",
+          "title": "How the thesis tool is developed",
+          "intro": "The declaration of this product's process (UC-002).",
+          "roles": [
+            { "role": "Analyst", "participants": ["alice"], "line": 14 },
+            { "role": "Architect", "participants": ["alice"], "line": 15 },
+            { "role": "Developers", "participants": ["cli-dev"], "line": 16 },
+            { "role": "Tester", "participants": ["ci-dev"], "line": 17 },
+            { "role": "Operator", "participants": ["ci-dev"], "line": 18 }
+          ],
+          "practices": ["devops"],
+          "branches": [{ "phase": "Implementation", "branch": "implementation", "line": 28 }],
+          "done": [
+            { "kind": "ci-check", "name": "lint", "text": "the linter passes", "line": 34 },
+            { "kind": "person", "name": "", "text": "a second developer has read the change", "line": 35 }
+          ],
+          "gatesAdded": [
+            {
+              "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+              "between": "Testing → Validation",
+              "from": "Testing",
+              "to": "Validation",
+              "artifacts": "TST",
+              "kinds": ["TST"],
+              "condition": "every unit's verification is recorded",
+              "decider": { "role": "Tester" },
+              "line": 41
+            }
+          ],
+          "artifactsAdded": [
+            {
+              "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+              "phase": "Testing",
+              "artifacts": "the unit verification report",
+              "kinds": [],
+              "line": 47
+            }
+          ],
+          "notes": "## Releases\n\nA release is cut from `main` once Validation is passed.",
+          "problems": []
+        },
+        "gates": [
+          {
+            "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+            "at": "2026-10-08T17:00:00Z"
+          }
+        ],
+        "implementers": [
+          { "guards": "A CHAPTER IS EXPORTED", "participant": "ci-dev" },
+          { "guards": "A CHAPTER IS EXPORTED", "participant": "cli-dev" },
+          { "guards": "MOD-export", "participant": "ci-dev" },
+          { "guards": "MOD-export", "participant": "cli-dev" },
+          { "guards": "UC-003", "participant": "ci-dev" },
+          { "guards": "UC-003", "participant": "cli-dev" }
+        ],
+        "missing": [],
+        "unreadable": []
+      }
+    },
+    {
+      "name": "a release before Agent M's records",
+      "input": {
+        "snapshot": {
+          "commit": "9e00000000000000000000000000000000000000",
+          "tree": [
+            { "path": "README.md", "blob": "38246d7a0e7972d08fd8936ccfef885ab3ccf3d3" },
+            { "path": "SPEC.md", "blob": "94bea49343a82e2f1148dc91f52fb2d200a054ab" }
+          ]
+        },
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "README.md": "# Thesis\n" },
+        "enteredAt": {}
+      },
+      "result": {
+        "requirements": [
+          { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+          { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+          { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 }
+        ],
+        "links": [],
+        "declaration": null,
+        "gates": [],
+        "implementers": [],
+        "missing": ["docs/sources.md", "docs/process.md", "docs/jobs/"],
+        "unreadable": []
+      }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-test-views.auditView",
+  "summary": "The audit of a release (UC-030): one row per requirement of SPEC.md at the release's commit — what it constrains, the sources its source names with their authority, version and hash, the tests guarding it with their outcomes on the commit and the records behind them, their counter-proofs with writer and time, the gates and artifacts the declaration adds for it with the gate records and when each was committed, its gaps, and whether its evidence is accepted —; the acceptance of the release test report and the limitations it was accepted with, each with the rows it concerns; the summary, each count with the rows and tests it counts; the sources; the rows the filters keep; and the parts that cannot be derived for the release.",
+  "params": [{ "name": "input", "type": "AuditInput" }],
+  "result": "AuditView",
+  "async": true,
+  "refusals": [{ "code": "unknown-level", "when": "the level filtered is none of the five" }],
+  "examples": [
+    {
+      "name": "v2026.3.0, accepted with three known limitations",
+      "input": {
+        "input": {
+          "product": "https://github.com/alice/thesis",
+          "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+          "previous": "v2026.2.1",
+          "tests": {
+            "tests": [
+              {
+                "path": "tests/export.test.mjs",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "level": "system",
+                "levels": ["system"],
+                "cases": [
+                  {
+                    "id": "TST-014",
+                    "title": "the PDF keeps the figures",
+                    "given": "a chapter with two figures",
+                    "when": "the author exports it as PDF",
+                    "then": "the PDF holds both figures",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 8
+                  },
+                  {
+                    "id": "TST-015",
+                    "title": "the PDF names the chapter",
+                    "given": "a chapter titled Methods",
+                    "when": "the author exports it as PDF",
+                    "then": "the PDF's title is Methods",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 14
+                  },
+                  {
+                    "id": "TST-016",
+                    "title": "the summary of an export reads as the chapter",
+                    "given": "a chapter of four pages",
+                    "when": "the model summarises the exported PDF",
+                    "then": "the summary names the chapter's three findings",
+                    "extends": "",
+                    "runs": 20,
+                    "paid": ["hub"],
+                    "awaiting": false,
+                    "line": 20
+                  }
+                ]
+              },
+              {
+                "path": "tests/release-export.test.mjs",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "level": "release",
+                "levels": ["release"],
+                "cases": [
+                  {
+                    "id": "TST-021",
+                    "title": "an accepted chapter can be exported",
+                    "given": "an accepted chapter",
+                    "when": "the release candidate exports it",
+                    "then": "a PDF arrives",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 5
+                  }
+                ]
+              },
+              {
+                "path": "tests/review.test.mjs",
+                "module": "MOD-pages",
+                "guards": ["EVERY TEXT IS REVIEWED"],
+                "level": "unit",
+                "levels": ["unit"],
+                "cases": [
+                  {
+                    "id": "TST-031",
+                    "title": "a chapter binds once accepted",
+                    "given": "a chapter with an approval record naming its text",
+                    "when": "the page shows its status",
+                    "then": "the chapter is accepted",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 6
+                  }
+                ]
+              },
+              {
+                "path": "tests/user/export.md",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "level": "user",
+                "levels": ["user"],
+                "cases": [
+                  {
+                    "id": "TST-030",
+                    "title": "a supervisor reads the exported chapter",
+                    "given": "an accepted chapter with two figures, exported as PDF",
+                    "when": "the supervisor opens the PDF on their own computer",
+                    "then": "the chapter's title and both figures are shown",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 7
+                  }
+                ]
+              }
+            ],
+            "schedule": {
+              "declared": false,
+              "nightly": "02:00",
+              "command": "",
+              "rows": [
+                {
+                  "tests": "unit",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "component",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "system",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "paid",
+                  "occasions": ["nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+                { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+              ]
+            },
+            "scheduleNote": "",
+            "proofs": [
+              { "path": "docs/tests/counter-proofs/TST-014.md", "test": "TST-014", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T14:00:00Z", "fault": "The figures are left out of the PDF.", "diff": "-  pdf.add(chapter.figures);\n+  pdf.add([]);", "output": "AssertionError: expected 2 figures, got 0" },
+              { "path": "docs/tests/counter-proofs/TST-021.md", "test": "TST-021", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T15:00:00Z", "fault": "The export is left out of the release's build.", "diff": "-  export { run };\n+  export {};", "output": "AssertionError: no PDF arrived" }
+            ],
+            "reports": [],
+            "ci": [],
+            "unreadable": []
+          },
+          "audit": {
+            "requirements": [
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+              { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+              { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 },
+              { "name": "A CHAPTER IS EXPORTED", "source": "SRC-thesis-guide, 3.2", "rule": "A chapter is exported as a PDF with its figures.", "check": "`tests/export.test.mjs`", "section": "3. Export", "line": 21 },
+              { "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "source": "SRC-faculty-style", "rule": "Every thesis cites in the faculty's style.", "check": "no automatic check; at review.", "section": "3. Export", "line": 25 },
+              { "name": "UNIT VERIFICATION IS DOCUMENTED", "source": "SRC-iec-62304, 5.5.5", "rule": "Every software unit's verification is documented.", "check": "`tests/test_unit_records.py`", "section": "4. Process", "line": 31 }
+            ],
+            "links": [
+              {
+                "source": "SRC-iec-62304",
+                "version": 2,
+                "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5",
+                "part": "safety class B",
+                "lookAgain": []
+              },
+              {
+                "source": "SRC-thesis-guide",
+                "version": 1,
+                "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7",
+                "part": "",
+                "lookAgain": []
+              }
+            ],
+            "declaration": {
+              "model": "v-model",
+              "modelFile": "src/process-model/catalogue/v-model.md",
+              "modelVersion": "5a00000000000000000000000000000000000000",
+              "sprintClose": "",
+              "title": "How the thesis tool is developed",
+              "intro": "The declaration of this product's process (UC-002).",
+              "roles": [
+                { "role": "Analyst", "participants": ["alice"], "line": 14 },
+                { "role": "Architect", "participants": ["alice"], "line": 15 },
+                { "role": "Developers", "participants": ["cli-dev"], "line": 16 },
+                { "role": "Tester", "participants": ["ci-dev"], "line": 17 },
+                { "role": "Operator", "participants": ["ci-dev"], "line": 18 }
+              ],
+              "practices": ["devops"],
+              "branches": [{ "phase": "Implementation", "branch": "implementation", "line": 28 }],
+              "done": [
+                { "kind": "ci-check", "name": "lint", "text": "the linter passes", "line": 34 },
+                { "kind": "person", "name": "", "text": "a second developer has read the change", "line": 35 }
+              ],
+              "gatesAdded": [
+                {
+                  "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                  "between": "Testing → Validation",
+                  "from": "Testing",
+                  "to": "Validation",
+                  "artifacts": "TST",
+                  "kinds": ["TST"],
+                  "condition": "every unit's verification is recorded",
+                  "decider": { "role": "Tester" },
+                  "line": 41
+                }
+              ],
+              "artifactsAdded": [
+                {
+                  "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                  "phase": "Testing",
+                  "artifacts": "the unit verification report",
+                  "kinds": [],
+                  "line": 47
+                }
+              ],
+              "notes": "## Releases\n\nA release is cut from `main` once Validation is passed.",
+              "problems": []
+            },
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+                "at": "2026-10-08T17:00:00Z"
+              }
+            ],
+            "implementers": [
+              { "guards": "A CHAPTER IS EXPORTED", "participant": "ci-dev" },
+              { "guards": "A CHAPTER IS EXPORTED", "participant": "cli-dev" },
+              { "guards": "MOD-export", "participant": "ci-dev" },
+              { "guards": "MOD-export", "participant": "cli-dev" },
+              { "guards": "UC-003", "participant": "ci-dev" },
+              { "guards": "UC-003", "participant": "cli-dev" }
+            ],
+            "missing": [],
+            "unreadable": []
+          },
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 0,
+                "failed": 1,
+                "flaky": 1,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "flaky",
+                "runs": 2,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-031",
+                "title": "a chapter binds once accepted",
+                "level": "unit",
+                "guards": ["EVERY TEXT IS REVIEWED"],
+                "then": "the chapter is accepted",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-030",
+                "title": "a supervisor reads the exported chapter",
+                "level": "user",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "the chapter's title and both figures are shown",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "acceptance": {
+            "state": "accepted",
+            "report": "docs/tests/releases/v2026.3.0.md",
+            "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+            "tested": "c100000000000000000000000000000000000000",
+            "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+            "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+            "approvedIn": "b200000000000000000000000000000000000000",
+            "by": "alice",
+            "at": "2026-10-10T09:00:00Z",
+            "limitations": [
+              { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+              { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+              { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+            ]
+          },
+          "register": [
+            {
+              "id": "SRC-iec-62304",
+              "name": "IEC 62304 — Medical device software — Software life cycle processes",
+              "kind": "standard",
+              "authority": "normative",
+              "licence": "restricted",
+              "terms": "© IEC; copies may not be passed on",
+              "content": "files",
+              "address": "",
+              "location": "https://github.com/alice/norms",
+              "language": "",
+              "places": ["this machine"],
+              "parts": ["safety class A", "safety class B", "safety class C"],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "IEC 62304:2006",
+                  "date": "2006-05-09",
+                  "files": [
+                    { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                },
+                {
+                  "version": 2,
+                  "identifier": "IEC 62304:2006+AMD1:2015",
+                  "date": "2015-06-25",
+                  "files": [
+                    { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            },
+            {
+              "id": "SRC-thesis-guide",
+              "name": "Guide to writing a thesis at the faculty",
+              "kind": "document",
+              "authority": "advisory",
+              "licence": "republish",
+              "terms": "may be copied with its source named",
+              "content": "files",
+              "address": "",
+              "location": "",
+              "language": "",
+              "places": [],
+              "parts": [],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "edition 2025",
+                  "date": "2025-03-01",
+                  "files": [
+                    { "name": "thesis-guide-2025.md", "sha256": "2a1b6f0e4d3c5b7a9182736455647382910abcdeffedcba01928374655647382" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            }
+          ],
+          "filters": { "normative": false, "source": "", "level": "", "gaps": false }
+        }
+      },
+      "result": {
+        "product": "https://github.com/alice/thesis",
+        "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+        "previous": "v2026.2.1",
+        "acceptance": {
+          "state": "accepted",
+          "report": "docs/tests/releases/v2026.3.0.md",
+          "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+          "tested": "c100000000000000000000000000000000000000",
+          "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+          "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+          "approvedIn": "b200000000000000000000000000000000000000",
+          "by": "alice",
+          "at": "2026-10-10T09:00:00Z",
+          "limitations": [
+            { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+            { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+          ]
+        },
+        "limitations": [
+          {
+            "test": "TST-014",
+            "reason": "the second run lost a figure under load; retried in 2026.3.1",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          },
+          {
+            "test": "TST-015",
+            "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          },
+          {
+            "test": "TST-016",
+            "reason": "17 of 20 lies within the interval of the last release's 18 of 20",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          }
+        ],
+        "summary": [
+          { "kind": "passing", "count": 1, "rows": ["EVERY TEXT IS REVIEWED"], "tests": [] },
+          {
+            "kind": "no-test",
+            "count": 4,
+            "rows": ["ONE CLICK", "NO SERVER", "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "UNIT VERIFICATION IS DOCUMENTED"],
+            "tests": []
+          },
+          { "kind": "not-passed", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-015"] },
+          { "kind": "flaky", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-014"] },
+          { "kind": "worse", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-016"] },
+          { "kind": "by-implementer", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-021"] }
+        ],
+        "sources": [
+          { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" },
+          { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" },
+          { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+        ],
+        "rows": [
+          {
+            "name": "ONE CLICK",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "NO SERVER",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "EVERY TEXT IS REVIEWED",
+            "section": "2. Review",
+            "constrains": "product",
+            "sources": [],
+            "tests": [
+              {
+                "test": "TST-031",
+                "title": "a chapter binds once accepted",
+                "level": "unit",
+                "file": "tests/review.test.mjs",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "gates": [],
+            "artifacts": [],
+            "gaps": [],
+            "accepted": true
+          },
+          {
+            "name": "A CHAPTER IS EXPORTED",
+            "section": "3. Export",
+            "constrains": "product",
+            "sources": [
+              { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "flaky",
+                "runs": 2,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "docs/tests/counter-proofs/TST-014.md",
+                "author": "cli-dev",
+                "proofAt": "2026-10-08T14:00:00Z",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "file": "tests/release-export.test.mjs",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "docs/tests/counter-proofs/TST-021.md",
+                "author": "cli-dev",
+                "proofAt": "2026-10-08T15:00:00Z",
+                "byImplementer": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-030",
+                "title": "a supervisor reads the exported chapter",
+                "level": "user",
+                "file": "tests/user/export.md",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+                ]
+              }
+            ],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["not-passed", "flaky", "worse"],
+            "accepted": true
+          },
+          {
+            "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE",
+            "section": "3. Export",
+            "constrains": "product",
+            "sources": [
+              { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" }
+            ],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "UNIT VERIFICATION IS DOCUMENTED",
+            "section": "4. Process",
+            "constrains": "process",
+            "sources": [
+              { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" }
+            ],
+            "tests": [],
+            "gates": [
+              {
+                "between": "Testing → Validation",
+                "condition": "every unit's verification is recorded",
+                "decider": { "role": "Tester" },
+                "records": [
+                  {
+                    "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+                    "at": "2026-10-08T17:00:00Z"
+                  }
+                ]
+              }
+            ],
+            "artifacts": [{ "phase": "Testing", "artifacts": "the unit verification report" }],
+            "gaps": ["no-test"],
+            "accepted": true
+          }
+        ],
+        "shown": ["ONE CLICK", "NO SERVER", "EVERY TEXT IS REVIEWED", "A CHAPTER IS EXPORTED", "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "UNIT VERIFICATION IS DOCUMENTED"],
+        "filters": { "normative": false, "source": "", "level": "", "gaps": false },
+        "missing": []
+      }
+    },
+    {
+      "name": "the gaps of requirements from normative sources",
+      "input": {
+        "input": {
+          "product": "https://github.com/alice/thesis",
+          "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+          "previous": "v2026.2.1",
+          "tests": {
+            "tests": [
+              {
+                "path": "tests/export.test.mjs",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "level": "system",
+                "levels": ["system"],
+                "cases": [
+                  {
+                    "id": "TST-014",
+                    "title": "the PDF keeps the figures",
+                    "given": "a chapter with two figures",
+                    "when": "the author exports it as PDF",
+                    "then": "the PDF holds both figures",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 8
+                  },
+                  {
+                    "id": "TST-015",
+                    "title": "the PDF names the chapter",
+                    "given": "a chapter titled Methods",
+                    "when": "the author exports it as PDF",
+                    "then": "the PDF's title is Methods",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 14
+                  },
+                  {
+                    "id": "TST-016",
+                    "title": "the summary of an export reads as the chapter",
+                    "given": "a chapter of four pages",
+                    "when": "the model summarises the exported PDF",
+                    "then": "the summary names the chapter's three findings",
+                    "extends": "",
+                    "runs": 20,
+                    "paid": ["hub"],
+                    "awaiting": false,
+                    "line": 20
+                  }
+                ]
+              },
+              {
+                "path": "tests/release-export.test.mjs",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "level": "release",
+                "levels": ["release"],
+                "cases": [
+                  {
+                    "id": "TST-021",
+                    "title": "an accepted chapter can be exported",
+                    "given": "an accepted chapter",
+                    "when": "the release candidate exports it",
+                    "then": "a PDF arrives",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 5
+                  }
+                ]
+              },
+              {
+                "path": "tests/review.test.mjs",
+                "module": "MOD-pages",
+                "guards": ["EVERY TEXT IS REVIEWED"],
+                "level": "unit",
+                "levels": ["unit"],
+                "cases": [
+                  {
+                    "id": "TST-031",
+                    "title": "a chapter binds once accepted",
+                    "given": "a chapter with an approval record naming its text",
+                    "when": "the page shows its status",
+                    "then": "the chapter is accepted",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 6
+                  }
+                ]
+              },
+              {
+                "path": "tests/user/export.md",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "level": "user",
+                "levels": ["user"],
+                "cases": [
+                  {
+                    "id": "TST-030",
+                    "title": "a supervisor reads the exported chapter",
+                    "given": "an accepted chapter with two figures, exported as PDF",
+                    "when": "the supervisor opens the PDF on their own computer",
+                    "then": "the chapter's title and both figures are shown",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 7
+                  }
+                ]
+              }
+            ],
+            "schedule": {
+              "declared": false,
+              "nightly": "02:00",
+              "command": "",
+              "rows": [
+                {
+                  "tests": "unit",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "component",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "system",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "paid",
+                  "occasions": ["nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+                { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+              ]
+            },
+            "scheduleNote": "",
+            "proofs": [
+              { "path": "docs/tests/counter-proofs/TST-014.md", "test": "TST-014", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T14:00:00Z", "fault": "The figures are left out of the PDF.", "diff": "-  pdf.add(chapter.figures);\n+  pdf.add([]);", "output": "AssertionError: expected 2 figures, got 0" },
+              { "path": "docs/tests/counter-proofs/TST-021.md", "test": "TST-021", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T15:00:00Z", "fault": "The export is left out of the release's build.", "diff": "-  export { run };\n+  export {};", "output": "AssertionError: no PDF arrived" }
+            ],
+            "reports": [],
+            "ci": [],
+            "unreadable": []
+          },
+          "audit": {
+            "requirements": [
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+              { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+              { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 },
+              { "name": "A CHAPTER IS EXPORTED", "source": "SRC-thesis-guide, 3.2", "rule": "A chapter is exported as a PDF with its figures.", "check": "`tests/export.test.mjs`", "section": "3. Export", "line": 21 },
+              { "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "source": "SRC-faculty-style", "rule": "Every thesis cites in the faculty's style.", "check": "no automatic check; at review.", "section": "3. Export", "line": 25 },
+              { "name": "UNIT VERIFICATION IS DOCUMENTED", "source": "SRC-iec-62304, 5.5.5", "rule": "Every software unit's verification is documented.", "check": "`tests/test_unit_records.py`", "section": "4. Process", "line": 31 }
+            ],
+            "links": [
+              {
+                "source": "SRC-iec-62304",
+                "version": 2,
+                "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5",
+                "part": "safety class B",
+                "lookAgain": []
+              },
+              {
+                "source": "SRC-thesis-guide",
+                "version": 1,
+                "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7",
+                "part": "",
+                "lookAgain": []
+              }
+            ],
+            "declaration": {
+              "model": "v-model",
+              "modelFile": "src/process-model/catalogue/v-model.md",
+              "modelVersion": "5a00000000000000000000000000000000000000",
+              "sprintClose": "",
+              "title": "How the thesis tool is developed",
+              "intro": "The declaration of this product's process (UC-002).",
+              "roles": [
+                { "role": "Analyst", "participants": ["alice"], "line": 14 },
+                { "role": "Architect", "participants": ["alice"], "line": 15 },
+                { "role": "Developers", "participants": ["cli-dev"], "line": 16 },
+                { "role": "Tester", "participants": ["ci-dev"], "line": 17 },
+                { "role": "Operator", "participants": ["ci-dev"], "line": 18 }
+              ],
+              "practices": ["devops"],
+              "branches": [{ "phase": "Implementation", "branch": "implementation", "line": 28 }],
+              "done": [
+                { "kind": "ci-check", "name": "lint", "text": "the linter passes", "line": 34 },
+                { "kind": "person", "name": "", "text": "a second developer has read the change", "line": 35 }
+              ],
+              "gatesAdded": [
+                {
+                  "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                  "between": "Testing → Validation",
+                  "from": "Testing",
+                  "to": "Validation",
+                  "artifacts": "TST",
+                  "kinds": ["TST"],
+                  "condition": "every unit's verification is recorded",
+                  "decider": { "role": "Tester" },
+                  "line": 41
+                }
+              ],
+              "artifactsAdded": [
+                {
+                  "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                  "phase": "Testing",
+                  "artifacts": "the unit verification report",
+                  "kinds": [],
+                  "line": 47
+                }
+              ],
+              "notes": "## Releases\n\nA release is cut from `main` once Validation is passed.",
+              "problems": []
+            },
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+                "at": "2026-10-08T17:00:00Z"
+              }
+            ],
+            "implementers": [
+              { "guards": "A CHAPTER IS EXPORTED", "participant": "ci-dev" },
+              { "guards": "A CHAPTER IS EXPORTED", "participant": "cli-dev" },
+              { "guards": "MOD-export", "participant": "ci-dev" },
+              { "guards": "MOD-export", "participant": "cli-dev" },
+              { "guards": "UC-003", "participant": "ci-dev" },
+              { "guards": "UC-003", "participant": "cli-dev" }
+            ],
+            "missing": [],
+            "unreadable": []
+          },
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 0,
+                "failed": 1,
+                "flaky": 1,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "flaky",
+                "runs": 2,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-031",
+                "title": "a chapter binds once accepted",
+                "level": "unit",
+                "guards": ["EVERY TEXT IS REVIEWED"],
+                "then": "the chapter is accepted",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-030",
+                "title": "a supervisor reads the exported chapter",
+                "level": "user",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "the chapter's title and both figures are shown",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "acceptance": {
+            "state": "accepted",
+            "report": "docs/tests/releases/v2026.3.0.md",
+            "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+            "tested": "c100000000000000000000000000000000000000",
+            "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+            "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+            "approvedIn": "b200000000000000000000000000000000000000",
+            "by": "alice",
+            "at": "2026-10-10T09:00:00Z",
+            "limitations": [
+              { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+              { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+              { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+            ]
+          },
+          "register": [
+            {
+              "id": "SRC-iec-62304",
+              "name": "IEC 62304 — Medical device software — Software life cycle processes",
+              "kind": "standard",
+              "authority": "normative",
+              "licence": "restricted",
+              "terms": "© IEC; copies may not be passed on",
+              "content": "files",
+              "address": "",
+              "location": "https://github.com/alice/norms",
+              "language": "",
+              "places": ["this machine"],
+              "parts": ["safety class A", "safety class B", "safety class C"],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "IEC 62304:2006",
+                  "date": "2006-05-09",
+                  "files": [
+                    { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                },
+                {
+                  "version": 2,
+                  "identifier": "IEC 62304:2006+AMD1:2015",
+                  "date": "2015-06-25",
+                  "files": [
+                    { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            },
+            {
+              "id": "SRC-thesis-guide",
+              "name": "Guide to writing a thesis at the faculty",
+              "kind": "document",
+              "authority": "advisory",
+              "licence": "republish",
+              "terms": "may be copied with its source named",
+              "content": "files",
+              "address": "",
+              "location": "",
+              "language": "",
+              "places": [],
+              "parts": [],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "edition 2025",
+                  "date": "2025-03-01",
+                  "files": [
+                    { "name": "thesis-guide-2025.md", "sha256": "2a1b6f0e4d3c5b7a9182736455647382910abcdeffedcba01928374655647382" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            }
+          ],
+          "filters": { "normative": true, "source": "", "level": "", "gaps": true }
+        }
+      },
+      "result": {
+        "product": "https://github.com/alice/thesis",
+        "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+        "previous": "v2026.2.1",
+        "acceptance": {
+          "state": "accepted",
+          "report": "docs/tests/releases/v2026.3.0.md",
+          "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+          "tested": "c100000000000000000000000000000000000000",
+          "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+          "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+          "approvedIn": "b200000000000000000000000000000000000000",
+          "by": "alice",
+          "at": "2026-10-10T09:00:00Z",
+          "limitations": [
+            { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+            { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+          ]
+        },
+        "limitations": [
+          {
+            "test": "TST-014",
+            "reason": "the second run lost a figure under load; retried in 2026.3.1",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          },
+          {
+            "test": "TST-015",
+            "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          },
+          {
+            "test": "TST-016",
+            "reason": "17 of 20 lies within the interval of the last release's 18 of 20",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          }
+        ],
+        "summary": [
+          { "kind": "passing", "count": 1, "rows": ["EVERY TEXT IS REVIEWED"], "tests": [] },
+          {
+            "kind": "no-test",
+            "count": 4,
+            "rows": ["ONE CLICK", "NO SERVER", "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "UNIT VERIFICATION IS DOCUMENTED"],
+            "tests": []
+          },
+          { "kind": "not-passed", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-015"] },
+          { "kind": "flaky", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-014"] },
+          { "kind": "worse", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-016"] },
+          { "kind": "by-implementer", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-021"] }
+        ],
+        "sources": [
+          { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" },
+          { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" },
+          { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+        ],
+        "rows": [
+          {
+            "name": "ONE CLICK",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "NO SERVER",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "EVERY TEXT IS REVIEWED",
+            "section": "2. Review",
+            "constrains": "product",
+            "sources": [],
+            "tests": [
+              {
+                "test": "TST-031",
+                "title": "a chapter binds once accepted",
+                "level": "unit",
+                "file": "tests/review.test.mjs",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "gates": [],
+            "artifacts": [],
+            "gaps": [],
+            "accepted": true
+          },
+          {
+            "name": "A CHAPTER IS EXPORTED",
+            "section": "3. Export",
+            "constrains": "product",
+            "sources": [
+              { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "flaky",
+                "runs": 2,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "docs/tests/counter-proofs/TST-014.md",
+                "author": "cli-dev",
+                "proofAt": "2026-10-08T14:00:00Z",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "file": "tests/release-export.test.mjs",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "docs/tests/counter-proofs/TST-021.md",
+                "author": "cli-dev",
+                "proofAt": "2026-10-08T15:00:00Z",
+                "byImplementer": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-030",
+                "title": "a supervisor reads the exported chapter",
+                "level": "user",
+                "file": "tests/user/export.md",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+                ]
+              }
+            ],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["not-passed", "flaky", "worse"],
+            "accepted": true
+          },
+          {
+            "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE",
+            "section": "3. Export",
+            "constrains": "product",
+            "sources": [
+              { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" }
+            ],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "UNIT VERIFICATION IS DOCUMENTED",
+            "section": "4. Process",
+            "constrains": "process",
+            "sources": [
+              { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" }
+            ],
+            "tests": [],
+            "gates": [
+              {
+                "between": "Testing → Validation",
+                "condition": "every unit's verification is recorded",
+                "decider": { "role": "Tester" },
+                "records": [
+                  {
+                    "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+                    "at": "2026-10-08T17:00:00Z"
+                  }
+                ]
+              }
+            ],
+            "artifacts": [{ "phase": "Testing", "artifacts": "the unit verification report" }],
+            "gaps": ["no-test"],
+            "accepted": true
+          }
+        ],
+        "shown": ["UNIT VERIFICATION IS DOCUMENTED"],
+        "filters": { "normative": true, "source": "", "level": "", "gaps": true },
+        "missing": []
+      }
+    },
+    {
+      "name": "the requirements a release test guards",
+      "input": {
+        "input": {
+          "product": "https://github.com/alice/thesis",
+          "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+          "previous": "v2026.2.1",
+          "tests": {
+            "tests": [
+              {
+                "path": "tests/export.test.mjs",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "level": "system",
+                "levels": ["system"],
+                "cases": [
+                  {
+                    "id": "TST-014",
+                    "title": "the PDF keeps the figures",
+                    "given": "a chapter with two figures",
+                    "when": "the author exports it as PDF",
+                    "then": "the PDF holds both figures",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 8
+                  },
+                  {
+                    "id": "TST-015",
+                    "title": "the PDF names the chapter",
+                    "given": "a chapter titled Methods",
+                    "when": "the author exports it as PDF",
+                    "then": "the PDF's title is Methods",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 14
+                  },
+                  {
+                    "id": "TST-016",
+                    "title": "the summary of an export reads as the chapter",
+                    "given": "a chapter of four pages",
+                    "when": "the model summarises the exported PDF",
+                    "then": "the summary names the chapter's three findings",
+                    "extends": "",
+                    "runs": 20,
+                    "paid": ["hub"],
+                    "awaiting": false,
+                    "line": 20
+                  }
+                ]
+              },
+              {
+                "path": "tests/release-export.test.mjs",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "level": "release",
+                "levels": ["release"],
+                "cases": [
+                  {
+                    "id": "TST-021",
+                    "title": "an accepted chapter can be exported",
+                    "given": "an accepted chapter",
+                    "when": "the release candidate exports it",
+                    "then": "a PDF arrives",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 5
+                  }
+                ]
+              },
+              {
+                "path": "tests/review.test.mjs",
+                "module": "MOD-pages",
+                "guards": ["EVERY TEXT IS REVIEWED"],
+                "level": "unit",
+                "levels": ["unit"],
+                "cases": [
+                  {
+                    "id": "TST-031",
+                    "title": "a chapter binds once accepted",
+                    "given": "a chapter with an approval record naming its text",
+                    "when": "the page shows its status",
+                    "then": "the chapter is accepted",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 6
+                  }
+                ]
+              },
+              {
+                "path": "tests/user/export.md",
+                "module": "MOD-export",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "level": "user",
+                "levels": ["user"],
+                "cases": [
+                  {
+                    "id": "TST-030",
+                    "title": "a supervisor reads the exported chapter",
+                    "given": "an accepted chapter with two figures, exported as PDF",
+                    "when": "the supervisor opens the PDF on their own computer",
+                    "then": "the chapter's title and both figures are shown",
+                    "extends": "",
+                    "runs": null,
+                    "paid": [],
+                    "awaiting": false,
+                    "line": 7
+                  }
+                ]
+              }
+            ],
+            "schedule": {
+              "declared": false,
+              "nightly": "02:00",
+              "command": "",
+              "rows": [
+                {
+                  "tests": "unit",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "component",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "system",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "paid",
+                  "occasions": ["nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+                { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+              ]
+            },
+            "scheduleNote": "",
+            "proofs": [
+              { "path": "docs/tests/counter-proofs/TST-014.md", "test": "TST-014", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T14:00:00Z", "fault": "The figures are left out of the PDF.", "diff": "-  pdf.add(chapter.figures);\n+  pdf.add([]);", "output": "AssertionError: expected 2 figures, got 0" },
+              { "path": "docs/tests/counter-proofs/TST-021.md", "test": "TST-021", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T15:00:00Z", "fault": "The export is left out of the release's build.", "diff": "-  export { run };\n+  export {};", "output": "AssertionError: no PDF arrived" }
+            ],
+            "reports": [],
+            "ci": [],
+            "unreadable": []
+          },
+          "audit": {
+            "requirements": [
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+              { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+              { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 },
+              { "name": "A CHAPTER IS EXPORTED", "source": "SRC-thesis-guide, 3.2", "rule": "A chapter is exported as a PDF with its figures.", "check": "`tests/export.test.mjs`", "section": "3. Export", "line": 21 },
+              { "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "source": "SRC-faculty-style", "rule": "Every thesis cites in the faculty's style.", "check": "no automatic check; at review.", "section": "3. Export", "line": 25 },
+              { "name": "UNIT VERIFICATION IS DOCUMENTED", "source": "SRC-iec-62304, 5.5.5", "rule": "Every software unit's verification is documented.", "check": "`tests/test_unit_records.py`", "section": "4. Process", "line": 31 }
+            ],
+            "links": [
+              {
+                "source": "SRC-iec-62304",
+                "version": 2,
+                "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5",
+                "part": "safety class B",
+                "lookAgain": []
+              },
+              {
+                "source": "SRC-thesis-guide",
+                "version": 1,
+                "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7",
+                "part": "",
+                "lookAgain": []
+              }
+            ],
+            "declaration": {
+              "model": "v-model",
+              "modelFile": "src/process-model/catalogue/v-model.md",
+              "modelVersion": "5a00000000000000000000000000000000000000",
+              "sprintClose": "",
+              "title": "How the thesis tool is developed",
+              "intro": "The declaration of this product's process (UC-002).",
+              "roles": [
+                { "role": "Analyst", "participants": ["alice"], "line": 14 },
+                { "role": "Architect", "participants": ["alice"], "line": 15 },
+                { "role": "Developers", "participants": ["cli-dev"], "line": 16 },
+                { "role": "Tester", "participants": ["ci-dev"], "line": 17 },
+                { "role": "Operator", "participants": ["ci-dev"], "line": 18 }
+              ],
+              "practices": ["devops"],
+              "branches": [{ "phase": "Implementation", "branch": "implementation", "line": 28 }],
+              "done": [
+                { "kind": "ci-check", "name": "lint", "text": "the linter passes", "line": 34 },
+                { "kind": "person", "name": "", "text": "a second developer has read the change", "line": 35 }
+              ],
+              "gatesAdded": [
+                {
+                  "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                  "between": "Testing → Validation",
+                  "from": "Testing",
+                  "to": "Validation",
+                  "artifacts": "TST",
+                  "kinds": ["TST"],
+                  "condition": "every unit's verification is recorded",
+                  "decider": { "role": "Tester" },
+                  "line": 41
+                }
+              ],
+              "artifactsAdded": [
+                {
+                  "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                  "phase": "Testing",
+                  "artifacts": "the unit verification report",
+                  "kinds": [],
+                  "line": 47
+                }
+              ],
+              "notes": "## Releases\n\nA release is cut from `main` once Validation is passed.",
+              "problems": []
+            },
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+                "at": "2026-10-08T17:00:00Z"
+              }
+            ],
+            "implementers": [
+              { "guards": "A CHAPTER IS EXPORTED", "participant": "ci-dev" },
+              { "guards": "A CHAPTER IS EXPORTED", "participant": "cli-dev" },
+              { "guards": "MOD-export", "participant": "ci-dev" },
+              { "guards": "MOD-export", "participant": "cli-dev" },
+              { "guards": "UC-003", "participant": "ci-dev" },
+              { "guards": "UC-003", "participant": "cli-dev" }
+            ],
+            "missing": [],
+            "unreadable": []
+          },
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 0,
+                "failed": 1,
+                "flaky": 1,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "flaky",
+                "runs": 2,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-031",
+                "title": "a chapter binds once accepted",
+                "level": "unit",
+                "guards": ["EVERY TEXT IS REVIEWED"],
+                "then": "the chapter is accepted",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-030",
+                "title": "a supervisor reads the exported chapter",
+                "level": "user",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "the chapter's title and both figures are shown",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "acceptance": {
+            "state": "accepted",
+            "report": "docs/tests/releases/v2026.3.0.md",
+            "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+            "tested": "c100000000000000000000000000000000000000",
+            "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+            "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+            "approvedIn": "b200000000000000000000000000000000000000",
+            "by": "alice",
+            "at": "2026-10-10T09:00:00Z",
+            "limitations": [
+              { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+              { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+              { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+            ]
+          },
+          "register": [
+            {
+              "id": "SRC-iec-62304",
+              "name": "IEC 62304 — Medical device software — Software life cycle processes",
+              "kind": "standard",
+              "authority": "normative",
+              "licence": "restricted",
+              "terms": "© IEC; copies may not be passed on",
+              "content": "files",
+              "address": "",
+              "location": "https://github.com/alice/norms",
+              "language": "",
+              "places": ["this machine"],
+              "parts": ["safety class A", "safety class B", "safety class C"],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "IEC 62304:2006",
+                  "date": "2006-05-09",
+                  "files": [
+                    { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                },
+                {
+                  "version": 2,
+                  "identifier": "IEC 62304:2006+AMD1:2015",
+                  "date": "2015-06-25",
+                  "files": [
+                    { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            },
+            {
+              "id": "SRC-thesis-guide",
+              "name": "Guide to writing a thesis at the faculty",
+              "kind": "document",
+              "authority": "advisory",
+              "licence": "republish",
+              "terms": "may be copied with its source named",
+              "content": "files",
+              "address": "",
+              "location": "",
+              "language": "",
+              "places": [],
+              "parts": [],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "edition 2025",
+                  "date": "2025-03-01",
+                  "files": [
+                    { "name": "thesis-guide-2025.md", "sha256": "2a1b6f0e4d3c5b7a9182736455647382910abcdeffedcba01928374655647382" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            }
+          ],
+          "filters": { "normative": false, "source": "", "level": "release", "gaps": false }
+        }
+      },
+      "result": {
+        "product": "https://github.com/alice/thesis",
+        "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+        "previous": "v2026.2.1",
+        "acceptance": {
+          "state": "accepted",
+          "report": "docs/tests/releases/v2026.3.0.md",
+          "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+          "tested": "c100000000000000000000000000000000000000",
+          "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+          "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+          "approvedIn": "b200000000000000000000000000000000000000",
+          "by": "alice",
+          "at": "2026-10-10T09:00:00Z",
+          "limitations": [
+            { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+            { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+          ]
+        },
+        "limitations": [
+          {
+            "test": "TST-014",
+            "reason": "the second run lost a figure under load; retried in 2026.3.1",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          },
+          {
+            "test": "TST-015",
+            "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          },
+          {
+            "test": "TST-016",
+            "reason": "17 of 20 lies within the interval of the last release's 18 of 20",
+            "rows": ["A CHAPTER IS EXPORTED"]
+          }
+        ],
+        "summary": [
+          { "kind": "passing", "count": 1, "rows": ["EVERY TEXT IS REVIEWED"], "tests": [] },
+          {
+            "kind": "no-test",
+            "count": 4,
+            "rows": ["ONE CLICK", "NO SERVER", "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "UNIT VERIFICATION IS DOCUMENTED"],
+            "tests": []
+          },
+          { "kind": "not-passed", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-015"] },
+          { "kind": "flaky", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-014"] },
+          { "kind": "worse", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-016"] },
+          { "kind": "by-implementer", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-021"] }
+        ],
+        "sources": [
+          { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" },
+          { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" },
+          { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+        ],
+        "rows": [
+          {
+            "name": "ONE CLICK",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "NO SERVER",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "EVERY TEXT IS REVIEWED",
+            "section": "2. Review",
+            "constrains": "product",
+            "sources": [],
+            "tests": [
+              {
+                "test": "TST-031",
+                "title": "a chapter binds once accepted",
+                "level": "unit",
+                "file": "tests/review.test.mjs",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "gates": [],
+            "artifacts": [],
+            "gaps": [],
+            "accepted": true
+          },
+          {
+            "name": "A CHAPTER IS EXPORTED",
+            "section": "3. Export",
+            "constrains": "product",
+            "sources": [
+              { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "flaky",
+                "runs": 2,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "docs/tests/counter-proofs/TST-014.md",
+                "author": "cli-dev",
+                "proofAt": "2026-10-08T14:00:00Z",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "file": "tests/export.test.mjs",
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "file": "tests/release-export.test.mjs",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "docs/tests/counter-proofs/TST-021.md",
+                "author": "cli-dev",
+                "proofAt": "2026-10-08T15:00:00Z",
+                "byImplementer": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-030",
+                "title": "a supervisor reads the exported chapter",
+                "level": "user",
+                "file": "tests/user/export.md",
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "proof": "",
+                "author": "",
+                "proofAt": "",
+                "byImplementer": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+                ]
+              }
+            ],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["not-passed", "flaky", "worse"],
+            "accepted": true
+          },
+          {
+            "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE",
+            "section": "3. Export",
+            "constrains": "product",
+            "sources": [
+              { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" }
+            ],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": true
+          },
+          {
+            "name": "UNIT VERIFICATION IS DOCUMENTED",
+            "section": "4. Process",
+            "constrains": "process",
+            "sources": [
+              { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" }
+            ],
+            "tests": [],
+            "gates": [
+              {
+                "between": "Testing → Validation",
+                "condition": "every unit's verification is recorded",
+                "decider": { "role": "Tester" },
+                "records": [
+                  {
+                    "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+                    "at": "2026-10-08T17:00:00Z"
+                  }
+                ]
+              }
+            ],
+            "artifacts": [{ "phase": "Testing", "artifacts": "the unit verification report" }],
+            "gaps": ["no-test"],
+            "accepted": true
+          }
+        ],
+        "shown": ["A CHAPTER IS EXPORTED"],
+        "filters": { "normative": false, "source": "", "level": "release", "gaps": false },
+        "missing": []
+      }
+    },
+    {
+      "name": "a release before Agent M's records",
+      "input": {
+        "input": {
+          "product": "https://github.com/alice/thesis",
+          "tag": { "name": "v2025.4.0", "commit": "9e00000000000000000000000000000000000000" },
+          "previous": "",
+          "tests": {
+            "tests": [],
+            "schedule": {
+              "declared": false,
+              "nightly": "02:00",
+              "command": "",
+              "rows": [
+                {
+                  "tests": "unit",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "component",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "system",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "paid",
+                  "occasions": ["nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+                { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+              ]
+            },
+            "scheduleNote": "",
+            "proofs": [],
+            "reports": [],
+            "ci": [],
+            "unreadable": []
+          },
+          "audit": {
+            "requirements": [
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+              { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+              { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 }
+            ],
+            "links": [],
+            "declaration": null,
+            "gates": [],
+            "implementers": [],
+            "missing": ["docs/sources.md", "docs/process.md", "docs/jobs/"],
+            "unreadable": []
+          },
+          "outcomes": {
+            "commit": "9e00000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "acceptance": {
+            "state": "no-report",
+            "report": "docs/tests/releases/v2025.4.0.md",
+            "reportBlob": "",
+            "tested": "",
+            "record": "",
+            "recordBlob": "",
+            "approvedIn": "",
+            "by": "",
+            "at": "",
+            "limitations": []
+          },
+          "register": [
+            {
+              "id": "SRC-iec-62304",
+              "name": "IEC 62304 — Medical device software — Software life cycle processes",
+              "kind": "standard",
+              "authority": "normative",
+              "licence": "restricted",
+              "terms": "© IEC; copies may not be passed on",
+              "content": "files",
+              "address": "",
+              "location": "https://github.com/alice/norms",
+              "language": "",
+              "places": ["this machine"],
+              "parts": ["safety class A", "safety class B", "safety class C"],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "IEC 62304:2006",
+                  "date": "2006-05-09",
+                  "files": [
+                    { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                },
+                {
+                  "version": 2,
+                  "identifier": "IEC 62304:2006+AMD1:2015",
+                  "date": "2015-06-25",
+                  "files": [
+                    { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            },
+            {
+              "id": "SRC-thesis-guide",
+              "name": "Guide to writing a thesis at the faculty",
+              "kind": "document",
+              "authority": "advisory",
+              "licence": "republish",
+              "terms": "may be copied with its source named",
+              "content": "files",
+              "address": "",
+              "location": "",
+              "language": "",
+              "places": [],
+              "parts": [],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "edition 2025",
+                  "date": "2025-03-01",
+                  "files": [
+                    { "name": "thesis-guide-2025.md", "sha256": "2a1b6f0e4d3c5b7a9182736455647382910abcdeffedcba01928374655647382" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            }
+          ],
+          "filters": { "normative": false, "source": "", "level": "", "gaps": false }
+        }
+      },
+      "result": {
+        "product": "https://github.com/alice/thesis",
+        "tag": { "name": "v2025.4.0", "commit": "9e00000000000000000000000000000000000000" },
+        "previous": "",
+        "acceptance": {
+          "state": "no-report",
+          "report": "docs/tests/releases/v2025.4.0.md",
+          "reportBlob": "",
+          "tested": "",
+          "record": "",
+          "recordBlob": "",
+          "approvedIn": "",
+          "by": "",
+          "at": "",
+          "limitations": []
+        },
+        "limitations": [],
+        "summary": [
+          { "kind": "passing", "count": 0, "rows": [], "tests": [] },
+          { "kind": "no-test", "count": 3, "rows": ["ONE CLICK", "NO SERVER", "EVERY TEXT IS REVIEWED"], "tests": [] },
+          { "kind": "not-passed", "count": 0, "rows": [], "tests": [] },
+          { "kind": "flaky", "count": 0, "rows": [], "tests": [] },
+          { "kind": "worse", "count": 0, "rows": [], "tests": [] },
+          { "kind": "by-implementer", "count": 0, "rows": [], "tests": [] }
+        ],
+        "sources": [],
+        "rows": [
+          {
+            "name": "ONE CLICK",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": false
+          },
+          {
+            "name": "NO SERVER",
+            "section": "1. Writing",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": false
+          },
+          {
+            "name": "EVERY TEXT IS REVIEWED",
+            "section": "2. Review",
+            "constrains": "product",
+            "sources": [],
+            "tests": [],
+            "gates": [],
+            "artifacts": [],
+            "gaps": ["no-test"],
+            "accepted": false
+          }
+        ],
+        "shown": ["ONE CLICK", "NO SERVER", "EVERY TEXT IS REVIEWED"],
+        "filters": { "normative": false, "source": "", "level": "", "gaps": false },
+        "missing": ["sources", "process", "tests", "counter-proofs", "result-records", "report", "implementers"]
+      }
+    },
+    {
+      "name": "a level of no kind",
+      "input": {
+        "input": {
+          "product": "https://github.com/alice/thesis",
+          "tag": { "name": "v2025.4.0", "commit": "9e00000000000000000000000000000000000000" },
+          "previous": "",
+          "tests": {
+            "tests": [],
+            "schedule": {
+              "declared": false,
+              "nightly": "02:00",
+              "command": "",
+              "rows": [
+                {
+                  "tests": "unit",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "component",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "system",
+                  "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                {
+                  "tests": "paid",
+                  "occasions": ["nightly", "release candidate", "on demand"],
+                  "runsOn": "hosted",
+                  "line": 0
+                },
+                { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+                { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+              ]
+            },
+            "scheduleNote": "",
+            "proofs": [],
+            "reports": [],
+            "ci": [],
+            "unreadable": []
+          },
+          "audit": {
+            "requirements": [
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+              { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+              { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 }
+            ],
+            "links": [],
+            "declaration": null,
+            "gates": [],
+            "implementers": [],
+            "missing": ["docs/sources.md", "docs/process.md", "docs/jobs/"],
+            "unreadable": []
+          },
+          "outcomes": {
+            "commit": "9e00000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "acceptance": {
+            "state": "no-report",
+            "report": "docs/tests/releases/v2025.4.0.md",
+            "reportBlob": "",
+            "tested": "",
+            "record": "",
+            "recordBlob": "",
+            "approvedIn": "",
+            "by": "",
+            "at": "",
+            "limitations": []
+          },
+          "register": [
+            {
+              "id": "SRC-iec-62304",
+              "name": "IEC 62304 — Medical device software — Software life cycle processes",
+              "kind": "standard",
+              "authority": "normative",
+              "licence": "restricted",
+              "terms": "© IEC; copies may not be passed on",
+              "content": "files",
+              "address": "",
+              "location": "https://github.com/alice/norms",
+              "language": "",
+              "places": ["this machine"],
+              "parts": ["safety class A", "safety class B", "safety class C"],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "IEC 62304:2006",
+                  "date": "2006-05-09",
+                  "files": [
+                    { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                },
+                {
+                  "version": 2,
+                  "identifier": "IEC 62304:2006+AMD1:2015",
+                  "date": "2015-06-25",
+                  "files": [
+                    { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            },
+            {
+              "id": "SRC-thesis-guide",
+              "name": "Guide to writing a thesis at the faculty",
+              "kind": "document",
+              "authority": "advisory",
+              "licence": "republish",
+              "terms": "may be copied with its source named",
+              "content": "files",
+              "address": "",
+              "location": "",
+              "language": "",
+              "places": [],
+              "parts": [],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "edition 2025",
+                  "date": "2025-03-01",
+                  "files": [
+                    { "name": "thesis-guide-2025.md", "sha256": "2a1b6f0e4d3c5b7a9182736455647382910abcdeffedcba01928374655647382" }
+                  ],
+                  "contentStream": "",
+                  "note": ""
+                }
+              ]
+            }
+          ],
+          "filters": { "normative": false, "source": "", "level": "integration", "gaps": false }
+        }
+      },
+      "refused": "unknown-level"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-test-views.auditDocument",
+  "summary": "The audit as one Markdown document, docs/audits/<tag>.md: front matter naming the product, the tag, its commit, the previous release, the release test report and the approval record with their blob SHAs and the commit, account and time of the approval; then the parts that cannot be derived, the limitations, the summary, the sources with their versions and hashes, the result records the rows cite with who ran each and when, and every requirement with its tests and their counter-proofs, its gates with their records and when each was committed, and its artifacts — every row, whatever the filters keep.",
+  "params": [{ "name": "view", "type": "AuditView" }],
+  "result": "FileText",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the audit of v2026.3.0",
+      "input": {
+        "view": {
+          "product": "https://github.com/alice/thesis",
+          "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+          "previous": "v2026.2.1",
+          "acceptance": {
+            "state": "accepted",
+            "report": "docs/tests/releases/v2026.3.0.md",
+            "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+            "tested": "c100000000000000000000000000000000000000",
+            "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+            "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+            "approvedIn": "b200000000000000000000000000000000000000",
+            "by": "alice",
+            "at": "2026-10-10T09:00:00Z",
+            "limitations": [
+              { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+              { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+              { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+            ]
+          },
+          "limitations": [
+            {
+              "test": "TST-014",
+              "reason": "the second run lost a figure under load; retried in 2026.3.1",
+              "rows": ["A CHAPTER IS EXPORTED"]
+            },
+            {
+              "test": "TST-015",
+              "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1",
+              "rows": ["A CHAPTER IS EXPORTED"]
+            },
+            {
+              "test": "TST-016",
+              "reason": "17 of 20 lies within the interval of the last release's 18 of 20",
+              "rows": ["A CHAPTER IS EXPORTED"]
+            }
+          ],
+          "summary": [
+            { "kind": "passing", "count": 1, "rows": ["EVERY TEXT IS REVIEWED"], "tests": [] },
+            {
+              "kind": "no-test",
+              "count": 4,
+              "rows": ["ONE CLICK", "NO SERVER", "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "UNIT VERIFICATION IS DOCUMENTED"],
+              "tests": []
+            },
+            { "kind": "not-passed", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-015"] },
+            { "kind": "flaky", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-014"] },
+            { "kind": "worse", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-016"] },
+            { "kind": "by-implementer", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-021"] }
+          ],
+          "sources": [
+            { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" },
+            { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" },
+            { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+          ],
+          "rows": [
+            {
+              "name": "ONE CLICK",
+              "section": "1. Writing",
+              "constrains": "product",
+              "sources": [],
+              "tests": [],
+              "gates": [],
+              "artifacts": [],
+              "gaps": ["no-test"],
+              "accepted": true
+            },
+            {
+              "name": "NO SERVER",
+              "section": "1. Writing",
+              "constrains": "product",
+              "sources": [],
+              "tests": [],
+              "gates": [],
+              "artifacts": [],
+              "gaps": ["no-test"],
+              "accepted": true
+            },
+            {
+              "name": "EVERY TEXT IS REVIEWED",
+              "section": "2. Review",
+              "constrains": "product",
+              "sources": [],
+              "tests": [
+                {
+                  "test": "TST-031",
+                  "title": "a chapter binds once accepted",
+                  "level": "unit",
+                  "file": "tests/review.test.mjs",
+                  "outcome": "passed",
+                  "runs": 1,
+                  "passed": 1,
+                  "previous": null,
+                  "worse": false,
+                  "proof": "",
+                  "author": "",
+                  "proofAt": "",
+                  "byImplementer": false,
+                  "evidence": [
+                    { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                  ]
+                }
+              ],
+              "gates": [],
+              "artifacts": [],
+              "gaps": [],
+              "accepted": true
+            },
+            {
+              "name": "A CHAPTER IS EXPORTED",
+              "section": "3. Export",
+              "constrains": "product",
+              "sources": [
+                { "source": "SRC-thesis-guide", "name": "Guide to writing a thesis at the faculty", "authority": "advisory", "version": 1, "identifier": "edition 2025", "date": "2025-03-01", "part": "", "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7", "state": "linked" }
+              ],
+              "tests": [
+                {
+                  "test": "TST-014",
+                  "title": "the PDF keeps the figures",
+                  "level": "system",
+                  "file": "tests/export.test.mjs",
+                  "outcome": "flaky",
+                  "runs": 2,
+                  "passed": 1,
+                  "previous": null,
+                  "worse": false,
+                  "proof": "docs/tests/counter-proofs/TST-014.md",
+                  "author": "cli-dev",
+                  "proofAt": "2026-10-08T14:00:00Z",
+                  "byImplementer": false,
+                  "evidence": [
+                    { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                    { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+                  ]
+                },
+                {
+                  "test": "TST-015",
+                  "title": "the PDF names the chapter",
+                  "level": "system",
+                  "file": "tests/export.test.mjs",
+                  "outcome": "failed",
+                  "runs": 1,
+                  "passed": 0,
+                  "previous": null,
+                  "worse": false,
+                  "proof": "",
+                  "author": "",
+                  "proofAt": "",
+                  "byImplementer": false,
+                  "evidence": [
+                    { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                  ]
+                },
+                {
+                  "test": "TST-016",
+                  "title": "the summary of an export reads as the chapter",
+                  "level": "system",
+                  "file": "tests/export.test.mjs",
+                  "outcome": "rate",
+                  "runs": 20,
+                  "passed": 17,
+                  "previous": { "runs": 20, "passed": 18 },
+                  "worse": true,
+                  "proof": "",
+                  "author": "",
+                  "proofAt": "",
+                  "byImplementer": false,
+                  "evidence": [
+                    { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                  ]
+                },
+                {
+                  "test": "TST-021",
+                  "title": "an accepted chapter can be exported",
+                  "level": "release",
+                  "file": "tests/release-export.test.mjs",
+                  "outcome": "passed",
+                  "runs": 1,
+                  "passed": 1,
+                  "previous": null,
+                  "worse": false,
+                  "proof": "docs/tests/counter-proofs/TST-021.md",
+                  "author": "cli-dev",
+                  "proofAt": "2026-10-08T15:00:00Z",
+                  "byImplementer": true,
+                  "evidence": [
+                    { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                  ]
+                },
+                {
+                  "test": "TST-030",
+                  "title": "a supervisor reads the exported chapter",
+                  "level": "user",
+                  "file": "tests/user/export.md",
+                  "outcome": "passed",
+                  "runs": 1,
+                  "passed": 1,
+                  "previous": null,
+                  "worse": false,
+                  "proof": "",
+                  "author": "",
+                  "proofAt": "",
+                  "byImplementer": false,
+                  "evidence": [
+                    { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+                  ]
+                }
+              ],
+              "gates": [],
+              "artifacts": [],
+              "gaps": ["not-passed", "flaky", "worse"],
+              "accepted": true
+            },
+            {
+              "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE",
+              "section": "3. Export",
+              "constrains": "product",
+              "sources": [
+                { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" }
+              ],
+              "tests": [],
+              "gates": [],
+              "artifacts": [],
+              "gaps": ["no-test"],
+              "accepted": true
+            },
+            {
+              "name": "UNIT VERIFICATION IS DOCUMENTED",
+              "section": "4. Process",
+              "constrains": "process",
+              "sources": [
+                { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" }
+              ],
+              "tests": [],
+              "gates": [
+                {
+                  "between": "Testing → Validation",
+                  "condition": "every unit's verification is recorded",
+                  "decider": { "role": "Tester" },
+                  "records": [
+                    {
+                      "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+                      "at": "2026-10-08T17:00:00Z"
+                    }
+                  ]
+                }
+              ],
+              "artifacts": [{ "phase": "Testing", "artifacts": "the unit verification report" }],
+              "gaps": ["no-test"],
+              "accepted": true
+            }
+          ],
+          "shown": ["ONE CLICK", "NO SERVER", "EVERY TEXT IS REVIEWED", "A CHAPTER IS EXPORTED", "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "UNIT VERIFICATION IS DOCUMENTED"],
+          "filters": { "normative": false, "source": "", "level": "", "gaps": false },
+          "missing": []
+        }
+      },
+      "result": { "path": "docs/audits/v2026.3.0.md", "text": "---\nproduct: https://github.com/alice/thesis\ntag: v2026.3.0\ncommit: c100000000000000000000000000000000000000\nprevious: v2026.2.1\nreport: docs/tests/releases/v2026.3.0.md\nreport_blob: 8e8466bb1439754a74c6432f6362cc506709e583\ntested: c100000000000000000000000000000000000000\nacceptance: accepted\napproval: docs/approvals/v2026.3.0-8e8466bb1439.md\napproval_blob: 2c9184475b8afc374bb6f7d1ea6bf838832442d8\napproved_in: b200000000000000000000000000000000000000\napproved_by: alice\napproved_at: 2026-10-10T09:00:00Z\n---\n\n# Audit of v2026.3.0\n\n## Limitations\n\n| Test | Reason | Requirements |\n|---|---|---|\n| TST-014 | the second run lost a figure under load; retried in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-015 | the PDF's title is taken from the file name; corrected in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-016 | 17 of 20 lies within the interval of the last release's 18 of 20 | A CHAPTER IS EXPORTED |\n\n## Summary\n\n| Count | Number | Requirements | Tests |\n|---|---|---|---|\n| passing | 1 | EVERY TEXT IS REVIEWED | — |\n| no-test | 4 | ONE CLICK, NO SERVER, THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE, UNIT VERIFICATION IS DOCUMENTED | — |\n| not-passed | 1 | A CHAPTER IS EXPORTED | TST-015 |\n| flaky | 1 | A CHAPTER IS EXPORTED | TST-014 |\n| worse | 1 | A CHAPTER IS EXPORTED | TST-016 |\n| by-implementer | 1 | A CHAPTER IS EXPORTED | TST-021 |\n\n## Sources\n\n| Source | Name | Authority | Version | Identifier | Date | Part | SHA-256 | State |\n|---|---|---|---|---|---|---|---|---|\n| SRC-faculty-style | — | — | 0 | — | — | — | — | not-linked |\n| SRC-iec-62304 | IEC 62304 — Medical device software — Software life cycle processes | normative | 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | safety class B | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | linked |\n| SRC-thesis-guide | Guide to writing a thesis at the faculty | advisory | 1 | edition 2025 | 2025-03-01 | — | ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7 | linked |\n\n## Result records\n\n| Record | Participant | At | Log |\n|---|---|---|---|\n| results/c100000000000000000000000000000000000000/gh-4730-1-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:00:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/gh-4730-2-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:40:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/user-alice-202610100800.md | alice | 2026-10-10T08:00:00Z | — |\n\n## Requirements\n\n### ONE CLICK\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### NO SERVER\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### EVERY TEXT IS REVIEWED\n\n| Field | Value |\n|---|---|\n| Section | 2. Review |\n| Constrains | product |\n| Sources | — |\n| Gaps | — |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-031 | unit | tests/review.test.mjs | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n\n### A CHAPTER IS EXPORTED\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-thesis-guide 1 |\n| Gaps | not-passed, flaky, worse |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-014 | system | tests/export.test.mjs | flaky | 2 | 1 | — | no | docs/tests/counter-proofs/TST-014.md | cli-dev | 2026-10-08T14:00:00Z | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md, results/c100000000000000000000000000000000000000/gh-4730-2-release.md |\n| TST-015 | system | tests/export.test.mjs | failed | 1 | 0 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-016 | system | tests/export.test.mjs | rate | 20 | 17 | 18 of 20 | yes | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-021 | release | tests/release-export.test.mjs | passed | 1 | 1 | — | no | docs/tests/counter-proofs/TST-021.md | cli-dev | 2026-10-08T15:00:00Z | yes | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-030 | user | tests/user/export.md | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/user-alice-202610100800.md |\n\n### THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-faculty-style |\n| Gaps | no-test |\n| Accepted | yes |\n\n### UNIT VERIFICATION IS DOCUMENTED\n\n| Field | Value |\n|---|---|\n| Section | 4. Process |\n| Constrains | process |\n| Sources | SRC-iec-62304 2 |\n| Gaps | no-test |\n| Accepted | yes |\n\n| Gate | Condition | Decider | Record | Decision | Decided by | Decided on | Committed at |\n|---|---|---|---|---|---|---|---|\n| Testing → Validation | every unit's verification is recorded | Tester | docs/jobs/gates/thesis-testing-validation-bf0000000000.md | passed | ci-dev | bf00000000000000000000000000000000000000 | 2026-10-08T17:00:00Z |\n\n| Phase | Artifacts |\n|---|---|\n| Testing | the unit verification report |\n" }
+    }
+  ]
+}
+```
+
 ### MOD-tests-page
 
 ```json module
@@ -4514,23 +7806,23 @@ flowchart LR
   "id": "MOD-tests-page",
   "folder": "src/tests-page/",
   "layer": "shell",
-  "responsibility": "The shell of tests.html at the root of the instance's Pages site: routes, reads a product's tests, the names they may guard, its result records, commits, pull requests and tags and what the server holds of its schedule, and writes on a person's click — the schedule's pull request and its merge, a GitLab project's nightly pipeline schedule, a run on a commit, the outcomes of user tests, a release candidate, the release and its tag —; it holds every text and all HTML of the page.",
+  "responsibility": "The shell of tests.html at the root of the instance's Pages site: routes, reads a product's tests, the names they may guard, its result records, commits, pull requests and tags, what the server holds of its schedule, a release with the acceptance of its report and the instance's source register, and writes on a person's click — the schedule's pull request and its merge, a GitLab project's nightly pipeline schedule, a run on a commit, the outcomes of user tests, a release candidate, the release and its tag, the audit of a release —; it holds every text and all HTML of the page.",
   "realises": ["THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION", "EVERY STEP EXPLAINS ITSELF", "CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI", "A RESULT RECORD IS NEVER REWRITTEN", "ACCEPTING THE RELEASE TEST REPORT RELEASES", "A VERSION IS NOT REWRITTEN", "GITLAB PRODUCTS ARE SUPPORTED"],
-  "owns": ["TestsRoute", "TestsRead", "RecordsAt", "TestsSetup", "TestsRefs", "ScheduleMerged", "UserOutcome", "CandidateStarted", "ReleaseShown", "ReleaseDone"],
-  "uses": ["MOD-contracts", "MOD-test-views", "MOD-test-records", "MOD-ci-generator", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-process-model"]
+  "owns": ["TestsRoute", "TestsRead", "RecordsAt", "TestsSetup", "TestsRefs", "ScheduleMerged", "UserOutcome", "CandidateStarted", "ReleaseShown", "ReleaseDone", "AuditRead"],
+  "uses": ["MOD-contracts", "MOD-test-views", "MOD-test-records", "MOD-ci-generator", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-process-model", "MOD-review-core", "MOD-library-page"]
 }
 ```
 
 ```json interface
 {
   "id": "MOD-tests-page.route",
-  "summary": "Where the tests page is and what it shows, from tests.html at the root of the instance's Pages site and its fragment: the view — schedule, runs, browser, test or release —, the product by its address, and where the view needs them a commit, a test, a version, and two release tags to compare.",
+  "summary": "Where the tests page is and what it shows, from tests.html at the root of the instance's Pages site and its fragment: the view — schedule, runs, browser, test, release or audit —, the product by its address, and where the view needs them a commit, a test, a version, and two release tags to compare.",
   "params": [{ "name": "hash", "type": "string" }, { "name": "pagesAddress", "type": "string" }],
   "result": "TestsRoute",
   "async": false,
   "refusals": [
     { "code": "not-a-pages-address", "when": "the address is not tests.html at the root of a GitHub Pages site" },
-    { "code": "unknown-view", "when": "the view is none of the five" },
+    { "code": "unknown-view", "when": "the view is none of the six" },
     { "code": "no-product", "when": "the fragment names no product" },
     { "code": "not-two-releases", "when": "compare names other than two release tags" }
   ],
@@ -4562,8 +7854,21 @@ flowchart LR
       }
     },
     {
+      "name": "the audit of a release",
+      "input": { "hash": "#audit?product=https%3A%2F%2Fgithub.com%2Falice%2Fthesis&version=2026.3.0", "pagesAddress": "https://alice.github.io/agent-m/tests.html" },
+      "result": {
+        "instance": "https://github.com/alice/agent-m",
+        "view": "audit",
+        "product": "https://github.com/alice/thesis",
+        "commit": "",
+        "test": "",
+        "version": "2026.3.0",
+        "compare": []
+      }
+    },
+    {
       "name": "a view of no kind",
-      "input": { "hash": "#audit?product=https%3A%2F%2Fgithub.com%2Falice%2Fthesis", "pagesAddress": "https://alice.github.io/agent-m/tests.html" },
+      "input": { "hash": "#coverage?product=https%3A%2F%2Fgithub.com%2Falice%2Fthesis", "pagesAddress": "https://alice.github.io/agent-m/tests.html" },
       "refused": "unknown-view"
     }
   ]
@@ -6972,6 +10277,1065 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-tests-page.readAudit",
+  "summary": "The audit of a release, read at the commit its tag names and at the default branch's head: the release's tag and the one before it, the commit, its tests and what the audit reads there (MOD-test-views.auditOf) — each gate record with when it entered the repository, the oldest of the commits touching it —, the outcomes of the commit with the previous release's rates, and the acceptance of its release test report — the report and the commit it names, its status from the approval records' content, the record naming its text with the limitations it was accepted with, and the commit that added that record, its author and time.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "version", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "texts", "type": "StoragePort" }
+  ],
+  "result": "AuditRead",
+  "async": true,
+  "refusals": [
+    { "code": "no-release", "when": "no release tag names the version" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "not-found", "when": "the repository is not found" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "v2026.3.0 of the thesis",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "version": "2026.3.0",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2027-01-01", "tested": null },
+          "gitlab": [
+            { "address": "https://gitlab.example.org/group/tools/thesis", "token": "glpat-example", "expires": "", "tested": null }
+          ],
+          "products": ["https://github.com/alice/thesis", "https://gitlab.example.org/group/tools/thesis"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/tags?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                { "name": "v2026.3.0", "commit": { "sha": "c100000000000000000000000000000000000000" } },
+                { "name": "v2026.2.1", "commit": { "sha": "c000000000000000000000000000000000000000" } },
+                { "name": "v2026.2.0", "commit": { "sha": "bd00000000000000000000000000000000000000" } }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/v2026.3.0" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "README.md", "type": "blob", "sha": "38246d7a0e7972d08fd8936ccfef885ab3ccf3d3" },
+                  { "path": "SPEC.md", "type": "blob", "sha": "2b2c36ba13ba78baa2bf12d608940489c365596e" },
+                  { "path": "docs/architecture/ARC-002-export.md", "type": "blob", "sha": "3a6e752ca43ff261d329a9a5b76b113ae3a181de" },
+                  { "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "type": "blob", "sha": "2032f2079965776e551ce780c5c5f244a84037e9" },
+                  { "path": "docs/jobs/JOB-20261005-0900-1a1a.md", "type": "blob", "sha": "87881941661e618ba6f25b8e9a55ec041ed1112e" },
+                  { "path": "docs/jobs/JOB-20261006-0900-2b2b.md", "type": "blob", "sha": "31983d247e0733ca23a23ec1bcac9d12897069e4" },
+                  { "path": "docs/jobs/JOB-20261007-0900-3c3c.md", "type": "blob", "sha": "691e7a7d7f7acdc8023017827981ca199e95c6d3" },
+                  { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "type": "blob", "sha": "4954d11b548d2cabf9248196c22cf0b7cf0aecee" },
+                  { "path": "docs/process.md", "type": "blob", "sha": "713016a3e80decab142e6ea9ad768bcc71fce1fb" },
+                  { "path": "docs/sources.md", "type": "blob", "sha": "df217d3e38af245cc1da1c326b431d0f41fd5b2f" },
+                  { "path": "docs/tests/counter-proofs/TST-014.md", "type": "blob", "sha": "90e888adf083bb0d0a867e53778372c9b02da594" },
+                  { "path": "docs/tests/counter-proofs/TST-021.md", "type": "blob", "sha": "dfeec9d45280be7f475dfa14b89fa720271bc96b" },
+                  { "path": "docs/use-cases/UC-003-export-a-chapter.md", "type": "blob", "sha": "159ddc97b31591f90ccce7aac8bb7e310aeac8af" },
+                  { "path": "tests/export.test.mjs", "type": "blob", "sha": "eef2e745eb0f37cff09ce84eea02ee2def8445d0" },
+                  { "path": "tests/release-export.test.mjs", "type": "blob", "sha": "cbc971de30cdcd79a3567b29144af819eda86274" },
+                  { "path": "tests/review.test.mjs", "type": "blob", "sha": "0679f1a5b1371aced695084514f236a05bc89f6b" },
+                  { "path": "tests/user/export.md", "type": "blob", "sha": "71d9ecf6534c4d40d6e869a9a1c621b662af4ba5" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/user" },
+            "response": { "status": 200, "body": { "login": "alice" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/eef2e745eb0f37cff09ce84eea02ee2def8445d0" },
+            "response": {
+              "status": 200,
+              "body": { "content": "Ly8gVGhlIGV4cG9ydCBvZiBhIGNoYXB0ZXIuCi8vCi8vIE1vZHVsZTogTU9ELWV4cG9ydAovLyBHdWFyZHM6IEEgQ0hBUFRFUiBJUyBFWFBPUlRFRDsgVUMtMDAzCi8vIExldmVsOiBzeXN0ZW0KaW1wb3J0IHsgdGVzdCB9IGZyb20gIm5vZGU6dGVzdCI7CgovLyBUU1QtMDE0IHRoZSBQREYga2VlcHMgdGhlIGZpZ3VyZXMKLy8gR2l2ZW46IGEgY2hhcHRlciB3aXRoIHR3byBmaWd1cmVzCi8vIFdoZW46IHRoZSBhdXRob3IgZXhwb3J0cyBpdCBhcyBQREYKLy8gVGhlbjogdGhlIFBERiBob2xkcyBib3RoIGZpZ3VyZXMKdGVzdCgiVFNULTAxNCB0aGUgUERGIGtlZXBzIHRoZSBmaWd1cmVzIiwgKCkgPT4ge30pOwoKLy8gVFNULTAxNSB0aGUgUERGIG5hbWVzIHRoZSBjaGFwdGVyCi8vIEdpdmVuOiBhIGNoYXB0ZXIgdGl0bGVkIE1ldGhvZHMKLy8gV2hlbjogdGhlIGF1dGhvciBleHBvcnRzIGl0IGFzIFBERgovLyBUaGVuOiB0aGUgUERGJ3MgdGl0bGUgaXMgTWV0aG9kcwp0ZXN0KCJUU1QtMDE1IHRoZSBQREYgbmFtZXMgdGhlIGNoYXB0ZXIiLCAoKSA9PiB7fSk7CgovLyBUU1QtMDE2IHRoZSBzdW1tYXJ5IG9mIGFuIGV4cG9ydCByZWFkcyBhcyB0aGUgY2hhcHRlcgovLyBHaXZlbjogYSBjaGFwdGVyIG9mIGZvdXIgcGFnZXMKLy8gV2hlbjogdGhlIG1vZGVsIHN1bW1hcmlzZXMgdGhlIGV4cG9ydGVkIFBERgovLyBUaGVuOiB0aGUgc3VtbWFyeSBuYW1lcyB0aGUgY2hhcHRlcidzIHRocmVlIGZpbmRpbmdzCi8vIFJ1bnM6IDIwCi8vIFBhaWQ6IGh1Ygp0ZXN0KCJUU1QtMDE2IHRoZSBzdW1tYXJ5IG9mIGFuIGV4cG9ydCByZWFkcyBhcyB0aGUgY2hhcHRlciIsICgpID0+IHt9KTsK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/cbc971de30cdcd79a3567b29144af819eda86274" },
+            "response": {
+              "status": 200,
+              "body": { "content": "Ly8gTW9kdWxlOiBNT0QtZXhwb3J0Ci8vIEd1YXJkczogQSBDSEFQVEVSIElTIEVYUE9SVEVECi8vIExldmVsOiByZWxlYXNlCgovLyBUU1QtMDIxIGFuIGFjY2VwdGVkIGNoYXB0ZXIgY2FuIGJlIGV4cG9ydGVkCi8vIEdpdmVuOiBhbiBhY2NlcHRlZCBjaGFwdGVyCi8vIFdoZW46IHRoZSByZWxlYXNlIGNhbmRpZGF0ZSBleHBvcnRzIGl0Ci8vIFRoZW46IGEgUERGIGFycml2ZXMKdGVzdCgiVFNULTAyMSBhbiBhY2NlcHRlZCBjaGFwdGVyIGNhbiBiZSBleHBvcnRlZCIsICgpID0+IHt9KTsK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/71d9ecf6534c4d40d6e869a9a1c621b662af4ba5" },
+            "response": {
+              "status": 200,
+              "body": { "content": "IyBBY2NlcHRhbmNlIG9mIHRoZSBleHBvcnQKCk1vZHVsZTogTU9ELWV4cG9ydApHdWFyZHM6IEEgQ0hBUFRFUiBJUyBFWFBPUlRFRApMZXZlbDogdXNlcgoKIyMgVFNULTAzMCBhIHN1cGVydmlzb3IgcmVhZHMgdGhlIGV4cG9ydGVkIGNoYXB0ZXIKCkdpdmVuOiBhbiBhY2NlcHRlZCBjaGFwdGVyIHdpdGggdHdvIGZpZ3VyZXMsIGV4cG9ydGVkIGFzIFBERgpXaGVuOiB0aGUgc3VwZXJ2aXNvciBvcGVucyB0aGUgUERGIG9uIHRoZWlyIG93biBjb21wdXRlcgpUaGVuOiB0aGUgY2hhcHRlcidzIHRpdGxlIGFuZCBib3RoIGZpZ3VyZXMgYXJlIHNob3duCg==", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/0679f1a5b1371aced695084514f236a05bc89f6b" },
+            "response": {
+              "status": 200,
+              "body": { "content": "Ly8gTW9kdWxlOiBNT0QtcGFnZXMKLy8gR3VhcmRzOiBFVkVSWSBURVhUIElTIFJFVklFV0VECi8vIExldmVsOiB1bml0CmltcG9ydCB7IHRlc3QgfSBmcm9tICJub2RlOnRlc3QiOwoKLy8gVFNULTAzMSBhIGNoYXB0ZXIgYmluZHMgb25jZSBhY2NlcHRlZAovLyBHaXZlbjogYSBjaGFwdGVyIHdpdGggYW4gYXBwcm92YWwgcmVjb3JkIG5hbWluZyBpdHMgdGV4dAovLyBXaGVuOiB0aGUgcGFnZSBzaG93cyBpdHMgc3RhdHVzCi8vIFRoZW46IHRoZSBjaGFwdGVyIGlzIGFjY2VwdGVkCnRlc3QoIlRTVC0wMzEgYSBjaGFwdGVyIGJpbmRzIG9uY2UgYWNjZXB0ZWQiLCAoKSA9PiB7fSk7Cg==", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/90e888adf083bb0d0a867e53778372c9b02da594" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCnRlc3Q6IFRTVC0wMTQKY29tbWl0OiBjMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwCmZpbGU6IHNyYy9leHBvcnQvaW5kZXgubWpzCm91dGNvbWU6IGZhaWxlZApwYXJ0aWNpcGFudDogY2xpLWRldgphdDogMjAyNi0xMC0wOFQxNDowMDowMFoKLS0tCgojIENvdW50ZXItcHJvb2Ygb2YgVFNULTAxNAoKVGhlIGZpZ3VyZXMgYXJlIGxlZnQgb3V0IG9mIHRoZSBQREYuCgp+fn5kaWZmCi0gIHBkZi5hZGQoY2hhcHRlci5maWd1cmVzKTsKKyAgcGRmLmFkZChbXSk7Cn5+fgoKfn5+dGV4dApBc3NlcnRpb25FcnJvcjogZXhwZWN0ZWQgMiBmaWd1cmVzLCBnb3QgMAp+fn4K", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/dfeec9d45280be7f475dfa14b89fa720271bc96b" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCnRlc3Q6IFRTVC0wMjEKY29tbWl0OiBjMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwCmZpbGU6IHNyYy9leHBvcnQvaW5kZXgubWpzCm91dGNvbWU6IGZhaWxlZApwYXJ0aWNpcGFudDogY2xpLWRldgphdDogMjAyNi0xMC0wOFQxNTowMDowMFoKLS0tCgojIENvdW50ZXItcHJvb2Ygb2YgVFNULTAyMQoKVGhlIGV4cG9ydCBpcyBsZWZ0IG91dCBvZiB0aGUgcmVsZWFzZSdzIGJ1aWxkLgoKfn5+ZGlmZgotICBleHBvcnQgeyBydW4gfTsKKyAgZXhwb3J0IHt9Owp+fn4KCn5+fnRleHQKQXNzZXJ0aW9uRXJyb3I6IG5vIFBERiBhcnJpdmVkCn5+fgo=", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/2b2c36ba13ba78baa2bf12d608940489c365596e" },
+            "response": {
+              "status": 200,
+              "body": { "content": "IyBUaGVzaXMg4oCUIFNwZWNpZmljYXRpb24KCiMjIDEuIFdyaXRpbmcKCioqT05FIENMSUNLKiogKihQTyBBLiBNYWllcikqCkEgZGVjaXNpb24gdGFrZXMgb25lIGNsaWNrLgoqQ2hlY2s6KiBubyBhdXRvbWF0aWMgY2hlY2s7IGF0IHJldmlldy4KCioqTk8gU0VSVkVSKiogKihQTyBBLiBNYWllcikqClRoZSBwcm9kdWN0IHJ1bnMgbm8gc2VydmVyIG9mIGl0cyBvd24uCipDaGVjazoqIGB0ZXN0cy90ZXN0X25vX3NlcnZlci5weWAKCiMjIDIuIFJldmlldwoKKipFVkVSWSBURVhUIElTIFJFVklFV0VEKiogKihQTyBBLiBNYWllcikqCkEgZG9jdW1lbnQgYmluZHMgb25seSBvbmNlIGl0IGlzIGFjY2VwdGVkLgoqQ2hlY2s6KiBgdGVzdHMvcGFnZXMudGVzdC5tanNgCgojIyAzLiBFeHBvcnQKCioqQSBDSEFQVEVSIElTIEVYUE9SVEVEKiogKihTUkMtdGhlc2lzLWd1aWRlLCAzLjIpKgpBIGNoYXB0ZXIgaXMgZXhwb3J0ZWQgYXMgYSBQREYgd2l0aCBpdHMgZmlndXJlcy4KKkNoZWNrOiogYHRlc3RzL2V4cG9ydC50ZXN0Lm1qc2AKCioqVEhFIEJJQkxJT0dSQVBIWSBGT0xMT1dTIFRIRSBGQUNVTFRZIFNUWUxFKiogKihTUkMtZmFjdWx0eS1zdHlsZSkqCkV2ZXJ5IHRoZXNpcyBjaXRlcyBpbiB0aGUgZmFjdWx0eSdzIHN0eWxlLgoqQ2hlY2s6KiBubyBhdXRvbWF0aWMgY2hlY2s7IGF0IHJldmlldy4KCiMjIDQuIFByb2Nlc3MKCioqVU5JVCBWRVJJRklDQVRJT04gSVMgRE9DVU1FTlRFRCoqICooU1JDLWllYy02MjMwNCwgNS41LjUpKgpFdmVyeSBzb2Z0d2FyZSB1bml0J3MgdmVyaWZpY2F0aW9uIGlzIGRvY3VtZW50ZWQuCipDaGVjazoqIGB0ZXN0cy90ZXN0X3VuaXRfcmVjb3Jkcy5weWAK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/df217d3e38af245cc1da1c326b431d0f41fd5b2f" },
+            "response": {
+              "status": 200,
+              "body": { "content": "IyBSZXF1aXJlbWVudCBzb3VyY2VzCgp8IFNvdXJjZSB8IFZlcnNpb24gfCBTSEEtMjU2IHwgUGFydCB8IExvb2sgYXQgYWdhaW4gfAp8LS0tfC0tLXwtLS18LS0tfC0tLXwKfCBTUkMtaWVjLTYyMzA0IHwgMiB8IGE4YTg0N2NhZjM4OWJjYjQ5ZWFhNDAwZTU2Y2NlOTE0M2MwODg4MzI3NTZlYmIxZWRkOWNiZmZlNzc5ZDJlYjUgfCBzYWZldHkgY2xhc3MgQiB8IOKAlCB8CnwgU1JDLXRoZXNpcy1ndWlkZSB8IDEgfCBlYzk1ZDM2NzI2Y2E0NTZlMmUyZTRmOTM5ZmVmOTc2N2JlZDI3ZTI3Yzg4ZjAyNjYxMmI0MjFhNjc2YjY2ZWE3IHwg4oCUIHwg4oCUIHwK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/713016a3e80decab142e6ea9ad768bcc71fce1fb" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCm1vZGVsOiB2LW1vZGVsCm1vZGVsX2ZpbGU6IHNyYy9wcm9jZXNzLW1vZGVsL2NhdGFsb2d1ZS92LW1vZGVsLm1kCm1vZGVsX3ZlcnNpb246IDVhMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAKLS0tCiMgSG93IHRoZSB0aGVzaXMgdG9vbCBpcyBkZXZlbG9wZWQKClRoZSBkZWNsYXJhdGlvbiBvZiB0aGlzIHByb2R1Y3QncyBwcm9jZXNzIChVQy0wMDIpLgoKIyMgUm9sZXMKCnwgUm9sZSB8IFBhcnRpY2lwYW50cyB8CnwtLS18LS0tfAp8IEFuYWx5c3QgfCBhbGljZSB8CnwgQXJjaGl0ZWN0IHwgYWxpY2UgfAp8IERldmVsb3BlcnMgfCBjbGktZGV2IHwKfCBUZXN0ZXIgfCBjaS1kZXYgfAp8IE9wZXJhdG9yIHwgY2ktZGV2IHwKCiMjIFByYWN0aWNlcwoKLSBkZXZvcHMKCiMjIEJyYW5jaGVzCgp8IFBoYXNlIG9yIHRpbWUgYm94IHwgQnJhbmNoIHwKfC0tLXwtLS18CnwgSW1wbGVtZW50YXRpb24gfCBgaW1wbGVtZW50YXRpb25gIHwKCiMjIERlZmluaXRpb24gb2YgRG9uZQoKVGhlIGpvYiBydWxlcyBob2xkIGZvciBldmVyeSBwdWxsIHJlcXVlc3QsIGFuZCB0aGVzZSBjb25kaXRpb25zIGJlc2lkZXM6CgotIENJIGNoZWNrIGBsaW50YCDigJQgdGhlIGxpbnRlciBwYXNzZXMKLSBhIHNlY29uZCBkZXZlbG9wZXIgaGFzIHJlYWQgdGhlIGNoYW5nZQoKIyMgR2F0ZXMgYWRkZWQgYnkgcmVxdWlyZW1lbnRzCgp8IFJlcXVpcmVtZW50IHwgQmV0d2VlbiB8IEFydGlmYWN0cyB8IENvbmRpdGlvbiB8IERlY2lkZXIgfAp8LS0tfC0tLXwtLS18LS0tfC0tLXwKfCBVTklUIFZFUklGSUNBVElPTiBJUyBET0NVTUVOVEVEIHwgVGVzdGluZyDihpIgVmFsaWRhdGlvbiB8IFRTVCB8IGV2ZXJ5IHVuaXQncyB2ZXJpZmljYXRpb24gaXMgcmVjb3JkZWQgfCBUZXN0ZXIgfAoKIyMgQXJ0aWZhY3RzIGFkZGVkIGJ5IHJlcXVpcmVtZW50cwoKfCBSZXF1aXJlbWVudCB8IFBoYXNlIHwgQXJ0aWZhY3RzIHwKfC0tLXwtLS18LS0tfAp8IFVOSVQgVkVSSUZJQ0FUSU9OIElTIERPQ1VNRU5URUQgfCBUZXN0aW5nIHwgdGhlIHVuaXQgdmVyaWZpY2F0aW9uIHJlcG9ydCB8CgojIyBSZWxlYXNlcwoKQSByZWxlYXNlIGlzIGN1dCBmcm9tIGBtYWluYCBvbmNlIFZhbGlkYXRpb24gaXMgcGFzc2VkLgo=", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/4954d11b548d2cabf9248196c22cf0b7cf0aecee" },
+            "response": {
+              "status": 200,
+              "body": { "content": "Z2F0ZTogVGVzdGluZyDihpIgVmFsaWRhdGlvbgpzdWJqZWN0OiB0aGVzaXMKb246IGJmMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAKZGVjaWRlcjogY2ktZGV2CmRlY2lzaW9uOiBwYXNzZWQKcmVhc29uOiBldmVyeSB1bml0J3MgdmVyaWZpY2F0aW9uIGlzIHJlY29yZGVkIGluIGRvY3MvdGVzdHMvdW5pdHMubWQK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/87881941661e618ba6f25b8e9a55ec041ed1112e" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmlkOiBKT0ItMjAyNjEwMDUtMDkwMC0xYTFhCmtpbmQ6IGltcGxlbWVudApwaGFzZTogSW1wbGVtZW50YXRpb24Kcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2xpLWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOgptb2R1bGVzOgogIC0gTU9ELWV4cG9ydAppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNsYXVkZS1vcHVzLTUtNQpsb2c6Ci0tLQoKIyBKT0ItMjAyNjEwMDUtMDkwMC0xYTFhCgoqKlJFR0lTVEVSKioKCiMjIFN0YXRlcwoKfCBBdCB8IFN0YXRlIHwgTm90ZSB8CnwtLS18LS0tfC0tLXwKfCAyMDI2LTEwLTA1VDA5OjAwOjAwWiB8IHF1ZXVlZCB8IOKAlCB8CnwgMjAyNi0xMC0wNVQxMTowMDowMFogfCBkb25lIHwg4oCUIHwKCiMjIENvc3QKCnwgUm91bmRzIHwgQ29zdCB8IElucHV0IHRva2VucyB8IE91dHB1dCB0b2tlbnMgfCBNaW51dGVzIHwKfC0tLXwtLS18LS0tfC0tLXwtLS18CnwgMCB8IOKAlCB8IOKAlCB8IOKAlCB8IOKAlCB8Cg==", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/31983d247e0733ca23a23ec1bcac9d12897069e4" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmlkOiBKT0ItMjAyNjEwMDYtMDkwMC0yYjJiCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBJbXBsZW1lbnRhdGlvbgpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBjaS1kZXYKcnVudGltZTogYnJpZGdlCnJ1bjoKc2xvdDoKaXRlbTogSVRNLTAxNAptb2R1bGVzOiBbXQppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNsYXVkZS1vcHVzLTUtNQpsb2c6Ci0tLQoKIyBKT0ItMjAyNjEwMDYtMDkwMC0yYjJiCgoqKlJFR0lTVEVSKioKCiMjIFN0YXRlcwoKfCBBdCB8IFN0YXRlIHwgTm90ZSB8CnwtLS18LS0tfC0tLXwKfCAyMDI2LTEwLTA2VDA5OjAwOjAwWiB8IHF1ZXVlZCB8IOKAlCB8CnwgMjAyNi0xMC0wNlQxMDowMDowMFogfCBmYWlsZWQgfCBDSSBzdGF5ZWQgcmVkIHwKCiMjIENvc3QKCnwgUm91bmRzIHwgQ29zdCB8IElucHV0IHRva2VucyB8IE91dHB1dCB0b2tlbnMgfCBNaW51dGVzIHwKfC0tLXwtLS18LS0tfC0tLXwtLS18CnwgMCB8IOKAlCB8IOKAlCB8IOKAlCB8IOKAlCB8Cg==", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/691e7a7d7f7acdc8023017827981ca199e95c6d3" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmlkOiBKT0ItMjAyNjEwMDctMDkwMC0zYzNjCmtpbmQ6IHRlc3QtYmF0dGVyeQpwaGFzZTogVGVzdGluZwpyb2xlOiBUZXN0ZXIKcGFydGljaXBhbnQ6IGFsaWNlCnJ1bnRpbWU6IGJyaWRnZQpydW46CnNsb3Q6Cml0ZW06Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAwNy0wOTAwLTNjM2MKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMDdUMDk6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwKfCAyMDI2LTEwLTA3VDEyOjAwOjAwWiB8IGRvbmUgfCDigJQgfAoKIyMgQ29zdAoKfCBSb3VuZHMgfCBDb3N0IHwgSW5wdXQgdG9rZW5zIHwgT3V0cHV0IHRva2VucyB8IE1pbnV0ZXMgfAp8LS0tfC0tLXwtLS18LS0tfC0tLXwKfCAwIHwg4oCUIHwg4oCUIHwg4oCUIHwg4oCUIHwK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/2032f2079965776e551ce780c5c5f244a84037e9" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmlkOiBJVE0tMDE0CnRpdGxlOiBFeHBvcnQgYSBjaGFwdGVyIGFzIFBERgpraW5kOiBpbXBsZW1lbnRhdGlvbgpyZWFsaXNlczoKICAtIEEgQ0hBUFRFUiBJUyBFWFBPUlRFRAogIC0gVUMtMDAzCm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0Cm9yaWdpbjoKICAtIFVDLTAwMwotLS0KCiMgSVRNLTAxNCBFeHBvcnQgYSBjaGFwdGVyIGFzIFBERgoKKipSRUdJU1RFUioqCgojIyBPdXRjb21lCgpBbiBhY2NlcHRlZCBjaGFwdGVyIGlzIGV4cG9ydGVkIGFzIGEgUERGIHdpdGggaXRzIGZpZ3VyZXMuCg==", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/3a6e752ca43ff261d329a9a5b76b113ae3a181de" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmlkOiBBUkMtMDAyCnRpdGxlOiBFeHBvcnQKZm9yY2VkX2J5OgogIC0gQSBDSEFQVEVSIElTIEVYUE9SVEVECiAgLSBVQy0wMDMKLS0tCiMgQVJDLTAwMiBFeHBvcnQKCiMjIENvbnRleHQKCkEgY2hhcHRlciBpcyBleHBvcnRlZCBhcyBhIFBERi4KCiMjIERlY2lzaW9uCgoxLiBFeHBvcnQuCgojIyBBbHRlcm5hdGl2ZXMKCi0gTm9uZS4KCiMjIENvbnNlcXVlbmNlcwoKLSBOb25lLgoKIyMgTW9kdWxlcwoKYGBganNvbiBtb2R1bGUKeyJpZCI6Ik1PRC1leHBvcnQiLCJmb2xkZXIiOiJzcmMvZXhwb3J0LyIsImxheWVyIjoiZmVhdHVyZSIsInJlc3BvbnNpYmlsaXR5IjoiRXhwb3J0cyBjaGFwdGVycy4iLCJyZWFsaXNlcyI6WyJBIENIQVBURVIgSVMgRVhQT1JURUQiXSwib3ducyI6W10sInVzZXMiOltdfQpgYGAKCmBgYGpzb24gaW50ZXJmYWNlCnsiaWQiOiJNT0QtZXhwb3J0LnJ1biIsInN1bW1hcnkiOiJFeHBvcnRzIGEgY2hhcHRlci4iLCJwYXJhbXMiOlt7Im5hbWUiOiJwYXRoIiwidHlwZSI6InN0cmluZyJ9XSwicmVzdWx0Ijoic3RyaW5nIiwiYXN5bmMiOmZhbHNlLCJyZWZ1c2FscyI6W10sImV4YW1wbGVzIjpbeyJuYW1lIjoib25lIiwiaW5wdXQiOnsicGF0aCI6ImEubWQifSwicmVzdWx0IjoiYS5wZGYifV19CmBgYAoKIyMgUmVhbGlzYXRpb24KCnwgU3RlcCB8IEludGVyZmFjZXMgfAp8LS0tfC0tLXwKfCBVQy0wMDMgMSB8IE1PRC1leHBvcnQucnVuIHwK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits?path=docs%2Fjobs%2Fgates%2Fthesis-testing-validation-bf0000000000.md&sha=c100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "be00000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-08T17:00:00Z" }, "author": { "name": "CI developer" } },
+                  "author": { "login": "ci-dev" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "commit": {
+                  "message": "ITM-014: export a chapter as PDF\n\nRefs ITM-014.",
+                  "committer": { "date": "2026-10-09T07:58:00Z" },
+                  "author": { "name": "Alice" }
+                },
+                "author": { "login": "alice" }
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/test-results" },
+            "response": { "status": 200, "body": { "object": { "sha": "a700000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a700000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a700000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/a700000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "results/c000000000000000000000000000000000000000/gh-4650-1-paid.md", "type": "blob", "sha": "e11fcd468676f86465cda04a1029fe5b2c7bb508" },
+                  { "path": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "type": "blob", "sha": "0ee0110a55525c3f8954b6d2583dfd87b22e9553" },
+                  { "path": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "type": "blob", "sha": "a3366842bff1517ec70d9c5f1bc95bf96c122a9f" },
+                  { "path": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "type": "blob", "sha": "7ebb5a85204f834039934f30036cc5416935a039" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/0ee0110a55525c3f8954b6d2583dfd87b22e9553" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmNvbW1pdDogYzEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMApsZXZlbHM6CiAgLSB1bml0CiAgLSBjb21wb25lbnQKICAtIHN5c3RlbQogIC0gcmVsZWFzZQpvY2Nhc2lvbjogcmVsZWFzZSBjYW5kaWRhdGUKcGFydGljaXBhbnQ6IEdpdEh1YiBBY3Rpb25zLCBydW5uZXIgR2l0SHViIEFjdGlvbnMgNwpsb2c6IGh0dHBzOi8vZ2l0aHViLmNvbS9hbGljZS90aGVzaXMvYWN0aW9ucy9ydW5zLzQ3MzAKYXQ6IDIwMjYtMTAtMTBUMDc6MDA6MDBaCnVuY29tbWl0dGVkOiBubwpvdXRjb21lOiBmYWlsZWQKLS0tCgojIFJ1biBnaC00NzMwLTEtcmVsZWFzZQoKfCBUZXN0IHwgTGV2ZWwgfCBPdXRjb21lIHwgUnVucyB8IFBhc3NlZCB8IE5vdGUgfAp8LS0tfC0tLXwtLS18LS0tfC0tLXwtLS18CnwgVFNULTAxNCB8IHN5c3RlbSB8IHBhc3NlZCB8IDEgfCAxIHwgIHwKfCBUU1QtMDE1IHwgc3lzdGVtIHwgZmFpbGVkIHwgMSB8IDAgfCBleHBlY3RlZCAiTWV0aG9kcyIsIGdvdCAiY2hhcHRlci0yIiB8CnwgVFNULTAxNiB8IHN5c3RlbSB8IHJhdGUgfCAyMCB8IDE3IHwgdGhlIHN1bW1hcnkgbmFtZXMgdHdvIGZpbmRpbmdzIHwKfCBUU1QtMDIxIHwgcmVsZWFzZSB8IHBhc3NlZCB8IDEgfCAxIHwgIHwKfCBUU1QtMDMxIHwgdW5pdCB8IHBhc3NlZCB8IDEgfCAxIHwgIHwKCiMjIFRTVC0wMTUKCn5+fnRleHQKQXNzZXJ0aW9uRXJyb3I6IGV4cGVjdGVkICJNZXRob2RzIiwgZ290ICJjaGFwdGVyLTIiCiAgICBhdCB0ZXN0cy9leHBvcnQudGVzdC5tanM6MTg6Mwp+fn4K", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/a3366842bff1517ec70d9c5f1bc95bf96c122a9f" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmNvbW1pdDogYzEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMApsZXZlbHM6CiAgLSBzeXN0ZW0Kb2NjYXNpb246IHJlbGVhc2UgY2FuZGlkYXRlCnBhcnRpY2lwYW50OiBHaXRIdWIgQWN0aW9ucywgcnVubmVyIEdpdEh1YiBBY3Rpb25zIDcKbG9nOiBodHRwczovL2dpdGh1Yi5jb20vYWxpY2UvdGhlc2lzL2FjdGlvbnMvcnVucy80NzMwCmF0OiAyMDI2LTEwLTEwVDA3OjQwOjAwWgp1bmNvbW1pdHRlZDogbm8Kb3V0Y29tZTogZmFpbGVkCi0tLQoKIyBSdW4gZ2gtNDczMC0yLXJlbGVhc2UKCnwgVGVzdCB8IExldmVsIHwgT3V0Y29tZSB8IFJ1bnMgfCBQYXNzZWQgfCBOb3RlIHwKfC0tLXwtLS18LS0tfC0tLXwtLS18LS0tfAp8IFRTVC0wMTQgfCBzeXN0ZW0gfCBmYWlsZWQgfCAxIHwgMCB8IHRoZSBzZWNvbmQgZmlndXJlIGlzIG1pc3NpbmcgfAoKIyMgVFNULTAxNAoKfn5+dGV4dApBc3NlcnRpb25FcnJvcjogZXhwZWN0ZWQgMiBmaWd1cmVzLCBnb3QgMQp+fn4K", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/7ebb5a85204f834039934f30036cc5416935a039" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmNvbW1pdDogYzEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMApsZXZlbHM6CiAgLSB1c2VyCm9jY2FzaW9uOiByZWxlYXNlIGNhbmRpZGF0ZQpwYXJ0aWNpcGFudDogYWxpY2UKYXQ6IDIwMjYtMTAtMTBUMDg6MDA6MDBaCnVuY29tbWl0dGVkOiBubwpvdXRjb21lOiBwYXNzZWQKLS0tCgojIFJ1biB1c2VyLWFsaWNlLTIwMjYxMDEwMDgwMAoKfCBUZXN0IHwgTGV2ZWwgfCBPdXRjb21lIHwgUnVucyB8IFBhc3NlZCB8IE5vdGUgfAp8LS0tfC0tLXwtLS18LS0tfC0tLXwtLS18CnwgVFNULTAzMCB8IHVzZXIgfCBwYXNzZWQgfCAxIHwgMSB8IHJlYWQgb24gYSBsYXB0b3AgYXQgdGhlIGNoYWlyIHwK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/e11fcd468676f86465cda04a1029fe5b2c7bb508" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCmNvbW1pdDogYzAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMApsZXZlbHM6CiAgLSBzeXN0ZW0Kb2NjYXNpb246IHJlbGVhc2UgY2FuZGlkYXRlCnBhcnRpY2lwYW50OiBHaXRIdWIgQWN0aW9ucywgcnVubmVyIEdpdEh1YiBBY3Rpb25zIDcKbG9nOiBodHRwczovL2dpdGh1Yi5jb20vYWxpY2UvdGhlc2lzL2FjdGlvbnMvcnVucy80NjUwCmF0OiAyMDI2LTEwLTAyVDA4OjAwOjAwWgp1bmNvbW1pdHRlZDogbm8Kb3V0Y29tZTogZmFpbGVkCi0tLQoKIyBSdW4gZ2gtNDY1MC0xLXBhaWQKCnwgVGVzdCB8IExldmVsIHwgT3V0Y29tZSB8IFJ1bnMgfCBQYXNzZWQgfCBOb3RlIHwKfC0tLXwtLS18LS0tfC0tLXwtLS18LS0tfAp8IFRTVC0wMTYgfCBzeXN0ZW0gfCByYXRlIHwgMjAgfCAxOCB8ICB8Cg==", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "b200000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/b200000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "b200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/b200000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "CHANGELOG.md", "type": "blob", "sha": "cdeab69844dc2dd29a5f9cbf8320421ca04fcc6d" },
+                  { "path": "README.md", "type": "blob", "sha": "38246d7a0e7972d08fd8936ccfef885ab3ccf3d3" },
+                  { "path": "SPEC.md", "type": "blob", "sha": "2b2c36ba13ba78baa2bf12d608940489c365596e" },
+                  { "path": "docs/approvals/v2026.3.0-8e8466bb1439.md", "type": "blob", "sha": "2c9184475b8afc374bb6f7d1ea6bf838832442d8" },
+                  { "path": "docs/architecture/ARC-002-export.md", "type": "blob", "sha": "3a6e752ca43ff261d329a9a5b76b113ae3a181de" },
+                  { "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "type": "blob", "sha": "2032f2079965776e551ce780c5c5f244a84037e9" },
+                  { "path": "docs/jobs/JOB-20261005-0900-1a1a.md", "type": "blob", "sha": "87881941661e618ba6f25b8e9a55ec041ed1112e" },
+                  { "path": "docs/jobs/JOB-20261006-0900-2b2b.md", "type": "blob", "sha": "31983d247e0733ca23a23ec1bcac9d12897069e4" },
+                  { "path": "docs/jobs/JOB-20261007-0900-3c3c.md", "type": "blob", "sha": "691e7a7d7f7acdc8023017827981ca199e95c6d3" },
+                  { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "type": "blob", "sha": "4954d11b548d2cabf9248196c22cf0b7cf0aecee" },
+                  { "path": "docs/process.md", "type": "blob", "sha": "713016a3e80decab142e6ea9ad768bcc71fce1fb" },
+                  { "path": "docs/sources.md", "type": "blob", "sha": "df217d3e38af245cc1da1c326b431d0f41fd5b2f" },
+                  { "path": "docs/tests/counter-proofs/TST-014.md", "type": "blob", "sha": "90e888adf083bb0d0a867e53778372c9b02da594" },
+                  { "path": "docs/tests/counter-proofs/TST-021.md", "type": "blob", "sha": "dfeec9d45280be7f475dfa14b89fa720271bc96b" },
+                  { "path": "docs/tests/releases/v2026.3.0.md", "type": "blob", "sha": "8e8466bb1439754a74c6432f6362cc506709e583" },
+                  { "path": "docs/use-cases/UC-003-export-a-chapter.md", "type": "blob", "sha": "159ddc97b31591f90ccce7aac8bb7e310aeac8af" },
+                  { "path": "tests/export.test.mjs", "type": "blob", "sha": "eef2e745eb0f37cff09ce84eea02ee2def8445d0" },
+                  { "path": "tests/release-export.test.mjs", "type": "blob", "sha": "cbc971de30cdcd79a3567b29144af819eda86274" },
+                  { "path": "tests/review.test.mjs", "type": "blob", "sha": "0679f1a5b1371aced695084514f236a05bc89f6b" },
+                  { "path": "tests/user/export.md", "type": "blob", "sha": "71d9ecf6534c4d40d6e869a9a1c621b662af4ba5" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/8e8466bb1439754a74c6432f6362cc506709e583" },
+            "response": {
+              "status": 200,
+              "body": { "content": "LS0tCnZlcnNpb246IDIwMjYuMy4wCmNhbmRpZGF0ZTogdjIwMjYuMy4wLXJjLjEKY29tbWl0OiBjMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwCi0tLQoKIyBSZWxlYXNlIHRlc3QgcmVwb3J0IHYyMDI2LjMuMAoKRXZlcnkgdGVzdCByYW4gb24gdjIwMjYuMy4wLXJjLjEsIGNvbW1pdCBjMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwLgoKIyMgRmFpbGVkLCBmbGFreSBvciB3b3JzZQoKfCBUZXN0IHwgTGV2ZWwgfCBPdXRjb21lIHwgR3VhcmRzIHwKfC0tLXwtLS18LS0tfC0tLXwKfCBUU1QtMDE0IHwgc3lzdGVtIHwgZmxha3kgfCBBIENIQVBURVIgSVMgRVhQT1JURUQ7IFVDLTAwMyB8CnwgVFNULTAxNSB8IHN5c3RlbSB8IGZhaWxlZCB8IEEgQ0hBUFRFUiBJUyBFWFBPUlRFRDsgVUMtMDAzIHwKfCBUU1QtMDE2IHwgc3lzdGVtIHwgMTcgb2YgMjAgKGxhc3QgcmVsZWFzZSAxOCBvZiAyMCksIDYz4oCTOTUgJSB8IEEgQ0hBUFRFUiBJUyBFWFBPUlRFRDsgVUMtMDAzIHwKCiMjIEV2ZXJ5IHRlc3QKCnwgVGVzdCB8IExldmVsIHwgT3V0Y29tZSB8IEd1YXJkcyB8CnwtLS18LS0tfC0tLXwtLS18CnwgVFNULTAxNCB8IHN5c3RlbSB8IGZsYWt5IHwgQSBDSEFQVEVSIElTIEVYUE9SVEVEOyBVQy0wMDMgfAp8IFRTVC0wMTUgfCBzeXN0ZW0gfCBmYWlsZWQgfCBBIENIQVBURVIgSVMgRVhQT1JURUQ7IFVDLTAwMyB8CnwgVFNULTAxNiB8IHN5c3RlbSB8IDE3IG9mIDIwIChsYXN0IHJlbGVhc2UgMTggb2YgMjApLCA2M+KAkzk1ICUgfCBBIENIQVBURVIgSVMgRVhQT1JURUQ7IFVDLTAwMyB8CnwgVFNULTAyMSB8IHJlbGVhc2UgfCBwYXNzZWQgfCBBIENIQVBURVIgSVMgRVhQT1JURUQgfAp8IFRTVC0wMzEgfCB1bml0IHwgcGFzc2VkIHwgRVZFUlkgVEVYVCBJUyBSRVZJRVdFRCB8CnwgVFNULTAzMCB8IHVzZXIgfCBwYXNzZWQgfCBBIENIQVBURVIgSVMgRVhQT1JURUQgfAo=", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/2c9184475b8afc374bb6f7d1ea6bf838832442d8" },
+            "response": {
+              "status": 200,
+              "body": { "content": "a2luZDogcmVsZWFzZS1yZXBvcnQKZmlsZTogZG9jcy90ZXN0cy9yZWxlYXNlcy92MjAyNi4zLjAubWQKYmxvYjogOGU4NDY2YmIxNDM5NzU0YTc0YzY0MzJmNjM2MmNjNTA2NzA5ZTU4MwpUU1QtMDE0OiB0aGUgc2Vjb25kIHJ1biBsb3N0IGEgZmlndXJlIHVuZGVyIGxvYWQ7IHJldHJpZWQgaW4gMjAyNi4zLjEKVFNULTAxNTogdGhlIFBERidzIHRpdGxlIGlzIHRha2VuIGZyb20gdGhlIGZpbGUgbmFtZTsgY29ycmVjdGVkIGluIDIwMjYuMy4xClRTVC0wMTY6IDE3IG9mIDIwIGxpZXMgd2l0aGluIHRoZSBpbnRlcnZhbCBvZiB0aGUgbGFzdCByZWxlYXNlJ3MgMTggb2YgMjAK", "encoding": "base64" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits?path=docs%2Fapprovals%2Fv2026.3.0-8e8466bb1439.md&sha=b200000000000000000000000000000000000000&per_page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "b200000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-10T09:00:00Z" }, "author": { "name": "Alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          }
+        ],
+        "texts": {}
+      },
+      "result": {
+        "product": "https://github.com/alice/thesis",
+        "branch": "main",
+        "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+        "previous": { "name": "v2026.2.1", "commit": "c000000000000000000000000000000000000000" },
+        "commit": { "sha": "c100000000000000000000000000000000000000", "title": "ITM-014: export a chapter as PDF", "date": "2026-10-09T07:58:00Z", "author": "alice" },
+        "tests": {
+          "tests": [
+            {
+              "path": "tests/export.test.mjs",
+              "module": "MOD-export",
+              "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+              "level": "system",
+              "levels": ["system"],
+              "cases": [
+                {
+                  "id": "TST-014",
+                  "title": "the PDF keeps the figures",
+                  "given": "a chapter with two figures",
+                  "when": "the author exports it as PDF",
+                  "then": "the PDF holds both figures",
+                  "extends": "",
+                  "runs": null,
+                  "paid": [],
+                  "awaiting": false,
+                  "line": 8
+                },
+                {
+                  "id": "TST-015",
+                  "title": "the PDF names the chapter",
+                  "given": "a chapter titled Methods",
+                  "when": "the author exports it as PDF",
+                  "then": "the PDF's title is Methods",
+                  "extends": "",
+                  "runs": null,
+                  "paid": [],
+                  "awaiting": false,
+                  "line": 14
+                },
+                {
+                  "id": "TST-016",
+                  "title": "the summary of an export reads as the chapter",
+                  "given": "a chapter of four pages",
+                  "when": "the model summarises the exported PDF",
+                  "then": "the summary names the chapter's three findings",
+                  "extends": "",
+                  "runs": 20,
+                  "paid": ["hub"],
+                  "awaiting": false,
+                  "line": 20
+                }
+              ]
+            },
+            {
+              "path": "tests/release-export.test.mjs",
+              "module": "MOD-export",
+              "guards": ["A CHAPTER IS EXPORTED"],
+              "level": "release",
+              "levels": ["release"],
+              "cases": [
+                {
+                  "id": "TST-021",
+                  "title": "an accepted chapter can be exported",
+                  "given": "an accepted chapter",
+                  "when": "the release candidate exports it",
+                  "then": "a PDF arrives",
+                  "extends": "",
+                  "runs": null,
+                  "paid": [],
+                  "awaiting": false,
+                  "line": 5
+                }
+              ]
+            },
+            {
+              "path": "tests/review.test.mjs",
+              "module": "MOD-pages",
+              "guards": ["EVERY TEXT IS REVIEWED"],
+              "level": "unit",
+              "levels": ["unit"],
+              "cases": [
+                {
+                  "id": "TST-031",
+                  "title": "a chapter binds once accepted",
+                  "given": "a chapter with an approval record naming its text",
+                  "when": "the page shows its status",
+                  "then": "the chapter is accepted",
+                  "extends": "",
+                  "runs": null,
+                  "paid": [],
+                  "awaiting": false,
+                  "line": 6
+                }
+              ]
+            },
+            {
+              "path": "tests/user/export.md",
+              "module": "MOD-export",
+              "guards": ["A CHAPTER IS EXPORTED"],
+              "level": "user",
+              "levels": ["user"],
+              "cases": [
+                {
+                  "id": "TST-030",
+                  "title": "a supervisor reads the exported chapter",
+                  "given": "an accepted chapter with two figures, exported as PDF",
+                  "when": "the supervisor opens the PDF on their own computer",
+                  "then": "the chapter's title and both figures are shown",
+                  "extends": "",
+                  "runs": null,
+                  "paid": [],
+                  "awaiting": false,
+                  "line": 7
+                }
+              ]
+            }
+          ],
+          "schedule": {
+            "declared": false,
+            "nightly": "02:00",
+            "command": "",
+            "rows": [
+              {
+                "tests": "unit",
+                "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                "runsOn": "hosted",
+                "line": 0
+              },
+              {
+                "tests": "component",
+                "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                "runsOn": "hosted",
+                "line": 0
+              },
+              {
+                "tests": "system",
+                "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+                "runsOn": "hosted",
+                "line": 0
+              },
+              {
+                "tests": "paid",
+                "occasions": ["nightly", "release candidate", "on demand"],
+                "runsOn": "hosted",
+                "line": 0
+              },
+              { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+              { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+            ]
+          },
+          "scheduleNote": "",
+          "proofs": [
+            { "path": "docs/tests/counter-proofs/TST-014.md", "test": "TST-014", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T14:00:00Z", "fault": "The figures are left out of the PDF.", "diff": "-  pdf.add(chapter.figures);\n+  pdf.add([]);", "output": "AssertionError: expected 2 figures, got 0" },
+            { "path": "docs/tests/counter-proofs/TST-021.md", "test": "TST-021", "commit": "c100000000000000000000000000000000000000", "file": "src/export/index.mjs", "outcome": "failed", "participant": "cli-dev", "at": "2026-10-08T15:00:00Z", "fault": "The export is left out of the release's build.", "diff": "-  export { run };\n+  export {};", "output": "AssertionError: no PDF arrived" }
+          ],
+          "reports": [],
+          "ci": [],
+          "unreadable": []
+        },
+        "audit": {
+          "requirements": [
+            { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+            { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+            { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 },
+            { "name": "A CHAPTER IS EXPORTED", "source": "SRC-thesis-guide, 3.2", "rule": "A chapter is exported as a PDF with its figures.", "check": "`tests/export.test.mjs`", "section": "3. Export", "line": 21 },
+            { "name": "THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE", "source": "SRC-faculty-style", "rule": "Every thesis cites in the faculty's style.", "check": "no automatic check; at review.", "section": "3. Export", "line": 25 },
+            { "name": "UNIT VERIFICATION IS DOCUMENTED", "source": "SRC-iec-62304, 5.5.5", "rule": "Every software unit's verification is documented.", "check": "`tests/test_unit_records.py`", "section": "4. Process", "line": 31 }
+          ],
+          "links": [
+            {
+              "source": "SRC-iec-62304",
+              "version": 2,
+              "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5",
+              "part": "safety class B",
+              "lookAgain": []
+            },
+            {
+              "source": "SRC-thesis-guide",
+              "version": 1,
+              "sha256": "ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7",
+              "part": "",
+              "lookAgain": []
+            }
+          ],
+          "declaration": {
+            "model": "v-model",
+            "modelFile": "src/process-model/catalogue/v-model.md",
+            "modelVersion": "5a00000000000000000000000000000000000000",
+            "sprintClose": "",
+            "title": "How the thesis tool is developed",
+            "intro": "The declaration of this product's process (UC-002).",
+            "roles": [
+              { "role": "Analyst", "participants": ["alice"], "line": 14 },
+              { "role": "Architect", "participants": ["alice"], "line": 15 },
+              { "role": "Developers", "participants": ["cli-dev"], "line": 16 },
+              { "role": "Tester", "participants": ["ci-dev"], "line": 17 },
+              { "role": "Operator", "participants": ["ci-dev"], "line": 18 }
+            ],
+            "practices": ["devops"],
+            "branches": [{ "phase": "Implementation", "branch": "implementation", "line": 28 }],
+            "done": [
+              { "kind": "ci-check", "name": "lint", "text": "the linter passes", "line": 34 },
+              { "kind": "person", "name": "", "text": "a second developer has read the change", "line": 35 }
+            ],
+            "gatesAdded": [
+              {
+                "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                "between": "Testing → Validation",
+                "from": "Testing",
+                "to": "Validation",
+                "artifacts": "TST",
+                "kinds": ["TST"],
+                "condition": "every unit's verification is recorded",
+                "decider": { "role": "Tester" },
+                "line": 41
+              }
+            ],
+            "artifactsAdded": [
+              {
+                "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                "phase": "Testing",
+                "artifacts": "the unit verification report",
+                "kinds": [],
+                "line": 47
+              }
+            ],
+            "notes": "## Releases\n\nA release is cut from `main` once Validation is passed.",
+            "problems": []
+          },
+          "gates": [
+            {
+              "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+              "at": "2026-10-08T17:00:00Z"
+            }
+          ],
+          "implementers": [
+            { "guards": "A CHAPTER IS EXPORTED", "participant": "ci-dev" },
+            { "guards": "A CHAPTER IS EXPORTED", "participant": "cli-dev" },
+            { "guards": "MOD-export", "participant": "ci-dev" },
+            { "guards": "MOD-export", "participant": "cli-dev" },
+            { "guards": "UC-003", "participant": "ci-dev" },
+            { "guards": "UC-003", "participant": "cli-dev" }
+          ],
+          "missing": [],
+          "unreadable": []
+        },
+        "outcomes": {
+          "commit": "c100000000000000000000000000000000000000",
+          "levels": [
+            {
+              "level": "unit",
+              "runs": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+              ],
+              "tests": 1,
+              "passed": 1,
+              "failed": 0,
+              "flaky": 0,
+              "skipped": 0,
+              "rates": 0,
+              "worse": 0,
+              "notRun": 0
+            },
+            {
+              "level": "component",
+              "runs": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+              ],
+              "tests": 0,
+              "passed": 0,
+              "failed": 0,
+              "flaky": 0,
+              "skipped": 0,
+              "rates": 0,
+              "worse": 0,
+              "notRun": 0
+            },
+            {
+              "level": "system",
+              "runs": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" },
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+              ],
+              "tests": 3,
+              "passed": 0,
+              "failed": 1,
+              "flaky": 1,
+              "skipped": 0,
+              "rates": 1,
+              "worse": 1,
+              "notRun": 0
+            },
+            {
+              "level": "release",
+              "runs": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+              ],
+              "tests": 1,
+              "passed": 1,
+              "failed": 0,
+              "flaky": 0,
+              "skipped": 0,
+              "rates": 0,
+              "worse": 0,
+              "notRun": 0
+            },
+            {
+              "level": "user",
+              "runs": [
+                { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "note": "" }
+              ],
+              "tests": 1,
+              "passed": 1,
+              "failed": 0,
+              "flaky": 0,
+              "skipped": 0,
+              "rates": 0,
+              "worse": 0,
+              "notRun": 0
+            }
+          ],
+          "tests": [
+            {
+              "test": "TST-014",
+              "title": "the PDF keeps the figures",
+              "level": "system",
+              "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+              "then": "the PDF holds both figures",
+              "fixed": 0,
+              "outcome": "flaky",
+              "runs": 2,
+              "passed": 1,
+              "previous": null,
+              "worse": false,
+              "evidence": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" },
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-2-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:40:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "the second figure is missing", "excerpt": "AssertionError: expected 2 figures, got 1" }
+              ]
+            },
+            {
+              "test": "TST-015",
+              "title": "the PDF names the chapter",
+              "level": "system",
+              "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+              "then": "the PDF's title is Methods",
+              "fixed": 0,
+              "outcome": "failed",
+              "runs": 1,
+              "passed": 0,
+              "previous": null,
+              "worse": false,
+              "evidence": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+              ]
+            },
+            {
+              "test": "TST-016",
+              "title": "the summary of an export reads as the chapter",
+              "level": "system",
+              "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+              "then": "the summary names the chapter's three findings",
+              "fixed": 20,
+              "outcome": "rate",
+              "runs": 20,
+              "passed": 17,
+              "previous": { "runs": 20, "passed": 18 },
+              "worse": true,
+              "evidence": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+              ]
+            },
+            {
+              "test": "TST-021",
+              "title": "an accepted chapter can be exported",
+              "level": "release",
+              "guards": ["A CHAPTER IS EXPORTED"],
+              "then": "a PDF arrives",
+              "fixed": 0,
+              "outcome": "passed",
+              "runs": 1,
+              "passed": 1,
+              "previous": null,
+              "worse": false,
+              "evidence": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+              ]
+            },
+            {
+              "test": "TST-031",
+              "title": "a chapter binds once accepted",
+              "level": "unit",
+              "guards": ["EVERY TEXT IS REVIEWED"],
+              "then": "the chapter is accepted",
+              "fixed": 0,
+              "outcome": "passed",
+              "runs": 1,
+              "passed": 1,
+              "previous": null,
+              "worse": false,
+              "evidence": [
+                { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+              ]
+            },
+            {
+              "test": "TST-030",
+              "title": "a supervisor reads the exported chapter",
+              "level": "user",
+              "guards": ["A CHAPTER IS EXPORTED"],
+              "then": "the chapter's title and both figures are shown",
+              "fixed": 0,
+              "outcome": "passed",
+              "runs": 1,
+              "passed": 1,
+              "previous": null,
+              "worse": false,
+              "evidence": [
+                { "record": "results/c100000000000000000000000000000000000000/user-alice-202610100800.md", "participant": "alice", "at": "2026-10-10T08:00:00Z", "log": "", "outcome": "passed", "runs": 1, "passed": 1, "note": "read on a laptop at the chair", "excerpt": "" }
+              ]
+            }
+          ],
+          "uncounted": [],
+          "undeclared": []
+        },
+        "unreadable": [],
+        "acceptance": {
+          "state": "accepted",
+          "report": "docs/tests/releases/v2026.3.0.md",
+          "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+          "tested": "c100000000000000000000000000000000000000",
+          "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+          "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+          "approvedIn": "b200000000000000000000000000000000000000",
+          "by": "alice",
+          "at": "2026-10-10T09:00:00Z",
+          "limitations": [
+            { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+            { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a version never released",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "version": "2026.4.0",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2027-01-01", "tested": null },
+          "gitlab": [
+            { "address": "https://gitlab.example.org/group/tools/thesis", "token": "glpat-example", "expires": "", "tested": null }
+          ],
+          "products": ["https://github.com/alice/thesis", "https://gitlab.example.org/group/tools/thesis"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/tags?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                { "name": "v2026.3.0", "commit": { "sha": "c100000000000000000000000000000000000000" } },
+                { "name": "v2026.2.1", "commit": { "sha": "c000000000000000000000000000000000000000" } },
+                { "name": "v2026.2.0", "commit": { "sha": "bd00000000000000000000000000000000000000" } }
+              ]
+            }
+          }
+        ],
+        "texts": {}
+      },
+      "refused": "no-release"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-tests-page.commitAudit",
+  "summary": "The audit document committed to docs/audits/<tag>.md on the default branch's head (UC-030 5a), on an authority; refused where the file exists — the audit of a release is a record, written once.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "file", "type": "FileText" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "CommitResult",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no person's click is given" },
+    { "code": "not-an-audit", "when": "the path is not docs/audits/<release tag>.md" },
+    { "code": "no-token", "when": "no token for the product is stored" },
+    { "code": "exists", "when": "the default branch holds the file already" },
+    { "code": "moved", "when": "the default branch moved on while the commit was written" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "not-found", "when": "the repository is not found" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the audit of v2026.3.0",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "file": { "path": "docs/audits/v2026.3.0.md", "text": "---\nproduct: https://github.com/alice/thesis\ntag: v2026.3.0\ncommit: c100000000000000000000000000000000000000\nprevious: v2026.2.1\nreport: docs/tests/releases/v2026.3.0.md\nreport_blob: 8e8466bb1439754a74c6432f6362cc506709e583\ntested: c100000000000000000000000000000000000000\nacceptance: accepted\napproval: docs/approvals/v2026.3.0-8e8466bb1439.md\napproval_blob: 2c9184475b8afc374bb6f7d1ea6bf838832442d8\napproved_in: b200000000000000000000000000000000000000\napproved_by: alice\napproved_at: 2026-10-10T09:00:00Z\n---\n\n# Audit of v2026.3.0\n\n## Limitations\n\n| Test | Reason | Requirements |\n|---|---|---|\n| TST-014 | the second run lost a figure under load; retried in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-015 | the PDF's title is taken from the file name; corrected in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-016 | 17 of 20 lies within the interval of the last release's 18 of 20 | A CHAPTER IS EXPORTED |\n\n## Summary\n\n| Count | Number | Requirements | Tests |\n|---|---|---|---|\n| passing | 1 | EVERY TEXT IS REVIEWED | — |\n| no-test | 4 | ONE CLICK, NO SERVER, THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE, UNIT VERIFICATION IS DOCUMENTED | — |\n| not-passed | 1 | A CHAPTER IS EXPORTED | TST-015 |\n| flaky | 1 | A CHAPTER IS EXPORTED | TST-014 |\n| worse | 1 | A CHAPTER IS EXPORTED | TST-016 |\n| by-implementer | 1 | A CHAPTER IS EXPORTED | TST-021 |\n\n## Sources\n\n| Source | Name | Authority | Version | Identifier | Date | Part | SHA-256 | State |\n|---|---|---|---|---|---|---|---|---|\n| SRC-faculty-style | — | — | 0 | — | — | — | — | not-linked |\n| SRC-iec-62304 | IEC 62304 — Medical device software — Software life cycle processes | normative | 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | safety class B | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | linked |\n| SRC-thesis-guide | Guide to writing a thesis at the faculty | advisory | 1 | edition 2025 | 2025-03-01 | — | ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7 | linked |\n\n## Result records\n\n| Record | Participant | At | Log |\n|---|---|---|---|\n| results/c100000000000000000000000000000000000000/gh-4730-1-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:00:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/gh-4730-2-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:40:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/user-alice-202610100800.md | alice | 2026-10-10T08:00:00Z | — |\n\n## Requirements\n\n### ONE CLICK\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### NO SERVER\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### EVERY TEXT IS REVIEWED\n\n| Field | Value |\n|---|---|\n| Section | 2. Review |\n| Constrains | product |\n| Sources | — |\n| Gaps | — |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-031 | unit | tests/review.test.mjs | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n\n### A CHAPTER IS EXPORTED\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-thesis-guide 1 |\n| Gaps | not-passed, flaky, worse |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-014 | system | tests/export.test.mjs | flaky | 2 | 1 | — | no | docs/tests/counter-proofs/TST-014.md | cli-dev | 2026-10-08T14:00:00Z | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md, results/c100000000000000000000000000000000000000/gh-4730-2-release.md |\n| TST-015 | system | tests/export.test.mjs | failed | 1 | 0 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-016 | system | tests/export.test.mjs | rate | 20 | 17 | 18 of 20 | yes | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-021 | release | tests/release-export.test.mjs | passed | 1 | 1 | — | no | docs/tests/counter-proofs/TST-021.md | cli-dev | 2026-10-08T15:00:00Z | yes | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-030 | user | tests/user/export.md | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/user-alice-202610100800.md |\n\n### THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-faculty-style |\n| Gaps | no-test |\n| Accepted | yes |\n\n### UNIT VERIFICATION IS DOCUMENTED\n\n| Field | Value |\n|---|---|\n| Section | 4. Process |\n| Constrains | process |\n| Sources | SRC-iec-62304 2 |\n| Gaps | no-test |\n| Accepted | yes |\n\n| Gate | Condition | Decider | Record | Decision | Decided by | Decided on | Committed at |\n|---|---|---|---|---|---|---|---|\n| Testing → Validation | every unit's verification is recorded | Tester | docs/jobs/gates/thesis-testing-validation-bf0000000000.md | passed | ci-dev | bf00000000000000000000000000000000000000 | 2026-10-08T17:00:00Z |\n\n| Phase | Artifacts |\n|---|---|\n| Testing | the unit verification report |\n" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2027-01-01", "tested": null },
+          "gitlab": [
+            { "address": "https://gitlab.example.org/group/tools/thesis", "token": "glpat-example", "expires": "", "tested": null }
+          ],
+          "products": ["https://github.com/alice/thesis", "https://gitlab.example.org/group/tools/thesis"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "b200000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/b200000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "b200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/b200000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "CHANGELOG.md", "type": "blob", "sha": "cdeab69844dc2dd29a5f9cbf8320421ca04fcc6d" },
+                  { "path": "README.md", "type": "blob", "sha": "38246d7a0e7972d08fd8936ccfef885ab3ccf3d3" },
+                  { "path": "SPEC.md", "type": "blob", "sha": "2b2c36ba13ba78baa2bf12d608940489c365596e" },
+                  { "path": "docs/approvals/v2026.3.0-8e8466bb1439.md", "type": "blob", "sha": "2c9184475b8afc374bb6f7d1ea6bf838832442d8" },
+                  { "path": "docs/architecture/ARC-002-export.md", "type": "blob", "sha": "3a6e752ca43ff261d329a9a5b76b113ae3a181de" },
+                  { "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "type": "blob", "sha": "2032f2079965776e551ce780c5c5f244a84037e9" },
+                  { "path": "docs/jobs/JOB-20261005-0900-1a1a.md", "type": "blob", "sha": "87881941661e618ba6f25b8e9a55ec041ed1112e" },
+                  { "path": "docs/jobs/JOB-20261006-0900-2b2b.md", "type": "blob", "sha": "31983d247e0733ca23a23ec1bcac9d12897069e4" },
+                  { "path": "docs/jobs/JOB-20261007-0900-3c3c.md", "type": "blob", "sha": "691e7a7d7f7acdc8023017827981ca199e95c6d3" },
+                  { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "type": "blob", "sha": "4954d11b548d2cabf9248196c22cf0b7cf0aecee" },
+                  { "path": "docs/process.md", "type": "blob", "sha": "713016a3e80decab142e6ea9ad768bcc71fce1fb" },
+                  { "path": "docs/sources.md", "type": "blob", "sha": "df217d3e38af245cc1da1c326b431d0f41fd5b2f" },
+                  { "path": "docs/tests/counter-proofs/TST-014.md", "type": "blob", "sha": "90e888adf083bb0d0a867e53778372c9b02da594" },
+                  { "path": "docs/tests/counter-proofs/TST-021.md", "type": "blob", "sha": "dfeec9d45280be7f475dfa14b89fa720271bc96b" },
+                  { "path": "docs/tests/releases/v2026.3.0.md", "type": "blob", "sha": "8e8466bb1439754a74c6432f6362cc506709e583" },
+                  { "path": "docs/use-cases/UC-003-export-a-chapter.md", "type": "blob", "sha": "159ddc97b31591f90ccce7aac8bb7e310aeac8af" },
+                  { "path": "tests/export.test.mjs", "type": "blob", "sha": "eef2e745eb0f37cff09ce84eea02ee2def8445d0" },
+                  { "path": "tests/release-export.test.mjs", "type": "blob", "sha": "cbc971de30cdcd79a3567b29144af819eda86274" },
+                  { "path": "tests/review.test.mjs", "type": "blob", "sha": "0679f1a5b1371aced695084514f236a05bc89f6b" },
+                  { "path": "tests/user/export.md", "type": "blob", "sha": "71d9ecf6534c4d40d6e869a9a1c621b662af4ba5" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/b200000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "b200000000000000000000000000000000000000",
+                "tree": { "sha": "d700000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "d700000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/audits/v2026.3.0.md", "mode": "100644", "type": "blob", "content": "---\nproduct: https://github.com/alice/thesis\ntag: v2026.3.0\ncommit: c100000000000000000000000000000000000000\nprevious: v2026.2.1\nreport: docs/tests/releases/v2026.3.0.md\nreport_blob: 8e8466bb1439754a74c6432f6362cc506709e583\ntested: c100000000000000000000000000000000000000\nacceptance: accepted\napproval: docs/approvals/v2026.3.0-8e8466bb1439.md\napproval_blob: 2c9184475b8afc374bb6f7d1ea6bf838832442d8\napproved_in: b200000000000000000000000000000000000000\napproved_by: alice\napproved_at: 2026-10-10T09:00:00Z\n---\n\n# Audit of v2026.3.0\n\n## Limitations\n\n| Test | Reason | Requirements |\n|---|---|---|\n| TST-014 | the second run lost a figure under load; retried in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-015 | the PDF's title is taken from the file name; corrected in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-016 | 17 of 20 lies within the interval of the last release's 18 of 20 | A CHAPTER IS EXPORTED |\n\n## Summary\n\n| Count | Number | Requirements | Tests |\n|---|---|---|---|\n| passing | 1 | EVERY TEXT IS REVIEWED | — |\n| no-test | 4 | ONE CLICK, NO SERVER, THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE, UNIT VERIFICATION IS DOCUMENTED | — |\n| not-passed | 1 | A CHAPTER IS EXPORTED | TST-015 |\n| flaky | 1 | A CHAPTER IS EXPORTED | TST-014 |\n| worse | 1 | A CHAPTER IS EXPORTED | TST-016 |\n| by-implementer | 1 | A CHAPTER IS EXPORTED | TST-021 |\n\n## Sources\n\n| Source | Name | Authority | Version | Identifier | Date | Part | SHA-256 | State |\n|---|---|---|---|---|---|---|---|---|\n| SRC-faculty-style | — | — | 0 | — | — | — | — | not-linked |\n| SRC-iec-62304 | IEC 62304 — Medical device software — Software life cycle processes | normative | 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | safety class B | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | linked |\n| SRC-thesis-guide | Guide to writing a thesis at the faculty | advisory | 1 | edition 2025 | 2025-03-01 | — | ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7 | linked |\n\n## Result records\n\n| Record | Participant | At | Log |\n|---|---|---|---|\n| results/c100000000000000000000000000000000000000/gh-4730-1-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:00:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/gh-4730-2-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:40:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/user-alice-202610100800.md | alice | 2026-10-10T08:00:00Z | — |\n\n## Requirements\n\n### ONE CLICK\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### NO SERVER\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### EVERY TEXT IS REVIEWED\n\n| Field | Value |\n|---|---|\n| Section | 2. Review |\n| Constrains | product |\n| Sources | — |\n| Gaps | — |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-031 | unit | tests/review.test.mjs | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n\n### A CHAPTER IS EXPORTED\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-thesis-guide 1 |\n| Gaps | not-passed, flaky, worse |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-014 | system | tests/export.test.mjs | flaky | 2 | 1 | — | no | docs/tests/counter-proofs/TST-014.md | cli-dev | 2026-10-08T14:00:00Z | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md, results/c100000000000000000000000000000000000000/gh-4730-2-release.md |\n| TST-015 | system | tests/export.test.mjs | failed | 1 | 0 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-016 | system | tests/export.test.mjs | rate | 20 | 17 | 18 of 20 | yes | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-021 | release | tests/release-export.test.mjs | passed | 1 | 1 | — | no | docs/tests/counter-proofs/TST-021.md | cli-dev | 2026-10-08T15:00:00Z | yes | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-030 | user | tests/user/export.md | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/user-alice-202610100800.md |\n\n### THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-faculty-style |\n| Gaps | no-test |\n| Accepted | yes |\n\n### UNIT VERIFICATION IS DOCUMENTED\n\n| Field | Value |\n|---|---|\n| Section | 4. Process |\n| Constrains | process |\n| Sources | SRC-iec-62304 2 |\n| Gaps | no-test |\n| Accepted | yes |\n\n| Gate | Condition | Decider | Record | Decision | Decided by | Decided on | Committed at |\n|---|---|---|---|---|---|---|---|\n| Testing → Validation | every unit's verification is recorded | Tester | docs/jobs/gates/thesis-testing-validation-bf0000000000.md | passed | ci-dev | bf00000000000000000000000000000000000000 | 2026-10-08T17:00:00Z |\n\n| Phase | Artifacts |\n|---|---|\n| Testing | the unit verification report |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "e400000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "docs(audit): v2026.3.0",
+                "tree": "e400000000000000000000000000000000000000",
+                "parents": ["b200000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e500000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e500000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e500000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e500000000000000000000000000000000000000" } } }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "sha": "e500000000000000000000000000000000000000", "url": "https://github.com/alice/thesis/commit/e500000000000000000000000000000000000000" }
+    },
+    {
+      "name": "an audit committed before",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "file": { "path": "docs/audits/v2026.3.0.md", "text": "---\nproduct: https://github.com/alice/thesis\ntag: v2026.3.0\ncommit: c100000000000000000000000000000000000000\nprevious: v2026.2.1\nreport: docs/tests/releases/v2026.3.0.md\nreport_blob: 8e8466bb1439754a74c6432f6362cc506709e583\ntested: c100000000000000000000000000000000000000\nacceptance: accepted\napproval: docs/approvals/v2026.3.0-8e8466bb1439.md\napproval_blob: 2c9184475b8afc374bb6f7d1ea6bf838832442d8\napproved_in: b200000000000000000000000000000000000000\napproved_by: alice\napproved_at: 2026-10-10T09:00:00Z\n---\n\n# Audit of v2026.3.0\n\n## Limitations\n\n| Test | Reason | Requirements |\n|---|---|---|\n| TST-014 | the second run lost a figure under load; retried in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-015 | the PDF's title is taken from the file name; corrected in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-016 | 17 of 20 lies within the interval of the last release's 18 of 20 | A CHAPTER IS EXPORTED |\n\n## Summary\n\n| Count | Number | Requirements | Tests |\n|---|---|---|---|\n| passing | 1 | EVERY TEXT IS REVIEWED | — |\n| no-test | 4 | ONE CLICK, NO SERVER, THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE, UNIT VERIFICATION IS DOCUMENTED | — |\n| not-passed | 1 | A CHAPTER IS EXPORTED | TST-015 |\n| flaky | 1 | A CHAPTER IS EXPORTED | TST-014 |\n| worse | 1 | A CHAPTER IS EXPORTED | TST-016 |\n| by-implementer | 1 | A CHAPTER IS EXPORTED | TST-021 |\n\n## Sources\n\n| Source | Name | Authority | Version | Identifier | Date | Part | SHA-256 | State |\n|---|---|---|---|---|---|---|---|---|\n| SRC-faculty-style | — | — | 0 | — | — | — | — | not-linked |\n| SRC-iec-62304 | IEC 62304 — Medical device software — Software life cycle processes | normative | 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | safety class B | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | linked |\n| SRC-thesis-guide | Guide to writing a thesis at the faculty | advisory | 1 | edition 2025 | 2025-03-01 | — | ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7 | linked |\n\n## Result records\n\n| Record | Participant | At | Log |\n|---|---|---|---|\n| results/c100000000000000000000000000000000000000/gh-4730-1-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:00:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/gh-4730-2-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:40:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/user-alice-202610100800.md | alice | 2026-10-10T08:00:00Z | — |\n\n## Requirements\n\n### ONE CLICK\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### NO SERVER\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### EVERY TEXT IS REVIEWED\n\n| Field | Value |\n|---|---|\n| Section | 2. Review |\n| Constrains | product |\n| Sources | — |\n| Gaps | — |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-031 | unit | tests/review.test.mjs | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n\n### A CHAPTER IS EXPORTED\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-thesis-guide 1 |\n| Gaps | not-passed, flaky, worse |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-014 | system | tests/export.test.mjs | flaky | 2 | 1 | — | no | docs/tests/counter-proofs/TST-014.md | cli-dev | 2026-10-08T14:00:00Z | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md, results/c100000000000000000000000000000000000000/gh-4730-2-release.md |\n| TST-015 | system | tests/export.test.mjs | failed | 1 | 0 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-016 | system | tests/export.test.mjs | rate | 20 | 17 | 18 of 20 | yes | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-021 | release | tests/release-export.test.mjs | passed | 1 | 1 | — | no | docs/tests/counter-proofs/TST-021.md | cli-dev | 2026-10-08T15:00:00Z | yes | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-030 | user | tests/user/export.md | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/user-alice-202610100800.md |\n\n### THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-faculty-style |\n| Gaps | no-test |\n| Accepted | yes |\n\n### UNIT VERIFICATION IS DOCUMENTED\n\n| Field | Value |\n|---|---|\n| Section | 4. Process |\n| Constrains | process |\n| Sources | SRC-iec-62304 2 |\n| Gaps | no-test |\n| Accepted | yes |\n\n| Gate | Condition | Decider | Record | Decision | Decided by | Decided on | Committed at |\n|---|---|---|---|---|---|---|---|\n| Testing → Validation | every unit's verification is recorded | Tester | docs/jobs/gates/thesis-testing-validation-bf0000000000.md | passed | ci-dev | bf00000000000000000000000000000000000000 | 2026-10-08T17:00:00Z |\n\n| Phase | Artifacts |\n|---|---|\n| Testing | the unit verification report |\n" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2027-01-01", "tested": null },
+          "gitlab": [
+            { "address": "https://gitlab.example.org/group/tools/thesis", "token": "glpat-example", "expires": "", "tested": null }
+          ],
+          "products": ["https://github.com/alice/thesis", "https://gitlab.example.org/group/tools/thesis"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "e600000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/e600000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "e600000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/e600000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "CHANGELOG.md", "type": "blob", "sha": "cdeab69844dc2dd29a5f9cbf8320421ca04fcc6d" },
+                  { "path": "README.md", "type": "blob", "sha": "38246d7a0e7972d08fd8936ccfef885ab3ccf3d3" },
+                  { "path": "SPEC.md", "type": "blob", "sha": "2b2c36ba13ba78baa2bf12d608940489c365596e" },
+                  { "path": "docs/approvals/v2026.3.0-8e8466bb1439.md", "type": "blob", "sha": "2c9184475b8afc374bb6f7d1ea6bf838832442d8" },
+                  { "path": "docs/architecture/ARC-002-export.md", "type": "blob", "sha": "3a6e752ca43ff261d329a9a5b76b113ae3a181de" },
+                  { "path": "docs/audits/v2026.3.0.md", "type": "blob", "sha": "fd2f95ec592d1f19fbd42b7528c7f6655d061b45" },
+                  { "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "type": "blob", "sha": "2032f2079965776e551ce780c5c5f244a84037e9" },
+                  { "path": "docs/jobs/JOB-20261005-0900-1a1a.md", "type": "blob", "sha": "87881941661e618ba6f25b8e9a55ec041ed1112e" },
+                  { "path": "docs/jobs/JOB-20261006-0900-2b2b.md", "type": "blob", "sha": "31983d247e0733ca23a23ec1bcac9d12897069e4" },
+                  { "path": "docs/jobs/JOB-20261007-0900-3c3c.md", "type": "blob", "sha": "691e7a7d7f7acdc8023017827981ca199e95c6d3" },
+                  { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "type": "blob", "sha": "4954d11b548d2cabf9248196c22cf0b7cf0aecee" },
+                  { "path": "docs/process.md", "type": "blob", "sha": "713016a3e80decab142e6ea9ad768bcc71fce1fb" },
+                  { "path": "docs/sources.md", "type": "blob", "sha": "df217d3e38af245cc1da1c326b431d0f41fd5b2f" },
+                  { "path": "docs/tests/counter-proofs/TST-014.md", "type": "blob", "sha": "90e888adf083bb0d0a867e53778372c9b02da594" },
+                  { "path": "docs/tests/counter-proofs/TST-021.md", "type": "blob", "sha": "dfeec9d45280be7f475dfa14b89fa720271bc96b" },
+                  { "path": "docs/tests/releases/v2026.3.0.md", "type": "blob", "sha": "8e8466bb1439754a74c6432f6362cc506709e583" },
+                  { "path": "docs/use-cases/UC-003-export-a-chapter.md", "type": "blob", "sha": "159ddc97b31591f90ccce7aac8bb7e310aeac8af" },
+                  { "path": "tests/export.test.mjs", "type": "blob", "sha": "eef2e745eb0f37cff09ce84eea02ee2def8445d0" },
+                  { "path": "tests/release-export.test.mjs", "type": "blob", "sha": "cbc971de30cdcd79a3567b29144af819eda86274" },
+                  { "path": "tests/review.test.mjs", "type": "blob", "sha": "0679f1a5b1371aced695084514f236a05bc89f6b" },
+                  { "path": "tests/user/export.md", "type": "blob", "sha": "71d9ecf6534c4d40d6e869a9a1c621b662af4ba5" }
+                ]
+              }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "refused": "exists"
+    },
+    {
+      "name": "no click",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "file": { "path": "docs/audits/v2026.3.0.md", "text": "---\nproduct: https://github.com/alice/thesis\ntag: v2026.3.0\ncommit: c100000000000000000000000000000000000000\nprevious: v2026.2.1\nreport: docs/tests/releases/v2026.3.0.md\nreport_blob: 8e8466bb1439754a74c6432f6362cc506709e583\ntested: c100000000000000000000000000000000000000\nacceptance: accepted\napproval: docs/approvals/v2026.3.0-8e8466bb1439.md\napproval_blob: 2c9184475b8afc374bb6f7d1ea6bf838832442d8\napproved_in: b200000000000000000000000000000000000000\napproved_by: alice\napproved_at: 2026-10-10T09:00:00Z\n---\n\n# Audit of v2026.3.0\n\n## Limitations\n\n| Test | Reason | Requirements |\n|---|---|---|\n| TST-014 | the second run lost a figure under load; retried in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-015 | the PDF's title is taken from the file name; corrected in 2026.3.1 | A CHAPTER IS EXPORTED |\n| TST-016 | 17 of 20 lies within the interval of the last release's 18 of 20 | A CHAPTER IS EXPORTED |\n\n## Summary\n\n| Count | Number | Requirements | Tests |\n|---|---|---|---|\n| passing | 1 | EVERY TEXT IS REVIEWED | — |\n| no-test | 4 | ONE CLICK, NO SERVER, THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE, UNIT VERIFICATION IS DOCUMENTED | — |\n| not-passed | 1 | A CHAPTER IS EXPORTED | TST-015 |\n| flaky | 1 | A CHAPTER IS EXPORTED | TST-014 |\n| worse | 1 | A CHAPTER IS EXPORTED | TST-016 |\n| by-implementer | 1 | A CHAPTER IS EXPORTED | TST-021 |\n\n## Sources\n\n| Source | Name | Authority | Version | Identifier | Date | Part | SHA-256 | State |\n|---|---|---|---|---|---|---|---|---|\n| SRC-faculty-style | — | — | 0 | — | — | — | — | not-linked |\n| SRC-iec-62304 | IEC 62304 — Medical device software — Software life cycle processes | normative | 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | safety class B | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | linked |\n| SRC-thesis-guide | Guide to writing a thesis at the faculty | advisory | 1 | edition 2025 | 2025-03-01 | — | ec95d36726ca456e2e2e4f939fef9767bed27e27c88f026612b421a676b66ea7 | linked |\n\n## Result records\n\n| Record | Participant | At | Log |\n|---|---|---|---|\n| results/c100000000000000000000000000000000000000/gh-4730-1-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:00:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/gh-4730-2-release.md | GitHub Actions, runner GitHub Actions 7 | 2026-10-10T07:40:00Z | https://github.com/alice/thesis/actions/runs/4730 |\n| results/c100000000000000000000000000000000000000/user-alice-202610100800.md | alice | 2026-10-10T08:00:00Z | — |\n\n## Requirements\n\n### ONE CLICK\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### NO SERVER\n\n| Field | Value |\n|---|---|\n| Section | 1. Writing |\n| Constrains | product |\n| Sources | — |\n| Gaps | no-test |\n| Accepted | yes |\n\n### EVERY TEXT IS REVIEWED\n\n| Field | Value |\n|---|---|\n| Section | 2. Review |\n| Constrains | product |\n| Sources | — |\n| Gaps | — |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-031 | unit | tests/review.test.mjs | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n\n### A CHAPTER IS EXPORTED\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-thesis-guide 1 |\n| Gaps | not-passed, flaky, worse |\n| Accepted | yes |\n\n| Test | Level | File | Outcome | Runs | Passed | Previous release | Worse | Counter-proof | Written by | Proved at | By the implementer | Records |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| TST-014 | system | tests/export.test.mjs | flaky | 2 | 1 | — | no | docs/tests/counter-proofs/TST-014.md | cli-dev | 2026-10-08T14:00:00Z | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md, results/c100000000000000000000000000000000000000/gh-4730-2-release.md |\n| TST-015 | system | tests/export.test.mjs | failed | 1 | 0 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-016 | system | tests/export.test.mjs | rate | 20 | 17 | 18 of 20 | yes | — | — | — | no | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-021 | release | tests/release-export.test.mjs | passed | 1 | 1 | — | no | docs/tests/counter-proofs/TST-021.md | cli-dev | 2026-10-08T15:00:00Z | yes | results/c100000000000000000000000000000000000000/gh-4730-1-release.md |\n| TST-030 | user | tests/user/export.md | passed | 1 | 1 | — | no | — | — | — | no | results/c100000000000000000000000000000000000000/user-alice-202610100800.md |\n\n### THE BIBLIOGRAPHY FOLLOWS THE FACULTY STYLE\n\n| Field | Value |\n|---|---|\n| Section | 3. Export |\n| Constrains | product |\n| Sources | SRC-faculty-style |\n| Gaps | no-test |\n| Accepted | yes |\n\n### UNIT VERIFICATION IS DOCUMENTED\n\n| Field | Value |\n|---|---|\n| Section | 4. Process |\n| Constrains | process |\n| Sources | SRC-iec-62304 2 |\n| Gaps | no-test |\n| Accepted | yes |\n\n| Gate | Condition | Decider | Record | Decision | Decided by | Decided on | Committed at |\n|---|---|---|---|---|---|---|---|\n| Testing → Validation | every unit's verification is recorded | Tester | docs/jobs/gates/thesis-testing-validation-bf0000000000.md | passed | ci-dev | bf00000000000000000000000000000000000000 | 2026-10-08T17:00:00Z |\n\n| Phase | Artifacts |\n|---|---|\n| Testing | the unit verification report |\n" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2027-01-01", "tested": null },
+          "gitlab": [
+            { "address": "https://gitlab.example.org/group/tools/thesis", "token": "glpat-example", "expires": "", "tested": null }
+          ],
+          "products": ["https://github.com/alice/thesis", "https://gitlab.example.org/group/tools/thesis"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "refused": "no-authority"
+    }
+  ]
+}
+```
+
 ## Types
 
 ```json type
@@ -8457,6 +12821,633 @@ flowchart LR
 
 ```json type
 {
+  "$id": "AuditState",
+  "description": "What the audit reads at a release's commit: the requirements of SPEC.md, the product's links to its sources, its declaration — null where it has none —, the gate records with when each entered the repository, who implemented what, the files the audit reads that the commit does not hold — SPEC.md, docs/sources.md, docs/process.md, and docs/jobs/ where it holds no job record —, and the files that cannot be read.",
+  "type": "object",
+  "required": ["requirements", "links", "declaration", "gates", "implementers", "missing", "unreadable"],
+  "additionalProperties": false,
+  "properties": {
+    "requirements": { "type": "array", "items": { "$ref": "Requirement" } },
+    "links": { "type": "array", "items": { "$ref": "SourceLink" } },
+    "declaration": { "anyOf": [{ "$ref": "Declaration" }, { "type": "null" }] },
+    "gates": { "type": "array", "items": { "$ref": "DatedGate" } },
+    "implementers": { "type": "array", "items": { "$ref": "Implementer" } },
+    "missing": { "type": "array", "items": { "type": "string" } },
+    "unreadable": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "requirements": [
+        { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+        { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+        { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 }
+      ],
+      "links": [],
+      "declaration": null,
+      "gates": [],
+      "implementers": [],
+      "missing": ["docs/sources.md", "docs/process.md", "docs/jobs/"],
+      "unreadable": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditAcceptance",
+  "description": "The acceptance of a release test report: accepted, changed since accepted, open, no report of the version, a report naming another commit than the release's, or a report that cannot be read; the report and its blob SHA, the commit it names, the approval record naming its text and that record's blob SHA, the commit that added the record, its author and time, and the limitations it was accepted with.",
+  "type": "object",
+  "required": ["state", "report", "reportBlob", "tested", "record", "recordBlob", "approvedIn", "by", "at", "limitations"],
+  "additionalProperties": false,
+  "properties": {
+    "state": { "type": "string", "enum": ["accepted", "changed", "open", "no-report", "other-commit", "unreadable"] },
+    "report": { "type": "string" },
+    "reportBlob": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
+    "tested": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
+    "record": { "type": "string" },
+    "recordBlob": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
+    "approvedIn": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
+    "by": { "type": "string" },
+    "at": { "type": "string" },
+    "limitations": { "type": "array", "items": { "$ref": "Limitation" } }
+  },
+  "examples": [
+    {
+      "state": "accepted",
+      "report": "docs/tests/releases/v2026.3.0.md",
+      "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+      "tested": "c100000000000000000000000000000000000000",
+      "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+      "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+      "approvedIn": "b200000000000000000000000000000000000000",
+      "by": "alice",
+      "at": "2026-10-10T09:00:00Z",
+      "limitations": [
+        { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+        { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+        { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+      ]
+    },
+    {
+      "state": "no-report",
+      "report": "docs/tests/releases/v2025.4.0.md",
+      "reportBlob": "",
+      "tested": "",
+      "record": "",
+      "recordBlob": "",
+      "approvedIn": "",
+      "by": "",
+      "at": "",
+      "limitations": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditFilters",
+  "description": "What the audit's rows are filtered by: only rows with a normative source, rows naming one source, rows with a test at one level, only rows with a gap — false or empty for no filter.",
+  "type": "object",
+  "required": ["normative", "source", "level", "gaps"],
+  "additionalProperties": false,
+  "properties": {
+    "normative": { "type": "boolean" },
+    "source": { "type": "string" },
+    "level": { "type": "string" },
+    "gaps": { "type": "boolean" }
+  },
+  "examples": [{ "normative": true, "source": "", "level": "", "gaps": true }]
+}
+```
+
+```json type
+{
+  "$id": "AuditInput",
+  "description": "What the audit of a release is computed from: the product's address, the release's tag and commit, the previous release's tag — empty for none —, the tests and what the audit read at the commit, the commit's outcomes with the previous release's rates, the acceptance of the release test report, the instance's register, and the filters.",
+  "type": "object",
+  "required": ["product", "tag", "previous", "tests", "audit", "outcomes", "acceptance", "register", "filters"],
+  "additionalProperties": false,
+  "properties": {
+    "product": { "type": "string" },
+    "tag": { "$ref": "TagCommit" },
+    "previous": { "type": "string" },
+    "tests": { "$ref": "TestsState" },
+    "audit": { "$ref": "AuditState" },
+    "outcomes": { "$ref": "CommitOutcomes" },
+    "acceptance": { "$ref": "AuditAcceptance" },
+    "register": { "type": "array", "items": { "$ref": "SourceEntry" } },
+    "filters": { "$ref": "AuditFilters" }
+  },
+  "examples": [
+    {
+      "product": "https://github.com/alice/thesis",
+      "tag": { "name": "v2025.4.0", "commit": "9e00000000000000000000000000000000000000" },
+      "previous": "",
+      "tests": {
+        "tests": [],
+        "schedule": {
+          "declared": false,
+          "nightly": "02:00",
+          "command": "",
+          "rows": [
+            {
+              "tests": "unit",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "component",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "system",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "paid",
+              "occasions": ["nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+            { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+          ]
+        },
+        "scheduleNote": "",
+        "proofs": [],
+        "reports": [],
+        "ci": [],
+        "unreadable": []
+      },
+      "audit": {
+        "requirements": [
+          { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+          { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+          { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 }
+        ],
+        "links": [],
+        "declaration": null,
+        "gates": [],
+        "implementers": [],
+        "missing": ["docs/sources.md", "docs/process.md", "docs/jobs/"],
+        "unreadable": []
+      },
+      "outcomes": {
+        "commit": "9e00000000000000000000000000000000000000",
+        "levels": [
+          {
+            "level": "unit",
+            "runs": [],
+            "tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "rates": 0,
+            "worse": 0,
+            "notRun": 0
+          },
+          {
+            "level": "component",
+            "runs": [],
+            "tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "rates": 0,
+            "worse": 0,
+            "notRun": 0
+          },
+          {
+            "level": "system",
+            "runs": [],
+            "tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "rates": 0,
+            "worse": 0,
+            "notRun": 0
+          },
+          {
+            "level": "release",
+            "runs": [],
+            "tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "rates": 0,
+            "worse": 0,
+            "notRun": 0
+          },
+          {
+            "level": "user",
+            "runs": [],
+            "tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "rates": 0,
+            "worse": 0,
+            "notRun": 0
+          }
+        ],
+        "tests": [],
+        "uncounted": [],
+        "undeclared": []
+      },
+      "acceptance": {
+        "state": "no-report",
+        "report": "docs/tests/releases/v2025.4.0.md",
+        "reportBlob": "",
+        "tested": "",
+        "record": "",
+        "recordBlob": "",
+        "approvedIn": "",
+        "by": "",
+        "at": "",
+        "limitations": []
+      },
+      "register": [
+        {
+          "id": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "terms": "© IEC; copies may not be passed on",
+          "content": "files",
+          "address": "",
+          "location": "https://github.com/alice/norms",
+          "language": "",
+          "places": ["this machine"],
+          "parts": ["safety class A", "safety class B", "safety class C"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "IEC 62304:2006",
+              "date": "2006-05-09",
+              "files": [
+                { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+              ],
+              "contentStream": "",
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "IEC 62304:2006+AMD1:2015",
+              "date": "2015-06-25",
+              "files": [
+                { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+              ],
+              "contentStream": "",
+              "note": ""
+            }
+          ]
+        },
+        {
+          "id": "SRC-thesis-guide",
+          "name": "Guide to writing a thesis at the faculty",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "terms": "may be copied with its source named",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "language": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "edition 2025",
+              "date": "2025-03-01",
+              "files": [
+                { "name": "thesis-guide-2025.md", "sha256": "2a1b6f0e4d3c5b7a9182736455647382910abcdeffedcba01928374655647382" }
+              ],
+              "contentStream": "",
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "filters": { "normative": false, "source": "", "level": "", "gaps": false }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditSource",
+  "description": "A source as the audit shows it: its identifier, name and authority from the register, the version linked with its identifier and date, the part that applies, the hash the link names, and whether the link holds — linked, a hash that is not the version's, a version without a hash, a version the source does not have, a source not registered, or a source a requirement names that the product does not link.",
+  "type": "object",
+  "required": ["source", "name", "authority", "version", "identifier", "date", "part", "sha256", "state"],
+  "additionalProperties": false,
+  "properties": {
+    "source": { "type": "string" },
+    "name": { "type": "string" },
+    "authority": { "type": "string" },
+    "version": { "type": "integer", "minimum": 0 },
+    "identifier": { "type": "string" },
+    "date": { "type": "string" },
+    "part": { "type": "string" },
+    "sha256": { "type": "string" },
+    "state": {
+      "type": "string",
+      "enum": ["linked", "hash-differs", "no-hash", "no-version", "not-registered", "not-linked"]
+    }
+  },
+  "examples": [
+    { "source": "SRC-faculty-style", "name": "", "authority": "", "version": 0, "identifier": "", "date": "", "part": "", "sha256": "", "state": "not-linked" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditTest",
+  "description": "A test guarding a requirement, as the audit shows it: its identifier, title, level and file; its outcome, runs and passing runs on the release's commit, the previous release's rate and whether its rate is worse; its counter-proof — empty for none —, the participant that wrote it and when the counter-proof was recorded, whether that participant implemented what its file guards; and the evidence of each record, with who ran it and when.",
+  "type": "object",
+  "required": ["test", "title", "level", "file", "outcome", "runs", "passed", "previous", "worse", "proof", "author", "proofAt", "byImplementer", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "test": { "type": "string" },
+    "title": { "type": "string" },
+    "level": { "type": "string", "enum": ["", "unit", "component", "system", "release", "user"] },
+    "file": { "type": "string" },
+    "outcome": { "type": "string", "enum": ["passed", "failed", "flaky", "skipped", "not-run", "rate"] },
+    "runs": { "type": "integer", "minimum": 0 },
+    "passed": { "type": "integer", "minimum": 0 },
+    "previous": { "$ref": "RunRateOrNone" },
+    "worse": { "type": "boolean" },
+    "proof": { "type": "string" },
+    "author": { "type": "string" },
+    "proofAt": { "type": "string" },
+    "byImplementer": { "type": "boolean" },
+    "evidence": { "type": "array", "items": { "$ref": "Evidence" } }
+  },
+  "examples": [
+    {
+      "test": "TST-021",
+      "title": "an accepted chapter can be exported",
+      "level": "release",
+      "file": "tests/release-export.test.mjs",
+      "outcome": "passed",
+      "runs": 1,
+      "passed": 1,
+      "previous": null,
+      "worse": false,
+      "proof": "docs/tests/counter-proofs/TST-021.md",
+      "author": "cli-dev",
+      "proofAt": "2026-10-08T15:00:00Z",
+      "byImplementer": true,
+      "evidence": [
+        { "record": "results/c100000000000000000000000000000000000000/gh-4730-1-release.md", "participant": "GitHub Actions, runner GitHub Actions 7", "at": "2026-10-10T07:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditGate",
+  "description": "A gate the declaration adds for a requirement: between which phases, its condition, who decides it, and its records, each with when it entered the repository.",
+  "type": "object",
+  "required": ["between", "condition", "decider", "records"],
+  "additionalProperties": false,
+  "properties": {
+    "between": { "type": "string" },
+    "condition": { "type": "string" },
+    "decider": { "anyOf": [{ "$ref": "Decider" }, { "type": "null" }] },
+    "records": { "type": "array", "items": { "$ref": "DatedGate" } }
+  },
+  "examples": [
+    {
+      "between": "Testing → Validation",
+      "condition": "every unit's verification is recorded",
+      "decider": { "role": "Tester" },
+      "records": [
+        {
+          "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+          "at": "2026-10-08T17:00:00Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditArtifact",
+  "description": "Artifacts the declaration adds to a phase for a requirement.",
+  "type": "object",
+  "required": ["phase", "artifacts"],
+  "additionalProperties": false,
+  "properties": { "phase": { "type": "string" }, "artifacts": { "type": "string" } },
+  "examples": [{ "phase": "Testing", "artifacts": "the unit verification report" }]
+}
+```
+
+```json type
+{
+  "$id": "AuditRow",
+  "description": "A requirement in the audit: its name and section, whether it constrains the product or the process, the sources its source names, the tests guarding it by level, the gates and artifacts the declaration adds for it, its gaps — no test, a test that did not pass, a flaky test, a rate worse than the previous release's —, and whether its evidence is accepted.",
+  "type": "object",
+  "required": ["name", "section", "constrains", "sources", "tests", "gates", "artifacts", "gaps", "accepted"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "section": { "type": "string" },
+    "constrains": { "type": "string", "enum": ["product", "process"] },
+    "sources": { "type": "array", "items": { "$ref": "AuditSource" } },
+    "tests": { "type": "array", "items": { "$ref": "AuditTest" } },
+    "gates": { "type": "array", "items": { "$ref": "AuditGate" } },
+    "artifacts": { "type": "array", "items": { "$ref": "AuditArtifact" } },
+    "gaps": { "type": "array", "items": { "type": "string", "enum": ["no-test", "not-passed", "flaky", "worse"] } },
+    "accepted": { "type": "boolean" }
+  },
+  "examples": [
+    {
+      "name": "UNIT VERIFICATION IS DOCUMENTED",
+      "section": "4. Process",
+      "constrains": "process",
+      "sources": [
+        { "source": "SRC-iec-62304", "name": "IEC 62304 — Medical device software — Software life cycle processes", "authority": "normative", "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25", "part": "safety class B", "sha256": "a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5", "state": "linked" }
+      ],
+      "tests": [],
+      "gates": [
+        {
+          "between": "Testing → Validation",
+          "condition": "every unit's verification is recorded",
+          "decider": { "role": "Tester" },
+          "records": [
+            {
+              "record": { "path": "docs/jobs/gates/thesis-testing-validation-bf0000000000.md", "from": "Testing", "to": "Validation", "subject": "thesis", "on": "bf00000000000000000000000000000000000000", "decider": "ci-dev", "decision": "passed", "reason": "every unit's verification is recorded in docs/tests/units.md" },
+              "at": "2026-10-08T17:00:00Z"
+            }
+          ]
+        }
+      ],
+      "artifacts": [{ "phase": "Testing", "artifacts": "the unit verification report" }],
+      "gaps": ["no-test"],
+      "accepted": true
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditCount",
+  "description": "A count of the audit's summary — requirements with passing evidence, without a test, with a test that did not pass, with a flaky test, with a rate worse than the previous release's, and release tests written by the implementer —: its number, the requirements it counts or concerns, and the tests it names.",
+  "type": "object",
+  "required": ["kind", "count", "rows", "tests"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "enum": ["passing", "no-test", "not-passed", "flaky", "worse", "by-implementer"] },
+    "count": { "type": "integer", "minimum": 0 },
+    "rows": { "type": "array", "items": { "type": "string" } },
+    "tests": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [{ "kind": "by-implementer", "count": 1, "rows": ["A CHAPTER IS EXPORTED"], "tests": ["TST-021"] }]
+}
+```
+
+```json type
+{
+  "$id": "AuditLimitation",
+  "description": "A test the release was accepted with, the reason its approval record gives, and the requirements whose rows it concerns.",
+  "type": "object",
+  "required": ["test", "reason", "rows"],
+  "additionalProperties": false,
+  "properties": {
+    "test": { "type": "string", "pattern": "^TST-[0-9]{3,}$" },
+    "reason": { "type": "string" },
+    "rows": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "test": "TST-014",
+      "reason": "the second run lost a figure under load; retried in 2026.3.1",
+      "rows": ["A CHAPTER IS EXPORTED"]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AuditView",
+  "description": "The audit of a release: the product, the tag and its commit, the previous release, the acceptance of the release test report, the limitations it was accepted with, the summary, the sources, one row per requirement, the rows the filters keep, the filters, and the parts that cannot be derived — the requirements, the sources, the process, the tests, the counter-proofs, the result records, the report, the implementers.",
+  "type": "object",
+  "required": ["product", "tag", "previous", "acceptance", "limitations", "summary", "sources", "rows", "shown", "filters", "missing"],
+  "additionalProperties": false,
+  "properties": {
+    "product": { "type": "string" },
+    "tag": { "$ref": "TagCommit" },
+    "previous": { "type": "string" },
+    "acceptance": { "$ref": "AuditAcceptance" },
+    "limitations": { "type": "array", "items": { "$ref": "AuditLimitation" } },
+    "summary": { "type": "array", "items": { "$ref": "AuditCount" } },
+    "sources": { "type": "array", "items": { "$ref": "AuditSource" } },
+    "rows": { "type": "array", "items": { "$ref": "AuditRow" } },
+    "shown": { "type": "array", "items": { "type": "string" } },
+    "filters": { "$ref": "AuditFilters" },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["requirements", "sources", "process", "tests", "counter-proofs", "result-records", "report", "implementers"]
+      }
+    }
+  },
+  "examples": [
+    {
+      "product": "https://github.com/alice/thesis",
+      "tag": { "name": "v2025.4.0", "commit": "9e00000000000000000000000000000000000000" },
+      "previous": "",
+      "acceptance": {
+        "state": "no-report",
+        "report": "docs/tests/releases/v2025.4.0.md",
+        "reportBlob": "",
+        "tested": "",
+        "record": "",
+        "recordBlob": "",
+        "approvedIn": "",
+        "by": "",
+        "at": "",
+        "limitations": []
+      },
+      "limitations": [],
+      "summary": [
+        { "kind": "passing", "count": 0, "rows": [], "tests": [] },
+        { "kind": "no-test", "count": 3, "rows": ["ONE CLICK", "NO SERVER", "EVERY TEXT IS REVIEWED"], "tests": [] },
+        { "kind": "not-passed", "count": 0, "rows": [], "tests": [] },
+        { "kind": "flaky", "count": 0, "rows": [], "tests": [] },
+        { "kind": "worse", "count": 0, "rows": [], "tests": [] },
+        { "kind": "by-implementer", "count": 0, "rows": [], "tests": [] }
+      ],
+      "sources": [],
+      "rows": [
+        {
+          "name": "ONE CLICK",
+          "section": "1. Writing",
+          "constrains": "product",
+          "sources": [],
+          "tests": [],
+          "gates": [],
+          "artifacts": [],
+          "gaps": ["no-test"],
+          "accepted": false
+        },
+        {
+          "name": "NO SERVER",
+          "section": "1. Writing",
+          "constrains": "product",
+          "sources": [],
+          "tests": [],
+          "gates": [],
+          "artifacts": [],
+          "gaps": ["no-test"],
+          "accepted": false
+        },
+        {
+          "name": "EVERY TEXT IS REVIEWED",
+          "section": "2. Review",
+          "constrains": "product",
+          "sources": [],
+          "tests": [],
+          "gates": [],
+          "artifacts": [],
+          "gaps": ["no-test"],
+          "accepted": false
+        }
+      ],
+      "shown": ["ONE CLICK", "NO SERVER", "EVERY TEXT IS REVIEWED"],
+      "filters": { "normative": false, "source": "", "level": "", "gaps": false },
+      "missing": ["sources", "process", "tests", "counter-proofs", "result-records", "report", "implementers"]
+    }
+  ]
+}
+```
+
+```json type
+{
   "$id": "TestsRoute",
   "description": "What tests.html shows: the instance, the view, the product by its address, and where the view needs them a commit, a test, a version and two release tags to compare — empty where none is named.",
   "type": "object",
@@ -8464,7 +13455,7 @@ flowchart LR
   "additionalProperties": false,
   "properties": {
     "instance": { "type": "string" },
-    "view": { "type": "string", "enum": ["schedule", "runs", "browser", "test", "release"] },
+    "view": { "type": "string", "enum": ["schedule", "runs", "browser", "test", "release", "audit"] },
     "product": { "type": "string", "minLength": 1 },
     "commit": { "type": "string" },
     "test": { "type": "string" },
@@ -8738,6 +13729,115 @@ flowchart LR
 }
 ```
 
+```json type
+{
+  "$id": "AuditRead",
+  "description": "The audit of a release as read: the product's address, its default branch, the release's tag and the previous release's — null for none —, the commit, its tests and what the audit read there, the commit's outcomes with the previous release's rates, the records on test-results that could not be read, and the acceptance of its release test report.",
+  "type": "object",
+  "required": ["product", "branch", "tag", "previous", "commit", "tests", "audit", "outcomes", "unreadable", "acceptance"],
+  "additionalProperties": false,
+  "properties": {
+    "product": { "type": "string" },
+    "branch": { "type": "string" },
+    "tag": { "$ref": "TagCommit" },
+    "previous": { "anyOf": [{ "$ref": "TagCommit" }, { "type": "null" }] },
+    "commit": { "$ref": "CommitTitle" },
+    "tests": { "$ref": "TestsState" },
+    "audit": { "$ref": "AuditState" },
+    "outcomes": { "$ref": "CommitOutcomes" },
+    "unreadable": { "type": "array", "items": { "type": "string" } },
+    "acceptance": { "$ref": "AuditAcceptance" }
+  },
+  "examples": [
+    {
+      "product": "https://github.com/alice/thesis",
+      "branch": "main",
+      "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" },
+      "previous": { "name": "v2026.2.1", "commit": "c000000000000000000000000000000000000000" },
+      "commit": { "sha": "c100000000000000000000000000000000000000", "title": "ITM-014: export a chapter as PDF", "date": "2026-10-09T07:58:00Z", "author": "alice" },
+      "tests": {
+        "tests": [],
+        "schedule": {
+          "declared": false,
+          "nightly": "02:00",
+          "command": "",
+          "rows": [
+            {
+              "tests": "unit",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "component",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "system",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "paid",
+              "occasions": ["nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+            { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+          ]
+        },
+        "scheduleNote": "",
+        "proofs": [],
+        "reports": [],
+        "ci": [],
+        "unreadable": []
+      },
+      "audit": {
+        "requirements": [
+          { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "line": 5 },
+          { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "line": 9 },
+          { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "line": 15 }
+        ],
+        "links": [],
+        "declaration": null,
+        "gates": [],
+        "implementers": [],
+        "missing": ["docs/sources.md", "docs/process.md", "docs/jobs/"],
+        "unreadable": []
+      },
+      "outcomes": {
+        "commit": "c100000000000000000000000000000000000000",
+        "levels": [],
+        "tests": [],
+        "uncounted": [],
+        "undeclared": []
+      },
+      "unreadable": [],
+      "acceptance": {
+        "state": "accepted",
+        "report": "docs/tests/releases/v2026.3.0.md",
+        "reportBlob": "8e8466bb1439754a74c6432f6362cc506709e583",
+        "tested": "c100000000000000000000000000000000000000",
+        "record": "docs/approvals/v2026.3.0-8e8466bb1439.md",
+        "recordBlob": "2c9184475b8afc374bb6f7d1ea6bf838832442d8",
+        "approvedIn": "b200000000000000000000000000000000000000",
+        "by": "alice",
+        "at": "2026-10-10T09:00:00Z",
+        "limitations": [
+          { "test": "TST-014", "reason": "the second run lost a figure under load; retried in 2026.3.1" },
+          { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+          { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+        ]
+      }
+    }
+  ]
+}
+```
+
 ## Realisation
 
 | Step | Interfaces |
@@ -8784,3 +13884,12 @@ flowchart LR
 | UC-013 3b | MOD-test-views.releaseView, MOD-test-records.releaseReport, MOD-test-records.rateInterval, MOD-tests-page.acceptRelease, MOD-test-records.planRelease |
 | UC-013 4a | MOD-tests-page.acceptRelease, MOD-test-records.planRelease, MOD-git-host.createTag, MOD-tests-page.tagRelease |
 | UC-013 4b | MOD-tests-page.acceptRelease, MOD-git-host.createTag |
+| UC-030 1 | MOD-tests-page.route, MOD-tests-page.readRefs, MOD-git-host.tagCommits |
+| UC-030 2 | MOD-tests-page.readAudit, MOD-git-host.tagCommits, MOD-review-page.open, MOD-review-page.readFileAt, MOD-test-views.testsOf, MOD-test-views.auditOf, MOD-artifacts.parseSpec, MOD-source-library.parseLinks, MOD-process-model.parseDeclaration, MOD-process-model.parseGateRecord, MOD-git-host.commitsTouching, MOD-run-engine.parseJobRecord, MOD-work-items.parseItem, MOD-architecture.parseDecision, MOD-test-records.implementers, MOD-git-host.commitOf, MOD-tests-page.readRecords, MOD-test-records.commitOutcomes, MOD-review-page.readHead, MOD-test-records.parseReleaseReport, MOD-review-core.recordIndex, MOD-review-core.statusByNames, MOD-review-core.parseRecord, MOD-library-page.readLibrary, MOD-test-views.auditView, MOD-source-library.versionHash |
+| UC-030 3 | MOD-test-views.auditView |
+| UC-030 4 | MOD-test-views.auditView, MOD-git-host.fileUrl |
+| UC-030 5 | MOD-test-views.auditDocument |
+| UC-030 2b | MOD-review-core.parseRecord, MOD-test-views.auditView |
+| UC-030 2c | MOD-test-views.auditView |
+| UC-030 1a | MOD-tests-page.readAudit, MOD-test-views.auditOf, MOD-test-views.auditView |
+| UC-030 5a | MOD-review-page.clickAuthority, MOD-tests-page.commitAudit, MOD-review-page.readHead, MOD-git-host.writeFiles |

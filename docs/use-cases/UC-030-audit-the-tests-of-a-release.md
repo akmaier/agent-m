@@ -54,8 +54,9 @@ demand evidence that each requirement was verified" (ch. 13 §6).
 
 1. The auditor opens **Tests → Audit** and picks a release tag.
 2. Agent M reads, at the tag's commit, the SPEC, the linked sources with their versions and hashes,
-   the tests, the release test report and the approval records, and derives one row per requirement
-   valid at that release:
+   and the tests; it reads the release test report and its approval records as the release holds
+   them, at the default branch's head, since they are committed after the tagged commit (UC-013,
+   step 4). It derives one row per requirement valid at that release:
    - the requirement's name, what it constrains (product or process), and its sources with their
      authority and version — for example `IEC 62304:2006+AMD1:2015`, class B;
    - the tests guarding it, by level, each with its outcome or rate on the release commit and its
@@ -79,7 +80,7 @@ sequenceDiagram
     participant M as Agent M
     participant R as Product repository
     U->>M: Tests, Audit, pick release tag
-    M->>R: read SPEC, sources, tests, report, approvals at the tag
+    M->>R: read SPEC, sources, tests at the tag, report and approvals on the default branch
     M->>M: derive one row per requirement
     M-->>U: summary with gaps, rows with evidence
     U->>M: filter normative sources, open rows

@@ -81,11 +81,12 @@ every test that did not pass.
    given twice; a case without its precondition, input or expected result; a model-dependent case judged on fewer than
    two runs; an extension of a test no file declares; a new case with the guarded identifier, input and expected result
    of an existing one (UC-026 6); a new case, other than a user test or one awaiting its implementation, without a
-   counter-proof on which it failed; and a release case written by the participant that implemented what it guards, both
-   as their jobs recorded. Each finding is in the form of ARC-003. A case that reaches a paid service declares it on its
-   `Paid:` line, and the schedule's row of tests that call a paid service or a model — which UC-027 lets no one tick for
-   every commit or pull request — decides where it runs; a case that reaches one without declaring it is not visible to
-   a check without a model, and fails where it runs (Consequences).
+   counter-proof on which it failed; and a release case written by the participant that implemented what it guards — its
+   writer as its counter-proof names it, its implementers as the job records name them (decision 10). Each finding is in
+   the form of ARC-003. A case that reaches a paid service declares it on its `Paid:` line, and the schedule's row of
+   tests that call a paid service or a model — which UC-027 lets no one tick for every commit or pull request — decides
+   where it runs; a case that reaches one without declaring it is not visible to a check without a model, and fails
+   where it runs (Consequences).
 4. **A counter-proof lies beside the test it proves** (`MOD-test-records.counterProofText`,
    `MOD-test-records.parseCounterProof`): `docs/tests/counter-proofs/TST-<nnn>.md`, written by the participant that
    wrote the test and committed in the same pull request (UC-026 8.3, 8.4): front matter naming the test, the commit the
@@ -130,6 +131,14 @@ every test that did not pass.
    commit the page sets the tag `vYYYY.MINOR.PATCH` on the candidate's commit — the one that was tested — through
    `MOD-git-host.createTag`, which never moves a tag; a tag that failed after the commit is set again from the accepted
    report, which names that commit. A report is read back for the audit (`MOD-test-records.parseReleaseReport`).
+10. **Who implemented what** (`MOD-test-records.implementers`) is read from the job records (ARC-010): every
+    implementation job — a record of the kind `implement`, `implement-item` or `implement-module` (ARC-010, ARC-029) —
+    gives its participant for every name its work realises: what its item realises, the modules it or its item names,
+    what those modules realise, and the use cases whose realisation rows name an interface of one of them (ARC-020). A
+    job counts whatever state it reached: a participant that worked on the behaviour is not independent of it. The
+    writer of a test is the participant its counter-proof names (decision 4); a release case whose writer implemented a
+    name its file guards was written by the implementer (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`), and a case
+    without a counter-proof names no writer to judge.
 
 ```mermaid
 flowchart LR
@@ -144,6 +153,7 @@ flowchart LR
     TR -->|"counterProofText"| CP
     RR -->|"parseResultRecord"| TR
     CP -->|"parseCounterProof"| TR
+    JR["docs/jobs/<br/>(job records)"] -->|"implementers"| TR
     TR -->|"batteryProblems, commitOutcomes,<br/>testHistory, compareReleases"| V["checks and pages"]
 ```
 
@@ -168,16 +178,15 @@ flowchart LR
 - ARC-015 hands the key of a paid service only to the jobs of the occasions that row ticks: a case that reaches a paid
   service without declaring it finds no key in a run of every commit or pull request, and its call fails that run
   (`COMMIT TESTS CALL NO PAID SERVICE`).
-- Who wrote a test and who implemented what it guards are read from the job records (ARC-010); the cases new in a change
-  are those its base commit does not declare.
+- Who wrote a test is read from its counter-proof, who implemented what it guards from the job records (decision 10);
+  the cases new in a change are those its base commit does not declare.
 - The page that offers the release, starts its candidate's run and accepts its report is designed with the tests pages;
   so are the steps of UC-013 it carries. A release whose run is red is accepted only with every reason given; the
   reasons stand in the approval record and in the changelog, and the audit (UC-030) reads them there.
 - Agent M's own tests are a product's tests: a test file whose cases carry their identifiers only in the names of the
   tests gives the finding that no case carries one, until its cases are declared.
-- No step of UC-026, UC-028, UC-029 or UC-030 is realised here: each needs a page or a job not designed yet — the tests
-  pages, the CI step, the job that writes tests. Where a test was removed (UC-029 5a), the pages read the history of its
-  file through `MOD-git-host.pathHistory`.
+- No step is realised here: the tests pages (ARC-028) and the CI step (ARC-015) carry the steps that read and write
+  these records; the job that writes tests (UC-026) is not designed yet.
 
 ## Modules
 
@@ -188,7 +197,7 @@ flowchart LR
   "id": "MOD-test-records",
   "folder": "src/test-records/",
   "layer": "feature",
-  "responsibility": "Reads and writes a product's tests as artifacts and the evidence of what they showed, and plans its releases on them: the cases a test file declares, the checks a battery passes without a model, the counter-proof of a new test, the result record of a run, the outcomes a runner's JUnit report gives, the outcomes of a commit with flaky tests apart and model-dependent tests as rates, a test's history, what changed between two releases, the identifier a new test gets, the next version and candidate, the release test report, and the one commit and tag that accept it; it reads nothing itself.",
+  "responsibility": "Reads and writes a product's tests as artifacts and the evidence of what they showed, and plans its releases on them: the cases a test file declares, the checks a battery passes without a model, the counter-proof of a new test, the result record of a run, the outcomes a runner's JUnit report gives, the outcomes of a commit with flaky tests apart and model-dependent tests as rates, a test's history, what changed between two releases, the identifier a new test gets, who implemented what the tests guard, the next version and candidate, the release test report, and the one commit and tag that accept it; it reads nothing itself.",
   "realises": ["EVERY TEST HAS ONE LEVEL", "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS", "A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT", "A MODEL-DEPENDENT TEST IS MEASURED AS A RATE", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER", "A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY", "EVERY ARTIFACT HAS AN IDENTIFIER", "EVERY ARTIFACT NAMES ITS ORIGIN", "CALENDAR VERSIONS", "EVERY PRODUCT HAS ITS OWN VERSION LINE", "A RELEASE IS TAGGED AND LOGGED", "A RELEASE RUNS EVERY TEST AT EVERY LEVEL", "ACCEPTING THE RELEASE TEST REPORT RELEASES", "A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED"],
   "owns": ["TestCase", "TestFile", "TestAuthor", "Implementer", "CounterProofInput", "CounterProof", "BatteryInput", "TestOutcome", "ResultRun", "ResultRecord", "JUnitRead", "PreviousRate", "CommitInput", "RunRate", "RunRateOrNone", "Evidence", "RunNote", "TestRow", "LevelRow", "CommitOutcomes", "CommitRef", "HistoryMark", "OutcomeOf", "ReleaseSide", "OutcomeChange", "ReleaseComparison", "Interval", "Candidate", "ReleaseInput", "ReleaseReportRow", "ReleaseReport", "ReleaseAcceptance", "ReleaseTag", "ReleasePlan", "ReleaseReportContent", "ResultRecordContent", "CounterProofContent", "ResultRecordFile", "ReleaseTestReportFile", "ChangelogFile", "CounterProofFile"],
   "uses": ["MOD-contracts", "MOD-artifacts", "MOD-traceability", "MOD-review-core"]
@@ -2636,6 +2645,280 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-test-records.implementers",
+  "summary": "Who implemented what, from the job records: every implementation job — of the kind implement, implement-item or implement-module, whatever state it reached — gives its participant for every name its work realises: what its item realises, the modules it or its item names, what those modules realise, and the use cases whose realisation rows name an interface of one of them; by name, then participant, each pair once.",
+  "params": [
+    { "name": "jobs", "type": "JobRecord[]" },
+    { "name": "items", "type": "BacklogItem[]" },
+    { "name": "decisions", "type": "DecisionDoc[]" }
+  ],
+  "result": "Implementer[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "a module's job and an item's job that failed",
+      "input": {
+        "jobs": [
+          {
+            "id": "JOB-20261005-0900-1a1a",
+            "path": "docs/jobs/JOB-20261005-0900-1a1a.md",
+            "kind": "implement",
+            "phase": "Implementation",
+            "role": "Developers",
+            "participant": "cli-dev",
+            "runtime": "bridge",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": ["MOD-export"],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "claude-opus-5-5",
+            "log": "",
+            "selection": [],
+            "limits": null,
+            "assignments": [],
+            "states": [
+              { "at": "2026-10-05T09:00:00Z", "state": "queued", "note": "" },
+              { "at": "2026-10-05T11:00:00Z", "state": "done", "note": "" }
+            ],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": []
+          },
+          {
+            "id": "JOB-20261006-0900-2b2b",
+            "path": "docs/jobs/JOB-20261006-0900-2b2b.md",
+            "kind": "implement-item",
+            "phase": "Implementation",
+            "role": "Developers",
+            "participant": "ci-dev",
+            "runtime": "bridge",
+            "run": "",
+            "slot": "",
+            "item": "ITM-014",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "claude-opus-5-5",
+            "log": "",
+            "selection": [],
+            "limits": null,
+            "assignments": [],
+            "states": [
+              { "at": "2026-10-06T09:00:00Z", "state": "queued", "note": "" },
+              { "at": "2026-10-06T10:00:00Z", "state": "failed", "note": "CI stayed red" }
+            ],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": []
+          },
+          {
+            "id": "JOB-20261007-0900-3c3c",
+            "path": "docs/jobs/JOB-20261007-0900-3c3c.md",
+            "kind": "test-battery",
+            "phase": "Testing",
+            "role": "Tester",
+            "participant": "alice",
+            "runtime": "bridge",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": ["MOD-export"],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "claude-opus-5-5",
+            "log": "",
+            "selection": [],
+            "limits": null,
+            "assignments": [],
+            "states": [
+              { "at": "2026-10-07T09:00:00Z", "state": "queued", "note": "" },
+              { "at": "2026-10-07T12:00:00Z", "state": "done", "note": "" }
+            ],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": []
+          }
+        ],
+        "items": [
+          {
+            "id": "ITM-014",
+            "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md",
+            "title": "Export a chapter as PDF",
+            "kind": "implementation",
+            "realises": ["A CHAPTER IS EXPORTED", "UC-003"],
+            "modules": ["MOD-export"],
+            "dependsOn": [],
+            "origins": ["UC-003"],
+            "outcome": "An accepted chapter is exported as a PDF with its figures.",
+            "criteria": [],
+            "notes": ""
+          }
+        ],
+        "decisions": [
+          {
+            "path": "docs/architecture/ARC-002-export.md",
+            "id": "ARC-002",
+            "title": "Export",
+            "forcedBy": ["A CHAPTER IS EXPORTED", "UC-003"],
+            "keeps": [],
+            "sections": ["Context", "Decision", "Alternatives", "Consequences", "Modules", "Realisation"],
+            "modules": [
+              {
+                "line": 28,
+                "value": {
+                  "id": "MOD-export",
+                  "folder": "src/export/",
+                  "layer": "feature",
+                  "responsibility": "Exports chapters.",
+                  "realises": ["A CHAPTER IS EXPORTED"],
+                  "owns": [],
+                  "uses": []
+                }
+              }
+            ],
+            "interfaces": [
+              {
+                "line": 32,
+                "value": {
+                  "id": "MOD-export.run",
+                  "summary": "Exports a chapter.",
+                  "params": [{ "name": "path", "type": "string" }],
+                  "result": "string",
+                  "async": false,
+                  "refusals": [],
+                  "examples": [{ "name": "one", "input": { "path": "a.md" }, "result": "a.pdf" }]
+                }
+              }
+            ],
+            "types": [],
+            "formats": [],
+            "realisation": [{ "line": 40, "step": "UC-003 1", "interfaces": ["MOD-export.run"], "reason": "" }],
+            "mentions": [{ "line": 8, "name": "ARC-002" }]
+          }
+        ]
+      },
+      "result": [
+        { "guards": "A CHAPTER IS EXPORTED", "participant": "ci-dev" },
+        { "guards": "A CHAPTER IS EXPORTED", "participant": "cli-dev" },
+        { "guards": "MOD-export", "participant": "ci-dev" },
+        { "guards": "MOD-export", "participant": "cli-dev" },
+        { "guards": "UC-003", "participant": "ci-dev" },
+        { "guards": "UC-003", "participant": "cli-dev" }
+      ]
+    },
+    {
+      "name": "no implementation job",
+      "input": {
+        "jobs": [
+          {
+            "id": "JOB-20261007-0900-3c3c",
+            "path": "docs/jobs/JOB-20261007-0900-3c3c.md",
+            "kind": "test-battery",
+            "phase": "Testing",
+            "role": "Tester",
+            "participant": "alice",
+            "runtime": "bridge",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": ["MOD-export"],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "claude-opus-5-5",
+            "log": "",
+            "selection": [],
+            "limits": null,
+            "assignments": [],
+            "states": [
+              { "at": "2026-10-07T09:00:00Z", "state": "queued", "note": "" },
+              { "at": "2026-10-07T12:00:00Z", "state": "done", "note": "" }
+            ],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": []
+          }
+        ],
+        "items": [
+          {
+            "id": "ITM-014",
+            "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md",
+            "title": "Export a chapter as PDF",
+            "kind": "implementation",
+            "realises": ["A CHAPTER IS EXPORTED", "UC-003"],
+            "modules": ["MOD-export"],
+            "dependsOn": [],
+            "origins": ["UC-003"],
+            "outcome": "An accepted chapter is exported as a PDF with its figures.",
+            "criteria": [],
+            "notes": ""
+          }
+        ],
+        "decisions": [
+          {
+            "path": "docs/architecture/ARC-002-export.md",
+            "id": "ARC-002",
+            "title": "Export",
+            "forcedBy": ["A CHAPTER IS EXPORTED", "UC-003"],
+            "keeps": [],
+            "sections": ["Context", "Decision", "Alternatives", "Consequences", "Modules", "Realisation"],
+            "modules": [
+              {
+                "line": 28,
+                "value": {
+                  "id": "MOD-export",
+                  "folder": "src/export/",
+                  "layer": "feature",
+                  "responsibility": "Exports chapters.",
+                  "realises": ["A CHAPTER IS EXPORTED"],
+                  "owns": [],
+                  "uses": []
+                }
+              }
+            ],
+            "interfaces": [
+              {
+                "line": 32,
+                "value": {
+                  "id": "MOD-export.run",
+                  "summary": "Exports a chapter.",
+                  "params": [{ "name": "path", "type": "string" }],
+                  "result": "string",
+                  "async": false,
+                  "refusals": [],
+                  "examples": [{ "name": "one", "input": { "path": "a.md" }, "result": "a.pdf" }]
+                }
+              }
+            ],
+            "types": [],
+            "formats": [],
+            "realisation": [{ "line": 40, "step": "UC-003 1", "interfaces": ["MOD-export.run"], "reason": "" }],
+            "mentions": [{ "line": 8, "name": "ARC-002" }]
+          }
+        ]
+      },
+      "result": []
+    }
+  ]
+}
+```
+
 ## Types
 
 ```json type
@@ -2698,7 +2981,7 @@ flowchart LR
 ```json type
 {
   "$id": "TestAuthor",
-  "description": "The participant that wrote a test, as the job that wrote it recorded.",
+  "description": "The participant that wrote a test, as its counter-proof names it.",
   "type": "object",
   "required": ["test", "participant"],
   "additionalProperties": false,

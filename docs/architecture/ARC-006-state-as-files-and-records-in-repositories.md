@@ -74,6 +74,7 @@ history, authorship and integrity by hash.
    | `docs/process.md`, `docs/settings.md`, `docs/collaborators.md`, `docs/resources.md`, `docs/sources.md`, `docs/tests/schedule.md` | the product's settings |
    | `tests/user/<slug>.md` | user tests: the cases a person carries out (ARC-027) |
    | `docs/tests/counter-proofs/TST-<nnn>.md` | the counter-proofs of new tests (ARC-027) |
+   | `docs/audits/<tag>.md` | the audit of a release, written once on a click (ARC-028) |
    | branch `test-results`, `results/<commit>/<run>.md` | test result records, append-only |
 
    An instance adds `docs/participants.md`, `docs/sources/`, `docs/process-models/` and its own `docs/resources.md`. The
