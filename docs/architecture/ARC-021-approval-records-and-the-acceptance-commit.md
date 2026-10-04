@@ -24,6 +24,8 @@ forced_by:
   - A REQUIREMENT SHOWS ITS HISTORY
   - ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
   - AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
+  - THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+  - A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
   - UC-006
   - UC-008
   - UC-018
@@ -49,7 +51,10 @@ record, and the instance's workflow writes the SPEC.
      `architecture-decision`), `file` and `blob` — the git blob SHA of the text the reviewer saw;
    - for a SPEC change, `spec-<queue folder>-<nn>-<first 12 hex of the proposal's blob>.md` with `kind: spec`, `queue`,
      `entry`, `proposal`, `blob` (of the proposal), `target`, `anchor` and `section` (the blob SHA of the section it
-     replaces, as shown).
+     replaces, as shown);
+   - for a release test report (ARC-027), `v<version>-<first 12 hex of the blob>.md` with `kind: release-report`, `file`
+     and `blob`, and one line `TST-<nnn>: <reason>` for each test the release is accepted with although it failed,
+     flipped or got worse — the limitations of `A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED`.
 2. **Status is derived.** A reviewed file is *accepted* when a record of its kind names its path and its current blob,
    *changed* when records name its path but none its current blob, and *open* otherwise. A SPEC entry is *open*,
    *approved* (a record names its proposal and section as they are), *stale* (records name another proposal or section),
@@ -113,7 +118,7 @@ flowchart LR
   "id": "MOD-review-core",
   "folder": "src/review-core/",
   "layer": "kernel",
-  "responsibility": "Decides from the approval records which text of a reviewed file or a SPEC change is accepted, and computes the files of the one commit that accepts, applies or proposes a change.",
+  "responsibility": "Decides from the approval records which text of a reviewed file — a use case, an architecture decision, a release test report — or a SPEC change is accepted, and computes the files of the one commit that accepts, applies or proposes a change.",
   "realises": [
     "STATUS IS DERIVED FROM THE RECORDS",
     "AN APPROVAL NAMES THE EXACT TEXT",
@@ -133,12 +138,17 @@ flowchart LR
     "A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT",
     "A REQUIREMENT SHOWS ITS HISTORY",
     "ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS",
-    "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST"
+    "AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST",
+    "THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON"
   ],
   "owns": [
     "FileRecord",
     "SpecRecord",
+    "Limitation",
+    "ReleaseRecord",
     "ApprovalRecord",
+    "ReleaseRecordLines",
+    "ApprovalRecordLines",
     "RecordAt",
     "NamedRecord",
     "NamedSpecRecord",
@@ -199,7 +209,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-review-core.recordText",
-  "summary": "The text of an approval record: its keys in their fixed order, one `key: value` line each.",
+  "summary": "The text of an approval record: its keys in their fixed order, one `key: value` line each, and for a release test report one `TST-<nnn>: <reason>` line per limitation it was accepted with, by test.",
   "params": [{ "name": "record", "type": "ApprovalRecord" }],
   "result": "string",
   "async": false,
@@ -215,6 +225,20 @@ flowchart LR
         }
       },
       "result": "kind: use-case\nfile: docs/use-cases/UC-901-accept.md\nblob: b08553c213b3729ef60b402fb1fbf2f90c399977\n"
+    },
+    {
+      "name": "a release test report accepted with a limitation",
+      "input": {
+        "record": {
+          "kind": "release-report",
+          "file": "docs/tests/releases/v2026.3.0.md",
+          "blob": "056d5b1e8ca7938c8f3f9c0560e540eab0a42124",
+          "limitations": [
+            { "test": "TST-015", "reason": "the title is taken from the file name; corrected in the next version" }
+          ]
+        }
+      },
+      "result": "kind: release-report\nfile: docs/tests/releases/v2026.3.0.md\nblob: 056d5b1e8ca7938c8f3f9c0560e540eab0a42124\nTST-015: the title is taken from the file name; corrected in the next version\n"
     }
   ]
 }
@@ -245,6 +269,20 @@ flowchart LR
         "target": "SPEC.md",
         "anchor": "## 0. Rules",
         "section": "3ad31f6fc0a2e73fb51d67b46a26f468938f036a"
+      }
+    },
+    {
+      "name": "a release test report's record",
+      "input": {
+        "text": "kind: release-report\nfile: docs/tests/releases/v2026.3.0.md\nblob: 056d5b1e8ca7938c8f3f9c0560e540eab0a42124\nTST-015: the title is taken from the file name; corrected in the next version\n"
+      },
+      "result": {
+        "kind": "release-report",
+        "file": "docs/tests/releases/v2026.3.0.md",
+        "blob": "056d5b1e8ca7938c8f3f9c0560e540eab0a42124",
+        "limitations": [
+          { "test": "TST-015", "reason": "the title is taken from the file name; corrected in the next version" }
+        ]
       }
     },
     { "name": "a record without file and blob", "input": { "text": "kind: use-case\n" }, "refused": "not-a-record" }
@@ -350,17 +388,21 @@ flowchart LR
   "refusals": [],
   "examples": [
     {
-      "name": "a file's record, an entry's record, a README",
+      "name": "a file's record, a release's record, an entry's record, a README",
       "input": {
         "paths": [
           "docs/approvals/UC-901-b08553c213b3.md",
+          "docs/approvals/v2026.3.0-056d5b1e8ca7.md",
           "docs/approvals/spec-2026-10-03_rules-01-c04f737076d3.md",
           "docs/approvals/README.md",
           "docs/approvals/note.md"
         ]
       },
       "result": {
-        "byId": [{ "id": "UC-901", "path": "docs/approvals/UC-901-b08553c213b3.md", "hex": "b08553c213b3" }],
+        "byId": [
+          { "id": "UC-901", "path": "docs/approvals/UC-901-b08553c213b3.md", "hex": "b08553c213b3" },
+          { "id": "v2026.3.0", "path": "docs/approvals/v2026.3.0-056d5b1e8ca7.md", "hex": "056d5b1e8ca7" }
+        ],
         "spec": [
           {
             "queue": "2026-10-03_rules",
@@ -1340,9 +1382,90 @@ flowchart LR
 
 ```json type
 {
+  "$id": "Limitation",
+  "description": "A test that failed or flipped on a release candidate, or whose rate is worse than the last release's, and the reason the release was accepted with it.",
+  "type": "object",
+  "required": ["test", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "test": { "type": "string", "pattern": "^TST-[0-9]{3,}$" },
+    "reason": { "type": "string", "minLength": 1 }
+  },
+  "examples": [
+    { "test": "TST-015", "reason": "the title is taken from the file name; corrected in the next version" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseRecord",
+  "description": "The approval record of a release test report: its path, the blob SHA of the report accepted, and the limitations it was accepted with.",
+  "type": "object",
+  "required": ["kind", "file", "blob", "limitations"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "release-report" },
+    "file": { "type": "string", "pattern": "^docs/tests/releases/v[0-9]{4}\\.[0-9]+\\.[0-9]+\\.md$" },
+    "blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "limitations": { "type": "array", "items": { "$ref": "Limitation" } }
+  },
+  "examples": [
+    {
+      "kind": "release-report",
+      "file": "docs/tests/releases/v2026.3.0.md",
+      "blob": "056d5b1e8ca7938c8f3f9c0560e540eab0a42124",
+      "limitations": [
+        { "test": "TST-015", "reason": "the title is taken from the file name; corrected in the next version" }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
   "$id": "ApprovalRecord",
-  "description": "An approval record of either kind.",
-  "anyOf": [{ "$ref": "FileRecord" }, { "$ref": "SpecRecord" }],
+  "description": "An approval record of any kind.",
+  "anyOf": [{ "$ref": "FileRecord" }, { "$ref": "SpecRecord" }, { "$ref": "ReleaseRecord" }],
+  "examples": [
+    {
+      "kind": "use-case",
+      "file": "docs/use-cases/UC-901-accept.md",
+      "blob": "b08553c213b3729ef60b402fb1fbf2f90c399977"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseRecordLines",
+  "description": "What the key-value-lines syntax reads from a release test report's record: its kind, file and blob, and a line per limitation keyed by the test.",
+  "type": "object",
+  "required": ["kind", "file", "blob"],
+  "additionalProperties": { "type": "string", "minLength": 1 },
+  "properties": {
+    "kind": { "const": "release-report" },
+    "file": { "type": "string" },
+    "blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  },
+  "examples": [
+    {
+      "kind": "release-report",
+      "file": "docs/tests/releases/v2026.3.0.md",
+      "blob": "056d5b1e8ca7938c8f3f9c0560e540eab0a42124",
+      "TST-015": "the title is taken from the file name; corrected in the next version"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ApprovalRecordLines",
+  "description": "What the key-value-lines syntax reads from an approval record of any kind.",
+  "anyOf": [{ "$ref": "FileRecord" }, { "$ref": "SpecRecord" }, { "$ref": "ReleaseRecordLines" }],
   "examples": [
     {
       "kind": "use-case",
@@ -2063,10 +2186,11 @@ flowchart LR
   "description": "An approval record, written once by the accepting person's commit.",
   "path": "docs/approvals/{name}.md",
   "syntax": "key-value-lines",
-  "content": "ApprovalRecord",
+  "content": "ApprovalRecordLines",
   "examples": [
     "kind: use-case\nfile: docs/use-cases/UC-901-accept.md\nblob: b08553c213b3729ef60b402fb1fbf2f90c399977\n",
-    "kind: spec\nqueue: docs/spec-freigaben/2026-10-03_rules\nentry: 01\nproposal: docs/spec-freigaben/2026-10-03_rules/01-rules.md\nblob: c04f737076d3d7544f831c2fb9c13238951f4b99\ntarget: SPEC.md\nanchor: ## 0. Rules\nsection: 3ad31f6fc0a2e73fb51d67b46a26f468938f036a\n"
+    "kind: spec\nqueue: docs/spec-freigaben/2026-10-03_rules\nentry: 01\nproposal: docs/spec-freigaben/2026-10-03_rules/01-rules.md\nblob: c04f737076d3d7544f831c2fb9c13238951f4b99\ntarget: SPEC.md\nanchor: ## 0. Rules\nsection: 3ad31f6fc0a2e73fb51d67b46a26f468938f036a\n",
+    "kind: release-report\nfile: docs/tests/releases/v2026.3.0.md\nblob: 056d5b1e8ca7938c8f3f9c0560e540eab0a42124\nTST-015: the title is taken from the file name; corrected in the next version\n"
   ]
 }
 ```

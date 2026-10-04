@@ -1,6 +1,6 @@
 ---
 id: ARC-027
-title: A test declares each case in the comment above it, and what the tests showed is kept as records — a counter-proof beside each new test, a result record of each run on the branch test-results; one feature reads both and computes the outcomes of a commit, a test's history and what changed between releases
+title: A test declares each case in the comment above it, and what the tests showed is kept as records — a counter-proof beside each new test, a result record of each run on the branch test-results; one feature reads both, computes the outcomes of a commit, a test's history and what changed between releases, and plans the release that rests on them
 forced_by:
   - EVERY TEST HAS ONE LEVEL
   - A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
@@ -14,6 +14,15 @@ forced_by:
   - A RECORD IS EVIDENCE, NOT A PROPOSAL
   - EVERY ARTIFACT HAS AN IDENTIFIER
   - EVERY ARTIFACT NAMES ITS ORIGIN
+  - CALENDAR VERSIONS
+  - EVERY PRODUCT HAS ITS OWN VERSION LINE
+  - A RELEASE IS TAGGED AND LOGGED
+  - A VERSION IS NOT REWRITTEN
+  - A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+  - THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+  - ACCEPTING THE RELEASE TEST REPORT RELEASES
+  - A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
+  - UC-013
   - UC-026
   - UC-028
   - UC-029
@@ -31,7 +40,9 @@ levels, the participant, the date and each test's outcome (`EVERY TEST RUN LEAVE
 `test-results` of the product repository, which only grows (ARC-006). The pages of UC-028, UC-029 and UC-030 show a
 commit's outcomes — failed apart from flaky, model-dependent tests as rates against the last release —, a test's
 history, and what changed between two releases; UC-026 checks a generated battery without a model. A runner reports in
-JUnit XML, the format the CI step reads (ARC-015 decision 4).
+JUnit XML, the format the CI step reads (ARC-015 decision 4). A release (UC-013) rests on that evidence: it is tagged
+only after every test ran on its candidate, and only once a person accepted the report of that run, with the reason of
+every test that did not pass.
 
 ## Decision
 
@@ -106,6 +117,20 @@ JUnit XML, the format the CI step reads (ARC-015 decision 4).
    removed, changed in what they guard or expect, and changed in outcome; a new test's identifier
    (`MOD-test-records.nextTestId`) is one above the highest ever given, those only the version history holds included.
 
+9. **The release** is planned here and written by the page that offers it (UC-013). The next version
+   (`MOD-test-records.nextVersion`) follows the product's own tags (`MOD-git-host.releaseTags`); a candidate gets the
+   tag `vYYYY.MINOR.PATCH-rc.N` (`MOD-test-records.candidateTag`), counted on from the version's candidates so far
+   (`MOD-git-host.candidateTags`), which the page sets on the head of the default branch (`MOD-git-host.createTag`); the
+   candidate runs every test at every level (ARC-015). The release test report (`MOD-test-records.releaseReport`),
+   `docs/tests/releases/v<version>.md`, is refused while a test has not run on the candidate; it names the tests that
+   failed, flipped or got worse first, and a rate with its 95 % interval (`MOD-test-records.rateInterval`) beside the
+   last release's. Its acceptance is one commit (`MOD-test-records.planRelease`): the report as shown, its approval
+   record (ARC-021) with the reason of each such test, and the changelog's dated entry with the release's known
+   limitations; refused for a report that changed since it was shown and for a test whose reason is missing. After the
+   commit the page sets the tag `vYYYY.MINOR.PATCH` on the candidate's commit — the one that was tested — through
+   `MOD-git-host.createTag`, which never moves a tag; a tag that failed after the commit is set again from the accepted
+   report, which names that commit. A report is read back for the audit (`MOD-test-records.parseReleaseReport`).
+
 ```mermaid
 flowchart LR
     T["test files<br/>(cases declared)"]
@@ -145,12 +170,9 @@ flowchart LR
   (`COMMIT TESTS CALL NO PAID SERVICE`).
 - Who wrote a test and who implemented what it guards are read from the job records (ARC-010); the cases new in a change
   are those its base commit does not declare.
-- The release of UC-013 is this module's as well, as ARC-017 says: the next version of the product's own line, the
-  release test report of the candidate's commit — refused while a test has not run on it —, its acceptance with every
-  failing test's and every worse rate's reason recorded, the changelog entry and the tag on the tested commit. It is
-  designed in the next change of this decision, with the record of that acceptance (ARC-021), the tag the git host sets
-  (ARC-004) and ARC-017 rewritten. The earlier module file of `MOD-test-records` leaves the working tree: this decision
-  is where the module is designed (ARC-020 decision 3).
+- The page that offers the release, starts its candidate's run and accepts its report is designed with the tests pages;
+  so are the steps of UC-013 it carries. A release whose run is red is accepted only with every reason given; the
+  reasons stand in the approval record and in the changelog, and the audit (UC-030) reads them there.
 - Agent M's own tests are a product's tests: a test file whose cases carry their identifiers only in the names of the
   tests gives the finding that no case carries one, until its cases are declared.
 - No step of UC-026, UC-028, UC-029 or UC-030 is realised here: each needs a page or a job not designed yet — the tests
@@ -166,10 +188,10 @@ flowchart LR
   "id": "MOD-test-records",
   "folder": "src/test-records/",
   "layer": "feature",
-  "responsibility": "Reads and writes a product's tests as artifacts and the evidence of what they showed: the cases a test file declares, the checks a battery passes without a model, the counter-proof of a new test, the result record of a run, the outcomes a runner's JUnit report gives, the outcomes of a commit with flaky tests apart and model-dependent tests as rates, a test's history, what changed between two releases, and the identifier a new test gets; it reads nothing itself.",
-  "realises": ["EVERY TEST HAS ONE LEVEL", "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS", "A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT", "A MODEL-DEPENDENT TEST IS MEASURED AS A RATE", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER", "A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY", "EVERY ARTIFACT HAS AN IDENTIFIER", "EVERY ARTIFACT NAMES ITS ORIGIN"],
-  "owns": ["TestCase", "TestFile", "TestAuthor", "Implementer", "CounterProofInput", "CounterProof", "BatteryInput", "TestOutcome", "ResultRun", "ResultRecord", "JUnitRead", "PreviousRate", "CommitInput", "RunRate", "RunRateOrNone", "Evidence", "RunNote", "TestRow", "LevelRow", "CommitOutcomes", "CommitRef", "HistoryMark", "OutcomeOf", "ReleaseSide", "OutcomeChange", "ReleaseComparison", "ResultRecordContent", "CounterProofContent", "ResultRecordFile", "CounterProofFile"],
-  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-traceability"]
+  "responsibility": "Reads and writes a product's tests as artifacts and the evidence of what they showed, and plans its releases on them: the cases a test file declares, the checks a battery passes without a model, the counter-proof of a new test, the result record of a run, the outcomes a runner's JUnit report gives, the outcomes of a commit with flaky tests apart and model-dependent tests as rates, a test's history, what changed between two releases, the identifier a new test gets, the next version and candidate, the release test report, and the one commit and tag that accept it; it reads nothing itself.",
+  "realises": ["EVERY TEST HAS ONE LEVEL", "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS", "A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT", "A MODEL-DEPENDENT TEST IS MEASURED AS A RATE", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER", "A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY", "EVERY ARTIFACT HAS AN IDENTIFIER", "EVERY ARTIFACT NAMES ITS ORIGIN", "CALENDAR VERSIONS", "EVERY PRODUCT HAS ITS OWN VERSION LINE", "A RELEASE IS TAGGED AND LOGGED", "A RELEASE RUNS EVERY TEST AT EVERY LEVEL", "ACCEPTING THE RELEASE TEST REPORT RELEASES", "A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED"],
+  "owns": ["TestCase", "TestFile", "TestAuthor", "Implementer", "CounterProofInput", "CounterProof", "BatteryInput", "TestOutcome", "ResultRun", "ResultRecord", "JUnitRead", "PreviousRate", "CommitInput", "RunRate", "RunRateOrNone", "Evidence", "RunNote", "TestRow", "LevelRow", "CommitOutcomes", "CommitRef", "HistoryMark", "OutcomeOf", "ReleaseSide", "OutcomeChange", "ReleaseComparison", "Interval", "Candidate", "ReleaseInput", "ReleaseReportRow", "ReleaseReport", "ReleaseAcceptance", "ReleaseTag", "ReleasePlan", "ReleaseReportContent", "ResultRecordContent", "CounterProofContent", "ResultRecordFile", "ReleaseTestReportFile", "ChangelogFile", "CounterProofFile"],
+  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-traceability", "MOD-review-core"]
 }
 ```
 
@@ -1482,6 +1504,1138 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-test-records.nextVersion",
+  "summary": "The next version YYYY.MINOR.PATCH of the product's own line, from its tags and the date: a minor step raises MINOR and sets PATCH to 0, a patch step raises PATCH; a year without a release yet starts at YYYY.1.0, whatever the step.",
+  "params": [
+    { "name": "tags", "type": "string[]" },
+    { "name": "today", "type": "string" },
+    { "name": "step", "type": "string" }
+  ],
+  "result": "string",
+  "async": false,
+  "refusals": [
+    { "code": "unknown-step", "when": "the step is neither minor nor patch" },
+    { "code": "not-a-date", "when": "the date is no YYYY-MM-DD" }
+  ],
+  "examples": [
+    {
+      "name": "a minor step",
+      "input": {
+        "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+        "today": "2026-10-09",
+        "step": "minor"
+      },
+      "result": "2026.3.0"
+    },
+    {
+      "name": "a patch step",
+      "input": {
+        "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+        "today": "2026-10-09",
+        "step": "patch"
+      },
+      "result": "2026.2.2"
+    },
+    {
+      "name": "the first release of a year",
+      "input": {
+        "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+        "today": "2027-01-04",
+        "step": "patch"
+      },
+      "result": "2027.1.0"
+    },
+    {
+      "name": "a major step",
+      "input": {
+        "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+        "today": "2026-10-09",
+        "step": "major"
+      },
+      "refused": "unknown-step"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-test-records.candidateTag",
+  "summary": "The tag of a version's next release candidate, vYYYY.MINOR.PATCH-rc.N, N one above the version's candidates so far; refused once the version is released.",
+  "params": [{ "name": "tags", "type": "string[]" }, { "name": "version", "type": "string" }],
+  "result": "string",
+  "async": false,
+  "refusals": [
+    { "code": "not-a-version", "when": "the version is no YYYY.MINOR.PATCH" },
+    { "code": "released", "when": "the tag of the version is set" }
+  ],
+  "examples": [
+    {
+      "name": "a third candidate",
+      "input": {
+        "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+        "version": "2026.3.0"
+      },
+      "result": "v2026.3.0-rc.3"
+    },
+    {
+      "name": "a released version",
+      "input": {
+        "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+        "version": "2026.2.1"
+      },
+      "refused": "released"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-test-records.rateInterval",
+  "summary": "The 95 % Wilson score interval of a rate, in whole percent — the lower bound rounded down, the upper one up —, with which a model-dependent test's rate is shown beside the last release's.",
+  "params": [{ "name": "runs", "type": "integer" }, { "name": "passed", "type": "integer" }],
+  "result": "Interval",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    { "name": "17 of 20", "input": { "runs": 20, "passed": 17 }, "result": { "low": 63, "high": 95 } },
+    { "name": "no run", "input": { "runs": 0, "passed": 0 }, "result": { "low": 0, "high": 100 } }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-test-records.releaseReport",
+  "summary": "The report of a release candidate's complete run and where it lies, docs/tests/releases/v<version>.md: front matter naming the version, the candidate's tag and its commit; the tests that failed, flipped or got worse first; then every test with its level, its outcome — a rate with the last release's and its interval — and what it guards. Refused while a test has not run on the candidate.",
+  "params": [{ "name": "input", "type": "ReleaseInput" }],
+  "result": "FileText",
+  "async": false,
+  "refusals": [{ "code": "not-run", "when": "a test has no outcome on the candidate's commit, or was skipped there" }],
+  "examples": [
+    {
+      "name": "a candidate with a failure and a worse rate",
+      "input": {
+        "input": {
+          "version": "2026.3.0",
+          "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 1,
+                "failed": 1,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          }
+        }
+      },
+      "result": { "path": "docs/tests/releases/v2026.3.0.md", "text": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n" }
+    },
+    {
+      "name": "a release test that has not run",
+      "input": {
+        "input": {
+          "version": "2026.3.0",
+          "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4711-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T08:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4711", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4711-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T08:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4711", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4711-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T08:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4711", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 1,
+                "failed": 1,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [],
+                "tests": 1,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 1
+              },
+              {
+                "level": "user",
+                "runs": [],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4711-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T08:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4711", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4711-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T08:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4711", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4711-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T08:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4711", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "not-run",
+                "runs": 0,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": []
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          }
+        }
+      },
+      "refused": "not-run"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-test-records.parseReleaseReport",
+  "summary": "A release test report as its file holds it: the version, the candidate's tag and commit, and every test as the report shows it.",
+  "params": [{ "name": "path", "type": "string" }, { "name": "text", "type": "string" }],
+  "result": "ReleaseReport",
+  "async": false,
+  "refusals": [
+    { "code": "not-a-report", "when": "the path is not docs/tests/releases/v<version>.md, or the front matter names another version, no candidate tag or no 40-hex commit" }
+  ],
+  "examples": [
+    {
+      "name": "the report of 2026.3.0",
+      "input": { "path": "docs/tests/releases/v2026.3.0.md", "text": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n" },
+      "result": {
+        "path": "docs/tests/releases/v2026.3.0.md",
+        "version": "2026.3.0",
+        "candidate": "v2026.3.0-rc.2",
+        "commit": "c100000000000000000000000000000000000000",
+        "tests": [
+          { "test": "TST-014", "level": "system", "outcome": "passed", "guards": ["A CHAPTER IS EXPORTED", "UC-003"] },
+          { "test": "TST-015", "level": "system", "outcome": "failed", "guards": ["A CHAPTER IS EXPORTED", "UC-003"] },
+          {
+            "test": "TST-016",
+            "level": "system",
+            "outcome": "17 of 20 (last release 18 of 20), 63–95 %",
+            "guards": ["A CHAPTER IS EXPORTED", "UC-003"]
+          },
+          { "test": "TST-021", "level": "release", "outcome": "passed", "guards": ["A CHAPTER IS EXPORTED"] }
+        ]
+      }
+    },
+    {
+      "name": "a report named after another version",
+      "input": { "path": "docs/tests/releases/v2026.3.1.md", "text": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n" },
+      "refused": "not-a-report"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-test-records.planRelease",
+  "summary": "The one commit that accepts a release test report and releases, and the tag it sets: the report as shown, its approval record with the reason of every test that failed, flipped or got worse, and the changelog with the dated entry and the release's known limitations; the tag vYYYY.MINOR.PATCH on the candidate's commit — the one that was tested. Refused for a version already released, a report that changed since it was shown, a test that has not run, and a test that needs a reason and has none.",
+  "params": [{ "name": "input", "type": "ReleaseAcceptance" }],
+  "result": "ReleasePlan",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-version", "when": "the version is no YYYY.MINOR.PATCH" },
+    { "code": "released", "when": "the tag of the version is set" },
+    { "code": "not-a-date", "when": "the date is no YYYY-MM-DD" },
+    { "code": "not-run", "when": "a test has not run on the candidate's commit" },
+    { "code": "stale-report", "when": "the report the outcomes give differs from the one shown" },
+    { "code": "limitation-missing", "when": "a test failed, flipped or got worse and its reason is missing" }
+  ],
+  "examples": [
+    {
+      "name": "accepted with two known limitations",
+      "input": {
+        "input": {
+          "version": "2026.3.0",
+          "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+          "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 1,
+                "failed": 1,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "report": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n",
+          "limitations": [
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+            { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+          ],
+          "changelog": "# Changelog\n\n## v2026.2.1 — 2026-09-28\n\nAn exported PDF keeps its bookmarks.\n",
+          "entry": "A chapter keeps its figures in the PDF.",
+          "today": "2026-10-09"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/tests/releases/v2026.3.0.md", "text": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n" },
+          { "path": "docs/approvals/v2026.3.0-70c226e02328.md", "text": "kind: release-report\nfile: docs/tests/releases/v2026.3.0.md\nblob: 70c226e02328cedc4fdfc04435c7fdcb3b284eb4\nTST-015: the PDF's title is taken from the file name; corrected in 2026.3.1\nTST-016: 17 of 20 lies within the interval of the last release's 18 of 20\n" },
+          { "path": "CHANGELOG.md", "text": "# Changelog\n\n## v2026.3.0 — 2026-10-09\n\nA chapter keeps its figures in the PDF.\n\nKnown limitations:\n\n- TST-015: the PDF's title is taken from the file name; corrected in 2026.3.1\n- TST-016: 17 of 20 lies within the interval of the last release's 18 of 20\n\n## v2026.2.1 — 2026-09-28\n\nAn exported PDF keeps its bookmarks.\n" }
+        ],
+        "message": "release v2026.3.0: the release test report accepted, with 2 known limitations",
+        "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" }
+      }
+    },
+    {
+      "name": "a failing test without its reason",
+      "input": {
+        "input": {
+          "version": "2026.3.0",
+          "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+          "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 1,
+                "failed": 1,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "report": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n",
+          "limitations": [
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" }
+          ],
+          "changelog": "# Changelog\n\n## v2026.2.1 — 2026-09-28\n\nAn exported PDF keeps its bookmarks.\n",
+          "entry": "A chapter keeps its figures in the PDF.",
+          "today": "2026-10-09"
+        }
+      },
+      "refused": "limitation-missing"
+    },
+    {
+      "name": "a run recorded since the report was shown",
+      "input": {
+        "input": {
+          "version": "2026.3.0",
+          "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+          "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 1,
+                "failed": 1,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "report": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | flaky | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n",
+          "limitations": [
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+            { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+          ],
+          "changelog": "# Changelog\n\n## v2026.2.1 — 2026-09-28\n\nAn exported PDF keeps its bookmarks.\n",
+          "entry": "A chapter keeps its figures in the PDF.",
+          "today": "2026-10-09"
+        }
+      },
+      "refused": "stale-report"
+    },
+    {
+      "name": "a version released before",
+      "input": {
+        "input": {
+          "version": "2026.2.1",
+          "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+          "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+          "outcomes": {
+            "commit": "c100000000000000000000000000000000000000",
+            "levels": [
+              {
+                "level": "unit",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "component",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "system",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 3,
+                "passed": 1,
+                "failed": 1,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 1,
+                "worse": 1,
+                "notRun": 0
+              },
+              {
+                "level": "release",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 1,
+                "passed": 1,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              },
+              {
+                "level": "user",
+                "runs": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "note": "" }
+                ],
+                "tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "flaky": 0,
+                "skipped": 0,
+                "rates": 0,
+                "worse": 0,
+                "notRun": 0
+              }
+            ],
+            "tests": [
+              {
+                "test": "TST-014",
+                "title": "the PDF keeps the figures",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF holds both figures",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-015",
+                "title": "the PDF names the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the PDF's title is Methods",
+                "fixed": 0,
+                "outcome": "failed",
+                "runs": 1,
+                "passed": 0,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "failed", "runs": 1, "passed": 0, "note": "expected \"Methods\", got \"chapter-2\"", "excerpt": "AssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3" }
+                ]
+              },
+              {
+                "test": "TST-016",
+                "title": "the summary of an export reads as the chapter",
+                "level": "system",
+                "guards": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "then": "the summary names the chapter's three findings",
+                "fixed": 20,
+                "outcome": "rate",
+                "runs": 20,
+                "passed": 17,
+                "previous": { "runs": 20, "passed": 18 },
+                "worse": true,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "rate", "runs": 20, "passed": 17, "note": "the summary names two findings", "excerpt": "" }
+                ]
+              },
+              {
+                "test": "TST-021",
+                "title": "an accepted chapter can be exported",
+                "level": "release",
+                "guards": ["A CHAPTER IS EXPORTED"],
+                "then": "a PDF arrives",
+                "fixed": 0,
+                "outcome": "passed",
+                "runs": 1,
+                "passed": 1,
+                "previous": null,
+                "worse": false,
+                "evidence": [
+                  { "record": "results/c100000000000000000000000000000000000000/gh-4730-1.md", "participant": "GitHub Actions, runner ubuntu-latest", "at": "2026-10-09T11:00:00Z", "log": "https://github.com/alice/thesis/actions/runs/4730", "outcome": "passed", "runs": 1, "passed": 1, "note": "", "excerpt": "" }
+                ]
+              }
+            ],
+            "uncounted": [],
+            "undeclared": []
+          },
+          "report": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n",
+          "limitations": [
+            { "test": "TST-015", "reason": "the PDF's title is taken from the file name; corrected in 2026.3.1" },
+            { "test": "TST-016", "reason": "17 of 20 lies within the interval of the last release's 18 of 20" }
+          ],
+          "changelog": "# Changelog\n\n## v2026.2.1 — 2026-09-28\n\nAn exported PDF keeps its bookmarks.\n",
+          "entry": "A chapter keeps its figures in the PDF.",
+          "today": "2026-10-09"
+        }
+      },
+      "refused": "released"
+    }
+  ]
+}
+```
+
 ## Types
 
 ```json type
@@ -2173,6 +3327,216 @@ flowchart LR
 
 ```json type
 {
+  "$id": "Interval",
+  "description": "A rate's interval in whole percent.",
+  "type": "object",
+  "required": ["low", "high"],
+  "additionalProperties": false,
+  "properties": {
+    "low": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "high": { "type": "integer", "minimum": 0, "maximum": 100 }
+  },
+  "examples": [{ "low": 63, "high": 95 }]
+}
+```
+
+```json type
+{
+  "$id": "Candidate",
+  "description": "A release candidate: its tag and the commit it names.",
+  "type": "object",
+  "required": ["tag", "commit"],
+  "additionalProperties": false,
+  "properties": {
+    "tag": { "type": "string", "pattern": "^v[0-9]{4}\\.[0-9]+\\.[0-9]+-rc\\.[0-9]+$" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  },
+  "examples": [{ "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" }]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseInput",
+  "description": "What a release test report is composed of: the version, the candidate, and the outcomes of the candidate's commit.",
+  "type": "object",
+  "required": ["version", "candidate", "outcomes"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string", "pattern": "^[0-9]{4}\\.[0-9]+\\.[0-9]+$" },
+    "candidate": { "$ref": "Candidate" },
+    "outcomes": { "$ref": "CommitOutcomes" }
+  },
+  "examples": [
+    {
+      "version": "2026.3.0",
+      "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+      "outcomes": {
+        "commit": "c100000000000000000000000000000000000000",
+        "levels": [],
+        "tests": [],
+        "uncounted": [],
+        "undeclared": []
+      }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseReportRow",
+  "description": "A test as a release test report shows it: its level, its outcome or rate, and what it guards.",
+  "type": "object",
+  "required": ["test", "level", "outcome", "guards"],
+  "additionalProperties": false,
+  "properties": {
+    "test": { "type": "string" },
+    "level": { "type": "string" },
+    "outcome": { "type": "string" },
+    "guards": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    { "test": "TST-014", "level": "system", "outcome": "passed", "guards": ["A CHAPTER IS EXPORTED", "UC-003"] }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseReport",
+  "description": "A release test report as read, with its path.",
+  "type": "object",
+  "required": ["path", "version", "candidate", "commit", "tests"],
+  "additionalProperties": false,
+  "properties": {
+    "path": { "type": "string" },
+    "version": { "type": "string" },
+    "candidate": { "type": "string" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "tests": { "type": "array", "items": { "$ref": "ReleaseReportRow" } }
+  },
+  "examples": [
+    {
+      "path": "docs/tests/releases/v2026.3.0.md",
+      "version": "2026.3.0",
+      "candidate": "v2026.3.0-rc.2",
+      "commit": "c100000000000000000000000000000000000000",
+      "tests": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseAcceptance",
+  "description": "What a release's acceptance is planned on: the version, the candidate, the product's tags, the outcomes of the candidate's commit, the report as shown, the reasons given for tests that failed, flipped or got worse, the changelog's text — empty where there is none —, the entry the author wrote, and the date.",
+  "type": "object",
+  "required": ["version", "candidate", "tags", "outcomes", "report", "limitations", "changelog", "entry", "today"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "candidate": { "$ref": "Candidate" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "outcomes": { "$ref": "CommitOutcomes" },
+    "report": { "type": "string" },
+    "limitations": { "type": "array", "items": { "$ref": "Limitation" } },
+    "changelog": { "type": "string" },
+    "entry": { "type": "string", "minLength": 1 },
+    "today": { "type": "string" }
+  },
+  "examples": [
+    {
+      "version": "2026.3.0",
+      "candidate": { "tag": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+      "tags": ["v2025.4.0", "v2026.1.0", "v2026.2.0", "v2026.2.1", "v2026.3.0-rc.1", "v2026.3.0-rc.2"],
+      "outcomes": {
+        "commit": "c100000000000000000000000000000000000000",
+        "levels": [],
+        "tests": [],
+        "uncounted": [],
+        "undeclared": []
+      },
+      "report": "",
+      "limitations": [],
+      "changelog": "",
+      "entry": "A chapter keeps its figures in the PDF.",
+      "today": "2026-10-09"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseTag",
+  "description": "The tag a release sets, and the commit it names.",
+  "type": "object",
+  "required": ["name", "commit"],
+  "additionalProperties": false,
+  "properties": { "name": { "type": "string" }, "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" } },
+  "examples": [{ "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" }]
+}
+```
+
+```json type
+{
+  "$id": "ReleasePlan",
+  "description": "The files of the one commit that accepts a release test report, its message, and the tag it sets after.",
+  "type": "object",
+  "required": ["files", "message", "tag"],
+  "additionalProperties": false,
+  "properties": {
+    "files": { "type": "array", "items": { "$ref": "FileText" } },
+    "message": { "type": "string" },
+    "tag": { "$ref": "ReleaseTag" }
+  },
+  "examples": [
+    {
+      "files": [
+        { "path": "docs/tests/releases/v2026.3.0.md", "text": "---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n" },
+        { "path": "docs/approvals/v2026.3.0-70c226e02328.md", "text": "kind: release-report\nfile: docs/tests/releases/v2026.3.0.md\nblob: 70c226e02328cedc4fdfc04435c7fdcb3b284eb4\nTST-015: the PDF's title is taken from the file name; corrected in 2026.3.1\nTST-016: 17 of 20 lies within the interval of the last release's 18 of 20\n" },
+        { "path": "CHANGELOG.md", "text": "# Changelog\n\n## v2026.3.0 — 2026-10-09\n\nA chapter keeps its figures in the PDF.\n\nKnown limitations:\n\n- TST-015: the PDF's title is taken from the file name; corrected in 2026.3.1\n- TST-016: 17 of 20 lies within the interval of the last release's 18 of 20\n\n## v2026.2.1 — 2026-09-28\n\nAn exported PDF keeps its bookmarks.\n" }
+      ],
+      "message": "release v2026.3.0: the release test report accepted, with 2 known limitations",
+      "tag": { "name": "v2026.3.0", "commit": "c100000000000000000000000000000000000000" }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseReportContent",
+  "description": "What the markdown-front-matter syntax reads from a release test report.",
+  "type": "object",
+  "required": ["fields", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "fields": {
+      "type": "object",
+      "required": ["version", "candidate", "commit"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]{4}\\.[0-9]+\\.[0-9]+$" },
+        "candidate": { "type": "string" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "body": { "type": "string" }
+  },
+  "examples": [
+    {
+      "fields": { "version": "2026.3.0", "candidate": "v2026.3.0-rc.2", "commit": "c100000000000000000000000000000000000000" },
+      "body": "\n# Release test report v2026.3.0\n"
+    }
+  ]
+}
+```
+
+```json type
+{
   "$id": "ResultRecordContent",
   "description": "What the markdown-front-matter syntax reads from a result record.",
   "type": "object",
@@ -2259,6 +3623,28 @@ flowchart LR
   "syntax": "markdown-front-matter",
   "content": "ResultRecordContent",
   "examples": ["---\ncommit: c100000000000000000000000000000000000000\nlevels:\n  - system\noccasion: on demand\nparticipant: GitHub Actions, runner ubuntu-latest\nlog: https://github.com/alice/thesis/actions/runs/4712\nat: 2026-10-09T09:30:00Z\nuncommitted: no\noutcome: failed\n---\n\n# Run gh-4712-1\n\n| Test | Level | Outcome | Runs | Passed | Note |\n|---|---|---|---|---|---|\n| TST-014 | system | failed | 1 | 0 | the second figure is missing |\n\n## TST-014\n\n~~~text\nAssertionError: expected 2 figures, got 1\n    at tests/export.test.mjs:12:3\n~~~\n", "---\ncommit: c200000000000000000000000000000000000000\nlevels:\n  - system\noccasion: nightly\nparticipant: GitHub Actions, runner ubuntu-latest\nlog: https://github.com/alice/thesis/actions/runs/4720\nat: 2026-10-10T02:00:00Z\nuncommitted: no\noutcome: not-run\nnote: the secret AGENT_M_HUB_KEY is missing\n---\n\n# Run gh-4720-1\n\n| Test | Level | Outcome | Runs | Passed | Note |\n|---|---|---|---|---|---|\n"]
+}
+```
+
+```json format
+{
+  "$id": "ReleaseTestReportFile",
+  "description": "The report of a release candidate's complete run; accepted by an approval record naming its blob (ARC-021).",
+  "path": "docs/tests/releases/v{version}.md",
+  "syntax": "markdown-front-matter",
+  "content": "ReleaseReportContent",
+  "examples": ["---\nversion: 2026.3.0\ncandidate: v2026.3.0-rc.2\ncommit: c100000000000000000000000000000000000000\n---\n\n# Release test report v2026.3.0\n\nEvery test ran on v2026.3.0-rc.2, commit c100000000000000000000000000000000000000.\n\n## Failed, flaky or worse\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n\n## Every test\n\n| Test | Level | Outcome | Guards |\n|---|---|---|---|\n| TST-014 | system | passed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-015 | system | failed | A CHAPTER IS EXPORTED; UC-003 |\n| TST-016 | system | 17 of 20 (last release 18 of 20), 63–95 % | A CHAPTER IS EXPORTED; UC-003 |\n| TST-021 | release | passed | A CHAPTER IS EXPORTED |\n"]
+}
+```
+
+```json format
+{
+  "$id": "ChangelogFile",
+  "description": "The product's changelog at the root of its repository: a dated entry per release, newest first, with the release's known limitations.",
+  "path": "CHANGELOG.md",
+  "syntax": "text",
+  "content": "string",
+  "examples": ["# Changelog\n\n## v2026.3.0 — 2026-10-09\n\nA chapter keeps its figures in the PDF.\n\nKnown limitations:\n\n- TST-015: the PDF's title is taken from the file name; corrected in 2026.3.1\n\n## v2026.2.1 — 2026-09-28\n\nAn exported PDF keeps its bookmarks.\n"]
 }
 ```
 

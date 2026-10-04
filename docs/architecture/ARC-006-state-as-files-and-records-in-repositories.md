@@ -522,19 +522,24 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-artifacts.reviewedId",
-  "summary": "The identifier of a reviewed file — a use case or an architecture decision — from its path.",
+  "summary": "The identifier of a reviewed file — a use case, an architecture decision, or a release test report by its version — from its path.",
   "params": [{ "name": "path", "type": "string" }],
   "result": "string",
   "async": false,
   "refusals": [
     {
       "code": "not-a-reviewed-file",
-      "when": "the path is neither docs/use-cases/UC-<nnn>-<slug>.md nor docs/architecture/ARC-<nnn>-<slug>.md"
+      "when": "the path is none of docs/use-cases/UC-<nnn>-<slug>.md, docs/architecture/ARC-<nnn>-<slug>.md and docs/tests/releases/v<version>.md"
     }
   ],
   "examples": [
     { "name": "a use case", "input": { "path": "docs/use-cases/UC-901-accept.md" }, "result": "UC-901" },
     { "name": "a decision", "input": { "path": "docs/architecture/ARC-006-state.md" }, "result": "ARC-006" },
+    {
+      "name": "a release test report",
+      "input": { "path": "docs/tests/releases/v2026.3.0.md" },
+      "result": "v2026.3.0"
+    },
     { "name": "another file", "input": { "path": "docs/notes.md" }, "refused": "not-a-reviewed-file" }
   ]
 }

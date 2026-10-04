@@ -20,12 +20,14 @@ forced_by:
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
   - THE NAME IS THE ID AND IT SURVIVES
+  - A VERSION IS NOT REWRITTEN
   - UC-001
   - UC-006
   - UC-008
   - UC-018
   - UC-024
   - UC-035
+  - UC-013
   - UC-036
   - UC-041
 keeps:
@@ -63,11 +65,15 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    and passes the head to the write; a branch that moved meanwhile refuses the write and nothing is written. A write
    needs an authority of ARC-003; without one, nothing is sent.
 7. **Releases, history and the token's account.** The release tags of a repository are its tags `vYYYY.MINOR.PATCH`,
-   newest version first. What a folder's version history holds — each path, when it first appeared and when it was
-   removed or renamed away — is read from the changes of each commit touching it (`MOD-git-host.pathHistory`): a page
-   learns from one scan per folder when each file entered the repository, and every identifier the history holds, so
-   that one withdrawn from the files is not given again (ARC-024). The account a token acts as is read from the server —
-   on GitLab the user name of the project token's bot —, so that what a person writes is filed under their account.
+   newest version first. The candidates of a version, `vYYYY.MINOR.PATCH-rc.N`, are read apart
+   (`MOD-git-host.candidateTags`). A tag is set on a given commit, on an authority, only where no tag of that name names
+   another commit (`MOD-git-host.createTag`): a tag is never moved (`A VERSION IS NOT REWRITTEN`), and one that names
+   the commit already is left as it is, so that a tag is set again after a failure. What a folder's version history
+   holds — each path, when it first appeared and when it was removed or renamed away — is read from the changes of each
+   commit touching it (`MOD-git-host.pathHistory`): a page learns from one scan per folder when each file entered the
+   repository, and every identifier the history holds, so that one withdrawn from the files is not given again
+   (ARC-024). The account a token acts as is read from the server — on GitLab the user name of the project token's bot
+   —, so that what a person writes is filed under their account.
 8. **The server's own pages.** Without a token, GitHub's new-file page is opened with a record as its prefilled value — at
    most 1 000 characters, so that no reviewed text travels in a URL — and its editor for any other text; a GitLab product
    has no such page and needs its project token. The page of a token, the page of a file and the permissions one token
@@ -81,11 +87,11 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    the inputs as variables. A token that may not start a workflow is refused, and the server's page that starts it by
    hand is given instead (`MOD-git-host.workflowPageUrl`).
 10. **Code enters a default branch only through a pull request with green CI.** `MOD-git-host.writeFiles` refuses to
-   bring any file other than `SPEC.md` or a Markdown file under `docs/` — code, tests, workflows, pages — onto the
-   repository's default branch. `MOD-git-host.mergePullRequest` merges only at the head commit the caller saw, and only
-   when every CI check on it is green and at least one ran; a caller asks for it once the product's Definition of Done
-   holds. Whether the server itself enforces merging only on green is read (`MOD-git-host.branchProtection`), so that a
-   page can say when it does not, and link to where it is set.
+   bring any file other than `SPEC.md`, `CHANGELOG.md` or a Markdown file under `docs/` — code, tests, workflows, pages
+   — onto the repository's default branch. `MOD-git-host.mergePullRequest` merges only at the head commit the caller
+   saw, and only when every CI check on it is green and at least one ran; a caller asks for it once the product's
+   Definition of Done holds. Whether the server itself enforces merging only on green is read
+   (`MOD-git-host.branchProtection`), so that a page can say when it does not, and link to where it is set.
 
 ```mermaid
 flowchart LR
@@ -142,7 +148,8 @@ flowchart LR
     "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK",
     "AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED",
     "A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN",
-    "ONE GITHUB TOKEN SERVES EVERY FEATURE"
+    "ONE GITHUB TOKEN SERVES EVERY FEATURE",
+    "A VERSION IS NOT REWRITTEN"
   ],
   "owns": [
     "Product",
@@ -153,6 +160,7 @@ flowchart LR
     "PathHistory",
     "RepositoryInfo",
     "CommitResult",
+    "TagSet",
     "PullRequest",
     "MergeDone",
     "WorkflowInputs",
@@ -1060,6 +1068,403 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.candidateTags",
+  "summary": "The release candidates of a version, vYYYY.MINOR.PATCH-rc.N, by N: on GitHub the tag references that begin with the name, on GitLab the tags its search finds beginning with it.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "version", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "string[]",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-version", "when": "the version is no YYYY.MINOR.PATCH" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "two candidates on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "version": "2026.3.0",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/matching-refs/tags/v2026.3.0-rc."
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "ref": "refs/tags/v2026.3.0-rc.2",
+                  "object": { "sha": "a100000000000000000000000000000000000000", "type": "commit" }
+                },
+                {
+                  "ref": "refs/tags/v2026.3.0-rc.1",
+                  "object": { "sha": "b200000000000000000000000000000000000000", "type": "commit" }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": ["v2026.3.0-rc.1", "v2026.3.0-rc.2"]
+    },
+    {
+      "name": "none yet on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "version": "2026.3.0",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/tags?search=%5Ev2026.3.0-rc.&per_page=100"
+            },
+            "response": { "status": 200, "body": [] }
+          }
+        ]
+      },
+      "result": []
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.createTag",
+  "summary": "A release tag on a commit, on an authority, only where no tag of that name names another commit — a tag is never moved: the commit is read first, then the tag — one that names this commit already is left as it is, so that a tag is set again after a failure —, and a write the server refuses after both is a tag another set meanwhile.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "name", "type": "string" },
+    { "name": "commit", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "TagSet",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-a-commit", "when": "the commit is no 40-character SHA, or one the server does not know" },
+    { "code": "wrong-token", "when": "a GitHub token is given for a GitLab product" },
+    { "code": "tag-exists", "when": "a tag of that name names another commit, or was set meanwhile" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a release on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "v2026.3.0",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "sha": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/tags/v2026.3.0" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs",
+              "body": { "ref": "refs/tags/v2026.3.0", "sha": "a100000000000000000000000000000000000000" }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "ref": "refs/tags/v2026.3.0",
+                "object": { "sha": "a100000000000000000000000000000000000000" }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "v2026.3.0",
+        "commit": "a100000000000000000000000000000000000000",
+        "url": "https://github.com/alice/thesis/tree/v2026.3.0"
+      }
+    },
+    {
+      "name": "a release candidate on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "name": "v2026.3.0-rc.1",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "glpat-example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "id": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/tags/v2026.3.0-rc.1"
+            },
+            "response": { "status": 404, "body": { "message": "404 Tag Not Found" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/tags",
+              "body": { "tag_name": "v2026.3.0-rc.1", "ref": "a100000000000000000000000000000000000000" }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "name": "v2026.3.0-rc.1",
+                "target": "a100000000000000000000000000000000000000",
+                "commit": { "id": "a100000000000000000000000000000000000000" }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "v2026.3.0-rc.1",
+        "commit": "a100000000000000000000000000000000000000",
+        "url": "https://gitlab.example.org/group/tools/thesis/-/tags/v2026.3.0-rc.1"
+      }
+    },
+    {
+      "name": "the tag exists",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "v2026.2.0",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "sha": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/tags/v2026.2.0" },
+            "response": {
+              "status": 200,
+              "body": {
+                "ref": "refs/tags/v2026.2.0",
+                "object": { "sha": "b200000000000000000000000000000000000000" }
+              }
+            }
+          }
+        ]
+      },
+      "refused": "tag-exists"
+    },
+    {
+      "name": "the tag names this commit already",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "v2026.3.0",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "sha": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/tags/v2026.3.0" },
+            "response": {
+              "status": 200,
+              "body": {
+                "ref": "refs/tags/v2026.3.0",
+                "object": { "sha": "a100000000000000000000000000000000000000" }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "v2026.3.0",
+        "commit": "a100000000000000000000000000000000000000",
+        "url": "https://github.com/alice/thesis/tree/v2026.3.0"
+      }
+    },
+    {
+      "name": "set by another meanwhile",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "v2026.3.0",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "sha": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/tags/v2026.3.0" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs",
+              "body": { "ref": "refs/tags/v2026.3.0", "sha": "a100000000000000000000000000000000000000" }
+            },
+            "response": { "status": 422, "body": { "message": "Reference already exists" } }
+          }
+        ]
+      },
+      "refused": "tag-exists"
+    },
+    {
+      "name": "a commit the server does not know",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "v2026.3.0",
+        "commit": "b200000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/b200000000000000000000000000000000000000"
+            },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "refused": "not-a-commit"
+    },
+    {
+      "name": "no authority",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "v2026.3.0",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "fetch": []
+      },
+      "refused": "no-authority"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.tokenAccount",
   "summary": "The account a token acts as on its server: the GitHub login, or the user name of a GitLab project token's bot.",
   "params": [
@@ -1152,7 +1557,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-git-host.writeFiles",
-  "summary": "One commit of the files given on the head the caller read, on an authority; refused when the branch moved meanwhile, and when a file other than SPEC.md or a Markdown file under docs/ would reach the repository's default branch.",
+  "summary": "One commit of the files given on the head the caller read, on an authority; refused when the branch moved meanwhile, and when a file other than SPEC.md, CHANGELOG.md or a Markdown file under docs/ would reach the repository's default branch.",
   "params": [
     { "name": "product", "type": "Product" },
     { "name": "branch", "type": "string" },
@@ -1172,7 +1577,7 @@ flowchart LR
     { "code": "wrong-token", "when": "a GitHub token is given for a GitLab product" },
     {
       "code": "code-on-default-branch",
-      "when": "a file other than SPEC.md or Markdown under docs/ would reach the default branch"
+      "when": "a file other than SPEC.md, CHANGELOG.md or Markdown under docs/ would reach the default branch"
     },
     { "code": "moved", "when": "the branch moved on after the head the caller read" },
     {
@@ -2868,6 +3273,28 @@ flowchart LR
     "role": { "type": "integer", "minimum": 0 }
   },
   "examples": [{ "visibility": "private", "defaultBranch": "main", "role": 0 }]
+}
+```
+
+```json type
+{
+  "$id": "TagSet",
+  "description": "A tag the adapter set: its name, the commit it names, and its page.",
+  "type": "object",
+  "required": ["name", "commit", "url"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "url": { "type": "string" }
+  },
+  "examples": [
+    {
+      "name": "v2026.3.0",
+      "commit": "a100000000000000000000000000000000000000",
+      "url": "https://github.com/alice/thesis/tree/v2026.3.0"
+    }
+  ]
 }
 ```
 
