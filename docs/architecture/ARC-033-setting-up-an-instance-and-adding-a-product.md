@@ -97,7 +97,8 @@ Facts this decision rests on:
    as the main page does — `https://<owner>.github.io/<repo>/setup.html` is the instance `<owner>/<repo>` —, and its view
    by the fragment: `#get`, the guide, which is also the view without a fragment; `#finish`, the two steps of the key;
    `#add`, the Add view, which adds a product. Each view is opened by its address, `setup.html#get`, `setup.html#finish`
-   and `setup.html#add`; the page holds every text and all HTML of the three, and leads to the main page only by
+   and `setup.html#add`, which the main page links as **Get your own Agent M**, **Set up now** and **+ Add product**
+   (ARC-024 decision 9); the page holds every text and all HTML of the three, and leads to the main page only by
    **Switch to `<product>`** once a product is added (decision 9).
 3. **The guide** (`#get`; `MOD-setup.ownerOf`, `MOD-setup.forkGuide`). It asks for "Your GitHub account, or the
    organisation to fork into" — a name, or its profile address `https://github.com/<name>` — and folds the reason for an
@@ -253,15 +254,10 @@ flowchart LR
   `THE SHARED PAGES ORIGIN IS DISCLOSED`, whose notice Step B shows as the settings page does.
 - A public repository is read by any key, so for a public instance or product the check confirms only reading; the
   first write confirms the rest, and its refusal shows Step A again (decisions 5, 8 and 9).
-- Four steps begin on the main page and need texts of it that `MOD-main-page` does not hold: the link
-  **Get your own Agent M** to `setup.html#get` (UC-014 1); where `MOD-settings-store.readSettings` finds no GitHub key,
-  the notice **Finish setting up your instance** with **Set up now**, opening `setup.html#finish`, and **Import
-  settings** beside it (UC-014 6, 7a); and the overview of an instance without products — no product and no job yet,
-  **+ Add product**, the instance's own documents under `docs/`, the optional bridge (UC-014 9). Every interface they
-  need is designed; they stand once the main page holds those texts.
-- UC-001 1 begins with the author pressing **+ Add product** on the main page, a text and link that ARC-024 does not
-  state; `MOD-setup-page.route`, which opens the Add view, is designed, and the step stands once ARC-024 states the
-  link.
+- The steps that begin on the main page — the link **Get your own Agent M** (UC-014 1), the notice **Finish setting up
+  your instance** with **Set up now** and **Import settings** (UC-014 6, 7a), the overview of an instance without
+  products (UC-014 9) and **+ Add product** (UC-001 1) — stand in this decision's table with the main page's
+  interfaces; their texts are the main page's (ARC-024 decision 9).
 - UC-014 4a needs what no decision designs: the instance's workflow that writes an approved section of its own SPEC
   without a token (UC-006 4c) and the workflow that fetches EU legal texts (UC-004 7) — the two workflows Step 3 turns
   on —, and the review page's words for a SPEC entry that is *approved* but not *applied*
@@ -1980,16 +1976,21 @@ flowchart LR
 
 | Step | Interfaces |
 |---|---|
+| UC-014 1 | MOD-main-page.route, MOD-setup-page.route, MOD-setup.ownerOf |
 | UC-014 2 | MOD-setup.forkGuide |
 | UC-014 3 | MOD-setup.forkGuide |
 | UC-014 4 | MOD-setup.forkGuide |
 | UC-014 5 | MOD-setup.forkGuide |
+| UC-014 6 | MOD-main-page.route, MOD-settings-store.loadEntries, MOD-settings-store.readSettings, MOD-setup-page.route |
 | UC-014 7 | MOD-setup-page.route, MOD-setup.tokenLink, MOD-setup.tokenName, MOD-git-host.requiredPermissions, MOD-setup.repositoryChoice |
 | UC-014 8 | MOD-setup.expiryOf, MOD-setup-page.storeAndCheck, MOD-settings-store.storeGitHubToken, MOD-settings-store.readSettings, MOD-settings-store.tokenFor, MOD-git-host.tokenAccount, MOD-git-host.repositoryInfo, MOD-settings-store.recordTest, MOD-settings-store.saveEntries |
+| UC-014 9 | MOD-main-page.route, MOD-settings-store.loadEntries, MOD-settings-store.readSettings, MOD-process-views.jobsView |
 | UC-014 3a | — GitHub answers the dashboard's address with 404 while Pages is off; nothing of Agent M runs there, and nothing else is affected |
 | UC-014 1a | — the person syncs the fork on GitHub; the instance's repository names no product (decision 11), so the sync meets nothing of theirs |
+| UC-014 7a | MOD-settings-store.secretsHeld, MOD-settings-store.exportSettings, MOD-main-page.route, MOD-settings-store.loadEntries, MOD-settings-store.readSettings, MOD-settings-page.route, MOD-settings-store.importSettings, MOD-settings-store.mergeImport, MOD-settings-store.saveEntries, MOD-setup-page.route, MOD-setup.tokenLink, MOD-setup.tokenName, MOD-git-host.requiredPermissions, MOD-setup.repositoryChoice, MOD-setup.expiryOf, MOD-setup-page.storeAndCheck, MOD-settings-store.storeGitHubToken, MOD-settings-store.readSettings, MOD-settings-store.tokenFor, MOD-git-host.tokenAccount, MOD-git-host.repositoryInfo, MOD-settings-store.recordTest, MOD-settings-store.saveEntries |
 | UC-014 6a | MOD-setup-page.route, MOD-review-page.route, MOD-review-page.open, MOD-settings-store.tokenFor, MOD-review-views.reviewList, MOD-review-page.acceptLink, MOD-git-host.newFileUrl |
 | UC-014 1b | — the person clones the fork, and git keeps every folder under products/ out of it by the instance's .gitignore, except products/README.md, which says so (decision 11) |
+| UC-001 1 | MOD-main-page.route, MOD-settings-store.loadEntries, MOD-settings-store.readSettings, MOD-setup-page.route |
 | UC-001 2 | MOD-setup.addProductPlan, MOD-git-host.parseProductAddress |
 | UC-001 3 | MOD-setup.addProductPlan, MOD-git-host.parseProductAddress, MOD-settings-store.tokenFor, MOD-setup.repositoryChoice, MOD-git-host.tokenPageUrl, MOD-setup.tokenName |
 | UC-001 3.1 | MOD-setup.addProductPlan, MOD-setup.tokenName |

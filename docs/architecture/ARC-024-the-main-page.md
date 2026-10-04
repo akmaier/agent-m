@@ -28,7 +28,9 @@ forced_by:
   - A RUN ENDS WITH THE VALIDATION OF ITS MODULES
   - THE TRACEABILITY MATRIX IS DERIVED
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - UC-001
   - UC-007
+  - UC-014
   - UC-032
   - UC-034
   - UC-035
@@ -43,7 +45,9 @@ forced_by:
 The page at the root of the instance's Pages site (ARC-001) shows what goes on in the instance: each product's backlog
 and progress in the measure of its process model, the gates passed and pending, what is blocked, who works on what,
 every job of every product, the panel of a run before it starts, and the review of a sprint's increment (UC-032, UC-034,
-UC-035, UC-036, UC-041, UC-043). Documents are reviewed on the other page, under `docs/` (ARC-022).
+UC-035, UC-036, UC-041, UC-043). Documents are reviewed on the other page, under `docs/` (ARC-022). It is also where a
+person starts to get their own Agent M, finishes setting up an instance in a browser that keeps no key yet, and adds a
+product — on the setup page of ARC-033, which the main page links (UC-014, UC-001).
 
 The rules the page applies are designed elsewhere and are pure: the process model, the workflow and the gate records in
 ARC-019, the backlog, sprints, item states and progress in ARC-023, the job records, job states and the plan of a run in
@@ -129,6 +133,17 @@ together: what it reads of a product, what it computes for each view, and what i
    green (ARC-004 decision 10); until then the page names the checks it waits for.
 8. **Texts in the shell.** Every sentence the page shows — labels, states in words, the folded *What is this?* of every
    chart, panel and state, the notices before a write — is written by `MOD-main-page`; the views return data (ARC-003).
+9. **Getting set up, and adding products** (ARC-033). The page's header links `setup.html#get` as
+   **Get your own Agent M**. Where this browser keeps no GitHub key (`MOD-settings-store.readSettings`), the overview
+   opens with the notice **Finish setting up your instance** — "This browser keeps no key for `<owner>/<repo>` yet." —
+   with **Set up now**, which opens `setup.html#finish`, and **Import settings** beside it, which opens the settings
+   page, whose browser section imports an export (ARC-026 decision 7). The product selector lists the products this
+   browser keeps, each opening its progress, and ends with **+ Add product**, which opens `setup.html#add`. An instance
+   without products shows on its overview "Your instance is ready: no product and no job yet." with **+ Add product**;
+   "Its own specification, use cases and architecture are reviewed under docs/." with the link to the review page; and
+   "Nothing needs installing. The Agent M Bridge — for local agents, IMAP mail and machines on your own network — is
+   optional." with the link to the settings page, whose bridge line offers *Get the Agent M Bridge* (ARC-026
+   decision 5).
 
 ```mermaid
 flowchart LR
@@ -180,7 +195,9 @@ flowchart LR
   input. Removing an item (UC-032 1a) waits for a write path that removes files; the difference of a gate passed on an
   earlier text (UC-035 3a) for a comparison of two commits; a sprint's numbers, its close record and the failing tests
   of a red merge (UC-041 4, 5, 6, 3a, 5a, 5b, 6a, 7a) for the test records.
-- The overview's state when the instance has no product yet (UC-014 9) is realised with the instance's set-up.
+- The steps that begin on this page and continue on the setup page — getting one's own Agent M, finishing the setup of a
+  browser, the overview of an instance without products, and adding a product (UC-014 1, 6, 7a, 9; UC-001 1) — stand in
+  ARC-033's table, which names this page's interfaces with the setup page's.
 
 ## Modules
 
