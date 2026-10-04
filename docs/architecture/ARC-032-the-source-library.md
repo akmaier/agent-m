@@ -1,0 +1,4566 @@
+---
+id: ARC-032
+title: The source library — the instance's register of requirement sources, one file per source with its versions fixed by identifier and hash, a product's links to the versions that apply, and the page where both are kept
+forced_by:
+  - THE SOURCE MODEL IS GENERIC
+  - THE INSTANCE KEEPS THE SOURCE REGISTER
+  - THE SOURCE KIND IS ONE OF A CLOSED SET
+  - A SOURCE DECLARES ITS AUTHORITY
+  - A SOURCE DECLARES ITS LICENCE
+  - A SOURCE IS FILES, AN ARCHIVE OR A REPOSITORY
+  - A LIVING SOURCE IS PINNED
+  - A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+  - A SOURCE VERSION IS NEVER OVERWRITTEN
+  - A STANDARD IS REGISTERED BY ITS DESIGNATION
+  - RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE
+  - AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
+  - A PRODUCT LINKS THE SOURCES THAT APPLY
+  - A LINK NAMES THE PART THAT APPLIES
+  - A REQUIREMENT HAS A REGISTERED SOURCE
+  - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+  - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+  - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+  - ONE CLICK PER DECISION
+  - EVERY STEP EXPLAINS ITSELF
+  - UC-004
+  - UC-015
+  - UC-016
+keeps:
+  - THE SOURCE MODEL IS GENERIC
+---
+# ARC-032 The source library
+
+## Context
+
+Every requirement names where it comes from (`A REQUIREMENT HAS A REGISTERED SOURCE`); the sources are kept once, in the
+instance, and each product names those that apply to it with the exact version it uses (UC-004, UC-015). A source is a
+law, a norm, a set of documents or a repository; its content may be republished, or may not leave a place the person
+chooses. A new edition is added beside the old ones, and a product moves to it only by its author's decision (UC-016).
+
+The layout of a repository already names the places: `docs/sources/` in the instance, `docs/sources.md` in a product
+(ARC-006 decision 2). Three decisions already consume what a source permits: who may hold a role
+(`MOD-process-model.assignable`), which sources bar a participant (`MOD-process-config.sourcesBarred`) and the start
+panel of an item (`MOD-process-views.startPanel`) each take `Restriction[]` — a source and the processing places it
+permits —; a check of a SPEC takes the identifiers of the sources a product links (`MOD-artifacts.checkSpec`). No decision
+yet reads the register those come from.
+
+Facts this decision rests on:
+
+- The Publications Office of the EU documents the ELI of EU legislation as "ELI URI template:
+  http://data.europa.eu/eli/{typedoc}/{year}/{naturalnumber}/oj", with the example `http://data.europa.eu/eli/dir/2000/60/oj`
+  (`https://op.europa.eu/en/web/webguide/uris`). Asked for `https://data.europa.eu/eli/reg/2024/1689/oj`, the server answers
+  with a redirect to `https://eur-lex.europa.eu/eli/reg/2024/1689/oj`; asked for
+  `https://publications.europa.eu/resource/celex/32024R1689`, with a redirect to a work of the Publications Office's
+  repository, `http://publications.europa.eu/resource/cellar/dc8116a1-3fe6-11ef-865a-01aa75ed71a1/rdf/object/full`.
+- EUR-Lex addresses name a text by its CELEX number in the query `uri`: the Commission's staff working document
+  SWD(2019) 1771 links `https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32011R0305`,
+  `https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX%3A32001L0095` — the colon encoded — and the consolidated
+  version `https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02014L0024-20180101`
+  (`https://commission.europa.eu/document/download/50b4417d-26a0-4c65-90e9-e7f467268dc2_en?filename=swd_2019_1771_en.pdf`).
+  EUR-Lex's own help pages answer an automated reader with `202 Accepted` and no body, so they are not quoted here.
+- A browser computes a SHA-256 with `SubtleCrypto.digest()`, "available only in secure contexts (HTTPS)", "available
+  across browsers since January 2020", supporting `"SHA-256"` over an `ArrayBuffer` or a typed array
+  (`https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest`); Node, where the generated tests run, has
+  `subtle.digest()` since v15.0.0 with `'SHA-256'` (`https://github.com/nodejs/node/blob/main/doc/api/webcrypto.md`). The dashboard is served over
+  HTTPS from GitHub Pages (ARC-001).
+- The git adapter writes `SPEC.md`, `CHANGELOG.md` and Markdown files under `docs/` to a default branch, and nothing else
+  (`MOD-git-host.writeFiles`, ARC-004): a register entry and a product's links are Markdown; a source's PDF, Word file or
+  zip archive is not.
+
+## Decision
+
+1. **One decision, two modules.** `MOD-source-library`, a kernel, holds the formats of the register and of a product's
+   links, their checks, a new source and a new version, the hashes, an EU legal text's identifier from its address, what
+   a save makes public, the views the page shows, and the restrictions a source sets. `MOD-library-page` is the shell of
+   `library.html` at the root of the instance's Pages site: its route, the reading of the register and of the products'
+   links, a repository's current commit, the saves on a click, and every text and all HTML of the page.
+2. **The register entry** (`SourceFile`, `MOD-source-library.parseSource`, `MOD-source-library.formatSource`), one file per
+   source, `docs/sources/SRC-<slug>.md` in the instance (`THE INSTANCE KEEPS THE SOURCE REGISTER`). Its front matter names
+   the identifier, the name, the kind — one of `organisation`, `person`, `standard`, `regulation`, `document`, `system`,
+   `measurement` —, the authority — `normative`, `advisory` or `informational` —, the licence — `republish`, `restricted`
+   or `unknown` — with the terms under which its content may be copied, whether the content is `files`, an `archive` or a
+   `repository`, the address it comes from — an EU legal text's EUR-Lex or ELI address, a repository's address —, the
+   repository that keeps restricted content, the processing places a restricted source permits, and the parts the source
+   has. Its body is a table of versions, one row per file read: the version's number, its identifier or edition, its date,
+   the file, its SHA-256, a note. Nothing of a particular source is part of Agent M's code: the parts a product may name
+   are the entry's own (`THE SOURCE MODEL IS GENERIC`).
+3. **The check of an entry** (`MOD-source-library.checkSource`), against the entry as committed and the instance's address,
+   gives one finding per rule broken, each naming the rule: the file not named by its identifier; a kind outside the
+   closed set (`THE SOURCE KIND IS ONE OF A CLOSED SET`); an authority not declared (`A SOURCE DECLARES ITS AUTHORITY`);
+   terms not recorded, and as a warning an unknown licence (`A SOURCE DECLARES ITS LICENCE`); content that is neither PDF,
+   Word or Markdown files nor one zip archive nor a repository (`A SOURCE IS FILES, AN ARCHIVE OR A REPOSITORY`); a
+   repository without its address or a version without its commit (`A LIVING SOURCE IS PINNED`); a standard whose
+   designation names no edition (`A STANDARD IS REGISTERED BY ITS DESIGNATION`); a version without identifier, date, file
+   or SHA-256, and two versions with the same bytes (`A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH`); a committed
+   version changed or removed, or versions not numbered in order (`A SOURCE VERSION IS NEVER OVERWRITTEN`); restricted
+   content kept in the instance (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`); and as a warning a restricted
+   source that permits no processing place (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`). A version of an EU legal
+   text — an entry whose address is an EU address — that holds its CELEX number or ELI and no file yet is a warning,
+   its first version or a later one added by *+ New version*: it awaits its fetch.
+4. **A version is fixed by identifier and hash.** A file's SHA-256 is computed where the page runs, from the bytes the
+   person selected, which go nowhere (`MOD-source-library.sha256Files`; UC-004 4a). A repository's version is its commit,
+   read with the token stored for its server (`MOD-library-page.repositoryCommit`). A new edition is the next version,
+   and the versions before stay as they are; one with the bytes of a version the source holds records nothing
+   (`MOD-source-library.addVersion`; UC-016 1a). A product's link names a version by its hash: the repository's commit,
+   or the SHA-256 of the version's manifest — one line `<sha256>  <name>` per file, sorted by name
+   (`MOD-source-library.versionHash`).
+5. **Where the content lives** (`MOD-source-library.publicity`). A source whose licence permits republication keeps its
+   content in the instance, under `docs/sources/<id>/<version>/`; a restricted one in the repository the person names
+   under `location`, public or private, at the same path, or nowhere where only its hashes are recorded (UC-004 4a); an
+   unknown licence counts as restricted until one is recorded (UC-004 4b); a repository's content stays in that
+   repository. A content kept as Markdown is committed as text, each file at that path where the version records it
+   with its SHA-256 (`MOD-source-library.contentFiles`): in the instance in one commit with the entry
+   (`MOD-library-page.saveSource`, which refuses a content the public instance may not keep), in the named repository
+   in a commit of its own (`MOD-library-page.saveContent`); a file that exists already is refused, so that a version's
+   content is never overwritten. A PDF, a Word file or a zip archive is bytes, which the git adapter's write path does
+   not take (ARC-004); its commit waits for a write of bytes in the git adapter. Before a save the page
+   states, in these words: "Public in the instance: the register entry, docs/sources/<id>.md." and one of "The content
+   is kept in the instance and is public.", "The content is kept in <repository>." or "The content is kept nowhere; only
+   its designation and hashes are recorded."
+6. **What a restricted source permits** (`MOD-source-library.restrictionsOf`): each source under a restricted or an
+   unknown licence, with the processing places its entry permits — the `Restriction[]` the interfaces named in the
+   context take, so that a participant elsewhere is named and never given the content.
+7. **An EU legal text's identifier** (`MOD-source-library.euAddress`): the CELEX number a EUR-Lex address carries in its
+   query `uri` — the colon written plain or as `%3A` —, the one the Publications Office's `resource/celex/<number>`
+   names, or the ELI of an address under `data.europa.eu/eli/` or EUR-Lex's `/eli/`, written as
+   `http://data.europa.eu/eli/<path>`. The identifier is the one the address names; no CELEX number is made from an ELI
+   or the other way round.
+8. **A product's links** (`SourceLinksFile`, `MOD-source-library.parseLinks`, `MOD-source-library.formatLinks`):
+   `docs/sources.md` of the product, a heading and one row per source — its identifier, the version, the version's hash,
+   the part that applies (`A PRODUCT LINKS THE SOURCES THAT APPLY`, `A LINK NAMES THE PART THAT APPLIES`). Its check
+   against the register (`MOD-source-library.checkLinks`) names a source not registered, a version the source does not
+   have, a hash that is not the version's, and a source linked twice. The form starts from every source of the register,
+   ticked where the product links it, its version — else the newest — and the parts its entry names
+   (`MOD-source-library.linkChoices`). Before a link is removed, the page names the product's requirements whose source
+   names it (`MOD-source-library.sourceRequirements`); they are listed, not deleted (UC-015 2b).
+9. **The library as the page shows it** (`MOD-source-library.libraryView`): each source with its kind, authority, licence,
+   content and versions, and each product that links it with the version it links — marked where a newer version
+   exists (UC-016 3, 4a). A source the form names that the register holds already — the same address, an identifier one
+   of its versions names, or the same files — is offered a new version instead (`MOD-source-library.alreadyRegistered`;
+   UC-004 1a).
+10. **The page** (`MOD-library-page`). Its route (`MOD-library-page.route`) gives the views `#library`, `#source?source=<id>`,
+    `#register` — with `?source=<id>` for a new version — and `#product?product=<address>`. Every page of the dashboard links
+    it as *Library*, as every page carries the gear of the settings page (ARC-026 decision 1), and a product's view links its
+    sources as *Requirement sources*, `#product?product=<address>` (UC-015 1). It reads the instance's register
+    at the head of its default branch, each entry with the findings of its check, and each product's links and
+    requirements (`MOD-library-page.readLibrary`). Before **Save**, the page shows the findings of the check of what the
+    form would save — `MOD-source-library.checkSource` for an entry, `MOD-source-library.checkLinks` for a product's links —,
+    and the save checks again against what is committed. It saves on a click (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`,
+    `ONE CLICK PER DECISION`): a register entry to the instance (`MOD-library-page.saveSource`), checked against the entry
+    as committed, a content kept as Markdown to the repository the entry names (`MOD-library-page.saveContent`), and a
+    product's links to the product (`MOD-library-page.saveLinks`), checked against the register read — each one commit
+    of Markdown files on the head read, refused where the file changed after the page read it, a content file exists
+    already or the check finds an error (`A PERSON'S OWN INPUT IS COMMITTED DIRECTLY`). Where a repository is not reachable with the
+    stored token, the page names the refusal and links the token's page of that repository's server to extend it
+    (`MOD-git-host.parseProductAddress`, `MOD-git-host.tokenPageUrl`; UC-004 4c).
+11. **The page's texts** (`EVERY STEP EXPLAINS ITSELF`). *+ Register source* asks what the source is, each with one
+    sentence and an example: "An EU legal text — paste its EUR-Lex or ELI address, for example
+    https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689"; "A standard — its designation from the cover
+    page, for example IEC 62304:2006+AMD1:2015"; "Documents — PDF, Word or Markdown files, or a zip file of them, for
+    example a faculty's guideline"; "A repository — its address on GitHub or GitLab, public or private, read at its
+    current commit". The common fields fold out an explanation each: the kind — "what the source is; the AI Act is a
+    regulation, IEC 62304 a standard"; the authority — "normative: the product must meet it; advisory: it should;
+    informational: background"; the licence — "may be republished: the instance, which is public, keeps a copy;
+    restricted: the content stays in a repository you name, or with you". A standard's designation folds out: "The
+    designation stands on the norm's cover page. Name the edition and every amendment: an amendment changes what the
+    norm requires." A standard's licence is preset to *restricted*. A product's sources fold out *What is this?*: "The
+    library lists every source the instance knows; this list names the ones this product must meet." — "A source is a
+    rule the product must meet; a resource is something it is built with or runs on (UC-040)." — "The version is fixed,
+    so that every requirement names what it was derived from; a new version is taken only when you move to it."
+
+```mermaid
+flowchart LR
+    P["person"]
+    LP["MOD-library-page<br/>library.html"]
+    SL["MOD-source-library"]
+    GH["MOD-git-host"]
+    I["instance<br/>docs/sources/SRC-*.md"]
+    PR["product<br/>docs/sources.md"]
+    P -->|"route, click"| LP
+    LP -->|"entries, links, hashes, checks"| SL
+    LP -->|"read, write"| GH
+    GH --- I
+    GH --- PR
+```
+
+## Alternatives
+
+- **One register file for all sources** — rejected by `THE INSTANCE KEEPS THE SOURCE REGISTER`, one file per source; one file
+  per source also lets a check compare an entry with the version committed in one read.
+- **One file per version** — rejected: a check of `A SOURCE VERSION IS NEVER OVERWRITTEN` then reads every version's file;
+  the versions of one entry are compared in one text.
+- **Hashes computed in CI** — rejected: the files would leave the browser, which UC-004 4a forbids; Web Crypto computes
+  them where the page runs.
+- **A CELEX number made from an ELI, or the reverse** — rejected: the conversion would rest on a structure of identifiers
+  this decision has no fetched source for; the identifier is the one the address names.
+- **The library as a view of the settings page** — rejected: the settings page keeps settings; the library is the
+  instance's register, read and written as files of its own, like the tests pages' views.
+
+## Consequences
+
+- The kernel reads and checks the register and the links, with no request; the page alone reads and writes repositories,
+  through the git adapter.
+- **Not realised here — a source's content.** UC-004 6 commits "the register entry, and the content where it belongs",
+  for every kind of source. The entry and a content kept as Markdown are designed — `MOD-source-library.contentFiles`,
+  `MOD-library-page.saveSource` with the entry in the instance, `MOD-library-page.saveContent` in the repository the
+  entry names (decision 5) —; a PDF, a Word file or a zip archive is bytes, which the git adapter's write path does not
+  take (ARC-004), and waits for a write of bytes in the git adapter; the step stands once both are designed. The fetch
+  workflow of an EU legal text — its retrieval date and the repository's version identifier — with its failure (UC-004
+  7, 7a; `AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY`) comes with the second part of this decision, among
+  the generated workflows (ARC-015). Whether a browser may read the EU's publication repository at all is measured
+  there.
+- **Not realised here — three steps of UC-016 with one half designed.** UC-016 2 records "the new version with its
+  identifier, date and hashes": by a designation, files or a commit that is `MOD-source-library.addVersion`,
+  `MOD-source-library.formatSource`, `MOD-source-library.checkSource` and `MOD-library-page.saveSource`; a new version of
+  an EU legal text — the use case's fetch workflow "fetches new versions of EU legal texts" — gets its date and hashes
+  from that workflow, as its first version does (UC-004 7), so the step stands with the second part. UC-016 4: the
+  product's requirements that came from the source are `MOD-source-library.sourceRequirements`; "which passages changed"
+  needs the two versions' texts, which the second part keeps. UC-016 5: the product's `docs/sources.md` moved to the new
+  version is `MOD-source-library.versionHash`, `MOD-source-library.formatLinks`, `MOD-source-library.checkLinks` and
+  `MOD-library-page.saveLinks`; the listed requirements "marked *source changed* on the dashboard until each is looked
+  at again" are designed nowhere yet — what marks a requirement and what counts as looked at again come with the second
+  part, beside the passages that changed.
+- **Not realised here — what reads the register elsewhere.** An item whose sources permit their content only where no
+  holder of the role works (UC-034 3a), a participant whose place some sources do not permit (UC-017 5a) and a role whose
+  holder processes data where a linked source does not permit it (UC-002 4c) need the main page and the settings page to
+  read the register and hand `MOD-source-library.restrictionsOf` to the interfaces that take `Restriction[]`; the link to
+  the resources' page (UC-015 2c) comes with the resources (UC-040).
+- **The rest of the module.** A product's resources (UC-040) and the due diligence of a reused library are designed in
+  `MOD-source-library` with later parts of this decision; the label of a source's content for
+  `MOD-job-harness.mayReceive` comes with the jobs that send it — a `ContentLabel` with no places allows any place, so a
+  restricted source that permits none needs its own form there.
+- The earlier module file of `MOD-source-library` leaves the working tree with its approval records: this decision is
+  where the module is designed (ARC-020 decisions 3 and 12).
+
+## Modules
+
+### MOD-source-library
+
+```json module
+{
+  "id": "MOD-source-library",
+  "folder": "src/source-library/",
+  "layer": "kernel",
+  "responsibility": "The instance's register of requirement sources and a product's links to them: the formats of both and their checks, a new source and a new version, the hashes of a version's files, the files of a content kept as Markdown, an EU legal text's identifier from its address, what a register entry makes public, the library as the page shows it, a product's choice of its sources, the requirements that name a source, and the restrictions a restricted source sets.",
+  "realises": ["THE INSTANCE KEEPS THE SOURCE REGISTER", "THE SOURCE KIND IS ONE OF A CLOSED SET", "A SOURCE DECLARES ITS AUTHORITY", "A SOURCE DECLARES ITS LICENCE", "A SOURCE IS FILES, AN ARCHIVE OR A REPOSITORY", "A LIVING SOURCE IS PINNED", "A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH", "A SOURCE VERSION IS NEVER OVERWRITTEN", "A STANDARD IS REGISTERED BY ITS DESIGNATION", "RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE", "A PRODUCT LINKS THE SOURCES THAT APPLY", "A LINK NAMES THE PART THAT APPLIES"],
+  "owns": ["SourceFileHash", "SourceVersion", "SourceEntry", "NewVersion", "SourceForm", "AlreadyRegistered", "EuAddress", "FileBytes", "Publicity", "SourceLink", "ProductLinks", "LibraryVersion", "LibraryUse", "LibraryRow", "LinkChoice", "SourceFileContent", "SourceLinkRow", "SourceFile", "SourceLinksFile"],
+  "uses": ["MOD-contracts"]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.parseSource",
+  "summary": "A register entry, docs/sources/SRC-<slug>.md: its identifier, name, kind, authority, licence and the terms under which its content may be copied, whether its content is files, an archive or a repository, the address it comes from, the repository that keeps restricted content, the processing places it permits, the parts it names, and its versions — each with its identifier or edition, its date, the files read with their SHA-256, and a note.",
+  "params": [{ "name": "text", "type": "string" }],
+  "result": "SourceEntry",
+  "async": false,
+  "refusals": [{ "code": "not-a-source", "when": "the text has no front matter naming an id" }],
+  "examples": [
+    {
+      "name": "a bought standard in two editions",
+      "input": { "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n" },
+      "result": {
+        "id": "SRC-iec-62304",
+        "name": "IEC 62304 — Medical device software — Software life cycle processes",
+        "kind": "standard",
+        "authority": "normative",
+        "licence": "restricted",
+        "terms": "© IEC; copies may not be passed on",
+        "content": "files",
+        "address": "",
+        "location": "https://github.com/alice/norms",
+        "places": ["this machine", "NHR@FAU, Erlangen"],
+        "parts": ["safety class A", "safety class B", "safety class C"],
+        "versions": [
+          {
+            "version": 1,
+            "identifier": "IEC 62304:2006",
+            "date": "2006-05-09",
+            "files": [
+              { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+            ],
+            "note": ""
+          },
+          {
+            "version": 2,
+            "identifier": "IEC 62304:2006+AMD1:2015",
+            "date": "2015-06-25",
+            "files": [
+              { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+            ],
+            "note": ""
+          }
+        ]
+      }
+    },
+    { "name": "a text with no front matter", "input": { "text": "# Old rules\n" }, "refused": "not-a-source" }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.checkSource",
+  "summary": "Every finding on a register entry, against the entry as committed — empty for a new one — and the instance's address: its file not named by its identifier, a kind outside the closed set, an authority not declared, a licence not recorded or not known, content that is neither files, an archive nor a repository, a repository without its address or a version without its commit, a standard without its edition, a version without identifier, date, file or SHA-256 — a version of an EU legal text awaiting its fetch, its first or a later one, is a warning —, two versions with the same bytes, a committed version changed or removed, restricted content kept in the instance, and a restricted source that permits no processing place.",
+  "params": [
+    { "name": "path", "type": "string" },
+    { "name": "text", "type": "string" },
+    { "name": "earlier", "type": "string" },
+    { "name": "instance", "type": "string" }
+  ],
+  "result": "Finding[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "a complete entry as committed",
+      "input": { "path": "docs/sources/SRC-iec-62304.md", "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n", "earlier": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n", "instance": "https://github.com/alice/agent-m" },
+      "result": []
+    },
+    {
+      "name": "an EU legal text awaiting its fetch",
+      "input": { "path": "docs/sources/SRC-ai-act.md", "text": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 32024R1689 | — | — | — | — |\n", "earlier": "", "instance": "https://github.com/alice/agent-m" },
+      "result": [
+        { "artifact": "SRC-ai-act", "line": 24, "kind": "warning", "what": "version 1 awaits its fetch from the EU's publication repository", "rule": "AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY", "fix": "let the fetch workflow complete the version" }
+      ]
+    },
+    {
+      "name": "a later version of an EU legal text awaiting its fetch",
+      "input": { "path": "docs/sources/SRC-ai-act.md", "text": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 32024R1689 | 2026-09-02 | 32024R1689.pdf | 5e11111111111111111111111111111111111111111111111111111111111111 | — |\n| 2 | 02024R1689-20260801 | — | — | — | — |\n", "earlier": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 32024R1689 | 2026-09-02 | 32024R1689.pdf | 5e11111111111111111111111111111111111111111111111111111111111111 | — |\n", "instance": "https://github.com/alice/agent-m" },
+      "result": [
+        { "artifact": "SRC-ai-act", "line": 25, "kind": "warning", "what": "version 2 awaits its fetch from the EU's publication repository", "rule": "AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY", "fix": "let the fetch workflow complete the version" }
+      ]
+    },
+    {
+      "name": "a new edition added as version 3",
+      "input": { "path": "docs/sources/SRC-iec-62304.md", "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n| 3 | IEC 62304:2006+AMD1:2015+AMD2:2026 | 2026-07-01 | iec-62304-2026.pdf | 9d44444444444444444444444444444444444444444444444444444444444444 | — |\n", "earlier": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n", "instance": "https://github.com/alice/agent-m" },
+      "result": []
+    },
+    {
+      "name": "a committed version changed",
+      "input": { "path": "docs/sources/SRC-iec-62304.md", "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-06-01 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n", "earlier": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n", "instance": "https://github.com/alice/agent-m" },
+      "result": [
+        { "artifact": "SRC-iec-62304", "line": 26, "kind": "error", "what": "version 1 differs from the version committed", "rule": "A SOURCE VERSION IS NEVER OVERWRITTEN", "fix": "restore version 1; a new edition is a new version" }
+      ]
+    },
+    {
+      "name": "a standard without its edition",
+      "input": { "path": "docs/sources/SRC-iec-62304.md", "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n", "earlier": "", "instance": "https://github.com/alice/agent-m" },
+      "result": [
+        { "artifact": "SRC-iec-62304", "line": 26, "kind": "error", "what": "IEC 62304 names no edition", "rule": "A STANDARD IS REGISTERED BY ITS DESIGNATION", "fix": "write the full designation with edition and amendments, for example IEC 62304:2006+AMD1:2015" }
+      ]
+    },
+    {
+      "name": "restricted content kept in the public instance",
+      "input": { "path": "docs/sources/SRC-iec-62304.md", "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/agent-m\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n", "earlier": "", "instance": "https://github.com/alice/agent-m" },
+      "result": [
+        { "artifact": "SRC-iec-62304", "line": 10, "kind": "error", "what": "restricted content would be kept in the public instance", "rule": "RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE", "fix": "name a repository of the person's choice under location:, or leave it empty where only the hashes are recorded" }
+      ]
+    },
+    {
+      "name": "a kind and an authority outside their sets, no licence, no hash",
+      "input": { "path": "docs/sources/old-rules.md", "text": "---\nid: SRC-old-rules\nname: Old rules\nkind: law\nauthority: binding\nlicence: unknown\nterms:\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-old-rules Old rules\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | — | 2020 | rules.txt | — | — |\n", "earlier": "", "instance": "https://github.com/alice/agent-m" },
+      "result": [
+        { "artifact": "SRC-old-rules", "line": 0, "kind": "error", "what": "the entry is docs/sources/old-rules.md, not docs/sources/SRC-old-rules.md", "rule": "THE INSTANCE KEEPS THE SOURCE REGISTER", "fix": "keep one file per source, named by its identifier" },
+        { "artifact": "SRC-old-rules", "line": 4, "kind": "error", "what": "the kind law is none of the closed set", "rule": "THE SOURCE KIND IS ONE OF A CLOSED SET", "fix": "write one of organisation, person, standard, regulation, document, system, measurement" },
+        { "artifact": "SRC-old-rules", "line": 5, "kind": "error", "what": "the authority binding is none of normative, advisory, informational", "rule": "A SOURCE DECLARES ITS AUTHORITY", "fix": "declare the authority at the source: normative, advisory or informational" },
+        { "artifact": "SRC-old-rules", "line": 6, "kind": "warning", "what": "the licence is not known; the source is treated as restricted", "rule": "A SOURCE DECLARES ITS LICENCE", "fix": "record the licence or terms under which its content may be copied" },
+        { "artifact": "SRC-old-rules", "line": 11, "kind": "warning", "what": "the source permits no processing place: its content goes to no participant", "rule": "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS", "fix": "name under places: where its content may be processed, or leave it so" },
+        { "artifact": "SRC-old-rules", "line": 21, "kind": "error", "what": "version 1 names no identifier or edition", "rule": "A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH", "fix": "write the official identifier or edition" },
+        { "artifact": "SRC-old-rules", "line": 21, "kind": "error", "what": "rules.txt of version 1 has no SHA-256", "rule": "A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH", "fix": "record the SHA-256 of every file read" },
+        { "artifact": "SRC-old-rules", "line": 21, "kind": "error", "what": "rules.txt is no PDF, Word or Markdown file", "rule": "A SOURCE IS FILES, AN ARCHIVE OR A REPOSITORY", "fix": "record PDF, Word or Markdown files, or their zip archive" },
+        { "artifact": "SRC-old-rules", "line": 21, "kind": "error", "what": "version 1 has no date", "rule": "A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH", "fix": "write the edition's date as YYYY-MM-DD" }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.formatSource",
+  "summary": "The text of a register entry: its fields as front matter, a heading, and the table of its versions — one row per file read, or one row where a version holds no file.",
+  "params": [{ "name": "entry", "type": "SourceEntry" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "a document in one edition",
+      "input": {
+        "entry": {
+          "id": "SRC-thesis-guide",
+          "name": "Thesis writing guide of the faculty",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "terms": "CC BY 4.0",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "2025 edition",
+              "date": "2025-10-01",
+              "files": [
+                { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+              ],
+              "note": ""
+            }
+          ]
+        }
+      },
+      "result": "---\nid: SRC-thesis-guide\nname: Thesis writing guide of the faculty\nkind: document\nauthority: advisory\nlicence: republish\nterms: CC BY 4.0\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-thesis-guide Thesis writing guide of the faculty\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 2025 edition | 2025-10-01 | thesis-guide-2025.md | 0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711 | — |\n"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.newSource",
+  "summary": "A source as the register form gives it: its identifier made from its name — with a further number where the register holds that identifier already —, an unknown licence where none was chosen, and its first version.",
+  "params": [{ "name": "form", "type": "SourceForm" }, { "name": "register", "type": "SourceEntry[]" }],
+  "result": "SourceEntry",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "an EU legal text from its EUR-Lex address",
+      "input": {
+        "form": {
+          "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+          "kind": "regulation",
+          "authority": "normative",
+          "licence": "republish",
+          "terms": "reuse permitted with acknowledgement of the source",
+          "content": "files",
+          "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+          "location": "",
+          "places": [],
+          "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+          "version": { "identifier": "32024R1689", "date": "", "files": [], "note": "" }
+        },
+        "register": [
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ]
+      },
+      "result": {
+        "id": "SRC-regulation-eu-2024-1689-artificial-intelligence",
+        "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+        "kind": "regulation",
+        "authority": "normative",
+        "licence": "republish",
+        "terms": "reuse permitted with acknowledgement of the source",
+        "content": "files",
+        "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+        "location": "",
+        "places": [],
+        "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+        "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+      }
+    },
+    {
+      "name": "a printed norm recorded by its designation and hash, its licence not chosen",
+      "input": {
+        "form": {
+          "name": "ISO 14971 — Application of risk management to medical devices",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "",
+          "terms": "",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": ["this machine"],
+          "parts": [],
+          "version": {
+            "identifier": "ISO 14971:2019",
+            "date": "2019-12-01",
+            "files": [
+              { "name": "iso-14971-2019.pdf", "sha256": "3faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+            ],
+            "note": "the printed copy is kept by the quality office"
+          }
+        },
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ]
+      },
+      "result": {
+        "id": "SRC-iso-14971-application-of-risk-management-to-medi",
+        "name": "ISO 14971 — Application of risk management to medical devices",
+        "kind": "standard",
+        "authority": "normative",
+        "licence": "unknown",
+        "terms": "",
+        "content": "files",
+        "address": "",
+        "location": "",
+        "places": ["this machine"],
+        "parts": [],
+        "versions": [
+          {
+            "version": 1,
+            "identifier": "ISO 14971:2019",
+            "date": "2019-12-01",
+            "files": [
+              { "name": "iso-14971-2019.pdf", "sha256": "3faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+            ],
+            "note": "the printed copy is kept by the quality office"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.alreadyRegistered",
+  "summary": "The source the register holds already for what the form names — the same address, an identifier one of its versions names, or the same files —; empty where none.",
+  "params": [{ "name": "register", "type": "SourceEntry[]" }, { "name": "form", "type": "SourceForm" }],
+  "result": "AlreadyRegistered",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the AI Act once more",
+      "input": {
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "form": {
+          "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+          "kind": "regulation",
+          "authority": "normative",
+          "licence": "republish",
+          "terms": "reuse permitted with acknowledgement of the source",
+          "content": "files",
+          "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+          "location": "",
+          "places": [],
+          "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+          "version": { "identifier": "32024R1689", "date": "", "files": [], "note": "" }
+        }
+      },
+      "result": { "source": "SRC-ai-act" }
+    },
+    {
+      "name": "a norm the register does not hold",
+      "input": {
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "form": {
+          "name": "ISO 14971 — Application of risk management to medical devices",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "",
+          "terms": "",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": ["this machine"],
+          "parts": [],
+          "version": {
+            "identifier": "ISO 14971:2019",
+            "date": "2019-12-01",
+            "files": [
+              { "name": "iso-14971-2019.pdf", "sha256": "3faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+            ],
+            "note": "the printed copy is kept by the quality office"
+          }
+        }
+      },
+      "result": { "source": "" }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.addVersion",
+  "summary": "A new edition added as the next version, the versions before unchanged; one with the bytes of a version the source holds — the same files, or the same commit — records nothing.",
+  "params": [{ "name": "entry", "type": "SourceEntry" }, { "name": "version", "type": "NewVersion" }],
+  "result": "SourceEntry",
+  "async": false,
+  "refusals": [{ "code": "same-bytes", "when": "a version of the source holds the same bytes" }],
+  "examples": [
+    {
+      "name": "the second amendment",
+      "input": {
+        "entry": {
+          "id": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "terms": "© IEC; copies may not be passed on",
+          "content": "files",
+          "address": "",
+          "location": "https://github.com/alice/norms",
+          "places": ["this machine", "NHR@FAU, Erlangen"],
+          "parts": ["safety class A", "safety class B", "safety class C"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "IEC 62304:2006",
+              "date": "2006-05-09",
+              "files": [
+                { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+              ],
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "IEC 62304:2006+AMD1:2015",
+              "date": "2015-06-25",
+              "files": [
+                { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": {
+          "identifier": "IEC 62304:2006+AMD1:2015+AMD2:2026",
+          "date": "2026-07-01",
+          "files": [
+            { "name": "iec-62304-2026.pdf", "sha256": "9d44444444444444444444444444444444444444444444444444444444444444" }
+          ],
+          "note": ""
+        }
+      },
+      "result": {
+        "id": "SRC-iec-62304",
+        "name": "IEC 62304 — Medical device software — Software life cycle processes",
+        "kind": "standard",
+        "authority": "normative",
+        "licence": "restricted",
+        "terms": "© IEC; copies may not be passed on",
+        "content": "files",
+        "address": "",
+        "location": "https://github.com/alice/norms",
+        "places": ["this machine", "NHR@FAU, Erlangen"],
+        "parts": ["safety class A", "safety class B", "safety class C"],
+        "versions": [
+          {
+            "version": 1,
+            "identifier": "IEC 62304:2006",
+            "date": "2006-05-09",
+            "files": [
+              { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+            ],
+            "note": ""
+          },
+          {
+            "version": 2,
+            "identifier": "IEC 62304:2006+AMD1:2015",
+            "date": "2015-06-25",
+            "files": [
+              { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+            ],
+            "note": ""
+          },
+          {
+            "version": 3,
+            "identifier": "IEC 62304:2006+AMD1:2015+AMD2:2026",
+            "date": "2026-07-01",
+            "files": [
+              { "name": "iec-62304-2026.pdf", "sha256": "9d44444444444444444444444444444444444444444444444444444444444444" }
+            ],
+            "note": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "a consolidated version of an EU legal text, to be fetched",
+      "input": {
+        "entry": {
+          "id": "SRC-ai-act",
+          "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+          "kind": "regulation",
+          "authority": "normative",
+          "licence": "republish",
+          "terms": "reuse permitted with acknowledgement of the source",
+          "content": "files",
+          "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+          "location": "",
+          "places": [],
+          "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "32024R1689",
+              "date": "2026-09-02",
+              "files": [
+                { "name": "32024R1689.pdf", "sha256": "5e11111111111111111111111111111111111111111111111111111111111111" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": { "identifier": "02024R1689-20260801", "date": "", "files": [], "note": "" }
+      },
+      "result": {
+        "id": "SRC-ai-act",
+        "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+        "kind": "regulation",
+        "authority": "normative",
+        "licence": "republish",
+        "terms": "reuse permitted with acknowledgement of the source",
+        "content": "files",
+        "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+        "location": "",
+        "places": [],
+        "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+        "versions": [
+          {
+            "version": 1,
+            "identifier": "32024R1689",
+            "date": "2026-09-02",
+            "files": [
+              { "name": "32024R1689.pdf", "sha256": "5e11111111111111111111111111111111111111111111111111111111111111" }
+            ],
+            "note": ""
+          },
+          { "version": 2, "identifier": "02024R1689-20260801", "date": "", "files": [], "note": "" }
+        ]
+      }
+    },
+    {
+      "name": "the edition of 2015 once more",
+      "input": {
+        "entry": {
+          "id": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "terms": "© IEC; copies may not be passed on",
+          "content": "files",
+          "address": "",
+          "location": "https://github.com/alice/norms",
+          "places": ["this machine", "NHR@FAU, Erlangen"],
+          "parts": ["safety class A", "safety class B", "safety class C"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "IEC 62304:2006",
+              "date": "2006-05-09",
+              "files": [
+                { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+              ],
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "IEC 62304:2006+AMD1:2015",
+              "date": "2015-06-25",
+              "files": [
+                { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": {
+          "identifier": "IEC 62304:2006+AMD1:2015 (copy)",
+          "date": "2015-06-25",
+          "files": [
+            { "name": "iec-62304-2015-copy.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+          ],
+          "note": ""
+        }
+      },
+      "refused": "same-bytes"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.euAddress",
+  "summary": "An EU legal text's identifier from its address: the CELEX number of a EUR-Lex address (?uri=CELEX:<number>, the colon also written %3A) or of the Publications Office's resource/celex/<number>, or the ELI of an address under data.europa.eu/eli/ or EUR-Lex's /eli/, written as http://data.europa.eu/eli/<path>.",
+  "params": [{ "name": "address", "type": "string" }],
+  "result": "EuAddress",
+  "async": false,
+  "refusals": [{ "code": "not-an-eu-address", "when": "the address names neither a CELEX number nor an ELI" }],
+  "examples": [
+    {
+      "name": "a EUR-Lex text",
+      "input": { "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689" },
+      "result": { "scheme": "celex", "identifier": "32024R1689" }
+    },
+    {
+      "name": "a EUR-Lex address with the colon encoded",
+      "input": { "address": "https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX%3A32001L0095" },
+      "result": { "scheme": "celex", "identifier": "32001L0095" }
+    },
+    {
+      "name": "a consolidated version",
+      "input": { "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02014L0024-20180101" },
+      "result": { "scheme": "celex", "identifier": "02014L0024-20180101" }
+    },
+    {
+      "name": "an ELI",
+      "input": { "address": "http://data.europa.eu/eli/reg/2024/1689/oj" },
+      "result": { "scheme": "eli", "identifier": "http://data.europa.eu/eli/reg/2024/1689/oj" }
+    },
+    {
+      "name": "EUR-Lex's form of an ELI",
+      "input": { "address": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj" },
+      "result": { "scheme": "eli", "identifier": "http://data.europa.eu/eli/reg/2024/1689/oj" }
+    },
+    {
+      "name": "the Publications Office's resource",
+      "input": { "address": "https://publications.europa.eu/resource/celex/32024R1689" },
+      "result": { "scheme": "celex", "identifier": "32024R1689" }
+    },
+    {
+      "name": "an address of another site",
+      "input": { "address": "https://www.iec.ch/standards" },
+      "refused": "not-an-eu-address"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.sha256Files",
+  "summary": "The SHA-256 of each file the person selected, computed where the page runs from the file's bytes; the files go nowhere.",
+  "params": [{ "name": "files", "type": "FileBytes[]" }],
+  "result": "SourceFileHash[]",
+  "async": true,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "a bought norm and a guide",
+      "input": {
+        "files": [
+          { "name": "iec-62304-2006.pdf", "base64": "JVBERi0xLjQgSUVDIDYyMzA0IGVkaXRpb24gMSwgYXMgYm91Z2h0" },
+          { "name": "thesis-guide-2025.md", "base64": "IyBXcml0aW5nIGEgdGhlc2lzCgpDaXRlIGV2ZXJ5IHNvdXJjZSB5b3UgdXNlLgo=" }
+        ]
+      },
+      "result": [
+        { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" },
+        { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.versionHash",
+  "summary": "The hash a product's link names for a version: a repository's commit, or the SHA-256 of the version's manifest — one line \"<sha256>  <name>\" per file, sorted by name.",
+  "params": [{ "name": "entry", "type": "SourceEntry" }, { "name": "version", "type": "integer" }],
+  "result": "string",
+  "async": true,
+  "refusals": [
+    { "code": "no-version", "when": "the source has no such version" },
+    { "code": "no-file", "when": "the version records no file yet" }
+  ],
+  "examples": [
+    {
+      "name": "a version of one file",
+      "input": {
+        "entry": {
+          "id": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "terms": "© IEC; copies may not be passed on",
+          "content": "files",
+          "address": "",
+          "location": "https://github.com/alice/norms",
+          "places": ["this machine", "NHR@FAU, Erlangen"],
+          "parts": ["safety class A", "safety class B", "safety class C"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "IEC 62304:2006",
+              "date": "2006-05-09",
+              "files": [
+                { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+              ],
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "IEC 62304:2006+AMD1:2015",
+              "date": "2015-06-25",
+              "files": [
+                { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": 1
+      },
+      "result": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302"
+    },
+    {
+      "name": "a repository's version",
+      "input": {
+        "entry": {
+          "id": "SRC-lab-tools",
+          "name": "lab-tools — the group's measurement scripts",
+          "kind": "system",
+          "authority": "informational",
+          "licence": "restricted",
+          "terms": "internal; not to be passed on",
+          "content": "repository",
+          "address": "https://github.com/alice/lab-tools",
+          "location": "",
+          "places": ["this machine"],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+              "date": "2026-09-20",
+              "files": [],
+              "note": ""
+            }
+          ]
+        },
+        "version": 1
+      },
+      "result": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f"
+    },
+    {
+      "name": "an EU legal text not fetched yet",
+      "input": {
+        "entry": {
+          "id": "SRC-ai-act",
+          "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+          "kind": "regulation",
+          "authority": "normative",
+          "licence": "republish",
+          "terms": "reuse permitted with acknowledgement of the source",
+          "content": "files",
+          "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+          "location": "",
+          "places": [],
+          "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+          "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+        },
+        "version": 1
+      },
+      "refused": "no-file"
+    },
+    {
+      "name": "a version the source does not have",
+      "input": {
+        "entry": {
+          "id": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "terms": "© IEC; copies may not be passed on",
+          "content": "files",
+          "address": "",
+          "location": "https://github.com/alice/norms",
+          "places": ["this machine", "NHR@FAU, Erlangen"],
+          "parts": ["safety class A", "safety class B", "safety class C"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "IEC 62304:2006",
+              "date": "2006-05-09",
+              "files": [
+                { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+              ],
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "IEC 62304:2006+AMD1:2015",
+              "date": "2015-06-25",
+              "files": [
+                { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": 9
+      },
+      "refused": "no-version"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.contentFiles",
+  "summary": "The content of a version kept as Markdown, as the files to commit: each file the person selected, decoded as UTF-8 text, at docs/sources/<id>/<version>/<name>, where the version records it with that SHA-256; a PDF, a Word file or a zip archive is bytes, which the git adapter's write path does not take, and waits for a write of bytes.",
+  "params": [
+    { "name": "entry", "type": "SourceEntry" },
+    { "name": "version", "type": "integer" },
+    { "name": "files", "type": "FileBytes[]" }
+  ],
+  "result": "FileText[]",
+  "async": true,
+  "refusals": [
+    { "code": "no-version", "when": "the source has no such version" },
+    { "code": "not-markdown", "when": "a file is no Markdown file: a PDF, a Word file or an archive is bytes" },
+    { "code": "not-recorded", "when": "the version records no such file with that SHA-256" },
+    { "code": "not-text", "when": "a Markdown file is no UTF-8 text" }
+  ],
+  "examples": [
+    {
+      "name": "the style guide as Markdown",
+      "input": {
+        "entry": {
+          "id": "SRC-lab-style",
+          "name": "The group's style guide for reports",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "terms": "CC BY 4.0",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "2026 edition",
+              "date": "2026-03-02",
+              "files": [
+                { "name": "lab-style.md", "sha256": "7d084e9bd20494f842082ca9a506980c017e278b10a4deda9b98e6c7bd7aebf9" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": 1,
+        "files": [
+          { "name": "lab-style.md", "base64": "IyBTdHlsZSBvZiB0aGUgZ3JvdXAncyByZXBvcnRzCgpXcml0ZSBpbiB0aGUgYWN0aXZlIHZvaWNlLgo=" }
+        ]
+      },
+      "result": [
+        { "path": "docs/sources/SRC-lab-style/1/lab-style.md", "text": "# Style of the group's reports\n\nWrite in the active voice.\n" }
+      ]
+    },
+    {
+      "name": "a bought norm's PDF",
+      "input": {
+        "entry": {
+          "id": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "terms": "© IEC; copies may not be passed on",
+          "content": "files",
+          "address": "",
+          "location": "https://github.com/alice/norms",
+          "places": ["this machine", "NHR@FAU, Erlangen"],
+          "parts": ["safety class A", "safety class B", "safety class C"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "IEC 62304:2006",
+              "date": "2006-05-09",
+              "files": [
+                { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+              ],
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "IEC 62304:2006+AMD1:2015",
+              "date": "2015-06-25",
+              "files": [
+                { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": 1,
+        "files": [{ "name": "iec-62304-2006.pdf", "base64": "JVBERi0xLjQgSUVDIDYyMzA0IGVkaXRpb24gMSwgYXMgYm91Z2h0" }]
+      },
+      "refused": "not-markdown"
+    },
+    {
+      "name": "a file the version does not record",
+      "input": {
+        "entry": {
+          "id": "SRC-lab-style",
+          "name": "The group's style guide for reports",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "terms": "CC BY 4.0",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "2026 edition",
+              "date": "2026-03-02",
+              "files": [
+                { "name": "lab-style.md", "sha256": "7d084e9bd20494f842082ca9a506980c017e278b10a4deda9b98e6c7bd7aebf9" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": 1,
+        "files": [{ "name": "lab-style.md", "base64": "IyBBbm90aGVyIHRleHQK" }]
+      },
+      "refused": "not-recorded"
+    },
+    {
+      "name": "a version the source does not have",
+      "input": {
+        "entry": {
+          "id": "SRC-lab-style",
+          "name": "The group's style guide for reports",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "terms": "CC BY 4.0",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "2026 edition",
+              "date": "2026-03-02",
+              "files": [
+                { "name": "lab-style.md", "sha256": "7d084e9bd20494f842082ca9a506980c017e278b10a4deda9b98e6c7bd7aebf9" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "version": 2,
+        "files": [
+          { "name": "lab-style.md", "base64": "IyBTdHlsZSBvZiB0aGUgZ3JvdXAncyByZXBvcnRzCgpXcml0ZSBpbiB0aGUgYWN0aXZlIHZvaWNlLgo=" }
+        ]
+      },
+      "refused": "no-version"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.publicity",
+  "summary": "What becomes public before a save: the register entry, in the instance; the content in the instance only where its licence permits republication, else in the repository the entry names — or nowhere, where only its hashes are recorded —; a repository's content stays where it is.",
+  "params": [{ "name": "entry", "type": "SourceEntry" }, { "name": "instance", "type": "string" }],
+  "result": "Publicity",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "a bought norm",
+      "input": {
+        "entry": {
+          "id": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "terms": "© IEC; copies may not be passed on",
+          "content": "files",
+          "address": "",
+          "location": "https://github.com/alice/norms",
+          "places": ["this machine", "NHR@FAU, Erlangen"],
+          "parts": ["safety class A", "safety class B", "safety class C"],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "IEC 62304:2006",
+              "date": "2006-05-09",
+              "files": [
+                { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+              ],
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "IEC 62304:2006+AMD1:2015",
+              "date": "2015-06-25",
+              "files": [
+                { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m"
+      },
+      "result": { "entry": "docs/sources/SRC-iec-62304.md", "content": "https://github.com/alice/norms", "inInstance": false }
+    },
+    {
+      "name": "a guide that may be republished",
+      "input": {
+        "entry": {
+          "id": "SRC-thesis-guide",
+          "name": "Thesis writing guide of the faculty",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "terms": "CC BY 4.0",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "2025 edition",
+              "date": "2025-10-01",
+              "files": [
+                { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+              ],
+              "note": ""
+            }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m"
+      },
+      "result": { "entry": "docs/sources/SRC-thesis-guide.md", "content": "docs/sources/SRC-thesis-guide/", "inInstance": true }
+    },
+    {
+      "name": "a repository",
+      "input": {
+        "entry": {
+          "id": "SRC-lab-tools",
+          "name": "lab-tools — the group's measurement scripts",
+          "kind": "system",
+          "authority": "informational",
+          "licence": "restricted",
+          "terms": "internal; not to be passed on",
+          "content": "repository",
+          "address": "https://github.com/alice/lab-tools",
+          "location": "",
+          "places": ["this machine"],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+              "date": "2026-09-20",
+              "files": [],
+              "note": ""
+            }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m"
+      },
+      "result": { "entry": "docs/sources/SRC-lab-tools.md", "content": "https://github.com/alice/lab-tools", "inInstance": false }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.parseLinks",
+  "summary": "A product's links, docs/sources.md: one row per source with its identifier, the version linked, the version's hash and the part that applies.",
+  "params": [{ "name": "text", "type": "string" }],
+  "result": "SourceLink[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "two sources",
+      "input": { "text": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n" },
+      "result": [
+        { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+        { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.checkLinks",
+  "summary": "Every finding on a product's links against the instance's register: a source not registered, a version the source does not have or without a hash yet, a hash that is not the version's, and a source linked twice.",
+  "params": [
+    { "name": "path", "type": "string" },
+    { "name": "text", "type": "string" },
+    { "name": "register", "type": "SourceEntry[]" }
+  ],
+  "result": "Finding[]",
+  "async": true,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the links as committed",
+      "input": {
+        "path": "docs/sources.md",
+        "text": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n",
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ]
+      },
+      "result": []
+    },
+    {
+      "name": "a wrong hash, an unknown source, a missing version",
+      "input": {
+        "path": "docs/sources.md",
+        "text": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | 0000000000000000000000000000000000000000000000000000000000000000 | safety class B |\n| SRC-gdpr | 1 | — | — |\n| SRC-thesis-guide | 3 | — | — |\n",
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ]
+      },
+      "result": [
+        { "artifact": "docs/sources.md", "line": 5, "kind": "error", "what": "the hash is not that of version 1 of SRC-iec-62304", "rule": "A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH", "fix": "write b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302" },
+        { "artifact": "docs/sources.md", "line": 6, "kind": "error", "what": "SRC-gdpr is not in the instance's register", "rule": "A PRODUCT LINKS THE SOURCES THAT APPLY", "fix": "register the source first (UC-004), or remove the line" },
+        { "artifact": "docs/sources.md", "line": 7, "kind": "error", "what": "SRC-thesis-guide has no version 3 with a hash", "rule": "A PRODUCT LINKS THE SOURCES THAT APPLY", "fix": "link one of the versions 1" }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.formatLinks",
+  "summary": "The text of a product's links: a heading and one row per source.",
+  "params": [{ "name": "links", "type": "SourceLink[]" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "two sources",
+      "input": {
+        "links": [
+          { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+          { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+        ]
+      },
+      "result": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.libraryView",
+  "summary": "The library as the page shows it: each source with its kind, authority, licence, content and versions, and each product that links it with the version it links — marked where a newer version exists.",
+  "params": [{ "name": "register", "type": "SourceEntry[]" }, { "name": "products", "type": "ProductLinks[]" }],
+  "result": "LibraryRow[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "four sources, one product",
+      "input": {
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "products": [
+          {
+            "product": "https://github.com/alice/notes",
+            "links": [
+              { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+              { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+            ]
+          }
+        ]
+      },
+      "result": [
+        {
+          "source": "SRC-ai-act",
+          "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+          "kind": "regulation",
+          "authority": "normative",
+          "licence": "republish",
+          "content": "files",
+          "versions": [{ "version": 1, "identifier": "32024R1689", "date": "" }],
+          "products": []
+        },
+        {
+          "source": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "content": "files",
+          "versions": [
+            { "version": 1, "identifier": "IEC 62304:2006", "date": "2006-05-09" },
+            { "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25" }
+          ],
+          "products": [{ "product": "https://github.com/alice/notes", "version": 1, "older": true }]
+        },
+        {
+          "source": "SRC-lab-tools",
+          "name": "lab-tools — the group's measurement scripts",
+          "kind": "system",
+          "authority": "informational",
+          "licence": "restricted",
+          "content": "repository",
+          "versions": [
+            { "version": 1, "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f", "date": "2026-09-20" }
+          ],
+          "products": []
+        },
+        {
+          "source": "SRC-thesis-guide",
+          "name": "Thesis writing guide of the faculty",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "content": "files",
+          "versions": [{ "version": 1, "identifier": "2025 edition", "date": "2025-10-01" }],
+          "products": [{ "product": "https://github.com/alice/notes", "version": 1, "older": false }]
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.linkChoices",
+  "summary": "What a product's form of its sources starts from: each source of the register, ticked where the product links it, with the version it links — else the newest —, its versions, the part it names, and the parts the source's entry names to choose from.",
+  "params": [{ "name": "register", "type": "SourceEntry[]" }, { "name": "links", "type": "SourceLink[]" }],
+  "result": "LinkChoice[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the product's two links",
+      "input": {
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "links": [
+          { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+          { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+        ]
+      },
+      "result": [
+        {
+          "source": "SRC-ai-act",
+          "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+          "kind": "regulation",
+          "authority": "normative",
+          "licence": "republish",
+          "linked": false,
+          "version": 1,
+          "versions": [1],
+          "part": "",
+          "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"]
+        },
+        {
+          "source": "SRC-iec-62304",
+          "name": "IEC 62304 — Medical device software — Software life cycle processes",
+          "kind": "standard",
+          "authority": "normative",
+          "licence": "restricted",
+          "linked": true,
+          "version": 1,
+          "versions": [1, 2],
+          "part": "safety class B",
+          "parts": ["safety class A", "safety class B", "safety class C"]
+        },
+        {
+          "source": "SRC-lab-tools",
+          "name": "lab-tools — the group's measurement scripts",
+          "kind": "system",
+          "authority": "informational",
+          "licence": "restricted",
+          "linked": false,
+          "version": 1,
+          "versions": [1],
+          "part": "",
+          "parts": []
+        },
+        {
+          "source": "SRC-thesis-guide",
+          "name": "Thesis writing guide of the faculty",
+          "kind": "document",
+          "authority": "advisory",
+          "licence": "republish",
+          "linked": true,
+          "version": 1,
+          "versions": [1],
+          "part": "",
+          "parts": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.sourceRequirements",
+  "summary": "The requirements of a product that name a source in their source, by their names.",
+  "params": [{ "name": "requirements", "type": "Requirement[]" }, { "name": "source", "type": "string" }],
+  "result": "string[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the norm",
+      "input": {
+        "requirements": [
+          { "name": "TRACEABLE CHANGES", "source": "SRC-iec-62304, 5.1.1", "rule": "Every change to the software names the item it realises.", "check": "`tests/test_trace.py`", "section": "1. Rules", "line": 5 },
+          { "name": "CITATION STYLE", "source": "SRC-thesis-guide", "rule": "Every chapter cites in one style.", "check": "no automatic check; at review.", "section": "1. Rules", "line": 9 },
+          { "name": "CHAPTER EXPORT", "source": "PO A. Maier", "rule": "A chapter is exported as PDF.", "check": "`tests/test_export.py`", "section": "1. Rules", "line": 13 }
+        ],
+        "source": "SRC-iec-62304"
+      },
+      "result": ["TRACEABLE CHANGES"]
+    },
+    {
+      "name": "a source no requirement names",
+      "input": {
+        "requirements": [
+          { "name": "TRACEABLE CHANGES", "source": "SRC-iec-62304, 5.1.1", "rule": "Every change to the software names the item it realises.", "check": "`tests/test_trace.py`", "section": "1. Rules", "line": 5 },
+          { "name": "CITATION STYLE", "source": "SRC-thesis-guide", "rule": "Every chapter cites in one style.", "check": "no automatic check; at review.", "section": "1. Rules", "line": 9 },
+          { "name": "CHAPTER EXPORT", "source": "PO A. Maier", "rule": "A chapter is exported as PDF.", "check": "`tests/test_export.py`", "section": "1. Rules", "line": 13 }
+        ],
+        "source": "SRC-ai-act"
+      },
+      "result": []
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-source-library.restrictionsOf",
+  "summary": "The sources whose content may go only where they permit — those under a restricted or an unknown licence —, each with the processing places its entry permits.",
+  "params": [{ "name": "register", "type": "SourceEntry[]" }],
+  "result": "Restriction[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the register",
+      "input": {
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ]
+      },
+      "result": [
+        { "source": "SRC-iec-62304", "permitted": ["this machine", "NHR@FAU, Erlangen"] },
+        { "source": "SRC-lab-tools", "permitted": ["this machine"] }
+      ]
+    }
+  ]
+}
+```
+
+### MOD-library-page
+
+```json module
+{
+  "id": "MOD-library-page",
+  "folder": "src/library-page/",
+  "layer": "shell",
+  "responsibility": "The page library.html at the root of the instance's Pages site, where requirement sources are registered and a product's links are set: its route, the reading of the instance's register and of the products' links and requirements, a repository's current commit for a source that is one, the saves on a click — a register entry with the content the instance keeps, a content kept in the repository an entry names, and a product's links —, and every text and all HTML of the page.",
+  "realises": [],
+  "owns": ["LibraryRoute", "RegisterEntryRead", "ProductSources", "LibraryInstance", "Library", "RepositoryCommit"],
+  "uses": ["MOD-contracts", "MOD-source-library", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-artifacts"]
+}
+```
+
+```json interface
+{
+  "id": "MOD-library-page.route",
+  "summary": "What the library page shows, from its address and the fragment: the instance — derived from the page library.html at the root of its Pages site —, the view — the library, one source, the form that registers a source or adds a version to the one it names, or a product's sources —, the source and the product.",
+  "params": [{ "name": "hash", "type": "string" }, { "name": "pagesAddress", "type": "string" }],
+  "result": "LibraryRoute",
+  "async": false,
+  "refusals": [
+    { "code": "not-a-pages-address", "when": "the page is not library.html at the root of a GitHub Pages site" },
+    { "code": "unknown-view", "when": "the fragment names no view" },
+    { "code": "no-source", "when": "a source's view names no source" },
+    { "code": "no-product", "when": "a product's view names no product" }
+  ],
+  "examples": [
+    {
+      "name": "the library",
+      "input": { "hash": "", "pagesAddress": "https://alice.github.io/agent-m/library.html" },
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "library", "source": "", "product": "" }
+    },
+    {
+      "name": "a new version of a source",
+      "input": { "hash": "#register?source=SRC-iec-62304", "pagesAddress": "https://alice.github.io/agent-m/library.html" },
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "register", "source": "SRC-iec-62304", "product": "" }
+    },
+    {
+      "name": "a product's sources",
+      "input": { "hash": "#product?product=https%3A%2F%2Fgithub.com%2Falice%2Fnotes", "pagesAddress": "https://alice.github.io/agent-m/library.html" },
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "product", "source": "", "product": "https://github.com/alice/notes" }
+    },
+    {
+      "name": "a source's view without its source",
+      "input": { "hash": "#source", "pagesAddress": "https://alice.github.io/agent-m/library.html" },
+      "refused": "no-source"
+    },
+    {
+      "name": "the settings page's address",
+      "input": { "hash": "", "pagesAddress": "https://alice.github.io/agent-m/settings.html" },
+      "refused": "not-a-pages-address"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-library-page.readLibrary",
+  "summary": "The instance's register at the head of its default branch, each entry with its blob and the findings of its check, and each product's links, their blob and its requirements at its head; a product that cannot be read is listed with why, and the page goes on.",
+  "params": [
+    { "name": "instance", "type": "string" },
+    { "name": "products", "type": "string[]" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "texts", "type": "StoragePort" }
+  ],
+  "result": "Library",
+  "async": true,
+  "refusals": [
+    { "code": "not-an-address", "when": "the address is no repository's address" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "not-found", "when": "the server knows no such repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the instance and one product",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "products": ["https://github.com/alice/notes"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/main" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "d193db47d1bffc74b126e106c058174080289914" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "591560a1507d06a26b7f0d406bedda6c90eb01ac" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "b730a333a87c40ac4f4daaa2e75d881952fccf1f" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "31175ab959853b144ad5aaa880a1919821d6f799" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/user" },
+            "response": { "status": 200, "body": { "login": "alice" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits/main" },
+            "response": { "status": 200, "body": { "sha": "b700000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/trees/b700000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "SPEC.md", "type": "blob", "sha": "30c8fbbba74911674254a834e0224e6db00d3c10" },
+                  { "path": "docs/sources.md", "type": "blob", "sha": "19522755a3dd38f9de3c52ee26edcc928a97d76c" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": { "19522755a3dd38f9de3c52ee26edcc928a97d76c": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n", "30c8fbbba74911674254a834e0224e6db00d3c10": "# notes — Specification\n\n## 1. Rules\n\n**TRACEABLE CHANGES** *(SRC-iec-62304, 5.1.1)*\nEvery change to the software names the item it realises.\n*Check:* `tests/test_trace.py`\n\n**CITATION STYLE** *(SRC-thesis-guide)*\nEvery chapter cites in one style.\n*Check:* no automatic check; at review.\n\n**CHAPTER EXPORT** *(PO A. Maier)*\nA chapter is exported as PDF.\n*Check:* `tests/test_export.py`\n", "31175ab959853b144ad5aaa880a1919821d6f799": "---\nid: SRC-thesis-guide\nname: Thesis writing guide of the faculty\nkind: document\nauthority: advisory\nlicence: republish\nterms: CC BY 4.0\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-thesis-guide Thesis writing guide of the faculty\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 2025 edition | 2025-10-01 | thesis-guide-2025.md | 0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711 | — |\n", "591560a1507d06a26b7f0d406bedda6c90eb01ac": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n", "b730a333a87c40ac4f4daaa2e75d881952fccf1f": "---\nid: SRC-lab-tools\nname: lab-tools — the group's measurement scripts\nkind: system\nauthority: informational\nlicence: restricted\nterms: internal; not to be passed on\ncontent: repository\naddress: https://github.com/alice/lab-tools\nlocation:\nplaces:\n  - this machine\nparts:\n---\n\n# SRC-lab-tools lab-tools — the group's measurement scripts\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f | 2026-09-20 | — | — | — |\n", "d193db47d1bffc74b126e106c058174080289914": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 32024R1689 | — | — | — | — |\n" }
+      },
+      "result": {
+        "instance": { "address": "https://github.com/alice/agent-m", "head": "a900000000000000000000000000000000000000", "branch": "main" },
+        "sources": [
+          {
+            "path": "docs/sources/SRC-ai-act.md",
+            "blob": "d193db47d1bffc74b126e106c058174080289914",
+            "entry": {
+              "id": "SRC-ai-act",
+              "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+              "kind": "regulation",
+              "authority": "normative",
+              "licence": "republish",
+              "terms": "reuse permitted with acknowledgement of the source",
+              "content": "files",
+              "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+              "location": "",
+              "places": [],
+              "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+              "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+            },
+            "findings": [
+              { "artifact": "SRC-ai-act", "line": 24, "kind": "warning", "what": "version 1 awaits its fetch from the EU's publication repository", "rule": "AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY", "fix": "let the fetch workflow complete the version" }
+            ]
+          },
+          {
+            "path": "docs/sources/SRC-iec-62304.md",
+            "blob": "591560a1507d06a26b7f0d406bedda6c90eb01ac",
+            "entry": {
+              "id": "SRC-iec-62304",
+              "name": "IEC 62304 — Medical device software — Software life cycle processes",
+              "kind": "standard",
+              "authority": "normative",
+              "licence": "restricted",
+              "terms": "© IEC; copies may not be passed on",
+              "content": "files",
+              "address": "",
+              "location": "https://github.com/alice/norms",
+              "places": ["this machine", "NHR@FAU, Erlangen"],
+              "parts": ["safety class A", "safety class B", "safety class C"],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "IEC 62304:2006",
+                  "date": "2006-05-09",
+                  "files": [
+                    { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                  ],
+                  "note": ""
+                },
+                {
+                  "version": 2,
+                  "identifier": "IEC 62304:2006+AMD1:2015",
+                  "date": "2015-06-25",
+                  "files": [
+                    { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                  ],
+                  "note": ""
+                }
+              ]
+            },
+            "findings": []
+          },
+          {
+            "path": "docs/sources/SRC-lab-tools.md",
+            "blob": "b730a333a87c40ac4f4daaa2e75d881952fccf1f",
+            "entry": {
+              "id": "SRC-lab-tools",
+              "name": "lab-tools — the group's measurement scripts",
+              "kind": "system",
+              "authority": "informational",
+              "licence": "restricted",
+              "terms": "internal; not to be passed on",
+              "content": "repository",
+              "address": "https://github.com/alice/lab-tools",
+              "location": "",
+              "places": ["this machine"],
+              "parts": [],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                  "date": "2026-09-20",
+                  "files": [],
+                  "note": ""
+                }
+              ]
+            },
+            "findings": []
+          },
+          {
+            "path": "docs/sources/SRC-thesis-guide.md",
+            "blob": "31175ab959853b144ad5aaa880a1919821d6f799",
+            "entry": {
+              "id": "SRC-thesis-guide",
+              "name": "Thesis writing guide of the faculty",
+              "kind": "document",
+              "authority": "advisory",
+              "licence": "republish",
+              "terms": "CC BY 4.0",
+              "content": "files",
+              "address": "",
+              "location": "",
+              "places": [],
+              "parts": [],
+              "versions": [
+                {
+                  "version": 1,
+                  "identifier": "2025 edition",
+                  "date": "2025-10-01",
+                  "files": [
+                    { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                  ],
+                  "note": ""
+                }
+              ]
+            },
+            "findings": []
+          }
+        ],
+        "products": [
+          {
+            "address": "https://github.com/alice/notes",
+            "head": "b700000000000000000000000000000000000000",
+            "writable": true,
+            "links": [
+              { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+              { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+            ],
+            "linksBlob": "19522755a3dd38f9de3c52ee26edcc928a97d76c",
+            "requirements": [
+              { "name": "TRACEABLE CHANGES", "source": "SRC-iec-62304, 5.1.1", "rule": "Every change to the software names the item it realises.", "check": "`tests/test_trace.py`", "section": "1. Rules", "line": 5 },
+              { "name": "CITATION STYLE", "source": "SRC-thesis-guide", "rule": "Every chapter cites in one style.", "check": "no automatic check; at review.", "section": "1. Rules", "line": 9 },
+              { "name": "CHAPTER EXPORT", "source": "PO A. Maier", "rule": "A chapter is exported as PDF.", "check": "`tests/test_export.py`", "section": "1. Rules", "line": 13 }
+            ],
+            "problem": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "a token the instance's server refuses",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "products": [],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": { "status": 401, "body": { "message": "Bad credentials" } }
+          }
+        ],
+        "texts": {}
+      },
+      "refused": "token-refused"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-library-page.repositoryCommit",
+  "summary": "The current commit of a repository a source is — the head of its default branch, read with the token stored for its server —, with its visibility.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "RepositoryCommit",
+  "async": true,
+  "refusals": [
+    { "code": "not-an-address", "when": "the address is no repository's address" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "not-found", "when": "the server knows no such repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the group's scripts",
+      "input": {
+        "address": "https://github.com/alice/lab-tools",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f" } } }
+          }
+        ]
+      },
+      "result": { "address": "https://github.com/alice/lab-tools", "branch": "main", "commit": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f", "visibility": "private" }
+    },
+    {
+      "name": "a repository the token does not reach",
+      "input": {
+        "address": "https://github.com/alice/secret-norms",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/secret-norms" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "refused": "not-found"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-library-page.saveSource",
+  "summary": "A register entry, new or with a version added, committed to the instance on the head read, on a click, with the version's content where the instance keeps it — the files of a content kept as Markdown (MOD-source-library.contentFiles): where the entry is still the version the page opened — none for a new entry —, no content file exists yet, its check against the entry as committed finds no error, so that no committed version changes, and the content is one the public instance may keep.",
+  "params": [
+    { "name": "instance", "type": "string" },
+    { "name": "path", "type": "string" },
+    { "name": "text", "type": "string" },
+    { "name": "content", "type": "FileText[]" },
+    { "name": "openedBlob", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "texts", "type": "StoragePort" },
+    { "name": "authority", "type": "Authority" }
+  ],
+  "result": "CommitResult",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the save" },
+    { "code": "no-token", "when": "no token is stored for the repository" },
+    { "code": "moved", "when": "the file changed after the page read it" },
+    { "code": "not-saved", "when": "the check of the file finds an error" },
+    { "code": "not-an-address", "when": "the address is no repository's address" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "not-found", "when": "the server knows no such repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "not-a-source", "when": "the text has no front matter naming an id" },
+    { "code": "exists", "when": "a content file exists already" },
+    { "code": "restricted", "when": "content is given for a source the public instance may not keep" }
+  ],
+  "examples": [
+    {
+      "name": "a new edition of the norm",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "path": "docs/sources/SRC-iec-62304.md",
+        "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n| 3 | IEC 62304:2006+AMD1:2015+AMD2:2026 | 2026-07-01 | iec-62304-2026.pdf | 9d44444444444444444444444444444444444444444444444444444444444444 | — |\n",
+        "content": [],
+        "openedBlob": "591560a1507d06a26b7f0d406bedda6c90eb01ac",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "d193db47d1bffc74b126e106c058174080289914" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "591560a1507d06a26b7f0d406bedda6c90eb01ac" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "b730a333a87c40ac4f4daaa2e75d881952fccf1f" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "31175ab959853b144ad5aaa880a1919821d6f799" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "tree": { "sha": "db00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/trees",
+              "body": {
+                "base_tree": "db00000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/sources/SRC-iec-62304.md", "mode": "100644", "type": "blob", "content": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n| 3 | IEC 62304:2006+AMD1:2015+AMD2:2026 | 2026-07-01 | iec-62304-2026.pdf | 9d44444444444444444444444444444444444444444444444444444444444444 | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "dc00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/commits",
+              "body": {
+                "message": "docs: SRC-iec-62304 gets version 3",
+                "tree": "dc00000000000000000000000000000000000000",
+                "parents": ["a900000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "dd00000000000000000000000000000000000000", "html_url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/agent-m/git/refs/heads/main",
+              "body": { "sha": "dd00000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "dd00000000000000000000000000000000000000" } } }
+          }
+        ],
+        "texts": { "591560a1507d06a26b7f0d406bedda6c90eb01ac": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n" },
+        "authority": { "kind": "click" }
+      },
+      "result": { "sha": "dd00000000000000000000000000000000000000", "url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+    },
+    {
+      "name": "a later version of the AI Act awaiting its fetch",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "path": "docs/sources/SRC-ai-act.md",
+        "text": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 32024R1689 | — | — | — | — |\n| 2 | 02024R1689-20260801 | — | — | — | — |\n",
+        "content": [],
+        "openedBlob": "d193db47d1bffc74b126e106c058174080289914",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "d193db47d1bffc74b126e106c058174080289914" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "591560a1507d06a26b7f0d406bedda6c90eb01ac" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "b730a333a87c40ac4f4daaa2e75d881952fccf1f" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "31175ab959853b144ad5aaa880a1919821d6f799" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "tree": { "sha": "db00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/trees",
+              "body": {
+                "base_tree": "db00000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "mode": "100644", "type": "blob", "content": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 32024R1689 | — | — | — | — |\n| 2 | 02024R1689-20260801 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "dc00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/commits",
+              "body": {
+                "message": "docs: SRC-ai-act gets version 2",
+                "tree": "dc00000000000000000000000000000000000000",
+                "parents": ["a900000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "dd00000000000000000000000000000000000000", "html_url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/agent-m/git/refs/heads/main",
+              "body": { "sha": "dd00000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "dd00000000000000000000000000000000000000" } } }
+          }
+        ],
+        "texts": { "d193db47d1bffc74b126e106c058174080289914": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 32024R1689 | — | — | — | — |\n" },
+        "authority": { "kind": "click" }
+      },
+      "result": { "sha": "dd00000000000000000000000000000000000000", "url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+    },
+    {
+      "name": "the style guide registered with its Markdown",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "path": "docs/sources/SRC-lab-style.md",
+        "text": "---\nid: SRC-lab-style\nname: The group's style guide for reports\nkind: document\nauthority: advisory\nlicence: republish\nterms: CC BY 4.0\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-lab-style The group's style guide for reports\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 2026 edition | 2026-03-02 | lab-style.md | 7d084e9bd20494f842082ca9a506980c017e278b10a4deda9b98e6c7bd7aebf9 | — |\n",
+        "content": [
+          { "path": "docs/sources/SRC-lab-style/1/lab-style.md", "text": "# Style of the group's reports\n\nWrite in the active voice.\n" }
+        ],
+        "openedBlob": "",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "d193db47d1bffc74b126e106c058174080289914" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "591560a1507d06a26b7f0d406bedda6c90eb01ac" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "b730a333a87c40ac4f4daaa2e75d881952fccf1f" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "31175ab959853b144ad5aaa880a1919821d6f799" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "tree": { "sha": "db00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/trees",
+              "body": {
+                "base_tree": "db00000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/sources/SRC-lab-style.md", "mode": "100644", "type": "blob", "content": "---\nid: SRC-lab-style\nname: The group's style guide for reports\nkind: document\nauthority: advisory\nlicence: republish\nterms: CC BY 4.0\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-lab-style The group's style guide for reports\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 2026 edition | 2026-03-02 | lab-style.md | 7d084e9bd20494f842082ca9a506980c017e278b10a4deda9b98e6c7bd7aebf9 | — |\n" },
+                  { "path": "docs/sources/SRC-lab-style/1/lab-style.md", "mode": "100644", "type": "blob", "content": "# Style of the group's reports\n\nWrite in the active voice.\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "dc00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/commits",
+              "body": {
+                "message": "docs: register SRC-lab-style",
+                "tree": "dc00000000000000000000000000000000000000",
+                "parents": ["a900000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "dd00000000000000000000000000000000000000", "html_url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/agent-m/git/refs/heads/main",
+              "body": { "sha": "dd00000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "dd00000000000000000000000000000000000000" } } }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" }
+      },
+      "result": { "sha": "dd00000000000000000000000000000000000000", "url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+    },
+    {
+      "name": "a restricted handbook's content sent to the instance",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "path": "docs/sources/SRC-lab-handbook.md",
+        "text": "---\nid: SRC-lab-handbook\nname: The lab's safety handbook\nkind: document\nauthority: normative\nlicence: restricted\nterms: internal; not to be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\nparts:\n---\n\n# SRC-lab-handbook The lab's safety handbook\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | edition 4 | 2026-01-15 | lab-handbook.md | ee355dce8a55d567f8d9557e878fd5c42b72b582813067607535aeda94deaf43 | — |\n",
+        "content": [
+          { "path": "docs/sources/SRC-lab-handbook/1/lab-handbook.md", "text": "# Safety handbook of the lab\n\nWear protective glasses.\n" }
+        ],
+        "openedBlob": "",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "texts": {},
+        "authority": { "kind": "click" }
+      },
+      "refused": "restricted"
+    },
+    {
+      "name": "a committed version changed",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "path": "docs/sources/SRC-iec-62304.md",
+        "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-06-01 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n",
+        "content": [],
+        "openedBlob": "591560a1507d06a26b7f0d406bedda6c90eb01ac",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "d193db47d1bffc74b126e106c058174080289914" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "591560a1507d06a26b7f0d406bedda6c90eb01ac" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "b730a333a87c40ac4f4daaa2e75d881952fccf1f" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "31175ab959853b144ad5aaa880a1919821d6f799" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": { "591560a1507d06a26b7f0d406bedda6c90eb01ac": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n" },
+        "authority": { "kind": "click" }
+      },
+      "refused": "not-saved"
+    },
+    {
+      "name": "the entry changed meanwhile",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "path": "docs/sources/SRC-iec-62304.md",
+        "text": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | IEC 62304:2006 | 2006-05-09 | iec-62304-2006.pdf | 7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506 | — |\n| 2 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — |\n| 3 | IEC 62304:2006+AMD1:2015+AMD2:2026 | 2026-07-01 | iec-62304-2026.pdf | 9d44444444444444444444444444444444444444444444444444444444444444 | — |\n",
+        "content": [],
+        "openedBlob": "591560a1507d06a26b7f0d406bedda6c90eb01ac",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "ae00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/ae00000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "ae00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/ae00000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "d193db47d1bffc74b126e106c058174080289914" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "dfe07c6e9f52dcef194ea4b0615026abf00cb139" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "b730a333a87c40ac4f4daaa2e75d881952fccf1f" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "31175ab959853b144ad5aaa880a1919821d6f799" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" }
+      },
+      "refused": "moved"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-library-page.saveLinks",
+  "summary": "A product's links, docs/sources.md, committed to the product on the head read, on a click: where the file is still the version the page opened and its check against the register the page read finds no error.",
+  "params": [
+    { "name": "product", "type": "string" },
+    { "name": "text", "type": "string" },
+    { "name": "openedBlob", "type": "string" },
+    { "name": "register", "type": "SourceEntry[]" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "texts", "type": "StoragePort" },
+    { "name": "authority", "type": "Authority" }
+  ],
+  "result": "CommitResult",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the save" },
+    { "code": "no-token", "when": "no token is stored for the repository" },
+    { "code": "moved", "when": "the file changed after the page read it" },
+    { "code": "not-saved", "when": "the check of the file finds an error" },
+    { "code": "not-an-address", "when": "the address is no repository's address" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "not-found", "when": "the server knows no such repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the product moved to the edition of 2015",
+      "input": {
+        "product": "https://github.com/alice/notes",
+        "text": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 2 | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n",
+        "openedBlob": "19522755a3dd38f9de3c52ee26edcc928a97d76c",
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "b700000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits/b700000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "b700000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/trees/b700000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "SPEC.md", "type": "blob", "sha": "30c8fbbba74911674254a834e0224e6db00d3c10" },
+                  { "path": "docs/sources.md", "type": "blob", "sha": "19522755a3dd38f9de3c52ee26edcc928a97d76c" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/commits/b700000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "tree": { "sha": "db00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/git/trees",
+              "body": {
+                "base_tree": "db00000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/sources.md", "mode": "100644", "type": "blob", "content": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 2 | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "dc00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/git/commits",
+              "body": {
+                "message": "docs: the requirement sources that apply",
+                "tree": "dc00000000000000000000000000000000000000",
+                "parents": ["b700000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "dd00000000000000000000000000000000000000", "html_url": "https://github.com/alice/notes/commit/dd00000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/notes/git/refs/heads/main",
+              "body": { "sha": "dd00000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "dd00000000000000000000000000000000000000" } } }
+          }
+        ],
+        "texts": { "19522755a3dd38f9de3c52ee26edcc928a97d76c": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n" },
+        "authority": { "kind": "click" }
+      },
+      "result": { "sha": "dd00000000000000000000000000000000000000", "url": "https://github.com/alice/notes/commit/dd00000000000000000000000000000000000000" }
+    },
+    {
+      "name": "a link to a source not registered",
+      "input": {
+        "product": "https://github.com/alice/notes",
+        "text": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | 0000000000000000000000000000000000000000000000000000000000000000 | safety class B |\n| SRC-gdpr | 1 | — | — |\n| SRC-thesis-guide | 3 | — | — |\n",
+        "openedBlob": "19522755a3dd38f9de3c52ee26edcc928a97d76c",
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "b700000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits/b700000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "b700000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/trees/b700000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "SPEC.md", "type": "blob", "sha": "30c8fbbba74911674254a834e0224e6db00d3c10" },
+                  { "path": "docs/sources.md", "type": "blob", "sha": "19522755a3dd38f9de3c52ee26edcc928a97d76c" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": { "19522755a3dd38f9de3c52ee26edcc928a97d76c": "# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n" },
+        "authority": { "kind": "click" }
+      },
+      "refused": "not-saved"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-library-page.saveContent",
+  "summary": "The content of a version kept as Markdown, committed to the repository a restricted source's entry names, on a click: one commit on the head read, where none of its files exists yet — a version's content is never overwritten.",
+  "params": [
+    { "name": "location", "type": "string" },
+    { "name": "files", "type": "FileText[]" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority" }
+  ],
+  "result": "CommitResult",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the save" },
+    { "code": "nothing-to-write", "when": "no file of the content is given" },
+    { "code": "not-https", "when": "the repository's address does not use https" },
+    { "code": "credential-in-address", "when": "the address carries a user name or a token" },
+    { "code": "not-a-repository", "when": "the address names no repository" },
+    { "code": "no-token", "when": "no token is stored for the repository's server" },
+    { "code": "exists", "when": "a file of the content exists already" },
+    { "code": "moved", "when": "the branch moved on after the head read" },
+    { "code": "not-an-address", "when": "the address is no repository's address" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "not-found", "when": "the server knows no such repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the handbook in the group's repository",
+      "input": {
+        "location": "https://github.com/alice/norms",
+        "files": [
+          { "path": "docs/sources/SRC-lab-handbook/1/lab-handbook.md", "text": "# Safety handbook of the lab\n\nWear protective glasses.\n" }
+        ],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c300000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms/commits/c300000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c300000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms/git/trees/c300000000000000000000000000000000000000?recursive=1" },
+            "response": { "status": 200, "body": { "tree": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms/git/commits/c300000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "tree": { "sha": "db00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/norms/git/trees",
+              "body": {
+                "base_tree": "db00000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/sources/SRC-lab-handbook/1/lab-handbook.md", "mode": "100644", "type": "blob", "content": "# Safety handbook of the lab\n\nWear protective glasses.\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "dc00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/norms/git/commits",
+              "body": {
+                "message": "docs: the content of docs/sources/SRC-lab-handbook/1",
+                "tree": "dc00000000000000000000000000000000000000",
+                "parents": ["c300000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "dd00000000000000000000000000000000000000", "html_url": "https://github.com/alice/norms/commit/dd00000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/norms/git/refs/heads/main",
+              "body": { "sha": "dd00000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "dd00000000000000000000000000000000000000" } } }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "sha": "dd00000000000000000000000000000000000000", "url": "https://github.com/alice/norms/commit/dd00000000000000000000000000000000000000" }
+    },
+    {
+      "name": "the content committed already",
+      "input": {
+        "location": "https://github.com/alice/norms",
+        "files": [
+          { "path": "docs/sources/SRC-lab-handbook/1/lab-handbook.md", "text": "# Safety handbook of the lab\n\nWear protective glasses.\n" }
+        ],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "ae00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms/commits/ae00000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "ae00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/norms/git/trees/ae00000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-lab-handbook/1/lab-handbook.md", "type": "blob", "sha": "d679f1392524efd0a5da8fd203c705f0ec4b2f64" }
+                ]
+              }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "refused": "exists"
+    },
+    {
+      "name": "no file given",
+      "input": {
+        "location": "https://github.com/alice/norms",
+        "files": [],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "nothing-to-write"
+    }
+  ]
+}
+```
+
+## Types
+
+```json type
+{
+  "$id": "SourceFileHash",
+  "description": "A file read for a source's version, by its name, with its SHA-256.",
+  "type": "object",
+  "required": ["name", "sha256"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "examples": [
+    { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SourceVersion",
+  "description": "A version of a source: its number in the register, its official identifier or edition — a standard's designation, an EU legal text's CELEX number or ELI, a document's edition, a repository's commit —, its date — empty while an EU legal text awaits its fetch —, the files read with their SHA-256, and a note.",
+  "type": "object",
+  "required": ["version", "identifier", "date", "files", "note"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "minimum": 0 },
+    "identifier": { "type": "string" },
+    "date": { "type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$" },
+    "files": { "type": "array", "items": { "$ref": "SourceFileHash" } },
+    "note": { "type": "string" }
+  },
+  "examples": [
+    {
+      "version": 2,
+      "identifier": "IEC 62304:2006+AMD1:2015",
+      "date": "2015-06-25",
+      "files": [
+        { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+      ],
+      "note": ""
+    },
+    {
+      "version": 1,
+      "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+      "date": "2026-09-20",
+      "files": [],
+      "note": ""
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SourceEntry",
+  "description": "A register entry as read — each field as written, so that a check can name what is wrong: the identifier, name, kind, authority, licence and terms, whether the content is files, an archive or a repository, the address it comes from, the repository that keeps restricted content, the processing places it permits, the parts it names, and its versions.",
+  "type": "object",
+  "required": ["id", "name", "kind", "authority", "licence", "terms", "content", "address", "location", "places", "parts", "versions"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^SRC-[a-z0-9]+(-[a-z0-9]+)*$" },
+    "name": { "type": "string" },
+    "kind": { "type": "string" },
+    "authority": { "type": "string" },
+    "licence": { "type": "string" },
+    "terms": { "type": "string" },
+    "content": { "type": "string" },
+    "address": { "type": "string" },
+    "location": { "type": "string" },
+    "places": { "type": "array", "items": { "type": "string" } },
+    "parts": { "type": "array", "items": { "type": "string" } },
+    "versions": { "type": "array", "items": { "$ref": "SourceVersion" } }
+  },
+  "examples": [
+    {
+      "id": "SRC-iec-62304",
+      "name": "IEC 62304 — Medical device software — Software life cycle processes",
+      "kind": "standard",
+      "authority": "normative",
+      "licence": "restricted",
+      "terms": "© IEC; copies may not be passed on",
+      "content": "files",
+      "address": "",
+      "location": "https://github.com/alice/norms",
+      "places": ["this machine", "NHR@FAU, Erlangen"],
+      "parts": ["safety class A", "safety class B", "safety class C"],
+      "versions": [
+        {
+          "version": 1,
+          "identifier": "IEC 62304:2006",
+          "date": "2006-05-09",
+          "files": [
+            { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+          ],
+          "note": ""
+        },
+        {
+          "version": 2,
+          "identifier": "IEC 62304:2006+AMD1:2015",
+          "date": "2015-06-25",
+          "files": [
+            { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+          ],
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "SRC-ai-act",
+      "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+      "kind": "regulation",
+      "authority": "normative",
+      "licence": "republish",
+      "terms": "reuse permitted with acknowledgement of the source",
+      "content": "files",
+      "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+      "location": "",
+      "places": [],
+      "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+      "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+    },
+    {
+      "id": "SRC-lab-tools",
+      "name": "lab-tools — the group's measurement scripts",
+      "kind": "system",
+      "authority": "informational",
+      "licence": "restricted",
+      "terms": "internal; not to be passed on",
+      "content": "repository",
+      "address": "https://github.com/alice/lab-tools",
+      "location": "",
+      "places": ["this machine"],
+      "parts": [],
+      "versions": [
+        {
+          "version": 1,
+          "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+          "date": "2026-09-20",
+          "files": [],
+          "note": ""
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "NewVersion",
+  "description": "A version as the form gives it, before the register numbers it.",
+  "type": "object",
+  "required": ["identifier", "date", "files", "note"],
+  "additionalProperties": false,
+  "properties": {
+    "identifier": { "type": "string" },
+    "date": { "type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$" },
+    "files": { "type": "array", "items": { "$ref": "SourceFileHash" } },
+    "note": { "type": "string" }
+  },
+  "examples": [
+    {
+      "identifier": "IEC 62304:2006+AMD1:2015+AMD2:2026",
+      "date": "2026-07-01",
+      "files": [
+        { "name": "iec-62304-2026.pdf", "sha256": "9d44444444444444444444444444444444444444444444444444444444444444" }
+      ],
+      "note": ""
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SourceForm",
+  "description": "What the register form gives: the source's name, kind, authority, licence — empty where none was chosen — and terms, its content, its address, the repository for restricted content, the places it permits, its parts, and its first version.",
+  "type": "object",
+  "required": ["name", "kind", "authority", "licence", "terms", "content", "address", "location", "places", "parts", "version"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "kind": {
+      "type": "string",
+      "enum": ["organisation", "person", "standard", "regulation", "document", "system", "measurement"]
+    },
+    "authority": { "type": "string", "enum": ["normative", "advisory", "informational"] },
+    "licence": { "type": "string", "enum": ["", "republish", "restricted", "unknown"] },
+    "terms": { "type": "string" },
+    "content": { "type": "string", "enum": ["files", "archive", "repository"] },
+    "address": { "type": "string" },
+    "location": { "type": "string" },
+    "places": { "type": "array", "items": { "type": "string" } },
+    "parts": { "type": "array", "items": { "type": "string" } },
+    "version": { "$ref": "NewVersion" }
+  },
+  "examples": [
+    {
+      "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+      "kind": "regulation",
+      "authority": "normative",
+      "licence": "republish",
+      "terms": "reuse permitted with acknowledgement of the source",
+      "content": "files",
+      "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+      "location": "",
+      "places": [],
+      "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+      "version": { "identifier": "32024R1689", "date": "", "files": [], "note": "" }
+    },
+    {
+      "name": "ISO 14971 — Application of risk management to medical devices",
+      "kind": "standard",
+      "authority": "normative",
+      "licence": "",
+      "terms": "",
+      "content": "files",
+      "address": "",
+      "location": "",
+      "places": ["this machine"],
+      "parts": [],
+      "version": {
+        "identifier": "ISO 14971:2019",
+        "date": "2019-12-01",
+        "files": [
+          { "name": "iso-14971-2019.pdf", "sha256": "3faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+        ],
+        "note": "the printed copy is kept by the quality office"
+      }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AlreadyRegistered",
+  "description": "The source the register holds already for what a form names, by its identifier — empty where none.",
+  "type": "object",
+  "required": ["source"],
+  "additionalProperties": false,
+  "properties": { "source": { "type": "string", "pattern": "^(SRC-[a-z0-9]+(-[a-z0-9]+)*)?$" } },
+  "examples": [{ "source": "SRC-ai-act" }, { "source": "" }]
+}
+```
+
+```json type
+{
+  "$id": "EuAddress",
+  "description": "An EU legal text's identifier from its address: a CELEX number, or an ELI.",
+  "type": "object",
+  "required": ["scheme", "identifier"],
+  "additionalProperties": false,
+  "properties": {
+    "scheme": { "type": "string", "enum": ["celex", "eli"] },
+    "identifier": { "type": "string", "minLength": 1 }
+  },
+  "examples": [
+    { "scheme": "celex", "identifier": "32024R1689" },
+    { "scheme": "eli", "identifier": "http://data.europa.eu/eli/reg/2024/1689/oj" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "FileBytes",
+  "description": "A file the person selected: its name and its bytes, base64-encoded.",
+  "type": "object",
+  "required": ["name", "base64"],
+  "additionalProperties": false,
+  "properties": { "name": { "type": "string", "minLength": 1 }, "base64": { "type": "string" } },
+  "examples": [
+    { "name": "thesis-guide-2025.md", "base64": "IyBXcml0aW5nIGEgdGhlc2lzCgpDaXRlIGV2ZXJ5IHNvdXJjZSB5b3UgdXNlLgo=" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "Publicity",
+  "description": "What a save makes public: the register entry's path in the instance; where the content is kept — the instance's folder of the source, a repository's address, or empty where only its hashes are recorded —; and whether that is the public instance.",
+  "type": "object",
+  "required": ["entry", "content", "inInstance"],
+  "additionalProperties": false,
+  "properties": {
+    "entry": { "type": "string" },
+    "content": { "type": "string" },
+    "inInstance": { "type": "boolean" }
+  },
+  "examples": [
+    { "entry": "docs/sources/SRC-iec-62304.md", "content": "https://github.com/alice/norms", "inInstance": false },
+    { "entry": "docs/sources/SRC-thesis-guide.md", "content": "docs/sources/SRC-thesis-guide/", "inInstance": true }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SourceLink",
+  "description": "A product's link to a source: the source, the version linked, the version's hash — empty where the version has none yet —, and the part that applies — empty for the whole.",
+  "type": "object",
+  "required": ["source", "version", "sha256", "part"],
+  "additionalProperties": false,
+  "properties": {
+    "source": { "type": "string" },
+    "version": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": "string" },
+    "part": { "type": "string" }
+  },
+  "examples": [
+    { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+    { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ProductLinks",
+  "description": "A product by its address, with its links.",
+  "type": "object",
+  "required": ["product", "links"],
+  "additionalProperties": false,
+  "properties": { "product": { "type": "string" }, "links": { "type": "array", "items": { "$ref": "SourceLink" } } },
+  "examples": [
+    {
+      "product": "https://github.com/alice/notes",
+      "links": [
+        { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+        { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "LibraryVersion",
+  "description": "A version as the library lists it.",
+  "type": "object",
+  "required": ["version", "identifier", "date"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "minimum": 0 },
+    "identifier": { "type": "string" },
+    "date": { "type": "string", "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$" }
+  },
+  "examples": [{ "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25" }]
+}
+```
+
+```json type
+{
+  "$id": "LibraryUse",
+  "description": "A product that links a source, with the version it links, and whether a newer one exists.",
+  "type": "object",
+  "required": ["product", "version", "older"],
+  "additionalProperties": false,
+  "properties": {
+    "product": { "type": "string" },
+    "version": { "type": "integer", "minimum": 0 },
+    "older": { "type": "boolean" }
+  },
+  "examples": [{ "product": "https://github.com/alice/notes", "version": 1, "older": true }]
+}
+```
+
+```json type
+{
+  "$id": "LibraryRow",
+  "description": "A source as the library shows it: its identifier, name, kind, authority, licence and content, its versions, and the products that link it.",
+  "type": "object",
+  "required": ["source", "name", "kind", "authority", "licence", "content", "versions", "products"],
+  "additionalProperties": false,
+  "properties": {
+    "source": { "type": "string" },
+    "name": { "type": "string" },
+    "kind": { "type": "string" },
+    "authority": { "type": "string" },
+    "licence": { "type": "string" },
+    "content": { "type": "string" },
+    "versions": { "type": "array", "items": { "$ref": "LibraryVersion" } },
+    "products": { "type": "array", "items": { "$ref": "LibraryUse" } }
+  },
+  "examples": [
+    {
+      "source": "SRC-iec-62304",
+      "name": "IEC 62304 — Medical device software — Software life cycle processes",
+      "kind": "standard",
+      "authority": "normative",
+      "licence": "restricted",
+      "content": "files",
+      "versions": [
+        { "version": 1, "identifier": "IEC 62304:2006", "date": "2006-05-09" },
+        { "version": 2, "identifier": "IEC 62304:2006+AMD1:2015", "date": "2015-06-25" }
+      ],
+      "products": [{ "product": "https://github.com/alice/notes", "version": 1, "older": true }]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "LinkChoice",
+  "description": "A source in a product's form of its sources: ticked where linked, the version linked or the newest, the versions to choose from, the part named, and the parts the entry names.",
+  "type": "object",
+  "required": ["source", "name", "kind", "authority", "licence", "linked", "version", "versions", "part", "parts"],
+  "additionalProperties": false,
+  "properties": {
+    "source": { "type": "string" },
+    "name": { "type": "string" },
+    "kind": { "type": "string" },
+    "authority": { "type": "string" },
+    "licence": { "type": "string" },
+    "linked": { "type": "boolean" },
+    "version": { "type": "integer", "minimum": 0 },
+    "versions": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+    "part": { "type": "string" },
+    "parts": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "source": "SRC-iec-62304",
+      "name": "IEC 62304 — Medical device software — Software life cycle processes",
+      "kind": "standard",
+      "authority": "normative",
+      "licence": "restricted",
+      "linked": true,
+      "version": 1,
+      "versions": [1, 2],
+      "part": "safety class B",
+      "parts": ["safety class A", "safety class B", "safety class C"]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SourceFileContent",
+  "description": "What the markdown-front-matter syntax reads from a register entry.",
+  "type": "object",
+  "required": ["fields", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "fields": {
+      "type": "object",
+      "required": ["id", "kind", "authority", "licence", "content"],
+      "additionalProperties": { "anyOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+      "properties": {
+        "id": { "type": "string", "pattern": "^SRC-[a-z0-9]+(-[a-z0-9]+)*$" },
+        "kind": {
+          "type": "string",
+          "enum": ["organisation", "person", "standard", "regulation", "document", "system", "measurement"]
+        },
+        "authority": { "type": "string", "enum": ["normative", "advisory", "informational"] },
+        "licence": { "type": "string", "enum": ["republish", "restricted", "unknown"] },
+        "content": { "type": "string", "enum": ["files", "archive", "repository"] }
+      }
+    },
+    "body": { "type": "string" }
+  },
+  "examples": [
+    {
+      "fields": { "id": "SRC-thesis-guide", "kind": "document", "authority": "advisory", "licence": "republish", "content": "files" },
+      "body": "\n# SRC-thesis-guide Thesis writing guide of the faculty\n"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SourceLinkRow",
+  "description": "A row of a product's links as the markdown-table syntax reads it.",
+  "type": "object",
+  "required": ["Source", "Version", "SHA-256", "Part"],
+  "additionalProperties": false,
+  "properties": {
+    "Source": { "type": "string", "pattern": "^SRC-[a-z0-9]+(-[a-z0-9]+)*$" },
+    "Version": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+    "SHA-256": { "type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64}|—)$" },
+    "Part": { "type": "string" }
+  },
+  "examples": [
+    { "Source": "SRC-iec-62304", "Version": "1", "SHA-256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "Part": "safety class B" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "LibraryRoute",
+  "description": "What the library page shows: the instance, the view, the source and the product it names — empty where none.",
+  "type": "object",
+  "required": ["instance", "view", "source", "product"],
+  "additionalProperties": false,
+  "properties": {
+    "instance": { "type": "string" },
+    "view": { "type": "string", "enum": ["library", "source", "register", "product"] },
+    "source": { "type": "string" },
+    "product": { "type": "string" }
+  },
+  "examples": [
+    { "instance": "https://github.com/alice/agent-m", "view": "register", "source": "SRC-iec-62304", "product": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "RegisterEntryRead",
+  "description": "A register entry as the page read it: its path, its blob, the entry — null where the file is none —, and the findings of its check.",
+  "type": "object",
+  "required": ["path", "blob", "entry", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "path": { "type": "string" },
+    "blob": { "type": "string" },
+    "entry": { "anyOf": [{ "$ref": "SourceEntry" }, { "type": "null" }] },
+    "findings": { "type": "array", "items": { "$ref": "Finding" } }
+  },
+  "examples": [
+    {
+      "path": "docs/sources/SRC-iec-62304.md",
+      "blob": "591560a1507d06a26b7f0d406bedda6c90eb01ac",
+      "entry": {
+        "id": "SRC-iec-62304",
+        "name": "IEC 62304 — Medical device software — Software life cycle processes",
+        "kind": "standard",
+        "authority": "normative",
+        "licence": "restricted",
+        "terms": "© IEC; copies may not be passed on",
+        "content": "files",
+        "address": "",
+        "location": "https://github.com/alice/norms",
+        "places": ["this machine", "NHR@FAU, Erlangen"],
+        "parts": ["safety class A", "safety class B", "safety class C"],
+        "versions": [
+          {
+            "version": 1,
+            "identifier": "IEC 62304:2006",
+            "date": "2006-05-09",
+            "files": [
+              { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+            ],
+            "note": ""
+          },
+          {
+            "version": 2,
+            "identifier": "IEC 62304:2006+AMD1:2015",
+            "date": "2015-06-25",
+            "files": [
+              { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+            ],
+            "note": ""
+          }
+        ]
+      },
+      "findings": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ProductSources",
+  "description": "A product as the library page read it: its address, the head read, whether this browser may write to it, its links and their blob, its requirements, and why it could not be read — null where it could.",
+  "type": "object",
+  "required": ["address", "head", "writable", "links", "linksBlob", "requirements", "problem"],
+  "additionalProperties": false,
+  "properties": {
+    "address": { "type": "string" },
+    "head": { "type": "string" },
+    "writable": { "type": "boolean" },
+    "links": { "type": "array", "items": { "$ref": "SourceLink" } },
+    "linksBlob": { "type": "string" },
+    "requirements": { "type": "array", "items": { "$ref": "Requirement" } },
+    "problem": { "$ref": "RefusalOrNone" }
+  },
+  "examples": [
+    {
+      "address": "https://github.com/alice/notes",
+      "head": "b700000000000000000000000000000000000000",
+      "writable": true,
+      "links": [
+        { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+        { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+      ],
+      "linksBlob": "19522755a3dd38f9de3c52ee26edcc928a97d76c",
+      "requirements": [
+        { "name": "TRACEABLE CHANGES", "source": "SRC-iec-62304, 5.1.1", "rule": "Every change to the software names the item it realises.", "check": "`tests/test_trace.py`", "section": "1. Rules", "line": 5 },
+        { "name": "CITATION STYLE", "source": "SRC-thesis-guide", "rule": "Every chapter cites in one style.", "check": "no automatic check; at review.", "section": "1. Rules", "line": 9 },
+        { "name": "CHAPTER EXPORT", "source": "PO A. Maier", "rule": "A chapter is exported as PDF.", "check": "`tests/test_export.py`", "section": "1. Rules", "line": 13 }
+      ],
+      "problem": null
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "LibraryInstance",
+  "description": "The instance as the library page read it: its address, the head read and its default branch.",
+  "type": "object",
+  "required": ["address", "head", "branch"],
+  "additionalProperties": false,
+  "properties": { "address": { "type": "string" }, "head": { "type": "string" }, "branch": { "type": "string" } },
+  "examples": [
+    { "address": "https://github.com/alice/agent-m", "head": "a900000000000000000000000000000000000000", "branch": "main" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "Library",
+  "description": "What the library page reads: the instance, its register's entries and the products.",
+  "type": "object",
+  "required": ["instance", "sources", "products"],
+  "additionalProperties": false,
+  "properties": {
+    "instance": { "$ref": "LibraryInstance" },
+    "sources": { "type": "array", "items": { "$ref": "RegisterEntryRead" } },
+    "products": { "type": "array", "items": { "$ref": "ProductSources" } }
+  },
+  "examples": [
+    {
+      "instance": { "address": "https://github.com/alice/agent-m", "head": "a900000000000000000000000000000000000000", "branch": "main" },
+      "sources": [
+        {
+          "path": "docs/sources/SRC-ai-act.md",
+          "blob": "d193db47d1bffc74b126e106c058174080289914",
+          "entry": {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [{ "version": 1, "identifier": "32024R1689", "date": "", "files": [], "note": "" }]
+          },
+          "findings": [
+            { "artifact": "SRC-ai-act", "line": 24, "kind": "warning", "what": "version 1 awaits its fetch from the EU's publication repository", "rule": "AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY", "fix": "let the fetch workflow complete the version" }
+          ]
+        }
+      ],
+      "products": [
+        {
+          "address": "https://github.com/alice/notes",
+          "head": "b700000000000000000000000000000000000000",
+          "writable": true,
+          "links": [
+            { "source": "SRC-iec-62304", "version": 1, "sha256": "b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302", "part": "safety class B" },
+            { "source": "SRC-thesis-guide", "version": 1, "sha256": "c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c", "part": "" }
+          ],
+          "linksBlob": "19522755a3dd38f9de3c52ee26edcc928a97d76c",
+          "requirements": [
+            { "name": "TRACEABLE CHANGES", "source": "SRC-iec-62304, 5.1.1", "rule": "Every change to the software names the item it realises.", "check": "`tests/test_trace.py`", "section": "1. Rules", "line": 5 },
+            { "name": "CITATION STYLE", "source": "SRC-thesis-guide", "rule": "Every chapter cites in one style.", "check": "no automatic check; at review.", "section": "1. Rules", "line": 9 },
+            { "name": "CHAPTER EXPORT", "source": "PO A. Maier", "rule": "A chapter is exported as PDF.", "check": "`tests/test_export.py`", "section": "1. Rules", "line": 13 }
+          ],
+          "problem": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "RepositoryCommit",
+  "description": "A repository's current commit: its address, the default branch, the commit, and its visibility.",
+  "type": "object",
+  "required": ["address", "branch", "commit", "visibility"],
+  "additionalProperties": false,
+  "properties": {
+    "address": { "type": "string" },
+    "branch": { "type": "string" },
+    "commit": { "type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$" },
+    "visibility": { "type": "string", "enum": ["public", "private", "internal"] }
+  },
+  "examples": [
+    { "address": "https://github.com/alice/lab-tools", "branch": "main", "commit": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f", "visibility": "private" }
+  ]
+}
+```
+
+```json format
+{
+  "$id": "SourceFile",
+  "description": "A source of the instance's register, one file per source.",
+  "path": "docs/sources/{id}.md",
+  "syntax": "markdown-front-matter",
+  "content": "SourceFileContent",
+  "examples": ["---\nid: SRC-thesis-guide\nname: Thesis writing guide of the faculty\nkind: document\nauthority: advisory\nlicence: republish\nterms: CC BY 4.0\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-thesis-guide Thesis writing guide of the faculty\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Note |\n|---|---|---|---|---|---|\n| 1 | 2025 edition | 2025-10-01 | thesis-guide-2025.md | 0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711 | — |\n"]
+}
+```
+
+```json format
+{
+  "$id": "SourceLinksFile",
+  "description": "The sources that apply to a product, each with the version it uses, the version's hash and the part that applies.",
+  "path": "docs/sources.md",
+  "syntax": "markdown-table",
+  "content": "SourceLinkRow[]",
+  "examples": ["# Requirement sources\n\n| Source | Version | SHA-256 | Part |\n|---|---|---|---|\n| SRC-iec-62304 | 1 | b03dd7e2b5d44af707e26f6434790382f49545ea5abff6df828e3296df3ce302 | safety class B |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — |\n"]
+}
+```
+
+## Realisation
+
+| Step | Interfaces |
+|---|---|
+| UC-004 1 | MOD-library-page.route, MOD-library-page.readLibrary, MOD-source-library.libraryView |
+| UC-004 2 | MOD-library-page.route |
+| UC-004 3 | — the author types the common fields into the page's form; the page writes the folded explanation and example of each (ARC-003 decision 5) |
+| UC-004 4 | MOD-source-library.euAddress, MOD-source-library.sha256Files, MOD-library-page.repositoryCommit, MOD-source-library.newSource, MOD-source-library.formatSource, MOD-source-library.checkSource |
+| UC-004 5 | MOD-source-library.publicity |
+| UC-004 1a | MOD-source-library.alreadyRegistered, MOD-library-page.route |
+| UC-004 4a | MOD-source-library.sha256Files, MOD-source-library.newSource, MOD-source-library.formatSource, MOD-source-library.checkSource, MOD-source-library.publicity, MOD-library-page.saveSource |
+| UC-004 4b | MOD-source-library.newSource, MOD-source-library.formatSource, MOD-source-library.checkSource, MOD-source-library.publicity, MOD-source-library.restrictionsOf |
+| UC-004 4c | MOD-library-page.repositoryCommit, MOD-git-host.parseProductAddress, MOD-git-host.tokenPageUrl |
+| UC-015 1 | MOD-library-page.route, MOD-library-page.readLibrary, MOD-source-library.linkChoices |
+| UC-015 2 | MOD-source-library.linkChoices |
+| UC-015 3 | MOD-source-library.linkChoices |
+| UC-015 4 | MOD-source-library.versionHash, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks |
+| UC-015 2a | MOD-library-page.route |
+| UC-015 2b | MOD-source-library.sourceRequirements |
+| UC-015 3a | MOD-source-library.linkChoices, MOD-source-library.versionHash, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks |
+| UC-016 1 | MOD-library-page.route, MOD-library-page.readLibrary, MOD-source-library.libraryView, MOD-source-library.euAddress, MOD-source-library.sha256Files, MOD-library-page.repositoryCommit |
+| UC-016 3 | MOD-library-page.readLibrary, MOD-source-library.libraryView |
+| UC-016 1a | MOD-source-library.addVersion |
+| UC-016 4a | MOD-source-library.libraryView |
