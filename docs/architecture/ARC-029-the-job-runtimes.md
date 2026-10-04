@@ -175,18 +175,19 @@ sequenceDiagram
 - **Not realised here — what neither runtime has yet:** the job of an agent that decides a gate (UC-034 7, UC-036 5);
   the author's answer to a job's question (UC-034 5a) and an agent's proposal of a specification change (UC-034 5b);
   closing an item's issue with a link (UC-034 8, UC-033 6); rebasing a later push onto the branch its work goes into,
-  and stopping on a conflict (UC-034 6b); flagging a commit written after a cancel, and offering its revert (UC-036 6a);
-  the offer of a retry — the same participant or another holder of the role, or why the item may no longer start (UC-036
-  7, 7a).
+  and stopping on a conflict (UC-034 6b); flagging a commit written after a cancel, and offering its revert (UC-036 6a).
 - **Not realised here — what comes with other jobs and with runs.** Items drafted by a participant (UC-032 2, 3, 3a) and
   a job against a model endpoint in GitHub Actions (UC-010) come with the drafting jobs; an agent as Product Owner
   (UC-032 1c) with a job of that kind, whose inputs `MOD-job-runner.jobInputs` does not give. A run over a selection
-  (UC-043 5, 6, 7, 8, 6a, 6b, 6c, 6d) has its engine (ARC-010 decisions 5 and 9) and needs, besides the bridge and the
-  browser tab its jobs may run in, the run on the dashboard — its first jobs on the click, its view with the failed and
-  blocked jobs first, **Stop run** and **Continue** — and the jobs of the CI configuration and the test battery (UC-027,
-  UC-026), which the job workflow does not carry out. The close of a sprint by an agent, which starts by itself (UC-041
-  1a, `MOD-run-engine.closeDue`), comes with its job and with a run of the engine when a time box ends, which no
-  dispatch marks; a module's or a test battery's job started alone (UC-043 1c) with their starts (UC-024, UC-026).
+  (UC-043 5, 6, 8, 6a, 6b, 6c, 6d) has its engine (ARC-010 decisions 5 and 9) and its dashboard (ARC-024): the first
+  jobs on the click, the run's view — which carries UC-043 7 —, **Stop run** and **Continue**. It needs the bridge and
+  the browser tab as well, whose participants its jobs may go to — the bridge also ends the jobs a stop cancels there,
+  takes the steps of a run on a product without its engine workflow, and takes the step after a job that ran there, the
+  one that completes the run's record once its last job ended there (UC-043 8) —, and the jobs of the CI configuration
+  and the test battery (UC-027, UC-026), which the job workflow does not carry out. The close of a sprint by an agent,
+  which starts by itself (UC-041 1a, `MOD-run-engine.closeDue`), comes with its job and with a run of the engine when a
+  time box ends, which no dispatch marks; a module's or a test battery's job started alone (UC-043 1c) with their starts
+  (UC-024, UC-026).
 - A GitLab product's job pipeline, its engine and its check of the Definition of Done are designed with the layout of
   Agent M's CI files beside a product's own `.gitlab-ci.yml` (ARC-028).
 - **Open measurement 1 — the key in the agent's commands.** The agent's key is in the environment of the agent's step,

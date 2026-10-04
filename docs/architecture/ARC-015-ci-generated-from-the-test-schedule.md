@@ -3161,7 +3161,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-ci-entry.engine",
-  "summary": "One step of every open run of the product (ARC-010 decision 5): the product read as the main page reads it (MOD-main-page.readProduct), with the CI secret's token and the texts of the checked-out tree by their blob; per run, its snapshot (MOD-process-views.runSnapshot), its next jobs (MOD-run-engine.nextJobs), each started job's runtime and model from its participant (MOD-job-runner.runtimeOf) — a slot whose participant no runtime serves waits, named —, and the files of the step (MOD-run-engine.advance); all in one commit on the head read, on the CI secret's authority; then the jobs of CI agents dispatched (MOD-main-page.runOnCi). A head that moved on dispatches the engine again, which reads the new one.",
+  "summary": "One step of every open run of the product (ARC-010 decision 5) — a stopped one's too, which starts nothing and ends as cancelled once no job of it is going —: the product read as the main page reads it (MOD-main-page.readProduct), with the CI secret's token and the texts of the checked-out tree by their blob; per run, its snapshot (MOD-process-views.runSnapshot), its next jobs (MOD-run-engine.nextJobs), each started job's runtime and model from its participant (MOD-job-runner.runtimeOf) — a slot whose participant no runtime serves waits, named —, and the files of the step (MOD-run-engine.advance); all in one commit on the head read, on the CI secret's authority; then the jobs of CI agents dispatched (MOD-main-page.runOnCi). A head that moved on dispatches the engine again, which reads the new one.",
   "params": [
     { "name": "env", "type": "CiEnv" },
     { "name": "fetch", "type": "FetchPort" },
@@ -4006,6 +4006,229 @@ flowchart LR
       "result": { "commit": "", "runs": [], "dispatched": [], "refused": [], "moved": true }
     },
     {
+      "name": "a stopped run whose jobs ended",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/notes", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_VERSION": "a900000000000000000000000000000000000000" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits/main" },
+            "response": { "status": 200, "body": { "sha": "e100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/trees/e100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": ".github/workflows/agent-m-tests.yml", "type": "blob", "sha": "b3afcd3b37eb3e3ba21bec807c7d033a4de257bf" },
+                  { "path": "SPEC.md", "type": "blob", "sha": "fff94463cd4955ed56f1e4700570c7dbbab3b739" },
+                  { "path": "docs/backlog/ITM-001-write-a-note.md", "type": "blob", "sha": "7c7715641ec5f7af328286a92582701674b52df0" },
+                  { "path": "docs/backlog/ITM-002-share-a-note.md", "type": "blob", "sha": "44679da1a7befc4aa09109a97954b0c1641f7293" },
+                  { "path": "docs/backlog/order.md", "type": "blob", "sha": "240d6aae125c3bf7903b6a2d4392fcc39891b4bb" },
+                  { "path": "docs/backlog/sprints/sprint-01.md", "type": "blob", "sha": "64adefc3356c77cee49efde5c0fb48c1f31cef2b" },
+                  { "path": "docs/jobs/JOB-20261012-0900-0a0a.md", "type": "blob", "sha": "c633da099e40b064d93bd492aac675232a710772" },
+                  { "path": "docs/jobs/JOB-20261012-0901-1b1b.md", "type": "blob", "sha": "7c1848f6fa984cae04785e0ebdcafcd528e61c1b" },
+                  { "path": "docs/jobs/cancels/JOB-20261012-0900-0a0a.md", "type": "blob", "sha": "2b12000f158c31bcad0589925a6d23b2034953e7" },
+                  { "path": "docs/jobs/gates/notes-sprint-planning-development-e50000000000.md", "type": "blob", "sha": "fc90f495d3412d80c8480246b6e1b47494497179" },
+                  { "path": "docs/process.md", "type": "blob", "sha": "1f23b5829774f9d58652b9ae33e9bcf83c517d39" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/user" },
+            "response": { "status": 200, "body": { "login": "alice" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/process-models/scrum.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nname: scrum\nkind: pulled\nmeasure: remaining items per time box\n---\n# Scrum\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Sprint planning | Product Owner | ITM |\n| Development | Developers | MOD, TST |\n| Sprint review | Product Owner | the review of the increment |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Sprint planning | Development | sequence |\n| Development | Sprint review | sequence |\n| Sprint review | Sprint planning | sequence |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Sprint planning → Development | ITM | the sprint's items are ready | Product Owner |\n| Development → Sprint review | MOD | CI is green | Product Owner |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | none |\n| Time box | 2 weeks |\n| Sprints | yes |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits?path=docs%2Fbacklog&sha=e100000000000000000000000000000000000000&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "e500000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-04T09:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits/e500000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "e500000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "docs/backlog/ITM-001-write-a-note.md", "status": "added" },
+                  { "filename": "docs/backlog/ITM-002-share-a-note.md", "status": "added" },
+                  { "filename": "docs/backlog/order.md", "status": "added" },
+                  { "filename": "docs/backlog/sprints/sprint-01.md", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits?path=docs%2Fjobs%2Fgates%2Fnotes-sprint-planning-development-e50000000000.md&sha=e100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "e800000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-04T10:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits?path=SPEC.md&sha=e100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "e700000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-09-20T08:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits?path=docs%2Fprocess.md&sha=e100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "e600000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-09-20T08:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/contents/docs/process.md?ref=e600000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nmodel: scrum\nmodel_file: docs/process-models/scrum.md\nmodel_version: a900000000000000000000000000000000000000\nsprint_close: alice\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | cli-dev, ci-dev |\n\n## Branches\n\n| Phase or time box | Branch |\n|---|---|\n| Sprint | `sprint/<nn>` |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits?path=docs%2Fbacklog&sha=e100000000000000000000000000000000000000&per_page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "e500000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-04T09:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/pulls?state=all&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 7,
+                  "title": "ITM-001: Write a note",
+                  "state": "closed",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-001", "sha": "f700000000000000000000000000000000000000" },
+                  "base": { "ref": "sprint/01" },
+                  "created_at": "2026-10-12T09:20:00Z",
+                  "merged_at": "2026-10-12T09:40:00Z",
+                  "closed_at": "2026-10-12T09:40:00Z",
+                  "html_url": "https://github.com/alice/notes/pull/7"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/actions/runs?head_sha=e500000000000000000000000000000000000000&per_page=100" },
+            "response": { "status": 200, "body": { "workflow_runs": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/git/commits/e100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "e100000000000000000000000000000000000000",
+                "tree": { "sha": "e400000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/git/trees",
+              "body": {
+                "base_tree": "e400000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0900-0a0a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: a900000000000000000000000000000000000000\nmodel:\nlog:\n---\n\n# JOB-20261012-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- ITM-001\n- ITM-002\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 2 | — | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T09:00:00Z | running | — |\n| 2026-10-12T10:00:00Z | cancelled | stopped by alice |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n\n## Jobs\n\n- JOB-20261012-0901-1b1b\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "e300000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/git/commits",
+              "body": {
+                "message": "run JOB-20261012-0900-0a0a is cancelled",
+                "tree": "e300000000000000000000000000000000000000",
+                "parents": ["e100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e200000000000000000000000000000000000000", "html_url": "https://github.com/alice/notes/commit/e200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/notes/git/refs/heads/main",
+              "body": { "sha": "e200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-12T10:00:00Z",
+        "random": [0.1, 0.2, 0.3, 0.4, 0.5],
+        "texts": { "fff94463cd4955ed56f1e4700570c7dbbab3b739": "# Notes — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n", "1f23b5829774f9d58652b9ae33e9bcf83c517d39": "---\nmodel: scrum\nmodel_file: docs/process-models/scrum.md\nmodel_version: a900000000000000000000000000000000000000\nsprint_close: alice\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | cli-dev, ci-dev |\n\n## Branches\n\n| Phase or time box | Branch |\n|---|---|\n| Sprint | `sprint/<nn>` |\n", "7c7715641ec5f7af328286a92582701674b52df0": "---\nid: ITM-001\ntitle: Write a note\nkind: implementation\nrealises:\n  - NO SERVER\norigin:\n  - https://github.com/alice/notes/issues/1\n---\n\n# ITM-001 Write a note\n\n**REGISTER**\n\n## Outcome\n\nThe author writes a note.\n", "44679da1a7befc4aa09109a97954b0c1641f7293": "---\nid: ITM-002\ntitle: Share a note\nkind: implementation\nrealises:\n  - NO SERVER\ndepends_on:\n  - ITM-001\norigin:\n  - https://github.com/alice/notes/issues/2\n---\n\n# ITM-002 Share a note\n\n**REGISTER**\n\n## Outcome\n\nThe author shares a note.\n", "240d6aae125c3bf7903b6a2d4392fcc39891b4bb": "# Backlog order\n\n## Order\n\n1. ITM-001\n2. ITM-002\n", "64adefc3356c77cee49efde5c0fb48c1f31cef2b": "---\nid: sprint-01\ngoal: The author writes notes\nstart: 2026-10-05\nend:\ntime_box_end: 2026-10-18\nselection:\n  - ITM-001\n  - ITM-002\ncloser: alice\nbranch: sprint/01\n---\n\n# sprint-01\n\n**REGISTER**\n\nThe author writes notes\n", "c633da099e40b064d93bd492aac675232a710772": "---\nid: JOB-20261012-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: a900000000000000000000000000000000000000\nmodel:\nlog:\n---\n\n# JOB-20261012-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- ITM-001\n- ITM-002\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 2 | — | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T09:00:00Z | running | — |\n\n## Jobs\n\n- JOB-20261012-0901-1b1b\n", "7c1848f6fa984cae04785e0ebdcafcd528e61c1b": "---\nid: JOB-20261012-0901-1b1b\nkind: implement\nphase: Development\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun: JOB-20261012-0900-0a0a\nslot: Development/ITM-001\nitem: ITM-001\nmodules: []\ninputs: []\nretry_of:\nagent_m: a900000000000000000000000000000000000000\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0901-1b1b\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T09:01:00Z | queued | — |\n| 2026-10-12T09:02:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:40:00Z | done | pull request #7 merged into sprint/01 |\n\n## Results\n\n- https://github.com/alice/notes/pull/7\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 1 | — | — | — | — |\n", "fc90f495d3412d80c8480246b6e1b47494497179": "gate: Sprint planning → Development\nsubject: notes\non: e500000000000000000000000000000000000000\ndecider: alice\ndecision: passed\nreason: the sprint's items are ready\n", "b3afcd3b37eb3e3ba21bec807c7d033a4de257bf": "# Generated by Agent M from docs/tests/schedule.md.\nname: agent-m tests\n", "2b12000f158c31bcad0589925a6d23b2034953e7": "job: JOB-20261012-0900-0a0a\nby: alice\nat: 2026-10-12T09:45:00Z\n" }
+      },
+      "result": {
+        "commit": "e200000000000000000000000000000000000000",
+        "runs": [{ "run": "JOB-20261012-0900-0a0a", "started": [], "state": "cancelled", "note": "stopped by alice" }],
+        "dispatched": [],
+        "refused": [],
+        "moved": false
+      }
+    },
+    {
       "name": "no open run",
       "input": {
         "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/notes", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_VERSION": "a900000000000000000000000000000000000000" },
@@ -4585,14 +4808,14 @@ flowchart LR
 ```json type
 {
   "$id": "RunStep",
-  "description": "What one step did to a run: the jobs it started, and the state its record gained with the reason — both empty where it stays as recorded.",
+  "description": "What one step did to a run: the jobs it started, and the state its record gained with the reason — cancelled for a stopped run whose jobs ended; both empty where it stays as recorded.",
   "type": "object",
   "required": ["run", "started", "state", "note"],
   "additionalProperties": false,
   "properties": {
     "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
     "started": { "type": "array", "items": { "type": "string" } },
-    "state": { "type": "string", "enum": ["", "running", "waiting-at-gate", "done"] },
+    "state": { "type": "string", "enum": ["", "running", "waiting-at-gate", "done", "cancelled"] },
     "note": { "type": "string" }
   },
   "examples": [{ "run": "JOB-20261012-0900-0a0a", "started": ["JOB-20261012-1000-1999"], "state": "", "note": "" }]

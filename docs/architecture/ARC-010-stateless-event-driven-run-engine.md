@@ -80,6 +80,9 @@ the step depends only on the records.
    works behind NAT; the browser computes the first jobs on **Start run**, and starts model-endpoint jobs in the tab.
 6. **Limits are inputs, not state.** A run starts no job beyond its jobs-at-once limit; it stops starting jobs when the
    costs its jobs' runtimes reported reach its cost limit, or a job reached its correction-round limit, and says which.
+   A run's limits raised to continue it (UC-043 6c) are a record of their own beside its record,
+   `docs/jobs/limits/<run>-<yyyymmddThhmm>.md` (`MOD-run-engine.limitsRecordText`, `MOD-run-engine.parseLimitsRecord`);
+   the newest holds, and the run's record stays as written.
 7. **State and cost are derived** (`MOD-run-engine.jobState`, `MOD-run-engine.jobCost`): the end state a record holds;
    the live state the job's runtime reports; *ended without record* when the runtime is reachable and does not know the
    job; the last recorded state, with a note, when it cannot be reached or was not asked. A cancel is a record of its
@@ -98,6 +101,8 @@ the step depends only on the records.
    job of it is queued or running or one starts, with the limit that stopped it; *waiting at a gate*, with every reason,
    when nothing runs and nothing can start — a gate a person decides, a failed job awaiting its retry, a limit —; *done*
    once every slot of its plan is done. A run's record begins *running*: the click that starts it starts its first jobs.
+   A stopped run — one with a cancel record of its own — starts nothing, and its step ends it as *cancelled* once no job
+   of it is queued, running or waiting.
 
 ```mermaid
 sequenceDiagram
@@ -164,9 +169,9 @@ sequenceDiagram
   "id": "MOD-run-engine",
   "folder": "src/run-engine/",
   "layer": "kernel",
-  "responsibility": "Everything about a job that is the same in every runtime and needs no runtime: its identifier, its record and the cancel record, its state from the records and what its runtime reports, its cost as reported, one list of every job of every product, the order of modules by their interfaces, the plan of a run, the jobs a run starts next, the files of one of its steps, and whether a sprint's close starts by itself.",
+  "responsibility": "Everything about a job that is the same in every runtime and needs no runtime: its identifier, its record, the cancel record and a run's raised limits, its state from the records and what its runtime reports, its cost as reported, one list of every job of every product, the order of modules by their interfaces, the plan of a run, the jobs a run starts next, the files of one of its steps, and whether a sprint's close starts by itself.",
   "realises": ["A JOB GOES ONLY TO A HOLDER OF ITS ROLE", "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "A JOB IDENTIFIER IS NEVER REUSED", "ONE DASHBOARD SHOWS EVERY JOB", "NO COST IS GUESSED", "PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION", "A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS", "A RUN FOLLOWS THE MODULES' INTERFACES", "A RUN SETS UP CI BEFORE IT IMPLEMENTS", "A RUN HAS LIMITS FIXED AT ITS START", "A RUN IS A JOB THAT NAMES ITS JOBS", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER", "A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF"],
-  "owns": ["JobStateEntry", "Money", "MoneyOrNone", "Usage", "UsageOrNone", "Limits", "LimitsOrNone", "JobAssignment", "JobRecord", "CancelInput", "CancelRecord", "CancelRecordOrNone", "LiveState", "LiveStateOrNone", "JobStateShown", "Price", "PriceOrNone", "CostShown", "JobEntry", "JobRow", "ModuleUses", "ModuleWaves", "RunInput", "RunSlot", "RunPlan", "RunJob", "RunItem", "GateText", "RunSnapshot", "JobSpec", "NextJobs", "RunStart", "AdvanceInput", "JobStateEntryOrNone", "Advance", "CloseDue", "JobRecordContent", "CancelRecordFields", "JobRecordFile", "CancelRecordFile"],
+  "owns": ["JobStateEntry", "Money", "MoneyOrNone", "Usage", "UsageOrNone", "Limits", "LimitsOrNone", "JobAssignment", "JobRecord", "CancelInput", "CancelRecord", "CancelRecordOrNone", "LiveState", "LiveStateOrNone", "JobStateShown", "Price", "PriceOrNone", "CostShown", "JobEntry", "JobRow", "ModuleUses", "ModuleWaves", "RunInput", "RunSlot", "RunPlan", "RunJob", "RunItem", "GateText", "RunSnapshot", "JobSpec", "NextJobs", "RunStart", "AdvanceInput", "JobStateEntryOrNone", "Advance", "LimitsRecordInput", "LimitsRecord", "LimitsRecordFields", "CloseDue", "JobRecordContent", "CancelRecordFields", "JobRecordFile", "LimitsRecordFile", "CancelRecordFile"],
   "uses": ["MOD-contracts", "MOD-process-model", "MOD-work-items"]
 }
 ```
@@ -449,6 +454,62 @@ sequenceDiagram
       "name": "a cancel of another job",
       "input": { "path": "docs/jobs/cancels/JOB-20261010-0916-2c2c.md", "text": "job: JOB-20261010-0915-1b1b\nby: alice\nat: 2026-10-10T09:30:00Z\n" },
       "refused": "not-a-cancel-record"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-run-engine.limitsRecordText",
+  "summary": "The record of a run's limits raised to continue it and where it lies, docs/jobs/limits/<run>-<yyyymmddThhmm>.md: the run, the jobs at once, the cost limit — a dash for none —, the correction rounds, who raised them and when; the run's own record stays as written.",
+  "params": [{ "name": "record", "type": "LimitsRecordInput" }],
+  "result": "FileText",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the cost limit raised to 40 USD",
+      "input": {
+        "record": {
+          "run": "JOB-20261010-0900-0a0a",
+          "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 },
+          "by": "alice",
+          "at": "2026-10-10T11:30:00Z"
+        }
+      },
+      "result": { "path": "docs/jobs/limits/JOB-20261010-0900-0a0a-20261010T1130.md", "text": "run: JOB-20261010-0900-0a0a\njobs_at_once: 3\ncost: 40 USD\nrounds: 5\nby: alice\nat: 2026-10-10T11:30:00Z\n" }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-run-engine.parseLimitsRecord",
+  "summary": "A record of a run's raised limits as its file holds it; a file that names no run, no number of jobs at once or rounds, no person or no time is refused.",
+  "params": [{ "name": "path", "type": "string" }, { "name": "text", "type": "string" }],
+  "result": "LimitsRecord",
+  "async": false,
+  "refusals": [
+    { "code": "not-a-limits-record", "when": "the path or the fields are not those of a record of a run's limits" }
+  ],
+  "examples": [
+    {
+      "name": "the cost limit raised to 40 USD",
+      "input": { "path": "docs/jobs/limits/JOB-20261010-0900-0a0a-20261010T1130.md", "text": "run: JOB-20261010-0900-0a0a\njobs_at_once: 3\ncost: 40 USD\nrounds: 5\nby: alice\nat: 2026-10-10T11:30:00Z\n" },
+      "result": {
+        "path": "docs/jobs/limits/JOB-20261010-0900-0a0a-20261010T1130.md",
+        "run": "JOB-20261010-0900-0a0a",
+        "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 },
+        "by": "alice",
+        "at": "2026-10-10T11:30:00Z"
+      }
+    },
+    {
+      "name": "no rounds",
+      "input": { "path": "docs/jobs/limits/JOB-20261010-0900-0a0a-20261010T1130.md", "text": "run: JOB-20261010-0900-0a0a\njobs_at_once: 3\ncost: 40 USD\nby: alice\nat: 2026-10-10T11:30:00Z\n" },
+      "refused": "not-a-limits-record"
     }
   ]
 }
@@ -3118,7 +3179,7 @@ sequenceDiagram
 ```json interface
 {
   "id": "MOD-run-engine.advance",
-  "summary": "What a runtime writes for one step of a run: the start records of the jobs it starts — each with an identifier from a draw that no job of the product holds, naming the run and its slot, queued —, and the run's record listing every job it started, each added as it starts — a retry a click started among them —, with one more state where its state or its reason changed: running while a job of it is queued or running or one starts, with the limit that stopped it; waiting at a gate, with every reason, when nothing runs and nothing can start; done once every slot of its plan is done.",
+  "summary": "What a runtime writes for one step of a run — a stopped one starts nothing and ends as cancelled once no job of it is queued, running or waiting —: the start records of the jobs it starts — each with an identifier from a draw that no job of the product holds, naming the run and its slot, queued —, and the run's record listing every job it started, each added as it starts — a retry a click started among them —, with one more state where its state or its reason changed: running while a job of it is queued or running or one starts, with the limit that stopped it; waiting at a gate, with every reason, when nothing runs and nothing can start; done once every slot of its plan is done.",
   "params": [{ "name": "input", "type": "AdvanceInput" }],
   "result": "Advance",
   "async": false,
@@ -3126,7 +3187,8 @@ sequenceDiagram
     { "code": "not-a-run", "when": "the record is not a run's" },
     { "code": "ended", "when": "the run has ended" },
     { "code": "no-identifier", "when": "the draws give no free identifier for every job to start" },
-    { "code": "unchanged", "when": "no job starts and the run's state and reason stay as recorded" }
+    { "code": "unchanged", "when": "no job starts, nothing is missing from the run's list, and its state and reason stay as recorded" },
+    { "code": "stopped", "when": "a job is to start for a run that was stopped" }
   ],
   "examples": [
     {
@@ -3212,7 +3274,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "result": {
@@ -3273,7 +3336,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "result": {
@@ -3354,7 +3418,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-1100-3d3d", "JOB-20261010-0916-2c2c"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "result": {
@@ -3436,7 +3501,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "result": {
@@ -3503,7 +3569,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c", "JOB-20261010-1030-9c9c"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "result": {
@@ -3563,7 +3630,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0900-aaaa", "JOB-20261010-1000-bbbb", "JOB-20261010-1100-cccc", "JOB-20261010-1200-dddd", "JOB-20261010-1300-eeee", "JOB-20261011-1400-ffff"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "result": {
@@ -3573,6 +3641,73 @@ sequenceDiagram
         "started": [],
         "state": { "at": "2026-10-10T10:45:00Z", "state": "done", "note": "every slot of its plan is done" },
         "message": "run JOB-20261010-0900-0a0a is done"
+      }
+    },
+    {
+      "name": "a stopped run whose jobs ended",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": { "start": [], "waiting": [], "done": false, "stop": "" },
+          "start": [],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "cancelled", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1",
+          "cancelled": { "path": "docs/jobs/cancels/JOB-20261010-0900-0a0a.md", "job": "JOB-20261010-0900-0a0a", "by": "alice", "at": "2026-10-10T10:40:00Z" }
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n| 2026-10-10T10:45:00Z | cancelled | stopped by alice |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n" }
+        ],
+        "started": [],
+        "state": { "at": "2026-10-10T10:45:00Z", "state": "cancelled", "note": "stopped by alice" },
+        "message": "run JOB-20261010-0900-0a0a is cancelled"
       }
     },
     {
@@ -3629,10 +3764,160 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "refused": "unchanged"
+    },
+    {
+      "name": "a stopped run whose job still runs",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": { "start": [], "waiting": [], "done": false, "stop": "" },
+          "start": [],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1",
+          "cancelled": { "path": "docs/jobs/cancels/JOB-20261010-0900-0a0a.md", "job": "JOB-20261010-0900-0a0a", "by": "alice", "at": "2026-10-10T10:40:00Z" }
+        }
+      },
+      "refused": "unchanged"
+    },
+    {
+      "name": "a stopped run given a job to start",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": {
+            "start": [
+              {
+                "slot": "Implementation/MOD-b",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "run": "JOB-20261010-0900-0a0a",
+                "item": "",
+                "modules": ["MOD-b"]
+              }
+            ],
+            "waiting": [],
+            "done": false,
+            "stop": ""
+          },
+          "start": [
+            {
+              "slot": "Implementation/MOD-b",
+              "kind": "implement",
+              "phase": "Implementation",
+              "role": "Developers",
+              "participant": "cli-dev",
+              "run": "JOB-20261010-0900-0a0a",
+              "item": "",
+              "modules": ["MOD-b"],
+              "runtime": "bridge",
+              "model": "claude-opus-5-5"
+            }
+          ],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1",
+          "cancelled": { "path": "docs/jobs/cancels/JOB-20261010-0900-0a0a.md", "job": "JOB-20261010-0900-0a0a", "by": "alice", "at": "2026-10-10T10:40:00Z" }
+        }
+      },
+      "refused": "stopped"
     },
     {
       "name": "a run that ended",
@@ -3720,7 +4005,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
           "draws": ["7a7a", "8b8b"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "refused": "ended"
@@ -3808,7 +4094,8 @@ sequenceDiagram
           "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c", "JOB-20261010-1045-0c0c"],
           "draws": ["0c0c"],
           "now": "2026-10-10T10:45:00Z",
-          "agentM": "2026.10.1"
+          "agentM": "2026.10.1",
+          "cancelled": null
         }
       },
       "refused": "no-identifier"
@@ -4876,9 +5163,9 @@ sequenceDiagram
 ```json type
 {
   "$id": "AdvanceInput",
-  "description": "What one step of a run is written from: the run's record, its next jobs, the jobs it starts with where each runs, why a slot whose participant no runtime serves waits, the run's jobs as the engine read them, every job identifier the product holds, random draws for new identifiers, the time and the Agent M version.",
+  "description": "What one step of a run is written from: the run's record, whether it was stopped — its cancel record, or null —, its next jobs, the jobs it starts with where each runs, why a slot whose participant no runtime serves waits, the run's jobs as the engine read them, every job identifier the product holds, random draws for new identifiers, the time and the Agent M version.",
   "type": "object",
-  "required": ["run", "next", "start", "held", "jobs", "taken", "draws", "now", "agentM"],
+  "required": ["run", "next", "start", "held", "jobs", "taken", "draws", "now", "agentM", "cancelled"],
   "additionalProperties": false,
   "properties": {
     "run": { "$ref": "JobRecord" },
@@ -4889,7 +5176,8 @@ sequenceDiagram
     "taken": { "type": "array", "items": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" } },
     "draws": { "type": "array", "items": { "type": "string", "pattern": "^[0-9a-f]{4}" } },
     "now": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
-    "agentM": { "type": "string" }
+    "agentM": { "type": "string" },
+    "cancelled": { "$ref": "CancelRecordOrNone" }
   },
   "examples": [
     {
@@ -4937,7 +5225,8 @@ sequenceDiagram
       "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c"],
       "draws": ["7a7a", "8b8b"],
       "now": "2026-10-10T10:45:00Z",
-      "agentM": "2026.10.1"
+      "agentM": "2026.10.1",
+      "cancelled": null
     }
   ]
 }
@@ -4974,6 +5263,77 @@ sequenceDiagram
       "state": { "at": "2026-10-10T10:45:00Z", "state": "waiting-at-gate", "note": "Implementation/MOD-a: Design → Implementation waits for alice; Implementation/MOD-d: Design → Implementation waits for alice" },
       "message": "run JOB-20261010-0900-0a0a is waiting at a gate"
     }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "LimitsRecordInput",
+  "description": "A run's limits raised to continue it: the run, its new limits, who raised them and when.",
+  "type": "object",
+  "required": ["run", "limits", "by", "at"],
+  "additionalProperties": false,
+  "properties": {
+    "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "limits": { "$ref": "Limits" },
+    "by": { "type": "string", "minLength": 1 },
+    "at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" }
+  },
+  "examples": [
+    {
+      "run": "JOB-20261010-0900-0a0a",
+      "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 },
+      "by": "alice",
+      "at": "2026-10-10T11:30:00Z"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "LimitsRecord",
+  "description": "A record of a run's raised limits as read: where it lies, the run, its limits, who raised them and when.",
+  "type": "object",
+  "required": ["path", "run", "limits", "by", "at"],
+  "additionalProperties": false,
+  "properties": {
+    "path": { "type": "string" },
+    "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "limits": { "$ref": "Limits" },
+    "by": { "type": "string", "minLength": 1 },
+    "at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" }
+  },
+  "examples": [
+    {
+      "path": "docs/jobs/limits/JOB-20261010-0900-0a0a-20261010T1130.md",
+      "run": "JOB-20261010-0900-0a0a",
+      "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 },
+      "by": "alice",
+      "at": "2026-10-10T11:30:00Z"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "LimitsRecordFields",
+  "description": "What the key-value-lines syntax reads from a record of a run's raised limits.",
+  "type": "object",
+  "required": ["run", "jobs_at_once", "cost", "rounds", "by", "at"],
+  "additionalProperties": false,
+  "properties": {
+    "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "jobs_at_once": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+    "cost": { "type": "string" },
+    "rounds": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+    "by": { "type": "string", "minLength": 1 },
+    "at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" }
+  },
+  "examples": [
+    { "run": "JOB-20261010-0900-0a0a", "jobs_at_once": "3", "cost": "40 USD", "rounds": "5", "by": "alice", "at": "2026-10-10T11:30:00Z" }
   ]
 }
 ```
@@ -5044,6 +5404,17 @@ sequenceDiagram
   "syntax": "markdown-front-matter",
   "content": "JobRecordContent",
   "examples": ["---\nid: JOB-20261010-0915-1b1b\nkind: implement\nphase: Implementation\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun: JOB-20261010-0900-0a0a\nslot: Implementation/MOD-a\nitem:\nmodules:\n  - MOD-a\ninputs:\n  - docs/architecture/ARC-004-the-store.md\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261010-0915-1b1b\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:15:00Z | queued | — |\n"]
+}
+```
+
+```json format
+{
+  "$id": "LimitsRecordFile",
+  "description": "A run's limits raised to continue it, written once per raise; the newest holds.",
+  "path": "docs/jobs/limits/{run}-{stamp}.md",
+  "syntax": "key-value-lines",
+  "content": "LimitsRecordFields",
+  "examples": ["run: JOB-20261010-0900-0a0a\njobs_at_once: 3\ncost: 40 USD\nrounds: 5\nby: alice\nat: 2026-10-10T11:30:00Z\n"]
 }
 ```
 

@@ -23,6 +23,7 @@ forced_by:
   - A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - A RUN HAS LIMITS FIXED AT ITS START
+  - A RUN ENDS WITH THE VALIDATION OF ITS MODULES
   - THE TRACEABILITY MATRIX IS DERIVED
   - UC-032
   - UC-034
@@ -77,11 +78,17 @@ together: what it reads of a product, what it computes for each view, and what i
    latest figures of the measure with what is blocked and what waits (`MOD-process-views.summaryOf`); what lies behind a
    point of the chart with its trace (`MOD-process-views.behind`); one job list over every product
    (`MOD-process-views.jobsView`); the start panel of items (`MOD-process-views.startPanel`) and the panel of a run
-   (`MOD-process-views.runPanel`), each naming the participant, where it processes data and what is sent; the snapshot a
-   run's next jobs are computed from, alike for the page and the engine (`MOD-process-views.runSnapshot`, ARC-010
-   decision 9); the review of a sprint's increment (`MOD-process-views.closeView`). The rules come from the kernel: an
-   item may start where `MOD-work-items.mayStart` holds, a gate is passed where `MOD-process-model.gateDecision` says
-   so.
+   (`MOD-process-views.runPanel`), each naming the participant, where it processes data and what is sent — the run panel
+   also the jobs the run starts on its click, each with where it runs and its model (`MOD-job-runner.runtimeOf`), and no
+   plan that gives a job to a person —; a run's view — its slots with their newest jobs, states and pull requests, what
+   waits, the cost reported so far, the failed jobs first with every slot they block, and once it has ended — done or
+   stopped — the modules of its selection as the validation shows them
+   (`A RUN ENDS WITH THE VALIDATION OF ITS MODULES`); where its plan no longer computes, the slots its jobs recorded and
+   the reason (`MOD-process-views.runView`) —; the offer of a retry — the participant again beside every holder of the
+   role, and whether the item may still start (`MOD-process-views.retryPanel`) —; the snapshot a run's next jobs are
+   computed from, alike for the page and the engine (`MOD-process-views.runSnapshot`, ARC-010 decision 9); the review of
+   a sprint's increment (`MOD-process-views.closeView`). The rules come from the kernel: an item may start where
+   `MOD-work-items.mayStart` holds, a gate is passed where `MOD-process-model.gateDecision` says so.
 5. **Gates in order.** A gate a job passes (ARC-019 decision 6) is shown once per job that reached it, on the head of
    the job's pull request: for an item's job the pull request whose head branch is `item/<identifier>` or begins with
    `item/<identifier>-`, for another job the one its record's results name; a done job met every gate leaving its phase.
@@ -91,14 +98,16 @@ together: what it reads of a product, what it computes for each view, and what i
    branch's head, the backlog and records at it and the account its token acts as, plans the files
    (`MOD-process-views.planChange`) and writes them in one commit on that head (ARC-004): new items with the order, a
    new order, a sprint started or its selection changed, a sprint's end, a person's gate decision under their account —
-   never on their own work, never without holding the deciding role, a rejection with its reason —, a cancel, and the
-   start records of jobs, of a run — begun running — with its first jobs, or of a retry naming the job it retries — an
-   agent's job with who merges its pull request where the author chose it (UC-034 8). A new item gets its identifier
-   from `MOD-work-items.nextItemId` over every identifier the files and the version history of `docs/backlog/` hold, a
-   new job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the jobs of CI agents it
-   starts or retries, or whose gate the person decided, are dispatched (`MOD-main-page.runOnCi`), and a cancel cancels
-   the job's run (`MOD-main-page.cancelOnCi`) (ARC-029); a job on a self-hosted runner of a repository that is not
-   private is not started, and its record ends as failed with the reason
+   never on their own work, never without holding the deciding role, a rejection with its reason —, a cancel, a run's
+   stop — the cancel records of the run and of every job of it that has not ended —, a run's raised limits (ARC-010
+   decision 6), and the start records of jobs, of a run — begun running — with its first jobs, or of a retry naming the
+   job it retries — an agent's job with who merges its pull request where the author chose it (UC-034 8). A new item
+   gets its identifier from `MOD-work-items.nextItemId` over every identifier the files and the version history of
+   `docs/backlog/` hold, a new job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the
+   jobs of CI agents it starts or retries, or whose gate the person decided, are dispatched (`MOD-main-page.runOnCi`),
+   and a cancel cancels the job's run (`MOD-main-page.cancelOnCi`) (ARC-029) — a job no run of which is going ends as
+   cancelled at once, since nothing could confirm the cancel —; a job on a self-hosted runner of a repository that is
+   not private is not started, and its record ends as failed with the reason
    (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY`). Where a run of the product is open, a click
    that starts, retries or cancels a job or decides a gate also dispatches the engine workflow
    (`MOD-main-page.engineOnCi`), so that the run takes its next step without a further click.
@@ -145,10 +154,10 @@ flowchart LR
   the page finds the text a job's gate is decided on.
 - The steps that hand work to a participant or that a runtime carries out are not realised here: drafting items (UC-032
   2, 3, 3a); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and runs (UC-034
-  1a, 4, 5, 6, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a, 8a; UC-043 1c, 5, 6, 7, 8, 6a, 6b, 6c, 6d); a cancel or a retry (UC-036 6,
-  7, 6a, 7a); the job continuing or ending after a person's gate decision, whose record `MOD-process-views.planChange`
-  and `MOD-main-page.commitChange` already write (UC-036 5); and the running jobs, their live states and logs, read from
-  the runtimes (UC-035 1, 1b; UC-036 1, 1a, 1b, 1c, 4, 4a, 4b) — the rest of what UC-035 1 reads is
+  1a, 4, 5, 6, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a, 8a; UC-043 1c, 5, 6, 8, 6a, 6b, 6c, 6d); a cancel or a retry (UC-036 6, 7,
+  6a); the job continuing or ending after a person's gate decision, whose record `MOD-process-views.planChange` and
+  `MOD-main-page.commitChange` already write (UC-036 5); and the running jobs, their live states and logs, read from the
+  runtimes (UC-035 1, 1b; UC-036 1, 1a, 1b, 1c, 4, 4a, 4b) — the rest of what UC-035 1 reads is
   `MOD-main-page.readProduct`. They are realised with the job runtimes, by their interfaces together with these: ARC-029
   designs the runtime of CI, which `MOD-main-page.runOnCi` and `MOD-main-page.cancelOnCi` start, continue and stop, and
   names what each of these steps still needs.
@@ -169,9 +178,9 @@ flowchart LR
   "folder": "src/process-views/",
   "layer": "feature",
   "responsibility": "Computes what the main page shows of a product from one commit through read ports and from what its server and runtimes report, given as data — its process, backlog, records and acceptance, an item's facts, the backlog and board, the progress page with its gates, blocked items and who works on what, what lies behind a point of a chart, the job list over every product, the start panel of items, the panel of a run and the review of a sprint's increment — and the files of every write the page makes, planned on the head.",
-  "realises": ["PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "ONE DASHBOARD SHOWS EVERY JOB"],
-  "owns": ["ProductProcess", "WorkflowOrNone", "CloseRef", "Backlog", "DatedGate", "Records", "Acceptance", "LiveJob", "ProductState", "BacklogRow", "SprintStatus", "SprintStatusOrNone", "SprintPlanning", "SprintPlanningOrNone", "WipStatus", "BacklogView", "ProgressOrNone", "ProgressView", "GateRow", "BlockedRow", "WorkJob", "ParticipantWork", "ProgressPage", "PlanTotals", "PlanTotalsOrNone", "StateCountsOrNone", "ProductSummary", "ChartPoint", "BehindItem", "Behind", "JobSource", "JobFilter", "Sends", "SendsOrNone", "StartGate", "StartRow", "StartPanel", "RunCandidate", "RoleCandidates", "RunPlanOrNone", "RefusalOrNone", "RunPanel", "DoneRow", "NotDoneRow", "CloseView", "JobStart", "ItemsChange", "OrderChange", "SprintChange", "ReplanChange", "EndChange", "GateChange", "CancelChange", "JobsChange", "RunChange", "RetryChange", "PageChange", "HeadFacts", "PlannedCommit"],
-  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-process-model", "MOD-work-items", "MOD-run-engine"]
+  "realises": ["PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "ONE DASHBOARD SHOWS EVERY JOB", "A RUN ENDS WITH THE VALIDATION OF ITS MODULES"],
+  "owns": ["ProductProcess", "WorkflowOrNone", "CloseRef", "Backlog", "DatedGate", "Records", "Acceptance", "LiveJob", "ProductState", "BacklogRow", "SprintStatus", "SprintStatusOrNone", "SprintPlanning", "SprintPlanningOrNone", "WipStatus", "BacklogView", "ProgressOrNone", "ProgressView", "GateRow", "BlockedRow", "WorkJob", "ParticipantWork", "ProgressPage", "PlanTotals", "PlanTotalsOrNone", "StateCountsOrNone", "ProductSummary", "ChartPoint", "BehindItem", "Behind", "JobSource", "JobFilter", "Sends", "SendsOrNone", "StartGate", "StartRow", "StartPanel", "RunCandidate", "RoleCandidates", "RunPlanOrNone", "RefusalOrNone", "RunPanel", "DoneRow", "NotDoneRow", "CloseView", "JobStart", "ItemsChange", "OrderChange", "SprintChange", "ReplanChange", "EndChange", "GateChange", "CancelChange", "JobsChange", "FirstJob", "RunChange", "StopChange", "LimitsChange", "RetryChange", "PageChange", "HeadFacts", "PlannedCommit"],
+  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-process-model", "MOD-work-items", "MOD-run-engine", "MOD-job-runner"]
 }
 ```
 
@@ -596,7 +605,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-views.recordsOf",
-  "summary": "A product's records at its commit: its jobs, its gate records with when each entered the repository, its cancels, and every record that does not read.",
+  "summary": "A product's records at its commit: its jobs, its gate records with when each entered the repository, its cancels, the raised limits of its runs, and every record that does not read.",
   "params": [
     { "name": "snapshot", "type": "Snapshot" },
     { "name": "files", "type": "ReadPort" },
@@ -730,6 +739,35 @@ flowchart LR
           }
         ],
         "cancels": [],
+        "limits": [],
+        "problems": []
+      }
+    },
+    {
+      "name": "a run's raised limits",
+      "input": {
+        "snapshot": {
+          "commit": "c700000000000000000000000000000000000000",
+          "tree": [
+            { "path": "docs/jobs/limits/JOB-20261009-0800-0f0f-20261009T0900.md", "blob": "05f2f640034ca8eab27a355884f3f0dde34c0f88" }
+          ]
+        },
+        "files": { "docs/jobs/limits/JOB-20261009-0800-0f0f-20261009T0900.md": "run: JOB-20261009-0800-0f0f\njobs_at_once: 3\ncost: 40 USD\nrounds: 5\nby: alice\nat: 2026-10-09T09:00:00Z\n" },
+        "enteredAt": {}
+      },
+      "result": {
+        "jobs": [],
+        "gates": [],
+        "cancels": [],
+        "limits": [
+          {
+            "path": "docs/jobs/limits/JOB-20261009-0800-0f0f-20261009T0900.md",
+            "run": "JOB-20261009-0800-0f0f",
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 },
+            "by": "alice",
+            "at": "2026-10-09T09:00:00Z"
+          }
+        ],
         "problems": []
       }
     }
@@ -889,6 +927,7 @@ flowchart LR
           ],
           "gates": [],
           "cancels": [],
+          "limits": [],
           "problems": []
         },
         "pullRequests": [
@@ -973,6 +1012,7 @@ flowchart LR
           ],
           "gates": [],
           "cancels": [],
+          "limits": [],
           "problems": []
         },
         "pullRequests": [],
@@ -1238,6 +1278,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -1582,6 +1623,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -1722,7 +1764,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [],
           "checks": [],
@@ -2052,6 +2094,7 @@ flowchart LR
               }
             ],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -2475,6 +2518,7 @@ flowchart LR
               }
             ],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -2834,6 +2878,7 @@ flowchart LR
               }
             ],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -3236,7 +3281,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [
             { "number": 60, "title": "ITM-016: accept a chapter with one click", "state": "merged", "head": "item/ITM-016", "base": "sprint/04", "headSha": "6000000000000000000000000000000000000000", "created": "2026-10-06T12:00:00Z", "merged": "2026-10-07T15:00:00Z", "closed": "2026-10-07T15:00:00Z", "draft": false, "url": "https://github.com/alice/thesis/pull/60" }
@@ -3389,7 +3434,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [
             { "number": 61, "title": "ITM-015: write a chapter in the editor", "state": "open", "head": "item/ITM-015", "base": "sprint/04", "headSha": "6100000000000000000000000000000000000000", "created": "2026-10-08T10:30:00Z", "merged": "", "closed": "", "draft": false, "url": "https://github.com/alice/thesis/pull/61" },
@@ -3607,6 +3652,7 @@ flowchart LR
                 }
               ],
               "cancels": [],
+              "limits": [],
               "problems": []
             },
             "participants": [
@@ -3706,6 +3752,7 @@ flowchart LR
               ],
               "gates": [],
               "cancels": [],
+              "limits": [],
               "problems": []
             },
             "participants": [
@@ -3892,6 +3939,7 @@ flowchart LR
                 }
               ],
               "cancels": [],
+              "limits": [],
               "problems": []
             },
             "participants": [
@@ -3991,6 +4039,7 @@ flowchart LR
               ],
               "gates": [],
               "cancels": [],
+              "limits": [],
               "problems": []
             },
             "participants": [
@@ -4259,6 +4308,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -4476,7 +4526,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": {
             "accepted": [
               { "name": "NO SERVER", "at": "2026-09-01T09:00:00Z" },
@@ -4533,7 +4583,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-views.runPanel",
-  "summary": "The panel of a run before it starts: the candidates — accepted modules with their state, no code, gaps or complete, or the items of a backlog —, what is selected — the selection given, or the modules without code, or the startable items within the WIP limit —, the modules in the waves of their interfaces, the component diagram, the limits — given, or the WIP limit or 3 jobs at once, no cost limit and 5 rounds —, the plan from the workflow and what it sends; or why it cannot start.",
+  "summary": "The panel of a run before it starts: the candidates — accepted modules with their state, no code, gaps or complete, or the items of a backlog —, what is selected — the selection given, or the modules without code, or the startable items within the WIP limit —, the modules in the waves of their interfaces, the component diagram, the limits — given, or the WIP limit or 3 jobs at once, no cost limit and 5 rounds —, the plan from the workflow and what it sends, the jobs the run starts on its click — each with where it runs and its model (MOD-job-runner.runtimeOf) — and what waits at its start; or why it cannot start — a plan that gives a job to a person among the reasons.",
   "params": [
     { "name": "state", "type": "ProductState" },
     { "name": "graph", "type": "LinkGraph" },
@@ -4645,7 +4695,19 @@ flowchart LR
               "artifactsAdded": [],
               "problems": []
             },
-            "participants": [],
+            "participants": [
+              {
+                "name": "cli-dev",
+                "type": "CLI agent",
+                "model": "claude-opus-5-5",
+                "context": null,
+                "price": null,
+                "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+                "place": "this machine",
+                "route": "the bridge on the Mac of `alice`",
+                "line": 9
+              }
+            ],
             "requirements": [],
             "problems": []
           },
@@ -4657,11 +4719,25 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": {
+            "jobs": [],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-design-implementation-ea0000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis", "on": "ea00000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has a decision" },
+                "at": "2026-10-04T10:00:00Z"
+              }
+            ],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [],
           "checks": [],
-          "texts": [],
+          "texts": [
+            { "gate": "Design → Implementation", "on": "ea00000000000000000000000000000000000000" },
+            { "gate": "Validation → Deployment", "on": "eb00000000000000000000000000000000000000" }
+          ],
           "live": [],
           "ci": true,
           "today": "2026-10-09",
@@ -4787,7 +4863,21 @@ flowchart LR
           "tests": ["tests/pages.test.mjs"],
           "processRequirements": ["UNIT VERIFICATION IS DOCUMENTED"]
         },
-        "unheld": []
+        "unheld": [],
+        "first": [
+          {
+            "slot": "Implementation/MOD-export",
+            "kind": "implement",
+            "phase": "Implementation",
+            "role": "Developers",
+            "participant": "cli-dev",
+            "item": "",
+            "modules": ["MOD-export"],
+            "runtime": "bridge",
+            "model": "claude-opus-5-5"
+          }
+        ],
+        "waiting": []
       }
     },
     {
@@ -4915,7 +5005,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [],
           "checks": [],
@@ -4991,7 +5081,9 @@ flowchart LR
               { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
             ]
           }
-        ]
+        ],
+        "first": [],
+        "waiting": []
       }
     },
     {
@@ -5031,7 +5123,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [],
           "checks": [],
@@ -5080,7 +5172,9 @@ flowchart LR
         "plan": null,
         "refusal": { "refused": "cycle", "reason": "the interfaces of MOD-export, MOD-pages use each other in a cycle" },
         "sends": null,
-        "unheld": []
+        "unheld": [],
+        "first": [],
+        "waiting": []
       }
     },
     {
@@ -5154,7 +5248,19 @@ flowchart LR
               "artifactsAdded": [],
               "problems": []
             },
-            "participants": [],
+            "participants": [
+              {
+                "name": "ci-dev",
+                "type": "CI agent",
+                "model": "claude-opus-5-5",
+                "context": null,
+                "price": null,
+                "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                "place": "GitHub's machines, a provider in the USA",
+                "route": "the workflow agent-m-job",
+                "line": 8
+              }
+            ],
             "requirements": [],
             "problems": []
           },
@@ -5303,8 +5409,14 @@ flowchart LR
                 "jobs": []
               }
             ],
-            "gates": [],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" },
+                "at": "2026-10-05T09:00:00Z"
+              }
+            ],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -5318,7 +5430,7 @@ flowchart LR
           },
           "pullRequests": [],
           "checks": [],
-          "texts": [],
+          "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
           "live": [],
           "ci": true,
           "today": "2026-10-09",
@@ -5414,7 +5526,146 @@ flowchart LR
           "tests": ["tests/pages.test.mjs"],
           "processRequirements": []
         },
-        "unheld": []
+        "unheld": [],
+        "first": [
+          {
+            "slot": "Development/ITM-017",
+            "kind": "implement",
+            "phase": "Development",
+            "role": "Developers",
+            "participant": "ci-dev",
+            "item": "ITM-017",
+            "modules": ["MOD-pages"],
+            "runtime": "ci",
+            "model": "claude-opus-5-5"
+          }
+        ],
+        "waiting": []
+      }
+    },
+    {
+      "name": "a job given to a person",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c600000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "v-model",
+            "sprintClose": "",
+            "workflow": {
+              "model": "v-model",
+              "kind": "planned",
+              "measure": "plan entries per phase",
+              "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+              "phases": [
+                {
+                  "name": "Implementation",
+                  "role": "Developers",
+                  "produces": "MOD",
+                  "kinds": ["MOD"],
+                  "line": 16,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 50,
+                  "holders": ["cli-dev", "alice"]
+                },
+                {
+                  "name": "Tester",
+                  "filledBy": "either",
+                  "capabilities": ["read the repository", "run code and tests"],
+                  "line": 51,
+                  "holders": ["ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [
+              {
+                "name": "alice",
+                "type": "person",
+                "model": "",
+                "context": null,
+                "price": null,
+                "capabilities": ["draft text", "read the repository", "write to the repository"],
+                "place": "",
+                "route": "the GitHub account `alice`",
+                "line": 5
+              }
+            ],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": {
+          "nodes": [
+            { "id": "ARC-001", "kind": "architecture-decision", "path": "docs/architecture/ARC-001-static-pages.md", "status": "accepted" },
+            { "id": "ARC-002", "kind": "architecture-decision", "path": "docs/architecture/ARC-002-export.md", "status": "accepted" },
+            { "id": "EVERY TEXT IS REVIEWED", "kind": "requirement", "path": "SPEC.md", "status": "accepted" },
+            { "id": "MOD-export", "kind": "module", "path": "docs/architecture/ARC-002-export.md", "status": "accepted" },
+            { "id": "MOD-pages", "kind": "module", "path": "docs/architecture/ARC-001-static-pages.md", "status": "accepted" },
+            { "id": "NO SERVER", "kind": "requirement", "path": "SPEC.md", "status": "accepted" },
+            { "id": "src/pages/index.mjs", "kind": "code", "path": "src/pages/index.mjs", "status": "" },
+            { "id": "tests/pages.test.mjs", "kind": "test", "path": "tests/pages.test.mjs", "status": "" }
+          ],
+          "edges": [
+            { "from": "MOD-export", "to": "MOD-pages", "via": "uses" },
+            { "from": "src/pages/index.mjs", "to": "MOD-pages", "via": "in" },
+            { "from": "tests/pages.test.mjs", "to": "MOD-pages", "via": "exercises" }
+          ],
+          "modules": [],
+          "unknown": []
+        },
+        "limits": null,
+        "assignments": [{ "role": "Developers", "participant": "alice" }]
+      },
+      "result": {
+        "kind": "modules",
+        "candidates": [
+          { "id": "MOD-export", "state": "no-code", "selectable": true, "reasons": [] },
+          { "id": "MOD-pages", "state": "complete", "selectable": true, "reasons": [] }
+        ],
+        "selection": ["MOD-export"],
+        "waves": [["MOD-export"]],
+        "diagram": "flowchart LR\n  MOD_export[\"MOD-export\"]\n  MOD_pages[\"MOD-pages\"]\n  MOD_export --> MOD_pages\n  classDef gap stroke:#b42318\n  class MOD_export gap\n",
+        "limits": { "jobsAtOnce": 3, "cost": null, "rounds": 5 },
+        "plan": null,
+        "refusal": { "refused": "a-person", "reason": "Implementation/MOD-export goes to alice, a person; a job goes to an agent" },
+        "sends": null,
+        "unheld": [],
+        "first": [],
+        "waiting": []
       }
     }
   ]
@@ -5424,7 +5675,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-views.runSnapshot",
-  "summary": "The snapshot a run's next jobs are computed from (MOD-run-engine.nextJobs), at the product's commit: its plan from the run's record — the selection, limits and assignments — over the product's workflow, modules and items; its jobs, each in the state the page shows; the gate records, the checks and the commits the gates are decided on; and, for a backlog, its items with their facts, the running sprint and the items in progress.",
+  "summary": "The snapshot a run's next jobs are computed from (MOD-run-engine.nextJobs), at the product's commit: its plan from the run's record — the selection, the limits as the newest record raising them names, and the assignments — over the product's workflow, modules and items; its jobs, each in the state the page shows; the gate records, the checks and the commits the gates are decided on; and, for a backlog, its items with their facts, the running sprint and the items in progress.",
   "params": [
     { "name": "state", "type": "ProductState" },
     { "name": "graph", "type": "LinkGraph" },
@@ -5754,6 +6005,7 @@ flowchart LR
               }
             ],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -6160,6 +6412,7 @@ flowchart LR
               }
             ],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
@@ -6321,6 +6574,612 @@ flowchart LR
       }
     },
     {
+      "name": "a run whose cost limit was raised",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [
+                {
+                  "name": "Development",
+                  "role": "Developers",
+                  "produces": "MOD, TST",
+                  "kinds": ["MOD", "TST"],
+                  "line": 13,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [
+                {
+                  "between": "Sprint planning → Development",
+                  "from": "Sprint planning",
+                  "to": "Development",
+                  "artifacts": "ITM",
+                  "kinds": ["ITM"],
+                  "condition": "the sprint's items are ready",
+                  "decider": { "role": "Product Owner" },
+                  "line": 28,
+                  "practice": "",
+                  "requirement": "",
+                  "source": "",
+                  "holders": ["alice"]
+                },
+                {
+                  "between": "Development → Sprint review",
+                  "from": "Development",
+                  "to": "Sprint review",
+                  "artifacts": "MOD",
+                  "kinds": ["MOD"],
+                  "condition": "CI is green",
+                  "decider": { "role": "Product Owner" },
+                  "line": 29,
+                  "practice": "",
+                  "requirement": "",
+                  "source": "",
+                  "holders": ["alice"]
+                }
+              ],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 36,
+                  "holders": ["cli-dev", "ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-014",
+                "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md",
+                "title": "Export a chapter as PDF",
+                "kind": "implementation",
+                "realises": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "modules": ["MOD-export"],
+                "dependsOn": [],
+                "origins": ["https://github.com/alice/thesis/issues/57"],
+                "outcome": "Export a chapter as PDF.",
+                "criteria": ["Export a chapter as PDF works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-015",
+                "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
+                "title": "Write a chapter in the editor",
+                "kind": "implementation",
+                "realises": ["NO SERVER"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-002"],
+                "outcome": "Write a chapter in the editor.",
+                "criteria": ["Write a chapter in the editor works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-016",
+                "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+                "title": "Accept a chapter with one click",
+                "kind": "implementation",
+                "realises": ["ONE CLICK", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Accept a chapter with one click.",
+                "criteria": ["Accept a chapter with one click works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-017",
+                "path": "docs/backlog/ITM-017-review-a-chapter-s-text.md",
+                "title": "Review a chapter's text",
+                "kind": "implementation",
+                "realises": ["EVERY TEXT IS REVIEWED"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Review a chapter's text.",
+                "criteria": ["Review a chapter's text works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-018",
+                "path": "docs/backlog/ITM-018-show-the-list-of-chapters.md",
+                "title": "Show the list of chapters",
+                "kind": "implementation",
+                "realises": ["NO SERVER", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": ["ITM-016"],
+                "origins": ["UC-001"],
+                "outcome": "Show the list of chapters.",
+                "criteria": ["Show the list of chapters works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": {
+              "title": "Backlog order",
+              "intro": "The order in which the items are worked on.",
+              "order": ["ITM-016", "ITM-015", "ITM-017", "ITM-014", "ITM-018"],
+              "unplaced": ["ITM-018"],
+              "unknown": ["ITM-009"],
+              "notes": ""
+            },
+            "sprints": [
+              {
+                "id": "sprint-04",
+                "path": "docs/backlog/sprints/sprint-04.md",
+                "goal": "The author writes, accepts and reviews chapters",
+                "start": "2026-10-05",
+                "end": "",
+                "timeBoxEnd": "2026-10-18",
+                "selection": ["ITM-015", "ITM-016", "ITM-017"],
+                "closer": "alice",
+                "branch": "sprint/04"
+              }
+            ],
+            "closes": [],
+            "added": [
+              { "name": "ITM-014", "at": "2026-10-01T08:00:00Z" },
+              { "name": "ITM-015", "at": "2026-09-20T08:00:00Z" },
+              { "name": "ITM-016", "at": "2026-10-03T08:00:00Z" },
+              { "name": "ITM-017", "at": "2026-10-03T08:05:00Z" },
+              { "name": "ITM-018", "at": "2026-10-08T16:00:00Z" }
+            ],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261006-1000-a1b2",
+                "path": "docs/jobs/JOB-20261006-1000-a1b2.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "",
+                "slot": "",
+                "item": "ITM-016",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-06T10:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-06T10:01:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-07T11:00:00Z", "state": "waiting-at-gate", "note": "Development → Sprint review" },
+                  { "at": "2026-10-07T15:00:00Z", "state": "done", "note": "" }
+                ],
+                "results": ["https://github.com/alice/thesis/pull/60"],
+                "rounds": 1,
+                "cost": null,
+                "usage": { "inputTokens": 182000, "outputTokens": 12000, "minutes": null },
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261008-0900-b2c3",
+                "path": "docs/jobs/JOB-20261008-0900-b2c3.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "",
+                "slot": "",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T09:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T09:01:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T11:00:00Z", "state": "waiting-at-gate", "note": "Development → Sprint review" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261008-1300-c3d4",
+                "path": "docs/jobs/JOB-20261008-1300-c3d4.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "",
+                "slot": "",
+                "item": "ITM-017",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T13:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T13:02:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T15:30:00Z", "state": "failed", "note": "CI stayed red after 5 correction rounds" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": null,
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261009-0801-1f1f",
+                "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "JOB-20261009-0800-0f0f",
+                "slot": "Development/ITM-015",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/JOB-20261006-1000-a1b2-development-sprint-review-600000000000.md", "from": "Development", "to": "Sprint review", "subject": "JOB-20261006-1000-a1b2", "on": "6000000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the click accepts the chapter" },
+                "at": "2026-10-07T14:00:00Z"
+              },
+              {
+                "record": { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" },
+                "at": "2026-10-05T09:00:00Z"
+              }
+            ],
+            "cancels": [],
+            "limits": [
+              {
+                "path": "docs/jobs/limits/JOB-20261009-0800-0f0f-20261009T0900.md",
+                "run": "JOB-20261009-0800-0f0f",
+                "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 },
+                "by": "alice",
+                "at": "2026-10-09T09:00:00Z"
+              }
+            ],
+            "problems": []
+          },
+          "acceptance": {
+            "accepted": [
+              { "name": "EVERY TEXT IS REVIEWED", "at": "2026-09-01T09:00:00Z" },
+              { "name": "NO SERVER", "at": "2026-09-01T09:00:00Z" },
+              { "name": "ONE CLICK", "at": "2026-09-01T09:00:00Z" },
+              { "name": "UC-001", "at": "2026-09-01T10:00:00Z" }
+            ],
+            "proposals": [{ "name": "ONE CLICK", "opened": "2026-10-03T12:00:00Z", "closed": "" }],
+            "proposed": []
+          },
+          "pullRequests": [
+            { "number": 61, "title": "ITM-015: write a chapter in the editor", "state": "open", "head": "item/ITM-015", "base": "sprint/04", "headSha": "6100000000000000000000000000000000000000", "created": "2026-10-08T10:30:00Z", "merged": "", "closed": "", "draft": false, "url": "https://github.com/alice/thesis/pull/61" },
+            { "number": 60, "title": "ITM-016: accept a chapter with one click", "state": "merged", "head": "item/ITM-016", "base": "sprint/04", "headSha": "6000000000000000000000000000000000000000", "created": "2026-10-06T12:00:00Z", "merged": "2026-10-07T15:00:00Z", "closed": "2026-10-07T15:00:00Z", "draft": false, "url": "https://github.com/alice/thesis/pull/60" }
+          ],
+          "checks": [{ "name": "tests", "on": "6100000000000000000000000000000000000000", "conclusion": "success" }],
+          "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "run": {
+          "id": "JOB-20261009-0800-0f0f",
+          "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["ITM-015", "ITM-016"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+          "states": [{ "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": ["JOB-20261009-0801-1f1f"]
+        }
+      },
+      "result": {
+        "run": "JOB-20261009-0800-0f0f",
+        "plan": {
+          "product": "thesis",
+          "kind": "pulled",
+          "slots": [
+            {
+              "key": "Development/ITM-015",
+              "kind": "implement",
+              "phase": "Development",
+              "role": "Developers",
+              "participant": "ci-dev",
+              "unit": "ITM-015",
+              "item": "ITM-015",
+              "modules": ["MOD-pages"],
+              "after": [],
+              "gates": ["Sprint planning → Development"],
+              "meets": ["Development → Sprint review"]
+            },
+            {
+              "key": "Development/ITM-016",
+              "kind": "implement",
+              "phase": "Development",
+              "role": "Developers",
+              "participant": "ci-dev",
+              "unit": "ITM-016",
+              "item": "ITM-016",
+              "modules": ["MOD-pages"],
+              "after": [],
+              "gates": ["Sprint planning → Development"],
+              "meets": ["Development → Sprint review"]
+            }
+          ],
+          "gates": [
+            {
+              "between": "Sprint planning → Development",
+              "from": "Sprint planning",
+              "to": "Development",
+              "artifacts": "ITM",
+              "kinds": ["ITM"],
+              "condition": "the sprint's items are ready",
+              "decider": { "role": "Product Owner" },
+              "line": 28,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": ["alice"]
+            },
+            {
+              "between": "Development → Sprint review",
+              "from": "Development",
+              "to": "Sprint review",
+              "artifacts": "MOD",
+              "kinds": ["MOD"],
+              "condition": "CI is green",
+              "decider": { "role": "Product Owner" },
+              "line": 29,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": ["alice"]
+            }
+          ],
+          "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 }
+        },
+        "jobs": [
+          { "id": "JOB-20261009-0801-1f1f", "slot": "Development/ITM-015", "run": "JOB-20261009-0800-0f0f", "participant": "ci-dev", "started": "2026-10-09T08:01:00Z", "state": "running", "cost": null, "rounds": 0 }
+        ],
+        "gateRecords": [
+          { "path": "docs/jobs/gates/JOB-20261006-1000-a1b2-development-sprint-review-600000000000.md", "from": "Development", "to": "Sprint review", "subject": "JOB-20261006-1000-a1b2", "on": "6000000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the click accepts the chapter" },
+          { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" }
+        ],
+        "checks": [{ "name": "tests", "on": "6100000000000000000000000000000000000000", "conclusion": "success" }],
+        "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
+        "items": [
+          {
+            "item": {
+              "id": "ITM-014",
+              "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md",
+              "title": "Export a chapter as PDF",
+              "kind": "implementation",
+              "realises": ["A CHAPTER IS EXPORTED", "UC-003"],
+              "modules": ["MOD-export"],
+              "dependsOn": [],
+              "origins": ["https://github.com/alice/thesis/issues/57"],
+              "outcome": "Export a chapter as PDF.",
+              "criteria": ["Export a chapter as PDF works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-01T08:00:00Z",
+              "accepted": [],
+              "proposals": [],
+              "jobs": [],
+              "rejections": [],
+              "pullRequests": []
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-015",
+              "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
+              "title": "Write a chapter in the editor",
+              "kind": "implementation",
+              "realises": ["NO SERVER"],
+              "modules": ["MOD-pages"],
+              "dependsOn": [],
+              "origins": ["UC-002"],
+              "outcome": "Write a chapter in the editor.",
+              "criteria": ["Write a chapter in the editor works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-09-20T08:00:00Z",
+              "accepted": [{ "name": "NO SERVER", "at": "2026-09-01T09:00:00Z" }],
+              "proposals": [],
+              "jobs": [
+                { "id": "JOB-20261008-0900-b2c3", "state": "queued", "at": "2026-10-08T09:00:00Z" },
+                { "id": "JOB-20261008-0900-b2c3", "state": "running", "at": "2026-10-08T09:01:00Z" },
+                { "id": "JOB-20261008-0900-b2c3", "state": "waiting-at-gate", "at": "2026-10-08T11:00:00Z" },
+                { "id": "JOB-20261009-0801-1f1f", "state": "queued", "at": "2026-10-09T08:01:00Z" },
+                { "id": "JOB-20261009-0801-1f1f", "state": "running", "at": "2026-10-09T08:02:00Z" }
+              ],
+              "rejections": [],
+              "pullRequests": [{ "number": 61, "state": "open", "at": "2026-10-08T10:30:00Z" }]
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-016",
+              "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+              "title": "Accept a chapter with one click",
+              "kind": "implementation",
+              "realises": ["ONE CLICK", "UC-001"],
+              "modules": ["MOD-pages"],
+              "dependsOn": [],
+              "origins": ["UC-001"],
+              "outcome": "Accept a chapter with one click.",
+              "criteria": ["Accept a chapter with one click works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-03T08:00:00Z",
+              "accepted": [
+                { "name": "ONE CLICK", "at": "2026-09-01T09:00:00Z" },
+                { "name": "UC-001", "at": "2026-09-01T10:00:00Z" }
+              ],
+              "proposals": [{ "name": "ONE CLICK", "opened": "2026-10-03T12:00:00Z", "closed": "" }],
+              "jobs": [
+                { "id": "JOB-20261006-1000-a1b2", "state": "queued", "at": "2026-10-06T10:00:00Z" },
+                { "id": "JOB-20261006-1000-a1b2", "state": "running", "at": "2026-10-06T10:01:00Z" },
+                { "id": "JOB-20261006-1000-a1b2", "state": "waiting-at-gate", "at": "2026-10-07T11:00:00Z" },
+                { "id": "JOB-20261006-1000-a1b2", "state": "done", "at": "2026-10-07T15:00:00Z" }
+              ],
+              "rejections": [],
+              "pullRequests": [
+                { "number": 60, "state": "open", "at": "2026-10-06T12:00:00Z" },
+                { "number": 60, "state": "merged", "at": "2026-10-07T15:00:00Z" }
+              ]
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-017",
+              "path": "docs/backlog/ITM-017-review-a-chapter-s-text.md",
+              "title": "Review a chapter's text",
+              "kind": "implementation",
+              "realises": ["EVERY TEXT IS REVIEWED"],
+              "modules": ["MOD-pages"],
+              "dependsOn": [],
+              "origins": ["UC-001"],
+              "outcome": "Review a chapter's text.",
+              "criteria": ["Review a chapter's text works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-03T08:05:00Z",
+              "accepted": [{ "name": "EVERY TEXT IS REVIEWED", "at": "2026-09-01T09:00:00Z" }],
+              "proposals": [],
+              "jobs": [
+                { "id": "JOB-20261008-1300-c3d4", "state": "queued", "at": "2026-10-08T13:00:00Z" },
+                { "id": "JOB-20261008-1300-c3d4", "state": "running", "at": "2026-10-08T13:02:00Z" },
+                { "id": "JOB-20261008-1300-c3d4", "state": "failed", "at": "2026-10-08T15:30:00Z" }
+              ],
+              "rejections": [],
+              "pullRequests": []
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-018",
+              "path": "docs/backlog/ITM-018-show-the-list-of-chapters.md",
+              "title": "Show the list of chapters",
+              "kind": "implementation",
+              "realises": ["NO SERVER", "UC-001"],
+              "modules": ["MOD-pages"],
+              "dependsOn": ["ITM-016"],
+              "origins": ["UC-001"],
+              "outcome": "Show the list of chapters.",
+              "criteria": ["Show the list of chapters works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-08T16:00:00Z",
+              "accepted": [
+                { "name": "NO SERVER", "at": "2026-09-01T09:00:00Z" },
+                { "name": "UC-001", "at": "2026-09-01T10:00:00Z" }
+              ],
+              "proposals": [],
+              "jobs": [],
+              "rejections": [],
+              "pullRequests": []
+            }
+          }
+        ],
+        "sprint": {
+          "id": "sprint-04",
+          "path": "docs/backlog/sprints/sprint-04.md",
+          "goal": "The author writes, accepts and reviews chapters",
+          "start": "2026-10-05",
+          "end": "",
+          "timeBoxEnd": "2026-10-18",
+          "selection": ["ITM-015", "ITM-016", "ITM-017"],
+          "closer": "alice",
+          "branch": "sprint/04"
+        },
+        "sprints": true,
+        "wipLimit": null,
+        "inProgress": 1
+      }
+    },
+    {
       "name": "a job that is no run",
       "input": {
         "state": {
@@ -6357,7 +7216,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [],
           "checks": [],
@@ -6402,6 +7261,1884 @@ flowchart LR
         }
       },
       "refused": "not-a-run"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-process-views.runView",
+  "summary": "What a run shows (UC-043 7, 8, 6b): its state as its record says — stopping once a person stopped it —; its slots in the plan's order, each with its newest job, the state that job is shown in and its pull requests; what waits and why, and the limit that stopped it; the cost its jobs' runtimes reported so far, per currency; the failed jobs with every slot they block, listed first with a retry; and once it has ended — every slot done, or stopped —, the modules of its selection as the validation shows them (MOD-traceability.moduleRows, cut down to those modules). A run's view is shown whatever became of its plan: where the plan no longer computes, its slots are those its jobs recorded, and the reason waits.",
+  "params": [
+    { "name": "state", "type": "ProductState" },
+    { "name": "graph", "type": "LinkGraph" },
+    { "name": "run", "type": "JobRecord" }
+  ],
+  "result": "RunView",
+  "async": false,
+  "refusals": [{ "code": "not-a-run", "when": "the record is not a run's" }],
+  "examples": [
+    {
+      "name": "the run over two items under way",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [
+                {
+                  "name": "Development",
+                  "role": "Developers",
+                  "produces": "MOD, TST",
+                  "kinds": ["MOD", "TST"],
+                  "line": 13,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 36,
+                  "holders": ["cli-dev", "ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-015",
+                "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
+                "title": "Write a chapter in the editor",
+                "kind": "implementation",
+                "realises": ["NO SERVER"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-002"],
+                "outcome": "Write a chapter in the editor.",
+                "criteria": ["Write a chapter in the editor works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-016",
+                "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+                "title": "Accept a chapter with one click",
+                "kind": "implementation",
+                "realises": ["ONE CLICK", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Accept a chapter with one click.",
+                "criteria": ["Accept a chapter with one click works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [
+              {
+                "id": "sprint-04",
+                "path": "docs/backlog/sprints/sprint-04.md",
+                "goal": "The author writes, accepts and reviews chapters",
+                "start": "2026-10-05",
+                "end": "",
+                "timeBoxEnd": "2026-10-18",
+                "selection": ["ITM-015", "ITM-016", "ITM-017"],
+                "closer": "alice",
+                "branch": "sprint/04"
+              }
+            ],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0801-1f1f",
+                "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "JOB-20261009-0800-0f0f",
+                "slot": "Development/ITM-015",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" },
+                "at": "2026-10-05T09:00:00Z"
+              }
+            ],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [
+            { "number": 61, "title": "ITM-015: write a chapter in the editor", "state": "open", "head": "item/ITM-015", "base": "sprint/04", "headSha": "6100000000000000000000000000000000000000", "created": "2026-10-08T10:30:00Z", "merged": "", "closed": "", "draft": false, "url": "https://github.com/alice/thesis/pull/61" },
+            { "number": 60, "title": "ITM-016: accept a chapter with one click", "state": "merged", "head": "item/ITM-016", "base": "sprint/04", "headSha": "6000000000000000000000000000000000000000", "created": "2026-10-06T12:00:00Z", "merged": "2026-10-07T15:00:00Z", "closed": "2026-10-07T15:00:00Z", "draft": false, "url": "https://github.com/alice/thesis/pull/60" }
+          ],
+          "checks": [],
+          "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "run": {
+          "id": "JOB-20261009-0800-0f0f",
+          "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["ITM-015", "ITM-016"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+          "states": [{ "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": ["JOB-20261009-0801-1f1f"]
+        }
+      },
+      "result": {
+        "run": "JOB-20261009-0800-0f0f",
+        "state": "running",
+        "note": "",
+        "slots": [
+          {
+            "slot": "Development/ITM-015",
+            "kind": "implement",
+            "participant": "ci-dev",
+            "job": "JOB-20261009-0801-1f1f",
+            "state": "running",
+            "pullRequests": [61]
+          },
+          {
+            "slot": "Development/ITM-016",
+            "kind": "implement",
+            "participant": "ci-dev",
+            "job": "",
+            "state": "",
+            "pullRequests": []
+          }
+        ],
+        "waiting": ["Development/ITM-016: ITM-016 is done"],
+        "stop": "",
+        "cost": [],
+        "failed": [],
+        "validation": []
+      }
+    },
+    {
+      "name": "a failed job and what it blocks",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c600000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "v-model",
+            "sprintClose": "",
+            "workflow": {
+              "model": "v-model",
+              "kind": "planned",
+              "measure": "plan entries per phase",
+              "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+              "phases": [
+                {
+                  "name": "Implementation",
+                  "role": "Developers",
+                  "produces": "MOD",
+                  "kinds": ["MOD"],
+                  "line": 16,
+                  "practice": ""
+                },
+                {
+                  "name": "Testing",
+                  "role": "Tester",
+                  "produces": "TST",
+                  "kinds": ["TST"],
+                  "line": 17,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 50,
+                  "holders": ["cli-dev"]
+                },
+                {
+                  "name": "Tester",
+                  "filledBy": "either",
+                  "capabilities": ["read the repository", "run code and tests"],
+                  "line": 51,
+                  "holders": ["ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261010-0830-aaaa",
+                "path": "docs/jobs/JOB-20261010-0830-aaaa.md",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "JOB-20261010-0800-2a2a",
+                "slot": "Implementation/MOD-pages",
+                "item": "",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-10T08:30:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-10T08:31:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-10T10:00:00Z", "state": "failed", "note": "CI stayed red after 5 correction rounds" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": null,
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": {
+          "nodes": [
+            { "id": "MOD-export", "kind": "module", "path": "docs/architecture/ARC-002-export.md", "status": "accepted" }
+          ],
+          "edges": [{ "from": "MOD-export", "to": "MOD-pages", "via": "uses" }],
+          "modules": [],
+          "unknown": []
+        },
+        "run": {
+          "id": "JOB-20261010-0800-2a2a",
+          "path": "docs/jobs/JOB-20261010-0800-2a2a.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["MOD-export", "MOD-pages"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [],
+          "states": [{ "at": "2026-10-10T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": []
+        }
+      },
+      "result": {
+        "run": "JOB-20261010-0800-2a2a",
+        "state": "running",
+        "note": "",
+        "slots": [
+          {
+            "slot": "Implementation/MOD-pages",
+            "kind": "implement",
+            "participant": "cli-dev",
+            "job": "JOB-20261010-0830-aaaa",
+            "state": "failed",
+            "pullRequests": []
+          },
+          {
+            "slot": "Implementation/MOD-export",
+            "kind": "implement",
+            "participant": "cli-dev",
+            "job": "",
+            "state": "",
+            "pullRequests": []
+          },
+          {
+            "slot": "Testing/selection",
+            "kind": "test-battery",
+            "participant": "ci-dev",
+            "job": "",
+            "state": "",
+            "pullRequests": []
+          }
+        ],
+        "waiting": ["Implementation/MOD-pages: JOB-20261010-0830-aaaa is failed; a retry starts it again"],
+        "stop": "JOB-20261010-0830-aaaa reached the limit of 5 correction rounds",
+        "cost": [],
+        "failed": [
+          {
+            "slot": "Implementation/MOD-pages",
+            "job": "JOB-20261010-0830-aaaa",
+            "blocks": ["Implementation/MOD-export", "Testing/selection"]
+          }
+        ],
+        "validation": []
+      }
+    },
+    {
+      "name": "every slot done",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c600000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "v-model",
+            "sprintClose": "",
+            "workflow": {
+              "model": "v-model",
+              "kind": "planned",
+              "measure": "plan entries per phase",
+              "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+              "phases": [
+                {
+                  "name": "Implementation",
+                  "role": "Developers",
+                  "produces": "MOD",
+                  "kinds": ["MOD"],
+                  "line": 16,
+                  "practice": ""
+                },
+                {
+                  "name": "Testing",
+                  "role": "Tester",
+                  "produces": "TST",
+                  "kinds": ["TST"],
+                  "line": 17,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 50,
+                  "holders": ["cli-dev"]
+                },
+                {
+                  "name": "Tester",
+                  "filledBy": "either",
+                  "capabilities": ["read the repository", "run code and tests"],
+                  "line": 51,
+                  "holders": ["ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261010-0830-aaaa",
+                "path": "docs/jobs/JOB-20261010-0830-aaaa.md",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "JOB-20261010-0800-2a2a",
+                "slot": "Implementation/MOD-pages",
+                "item": "",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-10T08:30:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-10T08:31:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-10T10:00:00Z", "state": "done", "note": "" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": { "amount": 3.5, "currency": "USD" },
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261010-0831-bbbb",
+                "path": "docs/jobs/JOB-20261010-0831-bbbb.md",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "JOB-20261010-0800-2a2a",
+                "slot": "Implementation/MOD-export",
+                "item": "",
+                "modules": ["MOD-export"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-10T08:30:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-10T08:31:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-10T10:00:00Z", "state": "done", "note": "" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": { "amount": 3.5, "currency": "USD" },
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261010-0832-cccc",
+                "path": "docs/jobs/JOB-20261010-0832-cccc.md",
+                "kind": "test-battery",
+                "phase": "Testing",
+                "role": "Tester",
+                "participant": "ci-dev",
+                "runtime": "bridge",
+                "run": "JOB-20261010-0800-2a2a",
+                "slot": "Testing/selection",
+                "item": "",
+                "modules": ["MOD-pages", "MOD-export"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-10T08:30:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-10T08:31:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-10T10:00:00Z", "state": "done", "note": "" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": { "amount": 3.5, "currency": "USD" },
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": {
+          "nodes": [
+            { "id": "ARC-001", "kind": "architecture-decision", "path": "docs/architecture/ARC-001-static-pages.md", "status": "accepted" },
+            { "id": "ARC-002", "kind": "architecture-decision", "path": "docs/architecture/ARC-002-export.md", "status": "accepted" },
+            { "id": "EVERY TEXT IS REVIEWED", "kind": "requirement", "path": "SPEC.md", "status": "accepted" },
+            { "id": "MOD-export", "kind": "module", "path": "docs/architecture/ARC-002-export.md", "status": "accepted" },
+            { "id": "MOD-pages", "kind": "module", "path": "docs/architecture/ARC-001-static-pages.md", "status": "accepted" },
+            { "id": "NO SERVER", "kind": "requirement", "path": "SPEC.md", "status": "accepted" },
+            { "id": "src/pages/index.mjs", "kind": "code", "path": "src/pages/index.mjs", "status": "" },
+            { "id": "tests/pages.test.mjs", "kind": "test", "path": "tests/pages.test.mjs", "status": "" }
+          ],
+          "edges": [
+            { "from": "ARC-001", "to": "MOD-pages", "via": "designs" },
+            { "from": "MOD-pages", "to": "NO SERVER", "via": "realises" },
+            { "from": "MOD-pages", "to": "EVERY TEXT IS REVIEWED", "via": "realises" },
+            { "from": "ARC-002", "to": "MOD-export", "via": "designs" },
+            { "from": "MOD-export", "to": "EVERY TEXT IS REVIEWED", "via": "realises" },
+            { "from": "MOD-export", "to": "MOD-pages", "via": "uses" },
+            { "from": "src/pages/index.mjs", "to": "MOD-pages", "via": "in" },
+            { "from": "tests/pages.test.mjs", "to": "MOD-pages", "via": "exercises" },
+            { "from": "tests/pages.test.mjs", "to": "EVERY TEXT IS REVIEWED", "via": "guards" }
+          ],
+          "modules": [],
+          "unknown": []
+        },
+        "run": {
+          "id": "JOB-20261010-0800-2a2a",
+          "path": "docs/jobs/JOB-20261010-0800-2a2a.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["MOD-export", "MOD-pages"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [],
+          "states": [{ "at": "2026-10-10T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": []
+        }
+      },
+      "result": {
+        "run": "JOB-20261010-0800-2a2a",
+        "state": "running",
+        "note": "",
+        "slots": [
+          {
+            "slot": "Implementation/MOD-pages",
+            "kind": "implement",
+            "participant": "cli-dev",
+            "job": "JOB-20261010-0830-aaaa",
+            "state": "done",
+            "pullRequests": []
+          },
+          {
+            "slot": "Implementation/MOD-export",
+            "kind": "implement",
+            "participant": "cli-dev",
+            "job": "JOB-20261010-0831-bbbb",
+            "state": "done",
+            "pullRequests": []
+          },
+          {
+            "slot": "Testing/selection",
+            "kind": "test-battery",
+            "participant": "ci-dev",
+            "job": "JOB-20261010-0832-cccc",
+            "state": "done",
+            "pullRequests": []
+          }
+        ],
+        "waiting": [],
+        "stop": "JOB-20261010-0830-aaaa reached the limit of 5 correction rounds",
+        "cost": [{ "amount": 10.5, "currency": "USD" }],
+        "failed": [],
+        "validation": [
+          {
+            "module": "MOD-export",
+            "decision": "ARC-002",
+            "realises": ["EVERY TEXT IS REVIEWED"],
+            "code": [],
+            "tests": [],
+            "status": [
+              { "key": "ARC-002", "status": "accepted" },
+              { "key": "EVERY TEXT IS REVIEWED", "status": "accepted" }
+            ],
+            "guards": []
+          },
+          {
+            "module": "MOD-pages",
+            "decision": "ARC-001",
+            "realises": ["NO SERVER", "EVERY TEXT IS REVIEWED"],
+            "code": ["src/pages/index.mjs"],
+            "tests": ["tests/pages.test.mjs"],
+            "status": [
+              { "key": "ARC-001", "status": "accepted" },
+              { "key": "NO SERVER", "status": "accepted" },
+              { "key": "EVERY TEXT IS REVIEWED", "status": "accepted" }
+            ],
+            "guards": ["EVERY TEXT IS REVIEWED"]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a run stopped while its job runs",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [
+                {
+                  "name": "Development",
+                  "role": "Developers",
+                  "produces": "MOD, TST",
+                  "kinds": ["MOD", "TST"],
+                  "line": 13,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 36,
+                  "holders": ["cli-dev", "ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-015",
+                "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
+                "title": "Write a chapter in the editor",
+                "kind": "implementation",
+                "realises": ["NO SERVER"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-002"],
+                "outcome": "Write a chapter in the editor.",
+                "criteria": ["Write a chapter in the editor works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-016",
+                "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+                "title": "Accept a chapter with one click",
+                "kind": "implementation",
+                "realises": ["ONE CLICK", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Accept a chapter with one click.",
+                "criteria": ["Accept a chapter with one click works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [
+              {
+                "id": "sprint-04",
+                "path": "docs/backlog/sprints/sprint-04.md",
+                "goal": "The author writes, accepts and reviews chapters",
+                "start": "2026-10-05",
+                "end": "",
+                "timeBoxEnd": "2026-10-18",
+                "selection": ["ITM-015", "ITM-016", "ITM-017"],
+                "closer": "alice",
+                "branch": "sprint/04"
+              }
+            ],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0801-1f1f",
+                "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "JOB-20261009-0800-0f0f",
+                "slot": "Development/ITM-015",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" },
+                "at": "2026-10-05T09:00:00Z"
+              }
+            ],
+            "cancels": [
+              { "path": "docs/jobs/cancels/JOB-20261009-0800-0f0f.md", "job": "JOB-20261009-0800-0f0f", "by": "alice", "at": "2026-10-09T09:10:00Z" }
+            ],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [
+            { "number": 61, "title": "ITM-015: write a chapter in the editor", "state": "open", "head": "item/ITM-015", "base": "sprint/04", "headSha": "6100000000000000000000000000000000000000", "created": "2026-10-08T10:30:00Z", "merged": "", "closed": "", "draft": false, "url": "https://github.com/alice/thesis/pull/61" },
+            { "number": 60, "title": "ITM-016: accept a chapter with one click", "state": "merged", "head": "item/ITM-016", "base": "sprint/04", "headSha": "6000000000000000000000000000000000000000", "created": "2026-10-06T12:00:00Z", "merged": "2026-10-07T15:00:00Z", "closed": "2026-10-07T15:00:00Z", "draft": false, "url": "https://github.com/alice/thesis/pull/60" }
+          ],
+          "checks": [],
+          "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "run": {
+          "id": "JOB-20261009-0800-0f0f",
+          "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["ITM-015", "ITM-016"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+          "states": [{ "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": ["JOB-20261009-0801-1f1f"]
+        }
+      },
+      "result": {
+        "run": "JOB-20261009-0800-0f0f",
+        "state": "running",
+        "note": "stopping since 2026-10-09T09:10:00Z, by alice",
+        "slots": [
+          {
+            "slot": "Development/ITM-015",
+            "kind": "implement",
+            "participant": "ci-dev",
+            "job": "JOB-20261009-0801-1f1f",
+            "state": "running",
+            "pullRequests": [61]
+          },
+          {
+            "slot": "Development/ITM-016",
+            "kind": "implement",
+            "participant": "ci-dev",
+            "job": "",
+            "state": "",
+            "pullRequests": []
+          }
+        ],
+        "waiting": ["Development/ITM-016: ITM-016 is done"],
+        "stop": "",
+        "cost": [],
+        "failed": [],
+        "validation": []
+      }
+    },
+    {
+      "name": "a plan that no longer computes",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c600000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "v-model",
+            "sprintClose": "",
+            "workflow": {
+              "model": "v-model",
+              "kind": "planned",
+              "measure": "plan entries per phase",
+              "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+              "phases": [
+                {
+                  "name": "Implementation",
+                  "role": "Developers",
+                  "produces": "MOD",
+                  "kinds": ["MOD"],
+                  "line": 16,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261010-0830-aaaa",
+                "path": "docs/jobs/JOB-20261010-0830-aaaa.md",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "JOB-20261010-0800-2a2a",
+                "slot": "Implementation/MOD-pages",
+                "item": "",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-10T08:30:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-10T08:31:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-10T10:00:00Z", "state": "failed", "note": "CI stayed red after 5 correction rounds" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": null,
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": {
+          "nodes": [
+            { "id": "MOD-export", "kind": "module", "path": "docs/architecture/ARC-002-export.md", "status": "accepted" },
+            { "id": "MOD-pages", "kind": "module", "path": "docs/architecture/ARC-001-static-pages.md", "status": "accepted" }
+          ],
+          "edges": [
+            { "from": "MOD-export", "to": "MOD-pages", "via": "uses" },
+            { "from": "MOD-pages", "to": "MOD-export", "via": "uses" }
+          ],
+          "modules": [],
+          "unknown": []
+        },
+        "run": {
+          "id": "JOB-20261010-0800-2a2a",
+          "path": "docs/jobs/JOB-20261010-0800-2a2a.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["MOD-export", "MOD-pages"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [],
+          "states": [{ "at": "2026-10-10T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": []
+        }
+      },
+      "result": {
+        "run": "JOB-20261010-0800-2a2a",
+        "state": "running",
+        "note": "",
+        "slots": [
+          {
+            "slot": "Implementation/MOD-pages",
+            "kind": "implement",
+            "participant": "cli-dev",
+            "job": "JOB-20261010-0830-aaaa",
+            "state": "failed",
+            "pullRequests": []
+          }
+        ],
+        "waiting": ["the run's plan does not compute: the interfaces of MOD-export, MOD-pages use each other in a cycle"],
+        "stop": "",
+        "cost": [],
+        "failed": [{ "slot": "Implementation/MOD-pages", "job": "JOB-20261010-0830-aaaa", "blocks": [] }],
+        "validation": []
+      }
+    },
+    {
+      "name": "a run stopped, ended: MOD-export, outside its items' modules, is cut",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [
+                {
+                  "name": "Development",
+                  "role": "Developers",
+                  "produces": "MOD, TST",
+                  "kinds": ["MOD", "TST"],
+                  "line": 13,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 36,
+                  "holders": ["cli-dev", "ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-015",
+                "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
+                "title": "Write a chapter in the editor",
+                "kind": "implementation",
+                "realises": ["NO SERVER"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-002"],
+                "outcome": "Write a chapter in the editor.",
+                "criteria": ["Write a chapter in the editor works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-016",
+                "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+                "title": "Accept a chapter with one click",
+                "kind": "implementation",
+                "realises": ["ONE CLICK", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Accept a chapter with one click.",
+                "criteria": ["Accept a chapter with one click works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [
+              {
+                "id": "sprint-04",
+                "path": "docs/backlog/sprints/sprint-04.md",
+                "goal": "The author writes, accepts and reviews chapters",
+                "start": "2026-10-05",
+                "end": "",
+                "timeBoxEnd": "2026-10-18",
+                "selection": ["ITM-015", "ITM-016", "ITM-017"],
+                "closer": "alice",
+                "branch": "sprint/04"
+              }
+            ],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0801-1f1f",
+                "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "JOB-20261009-0800-0f0f",
+                "slot": "Development/ITM-015",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" },
+                  { "at": "2026-10-09T09:15:00Z", "state": "cancelled", "note": "cancelled by alice" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" },
+                "at": "2026-10-05T09:00:00Z"
+              }
+            ],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [
+            { "number": 61, "title": "ITM-015: write a chapter in the editor", "state": "open", "head": "item/ITM-015", "base": "sprint/04", "headSha": "6100000000000000000000000000000000000000", "created": "2026-10-08T10:30:00Z", "merged": "", "closed": "", "draft": false, "url": "https://github.com/alice/thesis/pull/61" },
+            { "number": 60, "title": "ITM-016: accept a chapter with one click", "state": "merged", "head": "item/ITM-016", "base": "sprint/04", "headSha": "6000000000000000000000000000000000000000", "created": "2026-10-06T12:00:00Z", "merged": "2026-10-07T15:00:00Z", "closed": "2026-10-07T15:00:00Z", "draft": false, "url": "https://github.com/alice/thesis/pull/60" }
+          ],
+          "checks": [],
+          "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": {
+          "nodes": [
+            { "id": "A CHAPTER IS EXPORTED", "kind": "requirement", "path": "docs/spec-freigaben/2026-10-03_writing/01-writing.md", "status": "proposed" },
+            { "id": "ARC-001", "kind": "architecture-decision", "path": "docs/architecture/ARC-001-static-pages.md", "status": "changed" },
+            { "id": "ARC-002", "kind": "architecture-decision", "path": "docs/architecture/ARC-002-export.md", "status": "open" },
+            { "id": "EVERY TEXT IS REVIEWED", "kind": "requirement", "path": "SPEC.md", "status": "accepted" },
+            { "id": "MOD-export", "kind": "module", "path": "docs/architecture/ARC-002-export.md", "status": "open" },
+            { "id": "MOD-pages", "kind": "module", "path": "docs/architecture/ARC-001-static-pages.md", "status": "changed" },
+            { "id": "NO SERVER", "kind": "requirement", "path": "SPEC.md", "status": "accepted" },
+            { "id": "ONE CLICK", "kind": "requirement", "path": "SPEC.md", "status": "accepted" },
+            { "id": "UC-001", "kind": "use-case", "path": "docs/use-cases/UC-001-accept-a-chapter.md", "status": "accepted" },
+            { "id": "UC-002", "kind": "use-case", "path": "docs/use-cases/UC-002-write-a-chapter.md", "status": "changed" },
+            { "id": "UC-003", "kind": "use-case", "path": "docs/use-cases/UC-003-export-a-chapter.md", "status": "open" },
+            { "id": "docs/spec-freigaben/2026-10-03_writing/01-writing.md", "kind": "proposal", "path": "docs/spec-freigaben/2026-10-03_writing/01-writing.md", "status": "open" },
+            { "id": "src/pages/index.mjs", "kind": "code", "path": "src/pages/index.mjs", "status": "" },
+            { "id": "tests/pages.test.mjs", "kind": "test", "path": "tests/pages.test.mjs", "status": "" }
+          ],
+          "edges": [
+            { "from": "docs/spec-freigaben/2026-10-03_writing/01-writing.md", "to": "ONE CLICK", "via": "proposes", "change": "change" },
+            { "from": "docs/spec-freigaben/2026-10-03_writing/01-writing.md", "to": "A CHAPTER IS EXPORTED", "via": "proposes", "change": "add" },
+            { "from": "ARC-001", "to": "NO SERVER", "via": "forced_by" },
+            { "from": "ARC-001", "to": "UC-001", "via": "forced_by" },
+            { "from": "ARC-001", "to": "MOD-pages", "via": "designs" },
+            { "from": "MOD-pages", "to": "NO SERVER", "via": "realises" },
+            { "from": "MOD-pages", "to": "EVERY TEXT IS REVIEWED", "via": "realises" },
+            { "from": "ARC-002", "to": "EVERY TEXT IS REVIEWED", "via": "forced_by" },
+            { "from": "ARC-002", "to": "UC-003", "via": "forced_by" },
+            { "from": "ARC-002", "to": "MOD-export", "via": "designs" },
+            { "from": "MOD-export", "to": "EVERY TEXT IS REVIEWED", "via": "realises" },
+            { "from": "MOD-export", "to": "MOD-pages", "via": "uses" },
+            { "from": "UC-001", "to": "ONE CLICK", "via": "realises" },
+            { "from": "UC-001", "to": "EVERY TEXT IS REVIEWED", "via": "realises" },
+            { "from": "UC-002", "to": "NO SERVER", "via": "realises" },
+            { "from": "UC-003", "to": "A CHAPTER IS EXPORTED", "via": "realises" },
+            { "from": "src/pages/index.mjs", "to": "MOD-pages", "via": "in" },
+            { "from": "tests/pages.test.mjs", "to": "MOD-pages", "via": "exercises" },
+            { "from": "tests/pages.test.mjs", "to": "EVERY TEXT IS REVIEWED", "via": "guards" }
+          ],
+          "modules": [{ "id": "MOD-export", "folder": "src/export/" }, { "id": "MOD-pages", "folder": "src/pages/" }],
+          "unknown": []
+        },
+        "run": {
+          "id": "JOB-20261009-0800-0f0f",
+          "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["ITM-015", "ITM-016"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+          "states": [
+            { "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" },
+            { "at": "2026-10-09T09:20:00Z", "state": "cancelled", "note": "stopped by alice" }
+          ],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": ["JOB-20261009-0801-1f1f"]
+        }
+      },
+      "result": {
+        "run": "JOB-20261009-0800-0f0f",
+        "state": "cancelled",
+        "note": "stopped by alice",
+        "slots": [
+          {
+            "slot": "Development/ITM-015",
+            "kind": "implement",
+            "participant": "ci-dev",
+            "job": "JOB-20261009-0801-1f1f",
+            "state": "cancelled",
+            "pullRequests": [61]
+          },
+          {
+            "slot": "Development/ITM-016",
+            "kind": "implement",
+            "participant": "ci-dev",
+            "job": "",
+            "state": "",
+            "pullRequests": []
+          }
+        ],
+        "waiting": ["Development/ITM-015: JOB-20261009-0801-1f1f is cancelled; a retry starts it again", "Development/ITM-016: ITM-016 is done"],
+        "stop": "",
+        "cost": [],
+        "failed": [],
+        "validation": [
+          {
+            "module": "MOD-pages",
+            "decision": "ARC-001",
+            "realises": ["NO SERVER", "EVERY TEXT IS REVIEWED"],
+            "code": ["src/pages/index.mjs"],
+            "tests": ["tests/pages.test.mjs"],
+            "status": [
+              { "key": "ARC-001", "status": "changed" },
+              { "key": "NO SERVER", "status": "accepted" },
+              { "key": "EVERY TEXT IS REVIEWED", "status": "accepted" }
+            ],
+            "guards": ["EVERY TEXT IS REVIEWED"]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a job that is no run",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "run": {
+          "id": "JOB-20261009-0801-1f1f",
+          "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+          "kind": "implement",
+          "phase": "Development",
+          "role": "Developers",
+          "participant": "ci-dev",
+          "runtime": "ci",
+          "run": "JOB-20261009-0800-0f0f",
+          "slot": "Development/ITM-015",
+          "item": "ITM-015",
+          "modules": ["MOD-pages"],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "claude-opus-5-5",
+          "log": "",
+          "selection": [],
+          "limits": null,
+          "assignments": [],
+          "states": [
+            { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+            { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" }
+          ],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": []
+        }
+      },
+      "refused": "not-a-run"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-process-views.retryPanel",
+  "summary": "The offer of a retry (UC-036 7, 7a): the job it retries — failed, cancelled or ended without record —, its participant proposed again beside every holder of its role with what each lacks, and for an item's job whether the item may still start and each reason it may not (MOD-work-items.mayStart).",
+  "params": [
+    { "name": "state", "type": "ProductState" },
+    { "name": "graph", "type": "LinkGraph" },
+    { "name": "job", "type": "string" }
+  ],
+  "result": "RetryPanel",
+  "async": false,
+  "refusals": [
+    { "code": "no-job", "when": "the job has no record" },
+    { "code": "not-ended", "when": "the job has not failed, been cancelled or ended without record" }
+  ],
+  "examples": [
+    {
+      "name": "a failed job of a selected item",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 36,
+                  "holders": ["cli-dev", "ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [
+              {
+                "name": "ci-dev",
+                "type": "CI agent",
+                "model": "claude-opus-5-5",
+                "context": null,
+                "price": null,
+                "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                "place": "GitHub's machines, a provider in the USA",
+                "route": "the workflow agent-m-job",
+                "line": 8
+              },
+              {
+                "name": "cli-dev",
+                "type": "CLI agent",
+                "model": "claude-opus-5-5",
+                "context": null,
+                "price": null,
+                "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+                "place": "this machine",
+                "route": "the bridge on the Mac of `alice`",
+                "line": 9
+              }
+            ],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-017",
+                "path": "docs/backlog/ITM-017-review-a-chapter-s-text.md",
+                "title": "Review a chapter's text",
+                "kind": "implementation",
+                "realises": ["EVERY TEXT IS REVIEWED"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Review a chapter's text.",
+                "criteria": ["Review a chapter's text works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [
+              {
+                "id": "sprint-04",
+                "path": "docs/backlog/sprints/sprint-04.md",
+                "goal": "The author writes, accepts and reviews chapters",
+                "start": "2026-10-05",
+                "end": "",
+                "timeBoxEnd": "2026-10-18",
+                "selection": ["ITM-015", "ITM-016", "ITM-017"],
+                "closer": "alice",
+                "branch": "sprint/04"
+              }
+            ],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261008-1300-c3d4",
+                "path": "docs/jobs/JOB-20261008-1300-c3d4.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "",
+                "slot": "",
+                "item": "ITM-017",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T13:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T13:02:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T15:30:00Z", "state": "failed", "note": "CI stayed red after 5 correction rounds" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": null,
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": {
+            "accepted": [{ "name": "EVERY TEXT IS REVIEWED", "at": "2026-09-01T09:00:00Z" }],
+            "proposals": [],
+            "proposed": []
+          },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "job": "JOB-20261008-1300-c3d4"
+      },
+      "result": {
+        "job": "JOB-20261008-1300-c3d4",
+        "item": "ITM-017",
+        "role": "Developers",
+        "participant": "ci-dev",
+        "holders": [
+          { "participant": "ci-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] },
+          { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
+        ],
+        "startable": true,
+        "reasons": [],
+        "endedWithoutRecord": false
+      }
+    },
+    {
+      "name": "an item no longer selected",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 36,
+                  "holders": ["cli-dev", "ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [
+              {
+                "name": "ci-dev",
+                "type": "CI agent",
+                "model": "claude-opus-5-5",
+                "context": null,
+                "price": null,
+                "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                "place": "GitHub's machines, a provider in the USA",
+                "route": "the workflow agent-m-job",
+                "line": 8
+              },
+              {
+                "name": "cli-dev",
+                "type": "CLI agent",
+                "model": "claude-opus-5-5",
+                "context": null,
+                "price": null,
+                "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+                "place": "this machine",
+                "route": "the bridge on the Mac of `alice`",
+                "line": 9
+              }
+            ],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-017",
+                "path": "docs/backlog/ITM-017-review-a-chapter-s-text.md",
+                "title": "Review a chapter's text",
+                "kind": "implementation",
+                "realises": ["EVERY TEXT IS REVIEWED"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Review a chapter's text.",
+                "criteria": ["Review a chapter's text works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [
+              {
+                "id": "sprint-04",
+                "path": "docs/backlog/sprints/sprint-04.md",
+                "goal": "The author writes, accepts and reviews chapters",
+                "start": "2026-10-05",
+                "end": "",
+                "timeBoxEnd": "2026-10-18",
+                "selection": ["ITM-015", "ITM-016"],
+                "closer": "alice",
+                "branch": "sprint/04"
+              }
+            ],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261008-1300-c3d4",
+                "path": "docs/jobs/JOB-20261008-1300-c3d4.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "",
+                "slot": "",
+                "item": "ITM-017",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T13:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T13:02:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T15:30:00Z", "state": "failed", "note": "CI stayed red after 5 correction rounds" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": null,
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": {
+            "accepted": [{ "name": "EVERY TEXT IS REVIEWED", "at": "2026-09-01T09:00:00Z" }],
+            "proposals": [],
+            "proposed": []
+          },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "job": "JOB-20261008-1300-c3d4"
+      },
+      "result": {
+        "job": "JOB-20261008-1300-c3d4",
+        "item": "ITM-017",
+        "role": "Developers",
+        "participant": "ci-dev",
+        "holders": [
+          { "participant": "ci-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] },
+          { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
+        ],
+        "startable": false,
+        "reasons": ["ITM-017 is not selected for sprint-04"],
+        "endedWithoutRecord": false
+      }
+    },
+    {
+      "name": "a job still waiting",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261008-0900-b2c3",
+                "path": "docs/jobs/JOB-20261008-0900-b2c3.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "",
+                "slot": "",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T09:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T09:01:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T11:00:00Z", "state": "waiting-at-gate", "note": "Development → Sprint review" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "job": "JOB-20261008-0900-b2c3"
+      },
+      "refused": "not-ended"
     }
   ]
 }
@@ -6576,6 +9313,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -6667,7 +9405,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
           "pullRequests": [],
           "checks": [],
@@ -6716,6 +9454,7 @@ flowchart LR
     { "code": "no-jobs", "when": "the change starts no job" },
     { "code": "no-identifier", "when": "the random draws give no free identifier" },
     { "code": "not-ended", "when": "a retried job has not failed, been cancelled or ended without a record" },
+    { "code": "no-run", "when": "the change names no run of the product" },
     { "code": "unknown-change", "when": "the change is of no kind the page makes" }
   ],
   "examples": [
@@ -6756,7 +9495,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [
             { "path": "docs/backlog/ITM-002-share-a-note.md", "added": "2026-10-02T09:00:00Z", "removed": "2026-10-04T09:00:00Z" }
           ],
@@ -6803,7 +9542,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -6832,7 +9571,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -6859,7 +9598,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -6925,7 +9664,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -6996,7 +9735,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -7058,7 +9797,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -7104,7 +9843,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -7152,7 +9891,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -7200,7 +9939,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "cli-dev",
           "now": "2026-10-09T09:30:00Z",
@@ -7243,7 +9982,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -7301,6 +10040,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "history": [],
@@ -7365,6 +10105,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "history": [],
@@ -7407,7 +10148,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -7432,18 +10173,14 @@ flowchart LR
           "agentM": "2026.10.1",
           "start": [
             {
+              "slot": "Development/ITM-017",
               "kind": "implement",
               "phase": "Development",
               "role": "Developers",
               "participant": "cli-dev",
-              "runtime": "bridge",
-              "run": "",
-              "slot": "Development/ITM-017",
               "item": "ITM-017",
               "modules": ["MOD-pages"],
-              "inputs": ["docs/backlog/ITM-017-review-a-chapter-s-text.md"],
-              "retryOf": "",
-              "agentM": "2026.10.1",
+              "runtime": "bridge",
               "model": "claude-opus-5-5"
             }
           ]
@@ -7457,7 +10194,7 @@ flowchart LR
             "added": [],
             "problems": []
           },
-          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
           "history": [],
           "account": "alice",
           "now": "2026-10-09T09:30:00Z",
@@ -7467,10 +10204,251 @@ flowchart LR
       "result": {
         "files": [
           { "path": "docs/jobs/JOB-20261009-0930-7f3a.md", "text": "---\nid: JOB-20261009-0930-7f3a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261009-0930-7f3a\n\n**REGISTER**\n\n## Selection\n\n- ITM-017\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 2 | — | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:30:00Z | running | — |\n\n## Jobs\n\n- JOB-20261009-0930-0b1c\n" },
-          { "path": "docs/jobs/JOB-20261009-0930-0b1c.md", "text": "---\nid: JOB-20261009-0930-0b1c\nkind: implement\nphase: Development\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun: JOB-20261009-0930-7f3a\nslot: Development/ITM-017\nitem: ITM-017\nmodules:\n  - MOD-pages\ninputs:\n  - docs/backlog/ITM-017-review-a-chapter-s-text.md\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261009-0930-0b1c\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:30:00Z | queued | — |\n" }
+          { "path": "docs/jobs/JOB-20261009-0930-0b1c.md", "text": "---\nid: JOB-20261009-0930-0b1c\nkind: implement\nphase: Development\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun: JOB-20261009-0930-7f3a\nslot: Development/ITM-017\nitem: ITM-017\nmodules:\n  - MOD-pages\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261009-0930-0b1c\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:30:00Z | queued | — |\n" }
         ],
         "message": "run JOB-20261009-0930-7f3a started: ITM-017"
       }
+    },
+    {
+      "name": "a run stopped",
+      "input": {
+        "change": { "kind": "stop", "run": "JOB-20261009-0800-0f0f" },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0800-0f0f",
+                "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+                "kind": "run",
+                "phase": "",
+                "role": "",
+                "participant": "alice",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "",
+                "log": "",
+                "selection": ["ITM-015", "ITM-016"],
+                "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+                "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+                "states": [{ "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" }],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": ["JOB-20261009-0801-1f1f"]
+              },
+              {
+                "id": "JOB-20261009-0801-1f1f",
+                "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "JOB-20261009-0800-0f0f",
+                "slot": "Development/ITM-015",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:30:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/cancels/JOB-20261009-0800-0f0f.md", "text": "job: JOB-20261009-0800-0f0f\nby: alice\nat: 2026-10-09T09:30:00Z\n" },
+          { "path": "docs/jobs/cancels/JOB-20261009-0801-1f1f.md", "text": "job: JOB-20261009-0801-1f1f\nby: alice\nat: 2026-10-09T09:30:00Z\n" }
+        ],
+        "message": "run JOB-20261009-0800-0f0f stopped: JOB-20261009-0801-1f1f cancelled"
+      }
+    },
+    {
+      "name": "a run stopped twice",
+      "input": {
+        "change": { "kind": "stop", "run": "JOB-20261009-0800-0f0f" },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0800-0f0f",
+                "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+                "kind": "run",
+                "phase": "",
+                "role": "",
+                "participant": "alice",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "",
+                "log": "",
+                "selection": ["ITM-015", "ITM-016"],
+                "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+                "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+                "states": [{ "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" }],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": ["JOB-20261009-0801-1f1f"]
+              }
+            ],
+            "gates": [],
+            "cancels": [
+              { "path": "docs/jobs/cancels/JOB-20261009-0800-0f0f.md", "job": "JOB-20261009-0800-0f0f", "by": "alice", "at": "2026-10-09T09:10:00Z" }
+            ],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:30:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "refused": "cancelled"
+    },
+    {
+      "name": "a run continued with a higher cost limit",
+      "input": {
+        "change": {
+          "kind": "limits",
+          "run": "JOB-20261009-0800-0f0f",
+          "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 }
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0800-0f0f",
+                "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+                "kind": "run",
+                "phase": "",
+                "role": "",
+                "participant": "alice",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "",
+                "log": "",
+                "selection": ["ITM-015", "ITM-016"],
+                "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+                "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+                "states": [{ "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" }],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": ["JOB-20261009-0801-1f1f"]
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:30:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/limits/JOB-20261009-0800-0f0f-20261009T0930.md", "text": "run: JOB-20261009-0800-0f0f\njobs_at_once: 3\ncost: 40 USD\nrounds: 5\nby: alice\nat: 2026-10-09T09:30:00Z\n" }
+        ],
+        "message": "run JOB-20261009-0800-0f0f continues: 3 at once, cost 40 USD, 5 rounds"
+      }
+    },
+    {
+      "name": "limits for a job that is no run",
+      "input": {
+        "change": {
+          "kind": "limits",
+          "run": "JOB-20261008-1300-c3d4",
+          "limits": { "jobsAtOnce": 3, "cost": null, "rounds": 5 }
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:30:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "refused": "no-run"
     },
     {
       "name": "a retry with another holder",
@@ -7521,6 +10499,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "history": [],
@@ -7585,6 +10564,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "history": [],
@@ -7608,7 +10588,7 @@ flowchart LR
   "layer": "shell",
   "responsibility": "The page at the root of the instance's Pages site that shows what goes on in the instance: it routes, reads each product at one commit with what its server reports, turns a trusted click into one commit planned on the head, merges a sprint's increment through a pull request, and holds every text the page shows.",
   "realises": ["THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE"],
-  "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "EngineDispatched", "CiCancelled"],
+  "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "EngineDispatched", "RunSlotView", "FailedSlot", "RunView", "RetryPanel", "CiCancelled"],
   "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner"]
 }
 ```
@@ -8107,6 +11087,7 @@ flowchart LR
             ],
             "gates": [],
             "cancels": [],
+            "limits": [],
             "problems": []
           },
           "acceptance": {
@@ -9271,13 +12252,14 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-main-page.cancelOnCi",
-  "summary": "The runs of the job workflow still going for a job, cancelled at the server after the click that cancels it committed its cancel record; the job shows as cancelling until its run is (MOD-run-engine.jobState). GitHub products.",
+  "summary": "The runs of the job workflow still going for a job, cancelled at the server after the click that cancels it committed its cancel record; the job shows as cancelling until its run is (MOD-run-engine.jobState). Where no run is going for it — it waits for its dispatch or at a gate —, nothing could confirm the cancel: its record ends as cancelled at once. GitHub products.",
   "params": [
     { "name": "address", "type": "string" },
     { "name": "job", "type": "string" },
     { "name": "settings", "type": "Settings" },
     { "name": "fetch", "type": "FetchPort" },
-    { "name": "authority", "type": "Authority", "optional": true }
+    { "name": "authority", "type": "Authority", "optional": true },
+    { "name": "clock", "type": "ClockPort" }
   ],
   "result": "CiCancelled",
   "async": true,
@@ -9326,9 +12308,107 @@ flowchart LR
             "response": { "status": 202, "body": {} }
           }
         ],
-        "authority": { "kind": "click" }
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T10:00:30Z"
       },
-      "result": { "job": "JOB-20261012-0800-9a9a", "cancelled": [4811] }
+      "result": { "job": "JOB-20261012-0800-9a9a", "cancelled": [4811], "ended": false }
+    },
+    {
+      "name": "a job waiting at its gate",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "job": "JOB-20261012-0800-9a9a",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/runs?per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "id": 4790, "display_title": "agent-m job JOB-20261012-0800-9a9a", "status": "completed", "conclusion": "success", "created_at": "2026-10-12T08:03:00Z", "html_url": "https://github.com/alice/thesis/actions/runs/4790" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:50:00Z | waiting-at-gate | Doing → Done waits for alice |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "job: JOB-20261012-0800-9a9a\nby: alice\nat: 2026-10-12T10:00:00Z\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b800000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b800000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0800-9a9a\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:50:00Z | waiting-at-gate | Doing → Done waits for alice |\n| 2026-10-12T10:00:30Z | cancelled | cancelled by alice; no run of it was going |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c800000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0800-9a9a: cancelled",
+                "tree": "c800000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e800000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e800000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e800000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e800000000000000000000000000000000000000" } } }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T10:00:30Z"
+      },
+      "result": { "job": "JOB-20261012-0800-9a9a", "cancelled": [], "ended": true }
     }
   ]
 }
@@ -9439,17 +12519,18 @@ flowchart LR
 ```json type
 {
   "$id": "Records",
-  "description": "A product's records at one commit: jobs, gate records with their times, cancels, and the records not read.",
+  "description": "A product's records at one commit: jobs, gate records with their times, cancels, the raised limits of its runs, and the records not read.",
   "type": "object",
-  "required": ["jobs", "gates", "cancels", "problems"],
+  "required": ["jobs", "gates", "cancels", "limits", "problems"],
   "additionalProperties": false,
   "properties": {
     "jobs": { "type": "array", "items": { "$ref": "JobRecord" } },
     "gates": { "type": "array", "items": { "$ref": "DatedGate" } },
     "cancels": { "type": "array", "items": { "$ref": "CancelRecord" } },
+    "limits": { "type": "array", "items": { "$ref": "LimitsRecord" } },
     "problems": { "type": "array", "items": { "$ref": "Finding" } }
   },
-  "examples": [{ "jobs": [], "gates": [], "cancels": [], "problems": [] }]
+  "examples": [{ "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] }]
 }
 ```
 
@@ -9542,7 +12623,7 @@ flowchart LR
         "added": [],
         "problems": []
       },
-      "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+      "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
       "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
       "pullRequests": [],
       "checks": [],
@@ -10124,6 +13205,7 @@ flowchart LR
         ],
         "gates": [],
         "cancels": [],
+        "limits": [],
         "problems": []
       },
       "participants": [
@@ -10393,9 +13475,9 @@ flowchart LR
 ```json type
 {
   "$id": "RunPanel",
-  "description": "The panel of a run before it starts: modules or items, the candidates, the selection, the modules in waves, the component diagram — empty for items —, the limits, the plan or the refusal, what is sent, and the roles nobody holds.",
+  "description": "The panel of a run before it starts: modules or items, the candidates, the selection, the modules in waves, the component diagram — empty for items —, the limits, the plan or the refusal, what is sent, the roles nobody holds, the jobs the run starts on its click, and what waits at its start.",
   "type": "object",
-  "required": ["kind", "candidates", "selection", "waves", "diagram", "limits", "plan", "refusal", "sends", "unheld"],
+  "required": ["kind", "candidates", "selection", "waves", "diagram", "limits", "plan", "refusal", "sends", "unheld", "first", "waiting"],
   "additionalProperties": false,
   "properties": {
     "kind": { "type": "string", "enum": ["", "modules", "items"] },
@@ -10407,7 +13489,9 @@ flowchart LR
     "plan": { "$ref": "RunPlanOrNone" },
     "refusal": { "$ref": "RefusalOrNone" },
     "sends": { "$ref": "SendsOrNone" },
-    "unheld": { "type": "array", "items": { "$ref": "RoleCandidates" } }
+    "unheld": { "type": "array", "items": { "$ref": "RoleCandidates" } },
+    "first": { "type": "array", "items": { "$ref": "FirstJob" } },
+    "waiting": { "type": "array", "items": { "type": "string" } }
   },
   "examples": [
     {
@@ -10423,7 +13507,9 @@ flowchart LR
       "plan": null,
       "refusal": { "refused": "cycle", "reason": "the interfaces of MOD-export, MOD-pages use each other in a cycle" },
       "sends": null,
-      "unheld": []
+      "unheld": [],
+      "first": [],
+      "waiting": []
     }
   ]
 }
@@ -10831,8 +13917,42 @@ flowchart LR
 
 ```json type
 {
+  "$id": "FirstJob",
+  "description": "A job a run starts on its click, as its panel gives it: its slot, kind, phase, role and participant, the item and modules it works on, where it runs and the model it names.",
+  "type": "object",
+  "required": ["slot", "kind", "phase", "role", "participant", "item", "modules", "runtime", "model"],
+  "additionalProperties": false,
+  "properties": {
+    "slot": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "minLength": 1 },
+    "phase": { "type": "string" },
+    "role": { "type": "string" },
+    "participant": { "type": "string", "minLength": 1 },
+    "item": { "type": "string" },
+    "modules": { "type": "array", "items": { "type": "string" } },
+    "runtime": { "type": "string", "enum": ["browser", "ci", "bridge"] },
+    "model": { "type": "string" }
+  },
+  "examples": [
+    {
+      "slot": "Development/ITM-017",
+      "kind": "implement",
+      "phase": "Development",
+      "role": "Developers",
+      "participant": "cli-dev",
+      "item": "ITM-017",
+      "modules": ["MOD-pages"],
+      "runtime": "bridge",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}
+```
+
+```json type
+{
   "$id": "RunChange",
-  "description": "A run to record at its start: its selection, limits and assignments, the Agent M version, and the jobs it starts first.",
+  "description": "A run to record at its start: its selection, limits and assignments, the Agent M version, and the jobs it starts first as its panel gives them.",
   "type": "object",
   "required": ["kind", "selection", "limits", "assignments", "agentM", "start"],
   "additionalProperties": false,
@@ -10842,7 +13962,7 @@ flowchart LR
     "limits": { "$ref": "Limits" },
     "assignments": { "type": "array", "items": { "$ref": "JobAssignment" } },
     "agentM": { "type": "string" },
-    "start": { "type": "array", "items": { "$ref": "JobStart" } }
+    "start": { "type": "array", "items": { "$ref": "FirstJob" } }
   },
   "examples": [
     {
@@ -10853,21 +13973,54 @@ flowchart LR
       "agentM": "2026.10.1",
       "start": [
         {
+          "slot": "Development/ITM-017",
           "kind": "implement",
           "phase": "Development",
           "role": "Developers",
           "participant": "cli-dev",
-          "runtime": "bridge",
-          "run": "",
-          "slot": "Development/ITM-017",
           "item": "ITM-017",
           "modules": ["MOD-pages"],
-          "inputs": ["docs/backlog/ITM-017-review-a-chapter-s-text.md"],
-          "retryOf": "",
-          "agentM": "2026.10.1",
+          "runtime": "bridge",
           "model": "claude-opus-5-5"
         }
       ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "StopChange",
+  "description": "A run stopped by a person.",
+  "type": "object",
+  "required": ["kind", "run"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "stop" },
+    "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" }
+  },
+  "examples": [{ "kind": "stop", "run": "JOB-20261009-0800-0f0f" }]
+}
+```
+
+```json type
+{
+  "$id": "LimitsChange",
+  "description": "A run's limits raised to continue it.",
+  "type": "object",
+  "required": ["kind", "run", "limits"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "limits" },
+    "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "limits": { "$ref": "Limits" }
+  },
+  "examples": [
+    {
+      "kind": "limits",
+      "run": "JOB-20261009-0800-0f0f",
+      "limits": { "jobsAtOnce": 3, "cost": { "amount": 40, "currency": "USD" }, "rounds": 5 }
     }
   ]
 }
@@ -10909,6 +14062,8 @@ flowchart LR
     { "$ref": "CancelChange" },
     { "$ref": "JobsChange" },
     { "$ref": "RunChange" },
+    { "$ref": "StopChange" },
+    { "$ref": "LimitsChange" },
     { "$ref": "RetryChange" }
   ],
   "examples": [{ "kind": "order", "order": ["ITM-016", "ITM-015"] }]
@@ -10940,7 +14095,7 @@ flowchart LR
         "added": [],
         "problems": []
       },
-      "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+      "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
       "history": [
         { "path": "docs/backlog/ITM-001-write-a-note.md", "added": "2026-10-02T09:00:00Z", "removed": "" },
         { "path": "docs/backlog/ITM-002-share-a-note.md", "added": "2026-10-02T09:00:00Z", "removed": "2026-10-04T09:00:00Z" }
@@ -11024,7 +14179,7 @@ flowchart LR
           "added": [],
           "problems": []
         },
-        "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+        "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
         "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
         "pullRequests": [],
         "checks": [],
@@ -11107,16 +14262,167 @@ flowchart LR
 
 ```json type
 {
-  "$id": "CiCancelled",
-  "description": "The runs of a job's workflow cancelled at the server.",
+  "$id": "RunSlotView",
+  "description": "A slot of a run as its view shows it: the slot, its kind and participant, its newest job — empty before one started —, the state that job is shown in, and its pull requests by number.",
   "type": "object",
-  "required": ["job", "cancelled"],
+  "required": ["slot", "kind", "participant", "job", "state", "pullRequests"],
+  "additionalProperties": false,
+  "properties": {
+    "slot": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string" },
+    "participant": { "type": "string" },
+    "job": { "type": "string" },
+    "state": { "type": "string" },
+    "pullRequests": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+  },
+  "examples": [
+    {
+      "slot": "Development/ITM-015",
+      "kind": "implement",
+      "participant": "ci-dev",
+      "job": "JOB-20261009-0801-1f1f",
+      "state": "running",
+      "pullRequests": [61]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "FailedSlot",
+  "description": "A slot whose job failed or ended without record, its job, and every slot that waits for it, directly or through another.",
+  "type": "object",
+  "required": ["slot", "job", "blocks"],
+  "additionalProperties": false,
+  "properties": {
+    "slot": { "type": "string", "minLength": 1 },
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "blocks": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "slot": "Implementation/MOD-pages",
+      "job": "JOB-20261010-0830-aaaa",
+      "blocks": ["Implementation/MOD-export", "Testing/selection"]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "RunView",
+  "description": "What a run shows: its identifier, the state its record names with a note — stopping once a person stopped it —, its slots, what waits and why, the limit that stopped it — empty while none did —, the cost reported so far per currency, its failed slots with what they block, and once it has ended — every slot done, or stopped — the modules of its selection as the validation shows them.",
+  "type": "object",
+  "required": ["run", "state", "note", "slots", "waiting", "stop", "cost", "failed", "validation"],
+  "additionalProperties": false,
+  "properties": {
+    "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "state": { "type": "string" },
+    "note": { "type": "string" },
+    "slots": { "type": "array", "items": { "$ref": "RunSlotView" } },
+    "waiting": { "type": "array", "items": { "type": "string" } },
+    "stop": { "type": "string" },
+    "cost": { "type": "array", "items": { "$ref": "Money" } },
+    "failed": { "type": "array", "items": { "$ref": "FailedSlot" } },
+    "validation": { "type": "array", "items": { "$ref": "ModuleRow" } }
+  },
+  "examples": [
+    {
+      "run": "JOB-20261010-0800-2a2a",
+      "state": "running",
+      "note": "",
+      "slots": [
+        {
+          "slot": "Implementation/MOD-pages",
+          "kind": "implement",
+          "participant": "cli-dev",
+          "job": "JOB-20261010-0830-aaaa",
+          "state": "failed",
+          "pullRequests": []
+        },
+        {
+          "slot": "Implementation/MOD-export",
+          "kind": "implement",
+          "participant": "cli-dev",
+          "job": "",
+          "state": "",
+          "pullRequests": []
+        },
+        {
+          "slot": "Testing/selection",
+          "kind": "test-battery",
+          "participant": "ci-dev",
+          "job": "",
+          "state": "",
+          "pullRequests": []
+        }
+      ],
+      "waiting": ["Implementation/MOD-pages: JOB-20261010-0830-aaaa is failed; a retry starts it again"],
+      "stop": "JOB-20261010-0830-aaaa reached the limit of 5 correction rounds",
+      "cost": [],
+      "failed": [
+        {
+          "slot": "Implementation/MOD-pages",
+          "job": "JOB-20261010-0830-aaaa",
+          "blocks": ["Implementation/MOD-export", "Testing/selection"]
+        }
+      ],
+      "validation": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "RetryPanel",
+  "description": "The offer of a retry: the job, its item — empty for none —, its role and participant, every holder of the role with what it lacks, whether the item may still start and each reason it may not, and whether the job ended without record.",
+  "type": "object",
+  "required": ["job", "item", "role", "participant", "holders", "startable", "reasons", "endedWithoutRecord"],
   "additionalProperties": false,
   "properties": {
     "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
-    "cancelled": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+    "item": { "type": "string" },
+    "role": { "type": "string" },
+    "participant": { "type": "string" },
+    "holders": { "type": "array", "items": { "$ref": "Assignability" } },
+    "startable": { "type": "boolean" },
+    "reasons": { "type": "array", "items": { "type": "string" } },
+    "endedWithoutRecord": { "type": "boolean" }
   },
-  "examples": [{ "job": "JOB-20261012-0800-9a9a", "cancelled": [4811] }]
+  "examples": [
+    {
+      "job": "JOB-20261008-1300-c3d4",
+      "item": "ITM-017",
+      "role": "Developers",
+      "participant": "ci-dev",
+      "holders": [
+        { "participant": "ci-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] },
+        { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
+      ],
+      "startable": false,
+      "reasons": ["ITM-017 is not selected for sprint-04"],
+      "endedWithoutRecord": false
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "CiCancelled",
+  "description": "The runs of a job's workflow cancelled at the server, and whether the job's record ended as cancelled at once because no run of it was going.",
+  "type": "object",
+  "required": ["job", "cancelled", "ended"],
+  "additionalProperties": false,
+  "properties": {
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "cancelled": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+    "ended": { "type": "boolean" }
+  },
+  "examples": [{ "job": "JOB-20261012-0800-9a9a", "cancelled": [4811], "ended": false }]
 }
 ```
 
@@ -11152,6 +14458,7 @@ flowchart LR
 | UC-036 3 | MOD-process-views.jobsView |
 | UC-036 5a | MOD-process-views.progressPage, MOD-process-views.planChange |
 | UC-036 5b | MOD-process-model.gateDecision, MOD-process-views.progressPage |
+| UC-036 7a | MOD-main-page.readProduct, MOD-process-views.retryPanel, MOD-work-items.mayStart |
 | UC-041 1 | MOD-process-views.backlogView, MOD-work-items.sprintEnded, MOD-main-page.route |
 | UC-041 2 | MOD-process-views.closeView, MOD-traceability.tracesTo |
 | UC-041 3 | — the Product Owner walks the stakeholders through the increment the page shows, outside the page |
@@ -11162,6 +14469,7 @@ flowchart LR
 | UC-043 2 | MOD-process-views.runPanel |
 | UC-043 3 | MOD-process-views.runPanel, MOD-run-engine.runPlan, MOD-traceability.tracesTo |
 | UC-043 4 | MOD-process-views.runPanel |
+| UC-043 7 | MOD-main-page.readProduct, MOD-process-views.jobsView, MOD-process-views.runView |
 | UC-043 1a | MOD-process-views.runPanel, MOD-work-items.mayStart |
 | UC-043 1b | MOD-process-views.runPanel, MOD-review-page.route |
 | UC-043 3a | MOD-process-views.runPanel, MOD-run-engine.moduleOrder |
