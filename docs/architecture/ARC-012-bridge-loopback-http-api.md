@@ -31,7 +31,7 @@ How browsers treat a request from a public HTTPS page to loopback is recorded, w
 5. **Host check** (`MOD-bridge-server.admit`). The bridge refuses a request whose `Host` names no loopback address — `127.0.0.1`, `localhost` or `[::1]` —, at whichever port: a forward from another machine (UC-011 1a), a tunnel, or the jump host's web server forwarding to the session port (ARC-013) serves the bridge at a port of its own, while a name rebound to loopback names itself in the `Host`. This guards against such a name, which the token alone also stops but which costs nothing to check; it is checked first.
 6. **Local Network Access.** The dashboard calls the bridge at a loopback address, so the browser knows the address space from the address itself; the `fetch` option `targetAddressSpace` serves a name that resolves to loopback — "will work if domainB.example resolves to the loopback address 127.0.0.1" (measurement point 3) — and is not needed. The settings page explains the one-time prompt before the first pairing (`EVERY STEP EXPLAINS ITSELF`). A preflight that still asks `Access-Control-Request-Private-Network: true` is answered with `Access-Control-Allow-Private-Network: true`; it costs nothing.
 7. **The mailbox password** reaches the bridge only in the body of a mail request over this API (`THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE`), is kept in memory for that request and dropped (ARC-014).
-8. **A generic protocol, a composed route table.** The server and the dashboard's client know the protocol — bind, token, origin, host, CORS, errors — and no domain: the bridge app composes the route table from the modules that own the routes (`MOD-bridge-app.routeTable`, ARC-011), and a request goes to the entry its method and path match (`MOD-bridge-server.dispatch`). The endpoints: `GET /hello` — the protocol's major version, the bridge's version, its paired origin, how it shows itself and its agents; the pairing test —, `GET /agents`, `POST /jobs`, `GET /jobs`, `GET /jobs/<id>`, `GET /jobs/<id>/log`, `DELETE /jobs/<id>` (cancel), `GET /endpoint/models`, `POST /endpoint/chat` (local model servers, ARC-009), `POST /mail/test` (a mailbox connection's test, ARC-014), `POST /mail/read`, `POST /mail/find`, `POST /mail/draft`, `POST /mail/send`, `GET /tunnels`. The dashboard refuses a bridge of another major version (`MOD-bridge-server.speaks`).
+8. **A generic protocol, a composed route table.** The server and the dashboard's client know the protocol — bind, token, origin, host, CORS, errors — and no domain: the bridge app composes the route table from the modules that own the routes (`MOD-bridge-app.routeTable`, ARC-011), and a request goes to the entry its method and path match (`MOD-bridge-server.dispatch`). The endpoints: `GET /hello` — the protocol's major version, the bridge's version, its paired origin, how it shows itself and its agents; the pairing test —, `GET /agents`, `POST /jobs`, `GET /jobs`, `GET /jobs/<id>`, `GET /jobs/<id>/log`, `DELETE /jobs/<id>` (cancel), `GET /endpoint/models`, `POST /endpoint/chat` (local model servers, ARC-009), `POST /mail/test` (a mailbox connection's test, ARC-014), `POST /mail/read` (a mailbox's headers, or one mail in full, read without changing anything, ARC-014), `POST /mail/draft`, `POST /mail/send`, `GET /tunnels`. The dashboard refuses a bridge of another major version (`MOD-bridge-server.speaks`).
 9. **The dashboard's client** (`MOD-bridge-server.bridgeRequest`, `MOD-bridge-server.callBridge`) takes one of two routes: the bridge's loopback address — on this computer, or a forward to it —, or the HTTPS address of its session on the jump host with the web server's login in `Authorization` (ARC-013). It reads the answer and names each refusal: no answer — the bridge does not run there, the address is wrong, or the browser blocks the call —, the web server refusing its login, the bridge refusing the token or the page's origin, a path or method it does not know.
 
 ```mermaid
@@ -317,7 +317,6 @@ flowchart LR
           { "method": "POST", "path": "/endpoint/chat", "name": "endpoint-chat" },
           { "method": "POST", "path": "/mail/test", "name": "mail-test" },
           { "method": "POST", "path": "/mail/read", "name": "mail-read" },
-          { "method": "POST", "path": "/mail/find", "name": "mail-find" },
           { "method": "POST", "path": "/mail/draft", "name": "mail-draft" },
           { "method": "POST", "path": "/mail/send", "name": "mail-send" },
           { "method": "GET", "path": "/tunnels", "name": "tunnels" }
@@ -342,7 +341,6 @@ flowchart LR
           { "method": "POST", "path": "/endpoint/chat", "name": "endpoint-chat" },
           { "method": "POST", "path": "/mail/test", "name": "mail-test" },
           { "method": "POST", "path": "/mail/read", "name": "mail-read" },
-          { "method": "POST", "path": "/mail/find", "name": "mail-find" },
           { "method": "POST", "path": "/mail/draft", "name": "mail-draft" },
           { "method": "POST", "path": "/mail/send", "name": "mail-send" },
           { "method": "GET", "path": "/tunnels", "name": "tunnels" }
@@ -367,7 +365,6 @@ flowchart LR
           { "method": "POST", "path": "/endpoint/chat", "name": "endpoint-chat" },
           { "method": "POST", "path": "/mail/test", "name": "mail-test" },
           { "method": "POST", "path": "/mail/read", "name": "mail-read" },
-          { "method": "POST", "path": "/mail/find", "name": "mail-find" },
           { "method": "POST", "path": "/mail/draft", "name": "mail-draft" },
           { "method": "POST", "path": "/mail/send", "name": "mail-send" },
           { "method": "GET", "path": "/tunnels", "name": "tunnels" }
@@ -392,7 +389,6 @@ flowchart LR
           { "method": "POST", "path": "/endpoint/chat", "name": "endpoint-chat" },
           { "method": "POST", "path": "/mail/test", "name": "mail-test" },
           { "method": "POST", "path": "/mail/read", "name": "mail-read" },
-          { "method": "POST", "path": "/mail/find", "name": "mail-find" },
           { "method": "POST", "path": "/mail/draft", "name": "mail-draft" },
           { "method": "POST", "path": "/mail/send", "name": "mail-send" },
           { "method": "GET", "path": "/tunnels", "name": "tunnels" }
@@ -417,7 +413,6 @@ flowchart LR
           { "method": "POST", "path": "/endpoint/chat", "name": "endpoint-chat" },
           { "method": "POST", "path": "/mail/test", "name": "mail-test" },
           { "method": "POST", "path": "/mail/read", "name": "mail-read" },
-          { "method": "POST", "path": "/mail/find", "name": "mail-find" },
           { "method": "POST", "path": "/mail/draft", "name": "mail-draft" },
           { "method": "POST", "path": "/mail/send", "name": "mail-send" },
           { "method": "GET", "path": "/tunnels", "name": "tunnels" }

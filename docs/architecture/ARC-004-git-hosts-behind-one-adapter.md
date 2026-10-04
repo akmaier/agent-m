@@ -115,6 +115,14 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    saw, and only when every CI check on it is green and at least one ran; a caller asks for it once the product's
    Definition of Done holds. Whether the server itself enforces merging only on green is read
    (`MOD-git-host.branchProtection`), so that a page can say when it does not, and link to where it is set.
+11. **Issues.** The adapter reads a product's issues, open and closed, with their descriptions and labels
+   (`MOD-git-host.issues`) — on GitHub `GET /repos/{owner}/{repo}/issues?state=all`, a hundred to a page, where "GitHub's REST
+   API considers every pull request an issue" and a pull request is told by "the pull_request key"
+   (`https://docs.github.com/en/rest/issues/issues`); on GitLab `GET /projects/:id/issues`, whose `scope` "Defaults to `all`" and whose
+   `state` returns "all issues or just those that are `opened` or `closed`" (`https://docs.gitlab.com/api/issues/`). On an authority it creates an issue with its
+   title, description and labels (`MOD-git-host.createIssue`; GitHub sets labels only for "users with push access", which the
+   person's token has) and replaces an issue's description (`MOD-git-host.setIssueBody`; GitHub `PATCH`, GitLab `PUT` with
+   `description`). What an issue holds is the caller's: the adapter writes it as given.
 
 ```mermaid
 flowchart LR
@@ -203,6 +211,9 @@ flowchart LR
     "Release",
     "ReleaseAsset",
     "AssetRequest",
+    "Issue",
+    "IssueText",
+    "IssueRef",
     "AssetAnswer",
     "AssetReceived"
   ],
@@ -4660,6 +4671,482 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.issues",
+  "summary": "A product's issues, open and closed, each with its number, title, description, labels, state and page, by number; on GitHub a pull request, which its issue list also holds, is left out. At most 5 000 are read, a hundred to a page.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "Issue[]",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "alice/notes on GitHub, a pull request among its issues",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues?state=all&per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 13,
+                  "title": "Search the titles too",
+                  "body": "Fixes #12.",
+                  "labels": [],
+                  "state": "open",
+                  "html_url": "https://github.com/alice/notes/pull/13",
+                  "pull_request": { "url": "https://api.github.com/repos/alice/notes/pulls/13" }
+                },
+                {
+                  "number": 12,
+                  "title": "Search ignores titles",
+                  "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n",
+                  "labels": [{ "name": "defect" }],
+                  "state": "open",
+                  "html_url": "https://github.com/alice/notes/issues/12"
+                },
+                {
+                  "number": 9,
+                  "title": "Dark mode",
+                  "body": "The pages could follow the system's dark mode.",
+                  "labels": [{ "name": "change" }],
+                  "state": "closed",
+                  "html_url": "https://github.com/alice/notes/issues/9"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "number": 9,
+          "title": "Dark mode",
+          "body": "The pages could follow the system's dark mode.",
+          "labels": ["change"],
+          "state": "closed",
+          "url": "https://github.com/alice/notes/issues/9"
+        },
+        {
+          "number": 12,
+          "title": "Search ignores titles",
+          "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n",
+          "labels": ["defect"],
+          "state": "open",
+          "url": "https://github.com/alice/notes/issues/12"
+        }
+      ]
+    },
+    {
+      "name": "a GitLab project",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "iid": 3,
+                  "title": "Sensor log is cut off",
+                  "description": "The log stops after 64 kB.",
+                  "labels": ["defect"],
+                  "state": "opened",
+                  "web_url": "https://gitlab.example.org/group/lab/-/issues/3"
+                },
+                {
+                  "iid": 2,
+                  "title": "Units in the plot",
+                  "description": null,
+                  "labels": [],
+                  "state": "closed",
+                  "web_url": "https://gitlab.example.org/group/lab/-/issues/2"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "number": 2,
+          "title": "Units in the plot",
+          "body": "",
+          "labels": [],
+          "state": "closed",
+          "url": "https://gitlab.example.org/group/lab/-/issues/2"
+        },
+        {
+          "number": 3,
+          "title": "Sensor log is cut off",
+          "body": "The log stops after 64 kB.",
+          "labels": ["defect"],
+          "state": "open",
+          "url": "https://gitlab.example.org/group/lab/-/issues/3"
+        }
+      ]
+    },
+    {
+      "name": "a repository the token cannot see",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues?state=all&per_page=100&page=1"
+            },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "refused": "not-found"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.createIssue",
+  "summary": "A new issue with its title, description and labels, on an authority; its number and page.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "issue", "type": "IssueText" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "IssueRef",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "no-title", "when": "the title is empty" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "issue": {
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+          "labels": ["defect"]
+        },
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues",
+              "body": {
+                "title": "PDF export drops every figure",
+                "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+                "labels": ["defect"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "number": 14, "html_url": "https://github.com/alice/notes/issues/14" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 14, "url": "https://github.com/alice/notes/issues/14" }
+    },
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "issue": {
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+          "labels": ["defect"]
+        },
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues",
+              "body": {
+                "title": "PDF export drops every figure",
+                "description": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+                "labels": "defect"
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "iid": 4, "web_url": "https://gitlab.example.org/group/lab/-/issues/4" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 4, "url": "https://gitlab.example.org/group/lab/-/issues/4" }
+    },
+    {
+      "name": "a token without the permission to create issues",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "issue": {
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+          "labels": ["defect"]
+        },
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues",
+              "body": {
+                "title": "PDF export drops every figure",
+                "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+                "labels": ["defect"]
+              }
+            },
+            "response": { "status": 403, "body": { "message": "Resource not accessible by personal access token" } }
+          }
+        ]
+      },
+      "refused": "no-access"
+    },
+    {
+      "name": "no authority",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "issue": {
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+          "labels": ["defect"]
+        },
+        "token": "github_pat_example",
+        "fetch": []
+      },
+      "refused": "no-authority"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.setIssueBody",
+  "summary": "An issue's description replaced, on an authority; its number and page.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "body", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "IssueRef",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-an-issue", "when": "the number is no issue number" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a mail added to issue #12 on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 12,
+        "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/notes/issues/12",
+              "body": {
+                "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n"
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": { "number": 12, "html_url": "https://github.com/alice/notes/issues/12" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 12, "url": "https://github.com/alice/notes/issues/12" }
+    },
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "number": 3,
+        "body": "The log stops after 64 kB.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues/3",
+              "body": { "description": "The log stops after 64 kB.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n" }
+            },
+            "response": {
+              "status": 200,
+              "body": { "iid": 3, "web_url": "https://gitlab.example.org/group/lab/-/issues/3" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 3, "url": "https://gitlab.example.org/group/lab/-/issues/3" }
+    },
+    {
+      "name": "no issue number",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 0,
+        "body": "x",
+        "token": "github_pat_example",
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "not-an-issue"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.editUrl",
   "summary": "GitHub's editor for a file, opened when no token is stored; a GitLab product has no editing without its project token.",
   "params": [
@@ -5489,6 +5976,68 @@ flowchart LR
   "additionalProperties": false,
   "properties": { "status": { "type": "integer", "minimum": 200, "maximum": 299 } },
   "examples": [{ "status": 200 }]
+}
+```
+
+```json type
+{
+  "$id": "Issue",
+  "description": "An issue of a product's tracker: its number, title, description, labels, state and page.",
+  "type": "object",
+  "required": ["number", "title", "body", "labels", "state", "url"],
+  "additionalProperties": false,
+  "properties": {
+    "number": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string" },
+    "body": { "type": "string" },
+    "labels": { "type": "array", "items": { "type": "string" } },
+    "state": { "type": "string", "enum": ["open", "closed"] },
+    "url": { "type": "string", "pattern": "^https://" }
+  },
+  "examples": [
+    {
+      "number": 12,
+      "title": "Search ignores titles",
+      "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n",
+      "labels": ["defect"],
+      "state": "open",
+      "url": "https://github.com/alice/notes/issues/12"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssueText",
+  "description": "What a new issue holds: its title, its description and its labels.",
+  "type": "object",
+  "required": ["title", "body", "labels"],
+  "additionalProperties": false,
+  "properties": {
+    "title": { "type": "string", "minLength": 1 },
+    "body": { "type": "string" },
+    "labels": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "title": "PDF export drops every figure",
+      "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n",
+      "labels": ["defect"]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssueRef",
+  "description": "The number and page of the issue written.",
+  "type": "object",
+  "required": ["number", "url"],
+  "additionalProperties": false,
+  "properties": { "number": { "type": "integer", "minimum": 1 }, "url": { "type": "string", "pattern": "^https://" } },
+  "examples": [{ "number": 14, "url": "https://github.com/alice/notes/issues/14" }]
 }
 ```
 

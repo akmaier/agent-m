@@ -394,7 +394,6 @@ on `deno desktop`, measurement point 1. Agent M's licence is MIT.
         { "method": "POST", "path": "/endpoint/chat", "name": "endpoint-chat" },
         { "method": "POST", "path": "/mail/test", "name": "mail-test" },
         { "method": "POST", "path": "/mail/read", "name": "mail-read" },
-        { "method": "POST", "path": "/mail/find", "name": "mail-find" },
         { "method": "POST", "path": "/mail/draft", "name": "mail-draft" },
         { "method": "POST", "path": "/mail/send", "name": "mail-send" },
         { "method": "GET", "path": "/tunnels", "name": "tunnels" }
