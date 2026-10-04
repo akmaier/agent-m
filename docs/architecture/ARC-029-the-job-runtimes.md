@@ -151,10 +151,10 @@ key variables depend on the provider, and whether its JSON reports usage is not 
     `MOD-ci-generator.jobWorkflow`'s (ARC-015). On the bridge, the bridge app runs the same turns, the CLI between them as
     `MOD-bridge-jobs.draftRun` starts it (ARC-030). The turns read what the job sends from the product's working tree, its
     definition and the instance's participants from Agent M's files, and the CLI's answers from the store; the last turn
-    writes the use cases and the job's end in one commit on the context's authority, the marks and the findings left in
-    its message with the job's provenance (ARC-031 decision 11), or the end alone, its note `no change` and its message
-    the subject alone, where nothing differs from the files as they are (UC-010 4a) — the end is the job's record
-    (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`), no artifact. A round's cost is what the CLI reported, added up
+    writes the use cases and the job's end (`MOD-drafting.jobEnd`) in one commit on the context's authority, the marks and
+    the findings left in its message with the job's provenance (ARC-031 decision 11), or the end alone, its note
+    `no change` and its message the subject alone, where nothing differs from the files as they are (UC-010 4a) — the end
+    is the job's record (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`), no artifact. A round's cost is what the CLI reported, added up
     (`NO COST IS GUESSED`). A drafting job runs with a CLI whose answer the turns read — Claude Code's
     JSON result, Codex's JSON lines (`MOD-job-runner.draftsWith`, `MOD-job-runner.draftAnswer`) —; opencode's JSON events
     are not documented, so a drafting job of an opencode agent is not handed over (decision 10).
@@ -229,8 +229,8 @@ sequenceDiagram
 - **Not realised here — a job started on GitHub's Actions page** (UC-010 1). The job workflow is dispatched with a job the
   dashboard recorded; a job started on GitHub's own page would need the workflow to write its start record from inputs
   naming its kind and what it covers, which the workflow does not take. UC-010 2 to 5, 3a and 4a stand in this table for
-  the derivation of use cases (ARC-031); UC-011 3 to 5 in ARC-030's. No click of the dashboard starts a derivation: its
-  view comes with the derivation of use cases on the dashboard (UC-007, ARC-031's consequences), and with it UC-011 2.
+  the derivation of use cases (ARC-031), which the product's derivation view starts (UC-007, ARC-031 decision 5);
+  UC-011 2 to 5 in ARC-030's.
 - **Not realised here — what comes with other jobs and with runs.** Items drafted by a participant stand in ARC-031's table
   (UC-032 2, 3), and a requirement's coverage by several items comes with the views (UC-032 3a); an agent as Product Owner
   (UC-032 1c) with a job of that kind, whose inputs `MOD-job-runner.jobInputs` does not give. A run over a selection
@@ -3759,7 +3759,7 @@ sequenceDiagram
 ```json interface
 {
   "id": "MOD-job-steps.draftTurn",
-  "summary": "One turn of a drafting job whose result is written as open, taken by a runtime that runs the agent's CLI between two turns: a job that ended does nothing; one cancelled meanwhile ends as cancelled and writes nothing more; the first turn reads what the job sends from the working tree (MOD-drafting.useCaseSources), checks that it fits the participant's context and may go to its place, records the job running and gives the prompt; each later turn reads the CLI's answer from the store (MOD-job-runner.draftAnswer), takes the round (MOD-drafting.draftRound) and gives the next prompt (MOD-drafting.cliPrompt), or — once the loop stopped — writes the use cases (MOD-drafting.useCaseFiles) and the job's end in one commit on the context's authority, the marks and the findings left in its message with the job's provenance, or the end alone where nothing differs; a failed round, or rounds that left no readable draft, end the job as failed. The store passes on, between turns, the job's state (draft), the prompt (prompt) and the CLI's report (report).",
+  "summary": "One turn of a drafting job whose result is written as open, taken by a runtime that runs the agent's CLI between two turns: a job that ended does nothing; one cancelled meanwhile ends as cancelled and writes nothing more; the first turn reads what the job sends from the working tree (MOD-drafting.useCaseSources), checks that it fits the participant's context and may go to its place, records the job running and gives the prompt; each later turn reads the CLI's answer from the store (MOD-job-runner.draftAnswer), takes the round (MOD-drafting.draftRound) and gives the next prompt (MOD-drafting.cliPrompt), or — once the loop stopped — writes the use cases (MOD-drafting.useCaseFiles) and the job's end (MOD-drafting.jobEnd) in one commit on the context's authority, the marks and the findings left in its message with the job's provenance, or the end alone where nothing differs; a failed round, or rounds that left no readable draft, end the job as failed. The store passes on, between turns, the job's state (draft), the prompt (prompt) and the CLI's report (report).",
   "params": [
     { "name": "context", "type": "JobContext" },
     { "name": "paths", "type": "string[]" },
@@ -5627,7 +5627,7 @@ sequenceDiagram
 |---|---|
 | UC-010 2 | MOD-ci-generator.jobWorkflow, MOD-ci-entry.jobStart, MOD-job-steps.startStep, MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-job-harness.parseDefinition, MOD-drafting.useCaseSources, MOD-job-harness.renderPrompt |
 | UC-010 3 | MOD-ci-generator.jobWorkflow, MOD-job-runner.draftCommand, MOD-job-runner.draftAnswer, MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-drafting.draftRound, MOD-drafting.cliPrompt |
-| UC-010 4 | MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-git-host.pathHistory, MOD-drafting.useCaseFiles, MOD-job-harness.commitMessage, MOD-run-engine.jobRecordText, MOD-git-host.writeFiles |
+| UC-010 4 | MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-git-host.pathHistory, MOD-drafting.useCaseFiles, MOD-drafting.jobEnd, MOD-job-harness.commitMessage, MOD-run-engine.jobRecordText, MOD-git-host.writeFiles |
 | UC-010 5 | MOD-review-page.open, MOD-review-views.reviewList, MOD-review-views.showFile |
 | UC-010 3a | MOD-ci-generator.jobWorkflow |
-| UC-010 4a | MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-drafting.useCaseFiles, MOD-run-engine.jobRecordText, MOD-git-host.writeFiles |
+| UC-010 4a | MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-drafting.useCaseFiles, MOD-drafting.jobEnd, MOD-run-engine.jobRecordText, MOD-git-host.writeFiles |

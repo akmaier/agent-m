@@ -27,6 +27,8 @@ forced_by:
   - A RUN HAS LIMITS FIXED AT ITS START
   - A RUN ENDS WITH THE VALIDATION OF ITS MODULES
   - THE TRACEABILITY MATRIX IS DERIVED
+  - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - UC-007
   - UC-032
   - UC-034
   - UC-035
@@ -58,8 +60,8 @@ together: what it reads of a product, what it computes for each view, and what i
    all HTML of the page.
 2. **Route.** `MOD-main-page.route` reads the instance from the root of its Pages site,
    `https://<owner>.github.io/<repo>/`, and from the fragment the view — the overview, a product's progress, backlog,
-   run or sprint close, or every job —, the product by its address, an item, a sprint, and a commit to read instead of
-   the default branch's head. The overview shows a line per product of the instance (`MOD-process-views.summaryOf`) and
+   run, sprint close or derivation of use cases (`#derive`, ARC-031 decision 5), or every job —, the product by its
+   address, an item, a sprint, and a commit to read instead of the default branch's head. The overview shows a line per product of the instance (`MOD-process-views.summaryOf`) and
    the list of every job.
 3. **A product is read at one commit** (`MOD-main-page.readProduct`): its files through the review page's read port, the
    model from the instance at the version the product declares and the participants at the instance's head; when each
@@ -104,8 +106,11 @@ together: what it reads of a product, what it computes for each view, and what i
    stop — the cancel records of the run and of every job of it that has not ended —, a run's raised limits (ARC-010
    decision 6), and the start records of jobs, of a run — begun running — with its first jobs, or of a retry naming the
    job it retries — an agent's job with who merges its pull request where the author chose it (UC-034 8) —, and the end of a
-   drafting job the page ran in the browser tab, written by that page, and written as cancelled with no results where a
-   cancel record names the job by then (ARC-031). Items a drafting job proposed carry its provenance in the commit's message
+   drafting job the page ran in the browser tab, written by that page — with the use cases a derivation drafted, which
+   enter the default branch as open (`A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN`), their marks and the
+   findings left in the commit's message with the job's provenance as its record names it, and only on the head they
+   were numbered at —, and written as cancelled with no results and nothing else where a cancel record names the job by
+   then (ARC-031 decision 12). Items a drafting job proposed carry its provenance in the commit's message
    (`MOD-job-harness.commitMessage`), never in their texts. A new item
    gets its identifier from `MOD-work-items.nextItemId` over every identifier the files and the version history of
    `docs/backlog/` hold, a new job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the
@@ -161,7 +166,7 @@ flowchart LR
 - The job runtimes name an item's branch `item/<identifier>` and record their pull request among their results, so that
   the page finds the text a job's gate is decided on.
 - The steps that hand work to a participant or that a runtime carries out are not realised here: drafting items (UC-032
-  3a — UC-032 2 and 3 stand in ARC-031's table —); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and runs (UC-034
+  3a — UC-032 2 and 3, and the derivation of use cases, UC-007, stand in ARC-031's table —); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and runs (UC-034
   1a, 4, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a — UC-034 5, 6 and 8a stand in ARC-030's table —; UC-043 1c, 5, 6, 8, 6a, 6b, 6c, 6d); a retry (UC-036 7, 6a); the job continuing or ending after a person's gate decision, whose record `MOD-process-views.planChange` and
   `MOD-main-page.commitChange` already write (UC-036 5); and the running jobs, their live states and logs, read from the
   runtimes (UC-035 1, 1b; UC-036 1, 1a, 1b, 1c, 4, 4a, 4b) — the rest of what UC-035 1 reads is
@@ -9438,7 +9443,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-views.planChange",
-  "summary": "The files and the message of one write of the page, planned on the head read: new items appended to the order, each with the identifier MOD-work-items.nextItemId gives over every one the files and the version history hold; a new order of the same items; a sprint started or its selection changed; a sprint's end; a person's gate decision — never on their own work, never by one who does not hold the deciding role —; a cancel; the start records of jobs, of a run and its first jobs, or of a retry naming the job it retries, each with an identifier from MOD-run-engine.newJobId; the end of a job the page ran in the browser tab — cancelled, with no results, where a cancel record names it by then (ARC-031); and items a drafting job proposed with its provenance in the message (MOD-job-harness.commitMessage).",
+  "summary": "The files and the message of one write of the page, planned on the head read: new items appended to the order, each with the identifier MOD-work-items.nextItemId gives over every one the files and the version history hold; a new order of the same items; a sprint started or its selection changed; a sprint's end; a person's gate decision — never on their own work, never by one who does not hold the deciding role —; a cancel; the start records of jobs, of a run and its first jobs, or of a retry naming the job it retries, each with an identifier from MOD-run-engine.newJobId; the end of a job the page ran in the browser tab — with the use cases a derivation drafted, written as open, the marks and findings left and the job's provenance as its record names it in the message; cancelled, with no results and nothing else, where a cancel record names it by then (ARC-031) —; and items a drafting job proposed with its provenance in the message (MOD-job-harness.commitMessage).",
   "params": [{ "name": "change", "type": "PageChange" }, { "name": "head", "type": "HeadFacts" }],
   "result": "PlannedCommit",
   "async": false,
@@ -10597,7 +10602,9 @@ flowchart LR
             "results": ["Show the word count while writing", "Write a chapter in the editor"],
             "rounds": 2,
             "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
-            "cost": null
+            "cost": null,
+            "files": [],
+            "notes": []
           }
         },
         "head": {
@@ -10669,7 +10676,9 @@ flowchart LR
             "results": ["Show the word count while writing", "Write a chapter in the editor"],
             "rounds": 2,
             "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
-            "cost": null
+            "cost": null,
+            "files": [],
+            "notes": []
           }
         },
         "head": {
@@ -10743,7 +10752,9 @@ flowchart LR
             "results": ["Show the word count while writing", "Write a chapter in the editor"],
             "rounds": 2,
             "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
-            "cost": null
+            "cost": null,
+            "files": [],
+            "notes": []
           }
         },
         "head": {
@@ -10801,6 +10812,84 @@ flowchart LR
         }
       },
       "refused": "not-in-the-tab"
+    },
+    {
+      "name": "the end of a derivation in the tab, its use case written as open",
+      "input": {
+        "change": {
+          "kind": "ended",
+          "job": "JOB-20261009-0930-7b7b",
+          "end": {
+            "state": "done",
+            "note": "UC-005 written as open",
+            "results": ["UC-005"],
+            "rounds": 2,
+            "usage": { "inputTokens": 7000, "outputTokens": 870, "minutes": null },
+            "cost": null,
+            "files": [
+              { "path": "docs/use-cases/UC-005-count-the-words-while-writing.md", "text": "---\nid: UC-005\ntitle: Count the words while writing\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n# UC-005 Count the words while writing\n\n## Actors\n\n- **Author** — writes a chapter.\n\n## Precondition\n\n- The chapter is open in the editor.\n\n## Main flow\n\n1. The author types in the editor.\n2. The editor shows how many words the chapter has.\n\n## Alternative flows\n\n- **2a. The chapter is empty.** The editor shows 0 words.\n\n## Postcondition\n\n- The author knows the chapter's length.\n\n```mermaid\nsequenceDiagram\n    actor A as Author\n    participant E as Editor\n    A->>E: types\n    E-->>A: word count\n```\n" }
+            ],
+            "notes": []
+          },
+          "at": "d100000000000000000000000000000000000000"
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0930-7b7b",
+                "path": "docs/jobs/JOB-20261009-0930-7b7b.md",
+                "kind": "derive-use-cases",
+                "phase": "Sprint planning",
+                "role": "Product Owner",
+                "participant": "hub-writer",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "llama-3.3-70b",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [{ "at": "2026-10-09T09:30:00Z", "state": "queued", "note": "" }],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:34:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/use-cases/UC-005-count-the-words-while-writing.md", "text": "---\nid: UC-005\ntitle: Count the words while writing\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n# UC-005 Count the words while writing\n\n## Actors\n\n- **Author** — writes a chapter.\n\n## Precondition\n\n- The chapter is open in the editor.\n\n## Main flow\n\n1. The author types in the editor.\n2. The editor shows how many words the chapter has.\n\n## Alternative flows\n\n- **2a. The chapter is empty.** The editor shows 0 words.\n\n## Postcondition\n\n- The author knows the chapter's length.\n\n```mermaid\nsequenceDiagram\n    actor A as Author\n    participant E as Editor\n    A->>E: types\n    E-->>A: word count\n```\n" },
+          { "path": "docs/jobs/JOB-20261009-0930-7b7b.md", "text": "---\nid: JOB-20261009-0930-7b7b\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: hub-writer\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: llama-3.3-70b\nlog:\n---\n\n# JOB-20261009-0930-7b7b\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:30:00Z | queued | — |\n| 2026-10-09T09:34:00Z | done | UC-005 written as open |\n\n## Results\n\n- UC-005\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 2 | — | 7000 | 870 | — |\n" }
+        ],
+        "message": "JOB-20261009-0930-7b7b: done\n\nJob: JOB-20261009-0930-7b7b\nParticipant: hub-writer\nModel: llama-3.3-70b\nAgent-M: 2026.10.1\nRounds: 2\n"
+      }
     },
     {
       "name": "an item a drafting job proposed",
@@ -10890,7 +10979,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-main-page.route",
-  "summary": "What the main page shows, from its address and the fragment: the instance — derived from the root of its Pages site —, the view — the overview of every product, a product's progress, backlog, run or sprint close, or every job —, the product, an item and a sprint.",
+  "summary": "What the main page shows, from its address and the fragment: the instance — derived from the root of its Pages site —, the view — the overview of every product, a product's progress, backlog, run, sprint close or derivation of use cases, or every job —, the product, an item and a sprint.",
   "params": [{ "name": "hash", "type": "string" }, { "name": "pagesAddress", "type": "string" }],
   "result": "MainRoute",
   "async": false,
@@ -10915,6 +11004,11 @@ flowchart LR
       "name": "a product's progress at an earlier commit",
       "input": { "hash": "#progress?product=https%3A%2F%2Fgithub.com%2Falice%2Fthesis&at=e300000000000000000000000000000000000000", "pagesAddress": "https://alice.github.io/agent-m/" },
       "result": { "instance": "https://github.com/alice/agent-m", "view": "progress", "product": "https://github.com/alice/thesis", "item": "", "sprint": "", "at": "e300000000000000000000000000000000000000" }
+    },
+    {
+      "name": "a product's derivation of use cases",
+      "input": { "hash": "#derive?product=https%3A%2F%2Fgithub.com%2Falice%2Fthesis", "pagesAddress": "https://alice.github.io/agent-m/" },
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "derive", "product": "https://github.com/alice/thesis", "item": "", "sprint": "", "at": "" }
     },
     {
       "name": "a product's view without the product",
@@ -11451,7 +11545,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-main-page.commitChange",
-  "summary": "One write of the page on a click: the default branch's head read, the backlog and records at it — with the version history of docs/backlog/ for new items — and the token's account, the files planned on them (MOD-process-views.planChange), and written in one commit on that head.",
+  "summary": "One write of the page on a click: the default branch's head read, the backlog and records at it — with the version history of docs/backlog/ for new items — and the token's account, the files planned on them (MOD-process-views.planChange), and written in one commit on that head; a job's end that writes use cases is written only on the head they were numbered at.",
   "params": [
     { "name": "address", "type": "string" },
     { "name": "change", "type": "PageChange" },
@@ -11467,7 +11561,7 @@ flowchart LR
   "refusals": [
     { "code": "no-authority", "when": "no click authorises the write" },
     { "code": "no-token", "when": "no token is stored for the product" },
-    { "code": "moved", "when": "the branch moved on after the head read" },
+    { "code": "moved", "when": "the branch moved on after the head read, or since the use cases a job's end writes were numbered" },
     { "code": "not-an-address", "when": "the product is no web address" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "no-access", "when": "the token lacks the permission or the repository" },
@@ -11845,6 +11939,74 @@ flowchart LR
         "random": [0.5]
       },
       "refused": "no-token"
+    },
+    {
+      "name": "use cases numbered at an earlier head",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "change": {
+          "kind": "ended",
+          "job": "JOB-20261009-0930-7b7b",
+          "end": {
+            "state": "done",
+            "note": "UC-005 written as open",
+            "results": ["UC-005"],
+            "rounds": 2,
+            "usage": { "inputTokens": 7000, "outputTokens": 870, "minutes": null },
+            "cost": null,
+            "files": [
+              { "path": "docs/use-cases/UC-005-count-the-words-while-writing.md", "text": "---\nid: UC-005\ntitle: Count the words while writing\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n# UC-005 Count the words while writing\n\n## Actors\n\n- **Author** — writes a chapter.\n\n## Precondition\n\n- The chapter is open in the editor.\n\n## Main flow\n\n1. The author types in the editor.\n2. The editor shows how many words the chapter has.\n\n## Alternative flows\n\n- **2a. The chapter is empty.** The editor shows 0 words.\n\n## Postcondition\n\n- The author knows the chapter's length.\n\n```mermaid\nsequenceDiagram\n    actor A as Author\n    participant E as Editor\n    A->>E: types\n    E-->>A: word count\n```\n" }
+            ],
+            "notes": []
+          },
+          "at": "d000000000000000000000000000000000000000"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261009-0930-7b7b.md", "type": "blob", "sha": "d15ada7374d8b9a2fdfd1417ed88bca88c0f1696" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-09T09:34:00Z",
+        "random": [0.5]
+      },
+      "refused": "moved"
     }
   ]
 }
@@ -12413,6 +12575,85 @@ flowchart LR
           { "job": "JOB-20261012-0900-6c6c", "reason": "gpu-dev runs on the self-hosted runner gpu-1, which serves Agent M only from a private repository" }
         ]
       }
+    },
+    {
+      "name": "a derivation of use cases",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0905-8d8d"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0905-8d8d.md", "type": "blob", "sha": "995fd3f670009387eac9124c5a7cc97177104695" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/995fd3f670009387eac9124c5a7cc97177104695" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDkwNS04ZDhkCmtpbmQ6IGRlcml2ZS11c2UtY2FzZXMKcGhhc2U6IFNwcmludCBwbGFubmluZwpyb2xlOiBQcm9kdWN0IE93bmVyCnBhcnRpY2lwYW50OiBjaS1kZXYKcnVudGltZTogY2kKcnVuOgpzbG90OgppdGVtOgptb2R1bGVzOiBbXQppbnB1dHM6CiAgLSBBIENIQVBURVIgU0hPV1MgSVRTIFdPUkQgQ09VTlQKcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wOTA1LThkOGQKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/runs?per_page=100" },
+            "response": { "status": 200, "body": { "workflow_runs": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": { "status": 200, "body": { "visibility": "public", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n" }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/dispatches",
+              "body": {
+                "ref": "main",
+                "inputs": { "AGENT_M_JOB": "JOB-20261012-0905-8d8d", "AGENT_M_PARTICIPANT": "ci-dev" }
+              }
+            },
+            "response": { "status": 204, "body": null }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:05:30Z"
+      },
+      "result": { "dispatched": ["JOB-20261012-0905-8d8d"], "refused": [] }
     },
     {
       "name": "no click",
@@ -13267,6 +13508,109 @@ flowchart LR
         ],
         "refused": []
       }
+    },
+    {
+      "name": "a derivation of use cases handed over",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0805-8c8c"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0805-8c8c.md", "type": "blob", "sha": "de6c8acebe1c0c0415252277c293ab97f7cfbb26" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/de6c8acebe1c0c0415252277c293ab97f7cfbb26" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwNS04YzhjCmtpbmQ6IGRlcml2ZS11c2UtY2FzZXMKcGhhc2U6IFNwcmludCBwbGFubmluZwpyb2xlOiBQcm9kdWN0IE93bmVyCnBhcnRpY2lwYW50OiBjbGktZGV2CnJ1bnRpbWU6IGJyaWRnZQpydW46CnNsb3Q6Cml0ZW06Cm1vZHVsZXM6IFtdCmlucHV0czoKICAtIEEgQ0hBUFRFUiBTSE9XUyBJVFMgV09SRCBDT1VOVApyZXRyeV9vZjoKYWdlbnRfbTogMjAyNi4xMC4xCm1vZGVsOiBjbGF1ZGUtb3B1cy01LTUKbG9nOgotLS0KCiMgSk9CLTIwMjYxMDEyLTA4MDUtOGM4YwoKKipSRUdJU1RFUioqCgojIyBTdGF0ZXMKCnwgQXQgfCBTdGF0ZSB8IE5vdGUgfAp8LS0tfC0tLXwtLS18CnwgMjAyNi0xMC0xMlQwODowMDowMFogfCBxdWV1ZWQgfCDigJQgfAo=" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n| oc-dev | CLI agent | anthropic/claude-sonnet-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: opencode |\n| box-dev | sandboxed agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's sandbox, Erlangen | the bridge of the session lab-1: codex |\n" }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/jobs",
+              "body": {
+                "product": "https://github.com/alice/thesis",
+                "instance": "https://github.com/alice/agent-m",
+                "job": "JOB-20261012-0805-8c8c",
+                "kind": "derive-use-cases",
+                "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+                "participant": "cli-dev",
+                "cli": "claude",
+                "model": "claude-opus-5-5"
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "job": "JOB-20261012-0805-8c8c",
+                "product": "https://github.com/alice/thesis",
+                "instance": "https://github.com/alice/agent-m",
+                "kind": "derive-use-cases",
+                "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+                "participant": "cli-dev",
+                "cli": "claude",
+                "model": "claude-opus-5-5",
+                "state": "running",
+                "started": "2026-10-12T08:00:30Z",
+                "ended": "",
+                "note": ""
+              }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": { "handed": ["JOB-20261012-0805-8c8c"], "waiting": [], "refused": [] }
     },
     {
       "name": "no click",
@@ -14942,14 +15286,15 @@ flowchart LR
 ```json type
 {
   "$id": "EndedChange",
-  "description": "The end of a job the page ran in the browser tab, as the job states it (ARC-031).",
+  "description": "The end of a job the page ran in the browser tab, as the job states it with what it writes (ARC-031), and — for an end that writes use cases — the head they were numbered at.",
   "type": "object",
   "required": ["kind", "job", "end"],
   "additionalProperties": false,
   "properties": {
     "kind": { "const": "ended" },
     "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
-    "end": { "$ref": "JobEnd" }
+    "end": { "$ref": "JobEnd" },
+    "at": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
   },
   "examples": [
     {
@@ -14961,8 +15306,27 @@ flowchart LR
         "results": ["Show the word count while writing", "Write a chapter in the editor"],
         "rounds": 2,
         "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
-        "cost": null
+        "cost": null,
+        "files": [],
+        "notes": []
       }
+    },
+    {
+      "kind": "ended",
+      "job": "JOB-20261009-0930-7b7b",
+      "end": {
+        "state": "done",
+        "note": "UC-005 written as open",
+        "results": ["UC-005"],
+        "rounds": 2,
+        "usage": { "inputTokens": 7000, "outputTokens": 870, "minutes": null },
+        "cost": null,
+        "files": [
+          { "path": "docs/use-cases/UC-005-count-the-words-while-writing.md", "text": "---\nid: UC-005\ntitle: Count the words while writing\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n# UC-005 Count the words while writing\n\n## Actors\n\n- **Author** — writes a chapter.\n\n## Precondition\n\n- The chapter is open in the editor.\n\n## Main flow\n\n1. The author types in the editor.\n2. The editor shows how many words the chapter has.\n\n## Alternative flows\n\n- **2a. The chapter is empty.** The editor shows 0 words.\n\n## Postcondition\n\n- The author knows the chapter's length.\n\n```mermaid\nsequenceDiagram\n    actor A as Author\n    participant E as Editor\n    A->>E: types\n    E-->>A: word count\n```\n" }
+        ],
+        "notes": []
+      },
+      "at": "d100000000000000000000000000000000000000"
     }
   ]
 }
@@ -15397,7 +15761,7 @@ flowchart LR
   "additionalProperties": false,
   "properties": {
     "instance": { "type": "string" },
-    "view": { "type": "string", "enum": ["overview", "progress", "backlog", "jobs", "run", "close"] },
+    "view": { "type": "string", "enum": ["overview", "progress", "backlog", "jobs", "run", "close", "derive"] },
     "product": { "type": "string" },
     "item": { "type": "string" },
     "sprint": { "type": "string" },

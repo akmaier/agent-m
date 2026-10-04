@@ -141,10 +141,11 @@ What the CLIs document about running without a person and with their own login:
    what the next turn reads in the job's directory of the bridge's store — `draft.json`, `prompt.md` and `report.json`, as
    `AGENT_M_OUT` holds them in CI; where a turn gives a prompt, the bridge runs the CLI on it with no tool and with the
    agent's own login (`MOD-bridge-jobs.draftRun`), and takes the next turn once the process ended. The turn that stops the
-   job has written its end — the use cases written as open, `no change`, or why it failed —, and its note ends the job in
-   the bridge's table, where `GET /jobs/<id>` reports it (UC-011 5); what was written is open on the review page (UC-008).
-   A drafting job runs with claude or codex (`MOD-job-runner.draftsWith`): its handover for another CLI is refused with
-   the reason. A cancel stops the CLI's process as an attempt's (decision 9), and no turn follows.
+   job has written its end — the use cases written as open, `no change`, or why it failed (`MOD-drafting.jobEnd`) —, and
+   its note ends the job in the bridge's table, where `GET /jobs/<id>` reports it (UC-011 5); what was written is open on
+   the review page (UC-008). A drafting job runs with claude or codex (`MOD-job-runner.draftsWith`): its handover for
+   another CLI is refused with the reason. A cancel stops the CLI's process as an attempt's (decision 9), and no turn
+   follows.
 
 ```mermaid
 sequenceDiagram
@@ -213,10 +214,8 @@ sequenceDiagram
 - A drafting job of another kind is not taken: the jobs that draft requirements (UC-005, UC-019) come with the
   derivation rules, and backlog items are drafted in the browser tab (ARC-031 decision 2); the bridge refuses them with
   the reason, which step 2's handover (`MOD-main-page.runOnBridge`) shows.
-- Not realised here — UC-011 2 for a drafting job: the click that starts a derivation of use cases, and so hands it to
-  the bridge, is on the view of the derivation (UC-007 1, 2), which comes with the derivation of use cases on the
-  dashboard (ARC-031's consequences); the handover itself is designed here (decision 2), and for an agent's job carried
-  in UC-034's rows. UC-011 3, 4 and 5 stand for both kinds of job.
+- UC-011 2, 3, 4 and 5 stand for both kinds of job: a drafting job is handed over by the **Run** of the product's
+  derivation view (ARC-031 decision 6), an agent's job by the click that starts it (UC-034's rows).
 - Not realised here — what other decisions bring: a sandboxed agent, and an agent behind a remote session, with the
   tunnels (ARC-013), and with them the start of a job for every holder of the role (UC-034 4); an agent on the bridge as a
   participant and its test, chosen from the agents the bridge found (UC-017 3, 6, 6a; UC-044 5), with the settings
@@ -1949,9 +1948,10 @@ sequenceDiagram
 
 | Step | Interfaces |
 |---|---|
+| UC-011 2 | MOD-review-page.clickAuthority, MOD-main-page.commitChange, MOD-process-views.planChange, MOD-run-engine.newJobId, MOD-run-engine.jobRecordText, MOD-git-host.writeFiles, MOD-main-page.runOnBridge, MOD-job-runner.bridgePlan, MOD-bridge-server.callBridge |
 | UC-011 3 | MOD-bridge-server.admit, MOD-bridge-server.dispatch, MOD-bridge-jobs.acceptJob, MOD-bridge-jobs.credentialRequest, MOD-bridge-jobs.credentialFrom, MOD-bridge-jobs.stepContext, MOD-job-steps.startStep, MOD-bridge-jobs.agentRun, MOD-job-steps.draftTurn, MOD-bridge-jobs.draftRun |
 | UC-011 4 | MOD-job-steps.draftTurn, MOD-drafting.useCaseFiles, MOD-git-host.writeFiles, MOD-bridge-jobs.gitSteps, MOD-job-steps.mayWrite, MOD-bridge-jobs.pushPlan, MOD-job-steps.observeStep, MOD-job-runner.pullRequestOf, MOD-git-host.openPullRequest |
-| UC-011 5 | MOD-job-steps.draftTurn, MOD-run-engine.jobRecordText, MOD-job-steps.observeStep, MOD-bridge-server.dispatch, MOD-bridge-jobs.jobOf, MOD-review-page.open, MOD-review-views.reviewList |
+| UC-011 5 | MOD-job-steps.draftTurn, MOD-drafting.jobEnd, MOD-run-engine.jobRecordText, MOD-job-steps.observeStep, MOD-bridge-server.dispatch, MOD-bridge-jobs.jobOf, MOD-review-page.open, MOD-review-views.reviewList |
 | UC-011 2a | MOD-main-page.runOnBridge, MOD-bridge-server.callBridge |
 | UC-034 5 | MOD-ci-entry.jobStart, MOD-job-steps.startStep, MOD-job-runner.branchesOf, MOD-job-runner.agentCommand, MOD-bridge-jobs.credentialRequest, MOD-bridge-jobs.credentialFrom, MOD-bridge-jobs.stepContext, MOD-bridge-jobs.gitSteps, MOD-bridge-jobs.agentRun |
 | UC-034 5.1 | MOD-job-steps.startStep, MOD-job-runner.jobInputs, MOD-job-harness.renderPrompt, MOD-job-runner.agentCommand, MOD-bridge-jobs.agentRun, MOD-ci-generator.jobWorkflow, MOD-bridge-jobs.pushPlan, MOD-ci-entry.recordRuns |
