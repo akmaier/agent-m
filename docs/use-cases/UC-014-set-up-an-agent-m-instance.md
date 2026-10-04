@@ -45,7 +45,8 @@ their own settings, their own list of products.
 1. The person opens the original dashboard, `https://akmaier.github.io/agent-m/`, and presses
    **Get your own Agent M**. A guided page opens; it asks for the person's GitHub name (or the
    organisation to fork into — one used for nothing else is recommended, with the reason folded
-   underneath).
+   underneath; the products the instance manages belong to the same owner, since one token reaches the
+   repositories of one owner only).
 2. **Step 1 · Fork.** A button opens GitHub's fork page for `akmaier/agent-m`; the person presses
    *Create fork*.
 3. **Step 2 · Turn on the dashboard.** Now that the owner is known, a button opens exactly
@@ -58,7 +59,7 @@ their own settings, their own list of products.
    understand my workflows, go ahead and enable them*. GitHub disables workflows on every fork until
    its owner does.
 5. **Step 4 · Open your dashboard.** A button opens `https://<owner>.github.io/agent-m/` — with a
-   folded note that GitHub needs about a minute after Step 2 before the address answers.
+   folded note that GitHub can take up to ten minutes after Step 2 before the address answers.
 
 The fork's README carries the same three steps as text, for people who start on GitHub rather than
 on the dashboard. Agent M's MIT licence, shown with a folded explanation, is what allows the fork and
