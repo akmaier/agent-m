@@ -1,6 +1,6 @@
 ---
 id: ARC-030
-title: The bridge runs the jobs handed to it — a job of a ready agent taken from the dashboard with the pairing token and no repository token, carried through the steps every runtime performs with the credential git already holds for the product's server and the git login as the authority of every write, its agent run on this machine with the agent's own login, its list, its log from a cursor, a cancel that ends its process, and a quit that ends them all
+title: The bridge runs the jobs handed to it — a job of a ready agent taken from the dashboard with the pairing token and no repository token, carried through the steps every runtime performs with the credential git already holds for the product's server and the git login as the authority of every write, its agent run on this machine with the agent's own login — a drafting job turn by turn, its CLI with no tool —, its list, its log from a cursor, a cancel that ends its process, and a quit that ends them all
 forced_by:
   - A RUNTIME IS INTERCHANGEABLE
   - ONE DEFINITION, THREE DRIVERS
@@ -11,6 +11,8 @@ forced_by:
   - A CREDENTIAL IS NEVER PLACED IN A URL
   - A CANCELLED JOB WRITES NOTHING MORE
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
   - AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
@@ -62,12 +64,16 @@ What the CLIs document about running without a person and with their own login:
 - opencode: `opencode run [message..]` runs it "in non-interactive mode by passing a prompt directly"; `--file` attaches
   "File(s) to attach to message", `--format` "json (raw JSON events)", `--model` takes "provider/model", and `--auto` is to
   "Auto-approve permissions that are not explicitly denied" (`https://opencode.ai/docs/cli/`).
+- For a drafting job's round, which answers in text and changes nothing: for Claude Code, "`*` removes every tool" passed
+  to `--disallowedTools` (`https://code.claude.com/docs/en/cli-reference`); "By default, codex exec runs in a read-only
+  sandbox" (`https://learn.chatgpt.com/docs/non-interactive-mode`). How each reports its answer is ARC-031's.
 
 ## Decision
 
 1. **Module.** `MOD-bridge-jobs`, a feature, holds the decisions on the jobs the bridge runs: the handover it takes, the
    credential of the product's server and the context of a job's steps, the git commands of an attempt and its pushes, the
-   command that runs a job's agent, the job list, a job's log, a cancel, and what quitting ends. The bridge app holds the
+   command that runs a job's agent and the one that runs a drafting job's round, the job list, a job's log, a cancel, and
+   what quitting ends. The bridge app holds the
    table, the processes and their logs, composes these into the job routes of its table (`MOD-bridge-app.routeTable`,
    ARC-011), and carries each job through the steps every runtime performs (`MOD-job-steps`, ARC-029). The dashboard hands
    a click's jobs over and sends a cancel (`MOD-main-page.runOnBridge`, `MOD-main-page.cancelOnBridge`, ARC-024), planned
@@ -77,8 +83,9 @@ What the CLIs document about running without a person and with their own login:
    `AGENT_M_HOME`, so that a job runs on the definition of the instance that started it, whatever release the bridge is
    (`ONE DEFINITION, THREE DRIVERS`) —, the job's identifier, its kind, the author's inputs, the participant, and its CLI and model; it
    carries no repository token. The bridge takes a job of a kind the job workflow carries out — implementation and
-   refactoring jobs —, for a CLI it found ready (`MOD-local-agents.agentsFound`), and not held already, and only once git
-   gave it the credential of the product's server (decision 3); it then holds the job as running. Otherwise it names the
+   refactoring jobs, and the derivation of use cases with a CLI whose answer is read (decision 11) —, for a CLI it found
+   ready (`MOD-local-agents.agentsFound`), and not held already, and only once git gave it the credential of the product's
+   server (decision 3); it then holds the job as running. Otherwise it names the
    refusal, and the dashboard shows it with what works instead while the job stays queued (UC-034 4a, UC-011 2a).
 3. **The credential of the product's server** (`MOD-bridge-jobs.credentialRequest`, `MOD-bridge-jobs.credentialFrom`) is
    the one git already holds for it on this machine: the bridge runs `git credential fill` with the server's host and the
@@ -126,6 +133,18 @@ What the CLIs document about running without a person and with their own login:
    (`MOD-job-steps.cancelStep`), where it has not ended already. The table lives in the bridge's memory: after a restart
    the bridge holds no job, and a job whose record has not ended is then known to no runtime — the case UC-036 1c shows as
    ended without record.
+11. **A drafting job on the bridge, turn by turn** (`MOD-job-steps.draftTurn`, `MOD-bridge-jobs.draftRun`). The start
+   (`MOD-job-steps.startStep`) leaves a drafting job to its turns (ARC-029 decision 12). The bridge clones the product and
+   the instance's files as for an attempt (`MOD-bridge-jobs.gitSteps`) and takes no branch: what the job drafts enters the
+   default branch as open (`A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN`), written through the server's API on the
+   git login. Each turn reads the product from the job's tree and Agent M's files from the instance's beside it, and keeps
+   what the next turn reads in the job's directory of the bridge's store — `draft.json`, `prompt.md` and `report.json`, as
+   `AGENT_M_OUT` holds them in CI; where a turn gives a prompt, the bridge runs the CLI on it with no tool and with the
+   agent's own login (`MOD-bridge-jobs.draftRun`), and takes the next turn once the process ended. The turn that stops the
+   job has written its end — the use cases written as open, `no change`, or why it failed —, and its note ends the job in
+   the bridge's table, where `GET /jobs/<id>` reports it (UC-011 5); what was written is open on the review page (UC-008).
+   A drafting job runs with claude or codex (`MOD-job-runner.draftsWith`): its handover for another CLI is refused with
+   the reason. A cancel stops the CLI's process as an attempt's (decision 9), and no turn follows.
 
 ```mermaid
 sequenceDiagram
@@ -141,16 +160,26 @@ sequenceDiagram
     B->>K: git credential fill, no prompt (credentialRequest)
     K-->>B: the server's credential (credentialFrom)
     B-->>D: taken, or the refusal with its reason (acceptJob)
-    B->>G: record: attempt 1, on agent-login (startStep)
-    B->>K: clone, branch (gitSteps)
-    B->>C: the agent's process, its own login (agentRun)
-    C-->>B: commits, report
-    B->>G: may it still write? (mayWrite)
-    B->>K: push the first commit, then the head (pushPlan)
-    loop every 60 seconds
-        B->>G: look: pull request, CI, gates (observeStep)
+    alt an implementation or refactoring job
+        B->>G: record: attempt 1, on agent-login (startStep)
+        B->>K: clone, branch (gitSteps)
+        B->>C: the agent's process, its own login (agentRun)
+        C-->>B: commits, report
+        B->>G: may it still write? (mayWrite)
+        B->>K: push the first commit, then the head (pushPlan)
+        loop every 60 seconds
+            B->>G: look: pull request, CI, gates (observeStep)
+        end
+        B->>G: merge, record: done
+    else a drafting job, turn by turn (draftTurn)
+        B->>K: clone, no branch (gitSteps)
+        B->>G: record: round 1, on agent-login
+        loop while a turn gives a prompt
+            B->>C: the conversation as one prompt, no tool (draftRun)
+            C-->>B: the answer, in its report
+        end
+        B->>G: use cases written as open, record: done
     end
-    B->>G: merge, record: done
 ```
 
 ## Alternatives
@@ -169,6 +198,11 @@ sequenceDiagram
   a refusal of the protocol, and a handler's refusal names its own code.
 - **Claude Code in bare mode, as in CI** — rejected: bare mode reads no login, and the agent on the bridge has no key.
 - **The prompt as a command-line argument** — not chosen, as in ARC-029: a long prompt meets the limit of one argument.
+- **A drafting job's CLI run once with its tools, writing the use cases itself** — rejected: Agent M checks every draft
+  and sends its findings back (`A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT`), as the same turns do in CI; a
+  CLI that wrote the files itself would leave nothing to check before they enter the default branch.
+- **opencode for a drafting job, read from its formatted output** — rejected: its `--format json` gives "raw JSON
+  events" whose form is not documented, and its formatted output is for a person to read.
 
 ## Consequences
 
@@ -176,11 +210,13 @@ sequenceDiagram
   table serves the dashboard's live state, the log and the cancel.
 - The bridge's writes carry the person's own git login: its commits, its pull requests and its merges are the person's
   on the server, as an agent's in an interactive session there would be.
-- Not realised here — a drafting job handed to a CLI session: UC-011's job is any job, and a drafting job's CLI session
-  drafts documents that enter the default branch as open (UC-011 4, `A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS
-  OPEN`) through the correction loop of ARC-007, whose runtime comes with the drafting jobs; until then the bridge takes an
-  implementation or a refactoring job only, and refuses another with the reason. UC-011 2, 3, 4 and 5 stand once that is
-  designed — step 2's handover, `MOD-main-page.runOnBridge`, refuses a drafting job until then —; what they do for an agent's job is designed here and carried in UC-034's rows.
+- A drafting job of another kind is not taken: the jobs that draft requirements (UC-005, UC-019) come with the
+  derivation rules, and backlog items are drafted in the browser tab (ARC-031 decision 2); the bridge refuses them with
+  the reason, which step 2's handover (`MOD-main-page.runOnBridge`) shows.
+- Not realised here — UC-011 2 for a drafting job: the click that starts a derivation of use cases, and so hands it to
+  the bridge, is on the view of the derivation (UC-007 1, 2), which comes with the derivation of use cases on the
+  dashboard (ARC-031's consequences); the handover itself is designed here (decision 2), and for an agent's job carried
+  in UC-034's rows. UC-011 3, 4 and 5 stand for both kinds of job.
 - Not realised here — what other decisions bring: a sandboxed agent, and an agent behind a remote session, with the
   tunnels (ARC-013), and with them the start of a job for every holder of the role (UC-034 4); an agent on the bridge as a
   participant and its test, chosen from the agents the bridge found (UC-017 3, 6, 6a; UC-044 5), with the settings
@@ -199,10 +235,10 @@ sequenceDiagram
   "id": "MOD-bridge-jobs",
   "folder": "src/bridge-jobs/",
   "layer": "feature",
-  "responsibility": "The jobs the bridge runs: the handover it takes from the dashboard, the credential git already holds for the product's server and the context of the job's steps on the git login, the git commands of an attempt and its pushes, the command that runs a job's agent on this machine with the agent's own login, the job list, a job's log from a cursor, a cancel, and what quitting ends; the bridge app holds the table, the processes and the logs, composes these into the job routes of its table, and carries each job through the steps every runtime performs (MOD-job-steps).",
+  "responsibility": "The jobs the bridge runs: the handover it takes from the dashboard, the credential git already holds for the product's server and the context of the job's steps on the git login, the git commands of an attempt and its pushes, the command that runs a job's agent on this machine with the agent's own login and the one that runs a drafting job's round, the job list, a job's log from a cursor, a cancel, and what quitting ends; the bridge app holds the table, the processes and the logs, composes these into the job routes of its table, and carries each job through the steps every runtime performs (MOD-job-steps).",
   "realises": ["A LOCAL AGENT USES THE PERSON'S OWN LOGIN"],
   "owns": ["BridgeHandover", "BridgeJob", "AgentRunFiles", "AgentRun", "LogSlice", "BridgeCancel", "CredentialRequest", "GitAnswer", "GitCredential", "JobDirs", "GitSteps", "GitCommand", "NewCommits", "QuitPlan"],
-  "uses": ["MOD-contracts", "MOD-git-host"]
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-job-runner"]
 }
 ```
 
@@ -443,7 +479,7 @@ sequenceDiagram
 ```json interface
 {
   "id": "MOD-bridge-jobs.acceptJob",
-  "summary": "A handover the dashboard sends with POST /jobs, taken into the bridge's table: the job of a product, of a kind the bridge carries out — implementation and refactoring jobs, as the job workflow —, for an agent the bridge found ready, installed and logged in, and not held already; the job is held as running from the time it was taken.",
+  "summary": "A handover the dashboard sends with POST /jobs, taken into the bridge's table: the job of a product, of a kind the bridge carries out — implementation and refactoring jobs and the derivation of use cases, as the job workflow, a drafting job only with a CLI whose answer is read (MOD-job-runner.draftsWith) —, for an agent the bridge found ready, installed and logged in, and not held already; the job is held as running from the time it was taken.",
   "params": [
     { "name": "handover", "type": "BridgeHandover" },
     { "name": "agents", "type": "AgentFound[]" },
@@ -456,6 +492,7 @@ sequenceDiagram
     { "code": "not-a-job", "when": "the handover names no job identifier" },
     { "code": "not-an-address", "when": "the product's address is no repository address" },
     { "code": "not-carried", "when": "the job is of a kind the bridge does not carry out" },
+    { "code": "no-draft-form", "when": "a drafting job's CLI is neither claude nor codex" },
     { "code": "agent-missing", "when": "the job's CLI is not installed on this machine" },
     { "code": "agent-not-ready", "when": "the job's CLI is installed but not logged in" },
     { "code": "already-held", "when": "the bridge holds the job already" }
@@ -603,6 +640,65 @@ sequenceDiagram
         "now": "2026-10-12T08:00:30Z"
       },
       "refused": "already-held"
+    },
+    {
+      "name": "a derivation of use cases",
+      "input": {
+        "handover": {
+          "product": "https://github.com/alice/thesis",
+          "instance": "https://github.com/alice/agent-m",
+          "job": "JOB-20261014-0900-5f5f",
+          "kind": "derive-use-cases",
+          "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+          "participant": "cli-dev",
+          "cli": "claude",
+          "model": "claude-opus-5-5"
+        },
+        "agents": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "jobs": [],
+        "now": "2026-10-12T08:00:30Z"
+      },
+      "result": {
+        "job": "JOB-20261014-0900-5f5f",
+        "product": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "kind": "derive-use-cases",
+        "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+        "participant": "cli-dev",
+        "cli": "claude",
+        "model": "claude-opus-5-5",
+        "state": "running",
+        "started": "2026-10-12T08:00:30Z",
+        "ended": "",
+        "note": ""
+      }
+    },
+    {
+      "name": "a derivation of use cases for opencode",
+      "input": {
+        "handover": {
+          "product": "https://github.com/alice/thesis",
+          "instance": "https://github.com/alice/agent-m",
+          "job": "JOB-20261014-0900-5f5f",
+          "kind": "derive-use-cases",
+          "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+          "participant": "oc-dev",
+          "cli": "opencode",
+          "model": "anthropic/claude-sonnet-5"
+        },
+        "agents": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "jobs": [],
+        "now": "2026-10-12T08:00:30Z"
+      },
+      "refused": "no-draft-form"
     }
   ]
 }
@@ -718,6 +814,92 @@ sequenceDiagram
         "files": { "tree": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/thesis", "prompt": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/prompt.md", "report": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/report.json" }
       },
       "refused": "model-form"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-bridge-jobs.draftRun",
+  "summary": "The process that runs one round of a drafting job on this machine, as an argument list and never through a shell: the CLI's non-interactive mode with the participant's model and no tool — Claude Code with every tool removed, Codex in the read-only sandbox codex exec runs in by default —, the round's prompt on standard input, its report written where the job's next turn reads it, and the agent's own login, so Claude Code runs without its bare mode; a drafting job runs with claude or codex only (MOD-job-runner.draftsWith).",
+  "params": [{ "name": "job", "type": "BridgeJob" }, { "name": "files", "type": "AgentRunFiles" }],
+  "result": "AgentRun",
+  "async": false,
+  "refusals": [{ "code": "no-draft-form", "when": "the job's CLI is neither claude nor codex" }],
+  "examples": [
+    {
+      "name": "Claude Code",
+      "input": {
+        "job": {
+          "job": "JOB-20261012-0800-3d3d",
+          "product": "https://github.com/alice/thesis",
+          "instance": "https://github.com/alice/agent-m",
+          "kind": "derive-use-cases",
+          "inputs": [],
+          "participant": "cli-dev",
+          "cli": "claude",
+          "model": "claude-opus-5-5",
+          "state": "running",
+          "started": "2026-10-12T08:00:30Z",
+          "ended": "",
+          "note": ""
+        },
+        "files": { "tree": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/thesis", "prompt": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/prompt.md", "report": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/report.json" }
+      },
+      "result": {
+        "stdin": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/prompt.md",
+        "stdout": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/report.json",
+        "cwd": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/thesis",
+        "command": ["claude", "-p", "Answer the request the input holds, in the form it asks for.", "--model", "claude-opus-5-5", "--disallowedTools", "*", "--output-format", "json"]
+      }
+    },
+    {
+      "name": "Codex",
+      "input": {
+        "job": {
+          "job": "JOB-20261012-0800-3d3d",
+          "product": "https://github.com/alice/thesis",
+          "instance": "https://github.com/alice/agent-m",
+          "kind": "derive-use-cases",
+          "inputs": [],
+          "participant": "cli-dev",
+          "cli": "codex",
+          "model": "codex-model",
+          "state": "running",
+          "started": "2026-10-12T08:00:30Z",
+          "ended": "",
+          "note": ""
+        },
+        "files": { "tree": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/thesis", "prompt": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/prompt.md", "report": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/report.json" }
+      },
+      "result": {
+        "stdin": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/prompt.md",
+        "stdout": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/report.json",
+        "cwd": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/thesis",
+        "command": ["codex", "exec", "--model", "codex-model", "--json", "-"]
+      }
+    },
+    {
+      "name": "opencode",
+      "input": {
+        "job": {
+          "job": "JOB-20261012-0805-9d9d",
+          "product": "https://github.com/alice/thesis",
+          "instance": "https://github.com/alice/agent-m",
+          "kind": "derive-use-cases",
+          "inputs": [],
+          "participant": "oc-dev",
+          "cli": "opencode",
+          "model": "anthropic/claude-sonnet-5",
+          "state": "running",
+          "started": "2026-10-12T08:00:30Z",
+          "ended": "",
+          "note": ""
+        },
+        "files": { "tree": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/thesis", "prompt": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/prompt.md", "report": "/Users/alice/.agent-m-bridge/jobs/JOB-20261012-0800-3d3d/report.json" }
+      },
+      "refused": "no-draft-form"
     }
   ]
 }
@@ -1767,6 +1949,9 @@ sequenceDiagram
 
 | Step | Interfaces |
 |---|---|
+| UC-011 3 | MOD-bridge-server.admit, MOD-bridge-server.dispatch, MOD-bridge-jobs.acceptJob, MOD-bridge-jobs.credentialRequest, MOD-bridge-jobs.credentialFrom, MOD-bridge-jobs.stepContext, MOD-job-steps.startStep, MOD-bridge-jobs.agentRun, MOD-job-steps.draftTurn, MOD-bridge-jobs.draftRun |
+| UC-011 4 | MOD-job-steps.draftTurn, MOD-drafting.useCaseFiles, MOD-git-host.writeFiles, MOD-bridge-jobs.gitSteps, MOD-job-steps.mayWrite, MOD-bridge-jobs.pushPlan, MOD-job-steps.observeStep, MOD-job-runner.pullRequestOf, MOD-git-host.openPullRequest |
+| UC-011 5 | MOD-job-steps.draftTurn, MOD-run-engine.jobRecordText, MOD-job-steps.observeStep, MOD-bridge-server.dispatch, MOD-bridge-jobs.jobOf, MOD-review-page.open, MOD-review-views.reviewList |
 | UC-011 2a | MOD-main-page.runOnBridge, MOD-bridge-server.callBridge |
 | UC-034 5 | MOD-ci-entry.jobStart, MOD-job-steps.startStep, MOD-job-runner.branchesOf, MOD-job-runner.agentCommand, MOD-bridge-jobs.credentialRequest, MOD-bridge-jobs.credentialFrom, MOD-bridge-jobs.stepContext, MOD-bridge-jobs.gitSteps, MOD-bridge-jobs.agentRun |
 | UC-034 5.1 | MOD-job-steps.startStep, MOD-job-runner.jobInputs, MOD-job-harness.renderPrompt, MOD-job-runner.agentCommand, MOD-bridge-jobs.agentRun, MOD-ci-generator.jobWorkflow, MOD-bridge-jobs.pushPlan, MOD-ci-entry.recordRuns |

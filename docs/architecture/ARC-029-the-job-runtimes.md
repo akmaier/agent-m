@@ -107,11 +107,12 @@ key variables depend on the provider, and whether its JSON reports usage is not 
    person confirms is confirmed by the person who merges: where the product declares one, a person merges.
 8. **Which CI jobs a click or the engine dispatches** (`MOD-job-runner.dispatchPlan`): of the jobs it names — started,
    retried, or waiting at the gate a person decided —, those of CI agents queued or waiting, not cancelled, and with no
-   run of their own going. The job workflow carries out implementation and refactoring jobs only: a job of another kind
-   — a CI job or a test battery, of a run or alone — is not started, nor a job on a self-hosted runner of a repository
-   that is not private; each is named with the reason, and its record ends as failed. No carried step hands those kinds
-   to the job workflow: UC-027's steps open the workflow's pull request from the tests page, and UC-026's jobs are
-   designed with that use case.
+   run of their own going. The job workflow carries out implementation and refactoring jobs, and the derivation of use
+   cases, a drafting job whose result is written as open (decision 12; ARC-031): a job of another kind — a CI job or a
+   test battery, of a run or alone — is not started, nor a job on a self-hosted runner of a repository that is not
+   private; each is named with the reason, and its record ends as failed. No carried step hands those kinds to the job
+   workflow: UC-027's steps open the workflow's pull request from the tests page, and UC-026's jobs are designed with
+   that use case.
 9. **A job's live state** is read from the runs of the job workflow, each named by its job (`MOD-job-runner.liveOf`):
    queued or running while its newest run has not completed, stopped when that run was cancelled, as its record says
    when it waits for its dispatch or its gate, and otherwise unknown to the runtime — ended without record
@@ -121,9 +122,9 @@ key variables depend on the provider, and whether its JSON reports usage is not 
    `codex` or `opencode`, run there with the login it has on that machine (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`,
    ARC-030). A click hands the jobs of such agents to the bridge as it dispatches those of CI agents
    (`MOD-job-runner.bridgePlan`): queued or waiting at a gate, and not cancelled; a job of a kind the job workflow does
-   not carry out, or of a participant that is no agent on the bridge on this computer, is refused with the reason, and
-   its record ends as failed. A sandboxed agent, and an agent behind a remote session, are reached through a tunnel;
-   their routes come with the tunnels (ARC-013).
+   not carry out, of a participant that is no agent on the bridge on this computer, or a drafting job of an agent whose
+   CLI's answer is not read (decision 12), is refused with the reason, and its record ends as failed. A sandboxed agent,
+   and an agent behind a remote session, are reached through a tunnel; their routes come with the tunnels (ARC-013).
 11. **The steps every runtime performs alike** (`MOD-job-steps`) take a context — the product, the job, the token for its
    server, the authority the runtime writes on, the instance — and the product's working tree, Agent M's own files, the
    network and the clock as ports: the start of an attempt (`MOD-job-steps.startStep`), whose participant must be an
@@ -136,6 +137,27 @@ key variables depend on the provider, and whether its JSON reports usage is not 
    "Tip commit pushed to the ref" (`https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows`)
    —, and the Definition of Done reads CI's conclusion on that first commit (`AN IMPLEMENTATION JOB BEGINS WITH A FAILING
    TEST`, `MOD-job-runner.doneFactsOf`).
+12. **A drafting job in CI and on the bridge, turn by turn** (`MOD-job-steps.draftTurn`). A drafting job whose use cases
+    are written as open (ARC-031 decision 2) is taken one turn at a time, the agent's CLI run between two turns: the job
+    workflow's start (`MOD-job-steps.startStep`) leaves such a job to its turns, which record its start themselves. In CI
+    the job workflow loops in one step: the entry's turn (`MOD-ci-entry.draftTurn`, ARC-015) ends with the exit code 75
+    where a turn of the CLI is due — its prompt in `AGENT_M_OUT/prompt.md` — and with 0 where the job ended; between two
+    turns the CLI runs with no tool on the agent's key (`MOD-job-runner.draftCommand`), its report in
+    `AGENT_M_OUT/report.json`, the job's state kept in `AGENT_M_OUT/draft.json` — the store the turns pass on. Where the
+    agent's key is a secret of GitHub's machines and is not set, its value is an empty string ("If a secret has not been
+    set, the return value of an expression referencing the secret … will be an empty string",
+    `https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets`), and the step fails
+    naming the secret before its first turn, so nothing is written (UC-010 3a); the generated step is
+    `MOD-ci-generator.jobWorkflow`'s (ARC-015). On the bridge, the bridge app runs the same turns, the CLI between them as
+    `MOD-bridge-jobs.draftRun` starts it (ARC-030). The turns read what the job sends from the product's working tree, its
+    definition and the instance's participants from Agent M's files, and the CLI's answers from the store; the last turn
+    writes the use cases and the job's end in one commit on the context's authority, the marks and the findings left in
+    its message with the job's provenance (ARC-031 decision 11), or the end alone, its note `no change` and its message
+    the subject alone, where nothing differs from the files as they are (UC-010 4a) — the end is the job's record
+    (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`), no artifact. A round's cost is what the CLI reported, added up
+    (`NO COST IS GUESSED`). A drafting job runs with a CLI whose answer the turns read — Claude Code's
+    JSON result, Codex's JSON lines (`MOD-job-runner.draftsWith`, `MOD-job-runner.draftAnswer`) —; opencode's JSON events
+    are not documented, so a drafting job of an opencode agent is not handed over (decision 10).
 
 ```mermaid
 sequenceDiagram
@@ -204,9 +226,13 @@ sequenceDiagram
   the author's answer to a job's question (UC-034 5a) and an agent's proposal of a specification change (UC-034 5b);
   closing an item's issue with a link (UC-034 8, UC-033 6); rebasing a later push onto the branch its work goes into,
   and stopping on a conflict (UC-034 6b); flagging a commit written after a cancel, and offering its revert (UC-036 6a).
+- **Not realised here — a job started on GitHub's Actions page** (UC-010 1). The job workflow is dispatched with a job the
+  dashboard recorded; a job started on GitHub's own page would need the workflow to write its start record from inputs
+  naming its kind and what it covers, which the workflow does not take. UC-010 2 to 5, 3a and 4a stand in this table for
+  the derivation of use cases (ARC-031); UC-011 3 to 5 in ARC-030's. No click of the dashboard starts a derivation: its
+  view comes with the derivation of use cases on the dashboard (UC-007, ARC-031's consequences), and with it UC-011 2.
 - **Not realised here — what comes with other jobs and with runs.** Items drafted by a participant stand in ARC-031's table
-  (UC-032 2, 3), and a requirement's coverage by several items comes with the views (UC-032 3a); a job against a model
-  endpoint in GitHub Actions (UC-010) comes with the drafting jobs in CI (ARC-031); an agent as Product Owner
+  (UC-032 2, 3), and a requirement's coverage by several items comes with the views (UC-032 3a); an agent as Product Owner
   (UC-032 1c) with a job of that kind, whose inputs `MOD-job-runner.jobInputs` does not give. A run over a selection
   (UC-043 5, 6, 8, 6a, 6b, 6c, 6d) has its engine (ARC-010 decisions 5 and 9) and its dashboard (ARC-024): the first
   jobs on the click, the run's view — which carries UC-043 7 —, **Stop run** and **Continue**. It needs the bridge and
@@ -240,7 +266,7 @@ sequenceDiagram
   "layer": "kernel",
   "responsibility": "The steps of a job that every runtime performs alike: where a participant's job runs, which CI agent a participant is and the command its CLI runs, what the CLI reported it used, what an implementation job is given and what a later attempt is told, the branches it works on and into, its pull request, the facts its Definition of Done is checked on, its next step, which CI jobs a click dispatches, and the live state of jobs from their runs; it reads and writes nothing.",
   "realises": ["A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY", "A CANCELLED JOB WRITES NOTHING MORE", "A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS", "AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST", "A JOB STOPS AT EVERY GATE", "NO COST IS GUESSED", "WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET", "PROGRESS AND JOB STATE ARE DERIVED, NOT STORED"],
-  "owns": ["CiAgent", "JobRuntime", "AgentFiles", "AgentReport", "JobItem", "RequirementText", "IdText", "JobInputsInput", "PullItem", "PullItemOrNone", "PullRequestText", "JobBranches", "DoneFactsInput", "StepInput", "JobStep", "DispatchInput", "JobDispatch", "JobRefusal", "DispatchPlan", "BridgeAgent", "BridgePlanInput", "BridgeHand", "BridgePlan"],
+  "owns": ["CiAgent", "JobRuntime", "AgentFiles", "AgentReport", "DraftCli", "DraftAnswer", "JobItem", "RequirementText", "IdText", "JobInputsInput", "PullItem", "PullItemOrNone", "PullRequestText", "JobBranches", "DoneFactsInput", "StepInput", "JobStep", "DispatchInput", "JobDispatch", "JobRefusal", "DispatchPlan", "BridgeAgent", "BridgePlanInput", "BridgeHand", "BridgePlan"],
   "uses": ["MOD-contracts", "MOD-job-harness"]
 }
 ```
@@ -509,6 +535,102 @@ sequenceDiagram
         "failed": false,
         "note": ""
       }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-job-runner.draftsWith",
+  "summary": "Whether a drafting job runs with a CLI: its answer is read from the CLI's report (MOD-job-runner.draftAnswer) — Claude Code's JSON result, Codex's JSON lines —; opencode's JSON events are not documented, so a drafting job does not run with it.",
+  "params": [{ "name": "cli", "type": "string" }],
+  "result": "DraftCli",
+  "async": false,
+  "refusals": [{ "code": "no-draft-form", "when": "the CLI is neither claude nor codex" }],
+  "examples": [
+    { "name": "Claude Code", "input": { "cli": "claude" }, "result": { "cli": "claude" } },
+    { "name": "Codex", "input": { "cli": "codex" }, "result": { "cli": "codex" } },
+    { "name": "opencode", "input": { "cli": "opencode" }, "refused": "no-draft-form" }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-job-runner.draftCommand",
+  "summary": "The CLI's non-interactive command for one round of a drafting job in CI: the conversation so far as one prompt on standard input, its report written to a file, and no tool — Claude Code with every tool removed, Codex in the read-only sandbox codex exec runs in by default —, so that the agent answers in text and changes nothing.",
+  "params": [{ "name": "agent", "type": "CiAgent" }, { "name": "files", "type": "AgentFiles" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "Claude Code",
+      "input": {
+        "agent": { "name": "ci-dev", "cli": "claude", "model": "claude-opus-5-5", "runner": "", "secret": "AGENT_M_AGENT_KEY_CI_DEV", "keyVariable": "ANTHROPIC_API_KEY" },
+        "files": { "prompt": "$AGENT_M_OUT/prompt.md", "report": "$AGENT_M_OUT/report.json" }
+      },
+      "result": "claude --bare -p \"Answer the request the input holds, in the form it asks for.\" --model 'claude-opus-5-5' --disallowedTools '*' --output-format json < \"$AGENT_M_OUT/prompt.md\" > \"$AGENT_M_OUT/report.json\""
+    },
+    {
+      "name": "Codex",
+      "input": {
+        "agent": { "name": "gpu-dev", "cli": "codex", "model": "codex-model", "runner": "gpu-1", "secret": "AGENT_M_AGENT_KEY_GPU_DEV", "keyVariable": "CODEX_API_KEY" },
+        "files": { "prompt": "$AGENT_M_OUT/prompt.md", "report": "$AGENT_M_OUT/report.json" }
+      },
+      "result": "codex exec --model 'codex-model' --json - < \"$AGENT_M_OUT/prompt.md\" > \"$AGENT_M_OUT/report.json\""
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-job-runner.draftAnswer",
+  "summary": "The answer of one round of a drafting job as the CLI's report holds it, with what it reported it used (MOD-job-runner.agentReport): Claude Code's text result in the field result of its JSON, Codex's last agent message among its JSON lines; a report that holds no answer, or names a failure, is a failed round with the reason.",
+  "params": [{ "name": "cli", "type": "string" }, { "name": "report", "type": "string" }],
+  "result": "DraftAnswer",
+  "async": false,
+  "refusals": [{ "code": "no-draft-form", "when": "the CLI is neither claude nor codex (MOD-job-runner.draftsWith)" }],
+  "examples": [
+    {
+      "name": "Claude Code's answer",
+      "input": { "cli": "claude", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\\n```mermaid\\\\nsequenceDiagram\\\\n    actor A as Author\\\\n    participant E as Editor\\\\n    A->>E: types\\\\n    E-->>A: word count\\\\n```\\\\n\\\"}],\\\"justifications\\\":[]}\",\"total_cost_usd\":0.24,\"usage\":{\"input_tokens\":3900,\"output_tokens\":450}}" },
+      "result": {
+        "text": "{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\\n```mermaid\\nsequenceDiagram\\n    actor A as Author\\n    participant E as Editor\\n    A->>E: types\\n    E-->>A: word count\\n```\\n\"}],\"justifications\":[]}",
+        "failed": false,
+        "note": "",
+        "cost": { "amount": 0.24, "currency": "USD" },
+        "usage": { "inputTokens": 3900, "outputTokens": 450, "minutes": null }
+      }
+    },
+    {
+      "name": "Codex's answer",
+      "input": { "cli": "codex", "report": "{\"type\":\"thread.started\",\"thread_id\":\"t1\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"agent_message\",\"text\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\\n```mermaid\\\\nsequenceDiagram\\\\n    actor A as Author\\\\n    participant E as Editor\\\\n    A->>E: types\\\\n    E-->>A: word count\\\\n```\\\\n\\\"}],\\\"justifications\\\":[]}\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":3900,\"cached_input_tokens\":0,\"output_tokens\":450}}\n" },
+      "result": {
+        "text": "{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\\n```mermaid\\nsequenceDiagram\\n    actor A as Author\\n    participant E as Editor\\n    A->>E: types\\n    E-->>A: word count\\n```\\n\"}],\"justifications\":[]}",
+        "failed": false,
+        "note": "",
+        "cost": null,
+        "usage": { "inputTokens": 3900, "outputTokens": 450, "minutes": null }
+      }
+    },
+    {
+      "name": "a report that holds no answer",
+      "input": { "cli": "claude", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"\",\"total_cost_usd\":0.02,\"usage\":{\"input_tokens\":3100,\"output_tokens\":0}}" },
+      "result": {
+        "text": "",
+        "failed": true,
+        "note": "the CLI's report holds no answer",
+        "cost": { "amount": 0.02, "currency": "USD" },
+        "usage": { "inputTokens": 3100, "outputTokens": 0, "minutes": null }
+      }
+    },
+    {
+      "name": "a CLI whose answer is not read",
+      "input": { "cli": "opencode", "report": "{}" },
+      "refused": "no-draft-form"
     }
   ]
 }
@@ -1469,7 +1591,7 @@ sequenceDiagram
 ```json interface
 {
   "id": "MOD-job-runner.dispatchPlan",
-  "summary": "Of the jobs a click or the engine names — those it started or retried, or whose gate a person decided —, those of CI agents to dispatch: queued or waiting at a gate, not cancelled, with no run of the job workflow named for them still going; a job of a kind the job workflow does not carry out — it carries out implementation and refactoring jobs —, or of a CI agent on a self-hosted runner of a repository that is not private, is refused and named.",
+  "summary": "Of the jobs a click or the engine names — those it started or retried, or whose gate a person decided —, those of CI agents to dispatch: queued or waiting at a gate, not cancelled, with no run of the job workflow named for them still going; a job of a kind the job workflow does not carry out — it carries out implementation and refactoring jobs and the derivation of use cases —, or of a CI agent on a self-hosted runner of a repository that is not private, is refused and named.",
   "params": [{ "name": "input", "type": "DispatchInput" }],
   "result": "DispatchPlan",
   "async": false,
@@ -1813,7 +1935,7 @@ sequenceDiagram
       "result": {
         "dispatch": [],
         "refused": [
-          { "job": "JOB-20261012-1000-7d7d", "reason": "JOB-20261012-1000-7d7d is a configure-ci job; the job workflow carries out implementation and refactoring jobs" }
+          { "job": "JOB-20261012-1000-7d7d", "reason": "JOB-20261012-1000-7d7d is a configure-ci job; the job workflow carries out implementation and refactoring jobs and the derivation of use cases" }
         ]
       }
     },
@@ -1862,9 +1984,53 @@ sequenceDiagram
       "result": {
         "dispatch": [],
         "refused": [
-          { "job": "JOB-20261012-1100-8e8e", "reason": "JOB-20261012-1100-8e8e is a test-battery job; the job workflow carries out implementation and refactoring jobs" }
+          { "job": "JOB-20261012-1100-8e8e", "reason": "JOB-20261012-1100-8e8e is a test-battery job; the job workflow carries out implementation and refactoring jobs and the derivation of use cases" }
         ]
       }
+    },
+    {
+      "name": "a derivation of use cases",
+      "input": {
+        "input": {
+          "jobs": ["JOB-20261014-0900-5f5f"],
+          "records": [
+            {
+              "id": "JOB-20261014-0900-5f5f",
+              "path": "docs/jobs/JOB-20261014-0900-5f5f.md",
+              "kind": "derive-use-cases",
+              "phase": "Sprint planning",
+              "role": "Product Owner",
+              "participant": "ci-dev",
+              "runtime": "ci",
+              "run": "",
+              "slot": "",
+              "item": "",
+              "modules": [],
+              "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+              "retryOf": "",
+              "agentM": "2026.10.1",
+              "model": "claude-opus-5-5",
+              "log": "",
+              "selection": [],
+              "limits": null,
+              "assignments": [],
+              "states": [{ "at": "2026-10-14T08:58:00Z", "state": "queued", "note": "" }],
+              "results": [],
+              "rounds": 0,
+              "cost": null,
+              "usage": null,
+              "jobs": []
+            }
+          ],
+          "cancels": [],
+          "runs": [],
+          "agents": [
+            { "name": "ci-dev", "cli": "claude", "model": "claude-opus-5-5", "runner": "", "secret": "AGENT_M_AGENT_KEY_CI_DEV", "keyVariable": "ANTHROPIC_API_KEY" }
+          ],
+          "visibility": "private"
+        }
+      },
+      "result": { "dispatch": [{ "job": "JOB-20261014-0900-5f5f", "participant": "ci-dev" }], "refused": [] }
     }
   ]
 }
@@ -1959,7 +2125,7 @@ sequenceDiagram
 ```json interface
 {
   "id": "MOD-job-runner.bridgePlan",
-  "summary": "Of the jobs a click names — started, retried, or continued once a person decided their gate —, those of agents on the bridge to hand over: queued or waiting at a gate, and not cancelled; a job of a kind the bridge does not carry out — it carries out what the job workflow does, implementation and refactoring jobs —, or of a participant that is no agent on the bridge on this computer, is not handed over, and is named with the reason.",
+  "summary": "Of the jobs a click names — started, retried, or continued once a person decided their gate —, those of agents on the bridge to hand over: queued or waiting at a gate, and not cancelled; a job of a kind the bridge does not carry out — it carries out what the job workflow does, implementation and refactoring jobs and the derivation of use cases —, of a participant that is no agent on the bridge on this computer, or a drafting job of an agent whose CLI's answer is not read (MOD-job-runner.draftsWith), is not handed over, and is named with the reason.",
   "params": [{ "name": "input", "type": "BridgePlanInput" }],
   "result": "BridgePlan",
   "async": false,
@@ -2143,7 +2309,7 @@ sequenceDiagram
           }
         ],
         "refused": [
-          { "job": "JOB-20261012-0803-6a6a", "reason": "JOB-20261012-0803-6a6a is a configure-ci job; the bridge carries out implementation and refactoring jobs" },
+          { "job": "JOB-20261012-0803-6a6a", "reason": "JOB-20261012-0803-6a6a is a configure-ci job; the bridge carries out implementation and refactoring jobs and the derivation of use cases" },
           { "job": "JOB-20261012-0804-7b7b", "reason": "box-dev is no agent of the bridge on this computer" }
         ]
       }
@@ -2187,6 +2353,90 @@ sequenceDiagram
         }
       },
       "result": { "hand": [], "refused": [] }
+    },
+    {
+      "name": "derivations of use cases for Claude Code and for opencode",
+      "input": {
+        "input": {
+          "jobs": ["JOB-20261014-0900-5f5f", "JOB-20261014-0905-6a6a"],
+          "records": [
+            {
+              "id": "JOB-20261014-0900-5f5f",
+              "path": "docs/jobs/JOB-20261014-0900-5f5f.md",
+              "kind": "derive-use-cases",
+              "phase": "Sprint planning",
+              "role": "Product Owner",
+              "participant": "cli-dev",
+              "runtime": "bridge",
+              "run": "",
+              "slot": "",
+              "item": "",
+              "modules": [],
+              "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+              "retryOf": "",
+              "agentM": "2026.10.1",
+              "model": "claude-opus-5-5",
+              "log": "",
+              "selection": [],
+              "limits": null,
+              "assignments": [],
+              "states": [{ "at": "2026-10-14T08:58:00Z", "state": "queued", "note": "" }],
+              "results": [],
+              "rounds": 0,
+              "cost": null,
+              "usage": null,
+              "jobs": []
+            },
+            {
+              "id": "JOB-20261014-0905-6a6a",
+              "path": "docs/jobs/JOB-20261014-0905-6a6a.md",
+              "kind": "derive-use-cases",
+              "phase": "Sprint planning",
+              "role": "Product Owner",
+              "participant": "oc-dev",
+              "runtime": "bridge",
+              "run": "",
+              "slot": "",
+              "item": "",
+              "modules": [],
+              "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+              "retryOf": "",
+              "agentM": "2026.10.1",
+              "model": "anthropic/claude-sonnet-5",
+              "log": "",
+              "selection": [],
+              "limits": null,
+              "assignments": [],
+              "states": [{ "at": "2026-10-14T08:58:00Z", "state": "queued", "note": "" }],
+              "results": [],
+              "rounds": 0,
+              "cost": null,
+              "usage": null,
+              "jobs": []
+            }
+          ],
+          "cancels": [],
+          "agents": [
+            { "name": "cli-dev", "cli": "claude", "model": "claude-opus-5-5", "bridge": "this computer" },
+            { "name": "oc-dev", "cli": "opencode", "model": "anthropic/claude-sonnet-5", "bridge": "this computer" }
+          ]
+        }
+      },
+      "result": {
+        "hand": [
+          {
+            "job": "JOB-20261014-0900-5f5f",
+            "kind": "derive-use-cases",
+            "inputs": ["A CHAPTER SHOWS ITS WORD COUNT"],
+            "participant": "cli-dev",
+            "cli": "claude",
+            "model": "claude-opus-5-5"
+          }
+        ],
+        "refused": [
+          { "job": "JOB-20261014-0905-6a6a", "reason": "oc-dev runs opencode: opencode reports its answer in no form Agent M reads; a drafting job runs with claude or codex" }
+        ]
+      }
     }
   ]
 }
@@ -2347,17 +2597,17 @@ sequenceDiagram
   "id": "MOD-job-steps",
   "folder": "src/job-steps/",
   "layer": "feature",
-  "responsibility": "The steps of an agent's job that every runtime performs alike against the product's server: the start of an attempt with the agent's prompt, whether the job may still write, one look at its pull request and what decides its next step, the check of its Definition of Done, and the end of a job its runtime stopped; each on the token and the authority its runtime gives, with the product's working tree, Agent M's own files, the network and the clock as ports. CI performs them on the CI secret (MOD-ci-entry, ARC-015), the bridge on the git login the agent already has (MOD-bridge-app, ARC-011, ARC-030).",
+  "responsibility": "The steps of an agent's job that every runtime performs alike against the product's server: the start of an attempt with the agent's prompt, whether the job may still write, one look at its pull request and what decides its next step, the check of its Definition of Done, the end of a job its runtime stopped, and a drafting job taken turn by turn; each on the token and the authority its runtime gives, with the product's working tree, Agent M's own files, the network and the clock as ports. CI performs them on the CI secret (MOD-ci-entry, ARC-015), the bridge on the git login the agent already has (MOD-bridge-app, ARC-011, ARC-030).",
   "realises": [],
-  "owns": ["JobContext", "JobLook", "NextAttempt", "JobStarted", "MayWrite", "JobObserved", "DoneChecked", "JobCancelled"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-run-engine", "MOD-process-model", "MOD-work-items", "MOD-job-harness", "MOD-artifacts", "MOD-architecture", "MOD-job-runner", "MOD-test-records", "MOD-test-views", "MOD-process-views"]
+  "owns": ["JobContext", "JobLook", "NextAttempt", "JobStarted", "DraftTurned", "MayWrite", "JobObserved", "DoneChecked", "JobCancelled"],
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-run-engine", "MOD-process-model", "MOD-work-items", "MOD-job-harness", "MOD-artifacts", "MOD-architecture", "MOD-job-runner", "MOD-test-records", "MOD-test-views", "MOD-process-views", "MOD-drafting"]
 }
 ```
 
 ```json interface
 {
   "id": "MOD-job-steps.startStep",
-  "summary": "The start of an attempt of a job (UC-034 4, 5), naming the run the job belongs to: a job that ended, or was cancelled before it started, does nothing more; otherwise its record gains the attempt it starts — on the authority of the context, the CI secret's in CI, the git login the agent already has on the bridge —, and the agent is given the job's prompt — from the item, what it realises, the tests that guard it and the product's process requirements, or on a later attempt with the tests that failed on its branch's head —, with the job's branch and the branch its work goes into. The job's participant must be an agent of the context's runtime.",
+  "summary": "The start of an attempt of a job (UC-034 4, 5), naming the run the job belongs to: a job that ended, or was cancelled before it started, does nothing more; a drafting job is left to its turns (MOD-job-steps.draftTurn), its next step draft and nothing written; otherwise its record gains the attempt it starts — on the authority of the context, the CI secret's in CI, the git login the agent already has on the bridge —, and the agent is given the job's prompt — from the item, what it realises, the tests that guard it and the product's process requirements, or on a later attempt with the tests that failed on its branch's head —, with the job's branch and the branch its work goes into. The job's participant must be an agent of the context's runtime.",
   "params": [
     { "name": "context", "type": "JobContext" },
     { "name": "paths", "type": "string[]" },
@@ -2690,6 +2940,44 @@ sequenceDiagram
         "clock": "2026-10-12T09:50:00Z"
       },
       "refused": "no-runtime"
+    },
+    {
+      "name": "a drafting job, taken turn by turn",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "draft", "branch": "", "base": "", "prompt": "", "attempt": 0, "note": "", "run": "" }
     }
   ]
 }
@@ -3470,6 +3758,893 @@ sequenceDiagram
 
 ```json interface
 {
+  "id": "MOD-job-steps.draftTurn",
+  "summary": "One turn of a drafting job whose result is written as open, taken by a runtime that runs the agent's CLI between two turns: a job that ended does nothing; one cancelled meanwhile ends as cancelled and writes nothing more; the first turn reads what the job sends from the working tree (MOD-drafting.useCaseSources), checks that it fits the participant's context and may go to its place, records the job running and gives the prompt; each later turn reads the CLI's answer from the store (MOD-job-runner.draftAnswer), takes the round (MOD-drafting.draftRound) and gives the next prompt (MOD-drafting.cliPrompt), or — once the loop stopped — writes the use cases (MOD-drafting.useCaseFiles) and the job's end in one commit on the context's authority, the marks and the findings left in its message with the job's provenance, or the end alone where nothing differs; a failed round, or rounds that left no readable draft, end the job as failed. The store passes on, between turns, the job's state (draft), the prompt (prompt) and the CLI's report (report).",
+  "params": [
+    { "name": "context", "type": "JobContext" },
+    { "name": "paths", "type": "string[]" },
+    { "name": "files", "type": "ReadPort" },
+    { "name": "agentM", "type": "ReadPort" },
+    { "name": "store", "type": "StoragePort" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "DraftTurned",
+  "async": true,
+  "refusals": [
+    { "code": "no-runtime", "when": "the context's authority is neither the CI secret's nor the agent's login" },
+    { "code": "no-token", "when": "the context holds no token" },
+    { "code": "no-job", "when": "the context names no job, or no record of it is on the default branch" },
+    { "code": "no-participant", "when": "the job's participant is not in the instance's participants" },
+    { "code": "not-a-ci-agent", "when": "in CI, the participant is no CI agent" },
+    { "code": "not-a-bridge-agent", "when": "on the bridge, the participant is no agent on the bridge" },
+    { "code": "not-a-definition", "when": "the job's definition cannot be read" },
+    { "code": "not-written-open", "when": "the job is no drafting job whose use cases are written as open" },
+    { "code": "no-draft-form", "when": "the agent's CLI is neither claude nor codex (MOD-job-runner.draftsWith)" },
+    { "code": "not-kept", "when": "the store keeps nothing" },
+    { "code": "moved", "when": "the default branch moved on while the record or the use cases were written" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the first turn in CI",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": {},
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: round 1",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "turn", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "round": 1, "note": "" }
+    },
+    {
+      "name": "a draft sent back",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": { "draft": "{\"loop\":{\"limit\":5,\"rounds\":[]},\"messages\":[{\"role\":\"user\",\"content\":\"Draft use cases that realise the requirements below.\\n\\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\\nas 2a.\\n\\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\\none you would draft, change that use case instead: give its whole changed file under its own identifier.\\n\\nAnswer with JSON only, in this form:\\n{\\\"useCases\\\": [{\\\"text\\\": \\\"<the whole file>\\\"}], \\\"justifications\\\": []}\\nWhere a finding sent back to you is a warning you keep, add to \\\"justifications\\\"\\n{\\\"artifact\\\": \\\"use case <its number in your list>\\\", \\\"line\\\": <the line the finding names>, \\\"rule\\\": \\\"<the rule it names>\\\", \\\"reason\\\": \\\"<one line>\\\"}.\\n\\nThe requirements to cover:\\n\\n**A CHAPTER SHOWS ITS WORD COUNT**\\nThe editor shows how many words the chapter being written has.\\n*Check:* `tests/pages.test.mjs`\\n\\nEvery use case of the product:\\n\\n---\\nid: UC-001\\ntitle: Accept a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - ONE CLICK\\n  - EVERY TEXT IS REVIEWED\\n---\\n# UC-001 Accept a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author opens the chapter.\\n2. The author presses **Accept**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-003\\ntitle: Export a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER IS EXPORTED\\n---\\n# UC-003 Export a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author presses **Export**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"}],\"draft\":null,\"usage\":null,\"cost\":null,\"cli\":\"claude\",\"model\":\"claude-opus-5-5\"}", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\"}],\\\"justifications\\\":[]}\",\"total_cost_usd\":0.21,\"usage\":{\"input_tokens\":3100,\"output_tokens\":420}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "turn", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n## Your answer\n\n{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\"}],\"justifications\":[]}\n\n## Agent M's findings on it\n\nYour draft has these findings. Fix every error; fix every warning, or justify it in one line.\n\nuse case 1:1: error: no Mermaid diagram [DIAGRAMS ARE MERMAID IN MARKDOWN] — draw the use case as a fenced ```mermaid block in this file\n\nYour draft:\n\n{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\"}],\"justifications\":[]}\n", "round": 2, "note": "" }
+    },
+    {
+      "name": "the last turn: the use case written",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": { "draft": "{\"loop\":{\"limit\":5,\"rounds\":[{\"back\":[{\"artifact\":\"use case 1\",\"line\":1,\"kind\":\"error\",\"what\":\"no Mermaid diagram\",\"rule\":\"DIAGRAMS ARE MERMAID IN MARKDOWN\",\"fix\":\"draw the use case as a fenced ```mermaid block in this file\"}],\"person\":[],\"justified\":[]}]},\"messages\":[{\"role\":\"user\",\"content\":\"Draft use cases that realise the requirements below.\\n\\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\\nas 2a.\\n\\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\\none you would draft, change that use case instead: give its whole changed file under its own identifier.\\n\\nAnswer with JSON only, in this form:\\n{\\\"useCases\\\": [{\\\"text\\\": \\\"<the whole file>\\\"}], \\\"justifications\\\": []}\\nWhere a finding sent back to you is a warning you keep, add to \\\"justifications\\\"\\n{\\\"artifact\\\": \\\"use case <its number in your list>\\\", \\\"line\\\": <the line the finding names>, \\\"rule\\\": \\\"<the rule it names>\\\", \\\"reason\\\": \\\"<one line>\\\"}.\\n\\nThe requirements to cover:\\n\\n**A CHAPTER SHOWS ITS WORD COUNT**\\nThe editor shows how many words the chapter being written has.\\n*Check:* `tests/pages.test.mjs`\\n\\nEvery use case of the product:\\n\\n---\\nid: UC-001\\ntitle: Accept a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - ONE CLICK\\n  - EVERY TEXT IS REVIEWED\\n---\\n# UC-001 Accept a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author opens the chapter.\\n2. The author presses **Accept**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-003\\ntitle: Export a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER IS EXPORTED\\n---\\n# UC-003 Export a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author presses **Export**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"},{\"role\":\"assistant\",\"content\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\"}],\\\"justifications\\\":[]}\"},{\"role\":\"user\",\"content\":\"Your draft has these findings. Fix every error; fix every warning, or justify it in one line.\\n\\nuse case 1:1: error: no Mermaid diagram [DIAGRAMS ARE MERMAID IN MARKDOWN] — draw the use case as a fenced ```mermaid block in this file\\n\\nYour draft:\\n\\n{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\"}],\\\"justifications\\\":[]}\"}],\"draft\":{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\"}],\"justifications\":[]},\"usage\":{\"inputTokens\":3100,\"outputTokens\":420,\"minutes\":null},\"cost\":{\"amount\":0.21,\"currency\":\"USD\"},\"cli\":\"claude\",\"model\":\"claude-opus-5-5\"}", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n## Your answer\n\n{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\"}],\"justifications\":[]}\n\n## Agent M's findings on it\n\nYour draft has these findings. Fix every error; fix every warning, or justify it in one line.\n\nuse case 1:1: error: no Mermaid diagram [DIAGRAMS ARE MERMAID IN MARKDOWN] — draw the use case as a fenced ```mermaid block in this file\n\nYour draft:\n\n{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\"}],\"justifications\":[]}\n", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\\n```mermaid\\\\nsequenceDiagram\\\\n    actor A as Author\\\\n    participant E as Editor\\\\n    A->>E: types\\\\n    E-->>A: word count\\\\n```\\\\n\\\"}],\\\"justifications\\\":[]}\",\"total_cost_usd\":0.24,\"usage\":{\"input_tokens\":3900,\"output_tokens\":450}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits?path=docs%2Fuse-cases&sha=d100000000000000000000000000000000000000&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "a200000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-03T10:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                },
+                {
+                  "sha": "a100000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-01T10:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "a100000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "docs/use-cases/UC-001-accept-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-002-write-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-003-export-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-004-print-a-chapter.md", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a200000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "a200000000000000000000000000000000000000",
+                "files": [{ "filename": "docs/use-cases/UC-004-print-a-chapter.md", "status": "removed" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/use-cases/UC-005-count-the-words-while-writing.md", "mode": "100644", "type": "blob", "content": "---\nid: UC-005\ntitle: Count the words while writing\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n# UC-005 Count the words while writing\n\n## Actors\n\n- **Author** — writes a chapter.\n\n## Precondition\n\n- The chapter is open in the editor.\n\n## Main flow\n\n1. The author types in the editor.\n2. The editor shows how many words the chapter has.\n\n## Alternative flows\n\n- **2a. The chapter is empty.** The editor shows 0 words.\n\n## Postcondition\n\n- The author knows the chapter's length.\n\n```mermaid\nsequenceDiagram\n    actor A as Author\n    participant E as Editor\n    A->>E: types\n    E-->>A: word count\n```\n" },
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n| 2026-10-14T09:00:00Z | done | UC-005 written as open |\n\n## Results\n\n- UC-005\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 2 | 0.45 USD | 7000 | 870 | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: done\n\nJob: JOB-20261014-0900-5f5f\nParticipant: ci-dev\nModel: claude-opus-5-5\nAgent-M: 2026.10.1\nRounds: 2\n",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "stop", "prompt": "", "round": 2, "note": "UC-005 written as open" }
+    },
+    {
+      "name": "the first turn on the bridge",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "gho_from_git_credential_example",
+          "authority": { "kind": "agent-login" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": {},
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on cli-dev |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: round 1",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "turn", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "round": 1, "note": "" }
+    },
+    {
+      "name": "a draft written at once on the bridge",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "gho_from_git_credential_example",
+          "authority": { "kind": "agent-login" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": { "draft": "{\"loop\":{\"limit\":5,\"rounds\":[]},\"messages\":[{\"role\":\"user\",\"content\":\"Draft use cases that realise the requirements below.\\n\\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\\nas 2a.\\n\\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\\none you would draft, change that use case instead: give its whole changed file under its own identifier.\\n\\nAnswer with JSON only, in this form:\\n{\\\"useCases\\\": [{\\\"text\\\": \\\"<the whole file>\\\"}], \\\"justifications\\\": []}\\nWhere a finding sent back to you is a warning you keep, add to \\\"justifications\\\"\\n{\\\"artifact\\\": \\\"use case <its number in your list>\\\", \\\"line\\\": <the line the finding names>, \\\"rule\\\": \\\"<the rule it names>\\\", \\\"reason\\\": \\\"<one line>\\\"}.\\n\\nThe requirements to cover:\\n\\n**A CHAPTER SHOWS ITS WORD COUNT**\\nThe editor shows how many words the chapter being written has.\\n*Check:* `tests/pages.test.mjs`\\n\\nEvery use case of the product:\\n\\n---\\nid: UC-001\\ntitle: Accept a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - ONE CLICK\\n  - EVERY TEXT IS REVIEWED\\n---\\n# UC-001 Accept a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author opens the chapter.\\n2. The author presses **Accept**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-003\\ntitle: Export a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER IS EXPORTED\\n---\\n# UC-003 Export a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author presses **Export**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"}],\"draft\":null,\"usage\":null,\"cost\":null,\"cli\":\"claude\",\"model\":\"claude-opus-5-5\"}", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\\n```mermaid\\\\nsequenceDiagram\\\\n    actor A as Author\\\\n    participant E as Editor\\\\n    A->>E: types\\\\n    E-->>A: word count\\\\n```\\\\n\\\"}],\\\"justifications\\\":[]}\",\"total_cost_usd\":0.24,\"usage\":{\"input_tokens\":3900,\"output_tokens\":450}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on cli-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits?path=docs%2Fuse-cases&sha=d100000000000000000000000000000000000000&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "a200000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-03T10:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                },
+                {
+                  "sha": "a100000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-01T10:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "a100000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "docs/use-cases/UC-001-accept-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-002-write-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-003-export-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-004-print-a-chapter.md", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a200000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "a200000000000000000000000000000000000000",
+                "files": [{ "filename": "docs/use-cases/UC-004-print-a-chapter.md", "status": "removed" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/use-cases/UC-005-count-the-words-while-writing.md", "mode": "100644", "type": "blob", "content": "---\nid: UC-005\ntitle: Count the words while writing\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n# UC-005 Count the words while writing\n\n## Actors\n\n- **Author** — writes a chapter.\n\n## Precondition\n\n- The chapter is open in the editor.\n\n## Main flow\n\n1. The author types in the editor.\n2. The editor shows how many words the chapter has.\n\n## Alternative flows\n\n- **2a. The chapter is empty.** The editor shows 0 words.\n\n## Postcondition\n\n- The author knows the chapter's length.\n\n```mermaid\nsequenceDiagram\n    actor A as Author\n    participant E as Editor\n    A->>E: types\n    E-->>A: word count\n```\n" },
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on cli-dev |\n| 2026-10-14T09:00:00Z | done | UC-005 written as open |\n\n## Results\n\n- UC-005\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 1 | 0.24 USD | 3900 | 450 | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: done\n\nJob: JOB-20261014-0900-5f5f\nParticipant: cli-dev\nModel: claude-opus-5-5\nAgent-M: 2026.10.1\nRounds: 1\n",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "stop", "prompt": "", "round": 1, "note": "UC-005 written as open" }
+    },
+    {
+      "name": "cancelled meanwhile",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": { "draft": "{\"loop\":{\"limit\":5,\"rounds\":[]},\"messages\":[{\"role\":\"user\",\"content\":\"Draft use cases that realise the requirements below.\\n\\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\\nas 2a.\\n\\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\\none you would draft, change that use case instead: give its whole changed file under its own identifier.\\n\\nAnswer with JSON only, in this form:\\n{\\\"useCases\\\": [{\\\"text\\\": \\\"<the whole file>\\\"}], \\\"justifications\\\": []}\\nWhere a finding sent back to you is a warning you keep, add to \\\"justifications\\\"\\n{\\\"artifact\\\": \\\"use case <its number in your list>\\\", \\\"line\\\": <the line the finding names>, \\\"rule\\\": \\\"<the rule it names>\\\", \\\"reason\\\": \\\"<one line>\\\"}.\\n\\nThe requirements to cover:\\n\\n**A CHAPTER SHOWS ITS WORD COUNT**\\nThe editor shows how many words the chapter being written has.\\n*Check:* `tests/pages.test.mjs`\\n\\nEvery use case of the product:\\n\\n---\\nid: UC-001\\ntitle: Accept a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - ONE CLICK\\n  - EVERY TEXT IS REVIEWED\\n---\\n# UC-001 Accept a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author opens the chapter.\\n2. The author presses **Accept**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-003\\ntitle: Export a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER IS EXPORTED\\n---\\n# UC-003 Export a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author presses **Export**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"}],\"draft\":null,\"usage\":null,\"cost\":null,\"cli\":\"claude\",\"model\":\"claude-opus-5-5\"}", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-NNN\\\\ntitle: Count the words while writing\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - A CHAPTER SHOWS ITS WORD COUNT\\\\n---\\\\n# UC-NNN Count the words while writing\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes a chapter.\\\\n\\\\n## Precondition\\\\n\\\\n- The chapter is open in the editor.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author types in the editor.\\\\n2. The editor shows how many words the chapter has.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **2a. The chapter is empty.** The editor shows 0 words.\\\\n\\\\n## Postcondition\\\\n\\\\n- The author knows the chapter's length.\\\\n\\\"}],\\\"justifications\\\":[]}\",\"total_cost_usd\":0.21,\"usage\":{\"input_tokens\":3100,\"output_tokens\":420}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\njob: JOB-20261014-0900-5f5f\nby: alice\nat: 2026-10-14T09:01:00Z\n---\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n| 2026-10-14T09:00:00Z | cancelled | cancelled by alice |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: cancelled",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "stop", "prompt": "", "round": 0, "note": "cancelled by alice" }
+    },
+    {
+      "name": "a prompt too large for its participant",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": {},
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: tiny-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-haiku-4-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: tiny-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-haiku-4-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | failed | the prompt holds about 871 tokens; tiny-dev's model holds 400 |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: failed",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "stop", "prompt": "", "round": 0, "note": "the prompt holds about 871 tokens; tiny-dev's model holds 400" }
+    },
+    {
+      "name": "a report that holds no answer",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": { "draft": "{\"loop\":{\"limit\":5,\"rounds\":[]},\"messages\":[{\"role\":\"user\",\"content\":\"Draft use cases that realise the requirements below.\\n\\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\\nas 2a.\\n\\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\\none you would draft, change that use case instead: give its whole changed file under its own identifier.\\n\\nAnswer with JSON only, in this form:\\n{\\\"useCases\\\": [{\\\"text\\\": \\\"<the whole file>\\\"}], \\\"justifications\\\": []}\\nWhere a finding sent back to you is a warning you keep, add to \\\"justifications\\\"\\n{\\\"artifact\\\": \\\"use case <its number in your list>\\\", \\\"line\\\": <the line the finding names>, \\\"rule\\\": \\\"<the rule it names>\\\", \\\"reason\\\": \\\"<one line>\\\"}.\\n\\nThe requirements to cover:\\n\\n**A CHAPTER SHOWS ITS WORD COUNT**\\nThe editor shows how many words the chapter being written has.\\n*Check:* `tests/pages.test.mjs`\\n\\nEvery use case of the product:\\n\\n---\\nid: UC-001\\ntitle: Accept a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - ONE CLICK\\n  - EVERY TEXT IS REVIEWED\\n---\\n# UC-001 Accept a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author opens the chapter.\\n2. The author presses **Accept**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-003\\ntitle: Export a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER IS EXPORTED\\n---\\n# UC-003 Export a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author presses **Export**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"}],\"draft\":null,\"usage\":null,\"cost\":null,\"cli\":\"claude\",\"model\":\"claude-opus-5-5\"}", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"\",\"total_cost_usd\":0.02,\"usage\":{\"input_tokens\":3100,\"output_tokens\":0}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n| 2026-10-14T09:00:00Z | failed | the CLI's report holds no answer |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | 0.02 USD | 3100 | 0 | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: failed",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "stop", "prompt": "", "round": 0, "note": "the CLI's report holds no answer" }
+    },
+    {
+      "name": "a draft that changes nothing: the end alone",
+      "input": {
+        "context": {
+          "product": "https://github.com/alice/thesis",
+          "job": "JOB-20261014-0900-5f5f",
+          "token": "github_pat_ci_secret_example",
+          "authority": { "kind": "ci-secret" },
+          "instance": "https://github.com/alice/agent-m"
+        },
+        "paths": ["SPEC.md", "docs/use-cases/UC-001-accept-a-chapter.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/use-cases/UC-003-export-a-chapter.md"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n", "docs/use-cases/UC-001-accept-a-chapter.md": "---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-002-write-a-chapter.md": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" },
+        "agentM": { "docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| tiny-dev | CI agent | claude-haiku-4-5 | 400 | — | draft text | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n", "src/job-harness/jobs/derive-use-cases/job.json": "{\n  \"kind\": \"derive-use-cases\",\n  \"mode\": \"draft\",\n  \"produces\": [\"UC\"],\n  \"capabilities\": [\"draft text\"],\n  \"inputs\": [\n    { \"name\": \"requirements\", \"of\": \"requirement\" },\n    { \"name\": \"useCases\", \"of\": \"UC\", \"all\": true }\n  ],\n  \"output\": {\n    \"type\": \"object\",\n    \"required\": [\"useCases\", \"justifications\"],\n    \"properties\": {\n      \"useCases\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"object\",\n          \"required\": [\"text\"],\n          \"properties\": {\n            \"text\": { \"type\": \"string\", \"minLength\": 1 }\n          }\n        }\n      },\n      \"justifications\": { \"type\": \"array\" }\n    }\n  },\n  \"checks\": [\"use-case-drafts\"],\n  \"rounds\": 5,\n  \"result\": \"shown-or-open\"\n}\n", "src/job-harness/jobs/derive-use-cases/prompt.md": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n{{requirements}}\n\nEvery use case of the product:\n\n{{useCases}}\n" },
+        "store": { "draft": "{\"loop\":{\"limit\":5,\"rounds\":[{\"back\":[{\"artifact\":\"use case 1\",\"line\":1,\"kind\":\"error\",\"what\":\"no Mermaid diagram\",\"rule\":\"DIAGRAMS ARE MERMAID IN MARKDOWN\",\"fix\":\"draw the use case as a fenced ```mermaid block in this file\"}],\"person\":[],\"justified\":[]}]},\"messages\":[{\"role\":\"user\",\"content\":\"Draft use cases that realise the requirements below.\\n\\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\\nas 2a.\\n\\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\\none you would draft, change that use case instead: give its whole changed file under its own identifier.\\n\\nAnswer with JSON only, in this form:\\n{\\\"useCases\\\": [{\\\"text\\\": \\\"<the whole file>\\\"}], \\\"justifications\\\": []}\\nWhere a finding sent back to you is a warning you keep, add to \\\"justifications\\\"\\n{\\\"artifact\\\": \\\"use case <its number in your list>\\\", \\\"line\\\": <the line the finding names>, \\\"rule\\\": \\\"<the rule it names>\\\", \\\"reason\\\": \\\"<one line>\\\"}.\\n\\nThe requirements to cover:\\n\\n**A CHAPTER SHOWS ITS WORD COUNT**\\nThe editor shows how many words the chapter being written has.\\n*Check:* `tests/pages.test.mjs`\\n\\nEvery use case of the product:\\n\\n---\\nid: UC-001\\ntitle: Accept a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - ONE CLICK\\n  - EVERY TEXT IS REVIEWED\\n---\\n# UC-001 Accept a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author opens the chapter.\\n2. The author presses **Accept**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\\n---\\n\\n---\\nid: UC-003\\ntitle: Export a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER IS EXPORTED\\n---\\n# UC-003 Export a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author presses **Export**.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"},{\"role\":\"assistant\",\"content\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-002\\\\ntitle: Write a chapter\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - NO SERVER\\\\n---\\\\n# UC-002 Write a chapter\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes.\\\\n\\\\n## Precondition\\\\n\\\\n- The repository exists.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author writes the chapter in the editor.\\\\n2. The author saves it.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **1a. No token.** GitHub's page opens.\\\\n\\\\n## Postcondition\\\\n\\\\n- The chapter is saved.\\\\n\\\"}],\\\"justifications\\\":[]}\"},{\"role\":\"user\",\"content\":\"Your draft has these findings. Fix every error; fix every warning, or justify it in one line.\\n\\nuse case 1:1: error: no Mermaid diagram [DIAGRAMS ARE MERMAID IN MARKDOWN] — draw the use case as a fenced ```mermaid block in this file\\n\\nYour draft:\\n\\n{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-002\\\\ntitle: Write a chapter\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - NO SERVER\\\\n---\\\\n# UC-002 Write a chapter\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes.\\\\n\\\\n## Precondition\\\\n\\\\n- The repository exists.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author writes the chapter in the editor.\\\\n2. The author saves it.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **1a. No token.** GitHub's page opens.\\\\n\\\\n## Postcondition\\\\n\\\\n- The chapter is saved.\\\\n\\\"}],\\\"justifications\\\":[]}\"}],\"draft\":{\"useCases\":[{\"text\":\"---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"}],\"justifications\":[]},\"usage\":{\"inputTokens\":3100,\"outputTokens\":380,\"minutes\":null},\"cost\":{\"amount\":0.2,\"currency\":\"USD\"},\"cli\":\"claude\",\"model\":\"claude-opus-5-5\"}", "prompt": "Draft use cases that realise the requirements below.\n\nWrite each use case as one Markdown file, in the form of the product's use cases: a front matter between two lines `---`\nwith `id`, `title`, `area`, `actors` — one per line as `  - <actor>` — and `realises` — each requirement it realises by its\nexact name, one per line as `  - <NAME>` —; then the heading `# <id> <title>`; then the sections `## Actors`,\n`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`; and a diagram of the flow in a fenced\n```mermaid block. Number the steps of the main flow 1, 2, 3, and an alternative flow by the step it leaves and a letter,\nas 2a.\n\nA new use case has the identifier `UC-NNN`; Agent M gives it its own. Where a use case of the product already has the goal of\none you would draft, change that use case instead: give its whole changed file under its own identifier.\n\nAnswer with JSON only, in this form:\n{\"useCases\": [{\"text\": \"<the whole file>\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"use case <its number in your list>\", \"line\": <the line the finding names>, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe requirements to cover:\n\n**A CHAPTER SHOWS ITS WORD COUNT**\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\nEvery use case of the product:\n\n---\nid: UC-001\ntitle: Accept a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - ONE CLICK\n  - EVERY TEXT IS REVIEWED\n---\n# UC-001 Accept a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author opens the chapter.\n2. The author presses **Accept**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n---\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n## Your answer\n\n{\"useCases\":[{\"text\":\"---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"}],\"justifications\":[]}\n\n## Agent M's findings on it\n\nYour draft has these findings. Fix every error; fix every warning, or justify it in one line.\n\nuse case 1:1: error: no Mermaid diagram [DIAGRAMS ARE MERMAID IN MARKDOWN] — draw the use case as a fenced ```mermaid block in this file\n\nYour draft:\n\n{\"useCases\":[{\"text\":\"---\\nid: UC-002\\ntitle: Write a chapter\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - NO SERVER\\n---\\n# UC-002 Write a chapter\\n\\n## Actors\\n\\n- **Author** — writes.\\n\\n## Precondition\\n\\n- The repository exists.\\n\\n## Main flow\\n\\n1. The author writes the chapter in the editor.\\n2. The author saves it.\\n\\n## Alternative flows\\n\\n- **1a. No token.** GitHub's page opens.\\n\\n## Postcondition\\n\\n- The chapter is saved.\\n\"}],\"justifications\":[]}\n", "report": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"{\\\"useCases\\\":[{\\\"text\\\":\\\"---\\\\nid: UC-002\\\\ntitle: Write a chapter\\\\narea: writing\\\\nactors:\\\\n  - Author\\\\nrealises:\\\\n  - NO SERVER\\\\n---\\\\n# UC-002 Write a chapter\\\\n\\\\n## Actors\\\\n\\\\n- **Author** — writes.\\\\n\\\\n## Precondition\\\\n\\\\n- The repository exists.\\\\n\\\\n## Main flow\\\\n\\\\n1. The author writes the chapter in the editor.\\\\n2. The author saves it.\\\\n\\\\n## Alternative flows\\\\n\\\\n- **1a. No token.** GitHub's page opens.\\\\n\\\\n## Postcondition\\\\n\\\\n- The chapter is saved.\\\\n\\\"}],\\\"justifications\\\":[]}\",\"total_cost_usd\":0.22,\"usage\":{\"input_tokens\":3600,\"output_tokens\":380}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "d100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261014-0900-5f5f.md?ref=d100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits?path=docs%2Fuse-cases&sha=d100000000000000000000000000000000000000&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "a200000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-03T10:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                },
+                {
+                  "sha": "a100000000000000000000000000000000000000",
+                  "commit": { "committer": { "date": "2026-10-01T10:00:00Z" }, "author": { "name": "alice" } },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "a100000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "docs/use-cases/UC-001-accept-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-002-write-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-003-export-a-chapter.md", "status": "added" },
+                  { "filename": "docs/use-cases/UC-004-print-a-chapter.md", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a200000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "a200000000000000000000000000000000000000",
+                "files": [{ "filename": "docs/use-cases/UC-004-print-a-chapter.md", "status": "removed" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/d100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "tree": { "sha": "f100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "f100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261014-0900-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261014-0900-5f5f\nkind: derive-use-cases\nphase: Sprint planning\nrole: Product Owner\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - A CHAPTER SHOWS ITS WORD COUNT\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261014-0900-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-14T08:58:00Z | queued | — |\n| 2026-10-14T09:00:00Z | running | round 1 on ci-dev |\n| 2026-10-14T09:00:00Z | done | no change |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 2 | 0.42 USD | 6700 | 760 | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "f200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261014-0900-5f5f: done",
+                "tree": "f200000000000000000000000000000000000000",
+                "parents": ["d100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "d200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/d200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "d200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "d200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-14T09:00:00Z"
+      },
+      "result": { "next": "stop", "prompt": "", "round": 2, "note": "no change" }
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-job-steps.cancelStep",
   "summary": "A job its runtime stopped without a person's cancel — the bridge was quit —: its record ends as cancelled with the reason, on the context's authority, where it has not ended already.",
   "params": [
@@ -3682,6 +4857,51 @@ sequenceDiagram
       "usage": { "inputTokens": null, "outputTokens": null, "minutes": null },
       "failed": true,
       "note": "the CLI wrote no JSON result"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DraftCli",
+  "description": "A CLI a drafting job runs with: claude or codex.",
+  "type": "object",
+  "required": ["cli"],
+  "additionalProperties": false,
+  "properties": { "cli": { "type": "string", "enum": ["claude", "codex"] } },
+  "examples": [{ "cli": "claude" }, { "cli": "codex" }]
+}
+```
+
+```json type
+{
+  "$id": "DraftAnswer",
+  "description": "A drafting round's answer as the CLI reported it: its text — empty where it failed —, whether it failed and why, and the cost and tokens it reported.",
+  "type": "object",
+  "required": ["text", "failed", "note", "cost", "usage"],
+  "additionalProperties": false,
+  "properties": {
+    "text": { "type": "string" },
+    "failed": { "type": "boolean" },
+    "note": { "type": "string" },
+    "cost": { "$ref": "MoneyOrNone" },
+    "usage": { "$ref": "Usage" }
+  },
+  "examples": [
+    {
+      "text": "{\"useCases\":[{\"text\":\"---\\nid: UC-NNN\\ntitle: Count the words while writing\\narea: writing\\nactors:\\n  - Author\\nrealises:\\n  - A CHAPTER SHOWS ITS WORD COUNT\\n---\\n# UC-NNN Count the words while writing\\n\\n## Actors\\n\\n- **Author** — writes a chapter.\\n\\n## Precondition\\n\\n- The chapter is open in the editor.\\n\\n## Main flow\\n\\n1. The author types in the editor.\\n2. The editor shows how many words the chapter has.\\n\\n## Alternative flows\\n\\n- **2a. The chapter is empty.** The editor shows 0 words.\\n\\n## Postcondition\\n\\n- The author knows the chapter's length.\\n\\n```mermaid\\nsequenceDiagram\\n    actor A as Author\\n    participant E as Editor\\n    A->>E: types\\n    E-->>A: word count\\n```\\n\"}],\"justifications\":[]}",
+      "failed": false,
+      "note": "",
+      "cost": null,
+      "usage": { "inputTokens": 3900, "outputTokens": 450, "minutes": null }
+    },
+    {
+      "text": "",
+      "failed": true,
+      "note": "the CLI's report holds no answer",
+      "cost": { "amount": 0.02, "currency": "USD" },
+      "usage": { "inputTokens": 3100, "outputTokens": 0, "minutes": null }
     }
   ]
 }
@@ -4205,7 +5425,7 @@ sequenceDiagram
         }
       ],
       "refused": [
-        { "job": "JOB-20261012-0803-6a6a", "reason": "JOB-20261012-0803-6a6a is a configure-ci job; the bridge carries out implementation and refactoring jobs" },
+        { "job": "JOB-20261012-0803-6a6a", "reason": "JOB-20261012-0803-6a6a is a configure-ci job; the bridge carries out implementation and refactoring jobs and the derivation of use cases" },
         { "job": "JOB-20261012-0804-7b7b", "reason": "box-dev is no agent of the bridge on this computer" }
       ]
     }
@@ -4290,7 +5510,7 @@ sequenceDiagram
   "required": ["next", "branch", "base", "prompt", "attempt", "note", "run"],
   "additionalProperties": false,
   "properties": {
-    "next": { "type": "string", "enum": ["agent", "stop"] },
+    "next": { "type": "string", "enum": ["agent", "draft", "stop"] },
     "branch": { "type": "string" },
     "base": { "type": "string" },
     "prompt": { "type": "string" },
@@ -4300,6 +5520,26 @@ sequenceDiagram
   },
   "examples": [
     { "next": "stop", "branch": "item/ITM-014", "base": "", "prompt": "", "attempt": 0, "note": "cancelled by alice", "run": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DraftTurned",
+  "description": "What one turn of a drafting job did: a turn of the agent's CLI is due, with its prompt, or the job stopped; the round the prompt is for, or the rounds it took; and a note — what was written, or why it stopped.",
+  "type": "object",
+  "required": ["next", "prompt", "round", "note"],
+  "additionalProperties": false,
+  "properties": {
+    "next": { "type": "string", "enum": ["turn", "stop"] },
+    "prompt": { "type": "string" },
+    "round": { "type": "integer", "minimum": 0 },
+    "note": { "type": "string" }
+  },
+  "examples": [
+    { "next": "turn", "prompt": "Draft use cases that realise the requirements below.\n", "round": 1, "note": "" },
+    { "next": "stop", "prompt": "", "round": 2, "note": "UC-005 written as open" }
   ]
 }
 ```
@@ -4380,3 +5620,14 @@ sequenceDiagram
   ]
 }
 ```
+
+## Realisation
+
+| Step | Interfaces |
+|---|---|
+| UC-010 2 | MOD-ci-generator.jobWorkflow, MOD-ci-entry.jobStart, MOD-job-steps.startStep, MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-job-harness.parseDefinition, MOD-drafting.useCaseSources, MOD-job-harness.renderPrompt |
+| UC-010 3 | MOD-ci-generator.jobWorkflow, MOD-job-runner.draftCommand, MOD-job-runner.draftAnswer, MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-drafting.draftRound, MOD-drafting.cliPrompt |
+| UC-010 4 | MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-git-host.pathHistory, MOD-drafting.useCaseFiles, MOD-job-harness.commitMessage, MOD-run-engine.jobRecordText, MOD-git-host.writeFiles |
+| UC-010 5 | MOD-review-page.open, MOD-review-views.reviewList, MOD-review-views.showFile |
+| UC-010 3a | MOD-ci-generator.jobWorkflow |
+| UC-010 4a | MOD-ci-entry.draftTurn, MOD-job-steps.draftTurn, MOD-drafting.useCaseFiles, MOD-run-engine.jobRecordText, MOD-git-host.writeFiles |
