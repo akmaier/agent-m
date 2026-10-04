@@ -89,9 +89,10 @@ its own.
    - **duplicate** of a named existing test.
 
    A case whose result depends on a model's answer is marked *model-dependent*: it carries several
-   phrasings of the same question and the number of runs, fixed now (`SOFTWARE_MAINTENANCE.md`
-   §4.0a rules 2 and 4). A case that would call a paid service carries the recorded or constructed
-   response it uses instead, and is marked for the nightly run if it also needs the real call.
+   phrasings of the same question, each holding every detail the result depends on and nothing more,
+   and the number of runs, fixed now and not changed by a failing run. A case that would call a paid
+   service carries the recorded or constructed response it uses instead, and is marked for the
+   nightly run if it also needs the real call.
 6. Agent M checks the proposal without a model: a case with the same guarded identifier, input and
    expected result as an existing test is a duplicate, whatever the participant said. Cases without an
    expected result, model-dependent cases judged on a single run, commit-level cases that reach a paid
