@@ -2,6 +2,7 @@
 id: ARC-026
 title: The settings page is a shell at settings.html of the Pages site where every setting is reached; a feature computes its lines from the browser's settings and what the repositories keep, a browser setting is tested with itself alone, and a repository setting is saved as one commit on a click
 forced_by:
+  - A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
   - EVERY SETTING IS REACHED FROM ONE PAGE
   - A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
   - A STORED SECRET IS HIDDEN UNTIL SHOWN
@@ -23,6 +24,7 @@ forced_by:
   - UC-003
   - UC-017
   - UC-031
+  - UC-040
   - UC-042
   - UC-044
 keeps:
@@ -49,12 +51,15 @@ repositories by `MOD-git-host`; what the configuration pages compute and save is
    browser's settings through `MOD-settings-store`, and holds every text and all HTML of the page.
 2. **Route** (`MOD-settings-page.route`): the instance from the page's address, and from the fragment the view — the
    settings, the process models or one of them, a product's declaration, the participants or one of them, an endpoint —
-   with the product and the name of what is edited.
+   with the product and the name of what is edited. A new participant's form may be opened with its type and address
+   filled in: the link a resource that also works on the product gives (ARC-034, UC-040 2a); the type is one the form
+   takes (`MOD-process-config.participantPreset`).
 3. **One line per setting** (`MOD-settings-views.settingsPage`): each setting this browser keeps, and each kind it keeps
    none of, with its state — works since its last test, expires within fourteen days, expired, refused at its last use,
    untested, set where it has no test, not set —, whether it holds a secret, and a summary that holds none; the tokens to
    warn of on every page; a line per setting the instance keeps and, per product, whether the token may write to it.
-   A line that holds a secret shows it in a password field, hidden until **Show**.
+   A line that holds a secret shows it in a password field, hidden until **Show**. The instance's section links its own
+   resources as *Instance resources*, the page of ARC-034 for the instance's list (UC-040 1b).
 4. **The repositories are read at their heads** (`MOD-settings-page.readConfig`): the instance's visibility, its
    participant register and the catalogue with the products declaring each model; each product's declaration with the
    blob it was read at, the model it declares read at the version it declares, and the requirements of its SPEC — or why
@@ -97,6 +102,11 @@ repositories by `MOD-git-host`; what the configuration pages compute and save is
    an import keeps what the browser has and lists what it added and what it did not (`MOD-settings-store.mergeImport`).
    The browser section's folded **What is this?** says that every Pages site of the same owner reads this browser's
    settings.
+8. **The people who consented to be named** (`CollaboratorsFile`, `MOD-settings-views.parseCollaborators`): a repository's
+   `docs/collaborators.md`, a heading and one row per person who agreed to be named in it — the name, and the account
+   they have on its server. A resource's maintainer named as a collaborator is checked against it (ARC-034); no other name
+   a repository holds is checked against it yet (consequences). Adding a person to it on this page (UC-042 5) is not
+   designed yet.
 
 ```mermaid
 flowchart LR
@@ -125,8 +135,17 @@ flowchart LR
 ## Consequences
 
 - After a save the page reads the repository again; after a change of the browser's settings it reads the entries again.
-- The test of the resource keys is offered where their adapter is designed; until then their lines show their state and
-  **Clear**, and a test answers `no-test`, as the jump host's does.
+- The test of a resource key reads, with that key alone, a resource that names it — a repository on its server, a model or
+  a dataset on the Hub, an endpoint through the bridge (ARC-034) —; it needs the resources the instance and the products
+  declare, which this page reads with its instance and product sections (UC-042 1, 3), and the check through the bridge,
+  and comes with them. Until then a resource key's line shows its state and **Clear**, and its test answers `no-test`, as
+  the jump host's does.
+- **Kept in part, not placed** (`A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT`): the people a repository lists as
+  consenting are read here (`MOD-settings-views.parseCollaborators`), and a resource's maintainer is checked against them
+  (`MOD-resource-register.checkResources`, ARC-034). A name in any other artifact — above all one a participant
+  generates — is checked against them by no design yet; that check belongs among the checks a drafting job's output must
+  pass in its correction loop (ARC-007, ARC-031), and the decision that designs it places the rule. Adding a person to
+  the list (UC-042 5) is not designed yet.
 - Not realised here: the steps that need those tests or settings not designed yet — UC-042 1, 2, 3, 4, 5, 4a, 5a
   (pseudonymisation, collaborators, sources, resources and the test schedule), UC-003 2a (a
   model server through the bridge), UC-017 3, 3b, 5a, 6, 6a (a participant on the bridge and its test, which come with
@@ -143,9 +162,9 @@ flowchart LR
   "id": "MOD-settings-views",
   "folder": "src/settings-views/",
   "layer": "feature",
-  "responsibility": "Computes what the settings page shows: a line per setting this browser keeps, and per kind it keeps none of, with its state and whether it holds a secret; the tokens to warn of on every page; and a line per setting the instance and each product keep in their repositories.",
+  "responsibility": "Computes what the settings page shows: a line per setting this browser keeps, and per kind it keeps none of, with its state and whether it holds a secret; the tokens to warn of on every page; and a line per setting the instance and each product keep in their repositories; and the people a repository lists as consenting to be named.",
   "realises": ["EVERY SETTING IS REACHED FROM ONE PAGE"],
-  "owns": ["SettingLine", "ConfigLine", "ProductSettings", "SettingsPage", "RegisterRead", "InstanceConfig", "DeclarationOrNone", "ProductConfig", "SettingsConfig"],
+  "owns": ["Collaborator", "CollaboratorRow", "SettingLine", "ConfigLine", "ProductSettings", "SettingsPage", "RegisterRead", "InstanceConfig", "DeclarationOrNone", "ProductConfig", "SettingsConfig", "CollaboratorsFile"],
   "uses": ["MOD-contracts", "MOD-settings-store"]
 }
 ```
@@ -535,6 +554,30 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-settings-views.parseCollaborators",
+  "summary": "The people a repository's docs/collaborators.md lists as consenting to be named in it, each with the account they have on its server; an empty list where the file has no table yet.",
+  "params": [{ "name": "text", "type": "string" }],
+  "result": "Collaborator[]",
+  "async": false,
+  "refusals": [{ "code": "not-collaborators", "when": "the text does not begin with a heading" }],
+  "examples": [
+    {
+      "name": "two people who consented",
+      "input": { "text": "# Collaborators\n\nThe people who agreed to be named in this repository (UC-042), each with the account they have on its server.\n\n| Name | Account |\n|---|---|\n| Bob Example | @bob |\n| Carla Muster | @carla |\n" },
+      "result": [{ "name": "Bob Example", "account": "@bob" }, { "name": "Carla Muster", "account": "@carla" }]
+    },
+    { "name": "a file without its table yet", "input": { "text": "# Collaborators\n" }, "result": [] },
+    {
+      "name": "a text without its heading",
+      "input": { "text": "| Name | Account |\n" },
+      "refused": "not-collaborators"
+    }
+  ]
+}
+```
+
 ### MOD-settings-page
 
 ```json module
@@ -552,7 +595,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-settings-page.route",
-  "summary": "What the settings page shows, from its address and the fragment: the instance — derived from the page settings.html at the root of its Pages site —, the view — the settings, the process models or one of them, a product's declaration, the participants or one of them, an endpoint —, the product and the name of the model, participant or endpoint.",
+  "summary": "What the settings page shows, from its address and the fragment: the instance — derived from the page settings.html at the root of its Pages site —, the view — the settings, the process models or one of them, a product's declaration, the participants or one of them, an endpoint —, the product and the name of the model, participant or endpoint, and for a new participant's form the type and the address it is opened with.",
   "params": [{ "name": "hash", "type": "string" }, { "name": "pagesAddress", "type": "string" }],
   "result": "SettingsRoute",
   "async": false,
@@ -565,12 +608,17 @@ flowchart LR
     {
       "name": "the settings",
       "input": { "hash": "", "pagesAddress": "https://alice.github.io/agent-m/settings.html" },
-      "result": { "instance": "https://github.com/alice/agent-m", "view": "settings", "product": "", "name": "" }
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "settings", "product": "", "name": "", "type": "", "address": "" }
     },
     {
       "name": "a product's declaration",
       "input": { "hash": "#declaration?product=https%3A%2F%2Fgithub.com%2Falice%2Fnotes", "pagesAddress": "https://alice.github.io/agent-m/settings.html" },
-      "result": { "instance": "https://github.com/alice/agent-m", "view": "declaration", "product": "https://github.com/alice/notes", "name": "" }
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "declaration", "product": "https://github.com/alice/notes", "name": "", "type": "", "address": "" }
+    },
+    {
+      "name": "a new participant from a resource that also works on the product",
+      "input": { "hash": "#participant?type=model%20endpoint&address=http%3A%2F%2Fgpu01%3A8000%2Fv1", "pagesAddress": "https://alice.github.io/agent-m/settings.html" },
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "participant", "product": "", "name": "", "type": "model endpoint", "address": "http://gpu01:8000/v1" }
     },
     {
       "name": "a declaration without its product",
@@ -2560,6 +2608,30 @@ flowchart LR
 
 ```json type
 {
+  "$id": "Collaborator",
+  "description": "A person a repository lists as consenting to be named in it: the name, and the account they have on its server — empty where none is given.",
+  "type": "object",
+  "required": ["name", "account"],
+  "additionalProperties": false,
+  "properties": { "name": { "type": "string", "minLength": 1 }, "account": { "type": "string" } },
+  "examples": [{ "name": "Bob Example", "account": "@bob" }]
+}
+```
+
+```json type
+{
+  "$id": "CollaboratorRow",
+  "description": "A row of docs/collaborators.md as the table names its columns.",
+  "type": "object",
+  "required": ["Name", "Account"],
+  "additionalProperties": false,
+  "properties": { "Name": { "type": "string", "minLength": 1 }, "Account": { "type": "string" } },
+  "examples": [{ "Name": "Bob Example", "Account": "@bob" }]
+}
+```
+
+```json type
+{
   "$id": "SettingLine",
   "description": "A setting of this browser as the page shows it: the setting and the entry where it has several, its state — works since its last test, expires within fourteen days, expired, refused at its last use, untested, set where it has no test, or not set —, the day of its last successful test and its expiry date, whether it holds a secret, and a summary that holds none.",
   "type": "object",
@@ -2773,9 +2845,9 @@ flowchart LR
 ```json type
 {
   "$id": "SettingsRoute",
-  "description": "What the settings page shows: the instance, the view, the product, and the name of the model, participant or endpoint — each empty where not given.",
+  "description": "What the settings page shows: the instance, the view, the product, the name of the model, participant or endpoint, and the type and address a new participant's form is opened with — each empty where not given.",
   "type": "object",
-  "required": ["instance", "view", "product", "name"],
+  "required": ["instance", "view", "product", "name", "type", "address"],
   "additionalProperties": false,
   "properties": {
     "instance": { "type": "string" },
@@ -2784,10 +2856,13 @@ flowchart LR
       "enum": ["settings", "models", "model", "declaration", "participants", "participant", "endpoint"]
     },
     "product": { "type": "string" },
-    "name": { "type": "string" }
+    "name": { "type": "string" },
+    "type": { "type": "string" },
+    "address": { "type": "string" }
   },
   "examples": [
-    { "instance": "https://github.com/alice/agent-m", "view": "declaration", "product": "https://github.com/alice/notes", "name": "" }
+    { "instance": "https://github.com/alice/agent-m", "view": "declaration", "product": "https://github.com/alice/notes", "name": "", "type": "", "address": "" },
+    { "instance": "https://github.com/alice/agent-m", "view": "participant", "product": "", "name": "", "type": "model endpoint", "address": "http://gpu01:8000/v1" }
   ]
 }
 ```
@@ -2813,6 +2888,17 @@ flowchart LR
       "renew": "https://gitlab.example.org/group/lab/-/settings/access_tokens"
     }
   ]
+}
+```
+
+```json format
+{
+  "$id": "CollaboratorsFile",
+  "description": "The people who agreed to be named in a repository, one row each with the account they have on its server.",
+  "path": "docs/collaborators.md",
+  "syntax": "markdown-table",
+  "content": "CollaboratorRow[]",
+  "examples": ["# Collaborators\n\nThe people who agreed to be named in this repository (UC-042), each with the account they have on its server.\n\n| Name | Account |\n|---|---|\n| Bob Example | @bob |\n| Carla Muster | @carla |\n"]
 }
 ```
 
