@@ -65,12 +65,27 @@ repositories by `MOD-git-host`; what the configuration pages compute and save is
    which account it acts as, and a refused one gives the page where it is renewed (ARC-004); an endpoint the browser
    calls answers the short test request, or the test names why not and what works instead (ARC-009); the bridge on this
    computer greets with its version, the origin it is paired with and the agents it found, or the test names its refusal
-   and what works instead (ARC-012). A test's result is kept with the setting (`MOD-settings-store.recordTest`). The
+   and what works instead (ARC-012); a remote session's bridge greets the same way through the session's route — its
+   forward, or the jump host's HTTPS address with the web server's login (`MOD-bridge-tunnel.sessionRoute`, ARC-013) —, or
+   the test names its refusal and what works instead: where no answer arrives over HTTPS, first *the certificate of the
+   jump host's HTTPS address: one the browsers trust, issued for its name, such as Let's Encrypt's or the institution's
+   own; a self-signed one does not work*, then *the web server's configuration this page shows, in place on the jump
+   host*, then *the reverse tunnel on the machine behind NAT, or its bridge*; where the web server refuses its login,
+   *the web server's login as the password file on the jump host holds it*; where nothing answers through a forward, *the forward on this computer: the command this page shows, or a bridge here
+   that opens it*, then *the reverse tunnel on the machine behind NAT, or its bridge*, then *the session's route over HTTPS
+   through the jump host*; a mailbox's reading or sending
+   is tested on its route without changing anything in the mailbox, or stays untested where the bridge that tests it
+   does not answer (`MOD-mailbox.testMailbox`, ARC-014). A test's result is kept with the setting
+   (`MOD-settings-store.recordTest`). **+ Remote session** gives a session its port and its bridge token
+   (`MOD-bridge-tunnel.newSession`, `MOD-bridge-server.newToken`); the jump host's line shows its tunnel commands, its
+   service files and its web-server configuration (`MOD-bridge-tunnel.tunnelCommands`, `MOD-bridge-tunnel.serviceFiles`,
+   `MOD-bridge-tunnel.webServerConfig`), and its own test answers `no-test`: it is tested through its sessions. The
    bridge's form presets the address of a bridge on this computer (`MOD-bridge-server.defaultAddress`), so that pairing is
    the token pasted and **Pair**. Storing a value and **Clear** change the entries through the store and write them at
    once (ARC-005). **Clear** asks for one confirmation that says what no longer works in this browser without the
    setting — a text the page holds for each kind of setting, chosen by the line's `setting`, as for an export (decision
-   7); for the bridge: mail on the IMAP route, local agents and compute resources (UC-042 2a). After the clear the page
+   7); for the bridge: mail on the IMAP route, local agents and compute resources (UC-042 2a); for the mailbox: reading
+   mail for issues and sending replies, while issues and their mail identifiers stay (UC-042 2b). After the clear the page
    reads the entries again and shows the line as not set. Under the bridge's line, *Get the Agent M Bridge* offers the
    bridge's files for this browser (ARC-017 decision 7): the page reads the latest release (`MOD-git-host.latestRelease`)
    and shows what `MOD-bridge-feed.downloadFor` offers, in HTML of its own.
@@ -110,10 +125,10 @@ flowchart LR
 ## Consequences
 
 - After a save the page reads the repository again; after a change of the browser's settings it reads the entries again.
-- The tests of the mailbox, the jump host, the remote sessions and the resource keys are offered where their adapters
-  are designed; until then their lines show their state and **Clear**, and a test answers `no-test`.
-- Not realised here: the steps that need those tests or settings not designed yet — UC-042 1, 2, 3, 4, 5, 2b, 4a, 5a
-  (the mailbox, the jump host, pseudonymisation, collaborators, sources, resources and the test schedule), UC-003 2a (a
+- The test of the resource keys is offered where their adapter is designed; until then their lines show their state and
+  **Clear**, and a test answers `no-test`, as the jump host's does.
+- Not realised here: the steps that need those tests or settings not designed yet — UC-042 1, 2, 3, 4, 5, 4a, 5a
+  (pseudonymisation, collaborators, sources, resources and the test schedule), UC-003 2a (a
   model server through the bridge), UC-017 3, 3b, 5a, 6, 6a (a participant on the bridge and its test, which come with
   the bridge as a job runtime, and the sources' places),
   UC-002 4c (the sources' places), and UC-031 4a (keeping an unfinished model in the browser, for which the store has no
@@ -530,7 +545,7 @@ flowchart LR
   "responsibility": "The page settings.html at the root of the instance's Pages site, where every setting is reached: it routes, reads what the instance and its products keep, tests a setting of this browser with that setting alone, saves the configuration as one commit on a click, keeps and clears the browser's settings through the settings store, and holds every text the page shows.",
   "realises": ["A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY"],
   "owns": ["SettingsRoute", "SettingTest"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views", "MOD-bridge-feed"]
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views", "MOD-bridge-feed", "MOD-bridge-tunnel", "MOD-mailbox"]
 }
 ```
 
@@ -1193,7 +1208,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-settings-page.testSetting",
-  "summary": "The test of a setting this browser keeps, one harmless request with that setting alone: a token asks its own server which account it acts as, and a refused one gives the page where it is renewed; an endpoint the browser calls answers the short test request, or the test names why not and what works instead; the bridge on this computer greets with its version, the origin it is paired with and the agents it found, or the test names its refusal and what works instead.",
+  "summary": "The test of a setting this browser keeps, one harmless request with that setting alone: a token asks its own server which account it acts as, and a refused one gives the page where it is renewed; an endpoint the browser calls answers the short test request, or the test names why not and what works instead; the bridge on this computer greets with its version, the origin it is paired with and the agents it found, or the test names its refusal and what works instead; and so does a remote session's bridge through the session's route, its forward or the jump host's HTTPS address; a mailbox's reading or sending is tested on its route without changing anything in the mailbox, or stays untested where the bridge that tests it does not answer.",
   "params": [
     { "name": "ref", "type": "SettingRef" },
     { "name": "settings", "type": "Settings" },
@@ -1205,6 +1220,8 @@ flowchart LR
   "refusals": [
     { "code": "not-set", "when": "the setting is not stored" },
     { "code": "no-test", "when": "the setting has no test on this page" },
+    { "code": "untested", "when": "the bridge that tests the mailbox does not answer, or none is paired" },
+    { "code": "unknown-part", "when": "the part of a mailbox test is neither read nor send" },
     { "code": "not-an-address", "when": "the instance's address is no web address" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
     { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
@@ -1649,9 +1666,576 @@ flowchart LR
       "refused": "not-set"
     },
     {
-      "name": "the mailbox",
+      "name": "a remote session through its forward",
       "input": {
-        "ref": { "setting": "mailbox", "item": "" },
+        "ref": { "setting": "session", "item": "gpu-box" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://localhost:20001/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "headless", "reason": "no desktop session; the bridge's settings come from an export, its state is read through GET /hello" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "Agent M Bridge 2026.10.1 of the session gpu-box, paired with https://alice.github.io",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a remote session over HTTPS",
+      "input": {
+        "ref": { "setting": "session", "item": "lab-pc" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://jump.example.org/agent-m/20002/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "headless", "reason": "no desktop session; the bridge's settings come from an export, its state is read through GET /hello" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "Agent M Bridge 2026.10.1 of the session lab-pc, paired with https://alice.github.io",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "no answer through the forward",
+      "input": {
+        "ref": { "setting": "session", "item": "gpu-box" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": []
+      },
+      "result": {
+        "result": "refused",
+        "reason": "no answer from http://localhost:20001/hello: the bridge does not run there, or this browser blocks the call",
+        "alternatives": ["the forward on this computer: the command this page shows, or a bridge here that opens it", "the reverse tunnel on the machine behind NAT, or its bridge", "the session's route over HTTPS through the jump host"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "the web server refuses its login",
+      "input": {
+        "ref": { "setting": "session", "item": "lab-pc" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://jump.example.org/agent-m/20002/hello" },
+            "response": { "status": 401, "headers": { "www-authenticate": "Basic realm=\"Agent M\"" }, "body": "" }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "the jump host's web server refuses its login",
+        "alternatives": ["the web server's login as the password file on the jump host holds it"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "no answer over HTTPS",
+      "input": {
+        "ref": { "setting": "session", "item": "lab-pc" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": []
+      },
+      "result": {
+        "result": "refused",
+        "reason": "no answer from https://jump.example.org/agent-m/20002/hello: the bridge does not run there, or this browser blocks the call",
+        "alternatives": ["the certificate of the jump host's HTTPS address: one the browsers trust, issued for its name, such as Let's Encrypt's or the institution's own; a self-signed one does not work", "the web server's configuration this page shows, in place on the jump host", "the reverse tunnel on the machine behind NAT, or its bridge"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "reading the mailbox on the web API",
+      "input": {
+        "ref": { "setting": "mailbox", "item": "read" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/inbox?$select=id,displayName,totalItemCount" },
+            "response": {
+              "status": 200,
+              "body": { "id": "AAMkAGI2-inbox", "displayName": "Inbox", "totalItemCount": 1234 }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders?$select=id,displayName,totalItemCount&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  { "id": "AAMkAGI2-inbox", "displayName": "Inbox", "totalItemCount": 1234 },
+                  { "id": "AAMkAGI2-reports", "displayName": "Reports", "totalItemCount": 56 },
+                  { "id": "AAMkAGI2-drafts", "displayName": "Drafts", "totalItemCount": 3 }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/drafts?$select=displayName" },
+            "response": { "status": 200, "body": { "displayName": "Drafts" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/sentitems?$select=displayName" },
+            "response": { "status": 200, "body": { "displayName": "Sent Items" } }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "every named folder read, nothing changed; INBOX: 1234, Reports: 56; Drafts: Drafts; Sent: Sent Items",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "sending through the bridge to a server without encryption",
+      "input": {
+        "ref": { "setting": "mailbox", "item": "send" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": {
+            "address": "reports@uni.example",
+            "route": "imap",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": null,
+            "login": {
+              "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+              "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+              "user": "reports@uni.example",
+              "password": "app-password-example"
+            },
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/test",
+              "body": {
+                "part": "send",
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "folders": ["INBOX", "Reports"]
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "part": "send",
+                "result": "refused",
+                "reason": "smtp.uni.example:587 offers no encryption; the bridge sent no login, the password would travel in clear text",
+                "folders": [],
+                "drafts": "",
+                "sent": "",
+                "encryption": "STARTTLS"
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "smtp.uni.example:587 offers no encryption; the bridge sent no login, the password would travel in clear text",
+        "alternatives": ["the port and encryption the provider lists for its server"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "the mailbox when the bridge does not answer",
+      "input": {
+        "ref": { "setting": "mailbox", "item": "read" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": {
+            "address": "reports@uni.example",
+            "route": "imap",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": null,
+            "login": {
+              "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+              "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+              "user": "reports@uni.example",
+              "password": "app-password-example"
+            },
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": []
+      },
+      "refused": "untested"
+    },
+    {
+      "name": "no mailbox connected",
+      "input": {
+        "ref": { "setting": "mailbox", "item": "read" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": []
+      },
+      "refused": "not-set"
+    },
+    {
+      "name": "the jump host",
+      "input": {
+        "ref": { "setting": "jump-host", "item": "" },
         "settings": {
           "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
           "gitlab": [
@@ -2282,5 +2866,6 @@ flowchart LR
 | UC-042 1a | MOD-settings-views.settingsPage, MOD-settings-store.expiryWarnings, MOD-git-host.tokenPageUrl |
 | UC-042 1b | MOD-settings-page.testSetting, MOD-settings-store.recordTest, MOD-settings-views.settingsPage |
 | UC-042 2a | MOD-settings-views.settingsPage, MOD-settings-store.clearSetting, MOD-settings-store.saveEntries, MOD-settings-store.readSettings, MOD-settings-views.settingsPage |
+| UC-042 2b | MOD-settings-views.settingsPage, MOD-settings-store.clearSetting, MOD-settings-store.saveEntries, MOD-settings-store.readSettings, MOD-settings-views.settingsPage |
 | UC-042 3a | MOD-settings-page.readConfig, MOD-settings-views.settingsPage |
 | UC-042 6a | MOD-settings-store.importSettings, MOD-settings-store.mergeImport, MOD-settings-store.saveEntries |

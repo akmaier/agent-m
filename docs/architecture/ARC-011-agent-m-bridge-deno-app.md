@@ -43,7 +43,7 @@ The coding-agent CLIs say how they report themselves. Claude Code prints its ver
 3. **Signing** of each file by the publisher (ARC-017): the `.dmg` notarised and stapled on macOS, the executables and the `.msi` signed with Authenticode on Windows.
 4. **How the bridge shows itself** (`MOD-bridge-app.shellMode`). Its tray icon — `Deno.Tray`: the menu-bar extra on macOS, the notification area on Windows, AppIndicator or KStatusNotifierItem on Linux — offers *Open*, *Pause* and *Quit*. Its window shows the bridge's own page: its address, the pairing token with *Copy* and *Pair anew*, the origin it is paired with, the agents it found with *How to install* and *Check again*, the jump host, the session port, the tunnels' state, the import of a dashboard export, and *Update* where a newer release is offered (decision 9). The tray reaches the shell through one function of `MOD-bridge-app`, so a rename of the API — open pull request #35939 would move it to `Deno.desktop.Tray` — touches one place. After creating the tray, the bridge reads its `trayId`: where it is `0`, the window stays open as the only control. Where the tray is known not to answer, the window stays open, minimised, not hidden (measurement point 1): on KDE Plasma on Wayland — "`Deno.Tray` appears to be completely non-functional on KDE Plasma 6 on Wayland" (issue #36502) —, and on Windows with the default WebView2 backend, where "The tray icon has **zero click or menu interactivity**" while the window is hidden (issue #36778). `THE BRIDGE RUNS AS AN APP` asks for the window open where the system shows no tray icon; `GET /hello` names how the bridge shows itself and why.
 5. **Headless** (`MOD-bridge-app.shellMode`). Where no desktop session exists — a lab machine behind NAT (UC-044 6a) —, the same file runs without a window; its settings come from an imported export (`THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`), and its state is read on the dashboard through `GET /hello` and `GET /tunnels`.
-6. **The pairing, in the bridge's store** (`MOD-bridge-app.pairingOf`, `MOD-bridge-app.pairAnew`, `MOD-bridge-app.recordOrigin`). The bridge's one store holds its own settings — its port, 47321 unless set in its window (`MOD-bridge-server.defaultAddress`, ARC-012), its pairing token and the origin it is paired with, its jump host, its session port, its local model servers — in one directory, `.agent-m-bridge` in the person's home directory and so outside every repository, in files readable by its user only (ARC-003 decision 4). The token is made on first use and kept across restarts (`THE BRIDGE IS PAIRED ONCE`); *Pair anew* replaces it — the old one is refused from then on — and unpairs the bridge. The bridge is paired with the origin of the first request it admits while unpaired (ARC-012 decision 4). The dashboard's settings page presets the address of a bridge on this computer, `http://127.0.0.1:47321`, which the person changes only where the bridge's window names another; the person pastes the token and presses *Pair*, and the page keeps both in the browser and tests the bridge (ARC-026, ARC-005).
+6. **The pairing, in the bridge's store** (`MOD-bridge-app.pairingOf`, `MOD-bridge-app.pairAnew`, `MOD-bridge-app.pairWith`, `MOD-bridge-app.recordOrigin`). The bridge's one store holds its own settings — its port: the bridge port of the session it serves behind NAT where its tunnel settings name one (`MOD-bridge-tunnel.tunnelSettingsOf`, ARC-013), else 47321 unless set in its window (`MOD-bridge-server.defaultAddress`, ARC-012); its pairing token and the origin it is paired with; its tunnel settings (ARC-013); its local model servers — in one directory, `.agent-m-bridge` in the person's home directory and so outside every repository, in files readable by its user only (ARC-003 decision 4). The token is made on first use and kept across restarts (`THE BRIDGE IS PAIRED ONCE`); *Pair anew* replaces it — the old one is refused from then on — and unpairs the bridge; so does an imported export, with the bridge token of the session the bridge serves (`MOD-bridge-app.pairWith`, ARC-013 decision 7). The bridge is paired with the origin of the first request it admits while unpaired (ARC-012 decision 4). The dashboard's settings page presets the address of a bridge on this computer, `http://127.0.0.1:47321`, which the person changes only where the bridge's window names another; the person pastes the token and presses *Pair*, and the page keeps both in the browser and tests the bridge (ARC-026, ARC-005).
 7. **The coding agents on its machine** (`MOD-local-agents`). The bridge runs each supported CLI's version command and, where the CLI reports one, its login command — as an argument list, never through a shell, and with no key (`MOD-local-agents.agentProbes`; `A LOCAL AGENT USES THE PERSON'S OWN LOGIN`). A CLI whose version command does not run is missing: the window offers the vendor's instructions for the bridge's system — the part of its page for that system — and *Check again* (`MOD-local-agents.installHelp`). One whose login command exits with another code than 0 is not logged in: the window shows the CLI's own login step for the person to run, and the bridge never asks for a password (`MOD-local-agents.agentsFound`). opencode's credentials are its providers', so its login is not asked. `GET /agents` and the greeting list what was found, and only ready agents are offered as participants.
 8. **The greeting and the route table** (`MOD-bridge-app.hello`, `MOD-bridge-app.routeTable`): `GET /hello` names the protocol's major version, the bridge's version, its paired origin, how it shows itself and its agents; the route table holds every endpoint of the protocol (ARC-012 decision 8), each to the handler of the module that owns it.
 9. **Updater** (`MOD-bridge-update`, ARC-017 decision 6), composed by the bridge app, whose window offers *Update* (decision 4): when the bridge starts and once a day it reads the latest release and its feed, trusts the feed only where the publisher's key compiled into the bridge verifies its signature (ARC-017 decision 5), and offers a newer release of its protocol for its target with the release's notes; on the person's click it downloads the file, checks its SHA-256 and its platform signature, and only then installs it — the `.app` from the new `.dmg` on macOS, the new `.msi` on Windows, the new `.AppImage` on Linux (`THE BRIDGE IS UPDATED ONLY BY THE PERSON'S CHOICE`). No background installation.
@@ -142,7 +142,7 @@ on `deno desktop`, measurement point 1. Agent M's licence is MIT.
 - The bridge's size is that of the Deno runtime plus the modules; the Deno comparison page names about
   40 MB for a `deno desktop` webview app (not measured here).
 - The download page, the start by a double click and the update (UC-044 1, 2, 7a) stand in ARC-017's table; the tray or window of UC-044 2 is `MOD-bridge-app.shellMode`.
-- Not realised here: the bridge's own settings set in its window or read from an export — its port, its jump host, its session port (`THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`) — come with ARC-013, which designs the jump host's settings; adding a ready agent as a participant in one click (UC-044 5) needs the model it uses, which a participant names (UC-017 3); the tunnels and the route over HTTPS through the jump host (UC-044 4c, 6a; UC-011 1c, 2a) come with ARC-013; handing a job to a CLI session, its commits and its end, and quitting with jobs running (UC-011 2, 3, 4, 5; UC-044 7b) come with the bridge as a job runtime.
+- Not realised here: adding a ready agent as a participant in one click (UC-044 5) needs the model it uses, which a participant names (UC-017 3); handing a job to a CLI session, its commits and its end, and quitting with jobs running (UC-011 2, 3, 4, 5; UC-044 7b) come with the bridge as a job runtime.
 - The earlier module file of `MOD-bridge-app` leaves the working tree: this decision is where the module is designed (ARC-020 decisions 3 and 12).
 
 ## Modules
@@ -157,7 +157,7 @@ on `deno desktop`, measurement point 1. Agent M's licence is MIT.
   "responsibility": "The bridge runtime's composition root: how it shows itself — tray, window or headless —, its pairing kept in its one store, its greeting, and its route table; it holds the tray, the window and every text they show, starts the server with the protocol's checks, and runs the probes of the agents.",
   "realises": ["THE BRIDGE RUNS AS AN APP", "THE BRIDGE IS PAIRED ONCE", "THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW"],
   "owns": ["ShellSession", "ShellMode", "Pairing", "PairedOrigin", "HelloInput", "Hello"],
-  "uses": ["MOD-contracts", "MOD-bridge-server", "MOD-local-agents", "MOD-bridge-update", "MOD-bridge-jobs", "MOD-job-steps"]
+  "uses": ["MOD-contracts", "MOD-bridge-server", "MOD-local-agents", "MOD-bridge-update", "MOD-bridge-jobs", "MOD-job-steps", "MOD-bridge-tunnel", "MOD-mailbox"]
 }
 ```
 
@@ -271,6 +271,46 @@ on `deno desktop`, measurement point 1. Agent M's licence is MIT.
 
 ```json interface
 {
+  "id": "MOD-bridge-app.pairWith",
+  "summary": "Pair with the token an imported export names for the session the bridge serves (MOD-bridge-tunnel.settingsFromExport): it replaces the bridge's own — refused from then on — and the bridge is unpaired until the next admitted request names its origin; where it is the bridge's own already — the session of this computer's bridge —, nothing changes.",
+  "params": [{ "name": "store", "type": "StoragePort" }, { "name": "token", "type": "string" }],
+  "result": "Pairing",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-token", "when": "the token is not 64 hexadecimal characters" },
+    { "code": "not-kept", "when": "the store keeps nothing" }
+  ],
+  "examples": [
+    {
+      "name": "the GPU box's token from the export",
+      "input": {
+        "store": { "pairing-token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "paired-origin": "https://alice.github.io" },
+        "token": "3c5eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf"
+      },
+      "result": { "token": "3c5eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "origin": "" }
+    },
+    {
+      "name": "the bridge's own token, from the export of this computer's session",
+      "input": {
+        "store": { "pairing-token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "paired-origin": "https://alice.github.io" },
+        "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf"
+      },
+      "result": { "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "origin": "https://alice.github.io" }
+    },
+    {
+      "name": "an export's session without a token",
+      "input": {
+        "store": { "pairing-token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "paired-origin": "https://alice.github.io" },
+        "token": ""
+      },
+      "refused": "not-a-token"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-bridge-app.recordOrigin",
   "summary": "The origin of the dashboard that paired the bridge, recorded once its first request was admitted: an HTTPS origin, or a loopback one.",
   "params": [{ "name": "store", "type": "StoragePort" }, { "name": "origin", "type": "string" }],
@@ -352,6 +392,7 @@ on `deno desktop`, measurement point 1. Agent M's licence is MIT.
         { "method": "DELETE", "path": "/jobs/:id", "name": "cancel-job" },
         { "method": "GET", "path": "/endpoint/models", "name": "endpoint-models" },
         { "method": "POST", "path": "/endpoint/chat", "name": "endpoint-chat" },
+        { "method": "POST", "path": "/mail/test", "name": "mail-test" },
         { "method": "POST", "path": "/mail/read", "name": "mail-read" },
         { "method": "POST", "path": "/mail/find", "name": "mail-find" },
         { "method": "POST", "path": "/mail/draft", "name": "mail-draft" },

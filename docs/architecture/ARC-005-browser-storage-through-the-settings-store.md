@@ -168,6 +168,7 @@ flowchart LR
     "MailboxSignIn",
     "MailboxLogin",
     "MailboxTests",
+    "AllowedPlace",
     "Mailbox",
     "WebLogin",
     "JumpHost",
@@ -352,7 +353,7 @@ flowchart LR
           "agent-m.github-token-tested": "{\"ok\":\"2026-10-01\"}",
           "agent-m.gitlab-tokens": "{\"https://gitlab.example.org/group/tools/thesis\":{\"token\":\"glpat-example\",\"expires\":\"2026-12-31\"}}",
           "agent-m.jump-host": "{\"host\":\"jump.example.org\",\"user\":\"alice\",\"portFrom\":20001,\"portTo\":20010,\"reverseKey\":\"~/.ssh/id_ed25519\",\"forwardKey\":\"~/.ssh/id_ed25519\",\"https\":\"https://jump.example.org\",\"login\":{\"user\":\"alice\",\"password\":\"web-example\"},\"tested\":null}",
-          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[\"FAU data centre (EU)\"],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}",
+          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}",
           "agent-m.not-an-issue": "[\"MAIL-0123456789abcdef\"]",
           "agent-m.products": "[\"https://github.com/alice/thesis\",\"https://gitlab.example.org/group/tools/thesis\"]",
           "agent-m.remote-sessions": "[{\"name\":\"gpu-box\",\"port\":20001,\"bridgePort\":7171,\"route\":\"forward\",\"token\":\"session-token-example\",\"tested\":null}]",
@@ -385,7 +386,7 @@ flowchart LR
           "address": "reports@example.org",
           "route": "graph",
           "folders": ["INBOX", "Reports"],
-          "places": ["FAU data centre (EU)"],
+          "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
           "signIn": {
             "clientId": "11111111-2222-3333-4444-555555555555",
             "token": "eyJ0eXAi.example",
@@ -485,7 +486,7 @@ flowchart LR
             "address": "reports@example.org",
             "route": "graph",
             "folders": ["INBOX", "Reports"],
-            "places": ["FAU data centre (EU)"],
+            "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
             "signIn": {
               "clientId": "11111111-2222-3333-4444-555555555555",
               "token": "eyJ0eXAi.example",
@@ -575,7 +576,7 @@ flowchart LR
             "address": "reports@example.org",
             "route": "graph",
             "folders": ["INBOX", "Reports"],
-            "places": ["FAU data centre (EU)"],
+            "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
             "signIn": {
               "clientId": "11111111-2222-3333-4444-555555555555",
               "token": "eyJ0eXAi.example",
@@ -650,7 +651,7 @@ flowchart LR
             "address": "reports@example.org",
             "route": "graph",
             "folders": ["INBOX", "Reports"],
-            "places": ["FAU data centre (EU)"],
+            "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
             "signIn": {
               "clientId": "11111111-2222-3333-4444-555555555555",
               "token": "eyJ0eXAi.example",
@@ -725,7 +726,7 @@ flowchart LR
             "address": "reports@example.org",
             "route": "graph",
             "folders": ["INBOX", "Reports"],
-            "places": ["FAU data centre (EU)"],
+            "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
             "signIn": {
               "clientId": "11111111-2222-3333-4444-555555555555",
               "token": "eyJ0eXAi.example",
@@ -813,7 +814,7 @@ flowchart LR
             "address": "reports@example.org",
             "route": "graph",
             "folders": ["INBOX", "Reports"],
-            "places": ["FAU data centre (EU)"],
+            "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
             "signIn": {
               "clientId": "11111111-2222-3333-4444-555555555555",
               "token": "eyJ0eXAi.example",
@@ -882,7 +883,7 @@ flowchart LR
             "address": "reports@example.org",
             "route": "graph",
             "folders": ["INBOX", "Reports"],
-            "places": ["FAU data centre (EU)"],
+            "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
             "signIn": {
               "clientId": "11111111-2222-3333-4444-555555555555",
               "token": "eyJ0eXAi.example",
@@ -1172,7 +1173,7 @@ flowchart LR
           "address": "reports@example.org",
           "route": "graph",
           "folders": ["INBOX", "Reports"],
-          "places": ["FAU data centre (EU)"],
+          "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
           "signIn": {
             "clientId": "11111111-2222-3333-4444-555555555555",
             "token": "eyJ0eXAi.example",
@@ -1184,7 +1185,7 @@ flowchart LR
         }
       },
       "result": {
-        "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[\"FAU data centre (EU)\"],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}"
+        "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}"
       }
     },
     {
@@ -1207,6 +1208,67 @@ flowchart LR
         }
       },
       "refused": "incomplete"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-settings-store.storePlaces",
+  "summary": "The entries with the processing places the connected mailbox's mails may go to replaced, each with the author's statement whether it lies inside the European Union; the connection's tests kept, since its places do not change how it is reached.",
+  "params": [{ "name": "entries", "type": "SettingEntries" }, { "name": "places", "type": "AllowedPlace[]" }],
+  "result": "SettingEntries",
+  "async": false,
+  "refusals": [{ "code": "not-set", "when": "no mailbox is connected" }],
+  "examples": [
+    {
+      "name": "a second place allowed, its tests kept",
+      "input": {
+        "entries": {
+          "agent-m.bridge": "{\"address\":\"http://127.0.0.1:7171\",\"token\":\"bridge-token-example\",\"tested\":null}",
+          "agent-m.endpoints": "[{\"name\":\"hub\",\"url\":\"https://hub.example.org/v1\",\"model\":\"llama-3.3-70b\",\"key\":\"sk-example\",\"via\":\"browser\",\"tested\":null}]",
+          "agent-m.github-token": "github_pat_example",
+          "agent-m.github-token-expires": "2026-10-10",
+          "agent-m.github-token-tested": "{\"ok\":\"2026-10-01\"}",
+          "agent-m.gitlab-tokens": "{\"https://gitlab.example.org/group/tools/thesis\":{\"token\":\"glpat-example\",\"expires\":\"2026-12-31\"}}",
+          "agent-m.jump-host": "{\"host\":\"jump.example.org\",\"user\":\"alice\",\"portFrom\":20001,\"portTo\":20010,\"reverseKey\":\"~/.ssh/id_ed25519\",\"forwardKey\":\"~/.ssh/id_ed25519\",\"https\":\"https://jump.example.org\",\"login\":{\"user\":\"alice\",\"password\":\"web-example\"},\"tested\":null}",
+          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":{\"ok\":\"2026-10-01\"},\"send\":null}}",
+          "agent-m.not-an-issue": "[\"MAIL-0123456789abcdef\"]",
+          "agent-m.products": "[\"https://github.com/alice/thesis\",\"https://gitlab.example.org/group/tools/thesis\"]",
+          "agent-m.remote-sessions": "[{\"name\":\"gpu-box\",\"port\":20001,\"bridgePort\":7171,\"route\":\"forward\",\"token\":\"session-token-example\",\"tested\":null}]",
+          "agent-m.resource-keys": "[{\"name\":\"LOCAL_LLM_KEY\",\"server\":\"http://gpu01:8000\",\"key\":\"key-example\",\"tested\":null}]"
+        },
+        "places": [
+          { "place": "FAU data centre (EU)", "eu": "inside" },
+          { "place": "a provider in the USA", "eu": "outside" }
+        ]
+      },
+      "result": {
+        "agent-m.bridge": "{\"address\":\"http://127.0.0.1:7171\",\"token\":\"bridge-token-example\",\"tested\":null}",
+        "agent-m.endpoints": "[{\"name\":\"hub\",\"url\":\"https://hub.example.org/v1\",\"model\":\"llama-3.3-70b\",\"key\":\"sk-example\",\"via\":\"browser\",\"tested\":null}]",
+        "agent-m.github-token": "github_pat_example",
+        "agent-m.github-token-expires": "2026-10-10",
+        "agent-m.github-token-tested": "{\"ok\":\"2026-10-01\"}",
+        "agent-m.gitlab-tokens": "{\"https://gitlab.example.org/group/tools/thesis\":{\"token\":\"glpat-example\",\"expires\":\"2026-12-31\"}}",
+        "agent-m.jump-host": "{\"host\":\"jump.example.org\",\"user\":\"alice\",\"portFrom\":20001,\"portTo\":20010,\"reverseKey\":\"~/.ssh/id_ed25519\",\"forwardKey\":\"~/.ssh/id_ed25519\",\"https\":\"https://jump.example.org\",\"login\":{\"user\":\"alice\",\"password\":\"web-example\"},\"tested\":null}",
+        "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"},{\"place\":\"a provider in the USA\",\"eu\":\"outside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":{\"ok\":\"2026-10-01\"},\"send\":null}}",
+        "agent-m.not-an-issue": "[\"MAIL-0123456789abcdef\"]",
+        "agent-m.products": "[\"https://github.com/alice/thesis\",\"https://gitlab.example.org/group/tools/thesis\"]",
+        "agent-m.remote-sessions": "[{\"name\":\"gpu-box\",\"port\":20001,\"bridgePort\":7171,\"route\":\"forward\",\"token\":\"session-token-example\",\"tested\":null}]",
+        "agent-m.resource-keys": "[{\"name\":\"LOCAL_LLM_KEY\",\"server\":\"http://gpu01:8000\",\"key\":\"key-example\",\"tested\":null}]"
+      }
+    },
+    {
+      "name": "no mailbox connected",
+      "input": {
+        "entries": {
+          "agent-m.github-token": "github_pat_example",
+          "agent-m.products": "[\"https://github.com/alice/thesis\"]"
+        },
+        "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }]
+      },
+      "refused": "not-set"
     }
   ]
 }
@@ -1494,14 +1556,14 @@ flowchart LR
       "name": "sending refused, reading untouched",
       "input": {
         "entries": {
-          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[\"FAU data centre (EU)\"],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}"
+          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}"
         },
         "setting": { "setting": "mailbox", "item": "send" },
         "result": "refused",
         "date": "2026-10-03"
       },
       "result": {
-        "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[\"FAU data centre (EU)\"],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":{\"refused\":true}}}"
+        "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":{\"refused\":true}}}"
       }
     },
     {
@@ -1664,7 +1726,7 @@ flowchart LR
           "agent-m.github-token-tested": "{\"ok\":\"2026-10-01\"}",
           "agent-m.gitlab-tokens": "{\"https://gitlab.example.org/group/tools/thesis\":{\"token\":\"glpat-example\",\"expires\":\"2026-12-31\"}}",
           "agent-m.jump-host": "{\"host\":\"jump.example.org\",\"user\":\"alice\",\"portFrom\":20001,\"portTo\":20010,\"reverseKey\":\"~/.ssh/id_ed25519\",\"forwardKey\":\"~/.ssh/id_ed25519\",\"https\":\"https://jump.example.org\",\"login\":{\"user\":\"alice\",\"password\":\"web-example\"},\"tested\":null}",
-          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[\"FAU data centre (EU)\"],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}",
+          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}",
           "agent-m.not-an-issue": "[\"MAIL-0123456789abcdef\"]",
           "agent-m.products": "[\"https://github.com/alice/thesis\",\"https://gitlab.example.org/group/tools/thesis\"]",
           "agent-m.remote-sessions": "[{\"name\":\"gpu-box\",\"port\":20001,\"bridgePort\":7171,\"route\":\"forward\",\"token\":\"session-token-example\",\"tested\":null}]",
@@ -1678,7 +1740,7 @@ flowchart LR
           "agent-m.github-token": "github_pat_other",
           "agent-m.gitlab-tokens": "{\"https://gitlab.example.org/group/tools/thesis\":{\"token\":\"glpat-example\",\"expires\":\"2026-12-31\"}}",
           "agent-m.jump-host": "{\"host\":\"jump.example.org\",\"user\":\"alice\",\"portFrom\":20001,\"portTo\":20010,\"reverseKey\":\"~/.ssh/id_ed25519\",\"forwardKey\":\"~/.ssh/id_ed25519\",\"https\":\"https://jump.example.org\",\"login\":{\"user\":\"alice\",\"password\":\"web-example\"},\"tested\":null}",
-          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[\"FAU data centre (EU)\"],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}",
+          "agent-m.mailbox": "{\"address\":\"reports@example.org\",\"route\":\"graph\",\"folders\":[\"INBOX\",\"Reports\"],\"places\":[{\"place\":\"FAU data centre (EU)\",\"eu\":\"inside\"}],\"signIn\":{\"clientId\":\"11111111-2222-3333-4444-555555555555\",\"token\":\"eyJ0eXAi.example\",\"refreshToken\":\"0.refresh.example\",\"expires\":\"2026-10-03T15:00:00Z\"},\"login\":null,\"tested\":{\"read\":null,\"send\":null}}",
           "agent-m.not-an-issue": "[\"MAIL-0123456789abcdef\"]",
           "agent-m.products": "[\"https://gitlab.example.org/group/tools/thesis\",\"https://github.com/alice/thesis\"]",
           "agent-m.remote-sessions": "[{\"name\":\"lab\",\"port\":20001,\"bridgePort\":7171,\"route\":\"forward\",\"token\":\"lab-token\",\"tested\":null}]",
@@ -2033,8 +2095,26 @@ flowchart LR
 
 ```json type
 {
+  "$id": "AllowedPlace",
+  "description": "A processing place a mailbox's mails may go to, as a participant declares it, with the author's statement whether it lies inside the European Union: inside, outside, or unknown — which counts as outside.",
+  "type": "object",
+  "required": ["place", "eu"],
+  "additionalProperties": false,
+  "properties": {
+    "place": { "type": "string", "minLength": 1 },
+    "eu": { "type": "string", "enum": ["inside", "outside", "unknown"] }
+  },
+  "examples": [
+    { "place": "FAU data centre (EU)", "eu": "inside" },
+    { "place": "a provider in the USA", "eu": "outside" }
+  ]
+}
+```
+
+```json type
+{
   "$id": "Mailbox",
-  "description": "The mailbox connection: its address, its route, the folders read, the processing places its mails may go to, the route's sign-in or login, and its tests.",
+  "description": "The mailbox connection: its address, its route, the folders read, the processing places its mails may go to — each with the author's statement whether it lies inside the European Union —, the route's sign-in or login, and its tests.",
   "type": "object",
   "required": ["address", "route", "folders", "places", "signIn", "login", "tested"],
   "additionalProperties": false,
@@ -2042,7 +2122,7 @@ flowchart LR
     "address": { "type": "string" },
     "route": { "type": "string", "enum": ["graph", "imap"] },
     "folders": { "type": "array", "items": { "type": "string" } },
-    "places": { "type": "array", "items": { "type": "string" } },
+    "places": { "type": "array", "items": { "$ref": "AllowedPlace" } },
     "signIn": { "anyOf": [{ "$ref": "MailboxSignIn" }, { "type": "null" }] },
     "login": { "anyOf": [{ "$ref": "MailboxLogin" }, { "type": "null" }] },
     "tested": { "$ref": "MailboxTests" }
@@ -2052,7 +2132,7 @@ flowchart LR
       "address": "reports@example.org",
       "route": "graph",
       "folders": ["INBOX", "Reports"],
-      "places": ["FAU data centre (EU)"],
+      "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
       "signIn": {
         "clientId": "11111111-2222-3333-4444-555555555555",
         "token": "eyJ0eXAi.example",
@@ -2207,7 +2287,7 @@ flowchart LR
         "address": "reports@example.org",
         "route": "graph",
         "folders": ["INBOX", "Reports"],
-        "places": ["FAU data centre (EU)"],
+        "places": [{ "place": "FAU data centre (EU)", "eu": "inside" }],
         "signIn": {
           "clientId": "11111111-2222-3333-4444-555555555555",
           "token": "eyJ0eXAi.example",
