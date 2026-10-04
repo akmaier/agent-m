@@ -32,6 +32,8 @@ forced_by:
   - UC-044
   - UC-036
   - UC-041
+  - UC-004
+  - UC-016
 keeps:
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
 ---
@@ -57,10 +59,15 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    taken for a GitLab project, whose path runs up to GitLab's `/-/`.
 3. **GitHub** is read and written through `https://api.github.com`; without a token, files are read from
    `https://raw.githubusercontent.com`. A write is one commit through the git data API — a tree, a commit whose parent
-   is the head the caller read, and an update of the branch with `force: false`.
+   is the head the caller read, and an update of the branch with `force: false`. A file of bytes is first written as a
+   blob, its content base64 — "Currently, "utf-8" and "base64" are supported" (`https://docs.github.com/en/rest/git/blobs`)
+   —, and enters the tree by its `sha`: "Use either tree.sha or content to specify the contents of the entry"
+   (`https://docs.github.com/en/rest/git/trees`).
 4. **GitLab** is read and written through the REST API v4 of the server in the product's address, under that project's
    path only. A write is one `POST …/repository/commits` with one action per file, each existing file with
-   `last_commit_id` set to the head the caller read, after the branch was read again and found still at that head.
+   `last_commit_id` set to the head the caller read, after the branch was read again and found still at that head; a
+   file of bytes is an action whose `encoding` is `base64` — "`text` or `base64`. `text` is default."
+   (`https://docs.gitlab.com/api/commits/`).
 5. **A token goes only to its own API**, as a header the adapter builds: a GitHub token as `Authorization: Bearer` to
    `https://api.github.com`, a GitLab project token as `PRIVATE-TOKEN` to `<server>/api/v4/projects/<this project>` and
    to `<server>/api/v4/user`, which names the account it acts as, and nowhere else; a request whose URL holds the token
@@ -110,10 +117,12 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    saved (`MOD-git-host.pipelineSchedules`, `MOD-git-host.savePipelineSchedule`). A token that may not start a workflow
    is refused, and the server's page that starts it by hand is given instead (`MOD-git-host.workflowPageUrl`).
 10. **Code enters a default branch only through a pull request with green CI.** `MOD-git-host.writeFiles` refuses to
-   bring any file other than `SPEC.md`, `CHANGELOG.md` or a Markdown file under `docs/` — code, tests, workflows, pages
-   — onto the repository's default branch. `MOD-git-host.mergePullRequest` merges only at the head commit the caller
-   saw, and only when every CI check on it is green and at least one ran; a caller asks for it once the product's
-   Definition of Done holds. Whether the server itself enforces merging only on green is read
+   bring any file other than `SPEC.md`, `CHANGELOG.md`, a Markdown file under `docs/` or a source's content — a PDF, a
+   Word file or a zip archive under `docs/sources/<id>/<version>/`, which a register entry fixes by its SHA-256
+   (ARC-032) — onto the repository's default branch: code, tests, workflows and pages never reach it so. A file is given
+   by its text or by its bytes, base64-encoded (`FileWrite`). `MOD-git-host.mergePullRequest` merges only at the head
+   commit the caller saw, and only when every CI check on it is green and at least one ran; a caller asks for it once
+   the product's Definition of Done holds. Whether the server itself enforces merging only on green is read
    (`MOD-git-host.branchProtection`), so that a page can say when it does not, and link to where it is set.
 11. **Issues.** The adapter reads a product's issues, open and closed, with their descriptions and labels
    (`MOD-git-host.issues`) — on GitHub `GET /repos/{owner}/{repo}/issues?state=all`, a hundred to a page, where "GitHub's REST
@@ -183,6 +192,8 @@ flowchart LR
     "A VERSION IS NOT REWRITTEN"
   ],
   "owns": [
+    "FileBase64",
+    "FileWrite",
     "Product",
     "HeaderMap",
     "TreeEntry",
@@ -2477,12 +2488,12 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-git-host.writeFiles",
-  "summary": "One commit of the files given on the head the caller read, on an authority; refused when the branch moved meanwhile, and when a file other than SPEC.md, CHANGELOG.md or a Markdown file under docs/ would reach the repository's default branch.",
+  "summary": "One commit of the files given — each by its text, or by its bytes base64-encoded — on the head the caller read, on an authority; refused when the branch moved meanwhile, and when a file other than SPEC.md, CHANGELOG.md, a Markdown file under docs/ or a source's content under docs/sources/<id>/<version>/ — a PDF, a Word file or a zip archive — would reach the repository's default branch.",
   "params": [
     { "name": "product", "type": "Product" },
     { "name": "branch", "type": "string" },
     { "name": "head", "type": "string" },
-    { "name": "files", "type": "FileText[]" },
+    { "name": "files", "type": "FileWrite[]" },
     { "name": "message", "type": "string" },
     { "name": "token", "type": "string" },
     { "name": "fetch", "type": "FetchPort" },
@@ -2497,7 +2508,7 @@ flowchart LR
     { "code": "wrong-token", "when": "a GitHub token is given for a GitLab product" },
     {
       "code": "code-on-default-branch",
-      "when": "a file other than SPEC.md, CHANGELOG.md or Markdown under docs/ would reach the default branch"
+      "when": "a file other than SPEC.md, CHANGELOG.md, Markdown under docs/ or a source's content — a PDF, a Word file or a zip archive under docs/sources/<id>/<version>/ — would reach the default branch"
     },
     { "code": "moved", "when": "the branch moved on after the head the caller read" },
     {
@@ -2714,6 +2725,263 @@ flowchart LR
         "head": "a100000000000000000000000000000000000000",
         "files": [{ "path": ".github/workflows/agent-m.yml", "text": "name: agent-m\n" }],
         "message": "ci: add the workflow",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          }
+        ]
+      },
+      "refused": "code-on-default-branch"
+    },
+    {
+      "name": "a source's entry and its PDF on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "branch": "main",
+        "head": "a100000000000000000000000000000000000000",
+        "files": [
+          {
+            "path": "docs/sources/SRC-ai-act.md",
+            "text": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689\n---\n"
+          },
+          { "path": "docs/sources/SRC-ai-act/1/32024R1689.pdf", "base64": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk" }
+        ],
+        "message": "docs: SRC-ai-act fetched",
+        "token": "github_pat_example",
+        "authority": { "kind": "ci-secret" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "tree": { "sha": "d300000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/blobs",
+              "body": { "content": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk", "encoding": "base64" }
+            },
+            "response": { "status": 201, "body": { "sha": "c700000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "d300000000000000000000000000000000000000",
+                "tree": [
+                  {
+                    "path": "docs/sources/SRC-ai-act.md",
+                    "mode": "100644",
+                    "type": "blob",
+                    "content": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689\n---\n"
+                  },
+                  {
+                    "path": "docs/sources/SRC-ai-act/1/32024R1689.pdf",
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": "c700000000000000000000000000000000000000"
+                  }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "e400000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "docs: SRC-ai-act fetched",
+                "tree": "e400000000000000000000000000000000000000",
+                "parents": ["a100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "sha": "b200000000000000000000000000000000000000",
+                "html_url": "https://github.com/alice/thesis/commit/b200000000000000000000000000000000000000"
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "b200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "b200000000000000000000000000000000000000" } } }
+          }
+        ]
+      },
+      "result": {
+        "sha": "b200000000000000000000000000000000000000",
+        "url": "https://github.com/alice/thesis/commit/b200000000000000000000000000000000000000"
+      }
+    },
+    {
+      "name": "a source's entry and its PDF on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "branch": "main",
+        "head": "a100000000000000000000000000000000000000",
+        "files": [
+          {
+            "path": "docs/sources/SRC-ai-act.md",
+            "text": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689\n---\n"
+          },
+          { "path": "docs/sources/SRC-ai-act/1/32024R1689.pdf", "base64": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk" }
+        ],
+        "message": "docs: SRC-ai-act fetched",
+        "token": "glpat-example",
+        "authority": { "kind": "ci-secret" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/files/docs%2Fsources%2FSRC-ai-act.md?ref=a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 404, "body": { "message": "404 File Not Found" } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/files/docs%2Fsources%2FSRC-ai-act%2F1%2F32024R1689.pdf?ref=a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 404, "body": { "message": "404 File Not Found" } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/branches/main"
+            },
+            "response": { "status": 200, "body": { "commit": { "id": "a100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits",
+              "body": {
+                "branch": "main",
+                "commit_message": "docs: SRC-ai-act fetched",
+                "actions": [
+                  {
+                    "action": "create",
+                    "file_path": "docs/sources/SRC-ai-act.md",
+                    "content": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689\n---\n",
+                    "encoding": "text"
+                  },
+                  {
+                    "action": "create",
+                    "file_path": "docs/sources/SRC-ai-act/1/32024R1689.pdf",
+                    "content": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk",
+                    "encoding": "base64"
+                  }
+                ]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "id": "b200000000000000000000000000000000000000",
+                "web_url": "https://gitlab.example.org/group/tools/thesis/-/commit/b200000000000000000000000000000000000000"
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "sha": "b200000000000000000000000000000000000000",
+        "url": "https://gitlab.example.org/group/tools/thesis/-/commit/b200000000000000000000000000000000000000"
+      }
+    },
+    {
+      "name": "a PDF outside a source's content on the default branch",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "branch": "main",
+        "head": "a100000000000000000000000000000000000000",
+        "files": [{ "path": "docs/report.pdf", "base64": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk" }],
+        "message": "docs: a report",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          }
+        ]
+      },
+      "refused": "code-on-default-branch"
+    },
+    {
+      "name": "a web page in a source's version folder",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "branch": "main",
+        "head": "a100000000000000000000000000000000000000",
+        "files": [
+          {
+            "path": "docs/sources/SRC-ai-act/1/32024R1689.html",
+            "text": "<html><body>Regulation (EU) 2024/1689</body></html>\n"
+          }
+        ],
+        "message": "docs: a page",
+        "token": "github_pat_example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          }
+        ]
+      },
+      "refused": "code-on-default-branch"
+    },
+    {
+      "name": "a PDF under docs/sources/ outside a version's folder",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "branch": "main",
+        "head": "a100000000000000000000000000000000000000",
+        "files": [{ "path": "docs/sources/SRC-ai-act/act.pdf", "base64": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk" }],
+        "message": "docs: a PDF",
         "token": "github_pat_example",
         "authority": { "kind": "click" },
         "fetch": [
@@ -5660,6 +5928,35 @@ flowchart LR
       "commit": "a100000000000000000000000000000000000000",
       "url": "https://github.com/alice/thesis/tree/v2026.3.0"
     }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "FileBase64",
+  "description": "A file of a commit by its path and its bytes, base64-encoded.",
+  "type": "object",
+  "required": ["path", "base64"],
+  "additionalProperties": false,
+  "properties": {
+    "path": { "type": "string", "minLength": 1 },
+    "base64": { "type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$" }
+  },
+  "examples": [
+    { "path": "docs/sources/SRC-ai-act/1/32024R1689.pdf", "base64": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "FileWrite",
+  "description": "A file a commit writes: by its whole text, or by its bytes base64-encoded.",
+  "anyOf": [{ "$ref": "FileText" }, { "$ref": "FileBase64" }],
+  "examples": [
+    { "path": "docs/sources/SRC-ai-act.md", "text": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689\n---\n" },
+    { "path": "docs/sources/SRC-ai-act/1/32024R1689.pdf", "base64": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk" }
   ]
 }
 ```

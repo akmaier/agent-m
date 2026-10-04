@@ -104,6 +104,11 @@ sequenceDiagram
   to extend the token, as in UC-001.
 - **7a. The fetch fails** (the EU repository is unreachable, or the address names no text). The
   register entry shows the error and a **Fetch again** button; nothing is guessed.
+- **7b. The instance has no fetch workflow yet.** The library says so and offers
+  **Set up the fetch**, which opens a pull request with the workflow and names the secret it
+  writes with, `AGENT_M_TOKEN`, with a link to where it is stored. The author merges the pull
+  request once its CI is green, as any other; the fetch then runs on the next push of a register
+  entry, or on **Fetch again**.
 - **1a. The source is already in the library.** Agent M offers to add a new version instead (UC-016).
 
 ## Postcondition
