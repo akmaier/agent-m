@@ -106,8 +106,11 @@ together: what it reads of a product, what it computes for each view, and what i
    `docs/backlog/` hold, a new job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the
    jobs of CI agents it starts or retries, or whose gate the person decided, are dispatched (`MOD-main-page.runOnCi`),
    and a cancel cancels the job's run (`MOD-main-page.cancelOnCi`) (ARC-029) — a job no run of which is going ends as
-   cancelled at once, since nothing could confirm the cancel —; a job on a self-hosted runner of a repository that is
-   not private is not started, and its record ends as failed with the reason
+   cancelled at once, since nothing could confirm the cancel —; the jobs of agents on the bridge are handed to the bridge
+   on this computer (`MOD-main-page.runOnBridge`), and a cancel tells it to end the agent's process
+   (`MOD-main-page.cancelOnBridge`) (ARC-030) — once it confirms, or where it holds no such job, the record ends as
+   cancelled at once —; a job the bridge does not take stays queued, named with the reason and what works instead; a job
+   on a self-hosted runner of a repository that is not private is not started, and its record ends as failed with the reason
    (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY`). Where a run of the product is open, a click
    that starts, retries or cancels a job or decides a gate also dispatches the engine workflow
    (`MOD-main-page.engineOnCi`), so that the run takes its next step without a further click.
@@ -154,13 +157,14 @@ flowchart LR
   the page finds the text a job's gate is decided on.
 - The steps that hand work to a participant or that a runtime carries out are not realised here: drafting items (UC-032
   2, 3, 3a); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and runs (UC-034
-  1a, 4, 5, 6, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a, 8a; UC-043 1c, 5, 6, 8, 6a, 6b, 6c, 6d); a cancel or a retry (UC-036 6, 7,
-  6a); the job continuing or ending after a person's gate decision, whose record `MOD-process-views.planChange` and
+  1a, 4, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a — UC-034 5, 6 and 8a stand in ARC-030's table —; UC-043 1c, 5, 6, 8, 6a, 6b, 6c, 6d); a retry (UC-036 7, 6a); the job continuing or ending after a person's gate decision, whose record `MOD-process-views.planChange` and
   `MOD-main-page.commitChange` already write (UC-036 5); and the running jobs, their live states and logs, read from the
   runtimes (UC-035 1, 1b; UC-036 1, 1a, 1b, 1c, 4, 4a, 4b) — the rest of what UC-035 1 reads is
   `MOD-main-page.readProduct`. They are realised with the job runtimes, by their interfaces together with these: ARC-029
   designs the runtime of CI, which `MOD-main-page.runOnCi` and `MOD-main-page.cancelOnCi` start, continue and stop, and
-  names what each of these steps still needs.
+  names what each of these steps still needs; ARC-030 the jobs the bridge on this computer holds, to which
+  `MOD-main-page.runOnBridge` hands them and `MOD-main-page.cancelOnBridge` sends a cancel — which carries the cancel of a
+  job at its runtime (UC-036 6).
 - An item whose sources permit their content only in places no holder of the role uses (UC-034 3a) is named once the
   source library gives the restrictions of an item's sources; `MOD-process-views.startPanel` already takes them as
   input. Removing an item (UC-032 1a) waits for a write path that removes files; the difference of a gate passed on an
@@ -10588,8 +10592,8 @@ flowchart LR
   "layer": "shell",
   "responsibility": "The page at the root of the instance's Pages site that shows what goes on in the instance: it routes, reads each product at one commit with what its server reports, turns a trusted click into one commit planned on the head, merges a sprint's increment through a pull request, and holds every text the page shows.",
   "realises": ["THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE"],
-  "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "EngineDispatched", "RunSlotView", "FailedSlot", "RunView", "RetryPanel", "CiCancelled"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner"]
+  "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "EngineDispatched", "RunSlotView", "FailedSlot", "RunView", "RetryPanel", "CiCancelled", "BridgeWaiting", "BridgeHanded", "BridgeCancelled"],
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner", "MOD-bridge-server"]
 }
 ```
 
@@ -12409,6 +12413,920 @@ flowchart LR
         "clock": "2026-10-12T10:00:30Z"
       },
       "result": { "job": "JOB-20261012-0800-9a9a", "cancelled": [], "ended": true }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-main-page.runOnBridge",
+  "summary": "The jobs of agents on the bridge a click names — started, retried, or continued once a person decided their gate — handed to the bridge on this computer after the click's records are committed (MOD-job-runner.bridgePlan): each sent with POST /jobs and the bridge token (MOD-bridge-server.callBridge); a job the bridge does not take — it is not paired in this browser, the browser cannot reach it, it refuses the pairing, or the job's agent is not ready on it — stays queued, named with the reason and what works instead; a job of a kind the bridge does not carry out, or of a participant that is no agent on the bridge on this computer, is not handed over, and its record ends as failed.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "instance", "type": "string" },
+    { "name": "jobs", "type": "string[]" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "texts", "type": "StoragePort" },
+    { "name": "authority", "type": "Authority", "optional": true },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "BridgeHanded",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the start" },
+    { "code": "not-an-address", "when": "the product's or the instance's address is no repository address" },
+    { "code": "no-token", "when": "no token is stored for the product" },
+    { "code": "moved", "when": "the default branch moved on while a refused job's record was written" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives from the server" }
+  ],
+  "examples": [
+    {
+      "name": "ITM-014's job handed over; a CI configuration job and a sandboxed agent's job refused",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-3d3d", "JOB-20261012-0803-6a6a", "JOB-20261012-0804-7b7b"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-3d3d.md", "type": "blob", "sha": "3ad3de4cff25ed0187b2df02b0a73531fa35baaa" },
+                  { "path": "docs/jobs/JOB-20261012-0803-6a6a.md", "type": "blob", "sha": "4a3d7f6a2625a20e0d61da573c21e18d8fdb015e" },
+                  { "path": "docs/jobs/JOB-20261012-0804-7b7b.md", "type": "blob", "sha": "016980038b1d3b2d2bc068684e308c56f7752e4a" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/3ad3de4cff25ed0187b2df02b0a73531fa35baaa" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC0zZDNkCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2xpLWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTNkM2QKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/4a3d7f6a2625a20e0d61da573c21e18d8fdb015e" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMy02YTZhCmtpbmQ6IGNvbmZpZ3VyZS1jaQpwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2xpLWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOgptb2R1bGVzOiBbXQppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNsYXVkZS1vcHVzLTUtNQpsb2c6Ci0tLQoKIyBKT0ItMjAyNjEwMTItMDgwMy02YTZhCgoqKlJFR0lTVEVSKioKCiMjIFN0YXRlcwoKfCBBdCB8IFN0YXRlIHwgTm90ZSB8CnwtLS18LS0tfC0tLXwKfCAyMDI2LTEwLTEyVDA4OjAwOjAwWiB8IHF1ZXVlZCB8IOKAlCB8Cg==" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/016980038b1d3b2d2bc068684e308c56f7752e4a" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwNC03YjdiCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogYm94LWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE3Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY29kZXgtbW9kZWwKbG9nOgotLS0KCiMgSk9CLTIwMjYxMDEyLTA4MDQtN2I3YgoKKipSRUdJU1RFUioqCgojIyBTdGF0ZXMKCnwgQXQgfCBTdGF0ZSB8IE5vdGUgfAp8LS0tfC0tLXwtLS18CnwgMjAyNi0xMC0xMlQwODowMDowMFogfCBxdWV1ZWQgfCDigJQgfAo=" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n| oc-dev | CLI agent | anthropic/claude-sonnet-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: opencode |\n| box-dev | sandboxed agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's sandbox, Erlangen | the bridge of the session lab-1: codex |\n" }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/jobs",
+              "body": {
+                "product": "https://github.com/alice/thesis",
+                "instance": "https://github.com/alice/agent-m",
+                "job": "JOB-20261012-0800-3d3d",
+                "kind": "implement",
+                "inputs": [],
+                "participant": "cli-dev",
+                "cli": "claude",
+                "model": "claude-opus-5-5"
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "job": "JOB-20261012-0800-3d3d",
+                "product": "https://github.com/alice/thesis",
+                "instance": "https://github.com/alice/agent-m",
+                "kind": "implement",
+                "inputs": [],
+                "participant": "cli-dev",
+                "cli": "claude",
+                "model": "claude-opus-5-5",
+                "state": "running",
+                "started": "2026-10-12T08:00:30Z",
+                "ended": "",
+                "note": ""
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b900000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b900000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0803-6a6a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0803-6a6a\nkind: configure-ci\nphase: Doing\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0803-6a6a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:00:30Z | failed | JOB-20261012-0803-6a6a is a configure-ci job; the bridge carries out implementation and refactoring jobs |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" },
+                  { "path": "docs/jobs/JOB-20261012-0804-7b7b.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0804-7b7b\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: box-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-017\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: codex-model\nlog:\n---\n\n# JOB-20261012-0804-7b7b\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:00:30Z | failed | box-dev is no agent of the bridge on this computer |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "jobs refused: JOB-20261012-0803-6a6a, JOB-20261012-0804-7b7b",
+                "tree": "c900000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e900000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e900000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e900000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e900000000000000000000000000000000000000" } } }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": {
+        "handed": ["JOB-20261012-0800-3d3d"],
+        "waiting": [],
+        "refused": [
+          { "job": "JOB-20261012-0803-6a6a", "reason": "JOB-20261012-0803-6a6a is a configure-ci job; the bridge carries out implementation and refactoring jobs" },
+          { "job": "JOB-20261012-0804-7b7b", "reason": "box-dev is no agent of the bridge on this computer" }
+        ]
+      }
+    },
+    {
+      "name": "the browser cannot reach the bridge",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-3d3d"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-3d3d.md", "type": "blob", "sha": "3ad3de4cff25ed0187b2df02b0a73531fa35baaa" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/3ad3de4cff25ed0187b2df02b0a73531fa35baaa" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC0zZDNkCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2xpLWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTNkM2QKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n| oc-dev | CLI agent | anthropic/claude-sonnet-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: opencode |\n| box-dev | sandboxed agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's sandbox, Erlangen | the bridge of the session lab-1: codex |\n" }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": {
+        "handed": [],
+        "waiting": [
+          {
+            "job": "JOB-20261012-0800-3d3d",
+            "reason": "no answer from http://127.0.0.1:47321/jobs: the bridge does not run there, or this browser blocks the call",
+            "alternatives": ["start the bridge on this computer", "the bridge reached over HTTPS through the jump host (UC-011 1c)", "a CI agent, which needs no bridge (UC-010)"]
+          }
+        ],
+        "refused": []
+      }
+    },
+    {
+      "name": "the agent is not logged in on the bridge",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-3d3d"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-3d3d.md", "type": "blob", "sha": "3ad3de4cff25ed0187b2df02b0a73531fa35baaa" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/3ad3de4cff25ed0187b2df02b0a73531fa35baaa" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC0zZDNkCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2xpLWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTNkM2QKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n| oc-dev | CLI agent | anthropic/claude-sonnet-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: opencode |\n| box-dev | sandboxed agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's sandbox, Erlangen | the bridge of the session lab-1: codex |\n" }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/jobs",
+              "body": {
+                "product": "https://github.com/alice/thesis",
+                "instance": "https://github.com/alice/agent-m",
+                "job": "JOB-20261012-0800-3d3d",
+                "kind": "implement",
+                "inputs": [],
+                "participant": "cli-dev",
+                "cli": "claude",
+                "model": "claude-opus-5-5"
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": { "refused": "agent-not-ready", "reason": "claude is installed but not logged in; claude auth login logs it in" }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": {
+        "handed": [],
+        "waiting": [
+          {
+            "job": "JOB-20261012-0800-3d3d",
+            "reason": "claude is installed but not logged in; claude auth login logs it in",
+            "alternatives": ["log the agent in, as the bridge's window shows", "another holder of the role"]
+          }
+        ],
+        "refused": []
+      }
+    },
+    {
+      "name": "git holds no login for the product's server on the bridge's computer",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-3d3d"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-3d3d.md", "type": "blob", "sha": "3ad3de4cff25ed0187b2df02b0a73531fa35baaa" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/3ad3de4cff25ed0187b2df02b0a73531fa35baaa" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC0zZDNkCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2xpLWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTNkM2QKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n| oc-dev | CLI agent | anthropic/claude-sonnet-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: opencode |\n| box-dev | sandboxed agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's sandbox, Erlangen | the bridge of the session lab-1: codex |\n" }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/jobs",
+              "body": {
+                "product": "https://github.com/alice/thesis",
+                "instance": "https://github.com/alice/agent-m",
+                "job": "JOB-20261012-0800-3d3d",
+                "kind": "implement",
+                "inputs": [],
+                "participant": "cli-dev",
+                "cli": "claude",
+                "model": "claude-opus-5-5"
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": { "refused": "no-credential", "reason": "git holds no login for github.com over HTTPS; log git in with gh auth login, choosing HTTPS for Git operations and Y to authenticate Git with your GitHub credentials, or Git Credential Manager (https://docs.github.com/en/get-started/git-basics/caching-your-github-credentials-in-git)" }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": {
+        "handed": [],
+        "waiting": [
+          {
+            "job": "JOB-20261012-0800-3d3d",
+            "reason": "git holds no login for github.com over HTTPS; log git in with gh auth login, choosing HTTPS for Git operations and Y to authenticate Git with your GitHub credentials, or Git Credential Manager (https://docs.github.com/en/get-started/git-basics/caching-your-github-credentials-in-git)",
+            "alternatives": ["log git in to the product's server on that computer, as the reason names", "a CI agent, which needs no bridge (UC-010)"]
+          }
+        ],
+        "refused": []
+      }
+    },
+    {
+      "name": "no bridge paired in this browser",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-3d3d"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-3d3d.md", "type": "blob", "sha": "3ad3de4cff25ed0187b2df02b0a73531fa35baaa" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/3ad3de4cff25ed0187b2df02b0a73531fa35baaa" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC0zZDNkCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2xpLWRldgpydW50aW1lOiBicmlkZ2UKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTNkM2QKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: claude |\n| oc-dev | CLI agent | anthropic/claude-sonnet-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on this computer: opencode |\n| box-dev | sandboxed agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's sandbox, Erlangen | the bridge of the session lab-1: codex |\n" }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": {
+        "handed": [],
+        "waiting": [
+          {
+            "job": "JOB-20261012-0800-3d3d",
+            "reason": "no bridge is paired in this browser",
+            "alternatives": ["pair the bridge on this computer on the settings page", "a CI agent, which needs no bridge (UC-010)"]
+          }
+        ],
+        "refused": []
+      }
+    },
+    {
+      "name": "no click",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-3d3d"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "texts": {},
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "refused": "no-authority"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-main-page.cancelOnBridge",
+  "summary": "The bridge on this computer told to end a job's agent process after the click that cancels it committed its cancel record, DELETE /jobs/<id> with the bridge token; once the bridge confirms — or where it holds no such job, so that nothing could confirm the cancel —, the job's record ends as cancelled at once; where the bridge cannot be reached, nothing is written and the job shows as cancelling (MOD-run-engine.jobState).",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "job", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "BridgeCancelled",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the cancel" },
+    { "code": "not-an-address", "when": "the product's address is no repository address" },
+    { "code": "no-token", "when": "no token is stored for the product" },
+    { "code": "not-cancelled", "when": "the job has no cancel record" },
+    { "code": "no-file", "when": "the job has no record" },
+    { "code": "moved", "when": "the default branch moved on while the record was written" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives from the server" }
+  ],
+  "examples": [
+    {
+      "name": "ITM-016's running job",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "job": "JOB-20261012-0802-5f5f",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0802-5f5f\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0802-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:01:00Z | running | attempt 1 on cli-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "job: JOB-20261012-0802-5f5f\nby: alice\nat: 2026-10-12T08:10:00Z\n" }
+          },
+          {
+            "request": { "method": "DELETE", "url": "http://127.0.0.1:47321/jobs/JOB-20261012-0802-5f5f" },
+            "response": {
+              "status": 200,
+              "body": {
+                "job": "JOB-20261012-0802-5f5f",
+                "stop": true,
+                "entry": {
+                  "job": "JOB-20261012-0802-5f5f",
+                  "product": "https://github.com/alice/thesis",
+                  "instance": "https://github.com/alice/agent-m",
+                  "kind": "implement",
+                  "inputs": [],
+                  "participant": "cli-dev",
+                  "cli": "claude",
+                  "model": "claude-opus-5-5",
+                  "state": "cancelled",
+                  "started": "2026-10-12T08:01:00Z",
+                  "ended": "2026-10-12T08:10:30Z",
+                  "note": "cancelled on the dashboard"
+                }
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b900000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b900000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0802-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0802-5f5f\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0802-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:01:00Z | running | attempt 1 on cli-dev |\n| 2026-10-12T08:10:30Z | cancelled | cancelled by alice; the bridge ended the agent's process |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0802-5f5f: cancelled",
+                "tree": "c900000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e900000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e900000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e900000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e900000000000000000000000000000000000000" } } }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:10:30Z"
+      },
+      "result": { "job": "JOB-20261012-0802-5f5f", "stopped": true, "ended": true, "reason": "" }
+    },
+    {
+      "name": "a job the bridge does not hold",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "job": "JOB-20261012-0802-5f5f",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0802-5f5f\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0802-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:01:00Z | running | attempt 1 on cli-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "job: JOB-20261012-0802-5f5f\nby: alice\nat: 2026-10-12T08:10:00Z\n" }
+          },
+          {
+            "request": { "method": "DELETE", "url": "http://127.0.0.1:47321/jobs/JOB-20261012-0802-5f5f" },
+            "response": {
+              "status": 200,
+              "body": { "refused": "unknown-job", "reason": "this bridge holds no job JOB-20261012-0802-5f5f" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b900000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b900000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0802-5f5f.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0802-5f5f\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0802-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:01:00Z | running | attempt 1 on cli-dev |\n| 2026-10-12T08:10:30Z | cancelled | cancelled by alice; the bridge held no process of it |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0802-5f5f: cancelled",
+                "tree": "c900000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e900000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e900000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e900000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e900000000000000000000000000000000000000" } } }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:10:30Z"
+      },
+      "result": { "job": "JOB-20261012-0802-5f5f", "stopped": false, "ended": true, "reason": "" }
+    },
+    {
+      "name": "the browser cannot reach the bridge",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "job": "JOB-20261012-0802-5f5f",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0802-5f5f\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0802-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:01:00Z | running | attempt 1 on cli-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "job: JOB-20261012-0802-5f5f\nby: alice\nat: 2026-10-12T08:10:00Z\n" }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:10:30Z"
+      },
+      "result": { "job": "JOB-20261012-0802-5f5f", "stopped": false, "ended": false, "reason": "no answer from http://127.0.0.1:47321/jobs/JOB-20261012-0802-5f5f: the bridge does not run there, or this browser blocks the call; the job shows as cancelling until its bridge confirms" }
+    },
+    {
+      "name": "a job without its cancel record",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "job": "JOB-20261012-0802-5f5f",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0802-5f5f\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0802-5f5f\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:01:00Z | running | attempt 1 on cli-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0802-5f5f.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:10:30Z"
+      },
+      "refused": "not-cancelled"
     }
   ]
 }
@@ -14423,6 +15341,84 @@ flowchart LR
     "ended": { "type": "boolean" }
   },
   "examples": [{ "job": "JOB-20261012-0800-9a9a", "cancelled": [4811], "ended": false }]
+}
+```
+
+```json type
+{
+  "$id": "BridgeWaiting",
+  "description": "A job the bridge did not take, which stays queued: why, and what works instead.",
+  "type": "object",
+  "required": ["job", "reason", "alternatives"],
+  "additionalProperties": false,
+  "properties": {
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "reason": { "type": "string", "minLength": 1 },
+    "alternatives": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "job": "JOB-20261012-0800-3d3d",
+      "reason": "no answer from http://127.0.0.1:47321/jobs: the bridge does not run there, or this browser blocks the call",
+      "alternatives": ["start the bridge on this computer", "the bridge reached over HTTPS through the jump host (UC-011 1c)", "a CI agent, which needs no bridge (UC-010)"]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "BridgeHanded",
+  "description": "What a click handed to the bridge on this computer: the jobs it took, those it did not take, which stay queued, and those refused with the reason, each recorded as failed.",
+  "type": "object",
+  "required": ["handed", "waiting", "refused"],
+  "additionalProperties": false,
+  "properties": {
+    "handed": { "type": "array", "items": { "type": "string" } },
+    "waiting": { "type": "array", "items": { "$ref": "BridgeWaiting" } },
+    "refused": { "type": "array", "items": { "$ref": "JobRefusal" } }
+  },
+  "examples": [
+    {
+      "handed": ["JOB-20261012-0800-3d3d"],
+      "waiting": [],
+      "refused": [
+        { "job": "JOB-20261012-0803-6a6a", "reason": "JOB-20261012-0803-6a6a is a configure-ci job; the bridge carries out implementation and refactoring jobs" },
+        { "job": "JOB-20261012-0804-7b7b", "reason": "box-dev is no agent of the bridge on this computer" }
+      ]
+    },
+    {
+      "handed": [],
+      "waiting": [
+        {
+          "job": "JOB-20261012-0800-3d3d",
+          "reason": "claude is installed but not logged in; claude auth login logs it in",
+          "alternatives": ["log the agent in, as the bridge's window shows", "another holder of the role"]
+        }
+      ],
+      "refused": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "BridgeCancelled",
+  "description": "What a cancel on the bridge did: whether the bridge ended the agent's process, whether the job's record ended as cancelled at once, and why not — empty where it did.",
+  "type": "object",
+  "required": ["job", "stopped", "ended", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "stopped": { "type": "boolean" },
+    "ended": { "type": "boolean" },
+    "reason": { "type": "string" }
+  },
+  "examples": [
+    { "job": "JOB-20261012-0802-5f5f", "stopped": true, "ended": true, "reason": "" },
+    { "job": "JOB-20261012-0802-5f5f", "stopped": false, "ended": false, "reason": "no answer from http://127.0.0.1:47321/jobs/JOB-20261012-0802-5f5f: the bridge does not run there, or this browser blocks the call; the job shows as cancelling until its bridge confirms" }
+  ]
 }
 ```
 

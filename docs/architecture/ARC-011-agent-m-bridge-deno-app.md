@@ -157,7 +157,7 @@ on `deno desktop`, measurement point 1. Agent M's licence is MIT.
   "responsibility": "The bridge runtime's composition root: how it shows itself — tray, window or headless —, its pairing kept in its one store, its greeting, and its route table; it holds the tray, the window and every text they show, starts the server with the protocol's checks, and runs the probes of the agents.",
   "realises": ["THE BRIDGE RUNS AS AN APP", "THE BRIDGE IS PAIRED ONCE", "THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW"],
   "owns": ["ShellSession", "ShellMode", "Pairing", "PairedOrigin", "HelloInput", "Hello"],
-  "uses": ["MOD-contracts", "MOD-bridge-server", "MOD-local-agents", "MOD-bridge-update"]
+  "uses": ["MOD-contracts", "MOD-bridge-server", "MOD-local-agents", "MOD-bridge-update", "MOD-bridge-jobs", "MOD-job-steps"]
 }
 ```
 
