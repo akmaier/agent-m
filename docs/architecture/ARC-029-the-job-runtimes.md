@@ -60,7 +60,8 @@ key variables depend on the provider, and whether its JSON reports usage is not 
    (ARC-015); the dashboard starts, continues and stops CI jobs on a click (`MOD-main-page.runOnCi`,
    `MOD-main-page.cancelOnCi`, ARC-024). `MOD-job-steps`, a feature, holds the steps every runtime performs alike against
    the product's server (decision 11): CI performs them on the CI secret (`MOD-ci-entry`, ARC-015), the bridge on the git
-   login the agent already has (ARC-030). The runtime of the browser tab is designed with the drafting jobs.
+   login the agent already has (ARC-030). The browser tab takes the steps of a drafting job for a model endpoint the browser
+   calls (`MOD-drafting`, ARC-031).
 2. **A CI agent names its CLI and runner** in its route: `the workflow agent-m-job: <cli> on GitHub's machines`, or
    `… on the runner <label>` (`MOD-job-runner.ciAgentOf`). Its CLI is `claude` or `codex`; on GitHub's machines its key
    is the CI secret `AGENT_M_AGENT_KEY_<NAME>`, handed to the variable its vendor reads; on a self-hosted runner the CLI
@@ -196,15 +197,16 @@ sequenceDiagram
   log of a failed job is linked once logs are read (open measurement 2; UC-034 6a); a retry starts a job on every
   runtime, the browser tab's among them (UC-036 7).
 - **Not realised here — what reads every runtime.** The list of jobs and a job's detail, with their live states, logs
-  and usage (UC-035 1, 1b; UC-036 1, 4, 1a, 1b, 1c, 4a, 4b), read the bridge's job list, the jobs of a browser tab,
-  designed with the drafting jobs, and a GitLab product's pipelines, designed with its CI files; the log of a CI run
+  and usage (UC-035 1, 1b; UC-036 1, 4, 1a, 1b, 1c, 4a, 4b), read the bridge's job list, the live jobs of a browser tab,
+  which ARC-031 leaves to this, and a GitLab product's pipelines, designed with its CI files; the log of a CI run
   waits for open measurement 2.
 - **Not realised here — what neither runtime has yet:** the job of an agent that decides a gate (UC-034 7, UC-036 5);
   the author's answer to a job's question (UC-034 5a) and an agent's proposal of a specification change (UC-034 5b);
   closing an item's issue with a link (UC-034 8, UC-033 6); rebasing a later push onto the branch its work goes into,
   and stopping on a conflict (UC-034 6b); flagging a commit written after a cancel, and offering its revert (UC-036 6a).
-- **Not realised here — what comes with other jobs and with runs.** Items drafted by a participant (UC-032 2, 3, 3a) and
-  a job against a model endpoint in GitHub Actions (UC-010) come with the drafting jobs; an agent as Product Owner
+- **Not realised here — what comes with other jobs and with runs.** Items drafted by a participant stand in ARC-031's table
+  (UC-032 2, 3), and a requirement's coverage by several items comes with the views (UC-032 3a); a job against a model
+  endpoint in GitHub Actions (UC-010) comes with the drafting jobs in CI (ARC-031); an agent as Product Owner
   (UC-032 1c) with a job of that kind, whose inputs `MOD-job-runner.jobInputs` does not give. A run over a selection
   (UC-043 5, 6, 8, 6a, 6b, 6c, 6d) has its engine (ARC-010 decisions 5 and 9) and its dashboard (ARC-024): the first
   jobs on the click, the run's view — which carries UC-043 7 —, **Stop run** and **Continue**. It needs the bridge and

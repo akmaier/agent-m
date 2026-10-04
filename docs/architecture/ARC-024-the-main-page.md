@@ -17,6 +17,8 @@ forced_by:
   - NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
   - THE NAME IS THE ID AND IT SURVIVES
   - A JOB IDENTIFIER IS NEVER REUSED
+  - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A CANCELLED JOB WRITES NOTHING MORE
   - THE GATE IS RECORDED
   - A GATE NAMES WHO DECIDES IT
   - A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS
@@ -101,7 +103,10 @@ together: what it reads of a product, what it computes for each view, and what i
    never on their own work, never without holding the deciding role, a rejection with its reason —, a cancel, a run's
    stop — the cancel records of the run and of every job of it that has not ended —, a run's raised limits (ARC-010
    decision 6), and the start records of jobs, of a run — begun running — with its first jobs, or of a retry naming the
-   job it retries — an agent's job with who merges its pull request where the author chose it (UC-034 8). A new item
+   job it retries — an agent's job with who merges its pull request where the author chose it (UC-034 8) —, and the end of a
+   drafting job the page ran in the browser tab, written by that page, and written as cancelled with no results where a
+   cancel record names the job by then (ARC-031). Items a drafting job proposed carry its provenance in the commit's message
+   (`MOD-job-harness.commitMessage`), never in their texts. A new item
    gets its identifier from `MOD-work-items.nextItemId` over every identifier the files and the version history of
    `docs/backlog/` hold, a new job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the
    jobs of CI agents it starts or retries, or whose gate the person decided, are dispatched (`MOD-main-page.runOnCi`),
@@ -156,7 +161,7 @@ flowchart LR
 - The job runtimes name an item's branch `item/<identifier>` and record their pull request among their results, so that
   the page finds the text a job's gate is decided on.
 - The steps that hand work to a participant or that a runtime carries out are not realised here: drafting items (UC-032
-  2, 3, 3a); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and runs (UC-034
+  3a — UC-032 2 and 3 stand in ARC-031's table —); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and runs (UC-034
   1a, 4, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a — UC-034 5, 6 and 8a stand in ARC-030's table —; UC-043 1c, 5, 6, 8, 6a, 6b, 6c, 6d); a retry (UC-036 7, 6a); the job continuing or ending after a person's gate decision, whose record `MOD-process-views.planChange` and
   `MOD-main-page.commitChange` already write (UC-036 5); and the running jobs, their live states and logs, read from the
   runtimes (UC-035 1, 1b; UC-036 1, 1a, 1b, 1c, 4, 4a, 4b) — the rest of what UC-035 1 reads is
@@ -182,9 +187,9 @@ flowchart LR
   "folder": "src/process-views/",
   "layer": "feature",
   "responsibility": "Computes what the main page shows of a product from one commit through read ports and from what its server and runtimes report, given as data — its process, backlog, records and acceptance, an item's facts, the backlog and board, the progress page with its gates, blocked items and who works on what, what lies behind a point of a chart, the job list over every product, the start panel of items, the panel of a run and the review of a sprint's increment — and the files of every write the page makes, planned on the head.",
-  "realises": ["PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "ONE DASHBOARD SHOWS EVERY JOB", "A RUN ENDS WITH THE VALIDATION OF ITS MODULES"],
-  "owns": ["ProductProcess", "WorkflowOrNone", "CloseRef", "Backlog", "DatedGate", "Records", "Acceptance", "LiveJob", "ProductState", "BacklogRow", "SprintStatus", "SprintStatusOrNone", "SprintPlanning", "SprintPlanningOrNone", "WipStatus", "BacklogView", "ProgressOrNone", "ProgressView", "GateRow", "BlockedRow", "WorkJob", "ParticipantWork", "ProgressPage", "PlanTotals", "PlanTotalsOrNone", "StateCountsOrNone", "ProductSummary", "ChartPoint", "BehindItem", "Behind", "JobSource", "JobFilter", "Sends", "SendsOrNone", "StartGate", "StartRow", "StartPanel", "RunCandidate", "RoleCandidates", "RunPlanOrNone", "RefusalOrNone", "RunPanel", "DoneRow", "NotDoneRow", "CloseView", "JobStart", "ItemsChange", "OrderChange", "SprintChange", "ReplanChange", "EndChange", "GateChange", "CancelChange", "JobsChange", "FirstJob", "RunChange", "StopChange", "LimitsChange", "RetryChange", "PageChange", "HeadFacts", "PlannedCommit"],
-  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-process-model", "MOD-work-items", "MOD-run-engine", "MOD-job-runner"]
+  "realises": ["PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "ONE DASHBOARD SHOWS EVERY JOB", "A RUN ENDS WITH THE VALIDATION OF ITS MODULES", "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "A CANCELLED JOB WRITES NOTHING MORE"],
+  "owns": ["ProductProcess", "WorkflowOrNone", "CloseRef", "Backlog", "DatedGate", "Records", "Acceptance", "LiveJob", "ProductState", "BacklogRow", "SprintStatus", "SprintStatusOrNone", "SprintPlanning", "SprintPlanningOrNone", "WipStatus", "BacklogView", "ProgressOrNone", "ProgressView", "GateRow", "BlockedRow", "WorkJob", "ParticipantWork", "ProgressPage", "PlanTotals", "PlanTotalsOrNone", "StateCountsOrNone", "ProductSummary", "ChartPoint", "BehindItem", "Behind", "JobSource", "JobFilter", "Sends", "SendsOrNone", "StartGate", "StartRow", "StartPanel", "RunCandidate", "RoleCandidates", "RunPlanOrNone", "RefusalOrNone", "RunPanel", "DoneRow", "NotDoneRow", "CloseView", "JobStart", "ItemsChange", "EndedChange", "OrderChange", "SprintChange", "ReplanChange", "EndChange", "GateChange", "CancelChange", "JobsChange", "FirstJob", "RunChange", "StopChange", "LimitsChange", "RetryChange", "PageChange", "HeadFacts", "PlannedCommit"],
+  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-process-model", "MOD-work-items", "MOD-run-engine", "MOD-job-runner", "MOD-job-harness"]
 }
 ```
 
@@ -9433,7 +9438,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-views.planChange",
-  "summary": "The files and the message of one write of the page, planned on the head read: new items appended to the order, each with the identifier MOD-work-items.nextItemId gives over every one the files and the version history hold; a new order of the same items; a sprint started or its selection changed; a sprint's end; a person's gate decision — never on their own work, never by one who does not hold the deciding role —; a cancel; the start records of jobs, of a run and its first jobs, or of a retry naming the job it retries, each with an identifier from MOD-run-engine.newJobId.",
+  "summary": "The files and the message of one write of the page, planned on the head read: new items appended to the order, each with the identifier MOD-work-items.nextItemId gives over every one the files and the version history hold; a new order of the same items; a sprint started or its selection changed; a sprint's end; a person's gate decision — never on their own work, never by one who does not hold the deciding role —; a cancel; the start records of jobs, of a run and its first jobs, or of a retry naming the job it retries, each with an identifier from MOD-run-engine.newJobId; the end of a job the page ran in the browser tab — cancelled, with no results, where a cancel record names it by then (ARC-031); and items a drafting job proposed with its provenance in the message (MOD-job-harness.commitMessage).",
   "params": [{ "name": "change", "type": "PageChange" }, { "name": "head", "type": "HeadFacts" }],
   "result": "PlannedCommit",
   "async": false,
@@ -9459,6 +9464,7 @@ flowchart LR
     { "code": "no-identifier", "when": "the random draws give no free identifier" },
     { "code": "not-ended", "when": "a retried job has not failed, been cancelled or ended without a record" },
     { "code": "no-run", "when": "the change names no run of the product" },
+    { "code": "not-in-the-tab", "when": "the end recorded is of a job the page did not run in the browser tab" },
     { "code": "unknown-change", "when": "the change is of no kind the page makes" }
   ],
   "examples": [
@@ -10578,6 +10584,290 @@ flowchart LR
         }
       },
       "refused": "not-ended"
+    },
+    {
+      "name": "the end of a drafting job in the tab",
+      "input": {
+        "change": {
+          "kind": "ended",
+          "job": "JOB-20261009-0920-4e4e",
+          "end": {
+            "state": "done",
+            "note": "2 items drafted and shown",
+            "results": ["Show the word count while writing", "Write a chapter in the editor"],
+            "rounds": 2,
+            "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
+            "cost": null
+          }
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0920-4e4e",
+                "path": "docs/jobs/JOB-20261009-0920-4e4e.md",
+                "kind": "propose-items",
+                "phase": "Sprint planning",
+                "role": "Product Owner",
+                "participant": "hub-writer",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": ["SPEC.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/backlog/"],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "llama-3.3-70b",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [{ "at": "2026-10-09T09:20:00Z", "state": "queued", "note": "" }],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:24:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261009-0920-4e4e.md", "text": "---\nid: JOB-20261009-0920-4e4e\nkind: propose-items\nphase: Sprint planning\nrole: Product Owner\nparticipant: hub-writer\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - SPEC.md\n  - docs/use-cases/UC-002-write-a-chapter.md\n  - docs/backlog/\nretry_of:\nagent_m: 2026.10.1\nmodel: llama-3.3-70b\nlog:\n---\n\n# JOB-20261009-0920-4e4e\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:20:00Z | queued | — |\n| 2026-10-09T09:24:00Z | done | 2 items drafted and shown |\n\n## Results\n\n- Show the word count while writing\n- Write a chapter in the editor\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 2 | — | 5390 | 420 | — |\n" }
+        ],
+        "message": "JOB-20261009-0920-4e4e: done"
+      }
+    },
+    {
+      "name": "the end of a drafting job cancelled meanwhile",
+      "input": {
+        "change": {
+          "kind": "ended",
+          "job": "JOB-20261009-0920-4e4e",
+          "end": {
+            "state": "done",
+            "note": "2 items drafted and shown",
+            "results": ["Show the word count while writing", "Write a chapter in the editor"],
+            "rounds": 2,
+            "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
+            "cost": null
+          }
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0920-4e4e",
+                "path": "docs/jobs/JOB-20261009-0920-4e4e.md",
+                "kind": "propose-items",
+                "phase": "Sprint planning",
+                "role": "Product Owner",
+                "participant": "hub-writer",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": ["SPEC.md", "docs/use-cases/UC-002-write-a-chapter.md", "docs/backlog/"],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "llama-3.3-70b",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [{ "at": "2026-10-09T09:20:00Z", "state": "queued", "note": "" }],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [
+              { "path": "docs/jobs/cancels/JOB-20261009-0920-4e4e.md", "job": "JOB-20261009-0920-4e4e", "by": "alice", "at": "2026-10-09T09:22:00Z" }
+            ],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:24:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261009-0920-4e4e.md", "text": "---\nid: JOB-20261009-0920-4e4e\nkind: propose-items\nphase: Sprint planning\nrole: Product Owner\nparticipant: hub-writer\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs:\n  - SPEC.md\n  - docs/use-cases/UC-002-write-a-chapter.md\n  - docs/backlog/\nretry_of:\nagent_m: 2026.10.1\nmodel: llama-3.3-70b\nlog:\n---\n\n# JOB-20261009-0920-4e4e\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:20:00Z | queued | — |\n| 2026-10-09T09:24:00Z | cancelled | cancelled by alice |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 2 | — | 5390 | 420 | — |\n" }
+        ],
+        "message": "JOB-20261009-0920-4e4e: cancelled"
+      }
+    },
+    {
+      "name": "the end of a job CI runs",
+      "input": {
+        "change": {
+          "kind": "ended",
+          "job": "JOB-20261008-1300-c3d4",
+          "end": {
+            "state": "done",
+            "note": "2 items drafted and shown",
+            "results": ["Show the word count while writing", "Write a chapter in the editor"],
+            "rounds": 2,
+            "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
+            "cost": null
+          }
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261008-1300-c3d4",
+                "path": "docs/jobs/JOB-20261008-1300-c3d4.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "",
+                "slot": "",
+                "item": "ITM-017",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T13:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T13:02:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T15:30:00Z", "state": "failed", "note": "CI stayed red after 5 correction rounds" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": null,
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:24:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "refused": "not-in-the-tab"
+    },
+    {
+      "name": "an item a drafting job proposed",
+      "input": {
+        "change": {
+          "kind": "items",
+          "items": [
+            {
+              "id": "",
+              "path": "",
+              "title": "Show the word count while writing",
+              "kind": "implementation",
+              "realises": ["A CHAPTER SHOWS ITS WORD COUNT"],
+              "modules": [],
+              "dependsOn": [],
+              "origins": ["A CHAPTER SHOWS ITS WORD COUNT"],
+              "outcome": "The author sees how many words the chapter has while writing it.",
+              "criteria": ["The count changes as the author types."],
+              "notes": ""
+            }
+          ],
+          "provenance": { "job": "JOB-20261009-0920-4e4e", "participant": "hub-writer", "model": "llama-3.3-70b", "agentM": "2026.10.1", "rounds": 2, "instruction": "" }
+        },
+        "head": {
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-018",
+                "path": "docs/backlog/ITM-018-show-the-list-of-chapters.md",
+                "title": "Show the list of chapters",
+                "kind": "implementation",
+                "realises": ["NO SERVER", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": ["ITM-016"],
+                "origins": ["UC-001"],
+                "outcome": "Show the list of chapters.",
+                "criteria": ["Show the list of chapters works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": {
+              "title": "Backlog order",
+              "intro": "The order in which the items are worked on.",
+              "order": ["ITM-016", "ITM-015", "ITM-017", "ITM-014", "ITM-018"],
+              "unplaced": ["ITM-018"],
+              "unknown": ["ITM-009"],
+              "notes": ""
+            },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:30:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/backlog/ITM-019-show-the-word-count-while-writing.md", "text": "---\nid: ITM-019\ntitle: Show the word count while writing\nkind: implementation\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\norigin:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n\n# ITM-019 Show the word count while writing\n\n**REGISTER**\n\n## Outcome\n\nThe author sees how many words the chapter has while writing it.\n\n## Acceptance criteria\n\n- The count changes as the author types.\n" },
+          { "path": "docs/backlog/order.md", "text": "# Backlog order\n\nThe order in which the items are worked on.\n\n## Order\n\n1. ITM-016\n2. ITM-015\n3. ITM-017\n4. ITM-014\n5. ITM-018\n6. ITM-019\n" }
+        ],
+        "message": "backlog: ITM-019 added\n\nJob: JOB-20261009-0920-4e4e\nParticipant: hub-writer\nModel: llama-3.3-70b\nAgent-M: 2026.10.1\nRounds: 2\n"
+      }
     }
   ]
 }
@@ -10593,7 +10883,7 @@ flowchart LR
   "responsibility": "The page at the root of the instance's Pages site that shows what goes on in the instance: it routes, reads each product at one commit with what its server reports, turns a trusted click into one commit planned on the head, merges a sprint's increment through a pull request, and holds every text the page shows.",
   "realises": ["THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE"],
   "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "EngineDispatched", "RunSlotView", "FailedSlot", "RunView", "RetryPanel", "CiCancelled", "BridgeWaiting", "BridgeHanded", "BridgeCancelled"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner", "MOD-bridge-server"]
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner", "MOD-bridge-server", "MOD-job-harness", "MOD-drafting"]
 }
 ```
 
@@ -14598,11 +14888,15 @@ flowchart LR
 ```json type
 {
   "$id": "ItemsChange",
-  "description": "New items for the backlog, appended to the order.",
+  "description": "New items for the backlog, appended to the order, and the provenance of the drafting job that proposed them, where one did.",
   "type": "object",
   "required": ["kind", "items"],
   "additionalProperties": false,
-  "properties": { "kind": { "const": "items" }, "items": { "type": "array", "items": { "$ref": "BacklogItem" } } },
+  "properties": {
+    "kind": { "const": "items" },
+    "items": { "type": "array", "items": { "$ref": "BacklogItem" } },
+    "provenance": { "anyOf": [{ "$ref": "Provenance" }, { "type": "null" }] }
+  },
   "examples": [
     {
       "kind": "items",
@@ -14621,6 +14915,54 @@ flowchart LR
           "notes": ""
         }
       ]
+    },
+    {
+      "kind": "items",
+      "items": [
+        {
+          "id": "",
+          "path": "",
+          "title": "Show the word count while writing",
+          "kind": "implementation",
+          "realises": ["A CHAPTER SHOWS ITS WORD COUNT"],
+          "modules": [],
+          "dependsOn": [],
+          "origins": ["A CHAPTER SHOWS ITS WORD COUNT"],
+          "outcome": "The author sees how many words the chapter has while writing it.",
+          "criteria": ["The count changes as the author types."],
+          "notes": ""
+        }
+      ],
+      "provenance": { "job": "JOB-20261009-0920-4e4e", "participant": "hub-writer", "model": "llama-3.3-70b", "agentM": "2026.10.1", "rounds": 2, "instruction": "" }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "EndedChange",
+  "description": "The end of a job the page ran in the browser tab, as the job states it (ARC-031).",
+  "type": "object",
+  "required": ["kind", "job", "end"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "ended" },
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "end": { "$ref": "JobEnd" }
+  },
+  "examples": [
+    {
+      "kind": "ended",
+      "job": "JOB-20261009-0920-4e4e",
+      "end": {
+        "state": "done",
+        "note": "2 items drafted and shown",
+        "results": ["Show the word count while writing", "Write a chapter in the editor"],
+        "rounds": 2,
+        "usage": { "inputTokens": 5390, "outputTokens": 420, "minutes": null },
+        "cost": null
+      }
     }
   ]
 }
@@ -14982,7 +15324,8 @@ flowchart LR
     { "$ref": "RunChange" },
     { "$ref": "StopChange" },
     { "$ref": "LimitsChange" },
-    { "$ref": "RetryChange" }
+    { "$ref": "RetryChange" },
+    { "$ref": "EndedChange" }
   ],
   "examples": [{ "kind": "order", "order": ["ITM-016", "ITM-015"] }]
 }
@@ -15427,7 +15770,7 @@ flowchart LR
 | Step | Interfaces |
 |---|---|
 | UC-032 1 | MOD-main-page.route, MOD-main-page.readProduct, MOD-process-views.backlogOf, MOD-process-views.acceptanceOf, MOD-process-views.backlogView, MOD-process-views.itemFactsOf, MOD-work-items.itemState, MOD-work-items.uncovered |
-| UC-032 4 | MOD-review-page.clickAuthority, MOD-main-page.commitChange, MOD-git-host.pathHistory, MOD-process-views.planChange, MOD-work-items.nextItemId, MOD-work-items.formatItem, MOD-work-items.formatOrder, MOD-git-host.writeFiles |
+| UC-032 4 | MOD-review-page.clickAuthority, MOD-main-page.commitChange, MOD-git-host.pathHistory, MOD-process-views.planChange, MOD-work-items.nextItemId, MOD-work-items.formatItem, MOD-work-items.formatOrder, MOD-job-harness.commitMessage, MOD-git-host.writeFiles |
 | UC-032 5 | MOD-review-page.clickAuthority, MOD-main-page.commitChange, MOD-process-views.planChange, MOD-work-items.formatOrder, MOD-git-host.writeFiles |
 | UC-032 6 | MOD-process-views.backlogView, MOD-review-page.clickAuthority, MOD-main-page.commitChange, MOD-process-views.planChange, MOD-work-items.planSprint, MOD-work-items.formatSprint, MOD-git-host.writeFiles, MOD-work-items.mayStart |
 | UC-032 7 | MOD-process-views.backlogView, MOD-work-items.mayStart |

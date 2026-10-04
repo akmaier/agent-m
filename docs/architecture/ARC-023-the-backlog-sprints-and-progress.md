@@ -351,7 +351,7 @@ flowchart LR
       "result": [
         { "artifact": "ITM-017", "line": 1, "kind": "error", "what": "NO SERVR is no requirement, use case or open proposal of the product", "rule": "A BACKLOG ITEM NAMES WHAT IT REALISES", "fix": "name a requirement exactly, a use case by its identifier, or a name an open proposal adds" },
         { "artifact": "ITM-017", "line": 1, "kind": "warning", "what": "an open proposal changes or removes ONE CLICK", "rule": "A BACKLOG ITEM NAMES WHAT IT REALISES", "fix": "once it is decided, point the item at what replaces ONE CLICK, or remove the item" },
-        { "artifact": "ITM-017", "line": 1, "kind": "warning", "what": "the item restates ITM-015", "rule": "EVERY ARTIFACT HAS AN IDENTIFIER", "fix": "add the origin to ITM-015 instead, or say what this item adds" }
+        { "artifact": "ITM-017", "line": 1, "kind": "warning", "what": "the item restates ITM-015", "rule": "EVERY ARTIFACT NAMES ITS ORIGIN", "fix": "add the origin to ITM-015 instead, or say what this item adds" }
       ]
     },
     {
