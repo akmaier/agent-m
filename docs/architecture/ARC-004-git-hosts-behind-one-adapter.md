@@ -48,48 +48,53 @@ different causes — a token that has expired, a permission it lacks, a rate lim
 
 1. **One adapter speaks to git servers**, `MOD-git-host`; no other module sends a request to one. It receives the fetch
    port of ARC-003 and the token to send, and refuses where the server refuses, by code: `token-refused` (401),
-   `rate-limited-account` and `rate-limited-network` (a used-up limit, its reset time in the reason where the server names
-   it), `no-access` (another 403), `not-found`, `moved` (a write the branch has outrun) and `server-error`.
-2. **A product is its address.** `https://github.com/<owner>/<name>` is a GitHub product; any other https address is taken
-   for a GitLab project, whose path runs up to GitLab's `/-/`.
+   `rate-limited-account` and `rate-limited-network` (a used-up limit, its reset time in the reason where the server
+   names it), `no-access` (another 403), `not-found`, `moved` (a write the branch has outrun) and `server-error`.
+2. **A product is its address.** `https://github.com/<owner>/<name>` is a GitHub product; any other https address is
+   taken for a GitLab project, whose path runs up to GitLab's `/-/`.
 3. **GitHub** is read and written through `https://api.github.com`; without a token, files are read from
-   `https://raw.githubusercontent.com`. A write is one commit through the git data API — a tree, a commit whose parent is
-   the head the caller read, and an update of the branch with `force: false`.
+   `https://raw.githubusercontent.com`. A write is one commit through the git data API — a tree, a commit whose parent
+   is the head the caller read, and an update of the branch with `force: false`.
 4. **GitLab** is read and written through the REST API v4 of the server in the product's address, under that project's
    path only. A write is one `POST …/repository/commits` with one action per file, each existing file with
    `last_commit_id` set to the head the caller read, after the branch was read again and found still at that head.
 5. **A token goes only to its own API**, as a header the adapter builds: a GitHub token as `Authorization: Bearer` to
-   `https://api.github.com`, a GitLab project token as `PRIVATE-TOKEN` to `<server>/api/v4/projects/<this project>` and to
-   `<server>/api/v4/user`, which names the account it acts as, and nowhere else; a request whose URL holds the token is
-   refused before it is sent.
-6. **Head first, then write.** A caller reads the branch's head, reads there what its checks need, plans the files on it,
-   and passes the head to the write; a branch that moved meanwhile refuses the write and nothing is written. A write
+   `https://api.github.com`, a GitLab project token as `PRIVATE-TOKEN` to `<server>/api/v4/projects/<this project>` and
+   to `<server>/api/v4/user`, which names the account it acts as, and nowhere else; a request whose URL holds the token
+   is refused before it is sent.
+6. **Head first, then write.** A caller reads the branch's head, reads there what its checks need, plans the files on
+   it, and passes the head to the write; a branch that moved meanwhile refuses the write and nothing is written. A write
    needs an authority of ARC-003; without one, nothing is sent.
 7. **Releases, history and the token's account.** The release tags of a repository are its tags `vYYYY.MINOR.PATCH`,
-   newest version first. The candidates of a version, `vYYYY.MINOR.PATCH-rc.N`, are read apart
-   (`MOD-git-host.candidateTags`). A branch is started on a commit only where none of that name exists
-   (`MOD-git-host.createBranch`) — `test-results` by the first run that records its result (ARC-015). A tag is set on a
-   given commit, on an authority, only where no tag of that name names another commit (`MOD-git-host.createTag`): a tag
-   is never moved (`A VERSION IS NOT REWRITTEN`), and one that names the commit already is left as it is, so that a tag
-   is set again after a failure. What a folder's version history holds — each path, when it first appeared and when it
-   was removed or renamed away — is read from the changes of each commit touching it (`MOD-git-host.pathHistory`): a
-   page learns from one scan per folder when each file entered the repository, and every identifier the history holds,
-   so that one withdrawn from the files is not given again (ARC-024). The account a token acts as is read from the
-   server — on GitLab the user name of the project token's bot —, so that what a person writes is filed under their
-   account.
+   newest version first, read with the commit each names where a page needs it (`MOD-git-host.tagCommits`). The newest
+   commits of a branch or tag are read with the first line of each message (`MOD-git-host.recentCommits`), and one
+   commit by its SHA, a branch or a tag likewise (`MOD-git-host.commitOf`). The candidates of a version,
+   `vYYYY.MINOR.PATCH-rc.N`, are read apart (`MOD-git-host.candidateTags`). A branch is started on a commit only where
+   none of that name exists (`MOD-git-host.createBranch`) — `test-results` by the first run that records its result
+   (ARC-015). A tag is set on a given commit, on an authority, only where no tag of that name names another commit
+   (`MOD-git-host.createTag`): a tag is never moved (`A VERSION IS NOT REWRITTEN`), and one that names the commit
+   already is left as it is, so that a tag is set again after a failure. What a folder's version history holds — each
+   path, when it first appeared and when it was removed or renamed away — is read from the changes of each commit
+   touching it (`MOD-git-host.pathHistory`): a page learns from one scan per folder when each file entered the
+   repository, and every identifier the history holds, so that one withdrawn from the files is not given again
+   (ARC-024). The account a token acts as is read from the server — on GitLab the user name of the project token's
+   bot —, so that what a person writes is filed under their account.
 8. **The server's own pages.** Without a token, GitHub's new-file page is opened with a record as its prefilled value —
    at most 1 000 characters, so that no reviewed text travels in a URL — and its editor for any other text; a GitLab
-   product has no such page and needs its project token. The page of a token, the page of a file, the page where CI
-   secrets are stored (`MOD-git-host.secretsPageUrl`) and the permissions one token needs are given by the adapter, so
-   that every view names them alike.
+   product has no such page and needs its project token. The page of a token, the page of a file, the page of a branch
+   or tag (`MOD-git-host.treeUrl`), the page where CI secrets are stored (`MOD-git-host.secretsPageUrl`), the page where
+   a self-hosted runner is added (`MOD-git-host.runnersPageUrl`), a GitLab project's page of its pipeline schedules
+   (`MOD-git-host.pipelineSchedulesPageUrl`) and the permissions one token needs are given by the adapter, so that every
+   view names them alike.
 9. **Pull requests and CI.** The adapter reads a repository's pull requests with their states and times
-   (`MOD-git-host.pullRequests`) and the conclusion of each CI check on a commit (`MOD-git-host.checks`) — on GitHub
-   the newest run of each workflow of the commit, which the one token reads with its Actions permission, so a CI check
-   is named by its workflow; on GitLab each job's commit status. It opens a pull request
-   (`MOD-git-host.openPullRequest`); it starts a workflow with inputs (`MOD-git-host.dispatchWorkflow`), lists its runs
-   (`MOD-git-host.workflowRuns`) and cancels one (`MOD-git-host.cancelRun`) — on GitLab the project's pipelines, with
-   the inputs as variables. A token that may not start a workflow is refused, and the server's page that starts it by
-   hand is given instead (`MOD-git-host.workflowPageUrl`).
+   (`MOD-git-host.pullRequests`) and the conclusion of each CI check on a commit (`MOD-git-host.checks`) — on GitHub the
+   newest run of each workflow of the commit, which the one token reads with its Actions permission, so a CI check is
+   named by its workflow; on GitLab each job's commit status. It opens a pull request (`MOD-git-host.openPullRequest`);
+   it starts a workflow with inputs (`MOD-git-host.dispatchWorkflow`), lists its runs (`MOD-git-host.workflowRuns`) and
+   cancels one (`MOD-git-host.cancelRun`) — on GitLab the project's pipelines, with the inputs as variables; a GitLab
+   project's pipeline schedules, which live outside its repository file, are read and saved
+   (`MOD-git-host.pipelineSchedules`, `MOD-git-host.savePipelineSchedule`). A token that may not start a workflow is
+   refused, and the server's page that starts it by hand is given instead (`MOD-git-host.workflowPageUrl`).
 10. **Code enters a default branch only through a pull request with green CI.** `MOD-git-host.writeFiles` refuses to
    bring any file other than `SPEC.md`, `CHANGELOG.md` or a Markdown file under `docs/` — code, tests, workflows, pages
    — onto the repository's default branch. `MOD-git-host.mergePullRequest` merges only at the head commit the caller
@@ -163,9 +168,13 @@ flowchart LR
     "CommitInfo",
     "PathHistory",
     "RepositoryInfo",
+    "CommitTitle",
+    "TagCommit",
     "CommitResult",
     "TagSet",
     "BranchStarted",
+    "PipelineSchedule",
+    "PipelineScheduleInput",
     "PullRequest",
     "MergeDone",
     "WorkflowInputs",
@@ -945,6 +954,283 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.recentCommits",
+  "summary": "The newest commits of a branch or tag, at most limit, newest first, each with the first line of its message, when it was committed, and its author's account or name.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "ref", "type": "string" },
+    { "name": "limit", "type": "integer" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "CommitTitle[]",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "two commits of main on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "ref": "main",
+        "limit": 2,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/commits?sha=main&per_page=2"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "a100000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: export a chapter as PDF\n\nThe figures stay.",
+                    "committer": { "date": "2026-10-09T07:58:00Z" },
+                    "author": { "name": "Alice" }
+                  },
+                  "author": { "login": "alice" }
+                },
+                {
+                  "sha": "c000000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "docs: UC-003 open for review",
+                    "committer": { "date": "2026-10-08T16:20:00Z" },
+                    "author": { "name": "Alice" }
+                  },
+                  "author": { "login": "alice" }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "sha": "a100000000000000000000000000000000000000",
+          "title": "ITM-014: export a chapter as PDF",
+          "date": "2026-10-09T07:58:00Z",
+          "author": "alice"
+        },
+        {
+          "sha": "c000000000000000000000000000000000000000",
+          "title": "docs: UC-003 open for review",
+          "date": "2026-10-08T16:20:00Z",
+          "author": "alice"
+        }
+      ]
+    },
+    {
+      "name": "a commit of main on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "ref": "main",
+        "limit": 1,
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits?ref_name=main&per_page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": "a100000000000000000000000000000000000000",
+                  "title": "ITM-014: export a chapter as PDF",
+                  "committed_date": "2026-10-09T07:58:00.000+00:00",
+                  "author_name": "Alice"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "sha": "a100000000000000000000000000000000000000",
+          "title": "ITM-014: export a chapter as PDF",
+          "date": "2026-10-09T07:58:00.000+00:00",
+          "author": "Alice"
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.commitOf",
+  "summary": "One commit by its SHA, a branch or a tag: its SHA, the first line of its message, when it was committed, and its author's account or name.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "ref", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "CommitTitle",
+  "async": true,
+  "refusals": [
+    { "code": "no-commit", "when": "the server answers 404: it knows no commit by that name" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a commit by its SHA on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "ref": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/commits/a100000000000000000000000000000000000000"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "a100000000000000000000000000000000000000",
+                "commit": {
+                  "message": "ITM-014: export a chapter as PDF\n\nThe figures stay.",
+                  "committer": { "date": "2026-10-09T07:58:00Z" },
+                  "author": { "name": "Alice" }
+                },
+                "author": { "login": "alice" }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "sha": "a100000000000000000000000000000000000000",
+        "title": "ITM-014: export a chapter as PDF",
+        "date": "2026-10-09T07:58:00Z",
+        "author": "alice"
+      }
+    },
+    {
+      "name": "a release tag on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "ref": "v2026.2.1",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits/v2026.2.1"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "c000000000000000000000000000000000000000",
+                "title": "release v2026.2.1",
+                "message": "release v2026.2.1\n",
+                "committed_date": "2026-10-02T07:30:00.000+00:00",
+                "author_name": "Alice"
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "sha": "c000000000000000000000000000000000000000",
+        "title": "release v2026.2.1",
+        "date": "2026-10-02T07:30:00.000+00:00",
+        "author": "Alice"
+      }
+    },
+    {
+      "name": "a commit the server does not know",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "ref": "b200000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/commits/b200000000000000000000000000000000000000"
+            },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "refused": "no-commit"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.repositoryInfo",
   "summary": "What the server reports about a repository: its visibility, its default branch, and on GitLab the access level the token acts with (0 elsewhere).",
   "params": [
@@ -1066,6 +1352,100 @@ flowchart LR
         ]
       },
       "result": ["v2026.10.1", "v2026.10.0", "v2026.2.0"]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.tagCommits",
+  "summary": "The release tags vYYYY.MINOR.PATCH of a repository with the commit each names, newest version first; other tags are left out.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "TagCommit[]",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "two releases and another tag on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/tags?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                { "name": "v2026.2.0", "commit": { "sha": "b200000000000000000000000000000000000000" } },
+                { "name": "draft", "commit": { "sha": "d300000000000000000000000000000000000000" } },
+                { "name": "v2026.2.1", "commit": { "sha": "c000000000000000000000000000000000000000" } }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        { "name": "v2026.2.1", "commit": "c000000000000000000000000000000000000000" },
+        { "name": "v2026.2.0", "commit": "b200000000000000000000000000000000000000" }
+      ]
+    },
+    {
+      "name": "a release on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/tags?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [{ "name": "v2026.2.1", "commit": { "id": "c000000000000000000000000000000000000000" } }]
+            }
+          }
+        ]
+      },
+      "result": [{ "name": "v2026.2.1", "commit": "c000000000000000000000000000000000000000" }]
     }
   ]
 }
@@ -1630,6 +2010,304 @@ flowchart LR
         "fetch": []
       },
       "refused": "no-authority"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.runnersPageUrl",
+  "summary": "The server's page where a self-hosted runner is added to a repository: GitHub's new self-hosted runner, whose labels its configuration names; a GitLab project's CI/CD settings, whose Runners section creates a project runner with its tags.",
+  "params": [{ "name": "product", "type": "Product" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        }
+      },
+      "result": "https://github.com/alice/thesis/settings/actions/runners/new"
+    },
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        }
+      },
+      "result": "https://gitlab.example.org/group/tools/thesis/-/settings/ci_cd"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.pipelineSchedules",
+  "summary": "A GitLab project's pipeline schedules — which live outside its repository file —, each with its description, branch, cron line, time zone and whether it is active; refused for a GitHub product, whose workflow keeps its schedule in its file.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "PipelineSchedule[]",
+  "async": true,
+  "refusals": [
+    { "code": "not-on-gitlab", "when": "the product is on GitHub" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "the nightly run of a project",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/pipeline_schedules?per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 13,
+                  "description": "agent-m nightly",
+                  "ref": "refs/heads/main",
+                  "cron": "0 2 * * *",
+                  "cron_timezone": "UTC",
+                  "active": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "id": 13,
+          "description": "agent-m nightly",
+          "ref": "main",
+          "cron": "0 2 * * *",
+          "timezone": "UTC",
+          "active": true
+        }
+      ]
+    },
+    {
+      "name": "a GitHub product",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "token": "github_pat_example",
+        "fetch": []
+      },
+      "refused": "not-on-gitlab"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.savePipelineSchedule",
+  "summary": "The pipeline schedule of the description given, created — or, where one of that description exists, changed — with the cron line, time zone and branch given, on an authority.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "schedule", "type": "PipelineScheduleInput" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "PipelineSchedule",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-on-gitlab", "when": "the product is on GitHub" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "the nightly run moved to 03:30",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "schedule": { "description": "agent-m nightly", "ref": "main", "cron": "30 3 * * *", "timezone": "UTC" },
+        "token": "glpat-example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/pipeline_schedules?per_page=100"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 13,
+                  "description": "agent-m nightly",
+                  "ref": "refs/heads/main",
+                  "cron": "0 2 * * *",
+                  "cron_timezone": "UTC",
+                  "active": true
+                }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/pipeline_schedules/13",
+              "body": {
+                "description": "agent-m nightly",
+                "ref": "main",
+                "cron": "30 3 * * *",
+                "cron_timezone": "UTC",
+                "active": true
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": 13,
+                "description": "agent-m nightly",
+                "ref": "refs/heads/main",
+                "cron": "30 3 * * *",
+                "cron_timezone": "UTC",
+                "active": true
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "id": 13,
+        "description": "agent-m nightly",
+        "ref": "main",
+        "cron": "30 3 * * *",
+        "timezone": "UTC",
+        "active": true
+      }
+    },
+    {
+      "name": "the first nightly run",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "schedule": { "description": "agent-m nightly", "ref": "main", "cron": "0 2 * * *", "timezone": "UTC" },
+        "token": "glpat-example",
+        "authority": { "kind": "click" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/pipeline_schedules?per_page=100"
+            },
+            "response": { "status": 200, "body": [] }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/pipeline_schedules",
+              "body": {
+                "description": "agent-m nightly",
+                "ref": "main",
+                "cron": "0 2 * * *",
+                "cron_timezone": "UTC",
+                "active": true
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "id": 14,
+                "description": "agent-m nightly",
+                "ref": "refs/heads/main",
+                "cron": "0 2 * * *",
+                "cron_timezone": "UTC",
+                "active": true
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "id": 14,
+        "description": "agent-m nightly",
+        "ref": "main",
+        "cron": "0 2 * * *",
+        "timezone": "UTC",
+        "active": true
+      }
     }
   ]
 }
@@ -3244,6 +3922,86 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.treeUrl",
+  "summary": "The server's page of a branch or tag.",
+  "params": [{ "name": "product", "type": "Product" }, { "name": "ref", "type": "string" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "test-results on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "ref": "test-results"
+      },
+      "result": "https://github.com/alice/thesis/tree/test-results"
+    },
+    {
+      "name": "test-results on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "ref": "test-results"
+      },
+      "result": "https://gitlab.example.org/group/tools/thesis/-/tree/test-results"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.pipelineSchedulesPageUrl",
+  "summary": "A GitLab project's page of its pipeline schedules (Build → Pipeline schedules); refused for a GitHub product, whose workflow keeps its schedule in its file.",
+  "params": [{ "name": "product", "type": "Product" }],
+  "result": "string",
+  "async": false,
+  "refusals": [{ "code": "not-on-gitlab", "when": "the product is on GitHub" }],
+  "examples": [
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        }
+      },
+      "result": "https://gitlab.example.org/group/tools/thesis/-/pipeline_schedules"
+    },
+    {
+      "name": "a GitHub product",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        }
+      },
+      "refused": "not-on-gitlab"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.fileUrl",
   "summary": "The server's page of a file.",
   "params": [
@@ -3484,6 +4242,90 @@ flowchart LR
     "role": { "type": "integer", "minimum": 0 }
   },
   "examples": [{ "visibility": "private", "defaultBranch": "main", "role": 0 }]
+}
+```
+
+```json type
+{
+  "$id": "CommitTitle",
+  "description": "A commit, the first line of its message, when it was committed, and its author's account or name.",
+  "type": "object",
+  "required": ["sha", "title", "date", "author"],
+  "additionalProperties": false,
+  "properties": {
+    "sha": { "type": "string" },
+    "title": { "type": "string" },
+    "date": { "type": "string" },
+    "author": { "type": "string" }
+  },
+  "examples": [
+    {
+      "sha": "a100000000000000000000000000000000000000",
+      "title": "ITM-014: export a chapter as PDF",
+      "date": "2026-10-09T07:58:00Z",
+      "author": "alice"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "TagCommit",
+  "description": "A release tag and the commit it names.",
+  "type": "object",
+  "required": ["name", "commit"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "pattern": "^v[0-9]{4}\\.[0-9]+\\.[0-9]+$" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  },
+  "examples": [{ "name": "v2026.2.1", "commit": "c000000000000000000000000000000000000000" }]
+}
+```
+
+```json type
+{
+  "$id": "PipelineSchedule",
+  "description": "A GitLab pipeline schedule: its identifier, description, branch, cron line, time zone, and whether it is active.",
+  "type": "object",
+  "required": ["id", "description", "ref", "cron", "timezone", "active"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "description": { "type": "string" },
+    "ref": { "type": "string" },
+    "cron": { "type": "string" },
+    "timezone": { "type": "string" },
+    "active": { "type": "boolean" }
+  },
+  "examples": [
+    {
+      "id": 13,
+      "description": "agent-m nightly",
+      "ref": "main",
+      "cron": "0 2 * * *",
+      "timezone": "UTC",
+      "active": true
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "PipelineScheduleInput",
+  "description": "A pipeline schedule to save: its description, branch, cron line and time zone.",
+  "type": "object",
+  "required": ["description", "ref", "cron", "timezone"],
+  "additionalProperties": false,
+  "properties": {
+    "description": { "type": "string", "minLength": 1 },
+    "ref": { "type": "string", "minLength": 1 },
+    "cron": { "type": "string", "minLength": 1 },
+    "timezone": { "type": "string", "minLength": 1 }
+  },
+  "examples": [{ "description": "agent-m nightly", "ref": "main", "cron": "30 3 * * *", "timezone": "UTC" }]
 }
 ```
 
