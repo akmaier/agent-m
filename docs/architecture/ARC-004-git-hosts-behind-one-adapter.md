@@ -89,12 +89,14 @@ different causes — a token that has expired, a permission it lacks, a rate lim
 9. **Pull requests and CI.** The adapter reads a repository's pull requests with their states and times
    (`MOD-git-host.pullRequests`) and the conclusion of each CI check on a commit (`MOD-git-host.checks`) — on GitHub the
    newest run of each workflow of the commit, which the one token reads with its Actions permission, so a CI check is
-   named by its workflow; on GitLab each job's commit status. It opens a pull request (`MOD-git-host.openPullRequest`);
-   it starts a workflow with inputs (`MOD-git-host.dispatchWorkflow`), lists its runs (`MOD-git-host.workflowRuns`) and
-   cancels one (`MOD-git-host.cancelRun`) — on GitLab the project's pipelines, with the inputs as variables; a GitLab
-   project's pipeline schedules, which live outside its repository file, are read and saved
-   (`MOD-git-host.pipelineSchedules`, `MOD-git-host.savePipelineSchedule`). A token that may not start a workflow is
-   refused, and the server's page that starts it by hand is given instead (`MOD-git-host.workflowPageUrl`).
+   named by its workflow; on GitLab each job's commit status. It reads the paths a commit changes
+   (`MOD-git-host.commitFiles`) and a pull request's commits in the order of their parents
+   (`MOD-git-host.pullRequestCommits`), since the servers document none. It opens a pull request
+   (`MOD-git-host.openPullRequest`); it starts a workflow with inputs (`MOD-git-host.dispatchWorkflow`), lists its runs
+   (`MOD-git-host.workflowRuns`) and cancels one (`MOD-git-host.cancelRun`) — on GitLab the project's pipelines, with
+   the inputs as variables; a GitLab project's pipeline schedules, which live outside its repository file, are read and
+   saved (`MOD-git-host.pipelineSchedules`, `MOD-git-host.savePipelineSchedule`). A token that may not start a workflow
+   is refused, and the server's page that starts it by hand is given instead (`MOD-git-host.workflowPageUrl`).
 10. **Code enters a default branch only through a pull request with green CI.** `MOD-git-host.writeFiles` refuses to
    bring any file other than `SPEC.md`, `CHANGELOG.md` or a Markdown file under `docs/` — code, tests, workflows, pages
    — onto the repository's default branch. `MOD-git-host.mergePullRequest` merges only at the head commit the caller
@@ -176,6 +178,7 @@ flowchart LR
     "PipelineSchedule",
     "PipelineScheduleInput",
     "PullRequest",
+    "PullRequestCommit",
     "MergeDone",
     "WorkflowInputs",
     "Dispatched",
@@ -2982,6 +2985,273 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.commitFiles",
+  "summary": "The paths a commit changes against its first parent — added, changed, removed, and both paths of a rename —, sorted.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "commit", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "string[]",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-commit", "when": "the commit is no 40-character SHA" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a test added and a file renamed on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "commit": "b200000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/commits/b200000000000000000000000000000000000000?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "b200000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "tests/export.test.mjs", "status": "added" },
+                  {
+                    "filename": "src/export/pdf.mjs",
+                    "previous_filename": "src/export/index.mjs",
+                    "status": "renamed"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": ["src/export/index.mjs", "src/export/pdf.mjs", "tests/export.test.mjs"]
+    },
+    {
+      "name": "a change on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "commit": "b200000000000000000000000000000000000000",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits/b200000000000000000000000000000000000000/diff?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "old_path": "src/export/index.mjs",
+                  "new_path": "src/export/index.mjs",
+                  "new_file": false,
+                  "renamed_file": false,
+                  "deleted_file": false
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": ["src/export/index.mjs"]
+    },
+    {
+      "name": "no commit",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "commit": "main",
+        "token": "github_pat_example",
+        "fetch": []
+      },
+      "refused": "not-a-commit"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.pullRequestCommits",
+  "summary": "The commits of a pull request — at most 250 on GitHub —, each with the first line of its message, its date, its author and its parents, ordered so that every commit follows its parents within the pull request, ties by date: the servers document no order, and the first is the one the branch began with.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "PullRequestCommit[]",
+  "async": true,
+  "refusals": [
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a test commit and its implementation on GitHub, listed newest first",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "number": 71,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/pulls/71/commits?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "a100000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: the figures are exported",
+                    "committer": { "date": "2026-10-12T09:40:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "b200000000000000000000000000000000000000" }]
+                },
+                {
+                  "sha": "b200000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: tests for the figures\n\nThey fail.",
+                    "committer": { "date": "2026-10-12T09:10:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "c000000000000000000000000000000000000000" }]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "sha": "b200000000000000000000000000000000000000",
+          "title": "ITM-014: tests for the figures",
+          "date": "2026-10-12T09:10:00Z",
+          "author": "ci-dev",
+          "parents": ["c000000000000000000000000000000000000000"]
+        },
+        {
+          "sha": "a100000000000000000000000000000000000000",
+          "title": "ITM-014: the figures are exported",
+          "date": "2026-10-12T09:40:00Z",
+          "author": "ci-dev",
+          "parents": ["b200000000000000000000000000000000000000"]
+        }
+      ]
+    },
+    {
+      "name": "a merge request's commit on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "number": 9,
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/merge_requests/9/commits?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": "b200000000000000000000000000000000000000",
+                  "title": "ITM-014: tests for the figures",
+                  "committed_date": "2026-10-12T09:10:00.000+00:00",
+                  "author_name": "ci-dev",
+                  "parent_ids": ["c000000000000000000000000000000000000000"]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "sha": "b200000000000000000000000000000000000000",
+          "title": "ITM-014: tests for the figures",
+          "date": "2026-10-12T09:10:00Z",
+          "author": "ci-dev",
+          "parents": ["c000000000000000000000000000000000000000"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.openPullRequest",
   "summary": "A new pull request from a branch into another, with its title and description, on an authority.",
   "params": [
@@ -4281,6 +4551,32 @@ flowchart LR
     "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
   },
   "examples": [{ "name": "v2026.2.1", "commit": "c000000000000000000000000000000000000000" }]
+}
+```
+
+```json type
+{
+  "$id": "PullRequestCommit",
+  "description": "A commit of a pull request: the commit, the first line of its message, when it was committed, its author's account or name, and its parents.",
+  "type": "object",
+  "required": ["sha", "title", "date", "author", "parents"],
+  "additionalProperties": false,
+  "properties": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "title": { "type": "string" },
+    "date": { "type": "string" },
+    "author": { "type": "string" },
+    "parents": { "type": "array", "items": { "type": "string", "pattern": "^[0-9a-f]{40}$" } }
+  },
+  "examples": [
+    {
+      "sha": "b200000000000000000000000000000000000000",
+      "title": "ITM-014: tests for the figures",
+      "date": "2026-10-12T09:10:00Z",
+      "author": "ci-dev",
+      "parents": ["c000000000000000000000000000000000000000"]
+    }
+  ]
 }
 ```
 

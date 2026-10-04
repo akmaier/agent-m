@@ -3,6 +3,7 @@ id: ARC-024
 title: The main page is a shell at the root of the Pages site over every product of the instance; a feature computes a product's backlog, progress, gates, blocked items, jobs, runs and sprint reviews from one commit and what its server reports, and every write is one commit planned on the head on a trusted click
 forced_by:
   - THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
+  - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
   - PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
   - ONE DASHBOARD SHOWS EVERY JOB
@@ -64,7 +65,9 @@ together: what it reads of a product, what it computes for each view, and what i
    effect, and the commit that declared the one before, from the history of `docs/process.md`; the commit each gate the
    product passes is decided on — the newest commit that changed a path of what it checks (ARC-019 decision 6) —; its
    pull requests, and the CI checks on those commits and on the heads of the open pull requests. A job's live state is
-   an input of the views: a job whose runtime was not asked shows its last recorded state (ARC-010 decision 7).
+   an input of the views: a job whose runtime was not asked shows its last recorded state (ARC-010 decision 7); while a
+   job CI runs is queued, running or waiting at a gate, the page asks the runs of the job workflow, each named by its
+   job (`MOD-job-runner.liveOf`, ARC-029).
 4. **What the views compute.** The backlog with each item's state, column on the board, problems and selectability, the
    uncovered names, the sprint with its end and close, what planning the next sprint starts from, and the WIP limit
    (`MOD-process-views.backlogView`); the progress page — the progress in the model's measure, the gates in order, what
@@ -85,9 +88,14 @@ together: what it reads of a product, what it computes for each view, and what i
    (`MOD-process-views.planChange`) and writes them in one commit on that head (ARC-004): new items with the order, a
    new order, a sprint started or its selection changed, a sprint's end, a person's gate decision under their account —
    never on their own work, never without holding the deciding role, a rejection with its reason —, a cancel, and the
-   start records of jobs, of a run with its first jobs, or of a retry naming the job it retries. A new item gets its
-   identifier from `MOD-work-items.nextItemId` over every identifier the files and the version history of
-   `docs/backlog/` hold, a new job from `MOD-run-engine.newJobId` with a draw of the random port.
+   start records of jobs, of a run with its first jobs, or of a retry naming the job it retries — an agent's job with
+   who merges its pull request where the author chose it (UC-034 8). A new item gets its identifier from
+   `MOD-work-items.nextItemId` over every identifier the files and the version history of `docs/backlog/` hold, a new
+   job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the jobs of CI agents it starts
+   or retries, or whose gate the person decided, are dispatched (`MOD-main-page.runOnCi`), and a cancel cancels the
+   job's run (`MOD-main-page.cancelOnCi`) (ARC-029); a job on a self-hosted runner of a repository that is not private
+   is not started, and its record ends as failed with the reason
+   (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY`).
 7. **A sprint's increment enters the default branch through a pull request** (`MOD-main-page.mergeIncrement`): a click
    opens the pull request from the sprint's branch, and a later click merges it at its head once every check on it is
    green (ARC-004 decision 10); until then the page names the checks it waits for.
@@ -129,14 +137,15 @@ flowchart LR
   kept are not read again.
 - The job runtimes name an item's branch `item/<identifier>` and record their pull request among their results, so that
   the page finds the text a job's gate is decided on.
-- The steps that hand work to a participant or that a runtime carries out are not realised here: drafting items
-  (UC-032 2, 3, 3a); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and
-  runs (UC-034 1a, 4, 5, 6, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a, 8a; UC-043 1c, 5, 6, 7, 8, 6a, 6b, 6c, 6d); a cancel or a
-  retry at the runtime (UC-036 6, 7, 6a, 7a); the job continuing or ending after a person's gate decision, whose record
-  `MOD-process-views.planChange` and `MOD-main-page.commitChange` already write (UC-036 5); and the running jobs, their
-  live states and logs, read from the runtimes (UC-035 1, 1b; UC-036 1, 1a, 1b, 1c, 4, 4a, 4b) — the rest of what
-  UC-035 1 reads is `MOD-main-page.readProduct`. They are realised with the job runtimes, by their interfaces together
-  with these.
+- The steps that hand work to a participant or that a runtime carries out are not realised here: drafting items (UC-032
+  2, 3, 3a); an agent as Product Owner or closer (UC-032 1c, UC-041 1a); starting and carrying out jobs and runs (UC-034
+  1a, 4, 5, 6, 7, 8, 4a, 5a, 5b, 6a, 6b, 7a, 8a; UC-043 1c, 5, 6, 7, 8, 6a, 6b, 6c, 6d); a cancel or a retry (UC-036 6,
+  7, 6a, 7a); the job continuing or ending after a person's gate decision, whose record `MOD-process-views.planChange`
+  and `MOD-main-page.commitChange` already write (UC-036 5); and the running jobs, their live states and logs, read from
+  the runtimes (UC-035 1, 1b; UC-036 1, 1a, 1b, 1c, 4, 4a, 4b) — the rest of what UC-035 1 reads is
+  `MOD-main-page.readProduct`. They are realised with the job runtimes, by their interfaces together with these: ARC-029
+  designs the runtime of CI, which `MOD-main-page.runOnCi` and `MOD-main-page.cancelOnCi` start, continue and stop, and
+  names what each of these steps still needs.
 - An item whose sources permit their content only in places no holder of the role uses (UC-034 3a) is named once the
   source library gives the restrictions of an item's sources; `MOD-process-views.startPanel` already takes them as
   input. Removing an item (UC-032 1a) waits for a write path that removes files; the difference of a gate passed on an
@@ -6607,8 +6616,8 @@ flowchart LR
   "layer": "shell",
   "responsibility": "The page at the root of the instance's Pages site that shows what goes on in the instance: it routes, reads each product at one commit with what its server reports, turns a trusted click into one commit planned on the head, merges a sprint's increment through a pull request, and holds every text the page shows.",
   "realises": ["THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE"],
-  "owns": ["MainRoute", "ProductRead", "MergeOutcome"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views"]
+  "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "CiCancelled"],
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner"]
 }
 ```
 
@@ -7875,6 +7884,363 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-main-page.runOnCi",
+  "summary": "The jobs of CI agents a click names — started, retried, or continued once a person decided their gate — dispatched after the click's records are committed: the job workflow of the product run for each job queued or waiting at a gate with no run of it going (MOD-job-runner.dispatchPlan); a job on a self-hosted runner of a repository that is not private is not started, and its record ends as failed with the reason. GitHub products; a GitLab product's job pipeline is designed with the layout of its CI files.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "instance", "type": "string" },
+    { "name": "jobs", "type": "string[]" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "texts", "type": "StoragePort" },
+    { "name": "authority", "type": "Authority", "optional": true },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "CiDispatched",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the start" },
+    { "code": "not-on-github", "when": "the product is on GitLab" },
+    { "code": "no-token", "when": "no token is stored for the product" },
+    { "code": "moved", "when": "the default branch moved on while a refused job's record was written" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "two jobs of a private repository",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-9a9a", "JOB-20261012-0900-6c6c"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "type": "blob", "sha": "5007b2d1417916b7f111b4a968bc13efacdb6f10" },
+                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "type": "blob", "sha": "e993d0ce77c7f6f897acb735361fa25e3429f48b" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/5007b2d1417916b7f111b4a968bc13efacdb6f10" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC05YTlhCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBjaS1kZXYKcnVudGltZTogY2kKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTlhOWEKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/e993d0ce77c7f6f897acb735361fa25e3429f48b" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDkwMC02YzZjCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBncHUtZGV2CnJ1bnRpbWU6IGNpCnJ1bjoKc2xvdDoKaXRlbTogSVRNLTAxNgptb2R1bGVzOgogIC0gTU9ELWV4cG9ydAppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNvZGV4LW1vZGVsCmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wOTAwLTZjNmMKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/runs?per_page=100" },
+            "response": { "status": 200, "body": { "workflow_runs": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": { "status": 200, "body": { "visibility": "public", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n" }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/dispatches",
+              "body": {
+                "ref": "main",
+                "inputs": { "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_PARTICIPANT": "ci-dev" }
+              }
+            },
+            "response": { "status": 204, "body": null }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/dispatches",
+              "body": {
+                "ref": "main",
+                "inputs": { "AGENT_M_JOB": "JOB-20261012-0900-6c6c", "AGENT_M_PARTICIPANT": "gpu-dev" }
+              }
+            },
+            "response": { "status": 204, "body": null }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": { "dispatched": ["JOB-20261012-0800-9a9a", "JOB-20261012-0900-6c6c"], "refused": [] }
+    },
+    {
+      "name": "the self-hosted runner of a public repository",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-9a9a", "JOB-20261012-0900-6c6c"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "public", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "type": "blob", "sha": "5007b2d1417916b7f111b4a968bc13efacdb6f10" },
+                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "type": "blob", "sha": "e993d0ce77c7f6f897acb735361fa25e3429f48b" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/5007b2d1417916b7f111b4a968bc13efacdb6f10" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC05YTlhCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBjaS1kZXYKcnVudGltZTogY2kKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTlhOWEKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/e993d0ce77c7f6f897acb735361fa25e3429f48b" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDkwMC02YzZjCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBncHUtZGV2CnJ1bnRpbWU6IGNpCnJ1bjoKc2xvdDoKaXRlbTogSVRNLTAxNgptb2R1bGVzOgogIC0gTU9ELWV4cG9ydAppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNvZGV4LW1vZGVsCmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wOTAwLTZjNmMKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/runs?per_page=100" },
+            "response": { "status": 200, "body": { "workflow_runs": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": { "status": 200, "body": { "visibility": "public", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/participants.md?ref=main" },
+            "response": { "status": 200, "body": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n" }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/dispatches",
+              "body": {
+                "ref": "main",
+                "inputs": { "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_PARTICIPANT": "ci-dev" }
+              }
+            },
+            "response": { "status": 204, "body": null }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b900000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b900000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0900-6c6c\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: gpu-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: codex-model\nlog:\n---\n\n# JOB-20261012-0900-6c6c\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:00:30Z | failed | gpu-dev runs on the self-hosted runner gpu-1, which serves Agent M only from a private repository |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "jobs refused: JOB-20261012-0900-6c6c",
+                "tree": "c900000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e900000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e900000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e900000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e900000000000000000000000000000000000000" } } }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "result": {
+        "dispatched": ["JOB-20261012-0800-9a9a"],
+        "refused": [
+          { "job": "JOB-20261012-0900-6c6c", "reason": "gpu-dev runs on the self-hosted runner gpu-1, which serves Agent M only from a private repository" }
+        ]
+      }
+    },
+    {
+      "name": "no click",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "instance": "https://github.com/alice/agent-m",
+        "jobs": ["JOB-20261012-0800-9a9a"],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "texts": {},
+        "clock": "2026-10-12T08:00:30Z"
+      },
+      "refused": "no-authority"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-main-page.cancelOnCi",
+  "summary": "The runs of the job workflow still going for a job, cancelled at the server after the click that cancels it committed its cancel record; the job shows as cancelling until its run is (MOD-run-engine.jobState). GitHub products.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "job", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "CiCancelled",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the cancel" },
+    { "code": "not-on-github", "when": "the product is on GitLab" },
+    { "code": "no-token", "when": "no token is stored for the product" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "ITM-014's running job",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "job": "JOB-20261012-0800-9a9a",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/runs?per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "id": 4811, "display_title": "agent-m job JOB-20261012-0800-9a9a", "status": "in_progress", "conclusion": null, "created_at": "2026-10-12T09:41:00Z", "html_url": "https://github.com/alice/thesis/actions/runs/4811" },
+                  { "id": 4790, "display_title": "agent-m job JOB-20261012-0800-9a9a", "status": "completed", "conclusion": "success", "created_at": "2026-10-12T08:03:00Z", "html_url": "https://github.com/alice/thesis/actions/runs/4790" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "POST", "url": "https://api.github.com/repos/alice/thesis/actions/runs/4811/cancel" },
+            "response": { "status": 202, "body": {} }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "job": "JOB-20261012-0800-9a9a", "cancelled": [4811] }
+    }
+  ]
+}
+```
+
 ## Types
 
 ```json type
@@ -9076,7 +9442,7 @@ flowchart LR
 ```json type
 {
   "$id": "JobStart",
-  "description": "A job to record at its start: its kind, phase and role, its participant and runtime, the run and slot — empty outside a run —, its item, modules and inputs, the job it retries, the Agent M version and the model.",
+  "description": "A job to record at its start: its kind, phase and role, its participant and runtime, the run and slot — empty outside a run —, its item, modules and inputs, the job it retries, the Agent M version and the model, and for an agent's job where the author chose it who merges its pull request — the agent (participant) or a person.",
   "type": "object",
   "required": ["kind", "phase", "role", "participant", "runtime", "run", "slot", "item", "modules", "inputs", "retryOf", "agentM", "model"],
   "additionalProperties": false,
@@ -9093,7 +9459,8 @@ flowchart LR
     "inputs": { "type": "array", "items": { "type": "string" } },
     "retryOf": { "type": "string" },
     "agentM": { "type": "string" },
-    "model": { "type": "string" }
+    "model": { "type": "string" },
+    "mergeBy": { "type": "string", "enum": ["participant", "person"] }
   },
   "examples": [
     {
@@ -9110,6 +9477,22 @@ flowchart LR
       "retryOf": "",
       "agentM": "2026.10.1",
       "model": "claude-opus-5-5"
+    },
+    {
+      "kind": "implement",
+      "phase": "Development",
+      "role": "Developers",
+      "participant": "ci-dev",
+      "runtime": "ci",
+      "run": "",
+      "slot": "",
+      "item": "ITM-018",
+      "modules": ["MOD-pages"],
+      "inputs": ["docs/backlog/ITM-018-show-the-list-of-chapters.md"],
+      "retryOf": "",
+      "agentM": "2026.10.1",
+      "model": "claude-opus-5-5",
+      "mergeBy": "person"
     }
   ]
 }
@@ -9587,6 +9970,43 @@ flowchart LR
       "checks": [{ "name": "tests", "on": "f400000000000000000000000000000000000000", "conclusion": "pending" }]
     }
   ]
+}
+```
+
+```json type
+{
+  "$id": "CiDispatched",
+  "description": "What a click started in CI: the jobs whose workflow run was dispatched, and those refused with the reason, each recorded as failed.",
+  "type": "object",
+  "required": ["dispatched", "refused"],
+  "additionalProperties": false,
+  "properties": {
+    "dispatched": { "type": "array", "items": { "type": "string" } },
+    "refused": { "type": "array", "items": { "$ref": "JobRefusal" } }
+  },
+  "examples": [
+    {
+      "dispatched": ["JOB-20261012-0800-9a9a"],
+      "refused": [
+        { "job": "JOB-20261012-0900-6c6c", "reason": "gpu-dev runs on the self-hosted runner gpu-1, which serves Agent M only from a private repository" }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "CiCancelled",
+  "description": "The runs of a job's workflow cancelled at the server.",
+  "type": "object",
+  "required": ["job", "cancelled"],
+  "additionalProperties": false,
+  "properties": {
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "cancelled": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+  },
+  "examples": [{ "job": "JOB-20261012-0800-9a9a", "cancelled": [4811] }]
 }
 ```
 

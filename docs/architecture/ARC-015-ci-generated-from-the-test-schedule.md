@@ -121,6 +121,13 @@ a CI secret, never with the workflow's built-in token (`A HOSTED JOB WRITES WITH
    (`CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI`); UC-027 5 opens one pull request with the
    schedule and the configuration together, so that the two never disagree on the default branch.
 
+9. **The workflows of agents' jobs** (ARC-029): `.github/workflows/agent-m-job.yml` (`MOD-ci-generator.jobWorkflow`) —
+   one job per CI agent of the instance on its runner, dispatched with the job and named by it — and
+   `.github/workflows/agent-m-done.yml` (`MOD-ci-generator.doneWorkflow`), the check `agent-m done` on pull requests
+   from jobs' branches. Their steps run `MOD-ci-entry.jobStart`, `MOD-ci-entry.mayWrite`, `MOD-ci-entry.jobObserve` and
+   `MOD-ci-entry.doneCheck`; the secrets they read are named by `MOD-ci-generator.jobSecrets` — the person's token for
+   Agent M's steps, and each CI agent's key on GitHub's machines for that agent's step alone. A GitLab product's job
+   pipeline is designed with the layout of Agent M's CI files beside a product's own `.gitlab-ci.yml` (ARC-028).
 ```mermaid
 flowchart LR
     S["docs/tests/schedule.md"]
@@ -169,12 +176,10 @@ flowchart LR
 ## Consequences
 
 - The other files and steps of the two modules are designed with what they serve, with the credentials of decision 7:
-  with the job runtimes, the engine workflow and the job workflow (ARC-010, ARC-009), the driver that dispatches a CI
-  agent's job, the check that a self-hosted runner serves only a private repository, and the check of the Definition of
-  Done on an implementation job's pull request; with the instance, its step that writes an accepted SPEC change without
-  a token (ARC-021); with the sources, its step that fetches an EU legal text. The earlier module files of
-  `MOD-ci-generator` and `MOD-ci-entry` leave the working tree: this decision is where the modules are designed (ARC-020
-  decision 3).
+  the engine workflow with the runs over a selection (ARC-010); with the instance, its step that writes an accepted SPEC
+  change without a token (ARC-021); with the sources, its step that fetches an EU legal text. The earlier module files
+  of `MOD-ci-generator` and `MOD-ci-entry` leave the working tree: this decision is where the modules are designed
+  (ARC-020 decision 3).
 - The steps of UC-027 and UC-028 are realised with the tests pages; creating and updating a GitLab project's pipeline
   schedule (UC-027 3a) needs an interface of `MOD-git-host` designed with them.
 - On GitLab, the recording job of every pipeline of the project — a merge request's too — reads `AGENT_M_TOKEN`, so
@@ -223,10 +228,10 @@ flowchart LR
   "id": "MOD-ci-generator",
   "folder": "src/ci-generator/",
   "layer": "feature",
-  "responsibility": "Reads, writes, defaults and checks a product's test schedule, and generates from it the CI configuration of the product's server — byte for byte the same for the same schedule —, the secrets its jobs read and the pipeline schedule of a GitLab product's nightly run; it reads nothing itself.",
-  "realises": ["THE TEST SCHEDULE IS DECLARED PER PRODUCT", "THE DEFAULT SCHEDULE FOLLOWS THE BOOK", "THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE", "A JOB RECORD STARTS NO CI RUN", "COMMIT TESTS CALL NO PAID SERVICE", "A RELEASE RUNS EVERY TEST AT EVERY LEVEL"],
-  "owns": ["ScheduleRow", "Schedule", "CiSetup", "SecretNeed", "NightlySchedule", "ScheduleContent", "ScheduleFile", "GitHubTestWorkflowFile", "GitLabPipelineFile"],
-  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-process-model", "MOD-git-host"]
+  "responsibility": "Reads, writes, defaults and checks a product's test schedule, and generates from it the CI configuration of the product's server — byte for byte the same for the same schedule —, the secrets its jobs read and the pipeline schedule of a GitLab product's nightly run; and generates the workflow of agents' jobs from the instance's CI agents, the check of the Definition of Done, and the secrets they read; it reads nothing itself.",
+  "realises": ["THE TEST SCHEDULE IS DECLARED PER PRODUCT", "THE DEFAULT SCHEDULE FOLLOWS THE BOOK", "THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE", "A JOB RECORD STARTS NO CI RUN", "COMMIT TESTS CALL NO PAID SERVICE", "A RELEASE RUNS EVERY TEST AT EVERY LEVEL", "A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET"],
+  "owns": ["ScheduleRow", "Schedule", "CiSetup", "SecretNeed", "NightlySchedule", "ScheduleContent", "JobSecret", "ScheduleFile", "GitHubTestWorkflowFile", "GitLabPipelineFile", "GitHubJobWorkflowFile", "GitHubDoneWorkflowFile"],
+  "uses": ["MOD-contracts", "MOD-artifacts", "MOD-process-model", "MOD-git-host", "MOD-job-runner"]
 }
 ```
 
@@ -966,6 +971,144 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-ci-generator.jobWorkflow",
+  "summary": "The workflow of an agent's job on GitHub, .github/workflows/agent-m-job.yml: dispatched with the job and the CI agent that carries it out, named by the job; one job per CI agent of the instance on its runner — GitHub's machines, which install its CLI, or its self-hosted runner, where its CLI and its login are —, which starts the job, gives the agent its prompt with the agent's key alone, pushes the agent's commits with the person's token after asking whether it may still write, and looks at the pull request and its checks until the job's next step is decided. The agent's step holds no token, Agent M's steps no key; the workflow's own token reads only.",
+  "params": [
+    { "name": "agents", "type": "CiAgent[]" },
+    { "name": "product", "type": "Product" },
+    { "name": "setup", "type": "CiSetup" }
+  ],
+  "result": "FileText",
+  "async": false,
+  "refusals": [
+    { "code": "not-on-github", "when": "the product is on GitLab" },
+    { "code": "not-an-instance", "when": "the instance is no https://github.com/<owner>/<repository>" },
+    { "code": "no-version", "when": "the version is no 40-hex commit" },
+    { "code": "no-ci-agent", "when": "the instance has no CI agent" }
+  ],
+  "examples": [
+    {
+      "name": "Claude Code on GitHub's machines and Codex on a self-hosted runner",
+      "input": {
+        "agents": [
+          { "name": "ci-dev", "cli": "claude", "model": "claude-opus-5-5", "runner": "", "secret": "AGENT_M_AGENT_KEY_CI_DEV", "keyVariable": "ANTHROPIC_API_KEY" },
+          { "name": "gpu-dev", "cli": "codex", "model": "codex-model", "runner": "gpu-1", "secret": "AGENT_M_AGENT_KEY_GPU_DEV", "keyVariable": "CODEX_API_KEY" }
+        ],
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "setup": {
+          "instance": "https://github.com/alice/agent-m",
+          "version": "a100000000000000000000000000000000000000",
+          "paidSecrets": []
+        }
+      },
+      "result": { "path": ".github/workflows/agent-m-job.yml", "text": "# Generated by Agent M from the CI agents of the instance; change the participants, not this file.\nname: agent-m job\nrun-name: agent-m job ${{ inputs.AGENT_M_JOB }}\non:\n  workflow_dispatch:\n    inputs:\n      AGENT_M_JOB:\n        description: the job's identifier\n        type: string\n        required: true\n      AGENT_M_PARTICIPANT:\n        description: the CI agent that carries it out\n        type: string\n        required: true\npermissions:\n  contents: read\nconcurrency:\n  group: agent-m-job-${{ inputs.AGENT_M_JOB }}\njobs:\n  ci-dev:\n    if: inputs.AGENT_M_PARTICIPANT == 'ci-dev'\n    runs-on: ubuntu-latest\n    timeout-minutes: 300\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out\n      AGENT_M_JOB: ${{ inputs.AGENT_M_JOB }}\n      AGENT_M_INSTANCE: https://github.com/alice/agent-m\n      AGENT_M_WAIT_MINUTES: \"240\"\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          path: product\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: a100000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - run: npm install --global @anthropic-ai/claude-code\n      - id: start\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-start\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          git config user.name \"ci-dev\"\n          git config user.email \"ci-dev@agent-m.invalid\"\n          git checkout \"$BRANCH\" 2>/dev/null || git checkout -b \"$BRANCH\" \"origin/$BASE\"\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          ANTHROPIC_API_KEY: ${{ secrets.AGENT_M_AGENT_KEY_CI_DEV }}\n        run: claude --bare -p \"Carry out the task the input describes.\" --model 'claude-opus-5-5' --permission-mode acceptEdits --allowedTools Bash --permission-prompts none --output-format json < \"$AGENT_M_OUT/prompt.md\" > \"$AGENT_M_OUT/report.json\"\n      - id: push\n        if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" may-write\n          base=\"$(git rev-parse --verify --quiet \"origin/$BRANCH\" || git rev-parse \"origin/$BASE\")\"\n          if [ -n \"$(git rev-list \"$base..HEAD\")\" ]; then\n            auth=\"AUTHORIZATION: basic $(printf 'x-access-token:%s' \"$AGENT_M_TOKEN\" | base64 -w0)\"\n            git -c \"http.https://github.com/.extraheader=$auth\" push origin \"HEAD:refs/heads/$BRANCH\"\n            echo \"pushed=true\" >> \"$GITHUB_OUTPUT\"\n          fi\n      - if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          AGENT_M_PUSHED: ${{ steps.push.outputs.pushed }}\n        run: |\n          while :; do node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-observe && break; [ $? -eq 75 ] || exit 1; sleep 60; done\n  gpu-dev:\n    if: inputs.AGENT_M_PARTICIPANT == 'gpu-dev'\n    runs-on: [self-hosted, gpu-1]\n    timeout-minutes: 300\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out\n      AGENT_M_JOB: ${{ inputs.AGENT_M_JOB }}\n      AGENT_M_INSTANCE: https://github.com/alice/agent-m\n      AGENT_M_WAIT_MINUTES: \"240\"\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          path: product\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: a100000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - id: start\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-start\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          git config user.name \"gpu-dev\"\n          git config user.email \"gpu-dev@agent-m.invalid\"\n          git checkout \"$BRANCH\" 2>/dev/null || git checkout -b \"$BRANCH\" \"origin/$BASE\"\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        run: codex exec --model 'codex-model' --sandbox workspace-write --json - < \"$AGENT_M_OUT/prompt.md\" > \"$AGENT_M_OUT/report.json\"\n      - id: push\n        if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" may-write\n          base=\"$(git rev-parse --verify --quiet \"origin/$BRANCH\" || git rev-parse \"origin/$BASE\")\"\n          if [ -n \"$(git rev-list \"$base..HEAD\")\" ]; then\n            auth=\"AUTHORIZATION: basic $(printf 'x-access-token:%s' \"$AGENT_M_TOKEN\" | base64 -w0)\"\n            git -c \"http.https://github.com/.extraheader=$auth\" push origin \"HEAD:refs/heads/$BRANCH\"\n            echo \"pushed=true\" >> \"$GITHUB_OUTPUT\"\n          fi\n      - if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          AGENT_M_PUSHED: ${{ steps.push.outputs.pushed }}\n        run: |\n          while :; do node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-observe && break; [ $? -eq 75 ] || exit 1; sleep 60; done\n" }
+    },
+    {
+      "name": "a GitLab product",
+      "input": {
+        "agents": [
+          { "name": "ci-dev", "cli": "claude", "model": "claude-opus-5-5", "runner": "", "secret": "AGENT_M_AGENT_KEY_CI_DEV", "keyVariable": "ANTHROPIC_API_KEY" },
+          { "name": "gpu-dev", "cli": "codex", "model": "codex-model", "runner": "gpu-1", "secret": "AGENT_M_AGENT_KEY_GPU_DEV", "keyVariable": "CODEX_API_KEY" }
+        ],
+        "product": { "kind": "gitlab", "address": "https://gitlab.example.org/group/tools/thesis", "host": "gitlab.example.org", "server": "https://gitlab.example.org", "repo": "group/tools/thesis" },
+        "setup": {
+          "instance": "https://github.com/alice/agent-m",
+          "version": "a100000000000000000000000000000000000000",
+          "paidSecrets": []
+        }
+      },
+      "refused": "not-on-github"
+    },
+    {
+      "name": "no CI agent",
+      "input": {
+        "agents": [],
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "setup": {
+          "instance": "https://github.com/alice/agent-m",
+          "version": "a100000000000000000000000000000000000000",
+          "paidSecrets": []
+        }
+      },
+      "refused": "no-ci-agent"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-ci-generator.doneWorkflow",
+  "summary": "The check \"agent-m done\", .github/workflows/agent-m-done.yml: on a pull request from a job's branch — item/<item> or job/<job> —, it waits for CI on the head and fails where the product's Definition of Done does not hold, naming each condition; a branch protection may require it, so that a person's merge meets it too.",
+  "params": [{ "name": "product", "type": "Product" }, { "name": "setup", "type": "CiSetup" }],
+  "result": "FileText",
+  "async": false,
+  "refusals": [
+    { "code": "not-on-github", "when": "the product is on GitLab" },
+    { "code": "not-an-instance", "when": "the instance is no https://github.com/<owner>/<repository>" },
+    { "code": "no-version", "when": "the version is no 40-hex commit" }
+  ],
+  "examples": [
+    {
+      "name": "the thesis",
+      "input": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "setup": {
+          "instance": "https://github.com/alice/agent-m",
+          "version": "a100000000000000000000000000000000000000",
+          "paidSecrets": []
+        }
+      },
+      "result": { "path": ".github/workflows/agent-m-done.yml", "text": "# Generated by Agent M; the conditions are the Definition of Done of docs/process.md.\nname: agent-m done\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  done:\n    if: startsWith(github.head_ref, 'item/') || startsWith(github.head_ref, 'job/')\n    runs-on: ubuntu-latest\n    timeout-minutes: 120\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_BRANCH: ${{ github.head_ref }}\n      AGENT_M_INSTANCE: https://github.com/alice/agent-m\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.repository.default_branch }}\n          path: product\n          persist-credentials: false\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: a100000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n        run: |\n          while :; do node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" done-check && break; [ $? -eq 75 ] || exit 1; sleep 60; done\n" }
+    },
+    {
+      "name": "a GitLab product",
+      "input": {
+        "product": { "kind": "gitlab", "address": "https://gitlab.example.org/group/tools/thesis", "host": "gitlab.example.org", "server": "https://gitlab.example.org", "repo": "group/tools/thesis" },
+        "setup": {
+          "instance": "https://github.com/alice/agent-m",
+          "version": "a100000000000000000000000000000000000000",
+          "paidSecrets": []
+        }
+      },
+      "refused": "not-on-github"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-ci-generator.jobSecrets",
+  "summary": "The CI secrets the job workflow reads, by name only: the person's Agent M token, read by Agent M's steps of every CI agent's job, and the key of each CI agent on GitHub's machines, read only by that agent's step; an agent on a self-hosted runner uses the login its CLI has there and reads no key.",
+  "params": [{ "name": "agents", "type": "CiAgent[]" }],
+  "result": "JobSecret[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "two CI agents",
+      "input": {
+        "agents": [
+          { "name": "ci-dev", "cli": "claude", "model": "claude-opus-5-5", "runner": "", "secret": "AGENT_M_AGENT_KEY_CI_DEV", "keyVariable": "ANTHROPIC_API_KEY" },
+          { "name": "gpu-dev", "cli": "codex", "model": "codex-model", "runner": "gpu-1", "secret": "AGENT_M_AGENT_KEY_GPU_DEV", "keyVariable": "CODEX_API_KEY" }
+        ]
+      },
+      "result": [
+        { "name": "AGENT_M_TOKEN", "holds": "the person's Agent M token", "readBy": ["ci-dev", "gpu-dev"] },
+        {
+          "name": "AGENT_M_AGENT_KEY_CI_DEV",
+          "holds": "the key ci-dev's CLI calls its model with, as ANTHROPIC_API_KEY",
+          "readBy": ["ci-dev"]
+        }
+      ]
+    }
+  ]
+}
+```
+
 ### MOD-ci-entry
 
 ```json module
@@ -973,10 +1116,10 @@ flowchart LR
   "id": "MOD-ci-entry",
   "folder": "src/ci-entry/",
   "layer": "shell",
-  "responsibility": "Runs the steps of the generated CI jobs that run Agent M's code — the command of node's test runner for a job's kind of tests, and the records of a pipeline's runs on the branch test-results, written by the one job that holds the person's token — with the process's environment, its working tree, the network and the clock as ports; src/ci-entry/main.mjs maps a step's name to these.",
+  "responsibility": "Runs the steps of the generated CI jobs that run Agent M's code — the command of node's test runner for a job's kind of tests, the records of a pipeline's runs on the branch test-results, written by the one job that holds the person's token, the start of an agent's job, the check for a cancel before its writes, the look at its pull request, and the check of the Definition of Done — with the process's environment, its working tree, the network and the clock as ports; src/ci-entry/main.mjs maps a step's name to these.",
   "realises": [],
-  "owns": ["CiEnv", "RunOutcome", "RecordsWritten", "RunNoteLines", "RunNoteFile"],
-  "uses": ["MOD-contracts", "MOD-test-records", "MOD-git-host"]
+  "owns": ["CiEnv", "RunOutcome", "RecordsWritten", "RunNoteLines", "JobStarted", "MayWrite", "JobObserved", "DoneChecked", "RunNoteFile"],
+  "uses": ["MOD-contracts", "MOD-test-records", "MOD-git-host", "MOD-run-engine", "MOD-process-model", "MOD-work-items", "MOD-job-harness", "MOD-artifacts", "MOD-architecture", "MOD-job-runner", "MOD-test-views", "MOD-process-views"]
 }
 ```
 
@@ -1509,6 +1652,1408 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-ci-entry.jobStart",
+  "summary": "The start of a job's run (UC-034 4, 5): a job that ended, or was cancelled before its run, does nothing more; otherwise its record gains the attempt it starts, and the agent is given the job's prompt — from the item, what it realises, the tests that guard it and the product's process requirements, or on a later attempt with the tests that failed on its branch's head — and the branch it works on with the branch its work goes into. The working tree is the product's default branch, paths its files; Agent M's files are read under AGENT_M_HOME.",
+  "params": [
+    { "name": "env", "type": "CiEnv" },
+    { "name": "paths", "type": "string[]" },
+    { "name": "files", "type": "ReadPort" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "JobStarted",
+  "async": true,
+  "refusals": [
+    { "code": "no-token", "when": "the job's environment holds no AGENT_M_TOKEN" },
+    { "code": "no-job", "when": "AGENT_M_JOB names no job, or no record of it is on the default branch" },
+    { "code": "no-participant", "when": "the job's participant is not in the instance's participants" },
+    { "code": "not-a-ci-agent", "when": "it is no CI agent" },
+    { "code": "not-a-definition", "when": "the job's definition cannot be read" },
+    { "code": "no-item", "when": "the job's item is not in docs/backlog/" },
+    { "code": "missing-text", "when": "a name the item realises has no text" },
+    { "code": "context-too-small", "when": "the prompt does not fit the participant's context" },
+    { "code": "nothing-failed", "when": "a later attempt finds no test failed on the branch's head" },
+    { "code": "moved", "when": "the default branch moved on while the record was written" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the first attempt of ITM-014",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b100000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b100000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T09:50:00Z | running | attempt 1 on ci-dev |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0800-9a9a: attempt 1",
+                "tree": "c100000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e100000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e100000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e100000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e100000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "result": { "next": "agent", "branch": "item/ITM-014", "base": "main", "prompt": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n\n\nThe item:\n\n### ITM-014\n\n---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n\n\nWhat it realises:\n\n### A CHAPTER IS EXPORTED\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n\n### UC-003\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n\nThe tests that guard it now:\n\n### tests/export.test.mjs\n\n// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n\n\nThe process requirements of this product:\n\n(none)\n\n", "attempt": 1, "note": "" }
+    },
+    {
+      "name": "the second attempt, after TST-015 failed",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:52:00Z | running | attempt 1 used 182344 input and 12850 output tokens, 1.84 USD as the CLI reported; CI is red, attempt 2 follows |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/item%2FITM-014" },
+            "response": { "status": 200, "body": { "sha": "d200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/d200000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "tests/export.test.mjs", "type": "blob", "sha": "6100000000000000000000000000000000000000" },
+                  { "path": "src/export/index.mjs", "type": "blob", "sha": "6200000000000000000000000000000000000000" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/tests/export.test.mjs?ref=d200000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/test-results" },
+            "response": { "status": 200, "body": { "object": { "sha": "a700000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/a700000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a700000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/a700000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "results/d200000000000000000000000000000000000000/gh-4801-1-system.md", "type": "blob", "sha": "6300000000000000000000000000000000000000" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/results/d200000000000000000000000000000000000000/gh-4801-1-system.md?ref=a700000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\ncommit: d200000000000000000000000000000000000000\nlevels:\n  - system\noccasion: pull request\nparticipant: GitHub Actions, runner GitHub Actions 7\nlog: https://github.com/alice/thesis/actions/runs/4801\nat: 2026-10-12T09:50:00Z\nuncommitted: no\noutcome: failed\n---\n\n# Run gh-4801-1-system\n\n| Test | Level | Outcome | Runs | Passed | Note |\n|---|---|---|---|---|---|\n| TST-014 | system | passed | 1 | 1 |  |\n| TST-015 | system | failed | 1 | 0 | expected \"Methods\", got \"chapter-2\" |\n\n## TST-015\n\n~~~text\nAssertionError: expected \"Methods\", got \"chapter-2\"\n    at tests/export.test.mjs:18:3\n~~~\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b300000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b300000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:52:00Z | running | attempt 1 used 182344 input and 12850 output tokens, 1.84 USD as the CLI reported; CI is red, attempt 2 follows |\n| 2026-10-12T09:50:00Z | running | attempt 2 on ci-dev |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c300000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0800-9a9a: attempt 2",
+                "tree": "c300000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e300000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e300000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e300000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e300000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "result": { "next": "agent", "branch": "item/ITM-014", "base": "main", "prompt": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n\n\nThe item:\n\n### ITM-014\n\n---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n\n\nWhat it realises:\n\n### A CHAPTER IS EXPORTED\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n\n### UC-003\n\n---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n\n\nThe tests that guard it now:\n\n### tests/export.test.mjs\n\n// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n\n\nThe process requirements of this product:\n\n(none)\n\n## CI failed on your pull request\n\nThese tests failed on d20000000000; make them pass without changing what they expect:\n\n- TST-015 (system): expected the PDF's title is Methods\n  AssertionError: expected \"Methods\", got \"chapter-2\"\n      at tests/export.test.mjs:18:3\n", "attempt": 2, "note": "" }
+    },
+    {
+      "name": "cancelled before its run",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "job: JOB-20261012-0800-9a9a\nby: alice\nat: 2026-10-12T08:01:00Z\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b200000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b200000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T09:50:00Z | cancelled | cancelled by alice |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c200000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0800-9a9a: cancelled before its run",
+                "tree": "c200000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e200000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e200000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e200000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e200000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "result": { "next": "stop", "branch": "item/ITM-014", "base": "", "prompt": "", "attempt": 0, "note": "cancelled by alice" }
+    },
+    {
+      "name": "no token",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n" },
+        "fetch": [],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "refused": "no-token"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-ci-entry.mayWrite",
+  "summary": "Whether the job may still write: refused once a person cancelled it (A CANCELLED JOB WRITES NOTHING MORE); the step that pushes the agent's commits asks first.",
+  "params": [{ "name": "env", "type": "CiEnv" }, { "name": "fetch", "type": "FetchPort" }],
+  "result": "MayWrite",
+  "async": true,
+  "refusals": [
+    { "code": "cancelled", "when": "a cancel record of the job is on the default branch" },
+    { "code": "no-job", "when": "no record of the job is on the default branch" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "not cancelled",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "result": { "job": "JOB-20261012-0800-9a9a", "may": true }
+    },
+    {
+      "name": "cancelled",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "job: JOB-20261012-0800-9a9a\nby: alice\nat: 2026-10-12T08:01:00Z\n" }
+          }
+        ]
+      },
+      "refused": "cancelled"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-ci-entry.jobObserve",
+  "summary": "One look at a job's pull request and what decides its next step (UC-034 5–8): the cancel, the agent's question, the pull request with CI on its first commit and its head and the attempts, the Definition of Done checked from its commits, their files and CI (MOD-job-runner.doneFactsOf, MOD-process-model.doneCheck), and the gates leaving the job's phase on its head; then what MOD-job-runner.nextStep decides is done — the pull request opened, the run waits and looks again, the next attempt dispatched, the pull request merged into the branch its work goes into, or the job's state recorded with what the CLI reported it used, and the run ended.",
+  "params": [
+    { "name": "env", "type": "CiEnv" },
+    { "name": "paths", "type": "string[]" },
+    { "name": "files", "type": "ReadPort" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "JobObserved",
+  "async": true,
+  "refusals": [
+    { "code": "no-token", "when": "the job's environment holds no AGENT_M_TOKEN" },
+    { "code": "no-job", "when": "no record of the job is on the default branch" },
+    { "code": "no-workflow", "when": "the product declares no process model whose workflow can be derived" },
+    { "code": "not-green", "when": "a check turned red between the look and the merge" },
+    { "code": "moved", "when": "a branch moved on while it was written" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "the agent's commits pushed, the pull request opened",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240", "AGENT_M_PUSHED": "true" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n", "/home/runner/work/thesis/thesis/agent-m-out/report.json": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"num_turns\":38,\"result\":\"The tests of ITM-014 and the export of the figures are committed.\",\"total_cost_usd\":1.8432,\"usage\":{\"input_tokens\":182344,\"output_tokens\":12850}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [{ "path": "SPEC.md", "type": "blob", "sha": "5100000000000000000000000000000000000000" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1&base=main" },
+            "response": { "status": 200, "body": [] }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/pulls",
+              "body": { "title": "ITM-014: Export a chapter as PDF", "head": "item/ITM-014", "base": "main", "body": "Realises: A CHAPTER IS EXPORTED, UC-003\nCloses the issue ISS-007\nStarted: 2026-10-12T09:50:00Z\n\nJob: JOB-20261012-0800-9a9a\nParticipant: ci-dev\nModel: claude-opus-5-5\nAgent-M: 2026.10.1\nRounds: 0\n" }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "number": 72,
+                "title": "ITM-014: Export a chapter as PDF",
+                "state": "open",
+                "draft": false,
+                "head": { "ref": "item/ITM-014", "sha": "d200000000000000000000000000000000000000" },
+                "base": { "ref": "main" },
+                "created_at": "2026-10-12T09:41:00Z",
+                "merged_at": null,
+                "closed_at": null,
+                "html_url": "https://github.com/alice/thesis/pull/72"
+              }
+            }
+          }
+        ],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "result": { "action": "wait", "state": "running", "note": "pull request #72 opened", "pullRequest": 72 }
+    },
+    {
+      "name": "CI red, the second attempt dispatched",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n", "/home/runner/work/thesis/thesis/agent-m-out/report.json": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"num_turns\":38,\"result\":\"The tests of ITM-014 and the export of the figures are committed.\",\"total_cost_usd\":1.8432,\"usage\":{\"input_tokens\":182344,\"output_tokens\":12850}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [{ "path": "SPEC.md", "type": "blob", "sha": "5100000000000000000000000000000000000000" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1&base=main" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 72,
+                  "title": "ITM-014: Export a chapter as PDF",
+                  "state": "open",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-014", "sha": "d200000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-12T09:41:00Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "html_url": "https://github.com/alice/thesis/pull/72"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls/72/commits?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "d200000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: the export",
+                    "committer": { "date": "2026-10-12T09:40:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "d100000000000000000000000000000000000000" }]
+                },
+                {
+                  "sha": "d100000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: tests for the export",
+                    "committer": { "date": "2026-10-12T09:10:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "c100000000000000000000000000000000000000" }]
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d100000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "files": [{ "filename": "tests/export.test.mjs", "status": "modified" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d200000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d200000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "src/export/index.mjs", "status": "modified" },
+                  { "filename": "src/export/figures.mjs", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "failure", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d200000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "failure", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b600000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b600000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:50:00Z | running | attempt 1 used 182344 input and 12850 output tokens, 1.84 USD as the CLI reported; CI is red, attempt 2 follows |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c600000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0800-9a9a: attempt 1 ends red",
+                "tree": "c600000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e600000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e600000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e600000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e600000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-job.yml/dispatches",
+              "body": {
+                "ref": "main",
+                "inputs": { "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_PARTICIPANT": "ci-dev" }
+              }
+            },
+            "response": { "status": 204, "body": null }
+          }
+        ],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "result": { "action": "repair", "state": "running", "note": "attempt 2 dispatched", "pullRequest": 72 }
+    },
+    {
+      "name": "green, the gate waiting for alice",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n", "/home/runner/work/thesis/thesis/agent-m-out/report.json": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"num_turns\":38,\"result\":\"The tests of ITM-014 and the export of the figures are committed.\",\"total_cost_usd\":1.8432,\"usage\":{\"input_tokens\":182344,\"output_tokens\":12850}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [{ "path": "SPEC.md", "type": "blob", "sha": "5100000000000000000000000000000000000000" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1&base=main" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 72,
+                  "title": "ITM-014: Export a chapter as PDF",
+                  "state": "open",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-014", "sha": "d200000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-12T09:41:00Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "html_url": "https://github.com/alice/thesis/pull/72"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls/72/commits?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "d200000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: the export",
+                    "committer": { "date": "2026-10-12T09:40:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "d100000000000000000000000000000000000000" }]
+                },
+                {
+                  "sha": "d100000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: tests for the export",
+                    "committer": { "date": "2026-10-12T09:10:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "c100000000000000000000000000000000000000" }]
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d100000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "files": [{ "filename": "tests/export.test.mjs", "status": "modified" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d200000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d200000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "src/export/index.mjs", "status": "modified" },
+                  { "filename": "src/export/figures.mjs", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "failure", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d200000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "success", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/c100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "c100000000000000000000000000000000000000",
+                "tree": { "sha": "b500000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b500000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:50:00Z | waiting-at-gate | Doing → Done waits for alice; attempt 1 used 182344 input and 12850 output tokens, 1.84 USD as the CLI reported |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c500000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0800-9a9a: waiting-at-gate",
+                "tree": "c500000000000000000000000000000000000000",
+                "parents": ["c100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e500000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e500000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e500000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e500000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "result": { "action": "end", "state": "waiting-at-gate", "note": "Doing → Done waits for alice", "pullRequest": 72 }
+    },
+    {
+      "name": "green, the gate passed, merged",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n", "/home/runner/work/thesis/thesis/agent-m-out/report.json": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"num_turns\":38,\"result\":\"The tests of ITM-014 and the export of the figures are committed.\",\"total_cost_usd\":1.8432,\"usage\":{\"input_tokens\":182344,\"output_tokens\":12850}}" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/cancels/JOB-20261012-0800-9a9a.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "SPEC.md", "type": "blob", "sha": "5100000000000000000000000000000000000000" },
+                  { "path": "docs/jobs/gates/ITM-014-doing-done-d20000000000.md", "type": "blob", "sha": "5200000000000000000000000000000000000000" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/gates/ITM-014-doing-done-d20000000000.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "gate: Doing → Done\nsubject: ITM-014\non: d200000000000000000000000000000000000000\ndecider: alice\ndecision: passed\nreason: read the export and its tests\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1&base=main" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 72,
+                  "title": "ITM-014: Export a chapter as PDF",
+                  "state": "open",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-014", "sha": "d200000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-12T09:41:00Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "html_url": "https://github.com/alice/thesis/pull/72"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls/72/commits?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "d200000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: the export",
+                    "committer": { "date": "2026-10-12T09:40:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "d100000000000000000000000000000000000000" }]
+                },
+                {
+                  "sha": "d100000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: tests for the export",
+                    "committer": { "date": "2026-10-12T09:10:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "c100000000000000000000000000000000000000" }]
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d100000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "files": [{ "filename": "tests/export.test.mjs", "status": "modified" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d200000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d200000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "src/export/index.mjs", "status": "modified" },
+                  { "filename": "src/export/figures.mjs", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "failure", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d200000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "success", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://api.github.com/repos/alice/thesis/pulls/72/merge",
+              "body": { "sha": "d200000000000000000000000000000000000000", "merge_method": "merge" }
+            },
+            "response": {
+              "status": 200,
+              "body": { "sha": "f100000000000000000000000000000000000000", "merged": true }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/commits/f100000000000000000000000000000000000000" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "f100000000000000000000000000000000000000",
+                "tree": { "sha": "b400000000000000000000000000000000000000" }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees",
+              "body": {
+                "base_tree": "b400000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n| 2026-10-12T09:50:00Z | done | pull request #72 merged into main; attempt 1 used 182344 input and 12850 output tokens, 1.84 USD as the CLI reported |\n\n## Results\n\n- https://github.com/alice/thesis/pull/72\n- merged as f100000000000000000000000000000000000000\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 1 | 1.84 USD | 182344 | 12850 | — |\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "c400000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits",
+              "body": {
+                "message": "JOB-20261012-0800-9a9a: done",
+                "tree": "c400000000000000000000000000000000000000",
+                "parents": ["f100000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "e400000000000000000000000000000000000000", "html_url": "https://github.com/alice/thesis/commit/e400000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs/heads/main",
+              "body": { "sha": "e400000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "e400000000000000000000000000000000000000" } } }
+          }
+        ],
+        "clock": "2026-10-12T09:50:00Z"
+      },
+      "result": { "action": "end", "state": "done", "note": "pull request #72 merged into main", "pullRequest": 72 }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-ci-entry.doneCheck",
+  "summary": "The check \"agent-m done\" of a pull request from a job's branch — item/<item> or job/<job> —, run by its own workflow: the Definition of Done as the job's run checks it, so that a branch protection may require it of every merge, a person's too; pending while CI on the head is.",
+  "params": [
+    { "name": "env", "type": "CiEnv" },
+    { "name": "paths", "type": "string[]" },
+    { "name": "files", "type": "ReadPort" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "DoneChecked",
+  "async": true,
+  "refusals": [
+    { "code": "no-pull-request", "when": "no pull request from the branch is open" },
+    { "code": "not-a-job-branch", "when": "the branch is neither item/<item> nor job/<job>" },
+    { "code": "no-job", "when": "no job record names the branch's job or item" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "ITM-014's pull request, CI green and the gate passed",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240", "AGENT_M_BRANCH": "item/ITM-014" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/jobs/JOB-20261012-0800-9a9a.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n", "docs/jobs/JOB-20261012-0800-9a9a.md": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 72,
+                  "title": "ITM-014: Export a chapter as PDF",
+                  "state": "open",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-014", "sha": "d200000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-12T09:41:00Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "html_url": "https://github.com/alice/thesis/pull/72"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "SPEC.md", "type": "blob", "sha": "5100000000000000000000000000000000000000" },
+                  { "path": "docs/jobs/gates/ITM-014-doing-done-d20000000000.md", "type": "blob", "sha": "5200000000000000000000000000000000000000" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/gates/ITM-014-doing-done-d20000000000.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "gate: Doing → Done\nsubject: ITM-014\non: d200000000000000000000000000000000000000\ndecider: alice\ndecision: passed\nreason: read the export and its tests\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls/72/commits?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "d200000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: the export",
+                    "committer": { "date": "2026-10-12T09:40:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "d100000000000000000000000000000000000000" }]
+                },
+                {
+                  "sha": "d100000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: tests for the export",
+                    "committer": { "date": "2026-10-12T09:10:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "c100000000000000000000000000000000000000" }]
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d100000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "files": [{ "filename": "tests/export.test.mjs", "status": "modified" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d200000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d200000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "src/export/index.mjs", "status": "modified" },
+                  { "filename": "src/export/figures.mjs", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "failure", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d200000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "success", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": { "pending": false, "ok": true, "failed": [] }
+    },
+    {
+      "name": "CI still running",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240", "AGENT_M_BRANCH": "item/ITM-014" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/jobs/JOB-20261012-0800-9a9a.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n", "docs/jobs/JOB-20261012-0800-9a9a.md": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 72,
+                  "title": "ITM-014: Export a chapter as PDF",
+                  "state": "open",
+                  "draft": false,
+                  "head": { "ref": "item/ITM-014", "sha": "d200000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-12T09:41:00Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "html_url": "https://github.com/alice/thesis/pull/72"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://raw.githubusercontent.com/alice/agent-m/5a00000000000000000000000000000000000000/docs/process-models/kanban.md" },
+            "response": { "status": 200, "body": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | a person has read the change | Reviewer |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Reviewer | person | read the repository |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "SPEC.md", "type": "blob", "sha": "5100000000000000000000000000000000000000" },
+                  { "path": "docs/jobs/gates/ITM-014-doing-done-d20000000000.md", "type": "blob", "sha": "5200000000000000000000000000000000000000" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/docs/jobs/gates/ITM-014-doing-done-d20000000000.md?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "gate: Doing → Done\nsubject: ITM-014\non: d200000000000000000000000000000000000000\ndecider: alice\ndecision: passed\nreason: read the export and its tests\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls/72/commits?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "d200000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: the export",
+                    "committer": { "date": "2026-10-12T09:40:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "d100000000000000000000000000000000000000" }]
+                },
+                {
+                  "sha": "d100000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "ITM-014: tests for the export",
+                    "committer": { "date": "2026-10-12T09:10:00Z" },
+                    "author": { "name": "ci-dev" }
+                  },
+                  "author": null,
+                  "parents": [{ "sha": "c100000000000000000000000000000000000000" }]
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d100000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d100000000000000000000000000000000000000",
+                "files": [{ "filename": "tests/export.test.mjs", "status": "modified" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/d200000000000000000000000000000000000000?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "d200000000000000000000000000000000000000",
+                "files": [
+                  { "filename": "src/export/index.mjs", "status": "modified" },
+                  { "filename": "src/export/figures.mjs", "status": "added" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d100000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "completed", "conclusion": "failure", "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/actions/runs?head_sha=d200000000000000000000000000000000000000&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "workflow_runs": [
+                  { "name": "agent-m tests", "status": "in_progress", "conclusion": null, "display_title": "agent-m tests", "html_url": "https://github.com/alice/thesis/actions/runs/1" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": { "pending": true, "ok": false, "failed": [] }
+    },
+    {
+      "name": "a branch of no job",
+      "input": {
+        "env": { "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "alice/thesis", "AGENT_M_HOME": "/home/runner/work/thesis/thesis/agent-m", "AGENT_M_OUT": "/home/runner/work/thesis/thesis/agent-m-out", "AGENT_M_JOB": "JOB-20261012-0800-9a9a", "AGENT_M_TOKEN": "github_pat_example", "AGENT_M_INSTANCE": "https://github.com/alice/agent-m", "AGENT_M_WAIT_MINUTES": "240", "AGENT_M_BRANCH": "feature/pdf" },
+        "paths": ["SPEC.md", "docs/architecture/ARC-002-export.md", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md", "docs/jobs/JOB-20261012-0800-9a9a.md", "docs/process.md", "docs/use-cases/UC-003-export-a-chapter.md", "tests/export.test.mjs"],
+        "files": { "SPEC.md": "# Thesis — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n## 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n## 3. Export\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nA chapter is exported as a PDF with its figures.\n*Check:* `tests/export.test.mjs`\n", "docs/process.md": "---\nmodel: kanban\nmodel_file: docs/process-models/kanban.md\nmodel_version: 5a00000000000000000000000000000000000000\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-dev, gpu-dev |\n| Reviewer | alice |\n\n## Practices\n\n- none\n", "docs/backlog/ITM-014-export-a-chapter-as-pdf.md": "---\nid: ITM-014\ntitle: Export a chapter as PDF\nkind: implementation\nrealises:\n  - A CHAPTER IS EXPORTED\n  - UC-003\nmodules:\n  - MOD-export\norigin:\n  - ISS-007\n---\n\n# ITM-014 Export a chapter as PDF\n\n**REGISTER**\n\n## Outcome\n\nAn accepted chapter is exported as a PDF with its figures.\n\n## Acceptance criteria\n\n- the PDF holds every figure of the chapter\n- the PDF is named after the chapter\n", "docs/use-cases/UC-003-export-a-chapter.md": "---\nid: UC-003\ntitle: Export a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER IS EXPORTED\n---\n# UC-003 Export a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author presses **Export**.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n", "docs/architecture/ARC-002-export.md": "---\nid: ARC-002\ntitle: Export\nforced_by:\n  - EVERY TEXT IS REVIEWED\n  - UC-003\n---\n# ARC-002 Export\n\n## Context\n\nThe thesis is reviewed in the browser.\n\n## Decision\n\n1. Export.\n\n## Alternatives\n\n- None.\n\n## Consequences\n\n- None.\n\n## Modules\n\n```json module\n{\"id\":\"MOD-export\",\"folder\":\"src/export/\",\"layer\":\"feature\",\"responsibility\":\"Exports chapters.\",\"realises\":[\"EVERY TEXT IS REVIEWED\"],\"owns\":[],\"uses\":[\"MOD-pages\"]}\n```\n\n```json interface\n{\"id\":\"MOD-export.run\",\"summary\":\"Exports a chapter.\",\"params\":[{\"name\":\"path\",\"type\":\"string\"}],\"result\":\"string\",\"async\":false,\"refusals\":[],\"examples\":[{\"name\":\"one\",\"input\":{\"path\":\"a.md\"},\"result\":\"a.pdf\"}]}\n```\n", "tests/export.test.mjs": "// The export of a chapter.\n//\n// Module: MOD-export\n// Guards: A CHAPTER IS EXPORTED; UC-003\n// Level: system\nimport { test } from \"node:test\";\n\n// TST-014 the PDF keeps the figures\n// Given: a chapter with two figures\n// When: the author exports it as PDF\n// Then: the PDF holds both figures\ntest(\"TST-014 the PDF keeps the figures\", () => {});\n\n// TST-015 the PDF names the chapter\n// Given: a chapter titled Methods\n// When: the author exports it as PDF\n// Then: the PDF's title is Methods\ntest(\"TST-015 the PDF names the chapter\", () => {});\n\n// TST-016 the summary of an export reads as the chapter\n// Given: a chapter of four pages\n// When: the model summarises the exported PDF\n// Then: the summary names the chapter's three findings\n// Runs: 20\n// Paid: hub\ntest(\"TST-016 the summary of an export reads as the chapter\", () => {});\n", "/home/runner/work/thesis/thesis/agent-m/docs/participants.md": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| ci-dev | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job: claude on GitHub's machines |\n| gpu-dev | CI agent | codex-model | — | — | read the repository, write to the repository, run code and tests | the lab's GPU server, Erlangen | the workflow agent-m-job: codex on the runner gpu-1 |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | this machine | the bridge on the Mac of `alice` |\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/job.json": "{\n  \"kind\": \"implement-item\",\n  \"mode\": \"agent\",\n  \"produces\": [\n    \"MOD\",\n    \"TST\"\n  ],\n  \"capabilities\": [\n    \"read the repository\",\n    \"write to the repository\",\n    \"run code and tests\"\n  ],\n  \"inputs\": [\n    {\n      \"name\": \"item\",\n      \"of\": \"ITM\"\n    },\n    {\n      \"name\": \"realises\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"tests\",\n      \"of\": \"TST\"\n    },\n    {\n      \"name\": \"process\",\n      \"of\": \"requirement\"\n    },\n    {\n      \"name\": \"instruction\",\n      \"of\": \"text\"\n    }\n  ],\n  \"output\": {},\n  \"checks\": [],\n  \"rounds\": 3,\n  \"result\": \"pull-request\"\n}\n", "/home/runner/work/thesis/thesis/agent-m/src/job-harness/jobs/implement-item/prompt.md": "Implement the backlog item below in this repository, test first: commit the tests for its acceptance criteria alone, each\nnaming the requirement it guards, then the implementation until they pass. If the item contradicts the specification or\nleaves a case open, change nothing and answer with one line that begins with QUESTION: and asks it.\n\n{{instruction}}\n\nThe item:\n\n{{item}}\n\nWhat it realises:\n\n{{realises}}\n\nThe tests that guard it now:\n\n{{tests}}\n\nThe process requirements of this product:\n\n{{process}}\n", "docs/jobs/JOB-20261012-0800-9a9a.md": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:03:00Z | running | attempt 1 on ci-dev |\n" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/pulls?state=all&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 72,
+                  "title": "ITM-014: Export a chapter as PDF",
+                  "state": "open",
+                  "draft": false,
+                  "head": { "ref": "feature/pdf", "sha": "d200000000000000000000000000000000000000" },
+                  "base": { "ref": "main" },
+                  "created_at": "2026-10-12T09:41:00Z",
+                  "merged_at": null,
+                  "closed_at": null,
+                  "html_url": "https://github.com/alice/thesis/pull/72"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "refused": "not-a-job-branch"
+    }
+  ]
+}
+```
+
 ## Types
 
 ```json type
@@ -1670,6 +3215,28 @@ flowchart LR
 }
 ```
 
+```json type
+{
+  "$id": "JobSecret",
+  "description": "A CI secret the job workflow reads: its name, what it holds, and the CI agents whose jobs read it.",
+  "type": "object",
+  "required": ["name", "holds", "readBy"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "holds": { "type": "string" },
+    "readBy": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [
+    {
+      "name": "AGENT_M_AGENT_KEY_CI_DEV",
+      "holds": "the key ci-dev's CLI calls its model with, as ANTHROPIC_API_KEY",
+      "readBy": ["ci-dev"]
+    }
+  ]
+}
+```
+
 ```json format
 {
   "$id": "ScheduleFile",
@@ -1700,6 +3267,28 @@ flowchart LR
   "syntax": "text",
   "content": "string",
   "examples": ["# Generated by Agent M from docs/tests/schedule.md; change the schedule, not this file.\nworkflow:\n  rules:\n    - if: $CI_COMMIT_BRANCH == \"test-results\"\n      when: never\n    - if: $CI_PIPELINE_SOURCE == \"push\" || $CI_PIPELINE_SOURCE == \"merge_request_event\"\n      changes:\n        - \"*\"\n        - \"[!d]*/**/*\"\n        - \"d[!o]*/**/*\"\n        - \"do[!c]*/**/*\"\n        - \"doc[!s]*/**/*\"\n        - \"d/**/*\"\n        - \"do/**/*\"\n        - \"doc/**/*\"\n        - \"docs?*/**/*\"\n        - \"docs/*\"\n        - \"docs/[!j]*/**/*\"\n        - \"docs/j[!o]*/**/*\"\n        - \"docs/jo[!b]*/**/*\"\n        - \"docs/job[!s]*/**/*\"\n        - \"docs/j/**/*\"\n        - \"docs/jo/**/*\"\n        - \"docs/job/**/*\"\n        - \"docs/jobs?*/**/*\"\n    - if: $CI_PIPELINE_SOURCE == \"push\" || $CI_PIPELINE_SOURCE == \"merge_request_event\"\n      when: never\n    - when: always\nvariables:\n  AGENT_M_HOME: \"/tmp/agent-m-$CI_JOB_ID\"\nunit:\n  image: node:22\n  variables:\n    AGENT_M_KIND: unit\n    AGENT_M_OUT: \"$CI_PROJECT_DIR/agent-m-out/unit\"\n    AGENT_M_JUNIT: \"$CI_PROJECT_DIR/agent-m-out/unit/junit.xml\"\n  rules:\n    - if: $CI_PIPELINE_SOURCE == \"push\"\n    - if: $CI_PIPELINE_SOURCE == \"merge_request_event\"\n    - if: $CI_PIPELINE_SOURCE == \"schedule\"\n    - if: $AGENT_M_OCCASION == \"release candidate\"\n    - if: $AGENT_M_OCCASION == \"on demand\" && ($AGENT_M_TESTS == null || $AGENT_M_TESTS == \"\" || $AGENT_M_TESTS =~ /(^| )unit( |$)/)\n  script:\n    - mkdir -p \"$AGENT_M_OUT\"\n    - if [ -n \"$AGENT_M_COMMIT\" ]; then git fetch --quiet origin \"$AGENT_M_COMMIT\" && git checkout --quiet \"$AGENT_M_COMMIT\"; fi\n    - git clone --quiet https://github.com/alice/agent-m.git \"$AGENT_M_HOME\"\n    - git -C \"$AGENT_M_HOME\" checkout --quiet a100000000000000000000000000000000000000\n    - npm test\n  after_script:\n    - |\n      missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n      mkdir -p \"$AGENT_M_OUT\"\n      {\n        echo \"kind: $AGENT_M_KIND\"\n        echo \"outcome: $CI_JOB_STATUS\"\n        echo \"missing: $missing\"\n        echo \"run: gl-$CI_PIPELINE_ID-$CI_JOB_ID\"\n        echo \"log: $CI_JOB_URL\"\n        echo \"participant: GitLab CI, runner $CI_RUNNER_DESCRIPTION\"\n      } > \"$AGENT_M_OUT/run.txt\"\n  artifacts:\n    when: always\n    paths:\n      - agent-m-out/unit/\ncomponent:\n  image: node:22\n  variables:\n    AGENT_M_KIND: component\n    AGENT_M_OUT: \"$CI_PROJECT_DIR/agent-m-out/component\"\n    AGENT_M_JUNIT: \"$CI_PROJECT_DIR/agent-m-out/component/junit.xml\"\n  rules:\n    - if: $CI_PIPELINE_SOURCE == \"push\"\n    - if: $CI_PIPELINE_SOURCE == \"merge_request_event\"\n    - if: $CI_PIPELINE_SOURCE == \"schedule\"\n    - if: $AGENT_M_OCCASION == \"release candidate\"\n    - if: $AGENT_M_OCCASION == \"on demand\" && ($AGENT_M_TESTS == null || $AGENT_M_TESTS == \"\" || $AGENT_M_TESTS =~ /(^| )component( |$)/)\n  script:\n    - mkdir -p \"$AGENT_M_OUT\"\n    - if [ -n \"$AGENT_M_COMMIT\" ]; then git fetch --quiet origin \"$AGENT_M_COMMIT\" && git checkout --quiet \"$AGENT_M_COMMIT\"; fi\n    - git clone --quiet https://github.com/alice/agent-m.git \"$AGENT_M_HOME\"\n    - git -C \"$AGENT_M_HOME\" checkout --quiet a100000000000000000000000000000000000000\n    - npm test\n  after_script:\n    - |\n      missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n      mkdir -p \"$AGENT_M_OUT\"\n      {\n        echo \"kind: $AGENT_M_KIND\"\n        echo \"outcome: $CI_JOB_STATUS\"\n        echo \"missing: $missing\"\n        echo \"run: gl-$CI_PIPELINE_ID-$CI_JOB_ID\"\n        echo \"log: $CI_JOB_URL\"\n        echo \"participant: GitLab CI, runner $CI_RUNNER_DESCRIPTION\"\n      } > \"$AGENT_M_OUT/run.txt\"\n  artifacts:\n    when: always\n    paths:\n      - agent-m-out/component/\nsystem:\n  image: node:22\n  variables:\n    AGENT_M_KIND: system\n    AGENT_M_OUT: \"$CI_PROJECT_DIR/agent-m-out/system\"\n    AGENT_M_JUNIT: \"$CI_PROJECT_DIR/agent-m-out/system/junit.xml\"\n  rules:\n    - if: $CI_PIPELINE_SOURCE == \"schedule\"\n    - if: $AGENT_M_OCCASION == \"release candidate\"\n    - if: $AGENT_M_OCCASION == \"on demand\" && ($AGENT_M_TESTS == null || $AGENT_M_TESTS == \"\" || $AGENT_M_TESTS =~ /(^| )system( |$)/)\n  script:\n    - mkdir -p \"$AGENT_M_OUT\"\n    - if [ -n \"$AGENT_M_COMMIT\" ]; then git fetch --quiet origin \"$AGENT_M_COMMIT\" && git checkout --quiet \"$AGENT_M_COMMIT\"; fi\n    - git clone --quiet https://github.com/alice/agent-m.git \"$AGENT_M_HOME\"\n    - git -C \"$AGENT_M_HOME\" checkout --quiet a100000000000000000000000000000000000000\n    - npm test\n  after_script:\n    - |\n      missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n      mkdir -p \"$AGENT_M_OUT\"\n      {\n        echo \"kind: $AGENT_M_KIND\"\n        echo \"outcome: $CI_JOB_STATUS\"\n        echo \"missing: $missing\"\n        echo \"run: gl-$CI_PIPELINE_ID-$CI_JOB_ID\"\n        echo \"log: $CI_JOB_URL\"\n        echo \"participant: GitLab CI, runner $CI_RUNNER_DESCRIPTION\"\n      } > \"$AGENT_M_OUT/run.txt\"\n  artifacts:\n    when: always\n    paths:\n      - agent-m-out/system/\npaid:\n  image: node:22\n  tags: [cli-dev]\n  environment:\n    name: agent-m-paid\n    action: access\n  variables:\n    AGENT_M_KIND: paid\n    AGENT_M_OUT: \"$CI_PROJECT_DIR/agent-m-out/paid\"\n    AGENT_M_JUNIT: \"$CI_PROJECT_DIR/agent-m-out/paid/junit.xml\"\n  rules:\n    - if: $CI_PIPELINE_SOURCE == \"schedule\"\n    - if: $AGENT_M_OCCASION == \"release candidate\"\n    - if: $AGENT_M_OCCASION == \"on demand\" && ($AGENT_M_TESTS == null || $AGENT_M_TESTS == \"\" || $AGENT_M_TESTS =~ /(^| )paid( |$)/)\n  script:\n    - mkdir -p \"$AGENT_M_OUT\"\n    - if [ -n \"$AGENT_M_COMMIT\" ]; then git fetch --quiet origin \"$AGENT_M_COMMIT\" && git checkout --quiet \"$AGENT_M_COMMIT\"; fi\n    - git clone --quiet https://github.com/alice/agent-m.git \"$AGENT_M_HOME\"\n    - git -C \"$AGENT_M_HOME\" checkout --quiet a100000000000000000000000000000000000000\n    - |\n      missing=\"\"\n      [ -n \"$HUB_KEY\" ] || missing=\"$missing HUB_KEY\"\n      missing=\"${missing# }\"\n      echo \"$missing\" > \"$AGENT_M_OUT/missing\"\n      [ -z \"$missing\" ] || { echo \"the secret(s) $missing missing\"; exit 1; }\n    - npm test\n  after_script:\n    - |\n      missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n      mkdir -p \"$AGENT_M_OUT\"\n      {\n        echo \"kind: $AGENT_M_KIND\"\n        echo \"outcome: $CI_JOB_STATUS\"\n        echo \"missing: $missing\"\n        echo \"run: gl-$CI_PIPELINE_ID-$CI_JOB_ID\"\n        echo \"log: $CI_JOB_URL\"\n        echo \"participant: GitLab CI, runner $CI_RUNNER_DESCRIPTION\"\n      } > \"$AGENT_M_OUT/run.txt\"\n  artifacts:\n    when: always\n    paths:\n      - agent-m-out/paid/\nrelease:\n  image: node:22\n  variables:\n    AGENT_M_KIND: release\n    AGENT_M_OUT: \"$CI_PROJECT_DIR/agent-m-out/release\"\n    AGENT_M_JUNIT: \"$CI_PROJECT_DIR/agent-m-out/release/junit.xml\"\n  rules:\n    - if: $AGENT_M_OCCASION == \"release candidate\"\n    - if: $AGENT_M_OCCASION == \"on demand\" && ($AGENT_M_TESTS == null || $AGENT_M_TESTS == \"\" || $AGENT_M_TESTS =~ /(^| )release( |$)/)\n  script:\n    - mkdir -p \"$AGENT_M_OUT\"\n    - if [ -n \"$AGENT_M_COMMIT\" ]; then git fetch --quiet origin \"$AGENT_M_COMMIT\" && git checkout --quiet \"$AGENT_M_COMMIT\"; fi\n    - git clone --quiet https://github.com/alice/agent-m.git \"$AGENT_M_HOME\"\n    - git -C \"$AGENT_M_HOME\" checkout --quiet a100000000000000000000000000000000000000\n    - npm test\n  after_script:\n    - |\n      missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n      mkdir -p \"$AGENT_M_OUT\"\n      {\n        echo \"kind: $AGENT_M_KIND\"\n        echo \"outcome: $CI_JOB_STATUS\"\n        echo \"missing: $missing\"\n        echo \"run: gl-$CI_PIPELINE_ID-$CI_JOB_ID\"\n        echo \"log: $CI_JOB_URL\"\n        echo \"participant: GitLab CI, runner $CI_RUNNER_DESCRIPTION\"\n      } > \"$AGENT_M_OUT/run.txt\"\n  artifacts:\n    when: always\n    paths:\n      - agent-m-out/release/\nagent-m-results:\n  stage: .post\n  image: node:22\n  when: always\n  environment:\n    name: agent-m-results\n    action: access\n  variables:\n    AGENT_M_OUT: \"$CI_PROJECT_DIR/agent-m-out\"\n  script:\n    - if [ -n \"$AGENT_M_COMMIT\" ]; then git fetch --quiet origin \"$AGENT_M_COMMIT\" && git checkout --quiet \"$AGENT_M_COMMIT\"; fi\n    - git clone --quiet https://github.com/alice/agent-m.git \"$AGENT_M_HOME\"\n    - git -C \"$AGENT_M_HOME\" checkout --quiet a100000000000000000000000000000000000000\n    - |\n      case \"$CI_PIPELINE_SOURCE\" in\n        push) occasion=\"every commit\" ;;\n        merge_request_event) occasion=\"pull request\" ;;\n        schedule) occasion=\"nightly\" ;;\n        *) occasion=\"$AGENT_M_OCCASION\" ;;\n      esac\n      AGENT_M_OCCASION=\"$occasion\" AGENT_M_COMMIT=\"${AGENT_M_COMMIT:-$CI_COMMIT_SHA}\" AGENT_M_NOTES=\"$(ls \"$AGENT_M_OUT\" 2>/dev/null | tr '\\n' ' ')\" node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" results\n"]
+}
+```
+
+```json format
+{
+  "$id": "GitHubJobWorkflowFile",
+  "description": "The workflow of agents' jobs on GitHub; generated from the instance's CI agents, never edited.",
+  "path": ".github/workflows/agent-m-job.yml",
+  "syntax": "text",
+  "content": "string",
+  "examples": ["# Generated by Agent M from the CI agents of the instance; change the participants, not this file.\nname: agent-m job\nrun-name: agent-m job ${{ inputs.AGENT_M_JOB }}\non:\n  workflow_dispatch:\n    inputs:\n      AGENT_M_JOB:\n        description: the job's identifier\n        type: string\n        required: true\n      AGENT_M_PARTICIPANT:\n        description: the CI agent that carries it out\n        type: string\n        required: true\npermissions:\n  contents: read\nconcurrency:\n  group: agent-m-job-${{ inputs.AGENT_M_JOB }}\njobs:\n  ci-dev:\n    if: inputs.AGENT_M_PARTICIPANT == 'ci-dev'\n    runs-on: ubuntu-latest\n    timeout-minutes: 300\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out\n      AGENT_M_JOB: ${{ inputs.AGENT_M_JOB }}\n      AGENT_M_INSTANCE: https://github.com/alice/agent-m\n      AGENT_M_WAIT_MINUTES: \"240\"\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          path: product\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: a100000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - run: npm install --global @anthropic-ai/claude-code\n      - id: start\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-start\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          git config user.name \"ci-dev\"\n          git config user.email \"ci-dev@agent-m.invalid\"\n          git checkout \"$BRANCH\" 2>/dev/null || git checkout -b \"$BRANCH\" \"origin/$BASE\"\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          ANTHROPIC_API_KEY: ${{ secrets.AGENT_M_AGENT_KEY_CI_DEV }}\n        run: claude --bare -p \"Carry out the task the input describes.\" --model 'claude-opus-5-5' --permission-mode acceptEdits --allowedTools Bash --permission-prompts none --output-format json < \"$AGENT_M_OUT/prompt.md\" > \"$AGENT_M_OUT/report.json\"\n      - id: push\n        if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" may-write\n          base=\"$(git rev-parse --verify --quiet \"origin/$BRANCH\" || git rev-parse \"origin/$BASE\")\"\n          if [ -n \"$(git rev-list \"$base..HEAD\")\" ]; then\n            auth=\"AUTHORIZATION: basic $(printf 'x-access-token:%s' \"$AGENT_M_TOKEN\" | base64 -w0)\"\n            git -c \"http.https://github.com/.extraheader=$auth\" push origin \"HEAD:refs/heads/$BRANCH\"\n            echo \"pushed=true\" >> \"$GITHUB_OUTPUT\"\n          fi\n      - if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          AGENT_M_PUSHED: ${{ steps.push.outputs.pushed }}\n        run: |\n          while :; do node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-observe && break; [ $? -eq 75 ] || exit 1; sleep 60; done\n  gpu-dev:\n    if: inputs.AGENT_M_PARTICIPANT == 'gpu-dev'\n    runs-on: [self-hosted, gpu-1]\n    timeout-minutes: 300\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out\n      AGENT_M_JOB: ${{ inputs.AGENT_M_JOB }}\n      AGENT_M_INSTANCE: https://github.com/alice/agent-m\n      AGENT_M_WAIT_MINUTES: \"240\"\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          path: product\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: a100000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - id: start\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-start\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          git config user.name \"gpu-dev\"\n          git config user.email \"gpu-dev@agent-m.invalid\"\n          git checkout \"$BRANCH\" 2>/dev/null || git checkout -b \"$BRANCH\" \"origin/$BASE\"\n      - if: steps.start.outputs.next == 'agent'\n        working-directory: product\n        run: codex exec --model 'codex-model' --sandbox workspace-write --json - < \"$AGENT_M_OUT/prompt.md\" > \"$AGENT_M_OUT/report.json\"\n      - id: push\n        if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          BRANCH: ${{ steps.start.outputs.branch }}\n          BASE: ${{ steps.start.outputs.base }}\n        run: |\n          node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" may-write\n          base=\"$(git rev-parse --verify --quiet \"origin/$BRANCH\" || git rev-parse \"origin/$BASE\")\"\n          if [ -n \"$(git rev-list \"$base..HEAD\")\" ]; then\n            auth=\"AUTHORIZATION: basic $(printf 'x-access-token:%s' \"$AGENT_M_TOKEN\" | base64 -w0)\"\n            git -c \"http.https://github.com/.extraheader=$auth\" push origin \"HEAD:refs/heads/$BRANCH\"\n            echo \"pushed=true\" >> \"$GITHUB_OUTPUT\"\n          fi\n      - if: always() && steps.start.outputs.next == 'agent'\n        working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          AGENT_M_PUSHED: ${{ steps.push.outputs.pushed }}\n        run: |\n          while :; do node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" job-observe && break; [ $? -eq 75 ] || exit 1; sleep 60; done\n"]
+}
+```
+
+```json format
+{
+  "$id": "GitHubDoneWorkflowFile",
+  "description": "The check of the Definition of Done on GitHub; generated, never edited.",
+  "path": ".github/workflows/agent-m-done.yml",
+  "syntax": "text",
+  "content": "string",
+  "examples": ["# Generated by Agent M; the conditions are the Definition of Done of docs/process.md.\nname: agent-m done\non:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  done:\n    if: startsWith(github.head_ref, 'item/') || startsWith(github.head_ref, 'job/')\n    runs-on: ubuntu-latest\n    timeout-minutes: 120\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_BRANCH: ${{ github.head_ref }}\n      AGENT_M_INSTANCE: https://github.com/alice/agent-m\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.repository.default_branch }}\n          path: product\n          persist-credentials: false\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: a100000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n        run: |\n          while :; do node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" done-check && break; [ $? -eq 75 ] || exit 1; sleep 60; done\n"]
 }
 ```
 
@@ -1771,6 +3360,77 @@ flowchart LR
   "examples": [
     { "kind": "paid", "outcome": "failed", "missing": "HUB_KEY", "run": "gl-901-5501", "log": "https://gitlab.example.org/group/tools/thesis/-/jobs/5501", "participant": "GitLab CI, runner cli-dev on lab-pc-3" }
   ]
+}
+```
+
+```json type
+{
+  "$id": "JobStarted",
+  "description": "What the start of a job's run decided: whether the agent runs or the run stops, the job's branch and the branch its work goes into — empty where it stops —, the agent's prompt, the attempt, and a note.",
+  "type": "object",
+  "required": ["next", "branch", "base", "prompt", "attempt", "note"],
+  "additionalProperties": false,
+  "properties": {
+    "next": { "type": "string", "enum": ["agent", "stop"] },
+    "branch": { "type": "string" },
+    "base": { "type": "string" },
+    "prompt": { "type": "string" },
+    "attempt": { "type": "integer", "minimum": 0 },
+    "note": { "type": "string" }
+  },
+  "examples": [
+    { "next": "stop", "branch": "item/ITM-014", "base": "", "prompt": "", "attempt": 0, "note": "cancelled by alice" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "MayWrite",
+  "description": "That a job may still write.",
+  "type": "object",
+  "required": ["job", "may"],
+  "additionalProperties": false,
+  "properties": {
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "may": { "const": true }
+  },
+  "examples": [{ "job": "JOB-20261012-0800-9a9a", "may": true }]
+}
+```
+
+```json type
+{
+  "$id": "JobObserved",
+  "description": "What one look at a job's pull request did: wait and look again, the next attempt dispatched, or the run ended; the job's state, a note, and the pull request's number — 0 before there is one.",
+  "type": "object",
+  "required": ["action", "state", "note", "pullRequest"],
+  "additionalProperties": false,
+  "properties": {
+    "action": { "type": "string", "enum": ["wait", "repair", "end"] },
+    "state": { "type": "string", "enum": ["running", "waiting-at-gate", "done", "failed", "cancelled"] },
+    "note": { "type": "string" },
+    "pullRequest": { "type": "integer", "minimum": 0 }
+  },
+  "examples": [
+    { "action": "end", "state": "waiting-at-gate", "note": "Doing → Done waits for alice", "pullRequest": 72 }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DoneChecked",
+  "description": "The check of the Definition of Done: whether CI on the head is still pending, whether every condition holds, and those that fail.",
+  "type": "object",
+  "required": ["pending", "ok", "failed"],
+  "additionalProperties": false,
+  "properties": {
+    "pending": { "type": "boolean" },
+    "ok": { "type": "boolean" },
+    "failed": { "type": "array", "items": { "type": "string" } }
+  },
+  "examples": [{ "pending": false, "ok": true, "failed": [] }]
 }
 ```
 

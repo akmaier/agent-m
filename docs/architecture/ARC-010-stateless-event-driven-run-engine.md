@@ -13,6 +13,7 @@ forced_by:
   - A JOB GOES ONLY TO A HOLDER OF ITS ROLE
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A JOB RECORD STARTS NO CI RUN
   - A JOB IDENTIFIER IS NEVER REUSED
   - A CANCELLED JOB WRITES NOTHING MORE
   - ONE DASHBOARD SHOWS EVERY JOB
@@ -50,15 +51,16 @@ the step depends only on the records.
    its jobs wait for is decided on (ARC-019 decision 6), and for a backlog its items with their facts and the running
    sprint —, the jobs to start now, what waits and why, whether the run is done, and the limit that stopped it. Nothing
    is remembered between calls.
-2. **The queue is the job records.** A job's record is `docs/jobs/JOB-<yyyymmdd>-<hhmm>-<hex4>.md` in the repository
-   of the product it works on: written at its start with its kind, phase, role, participant, runtime, run and slot,
-   the item and modules it works on, its inputs, the job it retries, the Agent M version and the model; extended by
-   each state it enters, with its time; and at its end by its results, correction rounds, and the cost and usage its
-   runtime reported (`MOD-run-engine.jobRecordText`). What was written is never changed. A record holds six states;
-   *ended without record* is derived and never written. A new identifier is the start's minute and a random part,
-   drawn again while a job of the product has it (`MOD-run-engine.newJobId`). Each job of a run has a slot key no
-   other job of the run holds; two engines computing at once cannot start a slot twice, because the second commit fails
-   its fast-forward and recomputes on the new head.
+2. **The queue is the job records.** A job's record is `docs/jobs/JOB-<yyyymmdd>-<hhmm>-<hex4>.md` in the repository of
+   the product it works on: written at its start with its kind, phase, role, participant, runtime, run and slot, the
+   item and modules it works on, its inputs, the job it retries, the Agent M version, the model and, where the author
+   chose it, who merges an agent's pull request — the agent or a person (UC-034 8); extended by each state it enters,
+   with its time; and at its end by its results, correction rounds, and the cost and usage its runtime reported
+   (`MOD-run-engine.jobRecordText`). What was written is never changed. A record holds six states; *ended without
+   record* is derived and never written. A new identifier is the start's minute and a random part, drawn again while a
+   job of the product has it (`MOD-run-engine.newJobId`). Each job of a run has a slot key no other job of the run
+   holds; two engines computing at once cannot start a slot twice, because the second commit fails its fast-forward and
+   recomputes on the new head.
 3. **A run is a job** of the kind `run` whose record names its selection, its limits and the participant chosen for
    each role, and at its end every job it started; each of those jobs names the run.
 4. **The plan follows the workflow** (`MOD-run-engine.runPlan`): the CI job first when the product has no CI
@@ -69,11 +71,12 @@ the step depends only on the records.
    that produces neither. Every job goes to the participant chosen for its role, who must hold it. A job meets the
    gates leaving its phase before its merge; the gates into a run's phase from a phase without jobs are decided for the
    product, and its jobs wait for them. The run ends with the validation view of its modules (UC-025).
-5. **Triggers — any of three, all equivalent:** a workflow of the product runs `nextJobs` on every push that touches
-   `docs/jobs/` and on the end of an Agent M job workflow, commits the start records, and dispatches the jobs whose
-   participant is a CI agent; the bridge, while running, computes `nextJobs` for the products it serves and takes the
-   queued jobs of its own agents — it connects out, so it works behind NAT; the browser computes it on **Start run**
-   and on each page load, and starts model-endpoint jobs in the tab.
+5. **Triggers — any of three, all equivalent:** a workflow of the product, dispatched by the dashboard's click and by
+   the last step of every Agent M job workflow, runs `nextJobs`, commits the start records, and dispatches the jobs
+   whose participant is a CI agent — no push starts it, so a commit that changes only job records starts no CI run
+   (`A JOB RECORD STARTS NO CI RUN`); the bridge, while running, computes `nextJobs` for the products it serves and
+   takes the queued jobs of its own agents — it connects out, so it works behind NAT; the browser computes it on **Start
+   run** and on each page load, and starts model-endpoint jobs in the tab.
 6. **Limits are inputs, not state.** A run starts no job beyond its jobs-at-once limit; it stops starting jobs when the
    costs its jobs' runtimes reported reach its cost limit, or a job reached its correction-round limit, and says which.
 7. **State and cost are derived** (`MOD-run-engine.jobState`, `MOD-run-engine.jobCost`): the end state a record holds;
@@ -98,17 +101,16 @@ sequenceDiagram
     A->>D: Start run (selection, limits)
     D->>D: runPlan, nextJobs
     D->>R: commit run record + start records (queued)
-    R-->>W: push touches docs/jobs/
+    D->>W: dispatch, on the same click
     W->>W: nextJobs — nothing new, or CI jobs
     W->>R: dispatch CI jobs, commit their start records
     B->>R: poll: queued jobs for my agents?
     B->>C: run job
     C->>R: branch, tests, code, pull request
     B->>R: append end state (done / failed)
-    R-->>W: push touches docs/jobs/
-    W->>W: nextJobs — dependants of the finished module
-    W->>R: commit next start records
-    Note over W,R: a gate decided by a person: nextJobs names it as waiting,<br/>and the person's gate record is the next event
+    B->>B: nextJobs — dependants of the finished module
+    B->>R: commit next start records
+    Note over W,R: a CI job's last step dispatches W again; a gate decided by a person:<br/>nextJobs names it as waiting, and the click recording the decision dispatches W
 ```
 
 ## Alternatives
@@ -122,14 +124,21 @@ sequenceDiagram
   concurrent writers would conflict on one file.
 - **A job kind named per phase in the model** — the kinds of artifact a phase produces already say which job carries
   it out; a second name per phase could contradict them.
+- **The engine started by a push that touches `docs/jobs/`** — rejected by `A JOB RECORD STARTS NO CI RUN`: the
+  generated CI configuration starts no run for a commit that changes only job records.
+- **The engine started when a job workflow completes (GitHub's `workflow_run`)** — not chosen: GitHub runs such chains
+  at most three levels deep, and a run of more jobs would stop: "You can't use `workflow_run` to chain together more
+  than three levels of workflows"
+  (`https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows`). A dispatch by
+  the job's last step has no such limit documented.
 
 ## Consequences
 
 - No use-case step is realised here. The steps of UC-010, UC-034, UC-036, UC-041 and UC-043 are actions on the
   dashboard's pages and in the runtimes; they are realised where those are designed, by their interfaces together with
   these.
-- Every job start, state and end is a commit under `docs/jobs/`; the tests CI ignores them, only the engine workflow
-  reacts.
+- Every job start, state and end is a commit under `docs/jobs/`, and none starts a CI run: the tests CI ignores them,
+  and the engine workflow runs only when it is dispatched.
 - A product without its engine workflow — a GitLab product whose pipeline is not set up, a fork with Actions disabled —
   advances a run only while a bridge or a tab computes `nextJobs`; the run panel says which triggers exist.
 - The executor that carries one job from its start record to its end record in every runtime — its driver, its
@@ -296,6 +305,40 @@ sequenceDiagram
         }
       },
       "result": { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n| 2026-10-11T16:20:00Z | done | — |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n- JOB-20261010-1100-3d3d\n- JOB-20261010-1300-4e4e\n- JOB-20261011-0900-5e5e\n" }
+    },
+    {
+      "name": "an agent's job whose pull request a person merges",
+      "input": {
+        "record": {
+          "id": "JOB-20261012-0800-9a9a",
+          "path": "docs/jobs/JOB-20261012-0800-9a9a.md",
+          "kind": "implement-item",
+          "phase": "Implementation",
+          "role": "Developers",
+          "participant": "ci-dev",
+          "runtime": "ci",
+          "run": "",
+          "slot": "",
+          "item": "ITM-014",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "claude-opus-5-5",
+          "log": "",
+          "selection": [],
+          "limits": null,
+          "assignments": [],
+          "states": [{ "at": "2026-10-12T08:00:00Z", "state": "queued", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": [],
+          "mergeBy": "person"
+        }
+      },
+      "result": { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "text": "---\nid: JOB-20261012-0800-9a9a\nkind: implement-item\nphase: Implementation\nrole: Developers\nparticipant: ci-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-014\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nmerge_by: person\nlog:\n---\n\n# JOB-20261012-0800-9a9a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n" }
     }
   ]
 }
@@ -3230,7 +3273,7 @@ sequenceDiagram
 ```json type
 {
   "$id": "JobRecord",
-  "description": "A job's record: its identifier and path; its kind — a job definition's kind, or run —; its phase and role; its participant and runtime — browser, ci or bridge —; the run it belongs to and its slot there; the item and modules it works on and its inputs; the job it retries; the Agent M version and the model; where its log is; for a run, its selection, limits and assignments; the states it entered; once ended, its results, correction rounds, reported cost and usage; for a run, the jobs it started.",
+  "description": "A job's record: its identifier and path; its kind — a job definition's kind, or run —; its phase and role; its participant and runtime — browser, ci or bridge —; the run it belongs to and its slot there; the item and modules it works on and its inputs; the job it retries; the Agent M version and the model; for an agent's job where the author chose it, who merges its pull request — the agent (participant) or a person; where its log is; for a run, its selection, limits and assignments; the states it entered; once ended, its results, correction rounds, reported cost and usage; for a run, the jobs it started.",
   "type": "object",
   "required": ["id", "path", "kind", "phase", "role", "participant", "runtime", "run", "slot", "item", "modules", "inputs", "retryOf", "agentM", "model", "log", "selection", "limits", "assignments", "states", "results", "rounds", "cost", "usage", "jobs"],
   "additionalProperties": false,
@@ -3250,6 +3293,7 @@ sequenceDiagram
     "retryOf": { "type": "string", "pattern": "^(JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4})?$" },
     "agentM": { "type": "string" },
     "model": { "type": "string" },
+    "mergeBy": { "type": "string", "enum": ["participant", "person"] },
     "log": { "type": "string" },
     "selection": { "type": "array", "items": { "type": "string" } },
     "limits": { "$ref": "LimitsOrNone" },
