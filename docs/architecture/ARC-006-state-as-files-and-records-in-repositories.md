@@ -24,6 +24,7 @@ forced_by:
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
   - TEST RESULTS ARE KEPT IN THE REPOSITORY
   - A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
+  - A DOCUMENT HOLDS NO HISTORY
   - THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
   - THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
   - UC-018
@@ -95,6 +96,12 @@ history, authorship and integrity by hash.
 
    and ends at a blank line, a heading or the next requirement; a section is found by its heading line, which stands
    once outside code blocks, and ends before the next heading of the same or a higher level, or before a given end line.
+   What counts as the history a file must not hold (`A DOCUMENT HOLDS NO HISTORY`): in a SPEC, the date in a requirement's
+   source (`MOD-artifacts.checkSpec`); in a product's settings file — one of the six of point 2 —, a line that marks
+   something withdrawn, by the word *withdrawn* or by text struck through with `~~`, or a line with a date beside an edit
+   or a change: *drafted*, *revised*, *edited*, *updated*, *modified*, *changed*, *added*, *removed*, *switched*, *moved*,
+   *since*, *until*, *as of* (`MOD-artifacts.historyIn`). A date without such a word — a served model's identifier, a
+   source's edition — is no history.
 5. **Traceability is one link graph per commit**, in `MOD-traceability`. Its nodes are the requirements of the SPEC and
    of the open queue entries, the use cases, the decisions, the modules they design, the code files and the tests, each
    by its identifier — a requirement by its name, a code file or a test by its path. Its edges are the names each states:
@@ -109,7 +116,7 @@ history, authorship and integrity by hash.
 ```mermaid
 flowchart LR
     T["files of one commit"]
-    A["MOD-artifacts<br/>SPEC, use cases, group files"]
+    A["MOD-artifacts<br/>SPEC, use cases, group files,<br/>settings files"]
     D["MOD-architecture<br/>decisions"]
     G["MOD-traceability.linkGraph"]
     V["traces, impact, gaps,<br/>module rows, component diagram"]
@@ -142,6 +149,9 @@ flowchart LR
   modules, and a file in another language shows no import.
 - A test names its module and what it guards in its first lines (ARC-020); a test without them is a gap, not an error.
 - The same functions serve the dashboard, a run's final validation and an audit export, so they cannot disagree.
+- `A DOCUMENT HOLDS NO HISTORY` is kept across the decisions (ARC-020). Here `MOD-artifacts` finds it in a text it is given,
+  a SPEC or a product's settings file; the saves of ARC-026 decisions 8 and 9 write no text in which
+  `MOD-artifacts.historyIn` finds history.
 
 ## Modules
 
@@ -281,6 +291,74 @@ flowchart LR
         "context": { "linkedSources": [] }
       },
       "result": []
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-artifacts.historyIn",
+  "summary": "Every finding of history in a product's settings file — one of the six files of ARC-006 decision 2: a line that marks something withdrawn, by the word withdrawn or by text struck through with ~~, and a line with a date beside an edit or a change — drafted, revised, edited, updated, modified, changed, added, removed, switched, moved, since, until, as of.",
+  "params": [{ "name": "path", "type": "string" }, { "name": "text", "type": "string" }],
+  "result": "Finding[]",
+  "async": false,
+  "refusals": [{ "code": "not-a-settings-file", "when": "the path is none of a product's six settings files" }],
+  "examples": [
+    {
+      "name": "a person struck through and one added with a date",
+      "input": {
+        "path": "docs/collaborators.md",
+        "text": "# Collaborators\n\nThe people who agreed to be named in this repository (UC-042), each with the account they have on its server.\n\n| Name | Account |\n|---|---|\n| Bob Example | @bob |\n| ~~Carla Muster~~ | @carla |\n| Dana Okafor, added 2026-10-05 | @dokafor |\n"
+      },
+      "result": [
+        {
+          "artifact": "docs/collaborators.md",
+          "line": 8,
+          "kind": "error",
+          "what": "a withdrawal note",
+          "rule": "A DOCUMENT HOLDS NO HISTORY",
+          "fix": "remove the line; the version history keeps what was withdrawn"
+        },
+        {
+          "artifact": "docs/collaborators.md",
+          "line": 9,
+          "kind": "error",
+          "what": "the date of a change",
+          "rule": "A DOCUMENT HOLDS NO HISTORY",
+          "fix": "write what holds now, without the date and the change; the version history keeps who changed what when"
+        }
+      ]
+    },
+    {
+      "name": "a switch with its date",
+      "input": {
+        "path": "docs/settings.md",
+        "text": "---\npseudonymisation: off\n---\n\n# Settings\n\nSwitched off on 2026-09-28 by alice.\n"
+      },
+      "result": [
+        {
+          "artifact": "docs/settings.md",
+          "line": 7,
+          "kind": "error",
+          "what": "the date of a change",
+          "rule": "A DOCUMENT HOLDS NO HISTORY",
+          "fix": "write what holds now, without the date and the change; the version history keeps who changed what when"
+        }
+      ]
+    },
+    {
+      "name": "a served model whose identifier holds a date",
+      "input": {
+        "path": "docs/resources.md",
+        "text": "# Resources\n\n## gpt-4o\n\n- kind: endpoint\n- pin: gpt-4o-2024-08-06\n"
+      },
+      "result": []
+    },
+    {
+      "name": "the SPEC, which checkSpec reads",
+      "input": { "path": "SPEC.md", "text": "# Agent M — Specification\n" },
+      "refused": "not-a-settings-file"
     }
   ]
 }

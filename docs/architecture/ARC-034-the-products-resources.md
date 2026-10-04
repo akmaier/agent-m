@@ -339,10 +339,10 @@ flowchart LR
   (ARC-029). 9a also shows "the jobs that use the resource" beside a newer state and covers a served model; the newer
   commit or revision and its move are designed (decision 12). They come with the second part.
 - **The test of a resource key on the settings page** comes with the second part: it reads, with the key alone, a resource
-  that names it — a repository on its server, a model on the Hub, an endpoint through the bridge —, so it needs the
-  resources the instance and the products declare and the check through the bridge. A public model on the Hub answers a
-  request with an invalid key as one without, so the Hub's key is tested at `/api/whoami-v2`, which answers `401` without
-  a valid one.
+  that names it — a repository on its server, a model on the Hub, an endpoint through the bridge —; the settings page
+  reads the lists that name the keys (ARC-026 decision 4), and the test waits for the check through the bridge. A public
+  model on the Hub answers a request with an invalid key as one without, so the Hub's key is tested at `/api/whoami-v2`,
+  which answers `401` without a valid one.
 - **An open measurement** (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`): the Hub's answers above were read with `curl`
   sending the page's origin; whether current browsers read them from a Pages origin, with and without a key, is measured
   before the page is released and recorded in `docs/measurements/`. A Hub that does not answer the browser is answered by
