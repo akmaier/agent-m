@@ -131,7 +131,33 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    `state` returns "all issues or just those that are `opened` or `closed`" (`https://docs.gitlab.com/api/issues/`). On an authority it creates an issue with its
    title, description and labels (`MOD-git-host.createIssue`; GitHub sets labels only for "users with push access", which the
    person's token has) and replaces an issue's description (`MOD-git-host.setIssueBody`; GitHub `PATCH`, GitLab `PUT` with
-   `description`). What an issue holds is the caller's: the adapter writes it as given.
+   `description`). It reads an issue's comments, oldest first (`MOD-git-host.issueComments`) — on GitHub
+   `GET /repos/{owner}/{repo}/issues/{issue_number}/comments`, whose comments "are ordered by ascending ID"
+   (`https://docs.github.com/en/rest/issues/comments`), on GitLab `GET /projects/:id/issues/:issue_iid/notes` with `sort`
+   `asc` — "Default is `desc`" —, the notes marked `system` left out (`https://docs.gitlab.com/api/notes/`) —; and on an
+   authority it comments on an issue (`MOD-git-host.commentIssue`; `POST` to the same addresses), closes or reopens it
+   (`MOD-git-host.setIssueState`; GitHub `PATCH` with `state`, "The open or closed state of the issue", GitLab `PUT` with
+   `state_event`, which is "used to close or reopen an issue"), and adds or removes one label (`MOD-git-host.issueLabel`):
+   on GitHub `POST …/issues/{issue_number}/labels` and `DELETE …/issues/{issue_number}/labels/{name}`, which "returns a 404
+   Not Found status if the label does not exist" — taken as removed — (`https://docs.github.com/en/rest/issues/labels`), on
+   GitLab `PUT` with `add_labels`, which "creates a new project label" where none exists, or `remove_labels`. What closed an
+   issue is read where the server knows it (`MOD-git-host.issueClosedBy`): on GitHub the issue's latest `closed` event of
+   `GET /repos/{owner}/{repo}/issues/{issue_number}/events` — "When the commit_id is present, it identifies the commit that
+   closed the issue using "closes / fixes" syntax" (`https://docs.github.com/en/rest/using-the-rest-api/issue-event-types`)
+   — and `GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls`, which "Lists the merged pull request that introduced the
+   commit to the repository. If the commit is not present in the default branch, it will return merged and open pull
+   requests associated with the commit." (`https://docs.github.com/en/rest/commits/commits`): only an entry whose
+   `merged_at` is set is named, and where none is, the commit alone; on GitLab the merged one of "all merge requests that
+   close a specified issue when merged", `GET /projects/:id/issues/:issue_iid/closed_by`, open ones among them, with its
+   `merge_commit_sha`, `squash_commit_sha` or `sha`. Both lists are read a hundred to a page — GitHub's `per_page` has a
+   "max 100", GitLab's a "default: `20`, max: `100`" (`https://docs.gitlab.com/api/rest/`). The first release that
+   contains a commit (`MOD-git-host.releaseWith`): on GitLab the oldest release tag among "all references (from branches
+   or tags) a commit is pushed to",
+   `GET /projects/:id/repository/commits/:sha/refs?type=tag` (`https://docs.gitlab.com/api/commits/`); on GitHub the
+   release tags compared with the commit, `GET /repos/{owner}/{repo}/compare/{commit}...{tag}`, a tag containing it where
+   the `status` — `diverged`, `ahead`, `behind` or `identical` — is `ahead` or `identical`, the releases halved in version
+   order, as a later release on a default branch's history holds what an earlier one does. What an issue holds is the
+   caller's: the adapter writes it as given.
 
 ```mermaid
 flowchart LR
@@ -225,6 +251,11 @@ flowchart LR
     "Issue",
     "IssueText",
     "IssueRef",
+    "IssueComment",
+    "CommentRef",
+    "IssueNumber",
+    "ClosedBy",
+    "ReleaseOf",
     "AssetAnswer",
     "AssetReceived"
   ],
@@ -5415,6 +5446,1028 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.issueComments",
+  "summary": "An issue's comments, oldest first, each with its id, text and time: on GitHub its comments, \"ordered by ascending ID\"; on GitLab its notes sorted ascending, the system's own notes left out. At most 5 000 are read, a hundred to a page.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "IssueComment[]",
+  "async": true,
+  "refusals": [
+    { "code": "not-an-issue", "when": "the number is no issue number" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "issue #14 on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 14,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues/14/comments?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 7002,
+                  "body": "Question sent to MAIL-a5394516da5a18b1 on 2026-10-10",
+                  "created_at": "2026-10-10T12:00:00Z",
+                  "user": { "login": "alice" }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "id": 7002,
+          "body": "Question sent to MAIL-a5394516da5a18b1 on 2026-10-10",
+          "created": "2026-10-10T12:00:00Z"
+        }
+      ]
+    },
+    {
+      "name": "a GitLab issue, a system note among its notes",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "number": 3,
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues/3/notes?sort=asc&per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 901,
+                  "body": "changed the description",
+                  "system": true,
+                  "created_at": "2026-10-08T09:00:00.000Z"
+                },
+                {
+                  "id": 902,
+                  "body": "Question sent to MAIL-a5394516da5a18b1 on 2026-10-08",
+                  "system": false,
+                  "created_at": "2026-10-08T09:05:00.000Z"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "id": 902,
+          "body": "Question sent to MAIL-a5394516da5a18b1 on 2026-10-08",
+          "created": "2026-10-08T09:05:00.000Z"
+        }
+      ]
+    },
+    {
+      "name": "a token no longer valid",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 14,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues/14/comments?per_page=100&page=1"
+            },
+            "response": { "status": 401, "body": { "message": "Bad credentials" } }
+          }
+        ]
+      },
+      "refused": "token-refused"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.commentIssue",
+  "summary": "A comment on an issue, on an authority, written as given; its id.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "body", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "CommentRef",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-an-issue", "when": "the number is no issue number" },
+    { "code": "no-text", "when": "the comment is empty" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a reply noted on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 12,
+        "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues/12/comments",
+              "body": { "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11" }
+            },
+            "response": {
+              "status": 201,
+              "headers": { "content-type": "application/json" },
+              "body": {
+                "id": 7003,
+                "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11",
+                "html_url": "https://github.com/alice/notes/issues/12#issuecomment-7003"
+              }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "id": 7003 }
+    },
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "number": 3,
+        "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues/3/notes",
+              "body": { "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11" }
+            },
+            "response": {
+              "status": 201,
+              "body": { "id": 903, "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11", "system": false }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "id": 903 }
+    },
+    {
+      "name": "no authority",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 12,
+        "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11",
+        "token": "github_pat_example",
+        "fetch": []
+      },
+      "refused": "no-authority"
+    },
+    {
+      "name": "an empty comment",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 12,
+        "body": " ",
+        "token": "github_pat_example",
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "no-text"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.setIssueState",
+  "summary": "An issue closed or reopened, on an authority: on GitHub its state set, on GitLab its state_event close or reopen; its number and page.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "state", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "IssueRef",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-an-issue", "when": "the number is no issue number" },
+    { "code": "unknown-state", "when": "the state is neither open nor closed" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "issue #14 closed on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 14,
+        "state": "closed",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/notes/issues/14",
+              "body": { "state": "closed" }
+            },
+            "response": {
+              "status": 200,
+              "body": { "number": 14, "state": "closed", "html_url": "https://github.com/alice/notes/issues/14" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 14, "url": "https://github.com/alice/notes/issues/14" }
+    },
+    {
+      "name": "a GitLab issue reopened",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "number": 2,
+        "state": "open",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues/2",
+              "body": { "state_event": "reopen" }
+            },
+            "response": {
+              "status": 200,
+              "body": { "iid": 2, "state": "opened", "web_url": "https://gitlab.example.org/group/lab/-/issues/2" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 2, "url": "https://gitlab.example.org/group/lab/-/issues/2" }
+    },
+    {
+      "name": "another state",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 14,
+        "state": "done",
+        "token": "github_pat_example",
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "unknown-state"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.issueLabel",
+  "summary": "One label added to an issue or removed from it, on an authority: on GitHub added with POST and removed with DELETE — whose 404 for a label the issue does not carry counts as removed —, on GitLab with add_labels or remove_labels; the issue's number.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "label", "type": "string" },
+    { "name": "add", "type": "boolean" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "IssueNumber",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-an-issue", "when": "the number is no issue number" },
+    { "code": "not-a-label", "when": "the label is empty or holds a comma" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "waiting-for-reporter added on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 14,
+        "label": "waiting-for-reporter",
+        "add": true,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues/14/labels",
+              "body": { "labels": ["waiting-for-reporter"] }
+            },
+            "response": { "status": 200, "body": [{ "name": "defect" }, { "name": "waiting-for-reporter" }] }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 14 }
+    },
+    {
+      "name": "removed on GitHub, removed already",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 14,
+        "label": "waiting-for-reporter",
+        "add": false,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "DELETE",
+              "url": "https://api.github.com/repos/alice/notes/issues/14/labels/waiting-for-reporter"
+            },
+            "response": { "status": 404, "body": { "message": "Label does not exist" } }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 14 }
+    },
+    {
+      "name": "added on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "number": 3,
+        "label": "waiting-for-reporter",
+        "add": true,
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "PUT",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues/3",
+              "body": { "add_labels": "waiting-for-reporter" }
+            },
+            "response": { "status": 200, "body": { "iid": 3, "labels": ["defect", "waiting-for-reporter"] } }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "number": 3 }
+    },
+    {
+      "name": "two labels in one",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 14,
+        "label": "defect,change",
+        "add": true,
+        "token": "github_pat_example",
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "not-a-label"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.issueClosedBy",
+  "summary": "What closed an issue, where the server knows it: on GitHub the commit of its latest closed event — present where a commit or a merged pull request closed it with closes or fixes — and, among the pull requests associated with that commit, which for a commit not on the default branch holds open ones too, the one whose merged_at is set, or the commit alone where none is merged; on GitLab the first merged one of the merge requests that close the issue when merged, open ones listed among them, with its merge, squash or head commit. Both lists are read a hundred to a page. Both empty for an issue closed by hand.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "number", "type": "integer" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "ClosedBy",
+  "async": true,
+  "refusals": [
+    { "code": "not-an-issue", "when": "the number is no issue number" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "issue #12, closed by pull request #13",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 12,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues/12/events?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 8001,
+                  "event": "referenced",
+                  "commit_id": "8e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d",
+                  "created_at": "2026-10-09T15:00:00Z"
+                },
+                {
+                  "id": 8002,
+                  "event": "closed",
+                  "commit_id": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+                  "created_at": "2026-10-10T15:55:00Z"
+                }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/commits/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f/pulls?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 13,
+                  "title": "Search the titles too",
+                  "state": "closed",
+                  "merged_at": "2026-10-10T15:55:00Z",
+                  "html_url": "https://github.com/alice/notes/pull/13"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": {
+        "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+        "pull": "https://github.com/alice/notes/pull/13"
+      }
+    },
+    {
+      "name": "an open pull request listed before the merged one",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 12,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues/12/events?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 8001,
+                  "event": "referenced",
+                  "commit_id": "8e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d",
+                  "created_at": "2026-10-09T15:00:00Z"
+                },
+                {
+                  "id": 8002,
+                  "event": "closed",
+                  "commit_id": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+                  "created_at": "2026-10-10T15:55:00Z"
+                }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/commits/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f/pulls?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 17,
+                  "title": "Search titles in the mobile view",
+                  "state": "open",
+                  "merged_at": null,
+                  "html_url": "https://github.com/alice/notes/pull/17"
+                },
+                {
+                  "number": 13,
+                  "title": "Search the titles too",
+                  "state": "closed",
+                  "merged_at": "2026-10-10T15:55:00Z",
+                  "html_url": "https://github.com/alice/notes/pull/13"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": {
+        "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+        "pull": "https://github.com/alice/notes/pull/13"
+      }
+    },
+    {
+      "name": "no pull request merged",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 12,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues/12/events?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 8001,
+                  "event": "referenced",
+                  "commit_id": "8e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d",
+                  "created_at": "2026-10-09T15:00:00Z"
+                },
+                {
+                  "id": 8002,
+                  "event": "closed",
+                  "commit_id": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+                  "created_at": "2026-10-10T15:55:00Z"
+                }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/commits/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f/pulls?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 17,
+                  "title": "Search titles in the mobile view",
+                  "state": "open",
+                  "merged_at": null,
+                  "html_url": "https://github.com/alice/notes/pull/17"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": { "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f", "pull": "" }
+    },
+    {
+      "name": "an issue closed by hand",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "number": 9,
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/issues/9/events?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [{ "id": 8100, "event": "closed", "commit_id": null, "created_at": "2026-09-20T10:00:00Z" }]
+            }
+          }
+        ]
+      },
+      "result": { "commit": "", "pull": "" }
+    },
+    {
+      "name": "a GitLab issue closed by a merge request, an open one listed first",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "number": 2,
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/issues/2/closed_by?per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "iid": 7,
+                  "title": "Plot units",
+                  "state": "opened",
+                  "merge_commit_sha": null,
+                  "squash_commit_sha": null,
+                  "sha": "dddddddddddddddddddddddddddddddddddddddd",
+                  "web_url": "https://gitlab.example.org/group/lab/-/merge_requests/7"
+                },
+                {
+                  "iid": 5,
+                  "title": "Units in the plot",
+                  "state": "merged",
+                  "merge_commit_sha": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+                  "squash_commit_sha": null,
+                  "sha": "8e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d",
+                  "web_url": "https://gitlab.example.org/group/lab/-/merge_requests/5"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": {
+        "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+        "pull": "https://gitlab.example.org/group/lab/-/merge_requests/5"
+      }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.releaseWith",
+  "summary": "The first release — the oldest release tag — that contains a commit: on GitLab the release tags among the references the commit is pushed to; on GitHub the releases compared with the commit, a tag containing it where the comparison from the commit to the tag is ahead or identical, halving the releases in version order since a later release holds what an earlier one does; empty where none contains it yet.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "commit", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "ReleaseOf",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-commit", "when": "the text is no commit SHA" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "the fix of issue #12",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/tags?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                { "name": "v2026.10.2", "commit": { "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+                { "name": "v2026.10.1", "commit": { "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+                { "name": "v2026.9.3", "commit": { "sha": "cccccccccccccccccccccccccccccccccccccccc" } }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/compare/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f...v2026.10.1?per_page=1"
+            },
+            "response": { "status": 200, "body": { "status": "behind", "ahead_by": 0, "behind_by": 3 } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/compare/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f...v2026.10.2?per_page=1"
+            },
+            "response": { "status": 200, "body": { "status": "ahead", "ahead_by": 2, "behind_by": 0 } }
+          }
+        ]
+      },
+      "result": { "tag": "v2026.10.2" }
+    },
+    {
+      "name": "a fix no release holds yet",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/tags?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                { "name": "v2026.10.2", "commit": { "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+                { "name": "v2026.10.1", "commit": { "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+                { "name": "v2026.9.3", "commit": { "sha": "cccccccccccccccccccccccccccccccccccccccc" } }
+              ]
+            }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/compare/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f...v2026.10.1?per_page=1"
+            },
+            "response": { "status": 200, "body": { "status": "behind", "ahead_by": 0, "behind_by": 3 } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/notes/compare/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f...v2026.10.2?per_page=1"
+            },
+            "response": { "status": 200, "body": { "status": "behind", "ahead_by": 0, "behind_by": 3 } }
+          }
+        ]
+      },
+      "result": { "tag": "" }
+    },
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/lab",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/lab"
+        },
+        "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Flab/repository/commits/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f/refs?type=tag&per_page=100&page=1"
+            },
+            "response": {
+              "status": 200,
+              "body": [
+                { "type": "tag", "name": "v2026.11.0" },
+                { "type": "tag", "name": "v2026.10.2" },
+                { "type": "tag", "name": "nightly" }
+              ]
+            }
+          }
+        ]
+      },
+      "result": { "tag": "v2026.10.2" }
+    },
+    {
+      "name": "no commit",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/notes",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/notes"
+        },
+        "commit": "v2026.10.2",
+        "token": "github_pat_example",
+        "fetch": []
+      },
+      "refused": "not-a-commit"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.editUrl",
   "summary": "GitHub's editor for a file, opened when no token is stored; a GitLab product has no editing without its project token.",
   "params": [
@@ -6335,6 +7388,76 @@ flowchart LR
   "additionalProperties": false,
   "properties": { "number": { "type": "integer", "minimum": 1 }, "url": { "type": "string", "pattern": "^https://" } },
   "examples": [{ "number": 14, "url": "https://github.com/alice/notes/issues/14" }]
+}
+```
+
+```json type
+{
+  "$id": "IssueComment",
+  "description": "A comment on an issue: its id, its text and when it was made.",
+  "type": "object",
+  "required": ["id", "body", "created"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "body": { "type": "string" },
+    "created": { "type": "string" }
+  },
+  "examples": [
+    { "id": 7002, "body": "Question sent to MAIL-a5394516da5a18b1 on 2026-10-10", "created": "2026-10-10T12:00:00Z" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "CommentRef",
+  "description": "The id of the comment written.",
+  "type": "object",
+  "required": ["id"],
+  "additionalProperties": false,
+  "properties": { "id": { "type": "integer", "minimum": 1 } },
+  "examples": [{ "id": 7003 }]
+}
+```
+
+```json type
+{
+  "$id": "IssueNumber",
+  "description": "The number of the issue written.",
+  "type": "object",
+  "required": ["number"],
+  "additionalProperties": false,
+  "properties": { "number": { "type": "integer", "minimum": 1 } },
+  "examples": [{ "number": 14 }]
+}
+```
+
+```json type
+{
+  "$id": "ClosedBy",
+  "description": "What closed an issue: the commit and the pull or merge request's page — each empty where none is known.",
+  "type": "object",
+  "required": ["commit", "pull"],
+  "additionalProperties": false,
+  "properties": { "commit": { "type": "string", "pattern": "^([0-9a-f]{40})?$" }, "pull": { "type": "string" } },
+  "examples": [
+    { "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f", "pull": "https://github.com/alice/notes/pull/13" },
+    { "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f", "pull": "" },
+    { "commit": "", "pull": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseOf",
+  "description": "The first release that contains a commit — empty where none does yet.",
+  "type": "object",
+  "required": ["tag"],
+  "additionalProperties": false,
+  "properties": { "tag": { "type": "string", "pattern": "^(v[0-9]{4}\\.[0-9]+\\.[0-9]+)?$" } },
+  "examples": [{ "tag": "v2026.10.2" }, { "tag": "" }]
 }
 ```
 

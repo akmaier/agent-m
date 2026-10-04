@@ -1,6 +1,6 @@
 ---
 id: ARC-014
-title: Two mail routes behind one mailbox module — Microsoft Graph from the browser for Microsoft 365, IMAP and SMTP through the bridge for every other mailbox, Gmail included —, the route preselected by the address's mail servers, the web API opened by Microsoft's sign-in with PKCE, the IMAP route logged in only over TLS, a connection tested without changing anything in the mailbox, the places its mails may go to allowed with the author's statement whether each lies inside the European Union; and mails turned into issues — read without changing anything, named by pseudonymous identifiers, matched to their threads without a model, and written into a product's tracker only on the author's click, through a gate that finds the mail's people
+title: Two mail routes behind one mailbox module — Microsoft Graph from the browser for Microsoft 365, IMAP and SMTP through the bridge for every other mailbox, Gmail included —, the route preselected by the address's mail servers, the web API opened by Microsoft's sign-in with PKCE, the IMAP route logged in only over TLS, a connection tested without changing anything in the mailbox, the places its mails may go to allowed with the author's statement whether each lies inside the European Union; and mails turned into issues — read without changing anything, named by pseudonymous identifiers, matched to their threads without a model, and written into a product's tracker only on the author's click, through a gate that finds the mail's people; and the replies to an issue's mails — kept as drafts in the mailbox's Drafts folder, sent only on the author's click with a confirmation of the mail shown, and noted in the issue
 forced_by:
   - A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
   - AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
@@ -31,9 +31,24 @@ forced_by:
   - A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
   - THE PRODUCT ISSUE CARRIES NO PERSONAL DATA
   - A REWRITTEN TEXT IS CHECKED BY THREE LLMS
+  - NO CHECKER IS THE REWRITER
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+  - THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
+  - CLOSING AN ISSUE PREPARES ITS REPLIES
+  - A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER
+  - THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS
+  - A REPLY IS THREADED ON THE REPORTER'S MAIL
+  - A REPLY GOES TO ONE REPORTER
+  - EVERY OUTGOING MAIL IS RELEASED BY A PERSON
+  - THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN
+  - A SENT REPLY IS NOTED IN THE ISSUE
+  - A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO
+  - AN ISSUE WAITING FOR A REPORTER IS LABELLED
+  - A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE
+  - A CLOSED ISSUE IS REOPENED ONLY BY A PERSON
   - UC-037
   - UC-038
+  - UC-039
 keeps:
   - THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST
   - THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE
@@ -58,6 +73,8 @@ What the routes rest on, as their documentation states it:
 - **Reading mails with imapflow.** Its fetch asks for a body as `BODY.PEEK[…]` or `BINARY.PEEK[…]` — "PEEK avoids marking messages as \Seen" (its source, `src/commands/fetch.ts` of `https://github.com/postalsys/imapflow`) —; its envelope gives date, subject, `messageId`, `inReplyTo`, `from`, `replyTo`, `to` and `cc`, each address with `name` and `address`, and its body structure each part's `part`, `type`, `parameters`, `disposition`, `dispositionParameters` and `childNodes` (`src/types.ts`); `download(range, part)` gives a body part's content, decoded (`https://imapflow.com/docs/api/imapflow-client`).
 - **Threads and signatures.** A message identifier is `msg-id = [CFWS] "<" id-left "@" id-right ">" [CFWS]`; a reply's "References:" field "will contain the contents of the parent's "References:" field (if any) followed by the contents of the parent's "Message-ID:" field" (`https://www.rfc-editor.org/rfc/rfc5322.txt`, 3.6.4). Mail commonly uses "-- " "as the separator line between the body and the signature" (`https://www.rfc-editor.org/rfc/rfc3676.txt`, 4.3).
 - **Withdrawing an app's access.** In Microsoft's My Apps portal, `https://myapps.microsoft.com`, "Permissions consented to by the user can be revoked by the user" (`https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/myapps-overview`).
+- **Replies on Microsoft Graph.** `createReply` will "Create a draft to reply to the sender of a message in either JSON or MIME format"; in JSON, "Specify either a comment or the body property of the message parameter", and "If replyTo is specified in the original message, per Internet Message Format (RFC 2822), you should send the reply to the recipients in replyTo, and not the recipients in from" (`https://learn.microsoft.com/en-us/graph/api/message-createreply?view=graph-rest-1.0`). A draft's body and recipients are each "Updatable only if isDraft = true" (`https://learn.microsoft.com/en-us/graph/api/message-update?view=graph-rest-1.0`). `send` will "Send an existing draft message", a "reply draft" among them; it "saves the message in the Sent Items folder" and answers `202 Accepted` (`https://learn.microsoft.com/en-us/graph/api/message-send?view=graph-rest-1.0`). A reply carries PidTagInReplyToId, which "Contains the original message's PR_INTERNET_MESSAGE_ID (PidTagInternetMessageId) property value", identifier `0x1042`: "These properties must be set on all message replies" (`https://learn.microsoft.com/en-us/office/client-developer/outlook/mapi/pidtaginreplytoid-canonical-property`). Graph reaches such a property as a single-value extended property in the proptag format `"{type} {proptag}"`, for example `"String 0x4001"` (`https://learn.microsoft.com/en-us/graph/api/resources/extended-properties-overview?view=graph-rest-1.0`), expanded on one message with `$expand=singleValueExtendedProperties($filter=id eq '{id_value}')`, or filtered on in a folder's messages with `$filter=singleValueExtendedProperties/Any(ep: ep/id eq '{id_value}' and ep/value eq '{property_value}')` (`https://learn.microsoft.com/en-us/graph/api/singlevaluelegacyextendedproperty-get?view=graph-rest-1.0`).
+- **Drafts and sending on the IMAP route.** imapflow's `append(path, content, flags, idate)` takes "Message content (RFC822 format)" and answers the "UID of appended message (if UIDPLUS extension)"; `messageDelete(range, options)` "Deletes messages by marking them as deleted and expunging"; `search` takes `header` — "Header field matches" — and `or` (`https://imapflow.com/docs/api/imapflow-client`); its source says that with UIDPLUS the command UID EXPUNGE "removes only the specified UIDs", while "Without UIDPLUS: plain "EXPUNGE" removes ALL messages flagged \Deleted in the mailbox" (`src/commands/expunge.ts`). nodemailer's MailComposer "accepts the same message options as Nodemailer's message configuration" and "removes the Bcc: header from the generated message by default", which `keepBcc` keeps (`https://nodemailer.com/extras/mailcomposer`); among those options `inReplyTo`, "The Message-ID of the email this message is replying to", `references`, "A list of Message-IDs that this email references", `raw`, "An existing MIME message to send instead of generating a new one", and `envelope`, "A custom SMTP envelope" (`https://nodemailer.com/message`). Gmail: "Sent messages are automatically copied to the Gmail/Sent folder if your email client uses SMTP" (`https://support.google.com/mail/answer/78892`). A mail with a "Bcc:" field: "when a message containing a "Bcc:" field is prepared to be sent, the "Bcc:" line is removed even though all of the recipients (including those specified in the "Bcc:" field) are sent a copy of the message" (`https://www.rfc-editor.org/rfc/rfc5322.txt`, 3.6.3).
 
 ## Decision
 
@@ -75,11 +92,15 @@ What the routes rest on, as their documentation states it:
    *"Outside the European Union, as you stated: `<places>`. Not known to lie inside it: `<places>`. Processing personal data there does not comply with the EU's rules — the GDPR for transferring personal data, and the EU AI Act. You can still allow it; this connection records that you did."*
    — each of its first two sentences only where it names a place —, and it saves only from that notice's **Allow and save** (`A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT`). Each allowed place is kept with its statement in the connection, which records that the author allowed it. A change later (UC-037 6a) shows the same list, statements and notice, replaces the places, and keeps the connection's tests (`MOD-settings-store.storePlaces`); a mail already handed to a participant is not recalled. A place no participant declares any more is no longer listed and leaves the connection when the places are saved again. `THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED` has two halves: the configuring is designed here — the places the participants declare, the author's statement for each, the notice, and the allowed places kept with the connection (`MOD-mailbox.declaredPlaces`, `MOD-mailbox.placesNotice`, `MOD-mailbox.allowPlaces`, ARC-005's `Mailbox`) —; the delivery is the one rule of ARC-007 (`MOD-job-harness.mayReceive`), given the mailbox's allowed places as the places of its mails' content label, which is set where mails are handed to a job.
 
-8. **Reading mails for issues, changing nothing** (`MOD-mailbox.mailList`, `MOD-mailbox.mailRead`, `MOD-mailbox.headerOf`, `MOD-mailbox.partsOf`; `READING THE MAILBOX CHANGES NOTHING IN IT`). The mailbox's named folders are read for each mail's header — its handle, folder, `Message-ID` with its angle brackets, the `Message-ID`s of `In-Reply-To` and `References`, sender, reply addresses, recipients and copies, subject and date. On the web API only `GET` requests are sent: each folder's messages a hundred to a page with `$select` of exactly those fields and `internetMessageHeaders`, following `@odata.nextLink`, with immutable ids so that a mail keeps its handle when it is filed into another named folder; for a mail without a `Message-ID`, its MIME source through `$value`, of which only the SHA-256 is kept. On the IMAP route one request goes to the bridge, `POST /mail/read` (ARC-012), with the login in its body as for the test (decision 5); the bridge opens each named folder read-only, fetches each mail's UID, envelope and `References` header with imapflow, whose body reads are `BODY.PEEK`, and answers with the headers it builds (`MOD-mailbox.headerOf`). One mail is read in full the same ways: on the web API its body asked for as text and its attachments' names, sizes and types listed, never their content; through the bridge, the part of its text chosen from its structure (`MOD-mailbox.partsOf`), downloaded and decoded, and its attachments named. No route marks a mail as read or moves, flags or deletes it.
+8. **Reading mails for issues, changing nothing** (`MOD-mailbox.mailList`, `MOD-mailbox.mailRead`, `MOD-mailbox.headerOf`, `MOD-mailbox.partsOf`; `READING THE MAILBOX CHANGES NOTHING IN IT`). The mailbox's named folders are read for each mail's header — its handle, folder, `Message-ID` with its angle brackets, the `Message-ID`s of `In-Reply-To` and `References`, sender, reply addresses, recipients, copies and blind copies, subject and date. On the web API only `GET` requests are sent: each folder's messages a hundred to a page with `$select` of exactly those fields and `internetMessageHeaders`, following `@odata.nextLink`, with immutable ids so that a mail keeps its handle when it is filed into another named folder; for a mail without a `Message-ID`, its MIME source through `$value`, of which only the SHA-256 is kept. On the IMAP route one request goes to the bridge, `POST /mail/read` (ARC-012), with the login in its body as for the test (decision 5); the bridge opens each named folder read-only, fetches each mail's UID, envelope and `References` header with imapflow, whose body reads are `BODY.PEEK`, and answers with the headers it builds (`MOD-mailbox.headerOf`). One mail is read in full the same ways: on the web API its body asked for as text and its attachments' names, sizes and types listed, never their content; through the bridge, the part of its text chosen from its structure (`MOD-mailbox.partsOf`), downloaded and decoded, and its attachments named. No reading on either route marks a mail as read or moves, flags or deletes it.
 9. **A mail's identifier, an issue's mails** (`MOD-mail-flow.mailId`, `MOD-mail-flow.listedIds`, `MOD-mail-flow.issueBody`, `MOD-mail-flow.withMail`). A mail is named `MAIL-` and the first sixteen hexadecimal digits of the SHA-256 of its `Message-ID` with its angle brackets — on both routes the same text —, or of its source where it has none (`A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER`). An issue from a mail is its neutral text followed by the section `## Mails`, one line `- MAIL-…` per mail and nothing else of a mail (`AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS`); a mail is added to an issue at the end of that section, which is added where the issue lacks one, and an identifier listed already is not listed twice (`A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE`).
 10. **What a reading proposes, and what it attaches** (`MOD-mail-flow.pendingMails`, `MOD-mail-flow.findMails`). From the headers, the issues of every managed product (`MOD-git-host.issues`, ARC-004) and the identifiers marked *not an issue* in this browser (`MOD-settings-store.markNotAnIssue`, ARC-005): a mail an issue lists, or a marked one, is left out (`A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN`); a mail whose `In-Reply-To` or `References` names a mail an issue lists is attached to that issue — the nearest named first: `In-Reply-To`, then `References` from the last, the parent's own identifier —, without a participant (`A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL`); a closed issue stays closed. Every other mail is proposed with its sender, subject and date. A mail an issue lists is found again by hashing the `Message-ID`s of the named folders — `INBOX` unless others are named —, each identifier with its mail or named *not found in the mailbox*, never a guess (`A MAIL IS FOUND AGAIN BY ITS IDENTIFIER`); this runs on the headers in the browser, so the bridge has no route of its own for it.
 11. **The gate** (`MOD-pseudonymiser.peopleOf`, `MOD-pseudonymiser.findPeople`, `MOD-pseudonymiser.writeGate`). The people of a mail are found without a model: every address and display name of its headers — sender, reply addresses, recipients and copies —, each part of three letters or more of the sender's and the reply addresses' names; in its text every mail address, every number written as a phone number — beginning with `+`, `(` or `0`, separated by spaces, brackets, slashes or hyphens, seven digits or more, so that a version such as 2026.10.1 is none —, every account written with `@`; and each line of its signature that reads as a name — after the separator "-- " or a usual closing — with its parts. A text is searched for them line by line, an address and an account as written, a name as a whole word, a phone number by its digits, case and typographic dashes hiding none (`A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE`). A text is written only when no one is found in it and it does not hold the mail's whole text (`THE PRODUCT ISSUE CARRIES NO PERSONAL DATA`, `MAIL STAYS IN THE MAILBOX`); a text a participant wrote needs, besides, three verdicts of checkers with three different models at places the mailbox allows, none of them that participant or of its model, each naming the SHA-256 of exactly that text and finding no person (`A REWRITTEN TEXT IS CHECKED BY THREE LLMS`). A hit goes back to the page only, never into a record.
 12. **The mail page** (`MOD-mail-page.route`, `MOD-mail-page.readMailbox`, `MOD-mail-page.decideMail`), the shell of `mail.html` at the root of the instance's Pages site, reached from **Mail** on every dashboard page. **Read mailbox** — a click, whose authority the reading's writes carry (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`) — reads the mailbox and every managed product's issues, writes the identifier of each mail in a known thread into its issue (`MOD-git-host.setIssueBody`) and says *added to #n*, and lists the proposed mails with sender, subject and date, *visible only in this browser*. A mailbox, a bridge or a product that cannot be read is named — not running, the sign-in expired, the token refused — and nothing is written (UC-038 2a). For a mail, the page shows the mail in full on the left and, on the right, the title, the neutral text and the label, editable, with **Create issue**, **Add to #n** — the open issues to choose from — and **Not an issue**. **Create issue** runs the gate first: a hit is marked in the text — *"`<value>` is a person of this mail (line n)"* — and nothing is written until the author has edited it out (UC-038 6a); otherwise the issue is created with its label and the mail's identifier (`MOD-git-host.createIssue`, `A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK`). A mail with several concerns is decided once per concern, each issue listing the same identifier (UC-038 7b). An issue that cannot be created names the reason and links the token's page of UC-001 (UC-038 8a). **Not an issue** marks the mail in this browser's entries, which the page writes (`MOD-settings-store.saveEntries`). A mail is held only in the page's memory and forgotten with the tab; the page writes nothing of it but what passed the gate (`MAIL STAYS IN THE MAILBOX`).
+13. **Replies kept as drafts, sent only with a confirmation** (`MOD-mailbox.draftList`, `MOD-mailbox.sentReplies`, `MOD-mailbox.storeDraft`, `MOD-mailbox.updateDraft`, `MOD-mailbox.mailDigest`, `MOD-mailbox.confirmMail`, `MOD-mailbox.sendMail`; on the bridge `MOD-mailbox.checkConfirmation`, `MOD-mailbox.sendPlan`, `MOD-mailbox.draftOptions`, `MOD-bridge-app.spendConfirmation`, ARC-011). A reply is a draft in the mailbox's *Drafts* folder and nowhere else (`A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER`). On the web API it is made by `createReply` on the mail it answers, its recipients, subject and plain text given, so that Exchange threads it on that mail; an edit replaces its body with `PATCH`. On the IMAP route the bridge takes it with `POST /mail/draft` (ARC-012), composes it with nodemailer's MailComposer — `In-Reply-To` and `References` from the draft, `keepBcc` set — and appends it to the folder the mailbox marks `\Drafts`, flagged `\Draft` and `\Seen`; an edit appends the draft composed anew, the old draft's attachments carried over on the bridge, and removes the old one. A draft is found by the mail it answers: on the web API through PidTagInReplyToId, expanded on each draft of the folder `drafts`, and a reply in *Sent* through the same property filtered on in `sentitems`; on the IMAP route the bridge's reading, `POST /mail/read` with `special` naming *Drafts* or *Sent*, opens the folder the mailbox marks so read-only, leaves out mails flagged `\Deleted`, and in *Sent* searches for an `In-Reply-To` naming one of the given `Message-ID`s.
+   A mail is sent only as the direct result of the author's click on the complete mail shown — every recipient, copy and blind copy, the subject, the whole text, every attachment with name and size (`EVERY OUTGOING MAIL IS RELEASED BY A PERSON`). The click in the send dialog makes a single-use confirmation — a nonce of 128 random bits, the SHA-256 of the mail shown, the time —, which the sending carries. On the web API the page reads the draft again and sends it only where it is still a draft and its SHA-256 is the confirmed one; Microsoft sends it, keeps it in *Sent Items*, and so takes it out of *Drafts*. On the IMAP route the page passes the draft's handle and the confirmation, `POST /mail/send`; the bridge reads the draft itself as its reading builds a mail — so that what is sent is what *Drafts* holds, and a draft changed after the preview, in the dialog or in the mail program, is not sent —, computes the SHA-256 of what it would send, and sends only where the confirmation is of the last ten minutes, not spent, and names exactly that mail — spending it in its store before the SMTP server is asked, one mail at a time, so that a reload or a double click sends nothing (`THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN`). It hands the draft's source without its Bcc field to nodemailer as `raw`, with the envelope of every recipient, copy and blind copy, over TLS (`MOD-mailbox.connectOptions`); stores the source in the folder marked `\Sent` with `\Seen` — not where the server copies a sent mail itself, as Gmail's does —; and removes the draft by UID EXPUNGE, or only flags it `\Deleted` where the server lacks UIDPLUS, so that no other mail flagged `\Deleted` goes with it. The password lives as for every mail request (decision 5). A refusal — the confirmation stale, spent or of another mail, the server's own words — is the bridge's answer, and nothing is sent.
+14. **A reply as data, the notes, the groups** (`MOD-mail-flow.replyDraft`, `MOD-mail-flow.noteText`, `MOD-mail-flow.notesOf`, `MOD-mail-flow.mailGroups`). A reply goes from the connected mailbox to the mail's reply address — its `Reply-To` where it has one, else its sender — and to no one else (`A REPLY GOES TO ONE REPORTER`); its subject is *Re:* and the mail's subject; its `In-Reply-To` is the mail's `Message-ID`, its `References` the mail's `References` followed by that `Message-ID` (RFC 5322, 3.6.4; `A REPLY IS THREADED ON THE REPORTER'S MAIL`); its text is the author's or a participant's, the mail quoted below it. A mail without a `Message-ID`, or without a valid reply address, gets no reply: it is shown *not sendable* with the reason, and only **No reply** is offered (UC-039 4a). How a mail was handled is recorded only as a comment on its issue — *Reply sent to MAIL-… on YYYY-MM-DD*, *Question sent to MAIL-… on YYYY-MM-DD*, *No reply to MAIL-…, decided on YYYY-MM-DD* —, the mail's identifier and the date and nothing of a reply's text or recipient (`A SENT REPLY IS NOTED IN THE ISSUE`); a comment that is exactly such a line is a note, every other comment is left aside. The replies page is computed from the issues and the mailbox alone (`THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING`): for each issue that lists mails, each listed mail — found in the mailbox, or *not found in the mailbox* and so not sendable (UC-039 2b) —, answered where a reply or no-reply note names it, the questions sent to it, *new* where it has no note and came after the issue's latest note, and every draft in *Drafts* that replies to it (`THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS`), blocked where a recipient reported another of the issue's mails. A mail with more replies in *Sent* than reply and question notes in all its issues together was answered from the mail program: every issue that lists it unanswered is to note a reply, dated by the newest (`A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO`). A closed issue with a mail not answered is *to answer*, whoever closed it (`CLOSING AN ISSUE PREPARES ITS REPLIES`); an open issue labelled `waiting-for-reporter` with a new mail has an *answer received* (`A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE`); every other open issue is *open*. An issue leaves *to answer* once each of its mails is answered (UC-039 7).
+15. **The replies page** (`MOD-mail-page.readReplies`, `MOD-mail-page.issuePanel`, `MOD-mail-page.saveDraft`, `MOD-mail-page.sendReply`, `MOD-mail-page.decideIssue`), the view *Replies* of `mail.html`. **Replies** — a click, whose authority the reading's writes carry — reads the mailbox's named folders, every managed product's issues, the comments of each issue that lists mails (`MOD-git-host.issueComments`, ARC-004) and *Drafts*, finds the listed mails again, and reads in *Sent* the replies to every listed mail not answered in each issue that lists it; on that click it notes each reply sent from the mail program in its issue (`MOD-git-host.commentIssue`), and it shows the three groups. An issue opened shows its panel: the neutral issue; what solved it — the commit of GitHub's latest `closed` event or of the merged merge request that closed it on GitLab, the pull or merge request, and the first release that contains that commit (`MOD-git-host.issueClosedBy`, `MOD-git-host.releaseWith`, ARC-004), each where known —; and each listed mail in full with its drafts in full. **Write the reply** stores a draft with the mail quoted (UC-039 3a); a text a participant returns is stored the same way. A draft's text is editable, and **Save** — a click — saves the edit to the draft. **Send**, and **Send and wait** for a question, saves an unsaved edit, reads the draft again and opens the dialog that shows it complete — every recipient, copy and blind copy, the subject, the whole text, every attachment with name and size — and repeats recipient and subject; the dialog's own **Send** makes the confirmation of exactly the mail shown and sends; an edit in the dialog shows the edited mail again before anything is sent (UC-039 5a). Once the mail is sent, the page notes it in the issue and, for a question, sets the label `waiting-for-reporter` (`MOD-git-host.issueLabel`; `AN ISSUE WAITING FOR A REPORTER IS LABELLED`); a mail not sent is noted nowhere, its draft stays, and the page shows why, the server's words included (UC-039 6a). A draft blocked or not sendable has no **Send**. The author's decisions on an issue are one click each: **No reply** for a mail — **Leave closed** for a new mail of a closed issue —, noted in the issue (UC-039 2c, 7a); **Close and reply** on an open issue (`MOD-git-host.setIssueState`; UC-039 2a); **Reopen** on a closed one, the only way a closed issue opens again (`A CLOSED ISSUE IS REOPENED ONLY BY A PERSON`); and **Remove the label** on an issue labelled `waiting-for-reporter`, the only way the label leaves it (UC-039 1b). **Ask the reporter** on a mail of an open issue opens a draft to that mail as **Write the reply** does, sent with **Send and wait** (UC-039 1a, by hand). The page holds a mail and a draft only in its memory, and writes nothing of them but the notes.
 
 ```mermaid
 flowchart LR
@@ -108,6 +129,19 @@ flowchart LR
     P -->|"issues of every product"| G
     P --> MF
     P -->|"Create issue (click)"| PS -->|"no person, not the whole mail"| G
+```
+
+```mermaid
+flowchart LR
+    P["MOD-mail-page<br/>mail.html#replies"]
+    MF["MOD-mail-flow<br/>mailGroups, replyDraft, noteText"]
+    MB["MOD-mailbox<br/>draftList, sentReplies,<br/>storeDraft, sendMail"]
+    G["MOD-git-host<br/>issueComments, commentIssue,<br/>issueLabel, setIssueState"]
+    BR["bridge: POST /mail/send<br/>checkConfirmation, sendPlan"]
+    P --> MF
+    P -->|"Drafts and Sent, read only"| MB
+    P -->|"notes, label, state (click)"| G
+    MB -->|"Send (click): confirmation of the mail shown"| BR
 ```
 
 ### Due diligence (read 2026-09-30)
@@ -146,10 +180,19 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 - **Open measurement 2 — Microsoft 365 tenant consent.** Whether a tenant such as FAU's lets a user consent to `Mail.ReadWrite`, `Mail.Send` and `offline_access` for an unverified `spa` app: all three are marked "AdminConsentRequired … No" in the reference, but a tenant's own consent policy may still restrict them (measurement point 6). Measured with a test registration.
 - **Open measurement 3 — the libraries' errors.** Which error imapflow and nodemailer raise for no answer, for a server without STARTTLS under `doSTARTTLS` or `requireTLS`, and for a refused login, so that the bridge's shell classifies each as `MOD-mailbox.testAnswer` expects; recorded against a local test server.
 - **Open measurement 4 — the threading headers on Microsoft Graph.** Whether `internetMessageHeaders` holds `In-Reply-To` and `References` for every message of a Microsoft 365 mailbox, as the reference's "message headers defined by RFC5322" suggests without naming them: a reply sent from Outlook and one from another program, read with `$select=internetMessageHeaders`.
-- **Not realised here — what needs a participant** (UC-038 4, 5, 6, 4a, 4c, 5a, 5b, 6b, 6c): the proposal of a participant, the rewriting of report data, and the three checkers chosen and asked come with the drafting jobs.
-- **Kept in part — `A REWRITTEN TEXT IS CHECKED BY THREE LLMS`.** Designed here is the gate's weighing of the verdicts (`MOD-pseudonymiser.writeGate`, decision 11): a participant's text is written only with three verdicts of three different models at places the mailbox allows, each naming the text's SHA-256 and finding no person, none from the participant itself or of its model. Choosing the three checkers among the participants and asking them — the job that checks a text — come with the drafting jobs, and the requirement is placed with them.
+- **Not realised here — a participant's job over a mail.** A participant that proposes an issue, rewrites report data or drafts a reply is a model endpoint in the tab or a CLI agent through the bridge (UC-038 and UC-039, *Actors*; UC-038 4a, UC-039 3b), never a CI agent. ARC-031's drafting jobs run by the steps such a job would take (decision 1), but what a job over a mail's content needs is designed nowhere yet:
+  - **its definitions** — ARC-031 gives `propose-items` and `derive-use-cases` (decisions 4 and 5); none proposes an issue for a mail (UC-038 5), rewrites report data without persons (UC-038 6), checks a text for a person (`A REWRITTEN TEXT IS CHECKED BY THREE LLMS`), or drafts a reply or a question (UC-039 3);
+  - **a mail's content label** — every piece of content a job sends carries "the labels its owner gives it", which `MOD-job-harness.mayReceive` decides on (ARC-007 decision 5) and the run panel weighs (ARC-031 decision 6); no decision gives a mail's text and attachments theirs — the places their mailbox allows (decision 7), and that no job writing to a repository may have them (`A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL`) —, so participants at those places only are not offered yet (UC-038 4, 4c; UC-039 3);
+  - **where it runs** — `MOD-drafting.drafters` lets the bridge run only a drafting job whose drafts are written as open (ARC-031 decision 3), while a proposal is shown to the author and a reply stored in *Drafts*, so a CLI agent's job through the bridge (UC-038 4a, UC-039 3b) has no runtime yet; and the bridge's turns read what a job sends from the product's working tree (ARC-029 decision 12), which holds no mail;
+  - **its record** — every job has a record naming its inputs (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`; its start record, ARC-031 decision 6), and of a mail it may hold the `MAIL-` identifier at most (`NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY`, whose check names the job record); no decision says how such a record names its inputs.
+- **Not realised here — UC-038 4, 5, 6, 4a, 4c, 5a, 5b, 6b, 6c**: they wait for that job; meanwhile the author decides each mail by hand (UC-038 4b) through the gate of decision 11. Switching pseudonymisation off for a product (6b; `PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF`) is not designed yet either: ARC-026 names UC-042's pseudonymisation step among those not realised.
+- **Kept in part — `A REWRITTEN TEXT IS CHECKED BY THREE LLMS` and `NO CHECKER IS THE REWRITER`.** Kept here, by the gate (`MOD-pseudonymiser.writeGate`, decision 11): a text a participant wrote is written only with three verdicts of three different models at places the mailbox allows, none from the rewriter or of its model, each naming the text's SHA-256 and finding no person. Waiting, designed nowhere yet: the job that checks a text and the choice of its three checkers — three LLM participants with three different models at places the mailbox allows (`A REWRITTEN TEXT IS CHECKED BY THREE LLMS`), and a set holding the rewriter or a checker of its model refused before anything is sent (`NO CHECKER IS THE REWRITER`); `MOD-drafting.drafters` proposes one holder of a job's role (ARC-031 decision 3). Both requirements stay unplaced.
 - **Not realised here — UC-038 10**: the offer of a change to the SPEC opens UC-012, which no decision designs yet.
-- **Not realised here — the replies** (UC-039): reply offers from closed issues, drafts in *Drafts*, sending, the notes and labels of an issue; they need the issue tracker's comments, labels and states. Three requirements wait for them, kept by no module until then: `A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER`, `THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN`, `EVERY OUTGOING MAIL IS RELEASED BY A PERSON`.
+- **Not realised here — UC-039 3, 3b and 1a**: a participant's replies (3), a CLI agent's through the bridge (3b), and a question a participant drafts (1a, whose case by hand is designed: **Write the reply** and **Send and wait**, `MOD-mail-page.saveDraft`, `MOD-mail-page.sendReply`) wait for that job. Its result — one text per mail, which the page stores as a draft (`MOD-mail-page.saveDraft`) — is a result no job definition names yet: ARC-031's drafting jobs end with items shown or use cases written as open (decision 2). The job sends nothing; a mail leaves only by decision 13.
+- **Open measurement 5 — replies on Microsoft Graph.** Whether a draft that `createReply` makes carries PidTagInReplyToId and PidTagInternetReferences naming the mail it answers, whether the filter on `String 0x1042` finds it in `drafts` and, once sent, in `sentitems`, and whether the mail sent carries `In-Reply-To` and `References`: a reply made by `createReply` and one sent from Outlook, read back with the property expanded. Where one fails, the draft is made by `createReply` in MIME format, with the headers Agent M writes (`MOD-mail-flow.replyDraft`).
+- **Open measurement 6 — a label the repository lacks.** GitLab's `add_labels` "creates a new project label" where none exists; GitHub's *Add labels to an issue* says nothing of a label the repository does not have (`https://docs.github.com/en/rest/issues/labels`). Measured on a test repository without them: `waiting-for-reporter` added to an issue, and an issue created labelled `defect` or `change`. Where GitHub refuses, the label is first made with *Create a label*, which "Creates a label for the specified repository with the given name and color" — a change of ARC-004.
+- The bridge sends one mail at a time: a second sending waits until the first has spent its confirmation, so that two requests with one confirmation never both reach the SMTP server.
+- *Sent* is read only for mails not answered in every issue that lists them; a second reply to a mail answered already is not noted again, its issue recording the mail as answered.
 - The bridge's route `POST /mail/find` leaves the protocol: finding a mail again runs on the headers in the browser (decision 10; ARC-012 decision 8).
 - The earlier module files of `MOD-mail-flow` and `MOD-pseudonymiser` leave the working tree: this decision is where the modules are designed (ARC-020 decisions 3 and 12).
 - The earlier module file of `MOD-mailbox` leaves the working tree: this decision is where the module is designed (ARC-020 decisions 3 and 12).
@@ -163,9 +206,9 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
   "id": "MOD-mailbox",
   "folder": "src/mailbox/",
   "layer": "adapter",
-  "responsibility": "A mailbox over Microsoft Graph from the browser or over IMAP and SMTP through the bridge: the route a mail address takes, the Microsoft sign-in with PKCE and its renewal, and the test of a connection on either route changing nothing in the mailbox; on the bridge's side, the options under which its mail libraries log in only over TLS, and the answer of a test from what the bridge observed. It keeps no store: the connection, its sign-in and its password are passed in and handed back.",
-  "realises": ["A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE", "AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN", "THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING", "THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER", "THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE", "THE MAIL SERVER IS REACHED ONLY OVER TLS", "A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT", "READING THE MAILBOX CHANGES NOTHING IN IT", "A CREDENTIAL IS NEVER PLACED IN A URL", "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED"],
-  "owns": ["MailRoute", "MailSecurity", "SignInStart", "PlacesNotice", "PairedBridge", "MailFolderCount", "MailPartTest", "BridgeMailTest", "MailAuth", "ImapOptions", "SmtpOptions", "MailConnectOptions", "MailError", "MailFolderSeen", "SpecialUseFolders", "ImapSeen", "SmtpSeen", "MailObserved", "MailPerson", "MailHeader", "MailAttachment", "Mail", "ImapAddress", "ImapEnvelope", "ImapMessage", "ImapPart", "MailPart", "MailParts"],
+  "responsibility": "A mailbox over Microsoft Graph from the browser or over IMAP and SMTP through the bridge: the route a mail address takes, the Microsoft sign-in with PKCE and its renewal, and the test of a connection on either route changing nothing in the mailbox; its mails read without changing anything; the replies kept as drafts in its Drafts folder and edited there, the replies in its Sent folder, and a draft sent only with the confirmation of the mail shown; on the bridge's side, the options under which its mail libraries log in only over TLS, the answer of a test from what the bridge observed, a mail's header and parts, the confirmation checked, how a confirmed draft is sent, and the options a draft is composed with. It keeps no store: the connection, its sign-in and its password are passed in and handed back.",
+  "realises": ["A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE", "AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN", "THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING", "THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER", "THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE", "THE MAIL SERVER IS REACHED ONLY OVER TLS", "A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT", "READING THE MAILBOX CHANGES NOTHING IN IT", "A CREDENTIAL IS NEVER PLACED IN A URL", "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED", "A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER", "A REPLY IS THREADED ON THE REPORTER'S MAIL", "THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN"],
+  "owns": ["MailRoute", "MailSecurity", "SignInStart", "PlacesNotice", "PairedBridge", "MailFolderCount", "MailPartTest", "BridgeMailTest", "MailAuth", "ImapOptions", "SmtpOptions", "MailConnectOptions", "MailError", "MailFolderSeen", "SpecialUseFolders", "ImapSeen", "SmtpSeen", "MailObserved", "MailPerson", "MailHeader", "MailAttachment", "Mail", "ImapAddress", "ImapEnvelope", "ImapMessage", "ImapPart", "MailPart", "MailParts", "BridgeMailRead", "DraftMail", "BridgeMailDraft", "DraftSaved", "SendConfirmation", "BridgeMailSend", "MailSendAnswer", "MailSent", "SpentConfirmation", "SpentConfirmations", "SmtpEnvelope", "SendPlan", "DraftAttachment", "ComposerAttachment", "ComposerMessage", "ComposerOptions"],
   "uses": ["MOD-contracts", "MOD-bridge-server"]
 }
 ```
@@ -1364,7 +1407,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             }
           },
           {
-            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-inbox/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-inbox/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
             "response": {
               "status": 200,
               "body": {
@@ -1417,7 +1460,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             }
           },
           {
-            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-reports/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-reports/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
             "response": { "status": 200, "body": { "value": [] } }
           }
         ]
@@ -1433,6 +1476,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Search finds nothing",
           "date": "2026-10-02T10:00:00Z",
           "sourceSha256": ""
@@ -1447,6 +1491,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": ""
@@ -1461,6 +1506,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Re: Search finds nothing",
           "date": "2026-10-10T09:30:00Z",
           "sourceSha256": ""
@@ -1513,6 +1559,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
                     "replyTo": [],
                     "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
                     "cc": [],
+                    "bcc": [],
                     "subject": "Search finds nothing",
                     "date": "2026-10-02T10:00:00Z",
                     "sourceSha256": ""
@@ -1527,6 +1574,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
                     "replyTo": [],
                     "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
                     "cc": [],
+                    "bcc": [],
                     "subject": "Export loses figures",
                     "date": "2026-10-09T08:12:00Z",
                     "sourceSha256": ""
@@ -1541,6 +1589,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
                     "replyTo": [],
                     "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
                     "cc": [],
+                    "bcc": [],
                     "subject": "Re: Search finds nothing",
                     "date": "2026-10-10T09:30:00Z",
                     "sourceSha256": ""
@@ -1562,6 +1611,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Search finds nothing",
           "date": "2026-10-02T10:00:00Z",
           "sourceSha256": ""
@@ -1576,6 +1626,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": ""
@@ -1590,6 +1641,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Re: Search finds nothing",
           "date": "2026-10-10T09:30:00Z",
           "sourceSha256": ""
@@ -1716,13 +1768,14 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": ""
         },
         "fetch": [
           {
-            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,internetMessageHeaders,body" },
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body" },
             "response": {
               "status": 200,
               "body": {
@@ -1758,6 +1811,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
         "cc": [],
+        "bcc": [],
         "subject": "Export loses figures",
         "date": "2026-10-09T08:12:00Z",
         "sourceSha256": "",
@@ -1793,6 +1847,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": ""
@@ -1824,6 +1879,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
                   "replyTo": [],
                   "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
                   "cc": [],
+                  "bcc": [],
                   "subject": "Export loses figures",
                   "date": "2026-10-09T08:12:00Z",
                   "sourceSha256": "",
@@ -1845,6 +1901,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
         "cc": [],
+        "bcc": [],
         "subject": "Export loses figures",
         "date": "2026-10-09T08:12:00Z",
         "sourceSha256": "",
@@ -1879,7 +1936,8 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "from": [{ "name": "Bea Example", "address": "bea@uni.example" }],
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@uni.example" }],
-            "cc": []
+            "cc": [],
+            "bcc": []
           },
           "references": "",
           "sourceSha256": ""
@@ -1895,6 +1953,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@uni.example" }],
         "cc": [],
+        "bcc": [],
         "subject": "Export loses figures",
         "date": "2026-10-09T08:12:00Z",
         "sourceSha256": ""
@@ -1914,7 +1973,8 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "from": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@uni.example" }],
-            "cc": []
+            "cc": [],
+            "bcc": []
           },
           "references": "References: <77aa.1@lab.example>\r\n",
           "sourceSha256": ""
@@ -1930,6 +1990,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@uni.example" }],
         "cc": [],
+        "bcc": [],
         "subject": "Re: Search finds nothing",
         "date": "2026-10-09T08:12:00Z",
         "sourceSha256": ""
@@ -2000,6 +2061,1480 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 }
 ```
 
+```json interface
+{
+  "id": "MOD-mailbox.draftList",
+  "summary": "Every draft in the mailbox's Drafts folder, read without changing anything, each with the Message-ID it replies to: on the web API the folder drafts by its well-known name, each draft read with the extended property PidTagInReplyToId (String 0x1042) expanded; on the IMAP route through the bridge, which opens the folder the mailbox marks \\Drafts read-only and leaves out mails flagged \\Deleted.",
+  "params": [
+    { "name": "connection", "type": "Mailbox" },
+    { "name": "bridge", "type": "PairedBridge" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "MailHeader[]",
+  "async": true,
+  "refusals": [
+    { "code": "not-set", "when": "the route's sign-in or login is missing" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "not-found", "when": "a draft is no longer there" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "graph-error", "when": "Microsoft Graph answers another error" },
+    { "code": "token-refused", "when": "the bridge refuses its token" }
+  ],
+  "examples": [
+    {
+      "name": "the Microsoft 365 mailbox: the reply to Dan's report and an unrelated draft",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/drafts/messages?$select=id&$top=100" },
+            "response": { "status": 200, "body": { "value": [{ "id": "AAMkAGI2-d1" }, { "id": "AAMkAGI2-d2" }] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$expand=singleValueExtendedProperties(%24filter%3Did%20eq%20'String%200x1042')" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d2?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$expand=singleValueExtendedProperties(%24filter%3Did%20eq%20'String%200x1042')" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d2",
+                "internetMessageId": "<d2.20261011@example.org>",
+                "subject": "Team lunch on Friday",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Eve Colleague", "address": "eve@example.org" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T11:00:00Z",
+                "internetMessageHeaders": []
+              }
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "ref": "AAMkAGI2-d1",
+          "folder": "drafts",
+          "messageId": "<d1.20261011@example.org>",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": ""
+        },
+        {
+          "ref": "AAMkAGI2-d2",
+          "folder": "drafts",
+          "messageId": "<d2.20261011@example.org>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Eve Colleague", "address": "eve@example.org" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Team lunch on Friday",
+          "date": "2026-10-11T11:00:00Z",
+          "sourceSha256": ""
+        }
+      ]
+    },
+    {
+      "name": "the IMAP mailbox through the bridge",
+      "input": {
+        "connection": {
+          "address": "reports@uni.example",
+          "route": "imap",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": null,
+          "login": {
+            "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+            "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+            "user": "reports@uni.example",
+            "password": "app-password-example"
+          },
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/read",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "folders": [],
+                "ref": "",
+                "special": "drafts",
+                "replyTo": []
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "mails": [
+                  {
+                    "ref": "Drafts/31",
+                    "folder": "Drafts",
+                    "messageId": "<d1.20261011@uni.example>",
+                    "inReplyTo": ["<77aa.1@lab.example>"],
+                    "references": ["<77aa.1@lab.example>"],
+                    "from": { "name": "Notes Support", "address": "reports@example.org" },
+                    "replyTo": [],
+                    "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                    "cc": [],
+                    "bcc": [],
+                    "subject": "Re: Search finds nothing",
+                    "date": "2026-10-11T09:00:00Z",
+                    "sourceSha256": ""
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "ref": "Drafts/31",
+          "folder": "Drafts",
+          "messageId": "<d1.20261011@uni.example>",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": ""
+        }
+      ]
+    },
+    {
+      "name": "an expired sign-in",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/drafts/messages?$select=id&$top=100" },
+            "response": { "status": 401, "body": { "error": { "code": "InvalidAuthenticationToken" } } }
+          }
+        ]
+      },
+      "refused": "sign-in-expired"
+    },
+    {
+      "name": "no bridge paired",
+      "input": {
+        "connection": {
+          "address": "reports@uni.example",
+          "route": "imap",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": null,
+          "login": {
+            "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+            "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+            "user": "reports@uni.example",
+            "password": "app-password-example"
+          },
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "fetch": []
+      },
+      "refused": "no-bridge"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.sentReplies",
+  "summary": "The mails of the Sent folder that reply to the given Message-IDs, read without changing anything: on the web API the folder sentitems filtered on PidTagInReplyToId, one request for each Message-ID; on the IMAP route through the bridge, which searches the folder the mailbox marks \\Sent for mails not flagged \\Deleted whose In-Reply-To names one of them.",
+  "params": [
+    { "name": "connection", "type": "Mailbox" },
+    { "name": "bridge", "type": "PairedBridge" },
+    { "name": "messageIds", "type": "string[]" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "MailHeader[]",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-message-id", "when": "a value is no Message-ID in angle brackets" },
+    { "code": "not-set", "when": "the route's sign-in or login is missing" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "graph-error", "when": "Microsoft Graph answers another error" },
+    { "code": "token-refused", "when": "the bridge refuses its token" }
+  ],
+  "examples": [
+    {
+      "name": "Dan's two mails on the web API: one answered from Outlook",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "messageIds": ["<77aa.1@lab.example>", "<77aa.2@lab.example>"],
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages?$filter=singleValueExtendedProperties%2FAny(ep%3A%20ep%2Fid%20eq%20'String%200x1042'%20and%20ep%2Fvalue%20eq%20'%3C77aa.1%40lab.example%3E')&$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages?$filter=singleValueExtendedProperties%2FAny(ep%3A%20ep%2Fid%20eq%20'String%200x1042'%20and%20ep%2Fvalue%20eq%20'%3C77aa.2%40lab.example%3E')&$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  {
+                    "id": "AAMkAGI2-s1",
+                    "internetMessageId": "<s1.20261011@example.org>",
+                    "subject": "RE: Re: Search finds nothing",
+                    "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                    "replyTo": [],
+                    "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                    "ccRecipients": [],
+                    "bccRecipients": [],
+                    "receivedDateTime": "2026-10-11T10:20:00Z",
+                    "internetMessageHeaders": []
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "ref": "AAMkAGI2-s1",
+          "folder": "sentitems",
+          "messageId": "<s1.20261011@example.org>",
+          "inReplyTo": ["<77aa.2@lab.example>"],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "RE: Re: Search finds nothing",
+          "date": "2026-10-11T10:20:00Z",
+          "sourceSha256": ""
+        }
+      ]
+    },
+    {
+      "name": "through the bridge",
+      "input": {
+        "connection": {
+          "address": "reports@uni.example",
+          "route": "imap",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": null,
+          "login": {
+            "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+            "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+            "user": "reports@uni.example",
+            "password": "app-password-example"
+          },
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+        "messageIds": ["<77aa.1@lab.example>", "<77aa.2@lab.example>"],
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/read",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "folders": [],
+                "ref": "",
+                "special": "sent",
+                "replyTo": ["<77aa.1@lab.example>", "<77aa.2@lab.example>"]
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "mails": [
+                  {
+                    "ref": "Sent/208",
+                    "folder": "Sent",
+                    "messageId": "<s1.20261011@example.org>",
+                    "inReplyTo": ["<77aa.2@lab.example>"],
+                    "references": [],
+                    "from": { "name": "Notes Support", "address": "reports@example.org" },
+                    "replyTo": [],
+                    "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                    "cc": [],
+                    "bcc": [],
+                    "subject": "RE: Re: Search finds nothing",
+                    "date": "2026-10-11T10:20:00Z",
+                    "sourceSha256": ""
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "ref": "Sent/208",
+          "folder": "Sent",
+          "messageId": "<s1.20261011@example.org>",
+          "inReplyTo": ["<77aa.2@lab.example>"],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "RE: Re: Search finds nothing",
+          "date": "2026-10-11T10:20:00Z",
+          "sourceSha256": ""
+        }
+      ]
+    },
+    {
+      "name": "nothing to look for",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "messageIds": [],
+        "fetch": []
+      },
+      "result": []
+    },
+    {
+      "name": "an identifier instead of a Message-ID",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "messageIds": ["MAIL-20a9a87e7d0cc824"],
+        "fetch": []
+      },
+      "refused": "not-a-message-id"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.storeDraft",
+  "summary": "A reply stored as a draft in the mailbox's Drafts folder, and nowhere else: on the web API created with createReply on the mail it answers — its recipients, subject and text given, the text as plain text —, which Exchange threads on that mail; on the IMAP route through the bridge, POST /mail/draft, which composes it with nodemailer's MailComposer (draftOptions) and appends it to the folder marked \\Drafts, flagged \\Draft and \\Seen. The draft's handle.",
+  "params": [
+    { "name": "connection", "type": "Mailbox" },
+    { "name": "bridge", "type": "PairedBridge" },
+    { "name": "draft", "type": "DraftMail" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "DraftSaved",
+  "async": true,
+  "refusals": [
+    { "code": "no-recipient", "when": "the draft has no recipient" },
+    { "code": "not-set", "when": "the route's sign-in or login is missing" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "not-found", "when": "the mail answered is no longer there" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "graph-error", "when": "Microsoft Graph answers another error" },
+    { "code": "token-refused", "when": "the bridge refuses its token" }
+  ],
+  "examples": [
+    {
+      "name": "the reply to Dan's report on the web API",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "draft": {
+          "replyRef": "AAMkAGI2-m2",
+          "from": { "name": "", "address": "reports@example.org" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m2/createReply",
+              "body": {
+                "message": {
+                  "subject": "Re: Search finds nothing",
+                  "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                  "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+                }
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            }
+          }
+        ]
+      },
+      "result": { "ref": "AAMkAGI2-d1" }
+    },
+    {
+      "name": "the same through the bridge",
+      "input": {
+        "connection": {
+          "address": "reports@uni.example",
+          "route": "imap",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": null,
+          "login": {
+            "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+            "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+            "user": "reports@uni.example",
+            "password": "app-password-example"
+          },
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+        "draft": {
+          "replyRef": "INBOX/4700",
+          "from": { "name": "", "address": "reports@uni.example" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/draft",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "draft": {
+                  "replyRef": "INBOX/4700",
+                  "from": { "name": "", "address": "reports@uni.example" },
+                  "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Search finds nothing",
+                  "inReplyTo": ["<77aa.1@lab.example>"],
+                  "references": ["<77aa.1@lab.example>"],
+                  "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+                },
+                "replace": ""
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "ref": "Drafts/31" }
+            }
+          }
+        ]
+      },
+      "result": { "ref": "Drafts/31" }
+    },
+    {
+      "name": "a reply to no one",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "draft": {
+          "replyRef": "AAMkAGI2-m2",
+          "from": { "name": "", "address": "reports@example.org" },
+          "to": [],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "fetch": []
+      },
+      "refused": "no-recipient"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.updateDraft",
+  "summary": "A draft's text replaced by the author's edit, saved to the draft: on the web API the draft's body updated in place, its handle kept; on the IMAP route through the bridge, POST /mail/draft naming the draft it replaces, which appends the draft composed anew with the edited text and the old draft's attachments, and then removes the old one. The draft's handle.",
+  "params": [
+    { "name": "connection", "type": "Mailbox" },
+    { "name": "bridge", "type": "PairedBridge" },
+    { "name": "ref", "type": "string" },
+    { "name": "draft", "type": "DraftMail" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "DraftSaved",
+  "async": true,
+  "refusals": [
+    { "code": "not-set", "when": "the route's sign-in or login is missing" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "not-found", "when": "the draft is no longer there" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "graph-error", "when": "Microsoft Graph answers another error" },
+    { "code": "token-refused", "when": "the bridge refuses its token" }
+  ],
+  "examples": [
+    {
+      "name": "an edit on the web API",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "ref": "AAMkAGI2-d1",
+        "draft": {
+          "replyRef": "AAMkAGI2-m2",
+          "from": { "name": "", "address": "reports@example.org" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1",
+              "body": {
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            }
+          }
+        ]
+      },
+      "result": { "ref": "AAMkAGI2-d1" }
+    },
+    {
+      "name": "an edit through the bridge",
+      "input": {
+        "connection": {
+          "address": "reports@uni.example",
+          "route": "imap",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": null,
+          "login": {
+            "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+            "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+            "user": "reports@uni.example",
+            "password": "app-password-example"
+          },
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+        "ref": "Drafts/31",
+        "draft": {
+          "replyRef": "INBOX/4700",
+          "from": { "name": "", "address": "reports@uni.example" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/draft",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "draft": {
+                  "replyRef": "INBOX/4700",
+                  "from": { "name": "", "address": "reports@uni.example" },
+                  "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Search finds nothing",
+                  "inReplyTo": ["<77aa.1@lab.example>"],
+                  "references": ["<77aa.1@lab.example>"],
+                  "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+                },
+                "replace": "Drafts/31"
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "ref": "Drafts/33" }
+            }
+          }
+        ]
+      },
+      "result": { "ref": "Drafts/33" }
+    },
+    {
+      "name": "a draft sent meanwhile",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "ref": "AAMkAGI2-d1",
+        "draft": {
+          "replyRef": "AAMkAGI2-m2",
+          "from": { "name": "", "address": "reports@example.org" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1",
+              "body": {
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            },
+            "response": { "status": 404, "body": { "error": { "code": "ErrorItemNotFound" } } }
+          }
+        ]
+      },
+      "refused": "not-found"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.mailDigest",
+  "summary": "The SHA-256 of a mail as it is shown — its sender, every recipient, copy and blind copy, its subject, its whole text and every attachment's name, size and type —, of the same JSON on the page and on the bridge.",
+  "params": [{ "name": "mail", "type": "Mail" }],
+  "result": "string",
+  "async": true,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the reply to Dan's report",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-d1",
+          "folder": "drafts",
+          "messageId": "<d1.20261011@example.org>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": []
+        }
+      },
+      "result": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92"
+    },
+    {
+      "name": "the same with one word changed",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-d1",
+          "folder": "drafts",
+          "messageId": "<d1.20261011@example.org>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes too; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": []
+        }
+      },
+      "result": "483984848a11899823a1ead3f1a89c73f2bc415f806a8c657ee0f7375dc3585f"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.confirmMail",
+  "summary": "The single-use confirmation of the mail shown, made on the click in the send dialog: a nonce of 32 hexadecimal characters drawn from the random port, the mail's SHA-256 (mailDigest) and the time.",
+  "params": [
+    { "name": "mail", "type": "Mail" },
+    { "name": "random", "type": "RandomPort" },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "SendConfirmation",
+  "async": true,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "the reply to Dan's report",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-d1",
+          "folder": "drafts",
+          "messageId": "<d1.20261011@example.org>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": []
+        },
+        "random": [0.12, 0.87, 0.33, 0.59, 0.71, 0.05, 0.44, 0.96, 0.28, 0.63, 0.17, 0.81, 0.39, 0.52, 0.08, 0.75],
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "result": { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.sendMail",
+  "summary": "A draft sent with the confirmation of the mail shown, and only with it: on the web API the draft read again — a mail sent already, or one whose SHA-256 is not the confirmed one, is not sent — and then sent by Microsoft, which saves it in Sent Items; on the IMAP route through the bridge, POST /mail/send with the draft's handle and the confirmation, the bridge reading the draft itself, checking the confirmation (checkConfirmation) and sending only then. The draft leaves Drafts with it.",
+  "params": [
+    { "name": "connection", "type": "Mailbox" },
+    { "name": "bridge", "type": "PairedBridge" },
+    { "name": "ref", "type": "string" },
+    { "name": "confirmation", "type": "SendConfirmation", "optional": true },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "MailSent",
+  "async": true,
+  "refusals": [
+    { "code": "no-confirmation", "when": "no confirmation of the mail shown is given" },
+    { "code": "not-set", "when": "the route's sign-in or login is missing" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "not-found", "when": "the draft is no longer there" },
+    { "code": "already-sent", "when": "the mail was sent already" },
+    { "code": "mismatch", "when": "the mail is not the one shown" },
+    { "code": "stale", "when": "the confirmation is not of the last ten minutes" },
+    { "code": "spent", "when": "the confirmation was used already" },
+    { "code": "no-recipient", "when": "the mail has no recipient" },
+    { "code": "smtp-refused", "when": "the SMTP server refuses the mail; its words are named" },
+    { "code": "no-encryption", "when": "the server offers no encryption" },
+    { "code": "login-refused", "when": "the server refuses the login" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "graph-error", "when": "Microsoft Graph answers another error" },
+    { "code": "token-refused", "when": "the bridge refuses its token" }
+  ],
+  "examples": [
+    {
+      "name": "the reply to Dan's report on the web API",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "ref": "AAMkAGI2-d1",
+        "confirmation": { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body,isDraft" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" },
+                "isDraft": true
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "POST", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/send" },
+            "response": { "status": 202, "body": null }
+          }
+        ]
+      },
+      "result": { "sent": true, "copied": true, "removed": "provider" }
+    },
+    {
+      "name": "the same through the bridge",
+      "input": {
+        "connection": {
+          "address": "reports@uni.example",
+          "route": "imap",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": null,
+          "login": {
+            "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+            "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+            "user": "reports@uni.example",
+            "password": "app-password-example"
+          },
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+        "ref": "Drafts/31",
+        "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/send",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+                "ref": "Drafts/31",
+                "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "sent": true, "code": "", "reason": "", "copied": true, "removed": "uid-expunge" }
+            }
+          }
+        ]
+      },
+      "result": { "sent": true, "copied": true, "removed": "uid-expunge" }
+    },
+    {
+      "name": "a draft changed after it was shown",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "ref": "AAMkAGI2-d1",
+        "confirmation": { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body,isDraft" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" },
+                "isDraft": true
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          }
+        ]
+      },
+      "refused": "mismatch"
+    },
+    {
+      "name": "a mail sent already — a double click",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "ref": "AAMkAGI2-d1",
+        "confirmation": { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body,isDraft" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" },
+                "isDraft": false
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          }
+        ]
+      },
+      "refused": "already-sent"
+    },
+    {
+      "name": "a confirmation the bridge has spent",
+      "input": {
+        "connection": {
+          "address": "reports@uni.example",
+          "route": "imap",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": null,
+          "login": {
+            "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+            "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+            "user": "reports@uni.example",
+            "password": "app-password-example"
+          },
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+        "ref": "Drafts/31",
+        "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/send",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+                "ref": "Drafts/31",
+                "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "sent": false, "code": "spent", "reason": "this confirmation was used already; nothing is sent twice", "copied": false, "removed": "" }
+            }
+          }
+        ]
+      },
+      "refused": "spent"
+    },
+    {
+      "name": "no confirmation",
+      "input": {
+        "connection": {
+          "address": "reports@example.org",
+          "route": "graph",
+          "folders": ["INBOX", "Reports"],
+          "places": [],
+          "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+          "login": null,
+          "tested": { "read": null, "send": null }
+        },
+        "bridge": null,
+        "ref": "AAMkAGI2-d1",
+        "fetch": []
+      },
+      "refused": "no-confirmation"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.checkConfirmation",
+  "summary": "On the bridge, a confirmation checked against the SHA-256 of the mail the bridge is about to send and the confirmations spent: one made in the last ten minutes, not spent, naming exactly this mail; it is then spent, and the spent ones older than ten minutes are dropped.",
+  "params": [
+    { "name": "confirmation", "type": "SendConfirmation", "optional": true },
+    { "name": "digest", "type": "string" },
+    { "name": "spent", "type": "SpentConfirmation[]" },
+    { "name": "now", "type": "string" }
+  ],
+  "result": "SpentConfirmations",
+  "async": false,
+  "refusals": [
+    { "code": "no-confirmation", "when": "no confirmation is given, or one of another form" },
+    { "code": "stale", "when": "the confirmation is not of the last ten minutes" },
+    { "code": "spent", "when": "the confirmation was used already" },
+    { "code": "mismatch", "when": "the confirmation names another mail" }
+  ],
+  "examples": [
+    {
+      "name": "a fresh confirmation",
+      "input": {
+        "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "digest": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92",
+        "spent": [{ "nonce": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f", "at": "2026-10-12T09:10:00Z" }],
+        "now": "2026-10-12T09:30:04Z"
+      },
+      "result": { "spent": [{ "nonce": "c0148563cf2ba147f5700cb59754de1e", "at": "2026-10-12T09:30:00Z" }] }
+    },
+    {
+      "name": "the same confirmation again — a reload",
+      "input": {
+        "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "digest": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92",
+        "spent": [{ "nonce": "c0148563cf2ba147f5700cb59754de1e", "at": "2026-10-12T09:30:00Z" }],
+        "now": "2026-10-12T09:30:09Z"
+      },
+      "refused": "spent"
+    },
+    {
+      "name": "a mail changed after the preview",
+      "input": {
+        "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "digest": "9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d",
+        "spent": [],
+        "now": "2026-10-12T09:30:04Z"
+      },
+      "refused": "mismatch"
+    },
+    {
+      "name": "a confirmation of an hour ago",
+      "input": {
+        "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+        "digest": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92",
+        "spent": [],
+        "now": "2026-10-12T10:30:00Z"
+      },
+      "refused": "stale"
+    },
+    {
+      "name": "no confirmation",
+      "input": {
+        "digest": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92",
+        "spent": [],
+        "now": "2026-10-12T09:30:04Z"
+      },
+      "refused": "no-confirmation"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.sendPlan",
+  "summary": "On the bridge, how a confirmed draft is sent: the SMTP envelope — the sender's address, else the account, and every recipient, copy and blind copy once —; the draft's source without its Bcc field; whether the bridge stores a copy in the folder marked \\Sent — not where the server copies the mail itself, as Gmail does —; and how the draft leaves Drafts: by UID EXPUNGE where the server has UIDPLUS, otherwise flagged \\Deleted only, so that no other mail flagged \\Deleted is expunged with it.",
+  "params": [
+    { "name": "mail", "type": "Mail" },
+    { "name": "source", "type": "string" },
+    { "name": "login", "type": "MailboxLogin" },
+    { "name": "capabilities", "type": "string[]" }
+  ],
+  "result": "SendPlan",
+  "async": false,
+  "refusals": [{ "code": "no-recipient", "when": "the mail has no recipient" }],
+  "examples": [
+    {
+      "name": "a reply with a blind copy to the archive, a server with UIDPLUS",
+      "input": {
+        "mail": {
+          "ref": "Drafts/31",
+          "folder": "Drafts",
+          "messageId": "<d1.20261011@uni.example>",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "from": { "name": "", "address": "reports@uni.example" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [{ "name": "", "address": "archive@uni.example" }],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": []
+        },
+        "source": "From: reports@uni.example\r\nTo: Dan Sample <dan@lab.example>\r\nBcc: archive@uni.example\r\nSubject: Re: Search finds nothing\r\nIn-Reply-To: <77aa.1@lab.example>\r\nReferences: <77aa.1@lab.example>\r\nMessage-ID: <d1.20261011@uni.example>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDear Dan,\r\n",
+        "login": {
+          "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+          "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+          "user": "reports@uni.example",
+          "password": "app-password-example"
+        },
+        "capabilities": ["IMAP4rev1", "UIDPLUS", "MOVE"]
+      },
+      "result": {
+        "envelope": { "from": "reports@uni.example", "to": ["dan@lab.example", "archive@uni.example"] },
+        "raw": "From: reports@uni.example\r\nTo: Dan Sample <dan@lab.example>\r\nSubject: Re: Search finds nothing\r\nIn-Reply-To: <77aa.1@lab.example>\r\nReferences: <77aa.1@lab.example>\r\nMessage-ID: <d1.20261011@uni.example>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDear Dan,\r\n",
+        "copy": true,
+        "removal": "uid-expunge"
+      }
+    },
+    {
+      "name": "Gmail, without UIDPLUS",
+      "input": {
+        "mail": {
+          "ref": "Drafts/31",
+          "folder": "Drafts",
+          "messageId": "<d1.20261011@uni.example>",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "from": { "name": "", "address": "reports@uni.example" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": []
+        },
+        "source": "From: reports@uni.example\r\nTo: Dan Sample <dan@lab.example>\r\nSubject: Re: Search finds nothing\r\nIn-Reply-To: <77aa.1@lab.example>\r\nReferences: <77aa.1@lab.example>\r\nMessage-ID: <d1.20261011@uni.example>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDear Dan,\r\n",
+        "login": {
+          "imap": { "host": "imap.gmail.com", "port": 993, "security": "tls" },
+          "smtp": { "host": "smtp.gmail.com", "port": 465, "security": "tls" },
+          "user": "reports.notes@gmail.com",
+          "password": "app-password-example"
+        },
+        "capabilities": ["IMAP4rev1"]
+      },
+      "result": {
+        "envelope": { "from": "reports@uni.example", "to": ["dan@lab.example"] },
+        "raw": "From: reports@uni.example\r\nTo: Dan Sample <dan@lab.example>\r\nSubject: Re: Search finds nothing\r\nIn-Reply-To: <77aa.1@lab.example>\r\nReferences: <77aa.1@lab.example>\r\nMessage-ID: <d1.20261011@uni.example>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDear Dan,\r\n",
+        "copy": false,
+        "removal": "flag-deleted"
+      }
+    },
+    {
+      "name": "a draft to no one",
+      "input": {
+        "mail": {
+          "ref": "Drafts/31",
+          "folder": "Drafts",
+          "messageId": "<d1.20261011@uni.example>",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "from": { "name": "", "address": "reports@uni.example" },
+          "replyTo": [],
+          "to": [],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": []
+        },
+        "source": "",
+        "login": {
+          "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+          "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+          "user": "reports@uni.example",
+          "password": "app-password-example"
+        },
+        "capabilities": []
+      },
+      "refused": "no-recipient"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mailbox.draftOptions",
+  "summary": "On the bridge, the options nodemailer's MailComposer composes a draft with: sender, recipients, copies and blind copies, the subject, In-Reply-To and References, the text, and the attachments a replaced draft carries over, their content as base64; keepBcc set, since MailComposer removes the Bcc field by default.",
+  "params": [{ "name": "draft", "type": "DraftMail" }, { "name": "attachments", "type": "DraftAttachment[]" }],
+  "result": "ComposerOptions",
+  "async": false,
+  "refusals": [
+    { "code": "no-recipient", "when": "the draft has no recipient" },
+    { "code": "not-a-reply", "when": "the draft replies to no mail" }
+  ],
+  "examples": [
+    {
+      "name": "the reply to Dan's report",
+      "input": {
+        "draft": {
+          "replyRef": "INBOX/4700",
+          "from": { "name": "", "address": "reports@uni.example" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "attachments": []
+      },
+      "result": {
+        "message": {
+          "from": { "name": "", "address": "reports@uni.example" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": "<77aa.1@lab.example>",
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": []
+        },
+        "keepBcc": true
+      }
+    },
+    {
+      "name": "an edited draft that carried a screenshot",
+      "input": {
+        "draft": {
+          "replyRef": "INBOX/4700",
+          "from": { "name": "", "address": "reports@uni.example" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "attachments": [
+          { "name": "search.png", "contentType": "image/png", "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" }
+        ]
+      },
+      "result": {
+        "message": {
+          "from": { "name": "", "address": "reports@uni.example" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": "<77aa.1@lab.example>",
+          "references": ["<77aa.1@lab.example>"],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "attachments": [
+            { "filename": "search.png", "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "encoding": "base64", "contentType": "image/png" }
+          ]
+        },
+        "keepBcc": true
+      }
+    },
+    {
+      "name": "a draft that replies to nothing",
+      "input": {
+        "draft": {
+          "replyRef": "INBOX/4700",
+          "from": { "name": "", "address": "reports@uni.example" },
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "inReplyTo": [],
+          "references": [],
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+        },
+        "attachments": []
+      },
+      "refused": "not-a-reply"
+    }
+  ]
+}
+```
+
 ### MOD-mail-flow
 
 ```json module
@@ -2007,9 +3542,9 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
   "id": "MOD-mail-flow",
   "folder": "src/mail-flow/",
   "layer": "feature",
-  "responsibility": "Mails into issues as data: a mail's pseudonymous identifier, the mails an issue lists, what a reading of the mailbox attaches and proposes, a listed mail found again by its identifier, and the issue the author decides on. It reads and writes nothing; the mail page passes the headers and the issues in and writes what it gives back.",
-  "realises": ["A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER", "AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS", "A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN", "A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL", "A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE", "AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE", "A MAIL IS FOUND AGAIN BY ITS IDENTIFIER"],
-  "owns": ["ProductIssue", "AttachedMail", "ProposedMail", "MailPlan", "FoundMail", "FoundMails", "IssueDecision"],
+  "responsibility": "Mails into issues as data: a mail's pseudonymous identifier, the mails an issue lists, what a reading of the mailbox attaches and proposes, a listed mail found again by its identifier, and the issue the author decides on; and the replies as data: the reply to a mail as a draft, the notes an issue's comments hold and the text of each, and the groups of the replies page computed from the issues and the mailbox alone. It reads and writes nothing; the mail page passes the headers and the issues in and writes what it gives back.",
+  "realises": ["A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER", "AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS", "A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN", "A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL", "A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE", "AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE", "A MAIL IS FOUND AGAIN BY ITS IDENTIFIER", "THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING", "CLOSING AN ISSUE PREPARES ITS REPLIES", "A REPLY GOES TO ONE REPORTER", "THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS", "A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO", "A SENT REPLY IS NOTED IN THE ISSUE", "A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE"],
+  "owns": ["ProductIssue", "AttachedMail", "ProposedMail", "MailPlan", "FoundMail", "FoundMails", "IssueDecision", "IssueNote", "IssueNotes", "ReplyState", "DraftEntry", "MailEntry", "IssueEntry", "NoteToWrite", "MailGroups"],
   "uses": ["MOD-contracts"]
 }
 ```
@@ -2036,6 +3571,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": ""
@@ -2056,6 +3592,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": "9f4e0c5b8a7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f"
@@ -2076,6 +3613,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": ""
@@ -2187,6 +3725,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Search finds nothing",
             "date": "2026-10-02T10:00:00Z",
             "sourceSha256": ""
@@ -2201,6 +3740,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": ""
@@ -2215,6 +3755,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Re: Search finds nothing",
             "date": "2026-10-10T09:30:00Z",
             "sourceSha256": ""
@@ -2271,6 +3812,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Search finds nothing",
             "date": "2026-10-02T10:00:00Z",
             "sourceSha256": ""
@@ -2285,6 +3827,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": ""
@@ -2299,6 +3842,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Re: Search finds nothing",
             "date": "2026-10-10T09:30:00Z",
             "sourceSha256": ""
@@ -2354,6 +3898,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Search finds nothing",
             "date": "2026-10-02T10:00:00Z",
             "sourceSha256": ""
@@ -2368,6 +3913,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": ""
@@ -2382,6 +3928,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Re: Search finds nothing",
             "date": "2026-10-10T09:30:00Z",
             "sourceSha256": ""
@@ -2403,6 +3950,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
               "replyTo": [],
               "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
               "cc": [],
+              "bcc": [],
               "subject": "Search finds nothing",
               "date": "2026-10-02T10:00:00Z",
               "sourceSha256": ""
@@ -2420,6 +3968,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
               "replyTo": [],
               "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
               "cc": [],
+              "bcc": [],
               "subject": "Re: Search finds nothing",
               "date": "2026-10-10T09:30:00Z",
               "sourceSha256": ""
@@ -2487,6 +4036,830 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 }
 ```
 
+```json interface
+{
+  "id": "MOD-mail-flow.replyDraft",
+  "summary": "The reply to a mail, as a draft: from the connected mailbox; to the mail's reply address — its Reply-To where it has one, else its sender — and to no one else; the subject \"Re: \" and the mail's subject; In-Reply-To the mail's Message-ID, References the mail's References followed by it; the text, and below it the mail quoted. A mail without a Message-ID, or without a valid reply address, gets no reply.",
+  "params": [
+    { "name": "mail", "type": "Mail" },
+    { "name": "text", "type": "string" },
+    { "name": "from", "type": "MailPerson" }
+  ],
+  "result": "DraftMail",
+  "async": false,
+  "refusals": [
+    { "code": "no-message-id", "when": "the mail has no Message-ID, so no reply can be threaded on it" },
+    { "code": "no-reply-address", "when": "the mail names no valid address a reply can go to" }
+  ],
+  "examples": [
+    {
+      "name": "the author's reply to Dan's report",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-m2",
+          "folder": "INBOX",
+          "messageId": "<77aa.1@lab.example>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+          "replyTo": [],
+          "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Search finds nothing",
+          "date": "2026-10-02T10:00:00Z",
+          "sourceSha256": "",
+          "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+          "attachments": []
+        },
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support",
+        "from": { "name": "", "address": "reports@example.org" }
+      },
+      "result": {
+        "replyRef": "AAMkAGI2-m2",
+        "from": { "name": "", "address": "reports@example.org" },
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "inReplyTo": ["<77aa.1@lab.example>"],
+        "references": ["<77aa.1@lab.example>"],
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+      }
+    },
+    {
+      "name": "written by hand, empty but for the quoted mail",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-m4",
+          "folder": "INBOX",
+          "messageId": "<c1f0.4712@uni.example>",
+          "inReplyTo": ["<q1.20261010@example.org>"],
+          "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+          "from": { "name": "Bea Example", "address": "bea@uni.example" },
+          "replyTo": [],
+          "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Export loses figures",
+          "date": "2026-10-11T07:45:00Z",
+          "sourceSha256": "",
+          "text": "Yes, every figure is a PNG.\n\nBea\n",
+          "attachments": []
+        },
+        "text": "",
+        "from": { "name": "", "address": "reports@example.org" }
+      },
+      "result": {
+        "replyRef": "AAMkAGI2-m4",
+        "from": { "name": "", "address": "reports@example.org" },
+        "to": [{ "name": "Bea Example", "address": "bea@uni.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Export loses figures",
+        "inReplyTo": ["<c1f0.4712@uni.example>"],
+        "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>", "<c1f0.4712@uni.example>"],
+        "text": "\n\nOn 2026-10-11, Bea Example wrote:\n> Yes, every figure is a PNG.\n>\n> Bea\n"
+      }
+    },
+    {
+      "name": "a mail with a Reply-To",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-m1",
+          "folder": "INBOX",
+          "messageId": "<c1f0.4711@uni.example>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Bea Example", "address": "bea@uni.example" },
+          "replyTo": [{ "name": "Bea Example", "address": "bea.example@mail.example" }],
+          "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Export loses figures",
+          "date": "2026-10-09T08:12:00Z",
+          "sourceSha256": "",
+          "text": "Hello,\nexporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\nThe log is attached.\n\nBest regards\nBea Example\n",
+          "attachments": [{ "name": "export.log", "size": 2048, "contentType": "text/plain" }]
+        },
+        "text": "Dear Bea,\n\nthe export keeps every figure from 2026.10.2 on.",
+        "from": { "name": "", "address": "reports@example.org" }
+      },
+      "result": {
+        "replyRef": "AAMkAGI2-m1",
+        "from": { "name": "", "address": "reports@example.org" },
+        "to": [{ "name": "Bea Example", "address": "bea.example@mail.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Export loses figures",
+        "inReplyTo": ["<c1f0.4711@uni.example>"],
+        "references": ["<c1f0.4711@uni.example>"],
+        "text": "Dear Bea,\n\nthe export keeps every figure from 2026.10.2 on.\n\nOn 2026-10-09, Bea Example wrote:\n> Hello,\n> exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n> The log is attached.\n>\n> Best regards\n> Bea Example\n"
+      }
+    },
+    {
+      "name": "a delivery report without a sender address",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-m2",
+          "folder": "INBOX",
+          "messageId": "<77aa.1@lab.example>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Mail Delivery System", "address": "" },
+          "replyTo": [],
+          "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Search finds nothing",
+          "date": "2026-10-02T10:00:00Z",
+          "sourceSha256": "",
+          "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+          "attachments": []
+        },
+        "text": "",
+        "from": { "name": "", "address": "reports@example.org" }
+      },
+      "refused": "no-reply-address"
+    },
+    {
+      "name": "a mail without a Message-ID",
+      "input": {
+        "mail": {
+          "ref": "AAMkAGI2-m2",
+          "folder": "INBOX",
+          "messageId": "",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+          "replyTo": [],
+          "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Search finds nothing",
+          "date": "2026-10-02T10:00:00Z",
+          "sourceSha256": "9f4e0c5b8a7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f",
+          "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+          "attachments": []
+        },
+        "text": "",
+        "from": { "name": "", "address": "reports@example.org" }
+      },
+      "refused": "no-message-id"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-flow.noteText",
+  "summary": "The comment an issue receives for a mail's handling, its identifier and the date and nothing of a reply's text or recipient: Reply sent to MAIL-… on YYYY-MM-DD, Question sent to MAIL-… on YYYY-MM-DD, or No reply to MAIL-…, decided on YYYY-MM-DD.",
+  "params": [
+    { "name": "kind", "type": "string" },
+    { "name": "id", "type": "string" },
+    { "name": "date", "type": "string" }
+  ],
+  "result": "string",
+  "async": false,
+  "refusals": [
+    { "code": "unknown-note", "when": "the kind is none of reply, question and no-reply" },
+    { "code": "not-a-mail-id", "when": "the identifier is no MAIL- identifier" },
+    { "code": "not-a-date", "when": "the date is not YYYY-MM-DD" }
+  ],
+  "examples": [
+    {
+      "name": "a reply",
+      "input": { "kind": "reply", "id": "MAIL-20a9a87e7d0cc824", "date": "2026-10-12" },
+      "result": "Reply sent to MAIL-20a9a87e7d0cc824 on 2026-10-12"
+    },
+    {
+      "name": "a question",
+      "input": { "kind": "question", "id": "MAIL-2bf41fe3257099c6", "date": "2026-10-12" },
+      "result": "Question sent to MAIL-2bf41fe3257099c6 on 2026-10-12"
+    },
+    {
+      "name": "no reply",
+      "input": { "kind": "no-reply", "id": "MAIL-20a9a87e7d0cc824", "date": "2026-10-12" },
+      "result": "No reply to MAIL-20a9a87e7d0cc824, decided on 2026-10-12"
+    },
+    {
+      "name": "another kind",
+      "input": { "kind": "thanks", "id": "MAIL-20a9a87e7d0cc824", "date": "2026-10-12" },
+      "refused": "unknown-note"
+    },
+    {
+      "name": "a date with a time",
+      "input": { "kind": "reply", "id": "MAIL-20a9a87e7d0cc824", "date": "2026-10-12T09:30:00Z" },
+      "refused": "not-a-date"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-flow.notesOf",
+  "summary": "The notes an issue's comments hold, oldest first: each comment that is exactly one note, with its kind, the mail's identifier, the date it names and the time the comment was made; every other comment is left aside.",
+  "params": [{ "name": "comments", "type": "IssueComment[]" }],
+  "result": "IssueNote[]",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "issue #14 and a person's comment",
+      "input": {
+        "comments": [
+          { "id": 7002, "body": "Question sent to MAIL-a5394516da5a18b1 on 2026-10-10", "created": "2026-10-10T12:00:00Z" },
+          { "id": 7010, "body": "Could be the PNG decoder.", "created": "2026-10-10T13:00:00Z" },
+          { "id": 7011, "body": "No reply to MAIL-20a9a87e7d0cc824, decided on 2026-10-12\n", "created": "2026-10-12T09:31:00Z" }
+        ]
+      },
+      "result": [
+        { "kind": "question", "id": "MAIL-a5394516da5a18b1", "date": "2026-10-10", "at": "2026-10-10T12:00:00Z" },
+        { "kind": "no-reply", "id": "MAIL-20a9a87e7d0cc824", "date": "2026-10-12", "at": "2026-10-12T09:31:00Z" }
+      ]
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-flow.mailGroups",
+  "summary": "What the replies page shows, computed from the issues and the mailbox alone: for each issue that lists mails, each mail — found or not found in the mailbox, answered by a reply or a decision not to answer, the questions sent to it, new where it came after the issue's latest note and has none, whether a reply can be sent and why not — with the drafts that reply to it, each blocked where it goes to a reporter of another of the issue's mails; and the replies found in Sent that no note counts: where a mail has more replies in Sent than reply and question notes in all issues together, each issue that lists it unanswered is to note a reply, dated by the newest. A closed issue with a mail not answered is to answer; an open one labelled waiting-for-reporter with a new mail has an answer received; every other open one is open.",
+  "params": [{ "name": "state", "type": "ReplyState" }],
+  "result": "MailGroups",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "issue #12 closed, #14 answered by Bea",
+      "input": {
+        "state": {
+          "issues": [
+            {
+              "issue": {
+                "product": "https://github.com/alice/notes",
+                "number": 12,
+                "title": "Search ignores titles",
+                "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+                "labels": ["defect"],
+                "state": "closed",
+                "url": "https://github.com/alice/notes/issues/12"
+              },
+              "notes": []
+            },
+            {
+              "issue": {
+                "product": "https://github.com/alice/notes",
+                "number": 14,
+                "title": "PDF export drops every figure",
+                "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+                "labels": ["defect", "waiting-for-reporter"],
+                "state": "open",
+                "url": "https://github.com/alice/notes/issues/14"
+              },
+              "notes": [
+                { "kind": "question", "id": "MAIL-a5394516da5a18b1", "date": "2026-10-10", "at": "2026-10-10T12:00:00Z" }
+              ]
+            }
+          ],
+          "found": [
+            {
+              "id": "MAIL-20a9a87e7d0cc824",
+              "header": {
+                "ref": "AAMkAGI2-m2",
+                "folder": "INBOX",
+                "messageId": "<77aa.1@lab.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Search finds nothing",
+                "date": "2026-10-02T10:00:00Z",
+                "sourceSha256": ""
+              }
+            },
+            {
+              "id": "MAIL-f037dedb909ab9d9",
+              "header": {
+                "ref": "AAMkAGI2-m3",
+                "folder": "INBOX",
+                "messageId": "<77aa.2@lab.example>",
+                "inReplyTo": ["<77aa.1@lab.example>"],
+                "references": ["<77aa.1@lab.example>"],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Search finds nothing",
+                "date": "2026-10-10T09:30:00Z",
+                "sourceSha256": ""
+              }
+            },
+            {
+              "id": "MAIL-a5394516da5a18b1",
+              "header": {
+                "ref": "AAMkAGI2-m1",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4711@uni.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Export loses figures",
+                "date": "2026-10-09T08:12:00Z",
+                "sourceSha256": ""
+              }
+            },
+            {
+              "id": "MAIL-2bf41fe3257099c6",
+              "header": {
+                "ref": "AAMkAGI2-m4",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4712@uni.example>",
+                "inReplyTo": ["<q1.20261010@example.org>"],
+                "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Export loses figures",
+                "date": "2026-10-11T07:45:00Z",
+                "sourceSha256": ""
+              }
+            }
+          ],
+          "drafts": [
+            {
+              "ref": "AAMkAGI2-d1",
+              "folder": "drafts",
+              "messageId": "<d1.20261011@example.org>",
+              "inReplyTo": ["<77aa.1@lab.example>"],
+              "references": [],
+              "from": { "name": "Notes Support", "address": "reports@example.org" },
+              "replyTo": [],
+              "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "Re: Search finds nothing",
+              "date": "2026-10-11T09:00:00Z",
+              "sourceSha256": ""
+            },
+            {
+              "ref": "AAMkAGI2-d2",
+              "folder": "drafts",
+              "messageId": "<d2.20261011@example.org>",
+              "inReplyTo": [],
+              "references": [],
+              "from": { "name": "Notes Support", "address": "reports@example.org" },
+              "replyTo": [],
+              "to": [{ "name": "Eve Colleague", "address": "eve@example.org" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "Team lunch on Friday",
+              "date": "2026-10-11T11:00:00Z",
+              "sourceSha256": ""
+            }
+          ],
+          "sent": [
+            {
+              "ref": "AAMkAGI2-s1",
+              "folder": "sentitems",
+              "messageId": "<s1.20261011@example.org>",
+              "inReplyTo": ["<77aa.2@lab.example>"],
+              "references": [],
+              "from": { "name": "Notes Support", "address": "reports@example.org" },
+              "replyTo": [],
+              "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "RE: Re: Search finds nothing",
+              "date": "2026-10-11T10:20:00Z",
+              "sourceSha256": ""
+            },
+            {
+              "ref": "AAMkAGI2-q1",
+              "folder": "sentitems",
+              "messageId": "<q1.20261010@example.org>",
+              "inReplyTo": ["<c1f0.4711@uni.example>"],
+              "references": [],
+              "from": { "name": "Notes Support", "address": "reports@example.org" },
+              "replyTo": [],
+              "to": [{ "name": "Bea Example", "address": "bea@uni.example" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "Re: Export loses figures",
+              "date": "2026-10-10T11:58:00Z",
+              "sourceSha256": ""
+            }
+          ]
+        }
+      },
+      "result": {
+        "toAnswer": [
+          {
+            "product": "https://github.com/alice/notes",
+            "number": 12,
+            "title": "Search ignores titles",
+            "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+            "url": "https://github.com/alice/notes/issues/12",
+            "state": "closed",
+            "waiting": false,
+            "mails": [
+              {
+                "id": "MAIL-20a9a87e7d0cc824",
+                "header": {
+                  "ref": "AAMkAGI2-m2",
+                  "folder": "INBOX",
+                  "messageId": "<77aa.1@lab.example>",
+                  "inReplyTo": [],
+                  "references": [],
+                  "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Search finds nothing",
+                  "date": "2026-10-02T10:00:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 0,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": [
+                  {
+                    "header": {
+                      "ref": "AAMkAGI2-d1",
+                      "folder": "drafts",
+                      "messageId": "<d1.20261011@example.org>",
+                      "inReplyTo": ["<77aa.1@lab.example>"],
+                      "references": [],
+                      "from": { "name": "Notes Support", "address": "reports@example.org" },
+                      "replyTo": [],
+                      "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                      "cc": [],
+                      "bcc": [],
+                      "subject": "Re: Search finds nothing",
+                      "date": "2026-10-11T09:00:00Z",
+                      "sourceSha256": ""
+                    },
+                    "blocked": ""
+                  }
+                ]
+              },
+              {
+                "id": "MAIL-f037dedb909ab9d9",
+                "header": {
+                  "ref": "AAMkAGI2-m3",
+                  "folder": "INBOX",
+                  "messageId": "<77aa.2@lab.example>",
+                  "inReplyTo": ["<77aa.1@lab.example>"],
+                  "references": ["<77aa.1@lab.example>"],
+                  "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Search finds nothing",
+                  "date": "2026-10-10T09:30:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "reply",
+                "asked": 0,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": []
+              }
+            ]
+          }
+        ],
+        "answerReceived": [
+          {
+            "product": "https://github.com/alice/notes",
+            "number": 14,
+            "title": "PDF export drops every figure",
+            "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+            "url": "https://github.com/alice/notes/issues/14",
+            "state": "open",
+            "waiting": true,
+            "mails": [
+              {
+                "id": "MAIL-a5394516da5a18b1",
+                "header": {
+                  "ref": "AAMkAGI2-m1",
+                  "folder": "INBOX",
+                  "messageId": "<c1f0.4711@uni.example>",
+                  "inReplyTo": [],
+                  "references": [],
+                  "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Export loses figures",
+                  "date": "2026-10-09T08:12:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 1,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": []
+              },
+              {
+                "id": "MAIL-2bf41fe3257099c6",
+                "header": {
+                  "ref": "AAMkAGI2-m4",
+                  "folder": "INBOX",
+                  "messageId": "<c1f0.4712@uni.example>",
+                  "inReplyTo": ["<q1.20261010@example.org>"],
+                  "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+                  "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Export loses figures",
+                  "date": "2026-10-11T07:45:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 0,
+                "new": true,
+                "sendable": true,
+                "reason": "",
+                "drafts": []
+              }
+            ]
+          }
+        ],
+        "open": [],
+        "toNote": [
+          { "product": "https://github.com/alice/notes", "number": 12, "id": "MAIL-f037dedb909ab9d9", "date": "2026-10-11" }
+        ]
+      }
+    },
+    {
+      "name": "every mail of #12 answered",
+      "input": {
+        "state": {
+          "issues": [
+            {
+              "issue": {
+                "product": "https://github.com/alice/notes",
+                "number": 12,
+                "title": "Search ignores titles",
+                "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+                "labels": ["defect"],
+                "state": "closed",
+                "url": "https://github.com/alice/notes/issues/12"
+              },
+              "notes": [
+                { "kind": "reply", "id": "MAIL-f037dedb909ab9d9", "date": "2026-10-11", "at": "2026-10-12T09:00:00Z" },
+                { "kind": "reply", "id": "MAIL-20a9a87e7d0cc824", "date": "2026-10-12", "at": "2026-10-12T09:31:00Z" }
+              ]
+            }
+          ],
+          "found": [
+            {
+              "id": "MAIL-20a9a87e7d0cc824",
+              "header": {
+                "ref": "AAMkAGI2-m2",
+                "folder": "INBOX",
+                "messageId": "<77aa.1@lab.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Search finds nothing",
+                "date": "2026-10-02T10:00:00Z",
+                "sourceSha256": ""
+              }
+            },
+            {
+              "id": "MAIL-f037dedb909ab9d9",
+              "header": {
+                "ref": "AAMkAGI2-m3",
+                "folder": "INBOX",
+                "messageId": "<77aa.2@lab.example>",
+                "inReplyTo": ["<77aa.1@lab.example>"],
+                "references": ["<77aa.1@lab.example>"],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Search finds nothing",
+                "date": "2026-10-10T09:30:00Z",
+                "sourceSha256": ""
+              }
+            }
+          ],
+          "drafts": [],
+          "sent": [
+            {
+              "ref": "AAMkAGI2-s1",
+              "folder": "sentitems",
+              "messageId": "<s1.20261011@example.org>",
+              "inReplyTo": ["<77aa.2@lab.example>"],
+              "references": [],
+              "from": { "name": "Notes Support", "address": "reports@example.org" },
+              "replyTo": [],
+              "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "RE: Re: Search finds nothing",
+              "date": "2026-10-11T10:20:00Z",
+              "sourceSha256": ""
+            }
+          ]
+        }
+      },
+      "result": { "toAnswer": [], "answerReceived": [], "open": [], "toNote": [] }
+    },
+    {
+      "name": "a draft that copies another reporter",
+      "input": {
+        "state": {
+          "issues": [
+            {
+              "issue": {
+                "product": "https://github.com/alice/notes",
+                "number": 12,
+                "title": "Search ignores titles",
+                "body": "Search ignores titles.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-a5394516da5a18b1\n",
+                "labels": ["defect"],
+                "state": "closed",
+                "url": "https://github.com/alice/notes/issues/12"
+              },
+              "notes": []
+            }
+          ],
+          "found": [
+            {
+              "id": "MAIL-20a9a87e7d0cc824",
+              "header": {
+                "ref": "AAMkAGI2-m2",
+                "folder": "INBOX",
+                "messageId": "<77aa.1@lab.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Search finds nothing",
+                "date": "2026-10-02T10:00:00Z",
+                "sourceSha256": ""
+              }
+            },
+            {
+              "id": "MAIL-a5394516da5a18b1",
+              "header": {
+                "ref": "AAMkAGI2-m1",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4711@uni.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Export loses figures",
+                "date": "2026-10-09T08:12:00Z",
+                "sourceSha256": ""
+              }
+            }
+          ],
+          "drafts": [
+            {
+              "ref": "AAMkAGI2-d1",
+              "folder": "drafts",
+              "messageId": "<d1.20261011@example.org>",
+              "inReplyTo": ["<77aa.1@lab.example>"],
+              "references": [],
+              "from": { "name": "Notes Support", "address": "reports@example.org" },
+              "replyTo": [],
+              "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+              "cc": [{ "name": "Bea Example", "address": "bea@uni.example" }],
+              "bcc": [],
+              "subject": "Re: Search finds nothing",
+              "date": "2026-10-11T09:00:00Z",
+              "sourceSha256": ""
+            }
+          ],
+          "sent": []
+        }
+      },
+      "result": {
+        "toAnswer": [
+          {
+            "product": "https://github.com/alice/notes",
+            "number": 12,
+            "title": "Search ignores titles",
+            "body": "Search ignores titles.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-a5394516da5a18b1\n",
+            "url": "https://github.com/alice/notes/issues/12",
+            "state": "closed",
+            "waiting": false,
+            "mails": [
+              {
+                "id": "MAIL-20a9a87e7d0cc824",
+                "header": {
+                  "ref": "AAMkAGI2-m2",
+                  "folder": "INBOX",
+                  "messageId": "<77aa.1@lab.example>",
+                  "inReplyTo": [],
+                  "references": [],
+                  "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Search finds nothing",
+                  "date": "2026-10-02T10:00:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 0,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": [
+                  {
+                    "header": {
+                      "ref": "AAMkAGI2-d1",
+                      "folder": "drafts",
+                      "messageId": "<d1.20261011@example.org>",
+                      "inReplyTo": ["<77aa.1@lab.example>"],
+                      "references": [],
+                      "from": { "name": "Notes Support", "address": "reports@example.org" },
+                      "replyTo": [],
+                      "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                      "cc": [{ "name": "Bea Example", "address": "bea@uni.example" }],
+                      "bcc": [],
+                      "subject": "Re: Search finds nothing",
+                      "date": "2026-10-11T09:00:00Z",
+                      "sourceSha256": ""
+                    },
+                    "blocked": "bea@uni.example reported another mail of this issue; a reply goes to one reporter"
+                  }
+                ]
+              },
+              {
+                "id": "MAIL-a5394516da5a18b1",
+                "header": {
+                  "ref": "AAMkAGI2-m1",
+                  "folder": "INBOX",
+                  "messageId": "<c1f0.4711@uni.example>",
+                  "inReplyTo": [],
+                  "references": [],
+                  "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Export loses figures",
+                  "date": "2026-10-09T08:12:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 0,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": []
+              }
+            ]
+          }
+        ],
+        "answerReceived": [],
+        "open": [],
+        "toNote": []
+      }
+    }
+  ]
+}
+```
+
 ### MOD-pseudonymiser
 
 ```json module
@@ -2523,6 +4896,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": "",
@@ -2552,6 +4926,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
           "replyTo": [],
           "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
           "cc": [{ "name": "Carl Sample", "address": "carl@uni.example" }],
+          "bcc": [],
           "subject": "Export loses figures",
           "date": "2026-10-09T08:12:00Z",
           "sourceSha256": "",
@@ -2649,6 +5024,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -2678,6 +5054,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -2716,6 +5093,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -2755,6 +5133,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -2814,6 +5193,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -2880,6 +5260,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -2937,9 +5318,9 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
   "id": "MOD-mail-page",
   "folder": "src/mail-page/",
   "layer": "shell",
-  "responsibility": "The shell of mail.html: its route, the reading of the mailbox on the author's click — the headers, every managed product's issues, what is proposed, and the identifiers of mails in known threads written into their issues on that click —, and the author's decision on a mail; it holds every text and all HTML of the page, and keeps a mail only in the page's memory.",
-  "realises": ["A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK", "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION"],
-  "owns": ["MailPageRoute", "OpenIssue", "MailboxReading", "MailDecision", "IssueDone", "DecisionDone"],
+  "responsibility": "The shell of mail.html: its route, the reading of the mailbox on the author's click — the headers, every managed product's issues, what is proposed, and the identifiers of mails in known threads written into their issues on that click —, and the author's decision on a mail; the replies read on the author's click — the issues that list mails in their groups, and the replies sent from the mail program noted —, an issue's panel, a reply saved to Drafts, a mail sent on the author's click with the confirmation of the mail shown and noted in its issue, and the author's decisions on an issue; it holds every text and all HTML of the page, and keeps a mail only in the page's memory.",
+  "realises": ["A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK", "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION", "EVERY OUTGOING MAIL IS RELEASED BY A PERSON", "AN ISSUE WAITING FOR A REPORTER IS LABELLED", "A CLOSED ISSUE IS REOPENED ONLY BY A PERSON"],
+  "owns": ["MailPageRoute", "OpenIssue", "MailboxReading", "MailDecision", "IssueDone", "DecisionDone", "RepliesReading", "SolvedBy", "PanelIssue", "PanelDraft", "PanelMail", "IssuePanel", "DraftInput", "SendInput", "ReplySent", "IssueChoice", "IssueChosen"],
   "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-mailbox", "MOD-mail-flow", "MOD-pseudonymiser"]
 }
 ```
@@ -2960,6 +5341,11 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
       "name": "alice's instance",
       "input": { "hash": "", "pagesAddress": "https://alice.github.io/agent-m/mail.html" },
       "result": { "instance": "https://github.com/alice/agent-m", "view": "mail" }
+    },
+    {
+      "name": "the replies",
+      "input": { "hash": "#replies", "pagesAddress": "https://alice.github.io/agent-m/mail.html" },
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "replies" }
     },
     {
       "name": "another page",
@@ -3038,7 +5424,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             }
           },
           {
-            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-inbox/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-inbox/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
             "response": {
               "status": 200,
               "body": {
@@ -3091,7 +5477,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             }
           },
           {
-            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-reports/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-reports/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
             "response": { "status": 200, "body": { "value": [] } }
           },
           {
@@ -3269,6 +5655,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -3348,6 +5735,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -3528,6 +5916,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Export loses figures",
             "date": "2026-10-09T08:12:00Z",
             "sourceSha256": "",
@@ -3578,6 +5967,2218 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "authority": { "kind": "click" }
       },
       "refused": "no-access"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-page.readReplies",
+  "summary": "The replies read on the author's click on Replies: the mailbox's named folders, every managed product's issues, the comments of each issue that lists mails, the listed mails found again, every draft in Drafts, and the replies in Sent to the listed mails not answered in every issue that lists them; the groups to answer, answer received and open; and each reply found in Sent that no note counts noted in its issue on that click — a reply sent from the mail program.",
+  "params": [
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority" }
+  ],
+  "result": "RepliesReading",
+  "async": true,
+  "refusals": [
+    { "code": "no-click", "when": "no click of the author authorises the reading" },
+    { "code": "not-set", "when": "no mailbox is connected" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "no-folder", "when": "the mailbox has no named folder" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "token-refused", "when": "a server refuses a token" },
+    { "code": "not-found", "when": "a product or a mail cannot be read" },
+    { "code": "no-access", "when": "a token cannot comment on a product's issues" }
+  ],
+  "examples": [
+    {
+      "name": "the Microsoft 365 mailbox and alice/notes",
+      "input": {
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/inbox?$select=id,displayName,totalItemCount" },
+            "response": {
+              "status": 200,
+              "body": { "id": "AAMkAGI2-inbox", "displayName": "Inbox", "totalItemCount": 1234 }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders?$select=id,displayName,totalItemCount&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  { "id": "AAMkAGI2-inbox", "displayName": "Inbox", "totalItemCount": 1234 },
+                  { "id": "AAMkAGI2-reports", "displayName": "Reports", "totalItemCount": 56 },
+                  { "id": "AAMkAGI2-drafts", "displayName": "Drafts", "totalItemCount": 3 }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-inbox/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  {
+                    "id": "AAMkAGI2-m2",
+                    "internetMessageId": "<77aa.1@lab.example>",
+                    "subject": "Search finds nothing",
+                    "from": { "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-02T10:00:00Z",
+                    "internetMessageHeaders": [{ "name": "Message-ID", "value": "<77aa.1@lab.example>" }]
+                  },
+                  {
+                    "id": "AAMkAGI2-m1",
+                    "internetMessageId": "<c1f0.4711@uni.example>",
+                    "subject": "Export loses figures",
+                    "from": { "emailAddress": { "name": "Bea Example", "address": "bea@uni.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-09T08:12:00Z",
+                    "internetMessageHeaders": [{ "name": "Message-ID", "value": "<c1f0.4711@uni.example>" }]
+                  },
+                  {
+                    "id": "AAMkAGI2-m3",
+                    "internetMessageId": "<77aa.2@lab.example>",
+                    "subject": "Re: Search finds nothing",
+                    "from": { "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-10T09:30:00Z",
+                    "internetMessageHeaders": [
+                      { "name": "Message-ID", "value": "<77aa.2@lab.example>" },
+                      { "name": "In-Reply-To", "value": "<77aa.1@lab.example>" },
+                      { "name": "References", "value": "<77aa.1@lab.example>" }
+                    ]
+                  },
+                  {
+                    "id": "AAMkAGI2-m4",
+                    "internetMessageId": "<c1f0.4712@uni.example>",
+                    "subject": "Re: Export loses figures",
+                    "from": { "emailAddress": { "name": "Bea Example", "address": "bea@uni.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-11T07:45:00Z",
+                    "internetMessageHeaders": [
+                      { "name": "Message-ID", "value": "<c1f0.4712@uni.example>" },
+                      { "name": "In-Reply-To", "value": "<q1.20261010@example.org>" },
+                      { "name": "References", "value": "<c1f0.4711@uni.example> <q1.20261010@example.org>" }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-reports/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/issues?state=all&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 14,
+                  "title": "PDF export drops every figure",
+                  "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+                  "labels": [{ "name": "defect" }, { "name": "waiting-for-reporter" }],
+                  "state": "open",
+                  "html_url": "https://github.com/alice/notes/issues/14"
+                },
+                {
+                  "number": 13,
+                  "title": "Search the titles too",
+                  "body": "Fixes #12.",
+                  "labels": [],
+                  "state": "closed",
+                  "html_url": "https://github.com/alice/notes/pull/13",
+                  "pull_request": { "url": "https://api.github.com/repos/alice/notes/pulls/13" }
+                },
+                {
+                  "number": 12,
+                  "title": "Search ignores titles",
+                  "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+                  "labels": [{ "name": "defect" }],
+                  "state": "closed",
+                  "html_url": "https://github.com/alice/notes/issues/12"
+                },
+                {
+                  "number": 9,
+                  "title": "Dark mode",
+                  "body": "The pages could follow the system's dark mode.",
+                  "labels": [{ "name": "change" }],
+                  "state": "closed",
+                  "html_url": "https://github.com/alice/notes/issues/9"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/issues/12/comments?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 7001,
+                  "body": "Fixed by #13.",
+                  "created_at": "2026-10-10T16:00:00Z",
+                  "user": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/issues/14/comments?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "id": 7002,
+                  "body": "Question sent to MAIL-a5394516da5a18b1 on 2026-10-10",
+                  "created_at": "2026-10-10T12:00:00Z",
+                  "user": { "login": "alice" }
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/drafts/messages?$select=id&$top=100" },
+            "response": { "status": 200, "body": { "value": [{ "id": "AAMkAGI2-d1" }, { "id": "AAMkAGI2-d2" }] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$expand=singleValueExtendedProperties(%24filter%3Did%20eq%20'String%200x1042')" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d2?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$expand=singleValueExtendedProperties(%24filter%3Did%20eq%20'String%200x1042')" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d2",
+                "internetMessageId": "<d2.20261011@example.org>",
+                "subject": "Team lunch on Friday",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Eve Colleague", "address": "eve@example.org" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T11:00:00Z",
+                "internetMessageHeaders": []
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages?$filter=singleValueExtendedProperties%2FAny(ep%3A%20ep%2Fid%20eq%20'String%200x1042'%20and%20ep%2Fvalue%20eq%20'%3C77aa.1%40lab.example%3E')&$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages?$filter=singleValueExtendedProperties%2FAny(ep%3A%20ep%2Fid%20eq%20'String%200x1042'%20and%20ep%2Fvalue%20eq%20'%3C77aa.2%40lab.example%3E')&$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  {
+                    "id": "AAMkAGI2-s1",
+                    "internetMessageId": "<s1.20261011@example.org>",
+                    "subject": "RE: Re: Search finds nothing",
+                    "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                    "replyTo": [],
+                    "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                    "ccRecipients": [],
+                    "bccRecipients": [],
+                    "receivedDateTime": "2026-10-11T10:20:00Z",
+                    "internetMessageHeaders": []
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages?$filter=singleValueExtendedProperties%2FAny(ep%3A%20ep%2Fid%20eq%20'String%200x1042'%20and%20ep%2Fvalue%20eq%20'%3Cc1f0.4711%40uni.example%3E')&$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  {
+                    "id": "AAMkAGI2-q1",
+                    "internetMessageId": "<q1.20261010@example.org>",
+                    "subject": "Re: Export loses figures",
+                    "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                    "replyTo": [],
+                    "toRecipients": [{ "emailAddress": { "name": "Bea Example", "address": "bea@uni.example" } }],
+                    "ccRecipients": [],
+                    "bccRecipients": [],
+                    "receivedDateTime": "2026-10-10T11:58:00Z",
+                    "internetMessageHeaders": []
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages?$filter=singleValueExtendedProperties%2FAny(ep%3A%20ep%2Fid%20eq%20'String%200x1042'%20and%20ep%2Fvalue%20eq%20'%3Cc1f0.4712%40uni.example%3E')&$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues/12/comments",
+              "body": { "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11" }
+            },
+            "response": {
+              "status": 201,
+              "headers": { "content-type": "application/json" },
+              "body": { "id": 7003, "body": "Reply sent to MAIL-f037dedb909ab9d9 on 2026-10-11", "html_url": "https://github.com/alice/notes/issues/12#issuecomment-7003" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": {
+        "toAnswer": [
+          {
+            "product": "https://github.com/alice/notes",
+            "number": 12,
+            "title": "Search ignores titles",
+            "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+            "url": "https://github.com/alice/notes/issues/12",
+            "state": "closed",
+            "waiting": false,
+            "mails": [
+              {
+                "id": "MAIL-20a9a87e7d0cc824",
+                "header": {
+                  "ref": "AAMkAGI2-m2",
+                  "folder": "INBOX",
+                  "messageId": "<77aa.1@lab.example>",
+                  "inReplyTo": [],
+                  "references": [],
+                  "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Search finds nothing",
+                  "date": "2026-10-02T10:00:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 0,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": [
+                  {
+                    "header": {
+                      "ref": "AAMkAGI2-d1",
+                      "folder": "drafts",
+                      "messageId": "<d1.20261011@example.org>",
+                      "inReplyTo": ["<77aa.1@lab.example>"],
+                      "references": [],
+                      "from": { "name": "Notes Support", "address": "reports@example.org" },
+                      "replyTo": [],
+                      "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                      "cc": [],
+                      "bcc": [],
+                      "subject": "Re: Search finds nothing",
+                      "date": "2026-10-11T09:00:00Z",
+                      "sourceSha256": ""
+                    },
+                    "blocked": ""
+                  }
+                ]
+              },
+              {
+                "id": "MAIL-f037dedb909ab9d9",
+                "header": {
+                  "ref": "AAMkAGI2-m3",
+                  "folder": "INBOX",
+                  "messageId": "<77aa.2@lab.example>",
+                  "inReplyTo": ["<77aa.1@lab.example>"],
+                  "references": ["<77aa.1@lab.example>"],
+                  "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Search finds nothing",
+                  "date": "2026-10-10T09:30:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "reply",
+                "asked": 0,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": []
+              }
+            ]
+          }
+        ],
+        "answerReceived": [
+          {
+            "product": "https://github.com/alice/notes",
+            "number": 14,
+            "title": "PDF export drops every figure",
+            "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+            "url": "https://github.com/alice/notes/issues/14",
+            "state": "open",
+            "waiting": true,
+            "mails": [
+              {
+                "id": "MAIL-a5394516da5a18b1",
+                "header": {
+                  "ref": "AAMkAGI2-m1",
+                  "folder": "INBOX",
+                  "messageId": "<c1f0.4711@uni.example>",
+                  "inReplyTo": [],
+                  "references": [],
+                  "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Export loses figures",
+                  "date": "2026-10-09T08:12:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 1,
+                "new": false,
+                "sendable": true,
+                "reason": "",
+                "drafts": []
+              },
+              {
+                "id": "MAIL-2bf41fe3257099c6",
+                "header": {
+                  "ref": "AAMkAGI2-m4",
+                  "folder": "INBOX",
+                  "messageId": "<c1f0.4712@uni.example>",
+                  "inReplyTo": ["<q1.20261010@example.org>"],
+                  "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+                  "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                  "replyTo": [],
+                  "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Export loses figures",
+                  "date": "2026-10-11T07:45:00Z",
+                  "sourceSha256": ""
+                },
+                "answered": "",
+                "asked": 0,
+                "new": true,
+                "sendable": true,
+                "reason": "",
+                "drafts": []
+              }
+            ]
+          }
+        ],
+        "open": [],
+        "noted": [
+          { "product": "https://github.com/alice/notes", "number": 12, "id": "MAIL-f037dedb909ab9d9", "date": "2026-10-11" }
+        ]
+      }
+    },
+    {
+      "name": "a product whose comments cannot be read",
+      "input": {
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/inbox?$select=id,displayName,totalItemCount" },
+            "response": {
+              "status": 200,
+              "body": { "id": "AAMkAGI2-inbox", "displayName": "Inbox", "totalItemCount": 1234 }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders?$select=id,displayName,totalItemCount&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  { "id": "AAMkAGI2-inbox", "displayName": "Inbox", "totalItemCount": 1234 },
+                  { "id": "AAMkAGI2-reports", "displayName": "Reports", "totalItemCount": 56 },
+                  { "id": "AAMkAGI2-drafts", "displayName": "Drafts", "totalItemCount": 3 }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-inbox/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": {
+              "status": 200,
+              "body": {
+                "value": [
+                  {
+                    "id": "AAMkAGI2-m2",
+                    "internetMessageId": "<77aa.1@lab.example>",
+                    "subject": "Search finds nothing",
+                    "from": { "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-02T10:00:00Z",
+                    "internetMessageHeaders": [{ "name": "Message-ID", "value": "<77aa.1@lab.example>" }]
+                  },
+                  {
+                    "id": "AAMkAGI2-m1",
+                    "internetMessageId": "<c1f0.4711@uni.example>",
+                    "subject": "Export loses figures",
+                    "from": { "emailAddress": { "name": "Bea Example", "address": "bea@uni.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-09T08:12:00Z",
+                    "internetMessageHeaders": [{ "name": "Message-ID", "value": "<c1f0.4711@uni.example>" }]
+                  },
+                  {
+                    "id": "AAMkAGI2-m3",
+                    "internetMessageId": "<77aa.2@lab.example>",
+                    "subject": "Re: Search finds nothing",
+                    "from": { "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-10T09:30:00Z",
+                    "internetMessageHeaders": [
+                      { "name": "Message-ID", "value": "<77aa.2@lab.example>" },
+                      { "name": "In-Reply-To", "value": "<77aa.1@lab.example>" },
+                      { "name": "References", "value": "<77aa.1@lab.example>" }
+                    ]
+                  },
+                  {
+                    "id": "AAMkAGI2-m4",
+                    "internetMessageId": "<c1f0.4712@uni.example>",
+                    "subject": "Re: Export loses figures",
+                    "from": { "emailAddress": { "name": "Bea Example", "address": "bea@uni.example" } },
+                    "replyTo": [],
+                    "toRecipients": [
+                      { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }
+                    ],
+                    "ccRecipients": [],
+                    "receivedDateTime": "2026-10-11T07:45:00Z",
+                    "internetMessageHeaders": [
+                      { "name": "Message-ID", "value": "<c1f0.4712@uni.example>" },
+                      { "name": "In-Reply-To", "value": "<q1.20261010@example.org>" },
+                      { "name": "References", "value": "<c1f0.4711@uni.example> <q1.20261010@example.org>" }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/mailFolders/AAMkAGI2-reports/messages?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders&$top=100" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/issues?state=all&per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "number": 14,
+                  "title": "PDF export drops every figure",
+                  "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+                  "labels": [{ "name": "defect" }, { "name": "waiting-for-reporter" }],
+                  "state": "open",
+                  "html_url": "https://github.com/alice/notes/issues/14"
+                },
+                {
+                  "number": 13,
+                  "title": "Search the titles too",
+                  "body": "Fixes #12.",
+                  "labels": [],
+                  "state": "closed",
+                  "html_url": "https://github.com/alice/notes/pull/13",
+                  "pull_request": { "url": "https://api.github.com/repos/alice/notes/pulls/13" }
+                },
+                {
+                  "number": 12,
+                  "title": "Search ignores titles",
+                  "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+                  "labels": [{ "name": "defect" }],
+                  "state": "closed",
+                  "html_url": "https://github.com/alice/notes/issues/12"
+                },
+                {
+                  "number": 9,
+                  "title": "Dark mode",
+                  "body": "The pages could follow the system's dark mode.",
+                  "labels": [{ "name": "change" }],
+                  "state": "closed",
+                  "html_url": "https://github.com/alice/notes/issues/9"
+                }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/issues/12/comments?per_page=100&page=1" },
+            "response": { "status": 401, "body": { "message": "Bad credentials" } }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "refused": "token-refused"
+    },
+    {
+      "name": "without the author's click",
+      "input": {
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "authority": { "kind": "ci-secret" }
+      },
+      "refused": "no-click"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-page.issuePanel",
+  "summary": "The panel of an issue the author opens: the neutral issue; what solved it — the commit and the pull or merge request that closed it and the first release that contains that commit, where known —; and each listed mail in full, with its drafts in full as the send dialog shows them. It reads, and writes nothing.",
+  "params": [
+    { "name": "entry", "type": "IssueEntry" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "IssuePanel",
+  "async": true,
+  "refusals": [
+    { "code": "not-set", "when": "no mailbox is connected" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "not-found", "when": "the issue or a mail is no longer there" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "token-refused", "when": "a server refuses a token" }
+  ],
+  "examples": [
+    {
+      "name": "issue #12, closed by pull request #13",
+      "input": {
+        "entry": {
+          "product": "https://github.com/alice/notes",
+          "number": 12,
+          "title": "Search ignores titles",
+          "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+          "url": "https://github.com/alice/notes/issues/12",
+          "state": "closed",
+          "waiting": false,
+          "mails": [
+            {
+              "id": "MAIL-20a9a87e7d0cc824",
+              "header": {
+                "ref": "AAMkAGI2-m2",
+                "folder": "INBOX",
+                "messageId": "<77aa.1@lab.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Search finds nothing",
+                "date": "2026-10-02T10:00:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 0,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": [
+                {
+                  "header": {
+                    "ref": "AAMkAGI2-d1",
+                    "folder": "drafts",
+                    "messageId": "<d1.20261011@example.org>",
+                    "inReplyTo": ["<77aa.1@lab.example>"],
+                    "references": [],
+                    "from": { "name": "Notes Support", "address": "reports@example.org" },
+                    "replyTo": [],
+                    "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                    "cc": [],
+                    "bcc": [],
+                    "subject": "Re: Search finds nothing",
+                    "date": "2026-10-11T09:00:00Z",
+                    "sourceSha256": ""
+                  },
+                  "blocked": ""
+                }
+              ]
+            },
+            {
+              "id": "MAIL-f037dedb909ab9d9",
+              "header": {
+                "ref": "AAMkAGI2-m3",
+                "folder": "INBOX",
+                "messageId": "<77aa.2@lab.example>",
+                "inReplyTo": ["<77aa.1@lab.example>"],
+                "references": ["<77aa.1@lab.example>"],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Search finds nothing",
+                "date": "2026-10-10T09:30:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "reply",
+              "asked": 0,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            }
+          ]
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/issues/12/events?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                { "id": 8001, "event": "referenced", "commit_id": "8e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d", "created_at": "2026-10-09T15:00:00Z" },
+                { "id": 8002, "event": "closed", "commit_id": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f", "created_at": "2026-10-10T15:55:00Z" }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/commits/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f/pulls?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                { "number": 13, "title": "Search the titles too", "state": "closed", "merged_at": "2026-10-10T15:55:00Z", "html_url": "https://github.com/alice/notes/pull/13" }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/tags?per_page=100&page=1" },
+            "response": {
+              "status": 200,
+              "body": [
+                { "name": "v2026.10.2", "commit": { "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+                { "name": "v2026.10.1", "commit": { "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+                { "name": "v2026.9.3", "commit": { "sha": "cccccccccccccccccccccccccccccccccccccccc" } }
+              ]
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/compare/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f...v2026.10.1?per_page=1" },
+            "response": { "status": 200, "body": { "status": "behind", "ahead_by": 0, "behind_by": 3 } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/notes/compare/3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f...v2026.10.2?per_page=1" },
+            "response": { "status": 200, "body": { "status": "ahead", "ahead_by": 2, "behind_by": 0 } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m2?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-m2",
+                "internetMessageId": "<77aa.1@lab.example>",
+                "subject": "Search finds nothing",
+                "from": { "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }],
+                "ccRecipients": [],
+                "receivedDateTime": "2026-10-02T10:00:00Z",
+                "internetMessageHeaders": [{ "name": "Message-ID", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n" }
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m2/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m3?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-m3",
+                "internetMessageId": "<77aa.2@lab.example>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }],
+                "ccRecipients": [],
+                "receivedDateTime": "2026-10-10T09:30:00Z",
+                "internetMessageHeaders": [
+                  { "name": "Message-ID", "value": "<77aa.2@lab.example>" },
+                  { "name": "In-Reply-To", "value": "<77aa.1@lab.example>" },
+                  { "name": "References", "value": "<77aa.1@lab.example>" }
+                ],
+                "body": { "contentType": "text", "content": "It is the same in 2026.10.1.\n\nDan\n" }
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m3/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          }
+        ]
+      },
+      "result": {
+        "issue": { "product": "https://github.com/alice/notes", "number": 12, "title": "Search ignores titles", "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n", "url": "https://github.com/alice/notes/issues/12", "state": "closed", "waiting": false },
+        "solvedBy": { "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f", "pull": "https://github.com/alice/notes/pull/13", "tag": "v2026.10.2" },
+        "mails": [
+          {
+            "id": "MAIL-20a9a87e7d0cc824",
+            "mail": {
+              "ref": "AAMkAGI2-m2",
+              "folder": "INBOX",
+              "messageId": "<77aa.1@lab.example>",
+              "inReplyTo": [],
+              "references": [],
+              "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+              "replyTo": [],
+              "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "Search finds nothing",
+              "date": "2026-10-02T10:00:00Z",
+              "sourceSha256": "",
+              "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+              "attachments": []
+            },
+            "answered": "",
+            "new": false,
+            "sendable": true,
+            "reason": "",
+            "drafts": [
+              {
+                "mail": {
+                  "ref": "AAMkAGI2-d1",
+                  "folder": "drafts",
+                  "messageId": "<d1.20261011@example.org>",
+                  "inReplyTo": [],
+                  "references": [],
+                  "from": { "name": "Notes Support", "address": "reports@example.org" },
+                  "replyTo": [],
+                  "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Search finds nothing",
+                  "date": "2026-10-11T09:00:00Z",
+                  "sourceSha256": "",
+                  "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+                  "attachments": []
+                },
+                "blocked": ""
+              }
+            ]
+          },
+          {
+            "id": "MAIL-f037dedb909ab9d9",
+            "mail": {
+              "ref": "AAMkAGI2-m3",
+              "folder": "INBOX",
+              "messageId": "<77aa.2@lab.example>",
+              "inReplyTo": ["<77aa.1@lab.example>"],
+              "references": ["<77aa.1@lab.example>"],
+              "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+              "replyTo": [],
+              "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "Re: Search finds nothing",
+              "date": "2026-10-10T09:30:00Z",
+              "sourceSha256": "",
+              "text": "It is the same in 2026.10.1.\n\nDan\n",
+              "attachments": []
+            },
+            "answered": "reply",
+            "new": false,
+            "sendable": true,
+            "reason": "",
+            "drafts": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "issue #14, Bea's answer received",
+      "input": {
+        "entry": {
+          "product": "https://github.com/alice/notes",
+          "number": 14,
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+          "url": "https://github.com/alice/notes/issues/14",
+          "state": "open",
+          "waiting": true,
+          "mails": [
+            {
+              "id": "MAIL-a5394516da5a18b1",
+              "header": {
+                "ref": "AAMkAGI2-m1",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4711@uni.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Export loses figures",
+                "date": "2026-10-09T08:12:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 1,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            },
+            {
+              "id": "MAIL-2bf41fe3257099c6",
+              "header": {
+                "ref": "AAMkAGI2-m4",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4712@uni.example>",
+                "inReplyTo": ["<q1.20261010@example.org>"],
+                "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Export loses figures",
+                "date": "2026-10-11T07:45:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 0,
+              "new": true,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            }
+          ]
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-m1",
+                "internetMessageId": "<c1f0.4711@uni.example>",
+                "subject": "Export loses figures",
+                "from": { "emailAddress": { "name": "Bea Example", "address": "bea@uni.example" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }],
+                "ccRecipients": [],
+                "receivedDateTime": "2026-10-09T08:12:00Z",
+                "internetMessageHeaders": [{ "name": "Message-ID", "value": "<c1f0.4711@uni.example>" }],
+                "body": { "contentType": "text", "content": "Hello,\nexporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\nThe log is attached.\n\nBest regards\nBea Example\n" }
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m1/attachments?$select=name,size,contentType" },
+            "response": {
+              "status": 200,
+              "body": { "value": [{ "name": "export.log", "size": 2048, "contentType": "text/plain" }] }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m4?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-m4",
+                "internetMessageId": "<c1f0.4712@uni.example>",
+                "subject": "Re: Export loses figures",
+                "from": { "emailAddress": { "name": "Bea Example", "address": "bea@uni.example" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } }],
+                "ccRecipients": [],
+                "receivedDateTime": "2026-10-11T07:45:00Z",
+                "internetMessageHeaders": [
+                  { "name": "Message-ID", "value": "<c1f0.4712@uni.example>" },
+                  { "name": "In-Reply-To", "value": "<q1.20261010@example.org>" },
+                  { "name": "References", "value": "<c1f0.4711@uni.example> <q1.20261010@example.org>" }
+                ],
+                "body": { "contentType": "text", "content": "Yes, every figure is a PNG.\n\nBea\n" }
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m4/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          }
+        ]
+      },
+      "result": {
+        "issue": { "product": "https://github.com/alice/notes", "number": 14, "title": "PDF export drops every figure", "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n", "url": "https://github.com/alice/notes/issues/14", "state": "open", "waiting": true },
+        "solvedBy": { "commit": "", "pull": "", "tag": "" },
+        "mails": [
+          {
+            "id": "MAIL-a5394516da5a18b1",
+            "mail": {
+              "ref": "AAMkAGI2-m1",
+              "folder": "INBOX",
+              "messageId": "<c1f0.4711@uni.example>",
+              "inReplyTo": [],
+              "references": [],
+              "from": { "name": "Bea Example", "address": "bea@uni.example" },
+              "replyTo": [],
+              "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "Export loses figures",
+              "date": "2026-10-09T08:12:00Z",
+              "sourceSha256": "",
+              "text": "Hello,\nexporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\nThe log is attached.\n\nBest regards\nBea Example\n",
+              "attachments": [{ "name": "export.log", "size": 2048, "contentType": "text/plain" }]
+            },
+            "answered": "",
+            "new": false,
+            "sendable": true,
+            "reason": "",
+            "drafts": []
+          },
+          {
+            "id": "MAIL-2bf41fe3257099c6",
+            "mail": {
+              "ref": "AAMkAGI2-m4",
+              "folder": "INBOX",
+              "messageId": "<c1f0.4712@uni.example>",
+              "inReplyTo": ["<q1.20261010@example.org>"],
+              "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+              "from": { "name": "Bea Example", "address": "bea@uni.example" },
+              "replyTo": [],
+              "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+              "cc": [],
+              "bcc": [],
+              "subject": "Re: Export loses figures",
+              "date": "2026-10-11T07:45:00Z",
+              "sourceSha256": "",
+              "text": "Yes, every figure is a PNG.\n\nBea\n",
+              "attachments": []
+            },
+            "answered": "",
+            "new": true,
+            "sendable": true,
+            "reason": "",
+            "drafts": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a mail moved out of the named folders meanwhile",
+      "input": {
+        "entry": {
+          "product": "https://github.com/alice/notes",
+          "number": 14,
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+          "url": "https://github.com/alice/notes/issues/14",
+          "state": "open",
+          "waiting": true,
+          "mails": [
+            {
+              "id": "MAIL-a5394516da5a18b1",
+              "header": {
+                "ref": "AAMkAGI2-m1",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4711@uni.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Export loses figures",
+                "date": "2026-10-09T08:12:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 1,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            },
+            {
+              "id": "MAIL-2bf41fe3257099c6",
+              "header": {
+                "ref": "AAMkAGI2-m4",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4712@uni.example>",
+                "inReplyTo": ["<q1.20261010@example.org>"],
+                "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Export loses figures",
+                "date": "2026-10-11T07:45:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 0,
+              "new": true,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            }
+          ]
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body" },
+            "response": { "status": 404, "body": { "error": { "code": "ErrorItemNotFound" } } }
+          }
+        ]
+      },
+      "refused": "not-found"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-page.saveDraft",
+  "summary": "A reply saved on the author's click: a new draft for a mail — the text the author or a participant wrote, the mail quoted below it —, stored in Drafts; or an edit of a draft as shown, its text replaced in Drafts.",
+  "params": [
+    { "name": "input", "type": "DraftInput" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority" }
+  ],
+  "result": "DraftSaved",
+  "async": true,
+  "refusals": [
+    { "code": "no-click", "when": "no click of the author authorises the saving" },
+    { "code": "not-set", "when": "no mailbox is connected" },
+    { "code": "no-draft", "when": "an edit names no draft as shown" },
+    { "code": "no-message-id", "when": "the mail has no Message-ID" },
+    { "code": "no-reply-address", "when": "the mail names no valid address a reply can go to" },
+    { "code": "no-recipient", "when": "the draft has no recipient" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "not-found", "when": "the mail or the draft is no longer there" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "graph-error", "when": "Microsoft Graph answers another error" },
+    { "code": "token-refused", "when": "the bridge refuses its token" }
+  ],
+  "examples": [
+    {
+      "name": "the reply to Dan's report, written by the author",
+      "input": {
+        "input": {
+          "report": {
+            "ref": "AAMkAGI2-m2",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": "",
+            "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+            "attachments": []
+          },
+          "ref": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support",
+          "shown": null
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-m2/createReply",
+              "body": {
+                "message": {
+                  "subject": "Re: Search finds nothing",
+                  "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                  "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+                }
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "ref": "AAMkAGI2-d1" }
+    },
+    {
+      "name": "an edit of that draft",
+      "input": {
+        "input": {
+          "report": {
+            "ref": "AAMkAGI2-m2",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": "",
+            "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+            "attachments": []
+          },
+          "ref": "AAMkAGI2-d1",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+          "shown": {
+            "ref": "AAMkAGI2-d1",
+            "folder": "drafts",
+            "messageId": "<d1.20261011@example.org>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Notes Support", "address": "reports@example.org" },
+            "replyTo": [],
+            "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Re: Search finds nothing",
+            "date": "2026-10-11T09:00:00Z",
+            "sourceSha256": "",
+            "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+            "attachments": []
+          }
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1",
+              "body": {
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" }
+              }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "ref": "AAMkAGI2-d1" }
+    },
+    {
+      "name": "on the IMAP route",
+      "input": {
+        "input": {
+          "report": {
+            "ref": "INBOX/4700",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": "",
+            "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+            "attachments": []
+          },
+          "ref": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support",
+          "shown": null
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": {
+            "address": "reports@uni.example",
+            "route": "imap",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": null,
+            "login": {
+              "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+              "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+              "user": "reports@uni.example",
+              "password": "app-password-example"
+            },
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/draft",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "draft": {
+                  "replyRef": "INBOX/4700",
+                  "from": { "name": "", "address": "reports@uni.example" },
+                  "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                  "cc": [],
+                  "bcc": [],
+                  "subject": "Re: Search finds nothing",
+                  "inReplyTo": ["<77aa.1@lab.example>"],
+                  "references": ["<77aa.1@lab.example>"],
+                  "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+                },
+                "replace": ""
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "ref": "Drafts/31" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "ref": "Drafts/31" }
+    },
+    {
+      "name": "a delivery report without a sender address",
+      "input": {
+        "input": {
+          "report": {
+            "ref": "AAMkAGI2-m2",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Mail Delivery System", "address": "" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": "",
+            "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+            "attachments": []
+          },
+          "ref": "",
+          "text": "",
+          "shown": null
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "no-reply-address"
+    },
+    {
+      "name": "without the author's click",
+      "input": {
+        "input": {
+          "report": {
+            "ref": "AAMkAGI2-m2",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": "",
+            "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+            "attachments": []
+          },
+          "ref": "",
+          "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support",
+          "shown": null
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "authority": { "kind": "agent-login" }
+      },
+      "refused": "no-click"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-page.sendReply",
+  "summary": "A draft sent on the author's click in the send dialog, with the confirmation of the mail the dialog showed: Send for a reply, Send and wait for a question. Once it is sent, the issue receives the note — the mail's identifier and the date — and, for a question, the label waiting-for-reporter. A mail not sent is noted nowhere, and the refusal names why, the server's words included.",
+  "params": [
+    { "name": "input", "type": "SendInput" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority" },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "ReplySent",
+  "async": true,
+  "refusals": [
+    { "code": "no-click", "when": "no click of the author authorises the sending" },
+    { "code": "not-set", "when": "no mailbox is connected" },
+    { "code": "unknown-note", "when": "the kind is neither reply nor question" },
+    { "code": "not-a-mail-id", "when": "the identifier is no MAIL- identifier" },
+    { "code": "not-a-repository", "when": "the product's address names no repository" },
+    { "code": "no-confirmation", "when": "no confirmation of the mail shown is given" },
+    { "code": "no-bridge", "when": "the IMAP route has no bridge paired" },
+    { "code": "sign-in-expired", "when": "Microsoft no longer takes the sign-in" },
+    { "code": "not-found", "when": "the draft is no longer there" },
+    { "code": "already-sent", "when": "the mail was sent already" },
+    { "code": "mismatch", "when": "the mail is not the one shown" },
+    { "code": "stale", "when": "the confirmation is not of the last ten minutes" },
+    { "code": "spent", "when": "the confirmation was used already" },
+    { "code": "no-recipient", "when": "the mail has no recipient" },
+    { "code": "smtp-refused", "when": "the SMTP server refuses the mail; its words are named" },
+    { "code": "no-encryption", "when": "the server offers no encryption" },
+    { "code": "login-refused", "when": "the server refuses the login" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "graph-error", "when": "Microsoft Graph answers another error" },
+    { "code": "token-refused", "when": "the bridge refuses its token" }
+  ],
+  "examples": [
+    {
+      "name": "Send: the reply to Dan's report",
+      "input": {
+        "input": {
+          "kind": "reply",
+          "product": "https://github.com/alice/notes",
+          "number": 12,
+          "id": "MAIL-20a9a87e7d0cc824",
+          "ref": "AAMkAGI2-d1",
+          "confirmation": { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body,isDraft" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" },
+                "isDraft": true
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          },
+          {
+            "request": { "method": "POST", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/send" },
+            "response": { "status": 202, "body": null }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues/12/comments",
+              "body": { "body": "Reply sent to MAIL-20a9a87e7d0cc824 on 2026-10-12" }
+            },
+            "response": {
+              "status": 201,
+              "headers": { "content-type": "application/json" },
+              "body": { "id": 7100, "body": "Reply sent to MAIL-20a9a87e7d0cc824 on 2026-10-12", "html_url": "https://github.com/alice/notes/issues/12#issuecomment-7100" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "result": {
+        "sent": { "sent": true, "copied": true, "removed": "provider" },
+        "noted": true,
+        "labelled": false,
+        "reason": ""
+      }
+    },
+    {
+      "name": "Send and wait: a question to Bea through the bridge",
+      "input": {
+        "input": {
+          "kind": "question",
+          "product": "https://github.com/alice/notes",
+          "number": 14,
+          "id": "MAIL-2bf41fe3257099c6",
+          "ref": "Drafts/32",
+          "confirmation": { "nonce": "97b50c70f547a12bcf638514c097b50c", "sha256": "c5d30a12e6e8e855ce8b8bc7d6211f62282be517d8ec6fec7ffa128c8e3ab54d", "at": "2026-10-12T09:30:00Z" }
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": {
+            "address": "reports@uni.example",
+            "route": "imap",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": null,
+            "login": {
+              "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+              "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+              "user": "reports@uni.example",
+              "password": "app-password-example"
+            },
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/send",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+                "ref": "Drafts/32",
+                "confirmation": { "nonce": "97b50c70f547a12bcf638514c097b50c", "sha256": "c5d30a12e6e8e855ce8b8bc7d6211f62282be517d8ec6fec7ffa128c8e3ab54d", "at": "2026-10-12T09:30:00Z" }
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "sent": true, "code": "", "reason": "", "copied": true, "removed": "uid-expunge" }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues/14/comments",
+              "body": { "body": "Question sent to MAIL-2bf41fe3257099c6 on 2026-10-12" }
+            },
+            "response": {
+              "status": 201,
+              "headers": { "content-type": "application/json" },
+              "body": { "id": 7100, "body": "Question sent to MAIL-2bf41fe3257099c6 on 2026-10-12", "html_url": "https://github.com/alice/notes/issues/14#issuecomment-7100" }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues/14/labels",
+              "body": { "labels": ["waiting-for-reporter"] }
+            },
+            "response": { "status": 200, "body": [{ "name": "defect" }, { "name": "waiting-for-reporter" }] }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "result": {
+        "sent": { "sent": true, "copied": true, "removed": "uid-expunge" },
+        "noted": true,
+        "labelled": true,
+        "reason": ""
+      }
+    },
+    {
+      "name": "the server refuses the mail",
+      "input": {
+        "input": {
+          "kind": "reply",
+          "product": "https://github.com/alice/notes",
+          "number": 12,
+          "id": "MAIL-20a9a87e7d0cc824",
+          "ref": "Drafts/31",
+          "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": {
+            "address": "reports@uni.example",
+            "route": "imap",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": null,
+            "login": {
+              "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+              "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+              "user": "reports@uni.example",
+              "password": "app-password-example"
+            },
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/mail/send",
+              "body": {
+                "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+                "user": "reports@uni.example",
+                "password": "app-password-example",
+                "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+                "ref": "Drafts/31",
+                "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "sent": false, "code": "smtp-refused", "reason": "smtp.uni.example:587 refused the mail: 550 5.7.1 Relaying denied", "copied": false, "removed": "" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "refused": "smtp-refused"
+    },
+    {
+      "name": "a draft changed after it was shown",
+      "input": {
+        "input": {
+          "kind": "reply",
+          "product": "https://github.com/alice/notes",
+          "number": 12,
+          "id": "MAIL-20a9a87e7d0cc824",
+          "ref": "AAMkAGI2-d1",
+          "confirmation": { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1?$select=internetMessageId,subject,from,replyTo,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders,body,isDraft" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "AAMkAGI2-d1",
+                "internetMessageId": "<d1.20261011@example.org>",
+                "subject": "Re: Search finds nothing",
+                "from": { "emailAddress": { "name": "Notes Support", "address": "reports@example.org" } },
+                "replyTo": [],
+                "toRecipients": [{ "emailAddress": { "name": "Dan Sample", "address": "dan@lab.example" } }],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "receivedDateTime": "2026-10-11T09:00:00Z",
+                "internetMessageHeaders": [],
+                "singleValueExtendedProperties": [{ "id": "String 0x1042", "value": "<77aa.1@lab.example>" }],
+                "body": { "contentType": "text", "content": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n" },
+                "isDraft": true
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://graph.microsoft.com/v1.0/me/messages/AAMkAGI2-d1/attachments?$select=name,size,contentType" },
+            "response": { "status": 200, "body": { "value": [] } }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "refused": "mismatch"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-mail-page.decideIssue",
+  "summary": "The author's decision on an issue, on a click: No reply to a mail — Leave closed for a mail that came after a closed issue was answered —, noted with the mail's identifier and the date; Close and reply; Reopen; or the label waiting-for-reporter removed. Nothing but such a click reopens an issue or removes the label.",
+  "params": [
+    { "name": "decision", "type": "IssueChoice" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority" },
+    { "name": "clock", "type": "ClockPort" }
+  ],
+  "result": "IssueChosen",
+  "async": true,
+  "refusals": [
+    { "code": "no-click", "when": "no click of the author authorises the decision" },
+    { "code": "unknown-decision", "when": "the decision is none of no-reply, close, reopen and unlabel" },
+    { "code": "not-a-mail-id", "when": "No reply names no MAIL- identifier" },
+    { "code": "not-a-repository", "when": "the product's address names no repository" },
+    { "code": "no-token", "when": "no token is stored for the product" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission to edit issues" },
+    { "code": "not-found", "when": "the issue is no longer there" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "No reply to Dan's report",
+      "input": {
+        "decision": { "kind": "no-reply", "product": "https://github.com/alice/notes", "number": 12, "id": "MAIL-20a9a87e7d0cc824" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/notes/issues/12/comments",
+              "body": { "body": "No reply to MAIL-20a9a87e7d0cc824, decided on 2026-10-12" }
+            },
+            "response": {
+              "status": 201,
+              "headers": { "content-type": "application/json" },
+              "body": { "id": 7100, "body": "No reply to MAIL-20a9a87e7d0cc824, decided on 2026-10-12", "html_url": "https://github.com/alice/notes/issues/12#issuecomment-7100" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "result": { "kind": "no-reply", "product": "https://github.com/alice/notes", "number": 12 }
+    },
+    {
+      "name": "Close and reply",
+      "input": {
+        "decision": { "kind": "close", "product": "https://github.com/alice/notes", "number": 14, "id": "" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/notes/issues/14",
+              "body": { "state": "closed" }
+            },
+            "response": {
+              "status": 200,
+              "body": { "number": 14, "state": "closed", "html_url": "https://github.com/alice/notes/issues/14" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "result": { "kind": "close", "product": "https://github.com/alice/notes", "number": 14 }
+    },
+    {
+      "name": "Reopen",
+      "input": {
+        "decision": { "kind": "reopen", "product": "https://github.com/alice/notes", "number": 12, "id": "" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/notes/issues/12",
+              "body": { "state": "open" }
+            },
+            "response": {
+              "status": 200,
+              "body": { "number": 12, "state": "open", "html_url": "https://github.com/alice/notes/issues/12" }
+            }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "result": { "kind": "reopen", "product": "https://github.com/alice/notes", "number": 12 }
+    },
+    {
+      "name": "the label removed",
+      "input": {
+        "decision": { "kind": "unlabel", "product": "https://github.com/alice/notes", "number": 14, "id": "" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "DELETE", "url": "https://api.github.com/repos/alice/notes/issues/14/labels/waiting-for-reporter" },
+            "response": { "status": 200, "body": [{ "name": "defect" }] }
+          }
+        ],
+        "authority": { "kind": "click" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "result": { "kind": "unlabel", "product": "https://github.com/alice/notes", "number": 14 }
+    },
+    {
+      "name": "without the author's click",
+      "input": {
+        "decision": { "kind": "reopen", "product": "https://github.com/alice/notes", "number": 12, "id": "" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/notes"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": {
+            "address": "reports@example.org",
+            "route": "graph",
+            "folders": ["INBOX", "Reports"],
+            "places": [],
+            "signIn": { "clientId": "6a1f3c2e-8d4b-4f71-9b0e-2c5d7e9f1a33", "token": "eyJ0eXAi.access-example", "refreshToken": "0.AXwA-refresh-example", "expires": "2026-10-11T15:59:59Z" },
+            "login": null,
+            "tested": { "read": null, "send": null }
+          },
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "authority": { "kind": "ci-secret" },
+        "clock": "2026-10-12T09:30:00Z"
+      },
+      "refused": "no-click"
     }
   ]
 }
@@ -3972,9 +8573,9 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 ```json type
 {
   "$id": "MailHeader",
-  "description": "A mail's header as both routes give it: the route's handle of the mail, its folder, its Message-ID with its angle brackets — or empty, with the SHA-256 of its source instead —, the Message-IDs of In-Reply-To and References, its sender, reply addresses, recipients and copies, its subject and its date.",
+  "description": "A mail's header as both routes give it: the route's handle of the mail, its folder, its Message-ID with its angle brackets — or empty, with the SHA-256 of its source instead —, the Message-IDs of In-Reply-To and References, its sender, reply addresses, recipients, copies and blind copies, its subject and its date.",
   "type": "object",
-  "required": ["ref", "folder", "messageId", "inReplyTo", "references", "from", "replyTo", "to", "cc", "subject", "date", "sourceSha256"],
+  "required": ["ref", "folder", "messageId", "inReplyTo", "references", "from", "replyTo", "to", "cc", "bcc", "subject", "date", "sourceSha256"],
   "additionalProperties": false,
   "properties": {
     "ref": { "type": "string", "minLength": 1 },
@@ -3986,6 +8587,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
     "replyTo": { "type": "array", "items": { "$ref": "MailPerson" } },
     "to": { "type": "array", "items": { "$ref": "MailPerson" } },
     "cc": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "bcc": { "type": "array", "items": { "$ref": "MailPerson" } },
     "subject": { "type": "string" },
     "date": { "type": "string" },
     "sourceSha256": { "type": "string", "pattern": "^([0-9a-f]{64})?$" }
@@ -4001,6 +8603,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
       "replyTo": [],
       "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
       "cc": [],
+      "bcc": [],
       "subject": "Export loses figures",
       "date": "2026-10-09T08:12:00Z",
       "sourceSha256": ""
@@ -4015,6 +8618,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
       "replyTo": [],
       "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
       "cc": [],
+      "bcc": [],
       "subject": "Re: Search finds nothing",
       "date": "2026-10-10T09:30:00Z",
       "sourceSha256": ""
@@ -4044,7 +8648,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
   "$id": "Mail",
   "description": "One mail in full: its header, its text, and the names, sizes and types of its attachments.",
   "type": "object",
-  "required": ["ref", "folder", "messageId", "inReplyTo", "references", "from", "replyTo", "to", "cc", "subject", "date", "sourceSha256", "text", "attachments"],
+  "required": ["ref", "folder", "messageId", "inReplyTo", "references", "from", "replyTo", "to", "cc", "bcc", "subject", "date", "sourceSha256", "text", "attachments"],
   "additionalProperties": false,
   "properties": {
     "ref": { "type": "string", "minLength": 1 },
@@ -4056,6 +8660,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
     "replyTo": { "type": "array", "items": { "$ref": "MailPerson" } },
     "to": { "type": "array", "items": { "$ref": "MailPerson" } },
     "cc": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "bcc": { "type": "array", "items": { "$ref": "MailPerson" } },
     "subject": { "type": "string" },
     "date": { "type": "string" },
     "sourceSha256": { "type": "string", "pattern": "^([0-9a-f]{64})?$" },
@@ -4073,6 +8678,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
       "replyTo": [],
       "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
       "cc": [],
+      "bcc": [],
       "subject": "Export loses figures",
       "date": "2026-10-09T08:12:00Z",
       "sourceSha256": "",
@@ -4098,9 +8704,9 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 ```json type
 {
   "$id": "ImapEnvelope",
-  "description": "The envelope imapflow fetched: date, subject, Message-ID, In-Reply-To, sender, reply addresses, recipients and copies.",
+  "description": "The envelope imapflow fetched: date, subject, Message-ID, In-Reply-To, sender, reply addresses, recipients, copies and blind copies.",
   "type": "object",
-  "required": ["date", "subject", "messageId", "inReplyTo", "from", "replyTo", "to", "cc"],
+  "required": ["date", "subject", "messageId", "inReplyTo", "from", "replyTo", "to", "cc", "bcc"],
   "additionalProperties": false,
   "properties": {
     "date": { "type": "string" },
@@ -4110,7 +8716,8 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
     "from": { "type": "array", "items": { "$ref": "ImapAddress" } },
     "replyTo": { "type": "array", "items": { "$ref": "ImapAddress" } },
     "to": { "type": "array", "items": { "$ref": "ImapAddress" } },
-    "cc": { "type": "array", "items": { "$ref": "ImapAddress" } }
+    "cc": { "type": "array", "items": { "$ref": "ImapAddress" } },
+    "bcc": { "type": "array", "items": { "$ref": "ImapAddress" } }
   },
   "examples": [
     {
@@ -4121,7 +8728,8 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
       "from": [{ "name": "Bea Example", "address": "bea@uni.example" }],
       "replyTo": [],
       "to": [{ "name": "Notes Support", "address": "reports@uni.example" }],
-      "cc": []
+      "cc": [],
+      "bcc": []
     }
   ]
 }
@@ -4151,7 +8759,8 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "from": [{ "name": "Bea Example", "address": "bea@uni.example" }],
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@uni.example" }],
-        "cc": []
+        "cc": [],
+        "bcc": []
       },
       "references": "",
       "sourceSha256": ""
@@ -4238,6 +8847,425 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
       "attachments": [{ "part": "2", "name": "export.log", "size": 2048, "contentType": "text/plain" }]
     },
     { "text": "1", "html": true, "attachments": [] }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "BridgeMailRead",
+  "description": "The body of a reading sent to the bridge (POST /mail/read): the IMAP server, the account, the password — kept by the bridge for this request only —, the named folders, and the handle of one mail to read in full — empty for the headers —; or, with special, the folder the mailbox marks \\Drafts or \\Sent instead of the named ones, and with replyTo the Message-IDs whose replies in it are read.",
+  "type": "object",
+  "required": ["imap", "user", "password", "folders", "ref"],
+  "additionalProperties": false,
+  "properties": {
+    "imap": { "$ref": "MailServer" },
+    "user": { "type": "string" },
+    "password": { "type": "string" },
+    "folders": { "type": "array", "items": { "type": "string" } },
+    "ref": { "type": "string" },
+    "special": { "type": "string", "enum": ["drafts", "sent"] },
+    "replyTo": { "type": "array", "items": { "type": "string", "pattern": "^<[^<>\\s]+>$" } }
+  },
+  "examples": [
+    {
+      "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+      "user": "reports@uni.example",
+      "password": "app-password-example",
+      "folders": ["INBOX", "Reports"],
+      "ref": ""
+    },
+    {
+      "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+      "user": "reports@uni.example",
+      "password": "app-password-example",
+      "folders": [],
+      "ref": "",
+      "special": "drafts",
+      "replyTo": []
+    },
+    {
+      "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+      "user": "reports@uni.example",
+      "password": "app-password-example",
+      "folders": [],
+      "ref": "",
+      "special": "sent",
+      "replyTo": ["<77aa.1@lab.example>", "<77aa.2@lab.example>"]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DraftMail",
+  "description": "A reply to store as a draft: the handle of the mail it answers, its sender, recipients, copies and blind copies, its subject, In-Reply-To and References, and its text.",
+  "type": "object",
+  "required": ["replyRef", "from", "to", "cc", "bcc", "subject", "inReplyTo", "references", "text"],
+  "additionalProperties": false,
+  "properties": {
+    "replyRef": { "type": "string", "minLength": 1 },
+    "from": { "$ref": "MailPerson" },
+    "to": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "cc": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "bcc": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "subject": { "type": "string" },
+    "inReplyTo": { "type": "array", "items": { "type": "string", "pattern": "^<[^<>\\s]+>$" } },
+    "references": { "type": "array", "items": { "type": "string", "pattern": "^<[^<>\\s]+>$" } },
+    "text": { "type": "string" }
+  },
+  "examples": [
+    {
+      "replyRef": "AAMkAGI2-m2",
+      "from": { "name": "", "address": "reports@example.org" },
+      "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+      "cc": [],
+      "bcc": [],
+      "subject": "Re: Search finds nothing",
+      "inReplyTo": ["<77aa.1@lab.example>"],
+      "references": ["<77aa.1@lab.example>"],
+      "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+    },
+    {
+      "replyRef": "INBOX/4700",
+      "from": { "name": "", "address": "reports@uni.example" },
+      "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+      "cc": [],
+      "bcc": [],
+      "subject": "Re: Search finds nothing",
+      "inReplyTo": ["<77aa.1@lab.example>"],
+      "references": ["<77aa.1@lab.example>"],
+      "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "BridgeMailDraft",
+  "description": "The body of a draft sent to the bridge (POST /mail/draft): the IMAP server, the account, the password, the draft, and the handle of the draft it replaces — empty for a new one.",
+  "type": "object",
+  "required": ["imap", "user", "password", "draft", "replace"],
+  "additionalProperties": false,
+  "properties": {
+    "imap": { "$ref": "MailServer" },
+    "user": { "type": "string" },
+    "password": { "type": "string" },
+    "draft": { "$ref": "DraftMail" },
+    "replace": { "type": "string" }
+  },
+  "examples": [
+    {
+      "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+      "user": "reports@uni.example",
+      "password": "app-password-example",
+      "draft": {
+        "replyRef": "INBOX/4700",
+        "from": { "name": "", "address": "reports@uni.example" },
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "inReplyTo": ["<77aa.1@lab.example>"],
+        "references": ["<77aa.1@lab.example>"],
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+      },
+      "replace": ""
+    },
+    {
+      "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+      "user": "reports@uni.example",
+      "password": "app-password-example",
+      "draft": {
+        "replyRef": "INBOX/4700",
+        "from": { "name": "", "address": "reports@uni.example" },
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "inReplyTo": ["<77aa.1@lab.example>"],
+        "references": ["<77aa.1@lab.example>"],
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n"
+      },
+      "replace": "Drafts/31"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DraftSaved",
+  "description": "The handle of a draft stored.",
+  "type": "object",
+  "required": ["ref"],
+  "additionalProperties": false,
+  "properties": { "ref": { "type": "string", "minLength": 1 } },
+  "examples": [{ "ref": "AAMkAGI2-d1" }, { "ref": "Drafts/33" }]
+}
+```
+
+```json type
+{
+  "$id": "SendConfirmation",
+  "description": "The single-use confirmation of the mail shown: a nonce of 32 hexadecimal characters, the SHA-256 of the mail, and the time it was made.",
+  "type": "object",
+  "required": ["nonce", "sha256", "at"],
+  "additionalProperties": false,
+  "properties": {
+    "nonce": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "at": { "type": "string" }
+  },
+  "examples": [
+    { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" },
+    { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "BridgeMailSend",
+  "description": "The body of a sending sent to the bridge (POST /mail/send): both servers, the account, the password, the draft's handle, and the confirmation of the mail shown.",
+  "type": "object",
+  "required": ["imap", "user", "password", "smtp", "ref", "confirmation"],
+  "additionalProperties": false,
+  "properties": {
+    "imap": { "$ref": "MailServer" },
+    "user": { "type": "string" },
+    "password": { "type": "string" },
+    "smtp": { "$ref": "MailServer" },
+    "ref": { "type": "string", "minLength": 1 },
+    "confirmation": { "$ref": "SendConfirmation" }
+  },
+  "examples": [
+    {
+      "imap": { "host": "imap.uni.example", "port": 993, "security": "tls" },
+      "user": "reports@uni.example",
+      "password": "app-password-example",
+      "smtp": { "host": "smtp.uni.example", "port": 587, "security": "starttls" },
+      "ref": "Drafts/31",
+      "confirmation": { "nonce": "c0148563cf2ba147f5700cb59754de1e", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "MailSendAnswer",
+  "description": "The bridge's answer to a sending: whether the mail was sent, and otherwise the refusal's code and words — the SMTP server's own among them —; whether a copy was stored in Sent, and how the draft left Drafts.",
+  "type": "object",
+  "required": ["sent", "code", "reason", "copied", "removed"],
+  "additionalProperties": false,
+  "properties": {
+    "sent": { "type": "boolean" },
+    "code": { "type": "string" },
+    "reason": { "type": "string" },
+    "copied": { "type": "boolean" },
+    "removed": { "type": "string", "enum": ["", "uid-expunge", "flag-deleted", "kept"] }
+  },
+  "examples": [
+    { "sent": true, "code": "", "reason": "", "copied": true, "removed": "uid-expunge" },
+    { "sent": false, "code": "spent", "reason": "this confirmation was used already; nothing is sent twice", "copied": false, "removed": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "MailSent",
+  "description": "A mail sent: whether a copy is in Sent, and how the draft left Drafts — by the provider itself on the web API, by UID EXPUNGE or flagged \\Deleted on the IMAP route, or kept where its removal failed.",
+  "type": "object",
+  "required": ["sent", "copied", "removed"],
+  "additionalProperties": false,
+  "properties": {
+    "sent": { "const": true },
+    "copied": { "type": "boolean" },
+    "removed": { "type": "string", "enum": ["provider", "uid-expunge", "flag-deleted", "kept"] }
+  },
+  "examples": [
+    { "sent": true, "copied": true, "removed": "provider" },
+    { "sent": true, "copied": true, "removed": "uid-expunge" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SpentConfirmation",
+  "description": "A confirmation the bridge has spent: its nonce and when it was made.",
+  "type": "object",
+  "required": ["nonce", "at"],
+  "additionalProperties": false,
+  "properties": { "nonce": { "type": "string", "pattern": "^[0-9a-f]{32}$" }, "at": { "type": "string" } },
+  "examples": [{ "nonce": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f", "at": "2026-10-12T09:10:00Z" }]
+}
+```
+
+```json type
+{
+  "$id": "SpentConfirmations",
+  "description": "The confirmations spent in the last ten minutes, the one just checked among them.",
+  "type": "object",
+  "required": ["spent"],
+  "additionalProperties": false,
+  "properties": { "spent": { "type": "array", "items": { "$ref": "SpentConfirmation" } } },
+  "examples": [{ "spent": [{ "nonce": "c0148563cf2ba147f5700cb59754de1e", "at": "2026-10-12T09:30:00Z" }] }]
+}
+```
+
+```json type
+{
+  "$id": "SmtpEnvelope",
+  "description": "The SMTP envelope of a mail: the sender's address and every recipient's once.",
+  "type": "object",
+  "required": ["from", "to"],
+  "additionalProperties": false,
+  "properties": { "from": { "type": "string" }, "to": { "type": "array", "items": { "type": "string" } } },
+  "examples": [{ "from": "reports@uni.example", "to": ["dan@lab.example", "archive@uni.example"] }]
+}
+```
+
+```json type
+{
+  "$id": "SendPlan",
+  "description": "How the bridge sends a confirmed draft: the envelope, the source without its Bcc field, whether it stores a copy in Sent, and how the draft leaves Drafts.",
+  "type": "object",
+  "required": ["envelope", "raw", "copy", "removal"],
+  "additionalProperties": false,
+  "properties": {
+    "envelope": { "$ref": "SmtpEnvelope" },
+    "raw": { "type": "string" },
+    "copy": { "type": "boolean" },
+    "removal": { "type": "string", "enum": ["uid-expunge", "flag-deleted"] }
+  },
+  "examples": [
+    {
+      "envelope": { "from": "reports@uni.example", "to": ["dan@lab.example", "archive@uni.example"] },
+      "raw": "From: reports@uni.example\r\nTo: Dan Sample <dan@lab.example>\r\nSubject: Re: Search finds nothing\r\nIn-Reply-To: <77aa.1@lab.example>\r\nReferences: <77aa.1@lab.example>\r\nMessage-ID: <d1.20261011@uni.example>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDear Dan,\r\n",
+      "copy": true,
+      "removal": "uid-expunge"
+    },
+    {
+      "envelope": { "from": "reports@uni.example", "to": ["dan@lab.example"] },
+      "raw": "From: reports@uni.example\r\nTo: Dan Sample <dan@lab.example>\r\nSubject: Re: Search finds nothing\r\nIn-Reply-To: <77aa.1@lab.example>\r\nReferences: <77aa.1@lab.example>\r\nMessage-ID: <d1.20261011@uni.example>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDear Dan,\r\n",
+      "copy": false,
+      "removal": "flag-deleted"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DraftAttachment",
+  "description": "An attachment a replaced draft carries over: its name, its type and its content as base64, which stays on the bridge.",
+  "type": "object",
+  "required": ["name", "contentType", "content"],
+  "additionalProperties": false,
+  "properties": { "name": { "type": "string" }, "contentType": { "type": "string" }, "content": { "type": "string" } },
+  "examples": [
+    { "name": "search.png", "contentType": "image/png", "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ComposerAttachment",
+  "description": "An attachment as MailComposer takes it: file name, content, its encoding and its type.",
+  "type": "object",
+  "required": ["filename", "content", "encoding", "contentType"],
+  "additionalProperties": false,
+  "properties": {
+    "filename": { "type": "string" },
+    "content": { "type": "string" },
+    "encoding": { "const": "base64" },
+    "contentType": { "type": "string" }
+  },
+  "examples": [
+    { "filename": "search.png", "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "encoding": "base64", "contentType": "image/png" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ComposerMessage",
+  "description": "The message options MailComposer composes a draft with.",
+  "type": "object",
+  "required": ["from", "to", "cc", "bcc", "subject", "inReplyTo", "references", "text", "attachments"],
+  "additionalProperties": false,
+  "properties": {
+    "from": { "$ref": "MailPerson" },
+    "to": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "cc": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "bcc": { "type": "array", "items": { "$ref": "MailPerson" } },
+    "subject": { "type": "string" },
+    "inReplyTo": { "type": "string", "pattern": "^<[^<>\\s]+>$" },
+    "references": { "type": "array", "items": { "type": "string" } },
+    "text": { "type": "string" },
+    "attachments": { "type": "array", "items": { "$ref": "ComposerAttachment" } }
+  },
+  "examples": [
+    {
+      "from": { "name": "", "address": "reports@uni.example" },
+      "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+      "cc": [],
+      "bcc": [],
+      "subject": "Re: Search finds nothing",
+      "inReplyTo": "<77aa.1@lab.example>",
+      "references": ["<77aa.1@lab.example>"],
+      "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+      "attachments": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ComposerOptions",
+  "description": "The options of a draft to compose, and keepBcc, which the bridge's shell sets on the compiled message.",
+  "type": "object",
+  "required": ["message", "keepBcc"],
+  "additionalProperties": false,
+  "properties": { "message": { "$ref": "ComposerMessage" }, "keepBcc": { "const": true } },
+  "examples": [
+    {
+      "message": {
+        "from": { "name": "", "address": "reports@uni.example" },
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "inReplyTo": "<77aa.1@lab.example>",
+        "references": ["<77aa.1@lab.example>"],
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+        "attachments": []
+      },
+      "keepBcc": true
+    },
+    {
+      "message": {
+        "from": { "name": "", "address": "reports@uni.example" },
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "inReplyTo": "<77aa.1@lab.example>",
+        "references": ["<77aa.1@lab.example>"],
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+        "attachments": [
+          { "filename": "search.png", "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "encoding": "base64", "contentType": "image/png" }
+        ]
+      },
+      "keepBcc": true
+    }
   ]
 }
 ```
@@ -4388,6 +9416,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
         "cc": [],
+        "bcc": [],
         "subject": "Search finds nothing",
         "date": "2026-10-02T10:00:00Z",
         "sourceSha256": ""
@@ -4423,6 +9452,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Search finds nothing",
             "date": "2026-10-02T10:00:00Z",
             "sourceSha256": ""
@@ -4440,6 +9470,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
             "replyTo": [],
             "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
             "cc": [],
+            "bcc": [],
             "subject": "Re: Search finds nothing",
             "date": "2026-10-10T09:30:00Z",
             "sourceSha256": ""
@@ -4472,6 +9503,664 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
       "kind": "defect",
       "ids": ["MAIL-a5394516da5a18b1"]
     }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssueNote",
+  "description": "A note an issue's comment holds: its kind — a reply sent, a question sent, or no reply decided —, the mail's identifier, the date it names, and when the comment was made.",
+  "type": "object",
+  "required": ["kind", "id", "date", "at"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "enum": ["reply", "question", "no-reply"] },
+    "id": { "type": "string", "pattern": "^MAIL-[0-9a-f]{16}$" },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "at": { "type": "string" }
+  },
+  "examples": [
+    { "kind": "question", "id": "MAIL-a5394516da5a18b1", "date": "2026-10-10", "at": "2026-10-10T12:00:00Z" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssueNotes",
+  "description": "An issue that lists mails, and the notes its comments hold.",
+  "type": "object",
+  "required": ["issue", "notes"],
+  "additionalProperties": false,
+  "properties": {
+    "issue": { "$ref": "ProductIssue" },
+    "notes": { "type": "array", "items": { "$ref": "IssueNote" } }
+  },
+  "examples": [
+    {
+      "issue": {
+        "product": "https://github.com/alice/notes",
+        "number": 14,
+        "title": "PDF export drops every figure",
+        "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+        "labels": ["defect", "waiting-for-reporter"],
+        "state": "open",
+        "url": "https://github.com/alice/notes/issues/14"
+      },
+      "notes": [
+        { "kind": "question", "id": "MAIL-a5394516da5a18b1", "date": "2026-10-10", "at": "2026-10-10T12:00:00Z" }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReplyState",
+  "description": "What the replies page is computed from: the issues that list mails with their notes, the listed mails found in the mailbox, every draft, and the replies in Sent to the listed mails.",
+  "type": "object",
+  "required": ["issues", "found", "drafts", "sent"],
+  "additionalProperties": false,
+  "properties": {
+    "issues": { "type": "array", "items": { "$ref": "IssueNotes" } },
+    "found": { "type": "array", "items": { "$ref": "FoundMail" } },
+    "drafts": { "type": "array", "items": { "$ref": "MailHeader" } },
+    "sent": { "type": "array", "items": { "$ref": "MailHeader" } }
+  },
+  "examples": [
+    {
+      "issues": [
+        {
+          "issue": {
+            "product": "https://github.com/alice/notes",
+            "number": 12,
+            "title": "Search ignores titles",
+            "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+            "labels": ["defect"],
+            "state": "closed",
+            "url": "https://github.com/alice/notes/issues/12"
+          },
+          "notes": []
+        },
+        {
+          "issue": {
+            "product": "https://github.com/alice/notes",
+            "number": 14,
+            "title": "PDF export drops every figure",
+            "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+            "labels": ["defect", "waiting-for-reporter"],
+            "state": "open",
+            "url": "https://github.com/alice/notes/issues/14"
+          },
+          "notes": [
+            { "kind": "question", "id": "MAIL-a5394516da5a18b1", "date": "2026-10-10", "at": "2026-10-10T12:00:00Z" }
+          ]
+        }
+      ],
+      "found": [
+        {
+          "id": "MAIL-20a9a87e7d0cc824",
+          "header": {
+            "ref": "AAMkAGI2-m2",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": ""
+          }
+        },
+        {
+          "id": "MAIL-f037dedb909ab9d9",
+          "header": {
+            "ref": "AAMkAGI2-m3",
+            "folder": "INBOX",
+            "messageId": "<77aa.2@lab.example>",
+            "inReplyTo": ["<77aa.1@lab.example>"],
+            "references": ["<77aa.1@lab.example>"],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Re: Search finds nothing",
+            "date": "2026-10-10T09:30:00Z",
+            "sourceSha256": ""
+          }
+        },
+        {
+          "id": "MAIL-a5394516da5a18b1",
+          "header": {
+            "ref": "AAMkAGI2-m1",
+            "folder": "INBOX",
+            "messageId": "<c1f0.4711@uni.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Bea Example", "address": "bea@uni.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Export loses figures",
+            "date": "2026-10-09T08:12:00Z",
+            "sourceSha256": ""
+          }
+        },
+        {
+          "id": "MAIL-2bf41fe3257099c6",
+          "header": {
+            "ref": "AAMkAGI2-m4",
+            "folder": "INBOX",
+            "messageId": "<c1f0.4712@uni.example>",
+            "inReplyTo": ["<q1.20261010@example.org>"],
+            "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+            "from": { "name": "Bea Example", "address": "bea@uni.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Re: Export loses figures",
+            "date": "2026-10-11T07:45:00Z",
+            "sourceSha256": ""
+          }
+        }
+      ],
+      "drafts": [
+        {
+          "ref": "AAMkAGI2-d1",
+          "folder": "drafts",
+          "messageId": "<d1.20261011@example.org>",
+          "inReplyTo": ["<77aa.1@lab.example>"],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Search finds nothing",
+          "date": "2026-10-11T09:00:00Z",
+          "sourceSha256": ""
+        },
+        {
+          "ref": "AAMkAGI2-d2",
+          "folder": "drafts",
+          "messageId": "<d2.20261011@example.org>",
+          "inReplyTo": [],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Eve Colleague", "address": "eve@example.org" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Team lunch on Friday",
+          "date": "2026-10-11T11:00:00Z",
+          "sourceSha256": ""
+        }
+      ],
+      "sent": [
+        {
+          "ref": "AAMkAGI2-s1",
+          "folder": "sentitems",
+          "messageId": "<s1.20261011@example.org>",
+          "inReplyTo": ["<77aa.2@lab.example>"],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "RE: Re: Search finds nothing",
+          "date": "2026-10-11T10:20:00Z",
+          "sourceSha256": ""
+        },
+        {
+          "ref": "AAMkAGI2-q1",
+          "folder": "sentitems",
+          "messageId": "<q1.20261010@example.org>",
+          "inReplyTo": ["<c1f0.4711@uni.example>"],
+          "references": [],
+          "from": { "name": "Notes Support", "address": "reports@example.org" },
+          "replyTo": [],
+          "to": [{ "name": "Bea Example", "address": "bea@uni.example" }],
+          "cc": [],
+          "bcc": [],
+          "subject": "Re: Export loses figures",
+          "date": "2026-10-10T11:58:00Z",
+          "sourceSha256": ""
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DraftEntry",
+  "description": "A draft that replies to a listed mail, and why it cannot be sent — empty where it can: a recipient who reported another mail of the issue.",
+  "type": "object",
+  "required": ["header", "blocked"],
+  "additionalProperties": false,
+  "properties": { "header": { "$ref": "MailHeader" }, "blocked": { "type": "string" } },
+  "examples": [
+    {
+      "header": {
+        "ref": "AAMkAGI2-d1",
+        "folder": "drafts",
+        "messageId": "<d1.20261011@example.org>",
+        "inReplyTo": ["<77aa.1@lab.example>"],
+        "references": [],
+        "from": { "name": "Notes Support", "address": "reports@example.org" },
+        "replyTo": [],
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "date": "2026-10-11T09:00:00Z",
+        "sourceSha256": ""
+      },
+      "blocked": ""
+    },
+    {
+      "header": {
+        "ref": "AAMkAGI2-d1",
+        "folder": "drafts",
+        "messageId": "<d1.20261011@example.org>",
+        "inReplyTo": ["<77aa.1@lab.example>"],
+        "references": [],
+        "from": { "name": "Notes Support", "address": "reports@example.org" },
+        "replyTo": [],
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [{ "name": "Bea Example", "address": "bea@uni.example" }],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "date": "2026-10-11T09:00:00Z",
+        "sourceSha256": ""
+      },
+      "blocked": "bea@uni.example reported another mail of this issue; a reply goes to one reporter"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "MailEntry",
+  "description": "A listed mail on the replies page: its identifier and header — null where it is not found in the mailbox —, whether it is answered by a reply or a decision not to answer, how many questions were sent to it, whether it is new, whether a reply can be sent and why not, and its drafts.",
+  "type": "object",
+  "required": ["id", "header", "answered", "asked", "new", "sendable", "reason", "drafts"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^MAIL-[0-9a-f]{16}$" },
+    "header": { "anyOf": [{ "$ref": "MailHeader" }, { "type": "null" }] },
+    "answered": { "type": "string", "enum": ["", "reply", "no-reply"] },
+    "asked": { "type": "integer", "minimum": 0 },
+    "new": { "type": "boolean" },
+    "sendable": { "type": "boolean" },
+    "reason": { "type": "string" },
+    "drafts": { "type": "array", "items": { "$ref": "DraftEntry" } }
+  },
+  "examples": [
+    {
+      "id": "MAIL-20a9a87e7d0cc824",
+      "header": {
+        "ref": "AAMkAGI2-m2",
+        "folder": "INBOX",
+        "messageId": "<77aa.1@lab.example>",
+        "inReplyTo": [],
+        "references": [],
+        "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+        "replyTo": [],
+        "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Search finds nothing",
+        "date": "2026-10-02T10:00:00Z",
+        "sourceSha256": ""
+      },
+      "answered": "",
+      "asked": 0,
+      "new": false,
+      "sendable": true,
+      "reason": "",
+      "drafts": [
+        {
+          "header": {
+            "ref": "AAMkAGI2-d1",
+            "folder": "drafts",
+            "messageId": "<d1.20261011@example.org>",
+            "inReplyTo": ["<77aa.1@lab.example>"],
+            "references": [],
+            "from": { "name": "Notes Support", "address": "reports@example.org" },
+            "replyTo": [],
+            "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Re: Search finds nothing",
+            "date": "2026-10-11T09:00:00Z",
+            "sourceSha256": ""
+          },
+          "blocked": ""
+        }
+      ]
+    },
+    {
+      "id": "MAIL-2bf41fe3257099c6",
+      "header": {
+        "ref": "AAMkAGI2-m4",
+        "folder": "INBOX",
+        "messageId": "<c1f0.4712@uni.example>",
+        "inReplyTo": ["<q1.20261010@example.org>"],
+        "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+        "from": { "name": "Bea Example", "address": "bea@uni.example" },
+        "replyTo": [],
+        "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Export loses figures",
+        "date": "2026-10-11T07:45:00Z",
+        "sourceSha256": ""
+      },
+      "answered": "",
+      "asked": 0,
+      "new": true,
+      "sendable": true,
+      "reason": "",
+      "drafts": []
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssueEntry",
+  "description": "An issue on the replies page: its product, number, title, description, page and state, whether it is labelled waiting-for-reporter, and its mails.",
+  "type": "object",
+  "required": ["product", "number", "title", "body", "url", "state", "waiting", "mails"],
+  "additionalProperties": false,
+  "properties": {
+    "product": { "type": "string", "pattern": "^https://" },
+    "number": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string" },
+    "body": { "type": "string" },
+    "url": { "type": "string", "pattern": "^https://" },
+    "state": { "type": "string", "enum": ["open", "closed"] },
+    "waiting": { "type": "boolean" },
+    "mails": { "type": "array", "items": { "$ref": "MailEntry" } }
+  },
+  "examples": [
+    {
+      "product": "https://github.com/alice/notes",
+      "number": 12,
+      "title": "Search ignores titles",
+      "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+      "url": "https://github.com/alice/notes/issues/12",
+      "state": "closed",
+      "waiting": false,
+      "mails": [
+        {
+          "id": "MAIL-20a9a87e7d0cc824",
+          "header": {
+            "ref": "AAMkAGI2-m2",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": ""
+          },
+          "answered": "",
+          "asked": 0,
+          "new": false,
+          "sendable": true,
+          "reason": "",
+          "drafts": [
+            {
+              "header": {
+                "ref": "AAMkAGI2-d1",
+                "folder": "drafts",
+                "messageId": "<d1.20261011@example.org>",
+                "inReplyTo": ["<77aa.1@lab.example>"],
+                "references": [],
+                "from": { "name": "Notes Support", "address": "reports@example.org" },
+                "replyTo": [],
+                "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Search finds nothing",
+                "date": "2026-10-11T09:00:00Z",
+                "sourceSha256": ""
+              },
+              "blocked": ""
+            }
+          ]
+        },
+        {
+          "id": "MAIL-f037dedb909ab9d9",
+          "header": {
+            "ref": "AAMkAGI2-m3",
+            "folder": "INBOX",
+            "messageId": "<77aa.2@lab.example>",
+            "inReplyTo": ["<77aa.1@lab.example>"],
+            "references": ["<77aa.1@lab.example>"],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Re: Search finds nothing",
+            "date": "2026-10-10T09:30:00Z",
+            "sourceSha256": ""
+          },
+          "answered": "reply",
+          "asked": 0,
+          "new": false,
+          "sendable": true,
+          "reason": "",
+          "drafts": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "NoteToWrite",
+  "description": "A reply found in Sent that no note counts: the issue to note it in, the mail's identifier, and the date of the newest reply.",
+  "type": "object",
+  "required": ["product", "number", "id", "date"],
+  "additionalProperties": false,
+  "properties": {
+    "product": { "type": "string", "pattern": "^https://" },
+    "number": { "type": "integer", "minimum": 1 },
+    "id": { "type": "string", "pattern": "^MAIL-[0-9a-f]{16}$" },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+  },
+  "examples": [
+    { "product": "https://github.com/alice/notes", "number": 12, "id": "MAIL-f037dedb909ab9d9", "date": "2026-10-11" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "MailGroups",
+  "description": "The replies page's groups — to answer, answer received, open — and the replies to note.",
+  "type": "object",
+  "required": ["toAnswer", "answerReceived", "open", "toNote"],
+  "additionalProperties": false,
+  "properties": {
+    "toAnswer": { "type": "array", "items": { "$ref": "IssueEntry" } },
+    "answerReceived": { "type": "array", "items": { "$ref": "IssueEntry" } },
+    "open": { "type": "array", "items": { "$ref": "IssueEntry" } },
+    "toNote": { "type": "array", "items": { "$ref": "NoteToWrite" } }
+  },
+  "examples": [
+    {
+      "toAnswer": [
+        {
+          "product": "https://github.com/alice/notes",
+          "number": 12,
+          "title": "Search ignores titles",
+          "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+          "url": "https://github.com/alice/notes/issues/12",
+          "state": "closed",
+          "waiting": false,
+          "mails": [
+            {
+              "id": "MAIL-20a9a87e7d0cc824",
+              "header": {
+                "ref": "AAMkAGI2-m2",
+                "folder": "INBOX",
+                "messageId": "<77aa.1@lab.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Search finds nothing",
+                "date": "2026-10-02T10:00:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 0,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": [
+                {
+                  "header": {
+                    "ref": "AAMkAGI2-d1",
+                    "folder": "drafts",
+                    "messageId": "<d1.20261011@example.org>",
+                    "inReplyTo": ["<77aa.1@lab.example>"],
+                    "references": [],
+                    "from": { "name": "Notes Support", "address": "reports@example.org" },
+                    "replyTo": [],
+                    "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                    "cc": [],
+                    "bcc": [],
+                    "subject": "Re: Search finds nothing",
+                    "date": "2026-10-11T09:00:00Z",
+                    "sourceSha256": ""
+                  },
+                  "blocked": ""
+                }
+              ]
+            },
+            {
+              "id": "MAIL-f037dedb909ab9d9",
+              "header": {
+                "ref": "AAMkAGI2-m3",
+                "folder": "INBOX",
+                "messageId": "<77aa.2@lab.example>",
+                "inReplyTo": ["<77aa.1@lab.example>"],
+                "references": ["<77aa.1@lab.example>"],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Search finds nothing",
+                "date": "2026-10-10T09:30:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "reply",
+              "asked": 0,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            }
+          ]
+        }
+      ],
+      "answerReceived": [
+        {
+          "product": "https://github.com/alice/notes",
+          "number": 14,
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+          "url": "https://github.com/alice/notes/issues/14",
+          "state": "open",
+          "waiting": true,
+          "mails": [
+            {
+              "id": "MAIL-a5394516da5a18b1",
+              "header": {
+                "ref": "AAMkAGI2-m1",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4711@uni.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Export loses figures",
+                "date": "2026-10-09T08:12:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 1,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            },
+            {
+              "id": "MAIL-2bf41fe3257099c6",
+              "header": {
+                "ref": "AAMkAGI2-m4",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4712@uni.example>",
+                "inReplyTo": ["<q1.20261010@example.org>"],
+                "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Export loses figures",
+                "date": "2026-10-11T07:45:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 0,
+              "new": true,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            }
+          ]
+        }
+      ],
+      "open": [],
+      "toNote": [
+        { "product": "https://github.com/alice/notes", "number": 12, "id": "MAIL-f037dedb909ab9d9", "date": "2026-10-11" }
+      ]
+    },
+    { "toAnswer": [], "answerReceived": [], "open": [], "toNote": [] }
   ]
 }
 ```
@@ -4594,6 +10283,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
         "cc": [],
+        "bcc": [],
         "subject": "Export loses figures",
         "date": "2026-10-09T08:12:00Z",
         "sourceSha256": "",
@@ -4697,15 +10387,18 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 ```json type
 {
   "$id": "MailPageRoute",
-  "description": "What the mail page shows: the instance and the view.",
+  "description": "What the mail page shows: the instance and the view — the mails to decide, or the replies.",
   "type": "object",
   "required": ["instance", "view"],
   "additionalProperties": false,
   "properties": {
     "instance": { "type": "string", "pattern": "^https://github\\.com/" },
-    "view": { "type": "string", "enum": ["mail"] }
+    "view": { "type": "string", "enum": ["mail", "replies"] }
   },
-  "examples": [{ "instance": "https://github.com/alice/agent-m", "view": "mail" }]
+  "examples": [
+    { "instance": "https://github.com/alice/agent-m", "view": "mail" },
+    { "instance": "https://github.com/alice/agent-m", "view": "replies" }
+  ]
 }
 ```
 
@@ -4801,6 +10494,7 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
         "replyTo": [],
         "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
         "cc": [],
+        "bcc": [],
         "subject": "Export loses figures",
         "date": "2026-10-09T08:12:00Z",
         "sourceSha256": "",
@@ -4888,6 +10582,589 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 }
 ```
 
+```json type
+{
+  "$id": "RepliesReading",
+  "description": "A reading of the replies: the groups to answer, answer received and open, and the replies from Sent noted on that click.",
+  "type": "object",
+  "required": ["toAnswer", "answerReceived", "open", "noted"],
+  "additionalProperties": false,
+  "properties": {
+    "toAnswer": { "type": "array", "items": { "$ref": "IssueEntry" } },
+    "answerReceived": { "type": "array", "items": { "$ref": "IssueEntry" } },
+    "open": { "type": "array", "items": { "$ref": "IssueEntry" } },
+    "noted": { "type": "array", "items": { "$ref": "NoteToWrite" } }
+  },
+  "examples": [
+    {
+      "toAnswer": [
+        {
+          "product": "https://github.com/alice/notes",
+          "number": 12,
+          "title": "Search ignores titles",
+          "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n",
+          "url": "https://github.com/alice/notes/issues/12",
+          "state": "closed",
+          "waiting": false,
+          "mails": [
+            {
+              "id": "MAIL-20a9a87e7d0cc824",
+              "header": {
+                "ref": "AAMkAGI2-m2",
+                "folder": "INBOX",
+                "messageId": "<77aa.1@lab.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Search finds nothing",
+                "date": "2026-10-02T10:00:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 0,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": [
+                {
+                  "header": {
+                    "ref": "AAMkAGI2-d1",
+                    "folder": "drafts",
+                    "messageId": "<d1.20261011@example.org>",
+                    "inReplyTo": ["<77aa.1@lab.example>"],
+                    "references": [],
+                    "from": { "name": "Notes Support", "address": "reports@example.org" },
+                    "replyTo": [],
+                    "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                    "cc": [],
+                    "bcc": [],
+                    "subject": "Re: Search finds nothing",
+                    "date": "2026-10-11T09:00:00Z",
+                    "sourceSha256": ""
+                  },
+                  "blocked": ""
+                }
+              ]
+            },
+            {
+              "id": "MAIL-f037dedb909ab9d9",
+              "header": {
+                "ref": "AAMkAGI2-m3",
+                "folder": "INBOX",
+                "messageId": "<77aa.2@lab.example>",
+                "inReplyTo": ["<77aa.1@lab.example>"],
+                "references": ["<77aa.1@lab.example>"],
+                "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Search finds nothing",
+                "date": "2026-10-10T09:30:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "reply",
+              "asked": 0,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            }
+          ]
+        }
+      ],
+      "answerReceived": [
+        {
+          "product": "https://github.com/alice/notes",
+          "number": 14,
+          "title": "PDF export drops every figure",
+          "body": "Exporting a note with figures to PDF gives a document without any figure, since 2026.10.1.\n\n## Mails\n\n- MAIL-a5394516da5a18b1\n- MAIL-2bf41fe3257099c6\n",
+          "url": "https://github.com/alice/notes/issues/14",
+          "state": "open",
+          "waiting": true,
+          "mails": [
+            {
+              "id": "MAIL-a5394516da5a18b1",
+              "header": {
+                "ref": "AAMkAGI2-m1",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4711@uni.example>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Export loses figures",
+                "date": "2026-10-09T08:12:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 1,
+              "new": false,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            },
+            {
+              "id": "MAIL-2bf41fe3257099c6",
+              "header": {
+                "ref": "AAMkAGI2-m4",
+                "folder": "INBOX",
+                "messageId": "<c1f0.4712@uni.example>",
+                "inReplyTo": ["<q1.20261010@example.org>"],
+                "references": ["<c1f0.4711@uni.example>", "<q1.20261010@example.org>"],
+                "from": { "name": "Bea Example", "address": "bea@uni.example" },
+                "replyTo": [],
+                "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Export loses figures",
+                "date": "2026-10-11T07:45:00Z",
+                "sourceSha256": ""
+              },
+              "answered": "",
+              "asked": 0,
+              "new": true,
+              "sendable": true,
+              "reason": "",
+              "drafts": []
+            }
+          ]
+        }
+      ],
+      "open": [],
+      "noted": [
+        { "product": "https://github.com/alice/notes", "number": 12, "id": "MAIL-f037dedb909ab9d9", "date": "2026-10-11" }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SolvedBy",
+  "description": "What solved a closed issue, where known: the commit, the pull or merge request, and the first release that contains the commit — each empty where unknown.",
+  "type": "object",
+  "required": ["commit", "pull", "tag"],
+  "additionalProperties": false,
+  "properties": {
+    "commit": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
+    "pull": { "type": "string" },
+    "tag": { "type": "string" }
+  },
+  "examples": [
+    { "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f", "pull": "https://github.com/alice/notes/pull/13", "tag": "v2026.10.2" },
+    { "commit": "", "pull": "", "tag": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "PanelIssue",
+  "description": "The neutral issue a panel shows: product, number, title, description, page, state, and whether it waits for a reporter.",
+  "type": "object",
+  "required": ["product", "number", "title", "body", "url", "state", "waiting"],
+  "additionalProperties": false,
+  "properties": {
+    "product": { "type": "string", "pattern": "^https://" },
+    "number": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string" },
+    "body": { "type": "string" },
+    "url": { "type": "string", "pattern": "^https://" },
+    "state": { "type": "string", "enum": ["open", "closed"] },
+    "waiting": { "type": "boolean" }
+  },
+  "examples": [
+    { "product": "https://github.com/alice/notes", "number": 12, "title": "Search ignores titles", "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n", "url": "https://github.com/alice/notes/issues/12", "state": "closed", "waiting": false }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "PanelDraft",
+  "description": "A draft in full, as the send dialog shows it, and why it cannot be sent — empty where it can.",
+  "type": "object",
+  "required": ["mail", "blocked"],
+  "additionalProperties": false,
+  "properties": { "mail": { "$ref": "Mail" }, "blocked": { "type": "string" } },
+  "examples": [
+    {
+      "mail": {
+        "ref": "AAMkAGI2-d1",
+        "folder": "drafts",
+        "messageId": "<d1.20261011@example.org>",
+        "inReplyTo": [],
+        "references": [],
+        "from": { "name": "Notes Support", "address": "reports@example.org" },
+        "replyTo": [],
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "date": "2026-10-11T09:00:00Z",
+        "sourceSha256": "",
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+        "attachments": []
+      },
+      "blocked": ""
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "PanelMail",
+  "description": "A listed mail on an issue's panel: its identifier, the mail in full — null where it is not found in the mailbox —, whether it is answered, whether it is new, whether a reply can be sent and why not, and its drafts in full.",
+  "type": "object",
+  "required": ["id", "mail", "answered", "new", "sendable", "reason", "drafts"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^MAIL-[0-9a-f]{16}$" },
+    "mail": { "anyOf": [{ "$ref": "Mail" }, { "type": "null" }] },
+    "answered": { "type": "string", "enum": ["", "reply", "no-reply"] },
+    "new": { "type": "boolean" },
+    "sendable": { "type": "boolean" },
+    "reason": { "type": "string" },
+    "drafts": { "type": "array", "items": { "$ref": "PanelDraft" } }
+  },
+  "examples": [
+    {
+      "id": "MAIL-20a9a87e7d0cc824",
+      "mail": {
+        "ref": "AAMkAGI2-m2",
+        "folder": "INBOX",
+        "messageId": "<77aa.1@lab.example>",
+        "inReplyTo": [],
+        "references": [],
+        "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+        "replyTo": [],
+        "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Search finds nothing",
+        "date": "2026-10-02T10:00:00Z",
+        "sourceSha256": "",
+        "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+        "attachments": []
+      },
+      "answered": "",
+      "new": false,
+      "sendable": true,
+      "reason": "",
+      "drafts": [
+        {
+          "mail": {
+            "ref": "AAMkAGI2-d1",
+            "folder": "drafts",
+            "messageId": "<d1.20261011@example.org>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Notes Support", "address": "reports@example.org" },
+            "replyTo": [],
+            "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Re: Search finds nothing",
+            "date": "2026-10-11T09:00:00Z",
+            "sourceSha256": "",
+            "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+            "attachments": []
+          },
+          "blocked": ""
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssuePanel",
+  "description": "The panel of an issue: the neutral issue, what solved it, and its mails with their drafts.",
+  "type": "object",
+  "required": ["issue", "solvedBy", "mails"],
+  "additionalProperties": false,
+  "properties": {
+    "issue": { "$ref": "PanelIssue" },
+    "solvedBy": { "$ref": "SolvedBy" },
+    "mails": { "type": "array", "items": { "$ref": "PanelMail" } }
+  },
+  "examples": [
+    {
+      "issue": { "product": "https://github.com/alice/notes", "number": 12, "title": "Search ignores titles", "body": "Searching for a word in a note's title finds nothing.\n\n## Mails\n\n- MAIL-20a9a87e7d0cc824\n- MAIL-f037dedb909ab9d9\n", "url": "https://github.com/alice/notes/issues/12", "state": "closed", "waiting": false },
+      "solvedBy": { "commit": "3f2a9d1c7e5b4a6f8d0c2e1b3a5f7d9c1e3b5a7f", "pull": "https://github.com/alice/notes/pull/13", "tag": "v2026.10.2" },
+      "mails": [
+        {
+          "id": "MAIL-20a9a87e7d0cc824",
+          "mail": {
+            "ref": "AAMkAGI2-m2",
+            "folder": "INBOX",
+            "messageId": "<77aa.1@lab.example>",
+            "inReplyTo": [],
+            "references": [],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Search finds nothing",
+            "date": "2026-10-02T10:00:00Z",
+            "sourceSha256": "",
+            "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+            "attachments": []
+          },
+          "answered": "",
+          "new": false,
+          "sendable": true,
+          "reason": "",
+          "drafts": [
+            {
+              "mail": {
+                "ref": "AAMkAGI2-d1",
+                "folder": "drafts",
+                "messageId": "<d1.20261011@example.org>",
+                "inReplyTo": [],
+                "references": [],
+                "from": { "name": "Notes Support", "address": "reports@example.org" },
+                "replyTo": [],
+                "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+                "cc": [],
+                "bcc": [],
+                "subject": "Re: Search finds nothing",
+                "date": "2026-10-11T09:00:00Z",
+                "sourceSha256": "",
+                "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+                "attachments": []
+              },
+              "blocked": ""
+            }
+          ]
+        },
+        {
+          "id": "MAIL-f037dedb909ab9d9",
+          "mail": {
+            "ref": "AAMkAGI2-m3",
+            "folder": "INBOX",
+            "messageId": "<77aa.2@lab.example>",
+            "inReplyTo": ["<77aa.1@lab.example>"],
+            "references": ["<77aa.1@lab.example>"],
+            "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+            "replyTo": [],
+            "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+            "cc": [],
+            "bcc": [],
+            "subject": "Re: Search finds nothing",
+            "date": "2026-10-10T09:30:00Z",
+            "sourceSha256": "",
+            "text": "It is the same in 2026.10.1.\n\nDan\n",
+            "attachments": []
+          },
+          "answered": "reply",
+          "new": false,
+          "sendable": true,
+          "reason": "",
+          "drafts": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "DraftInput",
+  "description": "What a saving holds: the mail the reply answers, the draft's handle — empty for a new draft —, the text, and the draft as shown — null for a new one.",
+  "type": "object",
+  "required": ["report", "ref", "text", "shown"],
+  "additionalProperties": false,
+  "properties": {
+    "report": { "$ref": "Mail" },
+    "ref": { "type": "string" },
+    "text": { "type": "string" },
+    "shown": { "anyOf": [{ "$ref": "Mail" }, { "type": "null" }] }
+  },
+  "examples": [
+    {
+      "report": {
+        "ref": "AAMkAGI2-m2",
+        "folder": "INBOX",
+        "messageId": "<77aa.1@lab.example>",
+        "inReplyTo": [],
+        "references": [],
+        "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+        "replyTo": [],
+        "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Search finds nothing",
+        "date": "2026-10-02T10:00:00Z",
+        "sourceSha256": "",
+        "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+        "attachments": []
+      },
+      "ref": "",
+      "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support",
+      "shown": null
+    },
+    {
+      "report": {
+        "ref": "AAMkAGI2-m2",
+        "folder": "INBOX",
+        "messageId": "<77aa.1@lab.example>",
+        "inReplyTo": [],
+        "references": [],
+        "from": { "name": "Dan Sample", "address": "dan@lab.example" },
+        "replyTo": [],
+        "to": [{ "name": "Notes Support", "address": "reports@example.org" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Search finds nothing",
+        "date": "2026-10-02T10:00:00Z",
+        "sourceSha256": "",
+        "text": "Hello,\nsearching for a word in a note's title finds nothing; words in the text are found.\n\nThanks,\nDan Sample\n",
+        "attachments": []
+      },
+      "ref": "AAMkAGI2-d1",
+      "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2; reload the page once to get it.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+      "shown": {
+        "ref": "AAMkAGI2-d1",
+        "folder": "drafts",
+        "messageId": "<d1.20261011@example.org>",
+        "inReplyTo": [],
+        "references": [],
+        "from": { "name": "Notes Support", "address": "reports@example.org" },
+        "replyTo": [],
+        "to": [{ "name": "Dan Sample", "address": "dan@lab.example" }],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Search finds nothing",
+        "date": "2026-10-11T09:00:00Z",
+        "sourceSha256": "",
+        "text": "Dear Dan,\n\nsearch now looks at the titles of notes as well; the fix is live from version 2026.10.2.\n\nBest regards\nNotes Support\n\nOn 2026-10-02, Dan Sample wrote:\n> Hello,\n> searching for a word in a note's title finds nothing; words in the text are found.\n>\n> Thanks,\n> Dan Sample\n",
+        "attachments": []
+      }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "SendInput",
+  "description": "What a sending holds: reply for Send or question for Send and wait, the issue's product and number, the mail's identifier, the draft's handle, and the confirmation of the mail shown.",
+  "type": "object",
+  "required": ["kind", "product", "number", "id", "ref", "confirmation"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "enum": ["reply", "question"] },
+    "product": { "type": "string", "pattern": "^https://" },
+    "number": { "type": "integer", "minimum": 1 },
+    "id": { "type": "string", "pattern": "^MAIL-[0-9a-f]{16}$" },
+    "ref": { "type": "string", "minLength": 1 },
+    "confirmation": { "$ref": "SendConfirmation" }
+  },
+  "examples": [
+    {
+      "kind": "reply",
+      "product": "https://github.com/alice/notes",
+      "number": 12,
+      "id": "MAIL-20a9a87e7d0cc824",
+      "ref": "AAMkAGI2-d1",
+      "confirmation": { "nonce": "1ede5497b50c70f547a12bcf638514c0", "sha256": "87f375b7e493ee7d7417f4591ef89b7a7de44712d7181e9c62db20b09c32dd92", "at": "2026-10-12T09:30:00Z" }
+    },
+    {
+      "kind": "question",
+      "product": "https://github.com/alice/notes",
+      "number": 14,
+      "id": "MAIL-2bf41fe3257099c6",
+      "ref": "Drafts/32",
+      "confirmation": { "nonce": "97b50c70f547a12bcf638514c097b50c", "sha256": "c5d30a12e6e8e855ce8b8bc7d6211f62282be517d8ec6fec7ffa128c8e3ab54d", "at": "2026-10-12T09:30:00Z" }
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ReplySent",
+  "description": "A mail sent and what followed: the sending, whether the issue was noted and labelled, and why not where it was not.",
+  "type": "object",
+  "required": ["sent", "noted", "labelled", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "sent": { "$ref": "MailSent" },
+    "noted": { "type": "boolean" },
+    "labelled": { "type": "boolean" },
+    "reason": { "type": "string" }
+  },
+  "examples": [
+    {
+      "sent": { "sent": true, "copied": true, "removed": "provider" },
+      "noted": true,
+      "labelled": false,
+      "reason": ""
+    },
+    {
+      "sent": { "sent": true, "copied": true, "removed": "uid-expunge" },
+      "noted": true,
+      "labelled": true,
+      "reason": ""
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssueChoice",
+  "description": "The author's decision on an issue: no-reply, close, reopen or unlabel, the issue's product and number, and the mail's identifier for no-reply — empty otherwise.",
+  "type": "object",
+  "required": ["kind", "product", "number", "id"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "enum": ["no-reply", "close", "reopen", "unlabel"] },
+    "product": { "type": "string", "pattern": "^https://" },
+    "number": { "type": "integer", "minimum": 1 },
+    "id": { "type": "string" }
+  },
+  "examples": [
+    { "kind": "no-reply", "product": "https://github.com/alice/notes", "number": 12, "id": "MAIL-20a9a87e7d0cc824" },
+    { "kind": "close", "product": "https://github.com/alice/notes", "number": 14, "id": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "IssueChosen",
+  "description": "The decision done on an issue: its kind, the issue's product and number.",
+  "type": "object",
+  "required": ["kind", "product", "number"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "enum": ["no-reply", "close", "reopen", "unlabel"] },
+    "product": { "type": "string", "pattern": "^https://" },
+    "number": { "type": "integer", "minimum": 1 }
+  },
+  "examples": [
+    { "kind": "no-reply", "product": "https://github.com/alice/notes", "number": 12 },
+    { "kind": "unlabel", "product": "https://github.com/alice/notes", "number": 14 }
+  ]
+}
+```
+
 ## Realisation
 
 | Step | Interfaces |
@@ -4928,3 +11205,19 @@ Sources as in ARC-002. Licence texts read from `https://api.github.com/repos/<re
 | UC-038 8a | MOD-mail-page.decideMail, MOD-git-host.createIssue |
 | UC-038 3a | MOD-mail-flow.pendingMails, MOD-mail-flow.withMail, MOD-git-host.setIssueBody |
 | UC-038 1a | MOD-mail-page.readMailbox, MOD-mail-flow.pendingMails, MOD-settings-store.importSettings, MOD-settings-store.mergeImport |
+| UC-039 1 | MOD-mail-page.route, MOD-mail-page.readReplies, MOD-mailbox.mailList, MOD-git-host.issues, MOD-mail-flow.listedIds, MOD-git-host.issueComments, MOD-mail-flow.notesOf, MOD-mail-flow.findMails, MOD-mailbox.draftList, MOD-mailbox.sentReplies, MOD-mail-flow.mailGroups, MOD-mail-flow.noteText, MOD-git-host.commentIssue |
+| UC-039 2 | MOD-mail-page.issuePanel, MOD-git-host.issueClosedBy, MOD-git-host.releaseWith, MOD-mailbox.mailRead |
+| UC-039 4 | MOD-mail-page.saveDraft, MOD-mail-flow.replyDraft, MOD-mailbox.storeDraft, MOD-mailbox.draftOptions, MOD-mailbox.draftList, MOD-mail-flow.mailGroups, MOD-mailbox.mailRead, MOD-mailbox.updateDraft |
+| UC-039 5 | MOD-mailbox.mailRead, MOD-mailbox.confirmMail, MOD-mailbox.mailDigest, MOD-mail-page.sendReply, MOD-mailbox.sendMail, MOD-bridge-server.callBridge, MOD-bridge-app.spendConfirmation, MOD-mailbox.checkConfirmation, MOD-mailbox.sendPlan, MOD-mailbox.connectOptions |
+| UC-039 6 | MOD-mailbox.sendPlan, MOD-mail-page.sendReply, MOD-mail-flow.noteText, MOD-git-host.commentIssue |
+| UC-039 7 | MOD-mail-page.readReplies, MOD-mail-flow.mailGroups |
+| UC-039 2a | MOD-mail-page.decideIssue, MOD-git-host.setIssueState, MOD-mail-page.readReplies, MOD-mail-page.issuePanel |
+| UC-039 2b | MOD-mail-flow.findMails, MOD-mail-flow.mailGroups, MOD-mail-page.issuePanel |
+| UC-039 2c | MOD-mail-page.decideIssue, MOD-mail-flow.noteText, MOD-git-host.commentIssue, MOD-mail-flow.mailGroups |
+| UC-039 3a | MOD-mail-page.saveDraft, MOD-mail-flow.replyDraft, MOD-mailbox.storeDraft |
+| UC-039 5a | MOD-mail-page.saveDraft, MOD-mailbox.updateDraft, MOD-mailbox.mailRead, MOD-mailbox.confirmMail, MOD-mailbox.mailDigest, MOD-mailbox.checkConfirmation |
+| UC-039 5b | MOD-mailbox.sendMail, MOD-bridge-app.spendConfirmation, MOD-mailbox.checkConfirmation |
+| UC-039 6a | MOD-mailbox.sendMail, MOD-mail-page.sendReply |
+| UC-039 1b | MOD-mail-page.readMailbox, MOD-mail-flow.pendingMails, MOD-mail-flow.withMail, MOD-git-host.setIssueBody, MOD-mail-page.readReplies, MOD-mail-flow.mailGroups, MOD-mail-page.issuePanel, MOD-mailbox.mailRead, MOD-mail-page.decideIssue, MOD-git-host.issueLabel, MOD-git-host.setIssueState |
+| UC-039 7a | MOD-mail-page.readMailbox, MOD-mail-flow.pendingMails, MOD-mail-flow.withMail, MOD-git-host.setIssueBody, MOD-mail-page.readReplies, MOD-mail-flow.mailGroups, MOD-mail-page.decideIssue, MOD-git-host.setIssueState, MOD-mail-flow.noteText, MOD-git-host.commentIssue |
+| UC-039 4a | MOD-mail-flow.replyDraft, MOD-mail-flow.mailGroups, MOD-mail-page.issuePanel, MOD-mail-page.decideIssue |
