@@ -21,6 +21,7 @@ forced_by:
   - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
   - THE NAME IS THE ID AND IT SURVIVES
   - A VERSION IS NOT REWRITTEN
+  - TEST RESULTS ARE KEPT IN THE REPOSITORY
   - UC-001
   - UC-006
   - UC-008
@@ -66,18 +67,21 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    needs an authority of ARC-003; without one, nothing is sent.
 7. **Releases, history and the token's account.** The release tags of a repository are its tags `vYYYY.MINOR.PATCH`,
    newest version first. The candidates of a version, `vYYYY.MINOR.PATCH-rc.N`, are read apart
-   (`MOD-git-host.candidateTags`). A tag is set on a given commit, on an authority, only where no tag of that name names
-   another commit (`MOD-git-host.createTag`): a tag is never moved (`A VERSION IS NOT REWRITTEN`), and one that names
-   the commit already is left as it is, so that a tag is set again after a failure. What a folder's version history
-   holds — each path, when it first appeared and when it was removed or renamed away — is read from the changes of each
-   commit touching it (`MOD-git-host.pathHistory`): a page learns from one scan per folder when each file entered the
-   repository, and every identifier the history holds, so that one withdrawn from the files is not given again
-   (ARC-024). The account a token acts as is read from the server — on GitLab the user name of the project token's bot
-   —, so that what a person writes is filed under their account.
-8. **The server's own pages.** Without a token, GitHub's new-file page is opened with a record as its prefilled value — at
-   most 1 000 characters, so that no reviewed text travels in a URL — and its editor for any other text; a GitLab product
-   has no such page and needs its project token. The page of a token, the page of a file and the permissions one token
-   needs are given by the adapter, so that every view names them alike.
+   (`MOD-git-host.candidateTags`). A branch is started on a commit only where none of that name exists
+   (`MOD-git-host.createBranch`) — `test-results` by the first run that records its result (ARC-015). A tag is set on a
+   given commit, on an authority, only where no tag of that name names another commit (`MOD-git-host.createTag`): a tag
+   is never moved (`A VERSION IS NOT REWRITTEN`), and one that names the commit already is left as it is, so that a tag
+   is set again after a failure. What a folder's version history holds — each path, when it first appeared and when it
+   was removed or renamed away — is read from the changes of each commit touching it (`MOD-git-host.pathHistory`): a
+   page learns from one scan per folder when each file entered the repository, and every identifier the history holds,
+   so that one withdrawn from the files is not given again (ARC-024). The account a token acts as is read from the
+   server — on GitLab the user name of the project token's bot —, so that what a person writes is filed under their
+   account.
+8. **The server's own pages.** Without a token, GitHub's new-file page is opened with a record as its prefilled value —
+   at most 1 000 characters, so that no reviewed text travels in a URL — and its editor for any other text; a GitLab
+   product has no such page and needs its project token. The page of a token, the page of a file, the page where CI
+   secrets are stored (`MOD-git-host.secretsPageUrl`) and the permissions one token needs are given by the adapter, so
+   that every view names them alike.
 9. **Pull requests and CI.** The adapter reads a repository's pull requests with their states and times
    (`MOD-git-host.pullRequests`) and the conclusion of each CI check on a commit (`MOD-git-host.checks`) — on GitHub
    the newest run of each workflow of the commit, which the one token reads with its Actions permission, so a CI check
@@ -161,6 +165,7 @@ flowchart LR
     "RepositoryInfo",
     "CommitResult",
     "TagSet",
+    "BranchStarted",
     "PullRequest",
     "MergeDone",
     "WorkflowInputs",
@@ -1068,6 +1073,173 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.createBranch",
+  "summary": "A branch started on a commit, on an authority, only where no branch of that name exists: the commit is read first, then the branch, and a write the server refuses after both is a branch another started meanwhile.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "name", "type": "string" },
+    { "name": "commit", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "BranchStarted",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no authority of ARC-003 is given, or one of no known kind" },
+    { "code": "no-token", "when": "no token is given" },
+    { "code": "not-a-commit", "when": "the commit is no 40-character SHA, or one the server does not know" },
+    { "code": "wrong-token", "when": "a GitHub token is given for a GitLab product" },
+    { "code": "branch-exists", "when": "a branch of that name exists, or was started meanwhile" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "test-results on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "test-results",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "ci-secret" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "sha": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/test-results"
+            },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/git/refs",
+              "body": { "ref": "refs/heads/test-results", "sha": "a100000000000000000000000000000000000000" }
+            },
+            "response": {
+              "status": 201,
+              "body": {
+                "ref": "refs/heads/test-results",
+                "object": { "sha": "a100000000000000000000000000000000000000" }
+              }
+            }
+          }
+        ]
+      },
+      "result": { "name": "test-results", "commit": "a100000000000000000000000000000000000000" }
+    },
+    {
+      "name": "test-results on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "name": "test-results",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "glpat-example",
+        "authority": { "kind": "ci-secret" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "id": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/branches/test-results"
+            },
+            "response": { "status": 404, "body": { "message": "404 Branch Not Found" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/branches",
+              "body": { "branch": "test-results", "ref": "a100000000000000000000000000000000000000" }
+            },
+            "response": {
+              "status": 201,
+              "body": { "name": "test-results", "commit": { "id": "a100000000000000000000000000000000000000" } }
+            }
+          }
+        ]
+      },
+      "result": { "name": "test-results", "commit": "a100000000000000000000000000000000000000" }
+    },
+    {
+      "name": "started by another run",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "name": "test-results",
+        "commit": "a100000000000000000000000000000000000000",
+        "token": "github_pat_example",
+        "authority": { "kind": "ci-secret" },
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/commits/a100000000000000000000000000000000000000"
+            },
+            "response": { "status": 200, "body": { "sha": "a100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/test-results"
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "b200000000000000000000000000000000000000" } } }
+          }
+        ]
+      },
+      "refused": "branch-exists"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.candidateTags",
   "summary": "The release candidates of a version, vYYYY.MINOR.PATCH-rc.N, by N: on GitHub the tag references that begin with the name, on GitLab the tags its search finds beginning with it.",
   "params": [
@@ -1458,6 +1630,45 @@ flowchart LR
         "fetch": []
       },
       "refused": "no-authority"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.secretsPageUrl",
+  "summary": "The server's page where a repository's CI secrets are stored: GitHub's Actions secrets, a GitLab project's CI/CD settings with its variables.",
+  "params": [{ "name": "product", "type": "Product" }],
+  "result": "string",
+  "async": false,
+  "refusals": [],
+  "examples": [
+    {
+      "name": "on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        }
+      },
+      "result": "https://github.com/alice/thesis/settings/secrets/actions"
+    },
+    {
+      "name": "on GitLab",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        }
+      },
+      "result": "https://gitlab.example.org/group/tools/thesis/-/settings/ci_cd"
     }
   ]
 }
@@ -3273,6 +3484,21 @@ flowchart LR
     "role": { "type": "integer", "minimum": 0 }
   },
   "examples": [{ "visibility": "private", "defaultBranch": "main", "role": 0 }]
+}
+```
+
+```json type
+{
+  "$id": "BranchStarted",
+  "description": "A branch the adapter started: its name, and the commit it starts on.",
+  "type": "object",
+  "required": ["name", "commit"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  },
+  "examples": [{ "name": "test-results", "commit": "a100000000000000000000000000000000000000" }]
 }
 ```
 

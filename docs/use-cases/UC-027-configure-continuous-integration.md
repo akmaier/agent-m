@@ -68,7 +68,8 @@ schedule or the book's default.
    minutes. The *release candidate* column stays ticked for every row and cannot be cleared; its
    explanation says why. The cells *every commit* and *pull request* cannot be ticked for tests that
    call a paid service; the explanation says why and points to recorded responses.
-3. The author sets the time of the nightly run and, per row, where it runs: a hosted runner of the
+3. The author sets the time of the nightly run, the command that runs the product's tests where
+   they do not run with node's test runner, and, per row, where it runs: a hosted runner of the
    server, or a self-hosted runner on a machine of a CLI or sandboxed agent participant. Agent M
    offers only participants with *run code and tests*.
 4. Agent M lists the secrets the scheduled tests need — for example the model endpoint key of the
