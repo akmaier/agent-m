@@ -64,10 +64,12 @@ together: what it reads of a product, what it computes for each view, and what i
    (`MOD-git-host.pathHistory`), any other file's time from the oldest commit touching it; when the declared model took
    effect, and the commit that declared the one before, from the history of `docs/process.md`; the commit each gate the
    product passes is decided on — the newest commit that changed a path of what it checks (ARC-019 decision 6) —; its
-   pull requests, and the CI checks on those commits and on the heads of the open pull requests. A job's live state is
-   an input of the views: a job whose runtime was not asked shows its last recorded state (ARC-010 decision 7); while a
-   job CI runs is queued, running or waiting at a gate, the page asks the runs of the job workflow, each named by its
-   job (`MOD-job-runner.liveOf`, ARC-029).
+   pull requests, and the CI checks on those commits and on the heads of the open pull requests; and whether the product
+   has the CI configuration generated from its test schedule — `.github/workflows/agent-m-tests.yml`, or
+   `.gitlab-ci.yml` (ARC-015) —, not any workflow file. The engine reads a product the same way (ARC-010 decision 5). A
+   job's live state is an input of the views: a job whose runtime was not asked shows its last recorded state (ARC-010
+   decision 7); while a job CI runs is queued, running or waiting at a gate, the page asks the runs of the job workflow,
+   each named by its job (`MOD-job-runner.liveOf`, ARC-029).
 4. **What the views compute.** The backlog with each item's state, column on the board, problems and selectability, the
    uncovered names, the sprint with its end and close, what planning the next sprint starts from, and the WIP limit
    (`MOD-process-views.backlogView`); the progress page — the progress in the model's measure, the gates in order, what
@@ -75,9 +77,11 @@ together: what it reads of a product, what it computes for each view, and what i
    latest figures of the measure with what is blocked and what waits (`MOD-process-views.summaryOf`); what lies behind a
    point of the chart with its trace (`MOD-process-views.behind`); one job list over every product
    (`MOD-process-views.jobsView`); the start panel of items (`MOD-process-views.startPanel`) and the panel of a run
-   (`MOD-process-views.runPanel`), each naming the participant, where it processes data and what is sent; the review of
-   a sprint's increment (`MOD-process-views.closeView`). The rules come from the kernel: an item may start where
-   `MOD-work-items.mayStart` holds, a gate is passed where `MOD-process-model.gateDecision` says so.
+   (`MOD-process-views.runPanel`), each naming the participant, where it processes data and what is sent; the snapshot a
+   run's next jobs are computed from, alike for the page and the engine (`MOD-process-views.runSnapshot`, ARC-010
+   decision 9); the review of a sprint's increment (`MOD-process-views.closeView`). The rules come from the kernel: an
+   item may start where `MOD-work-items.mayStart` holds, a gate is passed where `MOD-process-model.gateDecision` says
+   so.
 5. **Gates in order.** A gate a job passes (ARC-019 decision 6) is shown once per job that reached it, on the head of
    the job's pull request: for an item's job the pull request whose head branch is `item/<identifier>` or begins with
    `item/<identifier>-`, for another job the one its record's results name; a done job met every gate leaving its phase.
@@ -88,14 +92,16 @@ together: what it reads of a product, what it computes for each view, and what i
    (`MOD-process-views.planChange`) and writes them in one commit on that head (ARC-004): new items with the order, a
    new order, a sprint started or its selection changed, a sprint's end, a person's gate decision under their account —
    never on their own work, never without holding the deciding role, a rejection with its reason —, a cancel, and the
-   start records of jobs, of a run with its first jobs, or of a retry naming the job it retries — an agent's job with
-   who merges its pull request where the author chose it (UC-034 8). A new item gets its identifier from
-   `MOD-work-items.nextItemId` over every identifier the files and the version history of `docs/backlog/` hold, a new
-   job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the jobs of CI agents it starts
-   or retries, or whose gate the person decided, are dispatched (`MOD-main-page.runOnCi`), and a cancel cancels the
-   job's run (`MOD-main-page.cancelOnCi`) (ARC-029); a job on a self-hosted runner of a repository that is not private
-   is not started, and its record ends as failed with the reason
-   (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY`).
+   start records of jobs, of a run — begun running — with its first jobs, or of a retry naming the job it retries — an
+   agent's job with who merges its pull request where the author chose it (UC-034 8). A new item gets its identifier
+   from `MOD-work-items.nextItemId` over every identifier the files and the version history of `docs/backlog/` hold, a
+   new job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the jobs of CI agents it
+   starts or retries, or whose gate the person decided, are dispatched (`MOD-main-page.runOnCi`), and a cancel cancels
+   the job's run (`MOD-main-page.cancelOnCi`) (ARC-029); a job on a self-hosted runner of a repository that is not
+   private is not started, and its record ends as failed with the reason
+   (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY`). Where a run of the product is open, a click
+   that starts, retries or cancels a job or decides a gate also dispatches the engine workflow
+   (`MOD-main-page.engineOnCi`), so that the run takes its next step without a further click.
 7. **A sprint's increment enters the default branch through a pull request** (`MOD-main-page.mergeIncrement`): a click
    opens the pull request from the sprint's branch, and a later click merges it at its head once every check on it is
    green (ARC-004 decision 10); until then the page names the checks it waits for.
@@ -5417,6 +5423,992 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-process-views.runSnapshot",
+  "summary": "The snapshot a run's next jobs are computed from (MOD-run-engine.nextJobs), at the product's commit: its plan from the run's record — the selection, limits and assignments — over the product's workflow, modules and items; its jobs, each in the state the page shows; the gate records, the checks and the commits the gates are decided on; and, for a backlog, its items with their facts, the running sprint and the items in progress.",
+  "params": [
+    { "name": "state", "type": "ProductState" },
+    { "name": "graph", "type": "LinkGraph" },
+    { "name": "run", "type": "JobRecord" }
+  ],
+  "result": "RunSnapshot",
+  "async": false,
+  "refusals": [
+    { "code": "no-model", "when": "the product declares no process model" },
+    { "code": "not-a-run", "when": "the record is not a run's" },
+    { "code": "no-implementation-phase", "when": "no phase of the workflow produces MOD" },
+    { "code": "cycle", "when": "the selected modules' interfaces form a cycle" },
+    { "code": "no-holder", "when": "no participant holds a role a job needs" },
+    { "code": "not-a-holder", "when": "a chosen participant does not hold the role" },
+    { "code": "no-other-holder", "when": "the test battery has no holder besides the implementers" }
+  ],
+  "examples": [
+    {
+      "name": "a run over two backlog items",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [
+                {
+                  "name": "Development",
+                  "role": "Developers",
+                  "produces": "MOD, TST",
+                  "kinds": ["MOD", "TST"],
+                  "line": 13,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [
+                {
+                  "between": "Sprint planning → Development",
+                  "from": "Sprint planning",
+                  "to": "Development",
+                  "artifacts": "ITM",
+                  "kinds": ["ITM"],
+                  "condition": "the sprint's items are ready",
+                  "decider": { "role": "Product Owner" },
+                  "line": 28,
+                  "practice": "",
+                  "requirement": "",
+                  "source": "",
+                  "holders": ["alice"]
+                },
+                {
+                  "between": "Development → Sprint review",
+                  "from": "Development",
+                  "to": "Sprint review",
+                  "artifacts": "MOD",
+                  "kinds": ["MOD"],
+                  "condition": "CI is green",
+                  "decider": { "role": "Product Owner" },
+                  "line": 29,
+                  "practice": "",
+                  "requirement": "",
+                  "source": "",
+                  "holders": ["alice"]
+                }
+              ],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 36,
+                  "holders": ["cli-dev", "ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [
+              {
+                "id": "ITM-014",
+                "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md",
+                "title": "Export a chapter as PDF",
+                "kind": "implementation",
+                "realises": ["A CHAPTER IS EXPORTED", "UC-003"],
+                "modules": ["MOD-export"],
+                "dependsOn": [],
+                "origins": ["https://github.com/alice/thesis/issues/57"],
+                "outcome": "Export a chapter as PDF.",
+                "criteria": ["Export a chapter as PDF works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-015",
+                "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
+                "title": "Write a chapter in the editor",
+                "kind": "implementation",
+                "realises": ["NO SERVER"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-002"],
+                "outcome": "Write a chapter in the editor.",
+                "criteria": ["Write a chapter in the editor works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-016",
+                "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+                "title": "Accept a chapter with one click",
+                "kind": "implementation",
+                "realises": ["ONE CLICK", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Accept a chapter with one click.",
+                "criteria": ["Accept a chapter with one click works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-017",
+                "path": "docs/backlog/ITM-017-review-a-chapter-s-text.md",
+                "title": "Review a chapter's text",
+                "kind": "implementation",
+                "realises": ["EVERY TEXT IS REVIEWED"],
+                "modules": ["MOD-pages"],
+                "dependsOn": [],
+                "origins": ["UC-001"],
+                "outcome": "Review a chapter's text.",
+                "criteria": ["Review a chapter's text works in the browser."],
+                "notes": ""
+              },
+              {
+                "id": "ITM-018",
+                "path": "docs/backlog/ITM-018-show-the-list-of-chapters.md",
+                "title": "Show the list of chapters",
+                "kind": "implementation",
+                "realises": ["NO SERVER", "UC-001"],
+                "modules": ["MOD-pages"],
+                "dependsOn": ["ITM-016"],
+                "origins": ["UC-001"],
+                "outcome": "Show the list of chapters.",
+                "criteria": ["Show the list of chapters works in the browser."],
+                "notes": ""
+              }
+            ],
+            "order": {
+              "title": "Backlog order",
+              "intro": "The order in which the items are worked on.",
+              "order": ["ITM-016", "ITM-015", "ITM-017", "ITM-014", "ITM-018"],
+              "unplaced": ["ITM-018"],
+              "unknown": ["ITM-009"],
+              "notes": ""
+            },
+            "sprints": [
+              {
+                "id": "sprint-04",
+                "path": "docs/backlog/sprints/sprint-04.md",
+                "goal": "The author writes, accepts and reviews chapters",
+                "start": "2026-10-05",
+                "end": "",
+                "timeBoxEnd": "2026-10-18",
+                "selection": ["ITM-015", "ITM-016", "ITM-017"],
+                "closer": "alice",
+                "branch": "sprint/04"
+              }
+            ],
+            "closes": [],
+            "added": [
+              { "name": "ITM-014", "at": "2026-10-01T08:00:00Z" },
+              { "name": "ITM-015", "at": "2026-09-20T08:00:00Z" },
+              { "name": "ITM-016", "at": "2026-10-03T08:00:00Z" },
+              { "name": "ITM-017", "at": "2026-10-03T08:05:00Z" },
+              { "name": "ITM-018", "at": "2026-10-08T16:00:00Z" }
+            ],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261006-1000-a1b2",
+                "path": "docs/jobs/JOB-20261006-1000-a1b2.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "",
+                "slot": "",
+                "item": "ITM-016",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-06T10:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-06T10:01:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-07T11:00:00Z", "state": "waiting-at-gate", "note": "Development → Sprint review" },
+                  { "at": "2026-10-07T15:00:00Z", "state": "done", "note": "" }
+                ],
+                "results": ["https://github.com/alice/thesis/pull/60"],
+                "rounds": 1,
+                "cost": null,
+                "usage": { "inputTokens": 182000, "outputTokens": 12000, "minutes": null },
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261008-0900-b2c3",
+                "path": "docs/jobs/JOB-20261008-0900-b2c3.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "runtime": "bridge",
+                "run": "",
+                "slot": "",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T09:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T09:01:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T11:00:00Z", "state": "waiting-at-gate", "note": "Development → Sprint review" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261008-1300-c3d4",
+                "path": "docs/jobs/JOB-20261008-1300-c3d4.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "",
+                "slot": "",
+                "item": "ITM-017",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-08T13:00:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-08T13:02:00Z", "state": "running", "note": "" },
+                  { "at": "2026-10-08T15:30:00Z", "state": "failed", "note": "CI stayed red after 5 correction rounds" }
+                ],
+                "results": [],
+                "rounds": 5,
+                "cost": null,
+                "usage": { "inputTokens": null, "outputTokens": null, "minutes": 26 },
+                "jobs": []
+              },
+              {
+                "id": "JOB-20261009-0801-1f1f",
+                "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+                "kind": "implement",
+                "phase": "Development",
+                "role": "Developers",
+                "participant": "ci-dev",
+                "runtime": "ci",
+                "run": "JOB-20261009-0800-0f0f",
+                "slot": "Development/ITM-015",
+                "item": "ITM-015",
+                "modules": ["MOD-pages"],
+                "inputs": [],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "claude-opus-5-5",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" }
+                ],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/JOB-20261006-1000-a1b2-development-sprint-review-600000000000.md", "from": "Development", "to": "Sprint review", "subject": "JOB-20261006-1000-a1b2", "on": "6000000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the click accepts the chapter" },
+                "at": "2026-10-07T14:00:00Z"
+              },
+              {
+                "record": { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" },
+                "at": "2026-10-05T09:00:00Z"
+              }
+            ],
+            "cancels": [],
+            "problems": []
+          },
+          "acceptance": {
+            "accepted": [
+              { "name": "EVERY TEXT IS REVIEWED", "at": "2026-09-01T09:00:00Z" },
+              { "name": "NO SERVER", "at": "2026-09-01T09:00:00Z" },
+              { "name": "ONE CLICK", "at": "2026-09-01T09:00:00Z" },
+              { "name": "UC-001", "at": "2026-09-01T10:00:00Z" }
+            ],
+            "proposals": [{ "name": "ONE CLICK", "opened": "2026-10-03T12:00:00Z", "closed": "" }],
+            "proposed": []
+          },
+          "pullRequests": [
+            { "number": 61, "title": "ITM-015: write a chapter in the editor", "state": "open", "head": "item/ITM-015", "base": "sprint/04", "headSha": "6100000000000000000000000000000000000000", "created": "2026-10-08T10:30:00Z", "merged": "", "closed": "", "draft": false, "url": "https://github.com/alice/thesis/pull/61" },
+            { "number": 60, "title": "ITM-016: accept a chapter with one click", "state": "merged", "head": "item/ITM-016", "base": "sprint/04", "headSha": "6000000000000000000000000000000000000000", "created": "2026-10-06T12:00:00Z", "merged": "2026-10-07T15:00:00Z", "closed": "2026-10-07T15:00:00Z", "draft": false, "url": "https://github.com/alice/thesis/pull/60" }
+          ],
+          "checks": [{ "name": "tests", "on": "6100000000000000000000000000000000000000", "conclusion": "success" }],
+          "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "run": {
+          "id": "JOB-20261009-0800-0f0f",
+          "path": "docs/jobs/JOB-20261009-0800-0f0f.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["ITM-015", "ITM-016"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [{ "role": "Developers", "participant": "ci-dev" }],
+          "states": [{ "at": "2026-10-09T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": ["JOB-20261009-0801-1f1f"]
+        }
+      },
+      "result": {
+        "run": "JOB-20261009-0800-0f0f",
+        "plan": {
+          "product": "thesis",
+          "kind": "pulled",
+          "slots": [
+            {
+              "key": "Development/ITM-015",
+              "kind": "implement",
+              "phase": "Development",
+              "role": "Developers",
+              "participant": "ci-dev",
+              "unit": "ITM-015",
+              "item": "ITM-015",
+              "modules": ["MOD-pages"],
+              "after": [],
+              "gates": ["Sprint planning → Development"],
+              "meets": ["Development → Sprint review"]
+            },
+            {
+              "key": "Development/ITM-016",
+              "kind": "implement",
+              "phase": "Development",
+              "role": "Developers",
+              "participant": "ci-dev",
+              "unit": "ITM-016",
+              "item": "ITM-016",
+              "modules": ["MOD-pages"],
+              "after": [],
+              "gates": ["Sprint planning → Development"],
+              "meets": ["Development → Sprint review"]
+            }
+          ],
+          "gates": [
+            {
+              "between": "Sprint planning → Development",
+              "from": "Sprint planning",
+              "to": "Development",
+              "artifacts": "ITM",
+              "kinds": ["ITM"],
+              "condition": "the sprint's items are ready",
+              "decider": { "role": "Product Owner" },
+              "line": 28,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": ["alice"]
+            },
+            {
+              "between": "Development → Sprint review",
+              "from": "Development",
+              "to": "Sprint review",
+              "artifacts": "MOD",
+              "kinds": ["MOD"],
+              "condition": "CI is green",
+              "decider": { "role": "Product Owner" },
+              "line": 29,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": ["alice"]
+            }
+          ],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 }
+        },
+        "jobs": [
+          { "id": "JOB-20261009-0801-1f1f", "slot": "Development/ITM-015", "run": "JOB-20261009-0800-0f0f", "participant": "ci-dev", "started": "2026-10-09T08:01:00Z", "state": "running", "cost": null, "rounds": 0 }
+        ],
+        "gateRecords": [
+          { "path": "docs/jobs/gates/JOB-20261006-1000-a1b2-development-sprint-review-600000000000.md", "from": "Development", "to": "Sprint review", "subject": "JOB-20261006-1000-a1b2", "on": "6000000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the click accepts the chapter" },
+          { "path": "docs/jobs/gates/thesis-sprint-planning-development-e50000000000.md", "from": "Sprint planning", "to": "Development", "subject": "thesis", "on": "e500000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "the sprint's items are ready" }
+        ],
+        "checks": [{ "name": "tests", "on": "6100000000000000000000000000000000000000", "conclusion": "success" }],
+        "texts": [{ "gate": "Sprint planning → Development", "on": "e500000000000000000000000000000000000000" }],
+        "items": [
+          {
+            "item": {
+              "id": "ITM-014",
+              "path": "docs/backlog/ITM-014-export-a-chapter-as-pdf.md",
+              "title": "Export a chapter as PDF",
+              "kind": "implementation",
+              "realises": ["A CHAPTER IS EXPORTED", "UC-003"],
+              "modules": ["MOD-export"],
+              "dependsOn": [],
+              "origins": ["https://github.com/alice/thesis/issues/57"],
+              "outcome": "Export a chapter as PDF.",
+              "criteria": ["Export a chapter as PDF works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-01T08:00:00Z",
+              "accepted": [],
+              "proposals": [],
+              "jobs": [],
+              "rejections": [],
+              "pullRequests": []
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-015",
+              "path": "docs/backlog/ITM-015-write-a-chapter-in-the-editor.md",
+              "title": "Write a chapter in the editor",
+              "kind": "implementation",
+              "realises": ["NO SERVER"],
+              "modules": ["MOD-pages"],
+              "dependsOn": [],
+              "origins": ["UC-002"],
+              "outcome": "Write a chapter in the editor.",
+              "criteria": ["Write a chapter in the editor works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-09-20T08:00:00Z",
+              "accepted": [{ "name": "NO SERVER", "at": "2026-09-01T09:00:00Z" }],
+              "proposals": [],
+              "jobs": [
+                { "id": "JOB-20261008-0900-b2c3", "state": "queued", "at": "2026-10-08T09:00:00Z" },
+                { "id": "JOB-20261008-0900-b2c3", "state": "running", "at": "2026-10-08T09:01:00Z" },
+                { "id": "JOB-20261008-0900-b2c3", "state": "waiting-at-gate", "at": "2026-10-08T11:00:00Z" },
+                { "id": "JOB-20261009-0801-1f1f", "state": "queued", "at": "2026-10-09T08:01:00Z" },
+                { "id": "JOB-20261009-0801-1f1f", "state": "running", "at": "2026-10-09T08:02:00Z" }
+              ],
+              "rejections": [],
+              "pullRequests": [{ "number": 61, "state": "open", "at": "2026-10-08T10:30:00Z" }]
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-016",
+              "path": "docs/backlog/ITM-016-accept-a-chapter-with-one-click.md",
+              "title": "Accept a chapter with one click",
+              "kind": "implementation",
+              "realises": ["ONE CLICK", "UC-001"],
+              "modules": ["MOD-pages"],
+              "dependsOn": [],
+              "origins": ["UC-001"],
+              "outcome": "Accept a chapter with one click.",
+              "criteria": ["Accept a chapter with one click works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-03T08:00:00Z",
+              "accepted": [
+                { "name": "ONE CLICK", "at": "2026-09-01T09:00:00Z" },
+                { "name": "UC-001", "at": "2026-09-01T10:00:00Z" }
+              ],
+              "proposals": [{ "name": "ONE CLICK", "opened": "2026-10-03T12:00:00Z", "closed": "" }],
+              "jobs": [
+                { "id": "JOB-20261006-1000-a1b2", "state": "queued", "at": "2026-10-06T10:00:00Z" },
+                { "id": "JOB-20261006-1000-a1b2", "state": "running", "at": "2026-10-06T10:01:00Z" },
+                { "id": "JOB-20261006-1000-a1b2", "state": "waiting-at-gate", "at": "2026-10-07T11:00:00Z" },
+                { "id": "JOB-20261006-1000-a1b2", "state": "done", "at": "2026-10-07T15:00:00Z" }
+              ],
+              "rejections": [],
+              "pullRequests": [
+                { "number": 60, "state": "open", "at": "2026-10-06T12:00:00Z" },
+                { "number": 60, "state": "merged", "at": "2026-10-07T15:00:00Z" }
+              ]
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-017",
+              "path": "docs/backlog/ITM-017-review-a-chapter-s-text.md",
+              "title": "Review a chapter's text",
+              "kind": "implementation",
+              "realises": ["EVERY TEXT IS REVIEWED"],
+              "modules": ["MOD-pages"],
+              "dependsOn": [],
+              "origins": ["UC-001"],
+              "outcome": "Review a chapter's text.",
+              "criteria": ["Review a chapter's text works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-03T08:05:00Z",
+              "accepted": [{ "name": "EVERY TEXT IS REVIEWED", "at": "2026-09-01T09:00:00Z" }],
+              "proposals": [],
+              "jobs": [
+                { "id": "JOB-20261008-1300-c3d4", "state": "queued", "at": "2026-10-08T13:00:00Z" },
+                { "id": "JOB-20261008-1300-c3d4", "state": "running", "at": "2026-10-08T13:02:00Z" },
+                { "id": "JOB-20261008-1300-c3d4", "state": "failed", "at": "2026-10-08T15:30:00Z" }
+              ],
+              "rejections": [],
+              "pullRequests": []
+            }
+          },
+          {
+            "item": {
+              "id": "ITM-018",
+              "path": "docs/backlog/ITM-018-show-the-list-of-chapters.md",
+              "title": "Show the list of chapters",
+              "kind": "implementation",
+              "realises": ["NO SERVER", "UC-001"],
+              "modules": ["MOD-pages"],
+              "dependsOn": ["ITM-016"],
+              "origins": ["UC-001"],
+              "outcome": "Show the list of chapters.",
+              "criteria": ["Show the list of chapters works in the browser."],
+              "notes": ""
+            },
+            "facts": {
+              "added": "2026-10-08T16:00:00Z",
+              "accepted": [
+                { "name": "NO SERVER", "at": "2026-09-01T09:00:00Z" },
+                { "name": "UC-001", "at": "2026-09-01T10:00:00Z" }
+              ],
+              "proposals": [],
+              "jobs": [],
+              "rejections": [],
+              "pullRequests": []
+            }
+          }
+        ],
+        "sprint": {
+          "id": "sprint-04",
+          "path": "docs/backlog/sprints/sprint-04.md",
+          "goal": "The author writes, accepts and reviews chapters",
+          "start": "2026-10-05",
+          "end": "",
+          "timeBoxEnd": "2026-10-18",
+          "selection": ["ITM-015", "ITM-016", "ITM-017"],
+          "closer": "alice",
+          "branch": "sprint/04"
+        },
+        "sprints": true,
+        "wipLimit": null,
+        "inProgress": 1
+      }
+    },
+    {
+      "name": "a run over two modules",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c600000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "v-model",
+            "sprintClose": "",
+            "workflow": {
+              "model": "v-model",
+              "kind": "planned",
+              "measure": "plan entries per phase",
+              "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+              "phases": [
+                {
+                  "name": "Implementation",
+                  "role": "Developers",
+                  "produces": "MOD",
+                  "kinds": ["MOD"],
+                  "line": 16,
+                  "practice": ""
+                },
+                {
+                  "name": "Testing",
+                  "role": "Tester",
+                  "produces": "TST",
+                  "kinds": ["TST"],
+                  "line": 17,
+                  "practice": ""
+                }
+              ],
+              "transitions": [],
+              "pairs": [],
+              "gates": [
+                {
+                  "between": "Design → Implementation",
+                  "from": "Design",
+                  "to": "Implementation",
+                  "artifacts": "ARC",
+                  "kinds": ["ARC"],
+                  "condition": "every requirement has an ARC, and the design is accepted",
+                  "decider": { "role": "Architect" },
+                  "line": 41,
+                  "practice": "",
+                  "requirement": "",
+                  "source": "",
+                  "holders": ["alice"]
+                },
+                {
+                  "between": "Implementation → Testing",
+                  "from": "Implementation",
+                  "to": "Testing",
+                  "artifacts": "MOD",
+                  "kinds": ["MOD"],
+                  "condition": "CI is green",
+                  "decider": { "check": "tests" },
+                  "line": 42,
+                  "practice": "",
+                  "requirement": "",
+                  "source": "",
+                  "holders": []
+                },
+                {
+                  "between": "Testing → Validation",
+                  "from": "Testing",
+                  "to": "Validation",
+                  "artifacts": "TST",
+                  "kinds": ["TST"],
+                  "condition": "every unit's verification is recorded",
+                  "decider": { "role": "Tester" },
+                  "line": 41,
+                  "practice": "",
+                  "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                  "source": "IEC 62304, 5.5.5",
+                  "holders": ["ci-dev"]
+                }
+              ],
+              "roles": [
+                {
+                  "name": "Developers",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                  "line": 50,
+                  "holders": ["cli-dev"]
+                },
+                {
+                  "name": "Tester",
+                  "filledBy": "either",
+                  "capabilities": ["read the repository", "run code and tests"],
+                  "line": 51,
+                  "holders": ["ci-dev"]
+                }
+              ],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [],
+            "gates": [
+              {
+                "record": { "path": "docs/jobs/gates/thesis-design-implementation-ea0000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis", "on": "ea00000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has a decision" },
+                "at": "2026-10-04T10:00:00Z"
+              }
+            ],
+            "cancels": [],
+            "problems": []
+          },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [{ "name": "tests", "on": "1200000000000000000000000000000000000000", "conclusion": "success" }],
+          "texts": [
+            { "gate": "Design → Implementation", "on": "ea00000000000000000000000000000000000000" },
+            { "gate": "Validation → Deployment", "on": "eb00000000000000000000000000000000000000" }
+          ],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": {
+          "nodes": [
+            { "id": "MOD-export", "kind": "module", "path": "docs/architecture/ARC-002-export.md", "status": "accepted" }
+          ],
+          "edges": [{ "from": "MOD-export", "to": "MOD-pages", "via": "uses" }],
+          "modules": [],
+          "unknown": []
+        },
+        "run": {
+          "id": "JOB-20261010-0800-2a2a",
+          "path": "docs/jobs/JOB-20261010-0800-2a2a.md",
+          "kind": "run",
+          "phase": "",
+          "role": "",
+          "participant": "alice",
+          "runtime": "browser",
+          "run": "",
+          "slot": "",
+          "item": "",
+          "modules": [],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "",
+          "log": "",
+          "selection": ["MOD-export", "MOD-pages"],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 },
+          "assignments": [],
+          "states": [{ "at": "2026-10-10T08:00:00Z", "state": "running", "note": "" }],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": []
+        }
+      },
+      "result": {
+        "run": "JOB-20261010-0800-2a2a",
+        "plan": {
+          "product": "thesis",
+          "kind": "planned",
+          "slots": [
+            {
+              "key": "Implementation/MOD-pages",
+              "kind": "implement",
+              "phase": "Implementation",
+              "role": "Developers",
+              "participant": "cli-dev",
+              "unit": "MOD-pages",
+              "item": "",
+              "modules": ["MOD-pages"],
+              "after": [],
+              "gates": ["Design → Implementation"],
+              "meets": ["Implementation → Testing"]
+            },
+            {
+              "key": "Implementation/MOD-export",
+              "kind": "implement",
+              "phase": "Implementation",
+              "role": "Developers",
+              "participant": "cli-dev",
+              "unit": "MOD-export",
+              "item": "",
+              "modules": ["MOD-export"],
+              "after": ["Implementation/MOD-pages"],
+              "gates": ["Design → Implementation"],
+              "meets": ["Implementation → Testing"]
+            },
+            {
+              "key": "Testing/selection",
+              "kind": "test-battery",
+              "phase": "Testing",
+              "role": "Tester",
+              "participant": "ci-dev",
+              "unit": "selection",
+              "item": "",
+              "modules": ["MOD-pages", "MOD-export"],
+              "after": ["Implementation/MOD-pages", "Implementation/MOD-export"],
+              "gates": [],
+              "meets": ["Testing → Validation"]
+            }
+          ],
+          "gates": [
+            {
+              "between": "Design → Implementation",
+              "from": "Design",
+              "to": "Implementation",
+              "artifacts": "ARC",
+              "kinds": ["ARC"],
+              "condition": "every requirement has an ARC, and the design is accepted",
+              "decider": { "role": "Architect" },
+              "line": 41,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": ["alice"]
+            },
+            {
+              "between": "Implementation → Testing",
+              "from": "Implementation",
+              "to": "Testing",
+              "artifacts": "MOD",
+              "kinds": ["MOD"],
+              "condition": "CI is green",
+              "decider": { "check": "tests" },
+              "line": 42,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": []
+            },
+            {
+              "between": "Testing → Validation",
+              "from": "Testing",
+              "to": "Validation",
+              "artifacts": "TST",
+              "kinds": ["TST"],
+              "condition": "every unit's verification is recorded",
+              "decider": { "role": "Tester" },
+              "line": 41,
+              "practice": "",
+              "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+              "source": "IEC 62304, 5.5.5",
+              "holders": ["ci-dev"]
+            }
+          ],
+          "limits": { "jobsAtOnce": 2, "cost": null, "rounds": 5 }
+        },
+        "jobs": [],
+        "gateRecords": [
+          { "path": "docs/jobs/gates/thesis-design-implementation-ea0000000000.md", "from": "Design", "to": "Implementation", "subject": "thesis", "on": "ea00000000000000000000000000000000000000", "decider": "alice", "decision": "passed", "reason": "every requirement has a decision" }
+        ],
+        "checks": [{ "name": "tests", "on": "1200000000000000000000000000000000000000", "conclusion": "success" }],
+        "texts": [
+          { "gate": "Design → Implementation", "on": "ea00000000000000000000000000000000000000" },
+          { "gate": "Validation → Deployment", "on": "eb00000000000000000000000000000000000000" }
+        ],
+        "items": [],
+        "sprint": null,
+        "sprints": false,
+        "wipLimit": null,
+        "inProgress": 0
+      }
+    },
+    {
+      "name": "a job that is no run",
+      "input": {
+        "state": {
+          "product": "https://github.com/alice/thesis",
+          "branch": "main",
+          "commit": "c100000000000000000000000000000000000000",
+          "process": {
+            "declared": true,
+            "model": "scrum",
+            "sprintClose": "alice",
+            "workflow": {
+              "model": "scrum",
+              "kind": "pulled",
+              "measure": "remaining items per time box",
+              "flow": { "wipLimit": null, "timeBox": "2 weeks", "sprints": true, "line": 38 },
+              "phases": [],
+              "transitions": [],
+              "pairs": [],
+              "gates": [],
+              "roles": [],
+              "branches": [],
+              "artifactsAdded": [],
+              "problems": []
+            },
+            "participants": [],
+            "requirements": [],
+            "problems": []
+          },
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": { "jobs": [], "gates": [], "cancels": [], "problems": [] },
+          "acceptance": { "accepted": [], "proposals": [], "proposed": [] },
+          "pullRequests": [],
+          "checks": [],
+          "texts": [],
+          "live": [],
+          "ci": true,
+          "today": "2026-10-09",
+          "now": "2026-10-09T08:00:00Z",
+          "since": "2026-09-01T10:00:00Z",
+          "before": ""
+        },
+        "graph": { "nodes": [], "edges": [], "modules": [], "unknown": [] },
+        "run": {
+          "id": "JOB-20261009-0801-1f1f",
+          "path": "docs/jobs/JOB-20261009-0801-1f1f.md",
+          "kind": "implement",
+          "phase": "Development",
+          "role": "Developers",
+          "participant": "ci-dev",
+          "runtime": "ci",
+          "run": "JOB-20261009-0800-0f0f",
+          "slot": "Development/ITM-015",
+          "item": "ITM-015",
+          "modules": ["MOD-pages"],
+          "inputs": [],
+          "retryOf": "",
+          "agentM": "2026.10.1",
+          "model": "claude-opus-5-5",
+          "log": "",
+          "selection": [],
+          "limits": null,
+          "assignments": [],
+          "states": [
+            { "at": "2026-10-09T08:01:00Z", "state": "queued", "note": "" },
+            { "at": "2026-10-09T08:02:00Z", "state": "running", "note": "attempt 1 on ci-dev" }
+          ],
+          "results": [],
+          "rounds": 0,
+          "cost": null,
+          "usage": null,
+          "jobs": []
+        }
+      },
+      "refused": "not-a-run"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-process-views.closeView",
   "summary": "The review of a sprint's increment: its goal and selection, the items done — with their merged pull requests, what they realise and the tests guarding it —, the items not done with their state and reasons, the increment, and whether the sprint is closed.",
   "params": [
@@ -6474,7 +7466,7 @@ flowchart LR
       },
       "result": {
         "files": [
-          { "path": "docs/jobs/JOB-20261009-0930-7f3a.md", "text": "---\nid: JOB-20261009-0930-7f3a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261009-0930-7f3a\n\n**REGISTER**\n\n## Selection\n\n- ITM-017\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 2 | — | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:30:00Z | queued | — |\n\n## Jobs\n\n- JOB-20261009-0930-0b1c\n" },
+          { "path": "docs/jobs/JOB-20261009-0930-7f3a.md", "text": "---\nid: JOB-20261009-0930-7f3a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261009-0930-7f3a\n\n**REGISTER**\n\n## Selection\n\n- ITM-017\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 2 | — | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:30:00Z | running | — |\n\n## Jobs\n\n- JOB-20261009-0930-0b1c\n" },
           { "path": "docs/jobs/JOB-20261009-0930-0b1c.md", "text": "---\nid: JOB-20261009-0930-0b1c\nkind: implement\nphase: Development\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun: JOB-20261009-0930-7f3a\nslot: Development/ITM-017\nitem: ITM-017\nmodules:\n  - MOD-pages\ninputs:\n  - docs/backlog/ITM-017-review-a-chapter-s-text.md\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261009-0930-0b1c\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-09T09:30:00Z | queued | — |\n" }
         ],
         "message": "run JOB-20261009-0930-7f3a started: ITM-017"
@@ -6616,7 +7608,7 @@ flowchart LR
   "layer": "shell",
   "responsibility": "The page at the root of the instance's Pages site that shows what goes on in the instance: it routes, reads each product at one commit with what its server reports, turns a trusted click into one commit planned on the head, merges a sprint's increment through a pull request, and holds every text the page shows.",
   "realises": ["THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE"],
-  "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "CiCancelled"],
+  "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "EngineDispatched", "CiCancelled"],
   "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner"]
 }
 ```
@@ -7901,7 +8893,7 @@ flowchart LR
   "result": "CiDispatched",
   "async": true,
   "refusals": [
-    { "code": "no-authority", "when": "no click authorises the start" },
+    { "code": "no-authority", "when": "no click or CI secret authorises the start" },
     { "code": "not-on-github", "when": "the product is on GitLab" },
     { "code": "no-token", "when": "no token is stored for the product" },
     { "code": "moved", "when": "the default branch moved on while a refused job's record was written" },
@@ -7948,24 +8940,24 @@ flowchart LR
               "status": 200,
               "body": {
                 "tree": [
-                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "type": "blob", "sha": "5007b2d1417916b7f111b4a968bc13efacdb6f10" },
-                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "type": "blob", "sha": "e993d0ce77c7f6f897acb735361fa25e3429f48b" }
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "type": "blob", "sha": "83be9814d87a73c91aabbe49e97d640b27a00669" },
+                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "type": "blob", "sha": "e27a28422f492798f086e66b185c5c60d9e86ebc" }
                 ]
               }
             }
           },
           {
-            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/5007b2d1417916b7f111b4a968bc13efacdb6f10" },
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/83be9814d87a73c91aabbe49e97d640b27a00669" },
             "response": {
               "status": 200,
-              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC05YTlhCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBjaS1kZXYKcnVudGltZTogY2kKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTlhOWEKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC05YTlhCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2ktZGV2CnJ1bnRpbWU6IGNpCnJ1bjoKc2xvdDoKaXRlbTogSVRNLTAxNAptb2R1bGVzOgogIC0gTU9ELWV4cG9ydAppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNsYXVkZS1vcHVzLTUtNQpsb2c6Ci0tLQoKIyBKT0ItMjAyNjEwMTItMDgwMC05YTlhCgoqKlJFR0lTVEVSKioKCiMjIFN0YXRlcwoKfCBBdCB8IFN0YXRlIHwgTm90ZSB8CnwtLS18LS0tfC0tLXwKfCAyMDI2LTEwLTEyVDA4OjAwOjAwWiB8IHF1ZXVlZCB8IOKAlCB8Cg==" }
             }
           },
           {
-            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/e993d0ce77c7f6f897acb735361fa25e3429f48b" },
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/e27a28422f492798f086e66b185c5c60d9e86ebc" },
             "response": {
               "status": 200,
-              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDkwMC02YzZjCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBncHUtZGV2CnJ1bnRpbWU6IGNpCnJ1bjoKc2xvdDoKaXRlbTogSVRNLTAxNgptb2R1bGVzOgogIC0gTU9ELWV4cG9ydAppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNvZGV4LW1vZGVsCmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wOTAwLTZjNmMKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDkwMC02YzZjCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogZ3B1LWRldgpydW50aW1lOiBjaQpydW46CnNsb3Q6Cml0ZW06IElUTS0wMTYKbW9kdWxlczoKICAtIE1PRC1leHBvcnQKaW5wdXRzOiBbXQpyZXRyeV9vZjoKYWdlbnRfbTogMjAyNi4xMC4xCm1vZGVsOiBjb2RleC1tb2RlbApsb2c6Ci0tLQoKIyBKT0ItMjAyNjEwMTItMDkwMC02YzZjCgoqKlJFR0lTVEVSKioKCiMjIFN0YXRlcwoKfCBBdCB8IFN0YXRlIHwgTm90ZSB8CnwtLS18LS0tfC0tLXwKfCAyMDI2LTEwLTEyVDA4OjAwOjAwWiB8IHF1ZXVlZCB8IOKAlCB8Cg==" }
             }
           },
           {
@@ -8046,24 +9038,24 @@ flowchart LR
               "status": 200,
               "body": {
                 "tree": [
-                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "type": "blob", "sha": "5007b2d1417916b7f111b4a968bc13efacdb6f10" },
-                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "type": "blob", "sha": "e993d0ce77c7f6f897acb735361fa25e3429f48b" }
+                  { "path": "docs/jobs/JOB-20261012-0800-9a9a.md", "type": "blob", "sha": "83be9814d87a73c91aabbe49e97d640b27a00669" },
+                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "type": "blob", "sha": "e27a28422f492798f086e66b185c5c60d9e86ebc" }
                 ]
               }
             }
           },
           {
-            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/5007b2d1417916b7f111b4a968bc13efacdb6f10" },
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/83be9814d87a73c91aabbe49e97d640b27a00669" },
             "response": {
               "status": 200,
-              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC05YTlhCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBjaS1kZXYKcnVudGltZTogY2kKcnVuOgpzbG90OgppdGVtOiBJVE0tMDE0Cm1vZHVsZXM6CiAgLSBNT0QtZXhwb3J0CmlucHV0czogW10KcmV0cnlfb2Y6CmFnZW50X206IDIwMjYuMTAuMQptb2RlbDogY2xhdWRlLW9wdXMtNS01CmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wODAwLTlhOWEKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDgwMC05YTlhCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogY2ktZGV2CnJ1bnRpbWU6IGNpCnJ1bjoKc2xvdDoKaXRlbTogSVRNLTAxNAptb2R1bGVzOgogIC0gTU9ELWV4cG9ydAppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNsYXVkZS1vcHVzLTUtNQpsb2c6Ci0tLQoKIyBKT0ItMjAyNjEwMTItMDgwMC05YTlhCgoqKlJFR0lTVEVSKioKCiMjIFN0YXRlcwoKfCBBdCB8IFN0YXRlIHwgTm90ZSB8CnwtLS18LS0tfC0tLXwKfCAyMDI2LTEwLTEyVDA4OjAwOjAwWiB8IHF1ZXVlZCB8IOKAlCB8Cg==" }
             }
           },
           {
-            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/e993d0ce77c7f6f897acb735361fa25e3429f48b" },
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/blobs/e27a28422f492798f086e66b185c5c60d9e86ebc" },
             "response": {
               "status": 200,
-              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDkwMC02YzZjCmtpbmQ6IGltcGxlbWVudC1pdGVtCnBoYXNlOiBEb2luZwpyb2xlOiBEZXZlbG9wZXJzCnBhcnRpY2lwYW50OiBncHUtZGV2CnJ1bnRpbWU6IGNpCnJ1bjoKc2xvdDoKaXRlbTogSVRNLTAxNgptb2R1bGVzOgogIC0gTU9ELWV4cG9ydAppbnB1dHM6IFtdCnJldHJ5X29mOgphZ2VudF9tOiAyMDI2LjEwLjEKbW9kZWw6IGNvZGV4LW1vZGVsCmxvZzoKLS0tCgojIEpPQi0yMDI2MTAxMi0wOTAwLTZjNmMKCioqUkVHSVNURVIqKgoKIyMgU3RhdGVzCgp8IEF0IHwgU3RhdGUgfCBOb3RlIHwKfC0tLXwtLS18LS0tfAp8IDIwMjYtMTAtMTJUMDg6MDA6MDBaIHwgcXVldWVkIHwg4oCUIHwK" }
+              "body": { "encoding": "base64", "content": "LS0tCmlkOiBKT0ItMjAyNjEwMTItMDkwMC02YzZjCmtpbmQ6IGltcGxlbWVudApwaGFzZTogRG9pbmcKcm9sZTogRGV2ZWxvcGVycwpwYXJ0aWNpcGFudDogZ3B1LWRldgpydW50aW1lOiBjaQpydW46CnNsb3Q6Cml0ZW06IElUTS0wMTYKbW9kdWxlczoKICAtIE1PRC1leHBvcnQKaW5wdXRzOiBbXQpyZXRyeV9vZjoKYWdlbnRfbTogMjAyNi4xMC4xCm1vZGVsOiBjb2RleC1tb2RlbApsb2c6Ci0tLQoKIyBKT0ItMjAyNjEwMTItMDkwMC02YzZjCgoqKlJFR0lTVEVSKioKCiMjIFN0YXRlcwoKfCBBdCB8IFN0YXRlIHwgTm90ZSB8CnwtLS18LS0tfC0tLXwKfCAyMDI2LTEwLTEyVDA4OjAwOjAwWiB8IHF1ZXVlZCB8IOKAlCB8Cg==" }
             }
           },
           {
@@ -8106,7 +9098,7 @@ flowchart LR
               "body": {
                 "base_tree": "b900000000000000000000000000000000000000",
                 "tree": [
-                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0900-6c6c\nkind: implement-item\nphase: Doing\nrole: Developers\nparticipant: gpu-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: codex-model\nlog:\n---\n\n# JOB-20261012-0900-6c6c\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:00:30Z | failed | gpu-dev runs on the self-hosted runner gpu-1, which serves Agent M only from a private repository |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
+                  { "path": "docs/jobs/JOB-20261012-0900-6c6c.md", "mode": "100644", "type": "blob", "content": "---\nid: JOB-20261012-0900-6c6c\nkind: implement\nphase: Doing\nrole: Developers\nparticipant: gpu-dev\nruntime: ci\nrun:\nslot:\nitem: ITM-016\nmodules:\n  - MOD-export\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: codex-model\nlog:\n---\n\n# JOB-20261012-0900-6c6c\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-12T08:00:00Z | queued | — |\n| 2026-10-12T08:00:30Z | failed | gpu-dev runs on the self-hosted runner gpu-1, which serves Agent M only from a private repository |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n" }
                 ]
               }
             },
@@ -8170,6 +9162,107 @@ flowchart LR
         "clock": "2026-10-12T08:00:30Z"
       },
       "refused": "no-authority"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-main-page.engineOnCi",
+  "summary": "The product's engine workflow dispatched on its default branch after a click whose records a run of the product waits for — a start, a retry, a cancel or a gate decision while a run is open —, so that the run takes its next step without a further click (ARC-029). GitHub products.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" },
+    { "name": "authority", "type": "Authority", "optional": true }
+  ],
+  "result": "EngineDispatched",
+  "async": true,
+  "refusals": [
+    { "code": "no-authority", "when": "no click authorises the dispatch" },
+    { "code": "not-on-github", "when": "the product is on GitLab" },
+    { "code": "no-token", "when": "no token is stored for the product" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" }
+  ],
+  "examples": [
+    {
+      "name": "after a gate decision",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/thesis/actions/workflows/agent-m-engine.yml/dispatches",
+              "body": { "ref": "main", "inputs": {} }
+            },
+            "response": { "status": 204, "body": null }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "result": { "workflow": "agent-m-engine.yml", "url": "https://github.com/alice/thesis/actions/workflows/agent-m-engine.yml" }
+    },
+    {
+      "name": "no click",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "refused": "no-authority"
+    },
+    {
+      "name": "a GitLab product",
+      "input": {
+        "address": "https://gitlab.lrz.de/alice/thesis",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "not-on-github"
     }
   ]
 }
@@ -9991,6 +11084,23 @@ flowchart LR
         { "job": "JOB-20261012-0900-6c6c", "reason": "gpu-dev runs on the self-hosted runner gpu-1, which serves Agent M only from a private repository" }
       ]
     }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "EngineDispatched",
+  "description": "The engine workflow dispatched, and the page where its runs show.",
+  "type": "object",
+  "required": ["workflow", "url"],
+  "additionalProperties": false,
+  "properties": {
+    "workflow": { "type": "string", "enum": ["agent-m-engine.yml"] },
+    "url": { "type": "string", "minLength": 1 }
+  },
+  "examples": [
+    { "workflow": "agent-m-engine.yml", "url": "https://github.com/alice/thesis/actions/workflows/agent-m-engine.yml" }
   ]
 }
 ```

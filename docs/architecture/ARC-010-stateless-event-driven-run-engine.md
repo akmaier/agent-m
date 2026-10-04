@@ -62,7 +62,7 @@ the step depends only on the records.
    holds; two engines computing at once cannot start a slot twice, because the second commit fails its fast-forward and
    recomputes on the new head.
 3. **A run is a job** of the kind `run` whose record names its selection, its limits and the participant chosen for
-   each role, and at its end every job it started; each of those jobs names the run.
+   each role, and every job it started, each added as it starts; each of those jobs names the run.
 4. **The plan follows the workflow** (`MOD-run-engine.runPlan`): the CI job first when the product has no CI
    configuration; from the first phase that produces `MOD`, one implementation job per selected module — after the
    modules whose interfaces it uses (`MOD-run-engine.moduleOrder`; a cycle is refused before the run starts, naming its
@@ -71,12 +71,13 @@ the step depends only on the records.
    that produces neither. Every job goes to the participant chosen for its role, who must hold it. A job meets the
    gates leaving its phase before its merge; the gates into a run's phase from a phase without jobs are decided for the
    product, and its jobs wait for them. The run ends with the validation view of its modules (UC-025).
-5. **Triggers — any of three, all equivalent:** a workflow of the product, dispatched by the dashboard's click and by
-   the last step of every Agent M job workflow, runs `nextJobs`, commits the start records, and dispatches the jobs
-   whose participant is a CI agent — no push starts it, so a commit that changes only job records starts no CI run
-   (`A JOB RECORD STARTS NO CI RUN`); the bridge, while running, computes `nextJobs` for the products it serves and
-   takes the queued jobs of its own agents — it connects out, so it works behind NAT; the browser computes it on **Start
-   run** and on each page load, and starts model-endpoint jobs in the tab.
+5. **Triggers — any of three, all equivalent.** On GitHub, the product's engine workflow `agent-m-engine.yml` (ARC-015)
+   is dispatched — by the last step of a job's run that belongs to a run, by a click a run waits for
+   (`MOD-main-page.engineOnCi`), and by itself when its commit finds the default branch moved on —, never by a push, so
+   a commit that changes only job records starts no CI run (`A JOB RECORD STARTS NO CI RUN`); it takes the next step of
+   every open run and dispatches the jobs whose participant is a CI agent (`MOD-ci-entry.engine`). The bridge, while
+   running, takes the steps of the products it serves and the queued jobs of its own agents — it connects out, so it
+   works behind NAT; the browser computes the first jobs on **Start run**, and starts model-endpoint jobs in the tab.
 6. **Limits are inputs, not state.** A run starts no job beyond its jobs-at-once limit; it stops starting jobs when the
    costs its jobs' runtimes reported reach its cost limit, or a job reached its correction-round limit, and says which.
 7. **State and cost are derived** (`MOD-run-engine.jobState`, `MOD-run-engine.jobCost`): the end state a record holds;
@@ -89,6 +90,14 @@ the step depends only on the records.
    state, each newest first (`MOD-run-engine.jobList`).
 8. **A sprint's close starts by itself** when its closer is not a person, the sprint has ended, and no close record
    exists (`MOD-run-engine.closeDue`).
+9. **A step of a run** (`MOD-run-engine.advance`), the same in every runtime: from the run's snapshot read as the main
+   page reads the product (`MOD-process-views.runSnapshot`) and its next jobs, the start records of the jobs it starts —
+   each with where it runs and its model, from its participant (`MOD-job-runner.runtimeOf`); a slot whose participant no
+   runtime serves, a person's, waits, named — and the run's record listing every job it started, each added as it starts
+   — a retry a click started among them —, with one more state where its state or its reason changed: *running* while a
+   job of it is queued or running or one starts, with the limit that stopped it; *waiting at a gate*, with every reason,
+   when nothing runs and nothing can start — a gate a person decides, a failed job awaiting its retry, a limit —; *done*
+   once every slot of its plan is done. A run's record begins *running*: the click that starts it starts its first jobs.
 
 ```mermaid
 sequenceDiagram
@@ -102,15 +111,16 @@ sequenceDiagram
     D->>D: runPlan, nextJobs
     D->>R: commit run record + start records (queued)
     D->>W: dispatch, on the same click
-    W->>W: nextJobs — nothing new, or CI jobs
-    W->>R: dispatch CI jobs, commit their start records
+    W->>W: read the product; per open run its snapshot, nextJobs, advance
+    W->>R: commit the step: start records, the run's state where it changed
+    W->>R: dispatch the CI jobs it started
     B->>R: poll: queued jobs for my agents?
     B->>C: run job
     C->>R: branch, tests, code, pull request
     B->>R: append end state (done / failed)
     B->>B: nextJobs — dependants of the finished module
     B->>R: commit next start records
-    Note over W,R: a CI job's last step dispatches W again; a gate decided by a person:<br/>nextJobs names it as waiting, and the click recording the decision dispatches W
+    Note over W,R: a CI job's last step dispatches W again; a gate decided by a person:<br/>the run waits there, and the click recording the decision dispatches W
 ```
 
 ## Alternatives
@@ -154,9 +164,9 @@ sequenceDiagram
   "id": "MOD-run-engine",
   "folder": "src/run-engine/",
   "layer": "kernel",
-  "responsibility": "Everything about a job that is the same in every runtime and needs no runtime: its identifier, its record and the cancel record, its state from the records and what its runtime reports, its cost as reported, one list of every job of every product, the order of modules by their interfaces, the plan of a run, the jobs a run starts next, and whether a sprint's close starts by itself.",
+  "responsibility": "Everything about a job that is the same in every runtime and needs no runtime: its identifier, its record and the cancel record, its state from the records and what its runtime reports, its cost as reported, one list of every job of every product, the order of modules by their interfaces, the plan of a run, the jobs a run starts next, the files of one of its steps, and whether a sprint's close starts by itself.",
   "realises": ["A JOB GOES ONLY TO A HOLDER OF ITS ROLE", "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "A JOB IDENTIFIER IS NEVER REUSED", "ONE DASHBOARD SHOWS EVERY JOB", "NO COST IS GUESSED", "PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION", "A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS", "A RUN FOLLOWS THE MODULES' INTERFACES", "A RUN SETS UP CI BEFORE IT IMPLEMENTS", "A RUN HAS LIMITS FIXED AT ITS START", "A RUN IS A JOB THAT NAMES ITS JOBS", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER", "A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF"],
-  "owns": ["JobStateEntry", "Money", "MoneyOrNone", "Usage", "UsageOrNone", "Limits", "LimitsOrNone", "JobAssignment", "JobRecord", "CancelInput", "CancelRecord", "CancelRecordOrNone", "LiveState", "LiveStateOrNone", "JobStateShown", "Price", "PriceOrNone", "CostShown", "JobEntry", "JobRow", "ModuleUses", "ModuleWaves", "RunInput", "RunSlot", "RunPlan", "RunJob", "RunItem", "GateText", "RunSnapshot", "JobSpec", "NextJobs", "CloseDue", "JobRecordContent", "CancelRecordFields", "JobRecordFile", "CancelRecordFile"],
+  "owns": ["JobStateEntry", "Money", "MoneyOrNone", "Usage", "UsageOrNone", "Limits", "LimitsOrNone", "JobAssignment", "JobRecord", "CancelInput", "CancelRecord", "CancelRecordOrNone", "LiveState", "LiveStateOrNone", "JobStateShown", "Price", "PriceOrNone", "CostShown", "JobEntry", "JobRow", "ModuleUses", "ModuleWaves", "RunInput", "RunSlot", "RunPlan", "RunJob", "RunItem", "GateText", "RunSnapshot", "JobSpec", "NextJobs", "RunStart", "AdvanceInput", "JobStateEntryOrNone", "Advance", "CloseDue", "JobRecordContent", "CancelRecordFields", "JobRecordFile", "CancelRecordFile"],
   "uses": ["MOD-contracts", "MOD-process-model", "MOD-work-items"]
 }
 ```
@@ -3107,6 +3117,708 @@ sequenceDiagram
 
 ```json interface
 {
+  "id": "MOD-run-engine.advance",
+  "summary": "What a runtime writes for one step of a run: the start records of the jobs it starts — each with an identifier from a draw that no job of the product holds, naming the run and its slot, queued —, and the run's record listing every job it started, each added as it starts — a retry a click started among them —, with one more state where its state or its reason changed: running while a job of it is queued or running or one starts, with the limit that stopped it; waiting at a gate, with every reason, when nothing runs and nothing can start; done once every slot of its plan is done.",
+  "params": [{ "name": "input", "type": "AdvanceInput" }],
+  "result": "Advance",
+  "async": false,
+  "refusals": [
+    { "code": "not-a-run", "when": "the record is not a run's" },
+    { "code": "ended", "when": "the run has ended" },
+    { "code": "no-identifier", "when": "the draws give no free identifier for every job to start" },
+    { "code": "unchanged", "when": "no job starts and the run's state and reason stay as recorded" }
+  ],
+  "examples": [
+    {
+      "name": "MOD-b starts after MOD-a",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": {
+            "start": [
+              {
+                "slot": "Implementation/MOD-b",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "run": "JOB-20261010-0900-0a0a",
+                "item": "",
+                "modules": ["MOD-b"]
+              }
+            ],
+            "waiting": [],
+            "done": false,
+            "stop": ""
+          },
+          "start": [
+            {
+              "slot": "Implementation/MOD-b",
+              "kind": "implement",
+              "phase": "Implementation",
+              "role": "Developers",
+              "participant": "cli-dev",
+              "run": "JOB-20261010-0900-0a0a",
+              "item": "",
+              "modules": ["MOD-b"],
+              "runtime": "bridge",
+              "model": "claude-opus-5-5"
+            }
+          ],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261010-1045-7a7a.md", "text": "---\nid: JOB-20261010-1045-7a7a\nkind: implement\nphase: Implementation\nrole: Developers\nparticipant: cli-dev\nruntime: bridge\nrun: JOB-20261010-0900-0a0a\nslot: Implementation/MOD-b\nitem:\nmodules:\n  - MOD-b\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel: claude-opus-5-5\nlog:\n---\n\n# JOB-20261010-1045-7a7a\n\n**REGISTER**\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T10:45:00Z | queued | — |\n" },
+          { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n- JOB-20261010-1045-7a7a\n" }
+        ],
+        "started": ["JOB-20261010-1045-7a7a"],
+        "state": null,
+        "message": "run JOB-20261010-0900-0a0a starts JOB-20261010-1045-7a7a"
+      }
+    },
+    {
+      "name": "the design gate waits for a person",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": {
+            "start": [],
+            "waiting": ["Implementation/MOD-a: Design → Implementation waits for alice", "Implementation/MOD-d: Design → Implementation waits for alice"],
+            "done": false,
+            "stop": ""
+          },
+          "start": [],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n| 2026-10-10T10:45:00Z | waiting-at-gate | Implementation/MOD-a: Design → Implementation waits for alice; Implementation/MOD-d: Design → Implementation waits for alice |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n" }
+        ],
+        "started": [],
+        "state": { "at": "2026-10-10T10:45:00Z", "state": "waiting-at-gate", "note": "Implementation/MOD-a: Design → Implementation waits for alice; Implementation/MOD-d: Design → Implementation waits for alice" },
+        "message": "run JOB-20261010-0900-0a0a is waiting at a gate"
+      }
+    },
+    {
+      "name": "the cost limit reached while a job runs",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": {
+            "start": [],
+            "waiting": [],
+            "done": false,
+            "stop": "the cost limit of 20 USD is reached: 21 USD reported"
+          },
+          "start": [],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            {
+              "id": "JOB-20261010-1100-3d3d",
+              "slot": "Implementation/MOD-b",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T11:00:00Z",
+              "state": "done",
+              "cost": { "amount": 17, "currency": "USD" },
+              "rounds": 2
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-1100-3d3d", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n| 2026-10-10T10:45:00Z | running | the cost limit of 20 USD is reached: 21 USD reported |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n- JOB-20261010-1100-3d3d\n" }
+        ],
+        "started": [],
+        "state": { "at": "2026-10-10T10:45:00Z", "state": "running", "note": "the cost limit of 20 USD is reached: 21 USD reported" },
+        "message": "run JOB-20261010-0900-0a0a is running"
+      }
+    },
+    {
+      "name": "a slot no runtime serves",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": {
+            "start": [
+              {
+                "slot": "Implementation/MOD-b",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "run": "JOB-20261010-0900-0a0a",
+                "item": "",
+                "modules": ["MOD-b"]
+              }
+            ],
+            "waiting": [],
+            "done": false,
+            "stop": ""
+          },
+          "start": [],
+          "held": ["Implementation/MOD-b: alice is a person; a person's work is no job a runtime carries out"],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "done", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n| 2026-10-10T10:45:00Z | waiting-at-gate | Implementation/MOD-b: alice is a person; a person's work is no job a runtime carries out |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n" }
+        ],
+        "started": [],
+        "state": { "at": "2026-10-10T10:45:00Z", "state": "waiting-at-gate", "note": "Implementation/MOD-b: alice is a person; a person's work is no job a runtime carries out" },
+        "message": "run JOB-20261010-0900-0a0a is waiting at a gate"
+      }
+    },
+    {
+      "name": "a retry a click started",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": { "start": [], "waiting": [], "done": false, "stop": "" },
+          "start": [],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "failed", "cost": null, "rounds": 0 },
+            { "id": "JOB-20261010-1030-9c9c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T10:30:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c", "JOB-20261010-1030-9c9c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n- JOB-20261010-1030-9c9c\n" }
+        ],
+        "started": [],
+        "state": null,
+        "message": "run JOB-20261010-0900-0a0a names JOB-20261010-1030-9c9c"
+      }
+    },
+    {
+      "name": "every slot done",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0900-aaaa", "JOB-20261010-1000-bbbb", "JOB-20261010-1100-cccc", "JOB-20261010-1200-dddd", "JOB-20261010-1300-eeee", "JOB-20261011-1400-ffff"]
+          },
+          "next": { "start": [], "waiting": [], "done": true, "stop": "" },
+          "start": [],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0900-aaaa", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:00:00Z", "state": "done", "cost": null, "rounds": 0 },
+            { "id": "JOB-20261010-1000-bbbb", "slot": "Implementation/MOD-a", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:00:00Z", "state": "done", "cost": null, "rounds": 0 },
+            { "id": "JOB-20261010-1100-cccc", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:00:00Z", "state": "done", "cost": null, "rounds": 0 },
+            { "id": "JOB-20261010-1200-dddd", "slot": "Implementation/MOD-b", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:00:00Z", "state": "done", "cost": null, "rounds": 0 },
+            { "id": "JOB-20261010-1300-eeee", "slot": "Implementation/MOD-c", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:00:00Z", "state": "done", "cost": null, "rounds": 0 },
+            { "id": "JOB-20261011-1400-ffff", "slot": "Testing/selection", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:00:00Z", "state": "done", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0900-aaaa", "JOB-20261010-1000-bbbb", "JOB-20261010-1100-cccc", "JOB-20261010-1200-dddd", "JOB-20261010-1300-eeee", "JOB-20261011-1400-ffff"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n| 2026-10-10T10:45:00Z | done | every slot of its plan is done |\n\n## Cost\n\n| Rounds | Cost | Input tokens | Output tokens | Minutes |\n|---|---|---|---|---|\n| 0 | — | — | — | — |\n\n## Jobs\n\n- JOB-20261010-0900-aaaa\n- JOB-20261010-1000-bbbb\n- JOB-20261010-1100-cccc\n- JOB-20261010-1200-dddd\n- JOB-20261010-1300-eeee\n- JOB-20261011-1400-ffff\n" }
+        ],
+        "started": [],
+        "state": { "at": "2026-10-10T10:45:00Z", "state": "done", "note": "every slot of its plan is done" },
+        "message": "run JOB-20261010-0900-0a0a is done"
+      }
+    },
+    {
+      "name": "nothing changed",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": { "start": [], "waiting": [], "done": false, "stop": "" },
+          "start": [],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "refused": "unchanged"
+    },
+    {
+      "name": "a run that ended",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [
+              { "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" },
+              { "at": "2026-10-11T16:20:00Z", "state": "done", "note": "" }
+            ],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c", "JOB-20261010-1100-3d3d", "JOB-20261010-1300-4e4e", "JOB-20261011-0900-5e5e"]
+          },
+          "next": {
+            "start": [
+              {
+                "slot": "Implementation/MOD-b",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "run": "JOB-20261010-0900-0a0a",
+                "item": "",
+                "modules": ["MOD-b"]
+              }
+            ],
+            "waiting": [],
+            "done": false,
+            "stop": ""
+          },
+          "start": [
+            {
+              "slot": "Implementation/MOD-b",
+              "kind": "implement",
+              "phase": "Implementation",
+              "role": "Developers",
+              "participant": "cli-dev",
+              "run": "JOB-20261010-0900-0a0a",
+              "item": "",
+              "modules": ["MOD-b"],
+              "runtime": "bridge",
+              "model": "claude-opus-5-5"
+            }
+          ],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"],
+          "draws": ["7a7a", "8b8b"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "refused": "ended"
+    },
+    {
+      "name": "every draw taken",
+      "input": {
+        "input": {
+          "run": {
+            "id": "JOB-20261010-0900-0a0a",
+            "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+            "kind": "run",
+            "phase": "",
+            "role": "",
+            "participant": "alice",
+            "runtime": "browser",
+            "run": "",
+            "slot": "",
+            "item": "",
+            "modules": [],
+            "inputs": [],
+            "retryOf": "",
+            "agentM": "2026.10.1",
+            "model": "",
+            "log": "",
+            "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+            "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+            "assignments": [
+              { "role": "Developers", "participant": "cli-dev" },
+              { "role": "Tester", "participant": "ci-dev" }
+            ],
+            "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+            "results": [],
+            "rounds": 0,
+            "cost": null,
+            "usage": null,
+            "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+          },
+          "next": {
+            "start": [
+              {
+                "slot": "Implementation/MOD-b",
+                "kind": "implement",
+                "phase": "Implementation",
+                "role": "Developers",
+                "participant": "cli-dev",
+                "run": "JOB-20261010-0900-0a0a",
+                "item": "",
+                "modules": ["MOD-b"]
+              }
+            ],
+            "waiting": [],
+            "done": false,
+            "stop": ""
+          },
+          "start": [
+            {
+              "slot": "Implementation/MOD-b",
+              "kind": "implement",
+              "phase": "Implementation",
+              "role": "Developers",
+              "participant": "cli-dev",
+              "run": "JOB-20261010-0900-0a0a",
+              "item": "",
+              "modules": ["MOD-b"],
+              "runtime": "bridge",
+              "model": "claude-opus-5-5"
+            }
+          ],
+          "held": [],
+          "jobs": [
+            { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 },
+            {
+              "id": "JOB-20261010-0915-1b1b",
+              "slot": "Implementation/MOD-a",
+              "run": "JOB-20261010-0900-0a0a",
+              "participant": "cli-dev",
+              "started": "2026-10-10T09:15:00Z",
+              "state": "done",
+              "cost": { "amount": 4, "currency": "USD" },
+              "rounds": 1
+            },
+            { "id": "JOB-20261010-0916-2c2c", "slot": "Implementation/MOD-d", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:16:00Z", "state": "running", "cost": null, "rounds": 0 }
+          ],
+          "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c", "JOB-20261010-1045-0c0c"],
+          "draws": ["0c0c"],
+          "now": "2026-10-10T10:45:00Z",
+          "agentM": "2026.10.1"
+        }
+      },
+      "refused": "no-identifier"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-run-engine.closeDue",
   "summary": "Whether the close of a sprint starts by itself: its closer is not a person, the sprint has ended, and no close record exists.",
   "params": [
@@ -4120,6 +4832,147 @@ sequenceDiagram
       "waiting": ["Implementation/MOD-a: Design → Implementation waits for alice", "Implementation/MOD-d: Design → Implementation waits for alice"],
       "done": false,
       "stop": ""
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "RunStart",
+  "description": "A job a step of a run starts: its slot, kind, phase, role, participant and run, the item and modules it works on, where it runs and the model it names.",
+  "type": "object",
+  "required": ["slot", "kind", "phase", "role", "participant", "run", "item", "modules", "runtime", "model"],
+  "additionalProperties": false,
+  "properties": {
+    "slot": { "type": "string" },
+    "kind": { "type": "string" },
+    "phase": { "type": "string" },
+    "role": { "type": "string" },
+    "participant": { "type": "string" },
+    "run": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "item": { "type": "string" },
+    "modules": { "type": "array", "items": { "type": "string" } },
+    "runtime": { "type": "string", "enum": ["browser", "ci", "bridge"] },
+    "model": { "type": "string" }
+  },
+  "examples": [
+    {
+      "slot": "Implementation/MOD-b",
+      "kind": "implement",
+      "phase": "Implementation",
+      "role": "Developers",
+      "participant": "cli-dev",
+      "run": "JOB-20261010-0900-0a0a",
+      "item": "",
+      "modules": ["MOD-b"],
+      "runtime": "bridge",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AdvanceInput",
+  "description": "What one step of a run is written from: the run's record, its next jobs, the jobs it starts with where each runs, why a slot whose participant no runtime serves waits, the run's jobs as the engine read them, every job identifier the product holds, random draws for new identifiers, the time and the Agent M version.",
+  "type": "object",
+  "required": ["run", "next", "start", "held", "jobs", "taken", "draws", "now", "agentM"],
+  "additionalProperties": false,
+  "properties": {
+    "run": { "$ref": "JobRecord" },
+    "next": { "$ref": "NextJobs" },
+    "start": { "type": "array", "items": { "$ref": "RunStart" } },
+    "held": { "type": "array", "items": { "type": "string" } },
+    "jobs": { "type": "array", "items": { "$ref": "RunJob" } },
+    "taken": { "type": "array", "items": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" } },
+    "draws": { "type": "array", "items": { "type": "string", "pattern": "^[0-9a-f]{4}" } },
+    "now": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "agentM": { "type": "string" }
+  },
+  "examples": [
+    {
+      "run": {
+        "id": "JOB-20261010-0900-0a0a",
+        "path": "docs/jobs/JOB-20261010-0900-0a0a.md",
+        "kind": "run",
+        "phase": "",
+        "role": "",
+        "participant": "alice",
+        "runtime": "browser",
+        "run": "",
+        "slot": "",
+        "item": "",
+        "modules": [],
+        "inputs": [],
+        "retryOf": "",
+        "agentM": "2026.10.1",
+        "model": "",
+        "log": "",
+        "selection": ["MOD-a", "MOD-b", "MOD-c", "MOD-d"],
+        "limits": { "jobsAtOnce": 3, "cost": { "amount": 20, "currency": "USD" }, "rounds": 5 },
+        "assignments": [
+          { "role": "Developers", "participant": "cli-dev" },
+          { "role": "Tester", "participant": "ci-dev" }
+        ],
+        "states": [{ "at": "2026-10-10T09:00:00Z", "state": "running", "note": "" }],
+        "results": [],
+        "rounds": 0,
+        "cost": null,
+        "usage": null,
+        "jobs": ["JOB-20261010-0905-0c0c", "JOB-20261010-0915-1b1b", "JOB-20261010-0916-2c2c"]
+      },
+      "next": {
+        "start": [],
+        "waiting": ["Implementation/MOD-a: Design → Implementation waits for alice", "Implementation/MOD-d: Design → Implementation waits for alice"],
+        "done": false,
+        "stop": ""
+      },
+      "start": [],
+      "held": [],
+      "jobs": [
+        { "id": "JOB-20261010-0905-0c0c", "slot": "configure-ci", "run": "JOB-20261010-0900-0a0a", "participant": "cli-dev", "started": "2026-10-10T09:05:00Z", "state": "done", "cost": null, "rounds": 0 }
+      ],
+      "taken": ["JOB-20261010-0900-0a0a", "JOB-20261010-0905-0c0c"],
+      "draws": ["7a7a", "8b8b"],
+      "now": "2026-10-10T10:45:00Z",
+      "agentM": "2026.10.1"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "JobStateEntryOrNone",
+  "description": "A state a run's record gains, or null where it stays as recorded.",
+  "anyOf": [{ "$ref": "JobStateEntry" }, { "type": "null" }],
+  "examples": [null]
+}
+```
+
+```json type
+{
+  "$id": "Advance",
+  "description": "One step of a run: the files to commit, the jobs it starts, the state the run's record gains — null where it stays — and the commit message.",
+  "type": "object",
+  "required": ["files", "started", "state", "message"],
+  "additionalProperties": false,
+  "properties": {
+    "files": { "type": "array", "items": { "$ref": "FileText" } },
+    "started": { "type": "array", "items": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" } },
+    "state": { "$ref": "JobStateEntryOrNone" },
+    "message": { "type": "string", "minLength": 1 }
+  },
+  "examples": [
+    {
+      "files": [
+        { "path": "docs/jobs/JOB-20261010-0900-0a0a.md", "text": "---\nid: JOB-20261010-0900-0a0a\nkind: run\nphase:\nrole:\nparticipant: alice\nruntime: browser\nrun:\nslot:\nitem:\nmodules: []\ninputs: []\nretry_of:\nagent_m: 2026.10.1\nmodel:\nlog:\n---\n\n# JOB-20261010-0900-0a0a\n\n**REGISTER**\n\n## Selection\n\n- MOD-a\n- MOD-b\n- MOD-c\n- MOD-d\n\n## Limits\n\n| Jobs at once | Cost | Rounds |\n|---|---|---|\n| 3 | 20 USD | 5 |\n\n## Assignments\n\n| Role | Participant |\n|---|---|\n| Developers | cli-dev |\n| Tester | ci-dev |\n\n## States\n\n| At | State | Note |\n|---|---|---|\n| 2026-10-10T09:00:00Z | running | — |\n| 2026-10-10T10:45:00Z | waiting-at-gate | Implementation/MOD-a: Design → Implementation waits for alice; Implementation/MOD-d: Design → Implementation waits for alice |\n\n## Jobs\n\n- JOB-20261010-0905-0c0c\n- JOB-20261010-0915-1b1b\n- JOB-20261010-0916-2c2c\n" }
+      ],
+      "started": [],
+      "state": { "at": "2026-10-10T10:45:00Z", "state": "waiting-at-gate", "note": "Implementation/MOD-a: Design → Implementation waits for alice; Implementation/MOD-d: Design → Implementation waits for alice" },
+      "message": "run JOB-20261010-0900-0a0a is waiting at a gate"
     }
   ]
 }
