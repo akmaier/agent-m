@@ -24,6 +24,7 @@ forced_by:
   - UC-017
   - UC-031
   - UC-042
+  - UC-044
 keeps:
   - A STORED SECRET IS HIDDEN UNTIL SHOWN
   - AN EXPORT STATES THAT IT CONTAINS SECRETS
@@ -64,13 +65,15 @@ repositories by `MOD-git-host`; what the configuration pages compute and save is
    which account it acts as, and a refused one gives the page where it is renewed (ARC-004); an endpoint the browser
    calls answers the short test request, or the test names why not and what works instead (ARC-009); the bridge on this
    computer greets with its version, the origin it is paired with and the agents it found, or the test names its refusal
-   and what works instead (ARC-012). The bridge's form presets the address of a bridge on this computer
-   (`MOD-bridge-server.defaultAddress`), so that pairing is the token pasted and **Pair**. The result is kept
-   with the setting (`MOD-settings-store.recordTest`). Storing a value and **Clear** change the entries through the store
-   and write them at once (ARC-005). **Clear** asks for one confirmation that says what no longer works in this browser
-   without the setting — a text the page holds for each kind of setting, chosen by the line's `setting`, as for an export
-   (decision 7); for the bridge: mail on the IMAP route, local agents and compute resources (UC-042 2a). After the clear
-   the page reads the entries again and shows the line as not set.
+   and what works instead (ARC-012). A test's result is kept with the setting (`MOD-settings-store.recordTest`). The
+   bridge's form presets the address of a bridge on this computer (`MOD-bridge-server.defaultAddress`), so that pairing is
+   the token pasted and **Pair**. Storing a value and **Clear** change the entries through the store and write them at
+   once (ARC-005). **Clear** asks for one confirmation that says what no longer works in this browser without the
+   setting — a text the page holds for each kind of setting, chosen by the line's `setting`, as for an export (decision
+   7); for the bridge: mail on the IMAP route, local agents and compute resources (UC-042 2a). After the clear the page
+   reads the entries again and shows the line as not set. Under the bridge's line, *Get the Agent M Bridge* offers the
+   bridge's files for this browser (ARC-017 decision 7): the page reads the latest release (`MOD-git-host.latestRelease`)
+   and shows what `MOD-bridge-feed.downloadFor` offers, in HTML of its own.
 6. **A repository setting is saved as one commit on a click** (`MOD-settings-page.saveConfig`): the head read, the file
    planned on it by `MOD-process-config.planConfig` with the repository's visibility, and written in one commit on that
    head; a product's settings are saved in the product's repository, never only in the browser.
@@ -527,7 +530,7 @@ flowchart LR
   "responsibility": "The page settings.html at the root of the instance's Pages site, where every setting is reached: it routes, reads what the instance and its products keep, tests a setting of this browser with that setting alone, saves the configuration as one commit on a click, keeps and clears the browser's settings through the settings store, and holds every text the page shows.",
   "realises": ["A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY"],
   "owns": ["SettingsRoute", "SettingTest"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views"]
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views", "MOD-bridge-feed"]
 }
 ```
 

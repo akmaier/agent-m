@@ -60,8 +60,11 @@ double-clicking it, and copying one token. Nobody types a command.
 ## Main flow
 
 1. On the dashboard, the person opens **Settings → This computer → Get the Agent M Bridge**. The page
-   explains the two levels with the table above, recognises the operating system, and offers the one file
-   for it — on Windows an installer —, signed by the publisher of the release, with its size and checksum.
+   explains the two levels with the table above, recognises the operating system — and the processor, where the
+   browser tells it —, and offers the one file for it — on Windows an installer —, signed by the publisher of the
+   release, with its size and checksum. Where the browser does not tell the processor, the page offers the file of
+   each processor of that system, each named by the processor it is for, and says how to tell which one this computer
+   has; the person still downloads one.
 2. The person downloads the file and double-clicks it; on Windows the installer puts the app in place
    first. The system shows the publisher's name, because the file is signed (and, on macOS, notarised). On
    Windows, SmartScreen may still warn about a newly signed release until it has been downloaded often

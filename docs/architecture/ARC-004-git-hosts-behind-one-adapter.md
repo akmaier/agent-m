@@ -29,6 +29,7 @@ forced_by:
   - UC-024
   - UC-035
   - UC-013
+  - UC-044
   - UC-036
   - UC-041
 keeps:
@@ -46,7 +47,9 @@ different causes — a token that has expired, a permission it lacks, a rate lim
 
 ## Decision
 
-1. **One adapter speaks to git servers**, `MOD-git-host`; no other module sends a request to one. It receives the fetch
+1. **One adapter speaks to git servers**, `MOD-git-host`; no other module sends a request to one but the bridge's shell, which
+   sends the one request whose answer is a release file's bytes — the fetch port carries text —, built here
+   (`MOD-git-host.assetRequest`), its answer read here (`MOD-git-host.assetAnswer`). It receives the fetch
    port of ARC-003 and the token to send, and refuses where the server refuses, by code: `token-refused` (401),
    `rate-limited-account` and `rate-limited-network` (a used-up limit, its reset time in the reason where the server
    names it), `no-access` (another 403), `not-found`, `moved` (a write the branch has outrun) and `server-error`.
@@ -78,7 +81,16 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    touching it (`MOD-git-host.pathHistory`): a page learns from one scan per folder when each file entered the
    repository, and every identifier the history holds, so that one withdrawn from the files is not given again
    (ARC-024). The account a token acts as is read from the server — on GitLab the user name of the project token's
-   bot —, so that what a person writes is filed under their account.
+   bot —, so that what a person writes is filed under their account. A GitHub repository's newest published release —
+   "the most recent non-prerelease, non-draft release" (`https://docs.github.com/en/rest/releases/releases`) — is read
+   with its notes and its files, each with its id, size, digest and download address (`MOD-git-host.latestRelease`); a
+   file's text is read through the API's address of the file with `Accept: application/octet-stream`, which "will either
+   redirect the client to the location, or stream it directly" (`https://docs.github.com/en/rest/releases/assets`)
+   (`MOD-git-host.releaseText`); for a file's bytes the adapter gives the same request, which a shell whose fetch writes
+   bytes to a file sends, since the fetch port carries text (`MOD-git-host.assetRequest`); that shell's answer, its status
+   and headers, is read as every answer is, `unreachable` where none arrived (`MOD-git-host.assetAnswer`). GitLab
+   releases are not read:
+   the releases read are Agent M's own, of its bridge (ARC-017).
 8. **The server's own pages.** Without a token, GitHub's new-file page is opened with a record as its prefilled value —
    at most 1 000 characters, so that no reviewed text travels in a URL — and its editor for any other text; a GitLab
    product has no such page and needs its project token. The page of a token, the page of a file, the page of a branch
@@ -187,7 +199,12 @@ flowchart LR
     "BranchProtection",
     "Permission",
     "GitLabPermission",
-    "Permissions"
+    "Permissions",
+    "Release",
+    "ReleaseAsset",
+    "AssetRequest",
+    "AssetAnswer",
+    "AssetReceived"
   ],
   "uses": ["MOD-contracts"]
 }
@@ -4145,6 +4162,504 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-git-host.latestRelease",
+  "summary": "The newest published release of a GitHub repository — no draft, no pre-release —, its notes and its files, each with its id, name, size, digest and download address; GitLab releases are not read.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "Release",
+  "async": true,
+  "refusals": [
+    { "code": "not-on-github", "when": "the product is a GitLab project" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "Agent M's bridge, without a token",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "token": "",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/publisher/agent-m/releases/latest" },
+            "response": {
+              "status": 200,
+              "headers": { "content-type": "application/json" },
+              "body": {
+                "tag_name": "v2026.11.0",
+                "html_url": "https://github.com/publisher/agent-m/releases/tag/v2026.11.0",
+                "body": "A job's log is read from a cursor.\n",
+                "draft": false,
+                "prerelease": false,
+                "assets": [
+                  {
+                    "id": 9100,
+                    "name": "agent-m-bridge-2026.11.0-macos-arm64.dmg",
+                    "size": 41872309,
+                    "digest": "sha256:8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768",
+                    "browser_download_url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-arm64.dmg"
+                  },
+                  {
+                    "id": 9101,
+                    "name": "agent-m-bridge-2026.11.0-macos-x64.dmg",
+                    "size": 43105877,
+                    "digest": "sha256:4e57e1c020d47847c70432b44a45ff53bba25328edd9730bba181dc1d9f4f08b",
+                    "browser_download_url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-x64.dmg"
+                  },
+                  {
+                    "id": 9102,
+                    "name": "agent-m-bridge-2026.11.0-windows-x64.msi",
+                    "size": 38664192,
+                    "digest": "sha256:e875cc9d5c1b53bd1062ffc4ebde16b865dda3414b4dc00e04904c2ac321c2ad",
+                    "browser_download_url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-windows-x64.msi"
+                  },
+                  {
+                    "id": 9103,
+                    "name": "agent-m-bridge-2026.11.0-linux-x64.AppImage",
+                    "size": 45210624,
+                    "digest": "sha256:20ce8823b99481aeecd7ce192ccd6573f9c937c76b9c13b3126493e81cb8a569",
+                    "browser_download_url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-linux-x64.AppImage"
+                  },
+                  {
+                    "id": 9104,
+                    "name": "agent-m-bridge-2026.11.0-linux-arm64.AppImage",
+                    "size": 44032000,
+                    "digest": "sha256:2cd420851083cd318bb4503c0983656da2e5ad64286c89e36735128909997388",
+                    "browser_download_url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-linux-arm64.AppImage"
+                  },
+                  {
+                    "id": 9105,
+                    "name": "bridge-feed.json",
+                    "size": 1161,
+                    "digest": "sha256:7d198fa20a1ad8c40d2a137ab28d6f3f3c9c16999c38eaae7e5e28cdf4af15d3",
+                    "browser_download_url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/bridge-feed.json"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "tag": "v2026.11.0",
+        "url": "https://github.com/publisher/agent-m/releases/tag/v2026.11.0",
+        "notes": "A job's log is read from a cursor.\n",
+        "assets": [
+          {
+            "id": 9100,
+            "name": "agent-m-bridge-2026.11.0-macos-arm64.dmg",
+            "size": 41872309,
+            "digest": "sha256:8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768",
+            "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-arm64.dmg"
+          },
+          {
+            "id": 9101,
+            "name": "agent-m-bridge-2026.11.0-macos-x64.dmg",
+            "size": 43105877,
+            "digest": "sha256:4e57e1c020d47847c70432b44a45ff53bba25328edd9730bba181dc1d9f4f08b",
+            "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-x64.dmg"
+          },
+          {
+            "id": 9102,
+            "name": "agent-m-bridge-2026.11.0-windows-x64.msi",
+            "size": 38664192,
+            "digest": "sha256:e875cc9d5c1b53bd1062ffc4ebde16b865dda3414b4dc00e04904c2ac321c2ad",
+            "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-windows-x64.msi"
+          },
+          {
+            "id": 9103,
+            "name": "agent-m-bridge-2026.11.0-linux-x64.AppImage",
+            "size": 45210624,
+            "digest": "sha256:20ce8823b99481aeecd7ce192ccd6573f9c937c76b9c13b3126493e81cb8a569",
+            "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-linux-x64.AppImage"
+          },
+          {
+            "id": 9104,
+            "name": "agent-m-bridge-2026.11.0-linux-arm64.AppImage",
+            "size": 44032000,
+            "digest": "sha256:2cd420851083cd318bb4503c0983656da2e5ad64286c89e36735128909997388",
+            "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-linux-arm64.AppImage"
+          },
+          {
+            "id": 9105,
+            "name": "bridge-feed.json",
+            "size": 1161,
+            "digest": "sha256:7d198fa20a1ad8c40d2a137ab28d6f3f3c9c16999c38eaae7e5e28cdf4af15d3",
+            "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/bridge-feed.json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "no release yet",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "token": "",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/publisher/agent-m/releases/latest" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "refused": "not-found"
+    },
+    {
+      "name": "a GitLab project",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "token": "glpat-example",
+        "fetch": []
+      },
+      "refused": "not-on-github"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.releaseText",
+  "summary": "The text of a release's file, read through the API's address of the file with Accept: application/octet-stream — the API answers with the file or redirects to it.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "asset", "type": "ReleaseAsset" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "string",
+  "async": true,
+  "refusals": [
+    { "code": "not-on-github", "when": "the product is a GitLab project" },
+    { "code": "not-an-asset", "when": "the release file names no id" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "the signed feed of the bridge",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "asset": {
+          "id": 9105,
+          "name": "bridge-feed.json",
+          "size": 1161,
+          "digest": "sha256:7d198fa20a1ad8c40d2a137ab28d6f3f3c9c16999c38eaae7e5e28cdf4af15d3",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/bridge-feed.json"
+        },
+        "token": "",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/publisher/agent-m/releases/assets/9105"
+            },
+            "response": {
+              "status": 200,
+              "headers": { "content-type": "application/octet-stream" },
+              "body": "{\"signed\":\"{\\\"version\\\":\\\"2026.11.0\\\",\\\"date\\\":\\\"2026-11-03\\\",\\\"protocol\\\":1,\\\"files\\\":[{\\\"target\\\":\\\"aarch64-apple-darwin\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-macos-arm64.dmg\\\",\\\"size\\\":41872309,\\\"sha256\\\":\\\"8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768\\\"},{\\\"target\\\":\\\"x86_64-apple-darwin\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-macos-x64.dmg\\\",\\\"size\\\":43105877,\\\"sha256\\\":\\\"4e57e1c020d47847c70432b44a45ff53bba25328edd9730bba181dc1d9f4f08b\\\"},{\\\"target\\\":\\\"x86_64-pc-windows-msvc\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-windows-x64.msi\\\",\\\"size\\\":38664192,\\\"sha256\\\":\\\"e875cc9d5c1b53bd1062ffc4ebde16b865dda3414b4dc00e04904c2ac321c2ad\\\"},{\\\"target\\\":\\\"x86_64-unknown-linux-gnu\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-linux-x64.AppImage\\\",\\\"size\\\":45210624,\\\"sha256\\\":\\\"20ce8823b99481aeecd7ce192ccd6573f9c937c76b9c13b3126493e81cb8a569\\\"},{\\\"target\\\":\\\"aarch64-unknown-linux-gnu\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-linux-arm64.AppImage\\\",\\\"size\\\":44032000,\\\"sha256\\\":\\\"2cd420851083cd318bb4503c0983656da2e5ad64286c89e36735128909997388\\\"}]}\",\"signature\":\"mKOvstkVkOt3BDelUurHWCwUTiXuzktTv/lR3uhxu5JSYXgpqrIdfaUEDLe6YVXQp0Eit+3tgp5woiDJ+D3TDg==\"}\n"
+            }
+          }
+        ]
+      },
+      "result": "{\"signed\":\"{\\\"version\\\":\\\"2026.11.0\\\",\\\"date\\\":\\\"2026-11-03\\\",\\\"protocol\\\":1,\\\"files\\\":[{\\\"target\\\":\\\"aarch64-apple-darwin\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-macos-arm64.dmg\\\",\\\"size\\\":41872309,\\\"sha256\\\":\\\"8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768\\\"},{\\\"target\\\":\\\"x86_64-apple-darwin\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-macos-x64.dmg\\\",\\\"size\\\":43105877,\\\"sha256\\\":\\\"4e57e1c020d47847c70432b44a45ff53bba25328edd9730bba181dc1d9f4f08b\\\"},{\\\"target\\\":\\\"x86_64-pc-windows-msvc\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-windows-x64.msi\\\",\\\"size\\\":38664192,\\\"sha256\\\":\\\"e875cc9d5c1b53bd1062ffc4ebde16b865dda3414b4dc00e04904c2ac321c2ad\\\"},{\\\"target\\\":\\\"x86_64-unknown-linux-gnu\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-linux-x64.AppImage\\\",\\\"size\\\":45210624,\\\"sha256\\\":\\\"20ce8823b99481aeecd7ce192ccd6573f9c937c76b9c13b3126493e81cb8a569\\\"},{\\\"target\\\":\\\"aarch64-unknown-linux-gnu\\\",\\\"name\\\":\\\"agent-m-bridge-2026.11.0-linux-arm64.AppImage\\\",\\\"size\\\":44032000,\\\"sha256\\\":\\\"2cd420851083cd318bb4503c0983656da2e5ad64286c89e36735128909997388\\\"}]}\",\"signature\":\"mKOvstkVkOt3BDelUurHWCwUTiXuzktTv/lR3uhxu5JSYXgpqrIdfaUEDLe6YVXQp0Eit+3tgp5woiDJ+D3TDg==\"}\n"
+    },
+    {
+      "name": "a file removed meanwhile",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "asset": {
+          "id": 9105,
+          "name": "bridge-feed.json",
+          "size": 1161,
+          "digest": "sha256:7d198fa20a1ad8c40d2a137ab28d6f3f3c9c16999c38eaae7e5e28cdf4af15d3",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/bridge-feed.json"
+        },
+        "token": "",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/publisher/agent-m/releases/assets/9105"
+            },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "refused": "not-found"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.assetRequest",
+  "summary": "The request for a release file's bytes, which a shell whose fetch writes bytes to a file sends — the fetch port carries text: the API's address of the file with Accept: application/octet-stream, and the token's header where one is given.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "asset", "type": "ReleaseAsset" },
+    { "name": "token", "type": "string" }
+  ],
+  "result": "AssetRequest",
+  "async": false,
+  "refusals": [
+    { "code": "not-on-github", "when": "the product is a GitLab project" },
+    { "code": "not-an-asset", "when": "the release file names no id" }
+  ],
+  "examples": [
+    {
+      "name": "the disk image for Apple silicon, without a token",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "asset": {
+          "id": 9100,
+          "name": "agent-m-bridge-2026.11.0-macos-arm64.dmg",
+          "size": 41872309,
+          "digest": "sha256:8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-arm64.dmg"
+        },
+        "token": ""
+      },
+      "result": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/publisher/agent-m/releases/assets/9100",
+        "headers": { "Accept": "application/octet-stream" }
+      }
+    },
+    {
+      "name": "with the person's token",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "asset": {
+          "id": 9100,
+          "name": "agent-m-bridge-2026.11.0-macos-arm64.dmg",
+          "size": 41872309,
+          "digest": "sha256:8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-arm64.dmg"
+        },
+        "token": "github_pat_example"
+      },
+      "result": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/publisher/agent-m/releases/assets/9100",
+        "headers": { "Accept": "application/octet-stream", "Authorization": "Bearer github_pat_example" }
+      }
+    },
+    {
+      "name": "a GitLab project",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "asset": {
+          "id": 9100,
+          "name": "agent-m-bridge-2026.11.0-macos-arm64.dmg",
+          "size": 41872309,
+          "digest": "sha256:8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-arm64.dmg"
+        },
+        "token": "glpat-example"
+      },
+      "refused": "not-on-github"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.assetAnswer",
+  "summary": "The answer to the request assetRequest builds, which the bridge's shell sends because the fetch port carries no bytes: its status and headers read as every answer of a git server is — accepted where the status is 2xx, refused by the same codes otherwise —, and unreachable where no answer arrived.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "answer", "type": "AssetAnswer" },
+    { "name": "token", "type": "string" }
+  ],
+  "result": "AssetReceived",
+  "async": false,
+  "refusals": [
+    { "code": "unreachable", "when": "no answer arrived" },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error" }
+  ],
+  "examples": [
+    {
+      "name": "the disk image arrives",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "answer": { "status": 200, "headers": { "content-type": "application/octet-stream" } },
+        "token": ""
+      },
+      "result": { "status": 200 }
+    },
+    {
+      "name": "a file removed meanwhile",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "answer": { "status": 404, "headers": {} },
+        "token": ""
+      },
+      "refused": "not-found"
+    },
+    {
+      "name": "the network's limit used up",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "answer": {
+          "status": 403,
+          "headers": { "x-ratelimit-limit": "60", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1793000000" }
+        },
+        "token": ""
+      },
+      "refused": "rate-limited-network"
+    },
+    {
+      "name": "a token no longer valid",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "answer": { "status": 401, "headers": {} },
+        "token": "github_pat_example"
+      },
+      "refused": "token-refused"
+    },
+    {
+      "name": "no answer",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/publisher/agent-m",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "publisher/agent-m"
+        },
+        "answer": null,
+        "token": ""
+      },
+      "refused": "unreachable"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-git-host.editUrl",
   "summary": "GitHub's editor for a file, opened when no token is stored; a GitLab product has no editing without its project token.",
   "params": [
@@ -4849,5 +5364,152 @@ flowchart LR
     "gitlab": { "$ref": "GitLabPermission" }
   },
   "examples": [{ "github": [], "gitlab": { "role": "Maintainer", "scope": "api" } }]
+}
+```
+
+```json type
+{
+  "$id": "ReleaseAsset",
+  "description": "A file of a release: its id, its name, its size in bytes, its digest as the server gives it — sha256:<hex>, or empty where it gives none —, and its download address.",
+  "type": "object",
+  "required": ["id", "name", "size", "digest", "url"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "size": { "type": "integer", "minimum": 0 },
+    "digest": { "type": "string", "pattern": "^(sha256:[0-9a-f]{64})?$" },
+    "url": { "type": "string", "pattern": "^https://" }
+  },
+  "examples": [
+    {
+      "id": 9100,
+      "name": "agent-m-bridge-2026.11.0-macos-arm64.dmg",
+      "size": 41872309,
+      "digest": "sha256:8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768",
+      "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-arm64.dmg"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "Release",
+  "description": "A published release: its tag, its page, its notes, and its files.",
+  "type": "object",
+  "required": ["tag", "url", "notes", "assets"],
+  "additionalProperties": false,
+  "properties": {
+    "tag": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "pattern": "^https://" },
+    "notes": { "type": "string" },
+    "assets": { "type": "array", "items": { "$ref": "ReleaseAsset" } }
+  },
+  "examples": [
+    {
+      "tag": "v2026.11.0",
+      "url": "https://github.com/publisher/agent-m/releases/tag/v2026.11.0",
+      "notes": "A job's log is read from a cursor.\n",
+      "assets": [
+        {
+          "id": 9100,
+          "name": "agent-m-bridge-2026.11.0-macos-arm64.dmg",
+          "size": 41872309,
+          "digest": "sha256:8eaca47ad1cfe3de15b9cb7fc43055f4f94a318b2048e2e1343767f48a4c8768",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-arm64.dmg"
+        },
+        {
+          "id": 9101,
+          "name": "agent-m-bridge-2026.11.0-macos-x64.dmg",
+          "size": 43105877,
+          "digest": "sha256:4e57e1c020d47847c70432b44a45ff53bba25328edd9730bba181dc1d9f4f08b",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-macos-x64.dmg"
+        },
+        {
+          "id": 9102,
+          "name": "agent-m-bridge-2026.11.0-windows-x64.msi",
+          "size": 38664192,
+          "digest": "sha256:e875cc9d5c1b53bd1062ffc4ebde16b865dda3414b4dc00e04904c2ac321c2ad",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-windows-x64.msi"
+        },
+        {
+          "id": 9103,
+          "name": "agent-m-bridge-2026.11.0-linux-x64.AppImage",
+          "size": 45210624,
+          "digest": "sha256:20ce8823b99481aeecd7ce192ccd6573f9c937c76b9c13b3126493e81cb8a569",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-linux-x64.AppImage"
+        },
+        {
+          "id": 9104,
+          "name": "agent-m-bridge-2026.11.0-linux-arm64.AppImage",
+          "size": 44032000,
+          "digest": "sha256:2cd420851083cd318bb4503c0983656da2e5ad64286c89e36735128909997388",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/agent-m-bridge-2026.11.0-linux-arm64.AppImage"
+        },
+        {
+          "id": 9105,
+          "name": "bridge-feed.json",
+          "size": 1161,
+          "digest": "sha256:7d198fa20a1ad8c40d2a137ab28d6f3f3c9c16999c38eaae7e5e28cdf4af15d3",
+          "url": "https://github.com/publisher/agent-m/releases/download/v2026.11.0/bridge-feed.json"
+        }
+      ]
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "AssetAnswer",
+  "description": "What the bridge's shell received for a release file: the answer's status and headers, its bytes kept by the shell — or null where no answer arrived.",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": ["status", "headers"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "headers": { "$ref": "HeaderMap" }
+      }
+    },
+    { "type": "null" }
+  ],
+  "examples": [{ "status": 200, "headers": { "content-type": "application/octet-stream" } }, null]
+}
+```
+
+```json type
+{
+  "$id": "AssetReceived",
+  "description": "A release file received: the answer's status.",
+  "type": "object",
+  "required": ["status"],
+  "additionalProperties": false,
+  "properties": { "status": { "type": "integer", "minimum": 200, "maximum": 299 } },
+  "examples": [{ "status": 200 }]
+}
+```
+
+```json type
+{
+  "$id": "AssetRequest",
+  "description": "The request for a release file's bytes: GET, the API's address of the file, and its headers.",
+  "type": "object",
+  "required": ["method", "url", "headers"],
+  "additionalProperties": false,
+  "properties": {
+    "method": { "type": "string", "enum": ["GET"] },
+    "url": { "type": "string", "pattern": "^https://api\\.github\\.com/repos/" },
+    "headers": { "$ref": "HeaderMap" }
+  },
+  "examples": [
+    {
+      "method": "GET",
+      "url": "https://api.github.com/repos/publisher/agent-m/releases/assets/9100",
+      "headers": { "Accept": "application/octet-stream" }
+    }
+  ]
 }
 ```
