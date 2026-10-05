@@ -15,6 +15,12 @@ job has an identifier `JOB-…` and a record under `docs/jobs/` of its product, 
 starts it and completed by the job when it ends (UC-036). A **phase** is a part of a process model; the
 nine **steps** of the cycle are the areas below.
 
+## Overview — the main page
+
+| ID | Use case |
+|---|---|
+| [UC-046](UC-046-see-what-goes-on-in-the-instance.md) | See what goes on in the instance — every product's progress, or Agent M's own |
+
 ## Setup — instance, products, participants, process
 
 | ID | Use case |
