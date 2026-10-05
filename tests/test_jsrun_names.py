@@ -1,5 +1,5 @@
 # Module: none — the test runner's own names (tests/jsrun.py)
-# Guards: no requirement; the runner every Python check that asks node goes through
+# Guards: A MODULE IS A FOLDER
 # Level: unit
 """The names by which tests/jsrun.py reaches a module file.
 
