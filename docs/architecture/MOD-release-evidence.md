@@ -1,0 +1,153 @@
+---
+id: MOD-release-evidence
+title: Versions, release candidates, the release test report, the release and its audit
+folder: src/release-evidence/
+realises:
+follows:
+  - ARC-043
+uses:
+  - MOD-result-records.resultSchema
+  - MOD-result-records.resultsAt
+  - MOD-result-records.flakyTests
+  - MOD-result-records.rateComparison
+  - MOD-test-schedule.scheduleSchema
+  - MOD-approvals.approvalSchema
+  - MOD-approvals.statusOf
+  - MOD-runtimes.queueJob
+  - MOD-job-ledger.listJobs
+  - MOD-repository-hosts.Host
+  - MOD-repository-hosts.Snapshot
+  - MOD-repository-hosts.readSnapshot
+  - MOD-repository-hosts.listTags
+  - MOD-repository-hosts.commitFiles
+  - MOD-repository-hosts.createTag
+  - MOD-documents.Document
+  - MOD-documents.loadSchema
+  - MOD-documents.readDocument
+  - MOD-documents.writeDocument
+  - MOD-spec-document.parseSpec
+  - MOD-test-document.testDeclarations
+  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.tracesTo
+  - MOD-source-register.sourceSchemas
+  - MOD-source-register.linkedVersion
+  - MOD-text-tools.blobSha
+provides:
+  - nextVersion
+  - startReleaseCandidate
+  - releaseReport
+  - acceptAndRelease
+  - auditRows
+  - auditDocument
+---
+# MOD-release-evidence Versions, release candidates, the release test report, the release and its audit
+
+## Responsibility
+
+It belongs to Tests and releases (ARC-043). It gives each product its own calendar version line (`CALENDAR VERSIONS`,
+`EVERY PRODUCT HAS ITS OWN VERSION LINE`), marks a release candidate and starts the complete run on it (`A RELEASE RUNS
+EVERY TEST AT EVERY LEVEL`), composes the release test report from the result records, and releases when a person accepts
+the report: the report, its approval record with every known limitation and the changelog entry in one commit, then the
+tag on the tested commit (`THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON`, `ACCEPTING THE RELEASE TEST REPORT RELEASES`,
+`A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED`, `A RELEASE IS TAGGED AND LOGGED`). It derives the audit of a
+release and its export (`THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE`). A released version is never re-tagged
+(`A VERSION IS NOT REWRITTEN`). It runs in the browser and in Node.
+
+## Parts
+
+- `index.mjs` — the interface.
+- `version.mjs` — the next version and the tags of a product's line.
+- `candidate.mjs` — the release candidate and its complete run.
+- `report.mjs` — the release test report and releasing on its acceptance.
+- `audit.mjs` — the audit rows, their summary and the export.
+
+## Data
+
+It keeps nothing. It owns three formats.
+
+**The release test report**, `docs/tests/releases/v<YYYY.MINOR.PATCH>.md` — a reviewed file, accepted through an approval
+record of kind `release-report`:
+
+| Part | Content |
+|---|---|
+| front matter | `version`, `candidate` (the tag `v<version>-rc.<N>`), `commit` (the tested commit), `date` |
+| `## Limitations` | first: every failing test and every rate worse than the last release's, each with the requirements it guards; empty when the run is green |
+| `## Levels` | per level: passed, failed, flaky, not run |
+| `## Tests` | every test: identifier, level, outcome or rate, the identifiers it guards |
+| `## Requirements` | every requirement valid at the commit with the tests that guard it, by level — the evidence per requirement |
+| `## Changelog entry` | the entry the person chose at *Start release candidate*, as it will stand in `CHANGELOG.md` |
+
+**The changelog entry**, appended to `CHANGELOG.md`: a heading `## v<YYYY.MINOR.PATCH> — <YYYY-MM-DD>`, the entry's text
+as the report holds it, and, for a release accepted with limitations, the list `Known limitations:` with each failing
+test or worse rate and its reason.
+
+**The audit document**, `docs/audits/<tag>.md` when a person commits it: the release tag and its commit SHA; the summary;
+one row per requirement valid at the release — its name, what it constrains, its sources with authority, version and the
+hashes of the version, the tests that guard it by level with their outcome or rate and their counter-proof, for a process
+requirement the gate records and artifacts it added, and the acceptance of the report — who, when and the blob SHA of the
+accepted text —; the blob SHAs of the report and of the approval records, so that every statement can be checked against
+the repository without Agent M.
+
+Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PATCH>-rc.<N>` for its candidates.
+
+## Interfaces
+
+- `nextVersion(tags: string[], step: "minor" | "patch", today: string) -> string` — the next version of the product's own
+  line: a minor step by default; in a new calendar year `YYYY.1.0`. Considers: tags of other products are never given.
+- `startReleaseCandidate(host: Host, version: string, commit: string, changelog: string, person: string) -> Promise<{
+  candidate: string, run: string }>` — tags the commit `v<version>-rc.<N>`, the next free `N`, and queues the complete
+  run on it — every test at every level, model-dependent tests their fixed number of times, user-level tests as a
+  checklist for the people assigned to them — as a job of kind `run-tests` through MOD-runtimes, whose parameters keep
+  the changelog entry the person chose, so that the candidate carries it to its report. Considers: release tests are run
+  by a participant other than the one that implemented what they test; if only the implementer can run them, it says so
+  (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). Crosses the network. Errors: `TagExists`, `NoRunner` (no
+  participant can run a level, named), `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`.
+- `releaseReport(at: Snapshot, results: Snapshot, candidate: { version: string, tag: string, commit: string, changelog:
+  string }) -> { text: string, complete: boolean, failing: string[], worse: string[] }` — the release test report of a
+  finished complete run, its `## Changelog entry` the one the candidate's run keeps among its parameters; `complete` is
+  false while any test has not run on the candidate's commit, and then no tag can be set.
+- `acceptAndRelease(host: Host, report: { path: string, blob: string }, decision: { limitations: Record<string, string>
+  }, person: string, today: string) -> Promise<{ commit: string, tag: string }>` — on the person's one click, on the
+  release panel or in the review list alike: commits the report, its approval record naming the report's blob and every
+  limitation, and the changelog entry the report holds — the person is not asked for it again — together; then sets the
+  tag `v<version>` on the tested commit, not on a later one. It refuses while a failing test or a worse rate has no
+  recorded reason, while the report is incomplete, and when the tag exists — an existing tag is never moved. Crosses the
+  network. Errors: `LimitationMissing` (naming the tests and rates), `Incomplete`, `TagExists`, `Moved`, `TokenRefused`,
+  `PermissionMissing`, `RateLimited`, `Unreachable`.
+- `auditRows(at: Snapshot, results: Snapshot, release: { tag: string, commit: string }, gates: Array<{ requirement: string,
+  gate: string, record: string }>) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
+  worse: number, byImplementer: number, accepted: boolean, limitations: string[] }, rows: Array<{ requirement: string,
+  constrains: "product" | "process", sources: Array<{ id: string, authority: string, version: string, hashes: string[] }>,
+  tests: Array<{ id: string, level: string, outcome: string, counterProof: string | null }>, gates: string[] }> }` — one
+  row per requirement valid at the release, a requirement without a test or without a passing outcome included and
+  counted; `gates` are the gate records of the product's process requirements, which the caller reads through Process,
+  since Process lies above this subsystem. A release before Agent M's records says which parts cannot be derived.
+- `auditDocument(audit: { summary: object, rows: object[] }, release: { tag: string, commit: string }) -> string` — the
+  self-contained Markdown document of the audit; the browser saves it, and a person with write access may commit it to
+  `docs/audits/<tag>.md`.
+
+`Host` and `Snapshot` are MOD-repository-hosts'; `at` is the product at the release's commit, `results` its
+branch `test-results`.
+
+## Files
+
+- Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests, the report, the approval records —,
+  the branch `test-results`, the schedule, and the instance's source register.
+- Writes `docs/tests/releases/v<version>.md`, `docs/approvals/release-v<version>-<blob12>.md`, `CHANGELOG.md`, the tags
+  `v<version>-rc.<N>` and `v<version>`, and, on a person's click, `docs/audits/<tag>.md`.
+
+## Uses
+
+- MOD-result-records.resultSchema, resultsAt, flakyTests, rateComparison — the outcomes of the candidate's commit.
+- MOD-test-schedule.scheduleSchema — the commands and runners with which the complete run runs each level.
+- MOD-approvals.approvalSchema, statusOf — the report's record and whether the report is accepted.
+- MOD-runtimes.queueJob — the complete run, queued as a job.
+- MOD-job-ledger.listJobs — who implemented the behaviour a release test guards, against who wrote the test.
+- MOD-repository-hosts.Host, Snapshot, readSnapshot, listTags, commitFiles, createTag — the product at a commit, its
+  tags, the release commit and the tags.
+- MOD-documents.Document, loadSchema, readDocument, writeDocument — the report and the records by their schemas.
+- MOD-spec-document.parseSpec — the requirements valid at the release and what each constrains.
+- MOD-test-document.testDeclarations — the tests at the release.
+- MOD-trace-graph.traceGraph, tracesTo — the tests and sources of each requirement.
+- MOD-source-register.sourceSchemas, linkedVersion — each source's authority, version and hashes.
+- MOD-text-tools.blobSha — the blob SHAs the audit names.
