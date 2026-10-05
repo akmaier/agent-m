@@ -1,6 +1,6 @@
 ---
 id: ARC-025
-title: How products are developed is configured on data; a feature computes the catalogue, a model's draft with its errors, diagram and plan, a declaration's roles, workflow and Definition of Done, a participant's presets and uses, and the file each save writes
+title: How products are developed is configured on data; a feature computes the catalogue, a model's draft with its errors, diagram and plan, a declaration's roles, workflow and Definition of Done, a participant's presets, its route written from its form, the agents a bridge offers and the roles it holds, and the file each save writes
 forced_by:
   - THE CATALOGUE IS DATA
   - A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
@@ -13,9 +13,13 @@ forced_by:
   - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
   - DIAGRAMS ARE MERMAID IN MARKDOWN
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+  - A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+  - THE BRIDGE FINDS THE INSTALLED AGENTS
+  - ONE CLICK PER DECISION
   - UC-002
   - UC-017
   - UC-031
+  - UC-044
 ---
 # ARC-025 How products are developed
 
@@ -47,12 +51,26 @@ page that computed these itself could not be tested without a browser; the rules
    process requirements add; the practices that fit; the Definition of Done; what the model changes against the one
    declared before; and every problem — a model with an error, a role that needs a person and has none, a holder that
    is no participant or lacks a capability. It is saved only without one.
-5. **A participant** starts from the presets of its type (`MOD-process-config.participantPreset`); a change shows the
-   roles it holds in the products' declarations that it may no longer hold (`MOD-process-config.participantUse`), and
-   the sources whose content may not go where it processes data (`MOD-process-config.sourcesBarred`) — it may be saved,
-   and is never given their content. It is saved into the register — a new one at its end, a changed one in its row —
-   only where the register reads without an error afterwards, and a CI agent on a self-hosted runner only while the
-   instance's repository is private.
+5. **A participant** starts from the presets of its type — the place *this machine* for a CLI agent, except behind a
+   remote session (`MOD-process-config.participantPreset`) —, and its route is written from its form in words the job
+   runtimes read back (`MOD-process-config.participantOf`): "the GitHub account `alice`", or "the GitLab account `carla`
+   on gitlab.example.org"; "the endpoint hub of this browser", or for a model server a bridge calls "the bridge on this
+   computer: the endpoint box" and "the bridge of the session gpu-box: the endpoint gpu-box-llm"; "the workflow
+   agent-m-job: claude on GitHub's machines", or "… on the runner gpu-1" (ARC-029 decision 2); "the bridge on this
+   computer: claude" (ARC-029 decision 10), or "the bridge of the session gpu-box: claude" (ARC-013 decision 8). A CLI
+   or sandboxed agent the bridge reported missing or not logged in is not written
+   (`THE BRIDGE FINDS THE INSTALLED AGENTS`) — where the bridge did not answer, the agent the author names is written,
+   and saved untested (UC-017 6a) —, and a CI agent on a self-hosted runner only while the instance's repository is
+   private. The agents a bridge reports ready and the register does not hold on it yet are offered as the forms of CLI
+   agents, each named after its CLI — and the session it runs behind —, unique in the register, and added once its model
+   is named — and behind a remote session its processing place, which the page cannot tell —
+   (`MOD-process-config.bridgeOffer`; UC-044 5). A change shows the roles it holds in the products' declarations that it
+   may no longer hold (`MOD-process-config.participantUse`), and the sources whose content may not go where it processes
+   data (`MOD-process-config.sourcesBarred`) — it may be saved, and is never given their content. It is saved into the
+   register — a new one at its end, a changed one in its row — only where the register reads without an error
+   afterwards, a CI agent on a self-hosted runner only while the instance's repository is private, and a CLI or
+   sandboxed agent only after its test through the bridge worked or where the author chose to save it untested
+   (UC-017 6a).
 6. **A save is a planned file** (`MOD-process-config.planConfig`): the page writes it as one commit on the head it read
    (ARC-004), and a file that changed since it was opened is refused, never overwritten.
 
@@ -75,6 +93,9 @@ flowchart LR
   each error beside the part it concerns.
 - **Editing a shipped model in place** — the shipped catalogue follows the book (`AGENT M CARRIES THE BOOK'S
   CATALOGUE`); an instance adapts it under a name of its own.
+- **A route a person types** — the job runtimes read a route back; one written from the form's fields is one they read.
+- **A participant's model taken from the bridge** — not possible: the bridge's greeting names an agent's CLI and its
+  version, and no model (ARC-011 decision 8); the author names the model the agent is configured to use (UC-017 3).
 
 ## Consequences
 
@@ -84,6 +105,10 @@ flowchart LR
   again, and the page then shows what the newer one changes.
 - Starting no job on a self-hosted runner of a public repository is the CI runtime's part of
   `A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY`; here the participant is refused.
+- A route written here is read by the job runtimes: a CI agent's by `MOD-job-runner.ciAgentOf`, an agent's on the bridge
+  of this computer by `MOD-job-runner.bridgeAgentOf` (ARC-029). An agent behind a remote session is configured and tested,
+  and its jobs wait for the runtimes to read its route (ARC-013's consequences).
+- The form's own texts, its notes and its test are the settings page's (ARC-026 decision 12).
 
 ## Modules
 
@@ -94,9 +119,9 @@ flowchart LR
   "id": "MOD-process-config",
   "folder": "src/process-config/",
   "layer": "feature",
-  "responsibility": "Computes what the pages configuring how products are developed show, and the files their saves write: the catalogue of an instance's models and practices with the products declaring each, a model being edited with its errors, diagram and plan preview, a product's declaration being edited with the roles, workflow and Definition of Done it gives and what keeps it from being saved, a participant's presets and the roles it holds; it reads only through ports and writes nothing.",
+  "responsibility": "Computes what the pages configuring how products are developed show, and the files their saves write: the catalogue of an instance's models and practices with the products declaring each, a model being edited with its errors, diagram and plan preview, a product's declaration being edited with the roles, workflow and Definition of Done it gives and what keeps it from being saved, a participant's presets, its route written from its form, the agents a bridge offers as participants and the roles it holds; it reads only through ports and writes nothing.",
   "realises": ["A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "A ROLE NAMES THE CAPABILITIES IT NEEDS"],
-  "owns": ["ProductDeclaration", "ModelUse", "CatalogueEntry", "Catalogue", "ProcessModelOrNone", "ModelDraft", "PlanPreview", "DeclarationInput", "ModelChoice", "ModelGroup", "RoleRow", "PracticeChoice", "ModelChangeOrNone", "DeclarationView", "ParticipantPreset", "ProductRole", "ParticipantUse", "ModelSave", "DeclarationSave", "ParticipantSave", "ConfigChange", "ConfigHead"],
+  "owns": ["ProductDeclaration", "ModelUse", "CatalogueEntry", "Catalogue", "ProcessModelOrNone", "ModelDraft", "PlanPreview", "DeclarationInput", "ModelChoice", "ModelGroup", "RoleRow", "PracticeChoice", "ModelChangeOrNone", "DeclarationView", "ParticipantPreset", "ProductRole", "ParticipantUse", "ParticipantForm", "ModelSave", "DeclarationSave", "ParticipantSave", "ConfigChange", "ConfigHead"],
   "uses": ["MOD-contracts", "MOD-process-model", "MOD-work-items"]
 }
 ```
@@ -4099,6 +4124,709 @@ flowchart LR
         "problems": [],
         "savable": false
       }
+    },
+    {
+      "name": "a holder whose place a linked source does not permit",
+      "input": {
+        "input": {
+          "draft": {
+            "model": "v-model",
+            "modelFile": "src/process-model/catalogue/v-model.md",
+            "modelVersion": "5a00000000000000000000000000000000000000",
+            "sprintClose": "",
+            "title": "How the thesis tool is developed",
+            "intro": "The declaration of this product's process (UC-002).",
+            "roles": [
+              { "role": "Analyst", "participants": ["alice"], "line": 14 },
+              { "role": "Architect", "participants": ["alice"], "line": 15 },
+              { "role": "Developers", "participants": ["cli-dev"], "line": 16 },
+              { "role": "Tester", "participants": ["ci-dev"], "line": 17 },
+              { "role": "Operator", "participants": ["ci-dev"], "line": 18 }
+            ],
+            "practices": ["devops"],
+            "branches": [{ "phase": "Implementation", "branch": "implementation", "line": 28 }],
+            "done": [
+              { "kind": "ci-check", "name": "lint", "text": "the linter passes", "line": 34 },
+              { "kind": "person", "name": "", "text": "a second developer has read the change", "line": 35 }
+            ],
+            "gatesAdded": [
+              {
+                "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                "between": "Testing → Validation",
+                "from": "Testing",
+                "to": "Validation",
+                "artifacts": "TST",
+                "kinds": ["TST"],
+                "condition": "every unit's verification is recorded",
+                "decider": { "role": "Tester" },
+                "line": 41
+              }
+            ],
+            "artifactsAdded": [
+              {
+                "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+                "phase": "Testing",
+                "artifacts": "the unit verification report",
+                "kinds": [],
+                "line": 47
+              }
+            ],
+            "notes": "## Releases\n\nA release is cut from `main` once Validation is passed.",
+            "problems": []
+          },
+          "model": {
+            "name": "v-model",
+            "kind": "planned",
+            "adaptedFrom": "",
+            "measure": "plan entries per phase",
+            "fits": [],
+            "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+            "title": "V-model",
+            "intro": "Every accepted requirement passes every phase; each later phase checks an earlier one.",
+            "phases": [
+              {
+                "name": "Requirements",
+                "role": "Analyst",
+                "produces": "requirements, UC",
+                "kinds": ["UC", "requirement"],
+                "line": 14
+              },
+              { "name": "Design", "role": "Architect", "produces": "ARC", "kinds": ["ARC"], "line": 15 },
+              { "name": "Implementation", "role": "Developers", "produces": "MOD", "kinds": ["MOD"], "line": 16 },
+              { "name": "Testing", "role": "Tester", "produces": "TST", "kinds": ["TST"], "line": 17 },
+              {
+                "name": "Validation",
+                "role": "Analyst",
+                "produces": "the validation of the requirements",
+                "kinds": [],
+                "line": 18
+              }
+            ],
+            "transitions": [
+              { "from": "Requirements", "to": "Design", "kind": "sequence", "line": 24 },
+              { "from": "Design", "to": "Implementation", "kind": "sequence", "line": 25 },
+              { "from": "Implementation", "to": "Testing", "kind": "sequence", "line": 26 },
+              { "from": "Testing", "to": "Implementation", "kind": "back", "line": 27 },
+              { "from": "Testing", "to": "Validation", "kind": "sequence", "line": 28 }
+            ],
+            "pairs": [
+              { "phase": "Design", "checkedBy": "Testing", "line": 34 },
+              { "phase": "Requirements", "checkedBy": "Validation", "line": 35 }
+            ],
+            "gates": [
+              {
+                "between": "Design → Implementation",
+                "from": "Design",
+                "to": "Implementation",
+                "artifacts": "ARC",
+                "kinds": ["ARC"],
+                "condition": "every requirement has an ARC, and the design is accepted",
+                "decider": { "role": "Architect" },
+                "line": 41
+              },
+              {
+                "between": "Implementation → Testing",
+                "from": "Implementation",
+                "to": "Testing",
+                "artifacts": "MOD",
+                "kinds": ["MOD"],
+                "condition": "CI is green",
+                "decider": { "check": "tests" },
+                "line": 42
+              }
+            ],
+            "roles": [
+              {
+                "name": "Analyst",
+                "filledBy": "either",
+                "capabilities": ["draft text", "read the repository"],
+                "line": 48
+              },
+              { "name": "Architect", "filledBy": "person", "capabilities": ["read the repository"], "line": 49 },
+              {
+                "name": "Developers",
+                "filledBy": "agent",
+                "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+                "line": 50
+              },
+              {
+                "name": "Tester",
+                "filledBy": "either",
+                "capabilities": ["read the repository", "run code and tests"],
+                "line": 51
+              }
+            ],
+            "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+            "lines": { "kind": 3, "measure": 4 },
+            "problems": []
+          },
+          "declared": null,
+          "practices": [
+            {
+              "name": "devops",
+              "kind": "practice",
+              "adaptedFrom": "",
+              "measure": "",
+              "fits": ["v-model", "pulled"],
+              "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+              "title": "DevOps",
+              "intro": "A release is deployed after validation, once its deployment check is green.",
+              "phases": [
+                {
+                  "name": "Deployment",
+                  "role": "Operator",
+                  "produces": "the deployed release",
+                  "kinds": [],
+                  "line": 14
+                }
+              ],
+              "transitions": [{ "from": "Validation", "to": "Deployment", "kind": "sequence", "line": 20 }],
+              "pairs": [],
+              "gates": [
+                {
+                  "between": "Validation → Deployment",
+                  "from": "Validation",
+                  "to": "Deployment",
+                  "artifacts": "TST",
+                  "kinds": ["TST"],
+                  "condition": "the deployment check is green",
+                  "decider": { "check": "deploy" },
+                  "line": 31
+                }
+              ],
+              "roles": [
+                {
+                  "name": "Operator",
+                  "filledBy": "agent",
+                  "capabilities": ["read the repository", "run code and tests"],
+                  "line": 37
+                }
+              ],
+              "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+              "lines": { "kind": 3, "measure": 1 },
+              "problems": []
+            }
+          ],
+          "catalogue": {
+            "models": [
+              {
+                "name": "kanban",
+                "file": "src/process-model/catalogue/kanban.md",
+                "blob": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b",
+                "shipped": true,
+                "kind": "pulled",
+                "measure": "items per state over time",
+                "fits": [],
+                "about": { "manages": "work that arrives unpredictably and must flow without long waits", "accepts": "no fixed delivery date for a set of items", "suits": "maintaining a product that receives issues every week", "chapter": "Vibe Coding, ch. 7 §4" },
+                "adaptedFrom": "",
+                "title": "Kanban",
+                "findings": [],
+                "usedBy": []
+              },
+              {
+                "name": "v-model",
+                "file": "src/process-model/catalogue/v-model.md",
+                "blob": "856921837cdfd759b62ae92008161c6c6064a51f",
+                "shipped": true,
+                "kind": "planned",
+                "measure": "plan entries per phase",
+                "fits": [],
+                "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+                "adaptedFrom": "",
+                "title": "V-model",
+                "findings": [],
+                "usedBy": [
+                  { "product": "https://github.com/alice/thesis", "version": "5a00000000000000000000000000000000000000" }
+                ]
+              },
+              {
+                "name": "scrum",
+                "file": "docs/process-models/scrum.md",
+                "blob": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd",
+                "shipped": false,
+                "kind": "pulled",
+                "measure": "remaining items per time box",
+                "fits": [],
+                "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+                "adaptedFrom": "",
+                "title": "Scrum",
+                "findings": [],
+                "usedBy": [
+                  { "product": "https://github.com/alice/notes", "version": "a900000000000000000000000000000000000000" }
+                ]
+              }
+            ],
+            "practices": [
+              {
+                "name": "devops",
+                "file": "src/process-model/catalogue/devops.md",
+                "blob": "39aa49976758648c9a46b24c8a1c2a8c49053e2e",
+                "shipped": true,
+                "kind": "practice",
+                "measure": "",
+                "fits": ["v-model", "pulled"],
+                "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+                "adaptedFrom": "",
+                "title": "DevOps",
+                "findings": [],
+                "usedBy": []
+              }
+            ]
+          },
+          "participants": [
+            {
+              "name": "alice",
+              "type": "person",
+              "model": "",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository"],
+              "place": "",
+              "route": "the GitHub account `alice`",
+              "line": 5
+            },
+            {
+              "name": "hub-writer",
+              "type": "model endpoint",
+              "model": "llama-3.3-70b",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text"],
+              "place": "NHR@FAU, Erlangen",
+              "route": "the endpoint hub of this browser",
+              "line": 6
+            },
+            {
+              "name": "gw-writer",
+              "type": "model endpoint",
+              "model": "gateway-model",
+              "context": 32000,
+              "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+              "capabilities": ["draft text"],
+              "place": "a gateway in Frankfurt, Germany",
+              "route": "the endpoint gw of this browser",
+              "line": 7
+            },
+            {
+              "name": "ci-dev",
+              "type": "CI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "place": "GitHub's machines, a provider in the USA",
+              "route": "the workflow agent-m-job",
+              "line": 8
+            },
+            {
+              "name": "cli-dev",
+              "type": "CLI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+              "place": "this machine",
+              "route": "the bridge on the Mac of `alice`",
+              "line": 9
+            }
+          ],
+          "requirements": [
+            { "name": "UNIT VERIFICATION IS DOCUMENTED", "source": "IEC 62304, 5.5.5", "rule": "Every software unit's verification is documented.", "check": "`tests/test_unit_records.py`", "section": "3. Process", "line": 12 }
+          ],
+          "restrictions": [{ "source": "SRC-iec-62304", "permitted": ["this machine", "NHR@FAU, Erlangen"] }]
+        }
+      },
+      "result": {
+        "groups": [
+          {
+            "kind": "planned",
+            "models": [
+              {
+                "name": "v-model",
+                "file": "src/process-model/catalogue/v-model.md",
+                "shipped": true,
+                "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+                "valid": true,
+                "usedBy": 1
+              }
+            ]
+          },
+          {
+            "kind": "pulled",
+            "models": [
+              {
+                "name": "kanban",
+                "file": "src/process-model/catalogue/kanban.md",
+                "shipped": true,
+                "about": { "manages": "work that arrives unpredictably and must flow without long waits", "accepts": "no fixed delivery date for a set of items", "suits": "maintaining a product that receives issues every week", "chapter": "Vibe Coding, ch. 7 §4" },
+                "valid": true,
+                "usedBy": 0
+              },
+              {
+                "name": "scrum",
+                "file": "docs/process-models/scrum.md",
+                "shipped": false,
+                "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+                "valid": true,
+                "usedBy": 1
+              }
+            ]
+          }
+        ],
+        "workflow": {
+          "model": "v-model",
+          "kind": "planned",
+          "measure": "plan entries per phase",
+          "flow": { "wipLimit": null, "timeBox": "", "sprints": null, "line": 0 },
+          "phases": [
+            {
+              "name": "Requirements",
+              "role": "Analyst",
+              "produces": "requirements, UC",
+              "kinds": ["UC", "requirement"],
+              "line": 14,
+              "practice": ""
+            },
+            { "name": "Design", "role": "Architect", "produces": "ARC", "kinds": ["ARC"], "line": 15, "practice": "" },
+            {
+              "name": "Implementation",
+              "role": "Developers",
+              "produces": "MOD",
+              "kinds": ["MOD"],
+              "line": 16,
+              "practice": ""
+            },
+            { "name": "Testing", "role": "Tester", "produces": "TST", "kinds": ["TST"], "line": 17, "practice": "" },
+            {
+              "name": "Validation",
+              "role": "Analyst",
+              "produces": "the validation of the requirements",
+              "kinds": [],
+              "line": 18,
+              "practice": ""
+            },
+            {
+              "name": "Deployment",
+              "role": "Operator",
+              "produces": "the deployed release",
+              "kinds": [],
+              "line": 14,
+              "practice": "devops"
+            }
+          ],
+          "transitions": [
+            { "from": "Requirements", "to": "Design", "kind": "sequence", "line": 24 },
+            { "from": "Design", "to": "Implementation", "kind": "sequence", "line": 25 },
+            { "from": "Implementation", "to": "Testing", "kind": "sequence", "line": 26 },
+            { "from": "Testing", "to": "Implementation", "kind": "back", "line": 27 },
+            { "from": "Testing", "to": "Validation", "kind": "sequence", "line": 28 },
+            { "from": "Validation", "to": "Deployment", "kind": "sequence", "line": 20 }
+          ],
+          "pairs": [
+            { "phase": "Design", "checkedBy": "Testing", "line": 34 },
+            { "phase": "Requirements", "checkedBy": "Validation", "line": 35 }
+          ],
+          "gates": [
+            {
+              "between": "Design → Implementation",
+              "from": "Design",
+              "to": "Implementation",
+              "artifacts": "ARC",
+              "kinds": ["ARC"],
+              "condition": "every requirement has an ARC, and the design is accepted",
+              "decider": { "role": "Architect" },
+              "line": 41,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": ["alice"]
+            },
+            {
+              "between": "Implementation → Testing",
+              "from": "Implementation",
+              "to": "Testing",
+              "artifacts": "MOD",
+              "kinds": ["MOD"],
+              "condition": "CI is green",
+              "decider": { "check": "tests" },
+              "line": 42,
+              "practice": "",
+              "requirement": "",
+              "source": "",
+              "holders": []
+            },
+            {
+              "between": "Validation → Deployment",
+              "from": "Validation",
+              "to": "Deployment",
+              "artifacts": "TST",
+              "kinds": ["TST"],
+              "condition": "the deployment check is green",
+              "decider": { "check": "deploy" },
+              "line": 31,
+              "practice": "devops",
+              "requirement": "",
+              "source": "",
+              "holders": []
+            },
+            {
+              "between": "Testing → Validation",
+              "from": "Testing",
+              "to": "Validation",
+              "artifacts": "TST",
+              "kinds": ["TST"],
+              "condition": "every unit's verification is recorded",
+              "decider": { "role": "Tester" },
+              "line": 41,
+              "practice": "",
+              "requirement": "UNIT VERIFICATION IS DOCUMENTED",
+              "source": "IEC 62304, 5.5.5",
+              "holders": ["ci-dev"]
+            }
+          ],
+          "roles": [
+            {
+              "name": "Analyst",
+              "filledBy": "either",
+              "capabilities": ["draft text", "read the repository"],
+              "line": 48,
+              "holders": ["alice"]
+            },
+            {
+              "name": "Architect",
+              "filledBy": "person",
+              "capabilities": ["read the repository"],
+              "line": 49,
+              "holders": ["alice"]
+            },
+            {
+              "name": "Developers",
+              "filledBy": "agent",
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "line": 50,
+              "holders": ["cli-dev"]
+            },
+            {
+              "name": "Tester",
+              "filledBy": "either",
+              "capabilities": ["read the repository", "run code and tests"],
+              "line": 51,
+              "holders": ["ci-dev"]
+            },
+            {
+              "name": "Operator",
+              "filledBy": "agent",
+              "capabilities": ["read the repository", "run code and tests"],
+              "line": 37,
+              "holders": ["ci-dev"]
+            }
+          ],
+          "branches": [{ "phase": "Implementation", "branch": "implementation", "line": 28 }],
+          "artifactsAdded": [
+            { "requirement": "UNIT VERIFICATION IS DOCUMENTED", "source": "IEC 62304, 5.5.5", "phase": "Testing", "artifacts": "the unit verification report" }
+          ],
+          "problems": []
+        },
+        "roles": [
+          {
+            "role": "Analyst",
+            "filledBy": "either",
+            "capabilities": ["draft text", "read the repository"],
+            "holders": ["alice"],
+            "candidates": [
+              { "participant": "alice", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] },
+              {
+                "participant": "hub-writer",
+                "ok": false,
+                "missing": ["read the repository"],
+                "allowed": true,
+                "placeWarnings": []
+              },
+              {
+                "participant": "gw-writer",
+                "ok": false,
+                "missing": ["read the repository"],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              {
+                "participant": "ci-dev",
+                "ok": false,
+                "missing": ["draft text"],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
+            ],
+            "missing": []
+          },
+          {
+            "role": "Architect",
+            "filledBy": "person",
+            "capabilities": ["read the repository"],
+            "holders": ["alice"],
+            "candidates": [
+              { "participant": "alice", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] },
+              {
+                "participant": "hub-writer",
+                "ok": false,
+                "missing": ["read the repository"],
+                "allowed": false,
+                "placeWarnings": []
+              },
+              {
+                "participant": "gw-writer",
+                "ok": false,
+                "missing": ["read the repository"],
+                "allowed": false,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              {
+                "participant": "ci-dev",
+                "ok": false,
+                "missing": [],
+                "allowed": false,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              { "participant": "cli-dev", "ok": false, "missing": [], "allowed": false, "placeWarnings": [] }
+            ],
+            "missing": []
+          },
+          {
+            "role": "Developers",
+            "filledBy": "agent",
+            "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+            "holders": ["cli-dev"],
+            "candidates": [
+              {
+                "participant": "alice",
+                "ok": false,
+                "missing": ["run code and tests"],
+                "allowed": false,
+                "placeWarnings": []
+              },
+              {
+                "participant": "hub-writer",
+                "ok": false,
+                "missing": ["read the repository", "write to the repository", "run code and tests"],
+                "allowed": true,
+                "placeWarnings": []
+              },
+              {
+                "participant": "gw-writer",
+                "ok": false,
+                "missing": ["read the repository", "write to the repository", "run code and tests"],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              {
+                "participant": "ci-dev",
+                "ok": true,
+                "missing": [],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
+            ],
+            "missing": []
+          },
+          {
+            "role": "Tester",
+            "filledBy": "either",
+            "capabilities": ["read the repository", "run code and tests"],
+            "holders": ["ci-dev"],
+            "candidates": [
+              {
+                "participant": "alice",
+                "ok": false,
+                "missing": ["run code and tests"],
+                "allowed": true,
+                "placeWarnings": []
+              },
+              {
+                "participant": "hub-writer",
+                "ok": false,
+                "missing": ["read the repository", "run code and tests"],
+                "allowed": true,
+                "placeWarnings": []
+              },
+              {
+                "participant": "gw-writer",
+                "ok": false,
+                "missing": ["read the repository", "run code and tests"],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              {
+                "participant": "ci-dev",
+                "ok": true,
+                "missing": [],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
+            ],
+            "missing": []
+          },
+          {
+            "role": "Operator",
+            "filledBy": "agent",
+            "capabilities": ["read the repository", "run code and tests"],
+            "holders": ["ci-dev"],
+            "candidates": [
+              {
+                "participant": "alice",
+                "ok": false,
+                "missing": ["run code and tests"],
+                "allowed": false,
+                "placeWarnings": []
+              },
+              {
+                "participant": "hub-writer",
+                "ok": false,
+                "missing": ["read the repository", "run code and tests"],
+                "allowed": true,
+                "placeWarnings": []
+              },
+              {
+                "participant": "gw-writer",
+                "ok": false,
+                "missing": ["read the repository", "run code and tests"],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              {
+                "participant": "ci-dev",
+                "ok": true,
+                "missing": [],
+                "allowed": true,
+                "placeWarnings": ["SRC-iec-62304"]
+              },
+              { "participant": "cli-dev", "ok": true, "missing": [], "allowed": true, "placeWarnings": [] }
+            ],
+            "missing": []
+          }
+        ],
+        "practices": [
+          {
+            "name": "devops",
+            "file": "src/process-model/catalogue/devops.md",
+            "about": { "manages": "", "accepts": "", "suits": "", "chapter": "" },
+            "chosen": true
+          }
+        ],
+        "done": [
+          { "kind": "job-rule", "name": "ci-green", "text": "the pull request's CI run is green" },
+          { "kind": "job-rule", "name": "tests-first", "text": "the job's first commit holds only failing tests — for a refactoring job, CI is green on every commit and no expected result changed" },
+          { "kind": "job-rule", "name": "own-modules", "text": "the pull request changes only the job's modules" },
+          { "kind": "job-rule", "name": "gates-recorded", "text": "every gate the workflow places before the merge is recorded" },
+          { "kind": "ci-check", "name": "lint", "text": "the linter passes" },
+          { "kind": "person", "name": "", "text": "a second developer has read the change" }
+        ],
+        "changes": null,
+        "problems": [],
+        "savable": true
+      }
     }
   ]
 }
@@ -4107,8 +4835,8 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-config.participantPreset",
-  "summary": "The capabilities preset for a type of participant, and the place it processes data where its type tells: this machine for a CLI agent.",
-  "params": [{ "name": "type", "type": "string" }],
+  "summary": "The capabilities preset for a type of participant, and the place it processes data where its type tells: this machine for a CLI agent on the bridge of this computer, or where no bridge is named yet; none for one behind a remote session, whose machine the page cannot tell.",
+  "params": [{ "name": "type", "type": "string" }, { "name": "bridge", "type": "string", "optional": true }],
   "result": "ParticipantPreset",
   "async": false,
   "refusals": [{ "code": "not-a-type", "when": "the type is none of the five" }],
@@ -4122,7 +4850,806 @@ flowchart LR
         "place": "this machine"
       }
     },
+    {
+      "name": "a CLI agent behind a remote session",
+      "input": { "type": "CLI agent", "bridge": "session:gpu-box" },
+      "result": {
+        "type": "CLI agent",
+        "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+        "place": ""
+      }
+    },
     { "name": "a type of none of the five", "input": { "type": "robot" }, "refused": "not-a-type" }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-process-config.participantOf",
+  "summary": "A participant from its form: the route written from the type's own part in words the job runtimes read back — the GitHub account `<account>`, or the GitLab account `<account>` on <server>; the endpoint <name> of this browser, or the bridge that calls it; the workflow agent-m-job: <cli> on GitHub's machines, or on the runner <label>; the bridge on this computer: <cli>, or the bridge of the session <name>: <cli> —; a CLI or sandboxed agent not where the bridge reported its CLI missing or not logged in — of a bridge that did not answer, the agent the author names —, and a CI agent on a self-hosted runner only while the instance's repository is private; the model, context, price, capabilities and place as the form gives them.",
+  "params": [
+    { "name": "form", "type": "ParticipantForm" },
+    { "name": "found", "type": "AgentFound[]" },
+    { "name": "visibility", "type": "string" }
+  ],
+  "result": "Participant",
+  "async": false,
+  "refusals": [
+    { "code": "not-a-type", "when": "the type is none of the five" },
+    { "code": "not-a-name", "when": "the name is empty, or holds | or a line break" },
+    { "code": "no-account", "when": "a person names no account, or one that is no login name" },
+    { "code": "no-endpoint", "when": "a model endpoint names no endpoint of this browser" },
+    { "code": "no-bridge", "when": "an agent, or an endpoint a bridge calls, names neither the bridge on this computer nor a remote session" },
+    { "code": "unknown-cli", "when": "a CI agent's CLI is neither claude nor codex, or an agent's on a bridge none of claude, codex and opencode" },
+    { "code": "not-a-label", "when": "a self-hosted runner's label is no label" },
+    { "code": "not-ready", "when": "the bridge reported the agent's CLI not installed, or not logged in" },
+    { "code": "public-repository", "when": "a CI agent on a self-hosted runner, while the instance's repository is not private" }
+  ],
+  "examples": [
+    {
+      "name": "a person on GitHub",
+      "input": {
+        "form": {
+          "name": "bob",
+          "type": "person",
+          "account": "bob",
+          "server": "github.com",
+          "endpoint": "",
+          "cli": "",
+          "runner": "",
+          "bridge": "",
+          "model": "",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository"],
+          "place": ""
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "bob",
+        "type": "person",
+        "model": "",
+        "context": null,
+        "price": null,
+        "capabilities": ["draft text", "read the repository", "write to the repository"],
+        "place": "",
+        "route": "the GitHub account `bob`",
+        "line": 0
+      }
+    },
+    {
+      "name": "a person on a GitLab server",
+      "input": {
+        "form": {
+          "name": "carla",
+          "type": "person",
+          "account": "carla",
+          "server": "gitlab.example.org",
+          "endpoint": "",
+          "cli": "",
+          "runner": "",
+          "bridge": "",
+          "model": "",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository"],
+          "place": ""
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "carla",
+        "type": "person",
+        "model": "",
+        "context": null,
+        "price": null,
+        "capabilities": ["draft text", "read the repository", "write to the repository"],
+        "place": "",
+        "route": "the GitLab account `carla` on gitlab.example.org",
+        "line": 0
+      }
+    },
+    {
+      "name": "a model endpoint of this browser",
+      "input": {
+        "form": {
+          "name": "hub-writer",
+          "type": "model endpoint",
+          "account": "",
+          "server": "",
+          "endpoint": "hub",
+          "cli": "",
+          "runner": "",
+          "bridge": "",
+          "model": "llama-3.3-70b",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text"],
+          "place": "NHR@FAU, Erlangen"
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "hub-writer",
+        "type": "model endpoint",
+        "model": "llama-3.3-70b",
+        "context": null,
+        "price": null,
+        "capabilities": ["draft text"],
+        "place": "NHR@FAU, Erlangen",
+        "route": "the endpoint hub of this browser",
+        "line": 0
+      }
+    },
+    {
+      "name": "a model server through a remote session's bridge",
+      "input": {
+        "form": {
+          "name": "gpu-box-llm",
+          "type": "model endpoint",
+          "account": "",
+          "server": "",
+          "endpoint": "gpu-box-llm",
+          "cli": "",
+          "runner": "",
+          "bridge": "session:gpu-box",
+          "model": "qwen2.5:7b",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text"],
+          "place": "the lab's GPU box, Erlangen"
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "gpu-box-llm",
+        "type": "model endpoint",
+        "model": "qwen2.5:7b",
+        "context": null,
+        "price": null,
+        "capabilities": ["draft text"],
+        "place": "the lab's GPU box, Erlangen",
+        "route": "the bridge of the session gpu-box: the endpoint gpu-box-llm",
+        "line": 0
+      }
+    },
+    {
+      "name": "Claude Code on GitHub's machines",
+      "input": {
+        "form": {
+          "name": "ci-dev",
+          "type": "CI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "",
+          "model": "claude-opus-5-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+          "place": "GitHub's machines, a provider in the USA"
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "ci-dev",
+        "type": "CI agent",
+        "model": "claude-opus-5-5",
+        "context": 200000,
+        "price": null,
+        "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+        "place": "GitHub's machines, a provider in the USA",
+        "route": "the workflow agent-m-job: claude on GitHub's machines",
+        "line": 0
+      }
+    },
+    {
+      "name": "Codex on a self-hosted runner",
+      "input": {
+        "form": {
+          "name": "gpu-dev",
+          "type": "CI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "codex",
+          "runner": "gpu-1",
+          "bridge": "",
+          "model": "codex-model",
+          "context": null,
+          "price": null,
+          "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+          "place": "the lab's GPU server, Erlangen"
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "gpu-dev",
+        "type": "CI agent",
+        "model": "codex-model",
+        "context": null,
+        "price": null,
+        "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+        "place": "the lab's GPU server, Erlangen",
+        "route": "the workflow agent-m-job: codex on the runner gpu-1",
+        "line": 0
+      }
+    },
+    {
+      "name": "a self-hosted runner for a public instance",
+      "input": {
+        "form": {
+          "name": "gpu-dev",
+          "type": "CI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "codex",
+          "runner": "gpu-1",
+          "bridge": "",
+          "model": "codex-model",
+          "context": null,
+          "price": null,
+          "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+          "place": "the lab's GPU server, Erlangen"
+        },
+        "found": [],
+        "visibility": "public"
+      },
+      "refused": "public-repository"
+    },
+    {
+      "name": "Claude Code, ready on the bridge on this computer",
+      "input": {
+        "form": {
+          "name": "claude",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "claude-opus-5-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "claude",
+        "type": "CLI agent",
+        "model": "claude-opus-5-5",
+        "context": 200000,
+        "price": null,
+        "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+        "place": "this machine",
+        "route": "the bridge on this computer: claude",
+        "line": 0
+      }
+    },
+    {
+      "name": "a sandboxed agent behind a remote session",
+      "input": {
+        "form": {
+          "name": "box-dev",
+          "type": "sandboxed agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "session:gpu-box",
+          "model": "claude-opus-5-5",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "a container on the lab's GPU box, Erlangen"
+        },
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "box-dev",
+        "type": "sandboxed agent",
+        "model": "claude-opus-5-5",
+        "context": null,
+        "price": null,
+        "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+        "place": "a container on the lab's GPU box, Erlangen",
+        "route": "the bridge of the session gpu-box: claude",
+        "line": 0
+      }
+    },
+    {
+      "name": "Codex, not logged in on that bridge",
+      "input": {
+        "form": {
+          "name": "codex",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "codex",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "codex-model",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "visibility": "private"
+      },
+      "refused": "not-ready"
+    },
+    {
+      "name": "an agent the author names on a bridge that did not answer",
+      "input": {
+        "form": {
+          "name": "box-dev",
+          "type": "sandboxed agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "session:gpu-box",
+          "model": "claude-opus-5-5",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "a container on the lab's GPU box, Erlangen"
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "result": {
+        "name": "box-dev",
+        "type": "sandboxed agent",
+        "model": "claude-opus-5-5",
+        "context": null,
+        "price": null,
+        "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+        "place": "a container on the lab's GPU box, Erlangen",
+        "route": "the bridge of the session gpu-box: claude",
+        "line": 0
+      }
+    },
+    {
+      "name": "a person without an account",
+      "input": {
+        "form": {
+          "name": "bob",
+          "type": "person",
+          "account": "",
+          "server": "github.com",
+          "endpoint": "",
+          "cli": "",
+          "runner": "",
+          "bridge": "",
+          "model": "",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository"],
+          "place": ""
+        },
+        "found": [],
+        "visibility": "private"
+      },
+      "refused": "no-account"
+    },
+    {
+      "name": "an agent on no bridge",
+      "input": {
+        "form": {
+          "name": "claude",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "",
+          "model": "claude-opus-5-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "visibility": "private"
+      },
+      "refused": "no-bridge"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-process-config.bridgeOffer",
+  "summary": "The agents a bridge offers as participants, each added in one click once its model is named — and, behind a remote session, where it processes data, which the page cannot tell —: every agent the bridge reported ready that the register does not hold on that bridge yet, as the form of a CLI agent named after its CLI — and after the session it runs behind —, unique in the register, with the capabilities and place its type presets there: this machine on the bridge of this computer, none behind a remote session.",
+  "params": [
+    { "name": "found", "type": "AgentFound[]" },
+    { "name": "bridge", "type": "string" },
+    { "name": "register", "type": "ParticipantRegister" }
+  ],
+  "result": "ParticipantForm[]",
+  "async": false,
+  "refusals": [
+    { "code": "no-bridge", "when": "the bridge is neither the one on this computer nor a remote session's" }
+  ],
+  "examples": [
+    {
+      "name": "the bridge on this computer, Claude Code ready",
+      "input": {
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "bridge": "this computer",
+        "register": {
+          "participants": [
+            {
+              "name": "alice",
+              "type": "person",
+              "model": "",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository"],
+              "place": "",
+              "route": "the GitHub account `alice`",
+              "line": 5
+            },
+            {
+              "name": "hub-writer",
+              "type": "model endpoint",
+              "model": "llama-3.3-70b",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text"],
+              "place": "NHR@FAU, Erlangen",
+              "route": "the endpoint hub of this browser",
+              "line": 6
+            },
+            {
+              "name": "gw-writer",
+              "type": "model endpoint",
+              "model": "gateway-model",
+              "context": 32000,
+              "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+              "capabilities": ["draft text"],
+              "place": "a gateway in Frankfurt, Germany",
+              "route": "the endpoint gw of this browser",
+              "line": 7
+            },
+            {
+              "name": "ci-dev",
+              "type": "CI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "place": "GitHub's machines, a provider in the USA",
+              "route": "the workflow agent-m-job",
+              "line": 8
+            },
+            {
+              "name": "cli-dev",
+              "type": "CLI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+              "place": "this machine",
+              "route": "the bridge on the Mac of `alice`",
+              "line": 9
+            }
+          ],
+          "problems": [],
+          "before": "# Participants of this instance",
+          "after": "Every participant that works with a language model names its model."
+        }
+      },
+      "result": [
+        {
+          "name": "claude",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        }
+      ]
+    },
+    {
+      "name": "the GPU box's bridge",
+      "input": {
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "bridge": "session:gpu-box",
+        "register": {
+          "participants": [
+            {
+              "name": "alice",
+              "type": "person",
+              "model": "",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository"],
+              "place": "",
+              "route": "the GitHub account `alice`",
+              "line": 5
+            },
+            {
+              "name": "hub-writer",
+              "type": "model endpoint",
+              "model": "llama-3.3-70b",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text"],
+              "place": "NHR@FAU, Erlangen",
+              "route": "the endpoint hub of this browser",
+              "line": 6
+            },
+            {
+              "name": "gw-writer",
+              "type": "model endpoint",
+              "model": "gateway-model",
+              "context": 32000,
+              "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+              "capabilities": ["draft text"],
+              "place": "a gateway in Frankfurt, Germany",
+              "route": "the endpoint gw of this browser",
+              "line": 7
+            },
+            {
+              "name": "ci-dev",
+              "type": "CI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "place": "GitHub's machines, a provider in the USA",
+              "route": "the workflow agent-m-job",
+              "line": 8
+            },
+            {
+              "name": "cli-dev",
+              "type": "CLI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+              "place": "this machine",
+              "route": "the bridge on the Mac of `alice`",
+              "line": 9
+            }
+          ],
+          "problems": [],
+          "before": "# Participants of this instance",
+          "after": "Every participant that works with a language model names its model."
+        }
+      },
+      "result": [
+        {
+          "name": "claude-gpu-box",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "session:gpu-box",
+          "model": "",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": ""
+        }
+      ]
+    },
+    {
+      "name": "Claude Code a participant already",
+      "input": {
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "bridge": "this computer",
+        "register": {
+          "participants": [
+            {
+              "name": "alice",
+              "type": "person",
+              "model": "",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository"],
+              "place": "",
+              "route": "the GitHub account `alice`",
+              "line": 5
+            },
+            {
+              "name": "hub-writer",
+              "type": "model endpoint",
+              "model": "llama-3.3-70b",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text"],
+              "place": "NHR@FAU, Erlangen",
+              "route": "the endpoint hub of this browser",
+              "line": 6
+            },
+            {
+              "name": "gw-writer",
+              "type": "model endpoint",
+              "model": "gateway-model",
+              "context": 32000,
+              "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+              "capabilities": ["draft text"],
+              "place": "a gateway in Frankfurt, Germany",
+              "route": "the endpoint gw of this browser",
+              "line": 7
+            },
+            {
+              "name": "ci-dev",
+              "type": "CI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "place": "GitHub's machines, a provider in the USA",
+              "route": "the workflow agent-m-job",
+              "line": 8
+            },
+            {
+              "name": "cli-dev",
+              "type": "CLI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+              "place": "this machine",
+              "route": "the bridge on the Mac of `alice`",
+              "line": 9
+            },
+            {
+              "name": "claude",
+              "type": "CLI agent",
+              "model": "claude-opus-5-5",
+              "context": 200000,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+              "place": "this machine",
+              "route": "the bridge on this computer: claude",
+              "line": 0
+            }
+          ],
+          "problems": [],
+          "before": "# Participants of this instance",
+          "after": "Every participant that works with a language model names its model."
+        }
+      },
+      "result": []
+    },
+    {
+      "name": "no bridge named",
+      "input": {
+        "found": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ],
+        "bridge": "",
+        "register": {
+          "participants": [
+            {
+              "name": "alice",
+              "type": "person",
+              "model": "",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository"],
+              "place": "",
+              "route": "the GitHub account `alice`",
+              "line": 5
+            },
+            {
+              "name": "hub-writer",
+              "type": "model endpoint",
+              "model": "llama-3.3-70b",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text"],
+              "place": "NHR@FAU, Erlangen",
+              "route": "the endpoint hub of this browser",
+              "line": 6
+            },
+            {
+              "name": "gw-writer",
+              "type": "model endpoint",
+              "model": "gateway-model",
+              "context": 32000,
+              "price": { "currency": "EUR", "input": 0.2, "output": 0.6 },
+              "capabilities": ["draft text"],
+              "place": "a gateway in Frankfurt, Germany",
+              "route": "the endpoint gw of this browser",
+              "line": 7
+            },
+            {
+              "name": "ci-dev",
+              "type": "CI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+              "place": "GitHub's machines, a provider in the USA",
+              "route": "the workflow agent-m-job",
+              "line": 8
+            },
+            {
+              "name": "cli-dev",
+              "type": "CLI agent",
+              "model": "claude-opus-5-5",
+              "context": null,
+              "price": null,
+              "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+              "place": "this machine",
+              "route": "the bridge on the Mac of `alice`",
+              "line": 9
+            }
+          ],
+          "problems": [],
+          "before": "# Participants of this instance",
+          "after": "Every participant that works with a language model names its model."
+        }
+      },
+      "refused": "no-bridge"
+    }
   ]
 }
 ```
@@ -4213,7 +5740,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-config.planConfig",
-  "summary": "The file and the message of one save, planned on the head read: a model as its canonical text under docs/process-models/ — only without an error, never under a name of the shipped catalogue —; a product's declaration — only where its view lets it be saved —; the participant register with a participant added at its end or changed in its row — only where the register reads without an error afterwards, and a CI agent on a self-hosted runner only for a private repository —; each refused when its file changed since it was opened.",
+  "summary": "The file and the message of one save, planned on the head read: a model as its canonical text under docs/process-models/ — only without an error, never under a name of the shipped catalogue —; a product's declaration — only where its view lets it be saved —; the participant register with a participant added at its end or changed in its row — only where the register reads without an error afterwards, a CI agent on a self-hosted runner only for a private repository, and a CLI or sandboxed agent only after its test through the bridge worked or by the author's choice to save it untested —; each refused when its file changed since it was opened.",
   "params": [{ "name": "change", "type": "ConfigChange" }, { "name": "head", "type": "ConfigHead" }],
   "result": "PlannedCommit",
   "async": false,
@@ -4227,6 +5754,7 @@ flowchart LR
     { "code": "no-participant", "when": "the participant to change is not in the register" },
     { "code": "name-taken", "when": "another participant has the name" },
     { "code": "participant-error", "when": "the register with the participant names an error" },
+    { "code": "not-tested", "when": "a CLI or sandboxed agent is saved neither after its test through the bridge worked nor by the author's choice to save it untested" },
     { "code": "unknown-change", "when": "the change is of no kind the configuration saves" }
   ],
   "examples": [
@@ -5100,12 +6628,13 @@ flowchart LR
             "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "a self-hosted runner on lab-pc-3, Erlangen",
-            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "route": "the workflow agent-m-job: claude on the runner gpu-1",
             "line": 0
           },
           "replaces": "",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": true
+          "selfHosted": true,
+          "tested": ""
         },
         "head": {
           "tree": [{ "path": "docs/participants.md", "blob": "ed9f1cd7e5f305b45281308b4127da5e44589dda" }],
@@ -5115,7 +6644,7 @@ flowchart LR
       },
       "result": {
         "files": [
-          { "path": "docs/participants.md", "text": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n| gpu-runner | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | a self-hosted runner on lab-pc-3, Erlangen | the workflow agent-m-job on the self-hosted runner gpu-1 |\n\nEvery participant that works with a language model names its model.\n" }
+          { "path": "docs/participants.md", "text": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n| gpu-runner | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | a self-hosted runner on lab-pc-3, Erlangen | the workflow agent-m-job: claude on the runner gpu-1 |\n\nEvery participant that works with a language model names its model.\n" }
         ],
         "message": "participant gpu-runner added"
       }
@@ -5133,12 +6662,13 @@ flowchart LR
             "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "a self-hosted runner on lab-pc-3, Erlangen",
-            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "route": "the workflow agent-m-job: claude on the runner gpu-1",
             "line": 0
           },
           "replaces": "",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": true
+          "selfHosted": true,
+          "tested": ""
         },
         "head": {
           "tree": [{ "path": "docs/participants.md", "blob": "ed9f1cd7e5f305b45281308b4127da5e44589dda" }],
@@ -5161,12 +6691,13 @@ flowchart LR
             "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "a self-hosted runner on lab-pc-3, Erlangen",
-            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "route": "the workflow agent-m-job: claude on the runner gpu-1",
             "line": 0
           },
           "replaces": "",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": false
+          "selfHosted": false,
+          "tested": ""
         },
         "head": {
           "tree": [{ "path": "docs/participants.md", "blob": "ed9f1cd7e5f305b45281308b4127da5e44589dda" }],
@@ -5177,7 +6708,7 @@ flowchart LR
       "refused": "participant-error"
     },
     {
-      "name": "a participant's capabilities changed",
+      "name": "a participant's capabilities changed, after its test",
       "input": {
         "change": {
           "kind": "participant",
@@ -5194,7 +6725,8 @@ flowchart LR
           },
           "replaces": "cli-dev",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": false
+          "selfHosted": false,
+          "tested": "works"
         },
         "head": {
           "tree": [{ "path": "docs/participants.md", "blob": "ed9f1cd7e5f305b45281308b4127da5e44589dda" }],
@@ -5208,6 +6740,103 @@ flowchart LR
         ],
         "message": "participant cli-dev changed"
       }
+    },
+    {
+      "name": "an agent on the bridge, its test passed",
+      "input": {
+        "change": {
+          "kind": "participant",
+          "participant": {
+            "name": "claude",
+            "type": "CLI agent",
+            "model": "claude-opus-5-5",
+            "context": 200000,
+            "price": null,
+            "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+            "place": "this machine",
+            "route": "the bridge on this computer: claude",
+            "line": 0
+          },
+          "replaces": "",
+          "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
+          "selfHosted": false,
+          "tested": "works"
+        },
+        "head": {
+          "tree": [{ "path": "docs/participants.md", "blob": "ed9f1cd7e5f305b45281308b4127da5e44589dda" }],
+          "register": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n",
+          "visibility": "private"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/participants.md", "text": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n| claude | CLI agent | claude-opus-5-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on this computer: claude |\n\nEvery participant that works with a language model names its model.\n" }
+        ],
+        "message": "participant claude added"
+      }
+    },
+    {
+      "name": "an agent its bridge did not answer for, saved untested",
+      "input": {
+        "change": {
+          "kind": "participant",
+          "participant": {
+            "name": "box-dev",
+            "type": "sandboxed agent",
+            "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
+            "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+            "place": "a container on the lab's GPU box, Erlangen",
+            "route": "the bridge of the session gpu-box: claude",
+            "line": 0
+          },
+          "replaces": "",
+          "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
+          "selfHosted": false,
+          "tested": "untested"
+        },
+        "head": {
+          "tree": [{ "path": "docs/participants.md", "blob": "ed9f1cd7e5f305b45281308b4127da5e44589dda" }],
+          "register": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n",
+          "visibility": "private"
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/participants.md", "text": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n| box-dev | sandboxed agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | a container on the lab's GPU box, Erlangen | the bridge of the session gpu-box: claude |\n\nEvery participant that works with a language model names its model.\n" }
+        ],
+        "message": "participant box-dev added"
+      }
+    },
+    {
+      "name": "an agent neither tested nor saved untested",
+      "input": {
+        "change": {
+          "kind": "participant",
+          "participant": {
+            "name": "claude",
+            "type": "CLI agent",
+            "model": "claude-opus-5-5",
+            "context": 200000,
+            "price": null,
+            "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+            "place": "this machine",
+            "route": "the bridge on this computer: claude",
+            "line": 0
+          },
+          "replaces": "",
+          "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
+          "selfHosted": false,
+          "tested": ""
+        },
+        "head": {
+          "tree": [{ "path": "docs/participants.md", "blob": "ed9f1cd7e5f305b45281308b4127da5e44589dda" }],
+          "register": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n",
+          "visibility": "private"
+        }
+      },
+      "refused": "not-tested"
     }
   ]
 }
@@ -5752,6 +7381,63 @@ flowchart LR
 
 ```json type
 {
+  "$id": "ParticipantForm",
+  "description": "A participant as its form holds it: its name and type; the type's own part, each field empty where the type has none — a person's account and the server it is on, github.com or a GitLab server; a model endpoint of this browser by its name; a CI agent's CLI and the label of its self-hosted runner, empty for GitHub's machines; the bridge an agent, or an endpoint a bridge calls, is reached through — this computer, or session:<name> of a remote session —; an agent's CLI —; the model, the tokens its context holds and its price per million tokens — each null where not declared —, the capabilities and the processing place.",
+  "type": "object",
+  "required": ["name", "type", "account", "server", "endpoint", "cli", "runner", "bridge", "model", "context", "price", "capabilities", "place"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "type": { "type": "string" },
+    "account": { "type": "string" },
+    "server": { "type": "string" },
+    "endpoint": { "type": "string" },
+    "cli": { "type": "string" },
+    "runner": { "type": "string" },
+    "bridge": { "type": "string", "pattern": "^(|this computer|session:[A-Za-z0-9][A-Za-z0-9._-]*)$" },
+    "model": { "type": "string" },
+    "context": { "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+    "price": { "$ref": "PriceOrNone" },
+    "capabilities": { "type": "array", "items": { "type": "string" } },
+    "place": { "type": "string" }
+  },
+  "examples": [
+    {
+      "name": "claude",
+      "type": "CLI agent",
+      "account": "",
+      "server": "",
+      "endpoint": "",
+      "cli": "claude",
+      "runner": "",
+      "bridge": "this computer",
+      "model": "claude-opus-5-5",
+      "context": 200000,
+      "price": null,
+      "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+      "place": "this machine"
+    },
+    {
+      "name": "gpu-dev",
+      "type": "CI agent",
+      "account": "",
+      "server": "",
+      "endpoint": "",
+      "cli": "codex",
+      "runner": "gpu-1",
+      "bridge": "",
+      "model": "codex-model",
+      "context": null,
+      "price": null,
+      "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+      "place": "the lab's GPU server, Erlangen"
+    }
+  ]
+}
+```
+
+```json type
+{
   "$id": "ModelSave",
   "description": "A model to save, and the blob its file had when it was opened — empty for a new one.",
   "type": "object",
@@ -6075,16 +7761,17 @@ flowchart LR
 ```json type
 {
   "$id": "ParticipantSave",
-  "description": "A participant to add — or to put in the row of the one it replaces —, the blob docs/participants.md had when it was opened, and whether it is a CI agent on a self-hosted runner.",
+  "description": "A participant to add — or to put in the row of the one it replaces —, the blob docs/participants.md had when it was opened, whether it is a CI agent on a self-hosted runner, and its test: works after its test through the bridge worked, untested where the author chose to save it so, empty for a participant without such a test.",
   "type": "object",
-  "required": ["kind", "participant", "replaces", "openedBlob", "selfHosted"],
+  "required": ["kind", "participant", "replaces", "openedBlob", "selfHosted", "tested"],
   "additionalProperties": false,
   "properties": {
     "kind": { "const": "participant" },
     "participant": { "$ref": "Participant" },
     "replaces": { "type": "string" },
     "openedBlob": { "type": "string" },
-    "selfHosted": { "type": "boolean" }
+    "selfHosted": { "type": "boolean" },
+    "tested": { "type": "string", "enum": ["", "works", "untested"] }
   },
   "examples": [
     {
@@ -6097,12 +7784,31 @@ flowchart LR
         "price": null,
         "capabilities": ["read the repository", "write to the repository", "run code and tests"],
         "place": "a self-hosted runner on lab-pc-3, Erlangen",
-        "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+        "route": "the workflow agent-m-job: claude on the runner gpu-1",
         "line": 0
       },
       "replaces": "",
       "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-      "selfHosted": true
+      "selfHosted": true,
+      "tested": ""
+    },
+    {
+      "kind": "participant",
+      "participant": {
+        "name": "box-dev",
+        "type": "sandboxed agent",
+        "model": "claude-opus-5-5",
+        "context": null,
+        "price": null,
+        "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+        "place": "a container on the lab's GPU box, Erlangen",
+        "route": "the bridge of the session gpu-box: claude",
+        "line": 0
+      },
+      "replaces": "",
+      "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
+      "selfHosted": false,
+      "tested": "untested"
     }
   ]
 }

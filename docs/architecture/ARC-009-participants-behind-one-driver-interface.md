@@ -35,7 +35,11 @@ documented. A key belongs to its endpoint and to the browser that holds it (ARC-
    model server on the person's own machine — through the bridge on that machine; a CI agent runs in a workflow of the
    product; a CLI or sandboxed agent is reached through the bridge. Every route gives a drafting job the same answer —
    the text, and the usage and cost as reported, never estimated — so that the job's loop does not know which route
-   answered.
+   answered. The participant register names each participant's route in words a program reads back, written by the
+   participant's form (`MOD-process-config.participantOf`, ARC-025): a person's account on its server; an endpoint of this
+   browser, or the bridge that calls a model server; a CI agent's CLI in the job workflow on GitHub's machines or on a
+   self-hosted runner (ARC-029 decision 2); an agent's CLI on the bridge of this computer (ARC-029 decision 10) or of a
+   remote session (ARC-013 decision 8).
 2. **Two wire formats, chosen by address** (`MOD-participants.endpointFormat`): the Anthropic Messages API for
    `https://api.anthropic.com`, the OpenAI-compatible chat completions for every other address. The request carries
    the key only in that endpoint's own header and, for Anthropic, the header that opts into calls from a browser
@@ -82,7 +86,8 @@ flowchart LR
 - No commit test calls a paid endpoint: every example of this adapter runs on recorded exchanges, and a real call per
   endpoint kind belongs to the nightly runs.
 - No use-case step is realised here. The steps of UC-003 and UC-017 are actions on the settings and participants pages;
-  they are realised where those are designed, by their interfaces together with these.
+  they are realised where those are designed, by their interfaces together with these: the settings page's table holds
+  them (ARC-026).
 
 ## Modules
 

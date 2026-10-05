@@ -23,9 +23,19 @@ forced_by:
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - A PARTICIPANT HAS ONE OF FIVE TYPES
+  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+  - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+  - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
+  - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+  - THE BRIDGE FINDS THE INSTALLED AGENTS
+  - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+  - NO SECRET IN THE REPOSITORY
   - UC-002
   - UC-003
   - UC-004
+  - UC-011
   - UC-015
   - UC-017
   - UC-027
@@ -62,6 +72,14 @@ Facts this decision rests on:
 - `docs/measurements/2026-10-04_pages-frames.md` records the headers GitHub Pages sent with the files that were
   requested. The files of the instance's own site that were requested — its root, `SPEC.html`, `PLAN.html` and the review
   page under `docs/` — came with neither `X-Frame-Options` nor `Content-Security-Policy`.
+- `docs/measurements/2026-10-05_self-hosted-runners.md` records what GitHub documents about self-hosted runners. "We
+  recommend that you only use self-hosted runners with private repositories", since "forks of your public repository can
+  potentially run dangerous code on your self-hosted runner machine by creating a pull request"; a runner is added on the
+  repository's settings, *Actions*, *Runners*, *New self-hosted runner*. "Self-hosted runners connect to GitHub to receive
+  job assignments", and the machine "must be able to make outbound HTTPS connections over port 443" — no inbound connection
+  is among the requirements GitHub lists. GitHub's own Windows and Ubuntu runners "have the same IP address ranges as the
+  Azure datacenters", which GitHub does "not recommend" as "allowlists for your internal resources", recommending
+  self-hosted runners instead. An Actions secret is a value entered on the repository's page on GitHub.
 
 ## Decision
 
@@ -101,7 +119,10 @@ Facts this decision rests on:
    for each product its visibility, whether `docs/tests/schedule.md` exists, its `docs/sources.md`
    (`MOD-source-library.parseLinks`), its `docs/resources.md` with the errors of its check against its collaborators
    (`MOD-resource-register.parseResources`, `MOD-resource-register.checkResources`), its `docs/settings.md` (decision 9)
-   and its `docs/collaborators.md` (decision 8), each with its blob.
+   and its `docs/collaborators.md` (decision 8), each with its blob. Every entry of the instance's register of sources is
+   read (`MOD-source-library.parseSource`) — one that does not read is a problem of the sources' line —, and the processing
+   places each restricted source permits (`MOD-source-library.restrictionsOf`) are kept with the instance, and with each
+   product those of the sources it links: the participants' form and a product's roles name them (decision 12).
 5. **A browser setting is tested with itself alone** (`MOD-settings-page.testSetting`): a token asks its own server
    which account it acts as, and a refused one gives the page where it is renewed (ARC-004); an endpoint the browser
    calls answers the short test request, or the test names why not and what works instead (ARC-009); an endpoint a
@@ -238,6 +259,105 @@ Facts this decision rests on:
     the name should go. Earlier commits keep the name in the repository's history." — or, where none does, "No file on the
     default branch names <name>. Earlier commits keep the name in the repository's history." A panel of decision 10 carries
     the link "Open this page on its own", to the same address.
+12. **A participant's form** (`#participant`, `#participants`; UC-017, UC-044 5). The type picked presets the
+    capabilities and the processing place (`MOD-process-config.participantPreset`) — *this machine* for a CLI agent,
+    except behind a remote session, whose machine the page cannot tell —; the type's own part is what the participant's
+    route is written from (`MOD-process-config.participantOf`, ARC-025); and the form's notes are chosen by
+    `MOD-settings-views.participantNotes`:
+    - **A person** — the account, on `github.com` or on a GitLab server this browser keeps a project token for.
+    - **A model endpoint** — an endpoint this browser keeps (UC-003), by its name, and its model; its key stays here.
+    - **A CI agent** — its CLI, `claude` or `codex`, its model, and where its workflow runs. On GitHub's machines its
+      key is the Actions secret `MOD-job-runner.ciAgentOf` names, stored in each product whose jobs it runs, whose
+      secrets page the form links (`MOD-git-host.secretsPageUrl`); the form has no field for it
+      (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`). On a self-hosted runner, named by its label, its CLI
+      uses the login it has on that machine and no key is stored (ARC-029 decision 2); the runner is added to each
+      product whose jobs it runs, whose page for adding one the form links (`MOD-git-host.runnersPageUrl`). A
+      self-hosted runner is refused while the instance's repository — whose visibility `MOD-settings-page.readConfig`
+      read — is not private, by the form and again by the save (`MOD-process-config.planConfig`), with GitHub's own
+      reason (context); and a product's job is not started on a runner of a product's repository that is not private
+      (`MOD-job-runner.dispatchPlan`, ARC-029 decision 8).
+    - **A CLI or sandboxed agent** — the bridge it runs on: the one paired in this browser, at its address — on this
+      computer, or a forward to another machine whose window showed its token (UC-011 1a) —, or a remote session's
+      bridge (UC-011 1c; ARC-013 decision 8). A remote session is how a bridge without its window is reached — headless,
+      in a sandbox or on a machine without a desktop (ARC-011 decision 5) —: it takes the session's token from this
+      browser's export (ARC-013 decision 7), and the dashboard reaches it at the tunnel's local address,
+      `http://localhost:<port>`, or over HTTPS through the jump host. Then one of the agents that bridge reports ready
+      (`MOD-settings-page.agentsOn`) — the form offers those alone, and the route refuses one the bridge reports missing
+      or not logged in (`THE BRIDGE FINDS THE INSTALLED AGENTS`); where the bridge does not answer, the author names the
+      agent that runs there, which **Save untested** saves (UC-017 6a) —; and the model the agent is configured to use.
+
+    A form opened with a type and an address (decision 2; UC-040 2a) shows the address above the type's own part, for
+    the author to choose what it names: for a model endpoint, the endpoint this browser keeps at that address, or the
+    endpoint's fields in place (UC-017 3a); for a sandboxed agent, the bridge it is reached through. Every participant
+    that works with a language model names its model, and may name how many tokens its context holds and its price per
+    million input and output tokens (ARC-019 decision 3): left empty, a job is not sent to it, as that decision says
+    (`MOD-job-harness.contextFits`), and its cost stays *price unknown* (`MOD-run-engine.jobCost`). The model names are
+    what the three checkers of a text rewritten from a mail are told apart by (UC-038 6): the gate compares them
+    (`MOD-pseudonymiser.writeGate`, ARC-014 decision 11), and the choice of the checkers waits with the job that checks
+    such a text (ARC-014's consequences). **Test** (UC-017 6; `MOD-settings-page.testParticipant`) sends the greeting
+    through the agent's bridge with its token and shows what answered: the CLI with its version, ready, and the bridge's
+    version. For a CLI or sandboxed agent **Save** (UC-017 7) is offered once the test worked; where it did not, the
+    test names why — no bridge or session stored, no token, no answer because the bridge does not run at that address, a
+    refused token, the CLI not logged in or not installed there — with what works instead, and **Save untested** stands
+    beside it: nothing is saved until the author presses it (UC-017 6a), and the save refuses such an agent saved
+    neither after a test that worked nor untested (`MOD-process-config.planConfig`).
+    **Sources a participant may not receive** (UC-017 5a): from the restrictions decision 4 read, the form lists the
+    sources whose content may not go where the participant processes data (`MOD-process-config.sourcesBarred`); it is
+    saved all the same, and it is never given their content, since a job gives a source's content only to the places its
+    register entry permits (`MOD-job-harness.mayReceive`, ARC-007 decision 5; `MOD-derivation.derivationSources`,
+    ARC-035 decision 4). **The bridge's agents as participants** (UC-044 5): once a bridge is paired or a remote session
+    added, its line and `#participants` list each agent it reports ready that the participant register does not hold on
+    it yet (`MOD-process-config.bridgeOffer`), each with a field for its model — behind a remote session also one for
+    its processing place, which the page cannot tell — and **Add as participant**, one click once they are filled in
+    (`ONE CLICK PER DECISION`): the greeting names an agent's CLI and version and no model, and a participant that works
+    with a language model names its model (`A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL`). It is saved as a
+    CLI agent named after its CLI — and after the session it runs behind —, on the bridge of this computer with the
+    place its type presets there, *this machine*, which UC-044 5 calls *this computer*; the greeting that offered it is
+    its test. **A product's roles and the sources it links** (UC-002 4c): from the restrictions of the sources the
+    product links (decision 4), the declaration's view names in each role every participant whose place a linked source
+    does not permit (`MOD-process-config.declarationView`, `MOD-process-model.assignable`); a holder among them stays
+    assigned — it keeps no declaration from being saved — and is never given that source's content, as above.
+
+    The texts (`EVERY STEP EXPLAINS ITSELF`). The notes: `key-stays` — "The endpoint's key stays in this browser; the
+    list of participants names the endpoint, never its key."; `secret-named` — "Its key is the Actions secret <secret>,
+    stored on the secrets page of each product whose jobs it runs — never here."; `why-no-key`, folded — "A workflow
+    runs on its runner, not in this browser, so nothing stored here — no token, no SSH key — reaches it.";
+    `runner-on-agent-machine` — "To let a workflow use a CLI or sandboxed agent, install a self-hosted runner on that
+    agent's machine: the workflow's job then runs there and reaches the agent on that machine, with no inbound
+    connection and no key stored on GitHub — behind NAT too, since the runner connects out to GitHub.";
+    `ssh-alternative`, folded as *Without a runner?* (UC-017 3b) — "A workflow on GitHub's machines reaches an agent
+    behind SSH only with the SSH key stored as an Actions secret on GitHub, and with a host that GitHub's machines reach
+    from the internet; GitHub advises against allowing their many addresses on internal resources. A self-hosted runner
+    needs neither, and Agent M recommends it."; `runner-login` — "On its self-hosted runner the CLI uses the login it
+    has on that machine; no key is stored."; `private-only` — "A self-hosted runner serves Agent M only from a private
+    repository: on a public one, a pull request from any fork could run its own code on that machine."; `public-refused`
+    — "This instance's repository is <visibility>, so a CI agent on a self-hosted runner is not saved."; `own-login` —
+    "The agent runs with the login it already has on that machine; Agent M asks for no key."; `tunnel-address` — "A
+    sandbox's bridge is reached through a tunnel: a forward on this computer, its local address paired here, or a remote
+    session of the jump host, whose bridge takes its token from this browser's export." The refusals the form shows:
+    "the instance's repository is <visibility>; a self-hosted runner serves Agent M only from a private repository,
+    since a pull request from any fork could run its code on that machine"; "<CLI> is not ready on <bridge>: not
+    installed", or "not logged in"; "<name> is saved after its test through the bridge worked, or untested where you
+    choose Save untested"; "a participant is named without | and line breaks, such as cli-dev"; "a person is named by
+    the account they have on GitHub or on the GitLab server, such as alice"; "<label> is no runner label, such as
+    gpu-1". The test: "<CLI> <version>, ready on <bridge>, Agent M Bridge <version>" — the bridge being "the bridge on
+    this computer" or "the bridge of the session <name>" —; "<CLI> <version> is not logged in on <bridge>" with "<login
+    step>, run once on that machine"; "<CLI> is not installed on <bridge>" with the vendor's page; and a bridge's
+    refusal as `MOD-bridge-server.callBridge` names it, with "the bridge, paired on this page with the token its window
+    shows", "the session, added on this page with + Remote session", "the token its bridge's window shows, pasted here"
+    and "this browser's export, imported into that bridge", "the bridge started on its machine", "the address its window
+    shows, where it is not <address>" and "the route over HTTPS through the jump host, where this browser blocks the
+    call", "Pair anew in the bridge's window, and paste its new token here", "the jump host's settings on this page", or
+    a session's texts of decision 5; where no bridge or session stands to be asked, the reason is "no bridge is paired
+    in this browser", "no remote session <name> is stored" or "the session <name> has no bridge token". A source barred:
+    "<name> processes data at <place>; the content of <source> may go only to <places>, so <name> is never given it. It
+    can be saved all the same." A holder in a product's role: "<name> holds <role> and processes data at <place>; the
+    content of <source>, which this product links, may go only to <places>, so <name> is never given it. The assignment
+    stays." The bridge's offer: "Ready on this bridge: <CLI> <version>. Name the model it is configured to use — for
+    example claude-opus-5-5 — and add it as a participant that processes data on this machine." with *Model* and
+    **Add as participant**; behind a remote session, "Ready on the bridge of the session <name>: <CLI> <version>. Name
+    the model it is configured to use and where that machine processes data — for example the group's server room,
+    Erlangen —, and add it as a participant." with *Model*, *Processing place* and **Add as participant**.
 
 ```mermaid
 flowchart LR
@@ -266,6 +386,12 @@ flowchart LR
   one setting alone.
 - **The settings page as a view of the main page** — the main page reads every product to show what goes on; the
   settings page reads what is configured, and is reached from every page.
+- **A participant's route typed by hand** — rejected: the job runtimes read a route back (ARC-029 decisions 2 and 10), and
+  a route written from the type's own part is one they read.
+- **The agents offered from the vendors' list** — rejected by `THE BRIDGE FINDS THE INSTALLED AGENTS`: a bridge offers
+  only what it found installed, and the form only what it reports ready.
+- **A field for a CI agent's key** — rejected by `A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`: the key is a CI
+  secret, named and never asked for.
 
 ## Consequences
 
@@ -299,9 +425,11 @@ flowchart LR
   participant jobs over a mail's content (ARC-014), and the decision that designs it places the rule.
 - Finding the files that still name a person reads every file of the head once — a file read before is taken from the
   kept texts (ARC-005 decision 9) —; a repository of many files costs as many requests.
-- Not realised here: the steps that need those tests or settings not designed yet — UC-017 3, 3b, 5a, 6, 6a (a participant
-  on the bridge and its test, which come with the bridge as a job runtime, and the sources' places), UC-002 4c (the
-  sources' places), and UC-031 4a (keeping an unfinished model in the browser, for which the store has no key).
+- Reading the register of sources costs a request per entry not kept from an earlier read (ARC-005 decision 9).
+- A participant behind a remote session is configured and tested here; its jobs reach it once the job runtimes read the
+  route ARC-013 decision 8 gives (ARC-013's consequences). Until then a job of such a participant is refused, named with the
+  reason (`MOD-job-runner.bridgePlan`, ARC-029).
+- Not realised here: UC-031 4a (keeping an unfinished model in the browser, for which the store has no key).
 
 ## Modules
 
@@ -312,9 +440,9 @@ flowchart LR
   "id": "MOD-settings-views",
   "folder": "src/settings-views/",
   "layer": "feature",
-  "responsibility": "Computes what the settings page shows: a line per setting this browser keeps, and per kind it keeps none of, with its state and whether it holds a secret; the tokens to warn of on every page; a line per setting the instance and each product keep in their repositories, with the form its Edit opens; a product's docs/settings.md and what the page states before its pseudonymisation is switched; and the people a repository lists as consenting to be named, a person added or removed, and the lines of a text that name a person.",
+  "responsibility": "Computes what the settings page shows: a line per setting this browser keeps, and per kind it keeps none of, with its state and whether it holds a secret; the tokens to warn of on every page; a line per setting the instance and each product keep in their repositories, with the form its Edit opens; the notes a participant's form shows for its type; a product's docs/settings.md and what the page states before its pseudonymisation is switched; and the people a repository lists as consenting to be named, a person added or removed, and the lines of a text that name a person.",
   "realises": ["EVERY SETTING IS REACHED FROM ONE PAGE"],
-  "owns": ["Collaborator", "CollaboratorRow", "SettingLine", "ConfigLine", "SettingCount", "PseudonymisationRead", "CollaboratorsRead", "ProductSettingsRead", "PseudonymisationNotice", "ProductSettingsContent", "ProductSettings", "SettingsPage", "RegisterRead", "InstanceConfig", "DeclarationOrNone", "ProductConfig", "SettingsConfig", "CollaboratorsFile", "ProductSettingsFile"],
+  "owns": ["Collaborator", "CollaboratorRow", "SettingLine", "ConfigLine", "SettingCount", "PseudonymisationRead", "CollaboratorsRead", "ProductSettingsRead", "PseudonymisationNotice", "ParticipantNotes", "ProductSettingsContent", "ProductSettings", "SettingsPage", "RegisterRead", "InstanceConfig", "DeclarationOrNone", "ProductConfig", "SettingsConfig", "CollaboratorsFile", "ProductSettingsFile"],
   "uses": ["MOD-contracts", "MOD-settings-store"]
 }
 ```
@@ -498,7 +626,8 @@ flowchart LR
             ]
           },
           "sources": { "count": 2, "problems": 0 },
-          "resources": { "count": 1, "problems": 0 }
+          "resources": { "count": 1, "problems": 0 },
+          "restrictions": [{ "source": "SRC-iec-62304", "permitted": ["this machine", "NHR@FAU, Erlangen"] }]
         },
         "products": [
           {
@@ -620,6 +749,7 @@ flowchart LR
               "blob": "9155ce091497d00913361ab80b4eb450df163a4c",
               "problem": ""
             },
+            "restrictions": [{ "source": "SRC-iec-62304", "permitted": ["this machine", "NHR@FAU, Erlangen"] }],
             "problem": null
           },
           {
@@ -636,6 +766,7 @@ flowchart LR
             "resources": { "count": 0, "problems": 0 },
             "pseudonymisation": { "value": "on", "set": false, "blob": "", "problem": "" },
             "collaborators": { "people": [], "blob": "", "problem": "" },
+            "restrictions": [],
             "problem": { "refused": "token-refused", "reason": "gitlab.example.org refused the token" }
           }
         ]
@@ -707,7 +838,8 @@ flowchart LR
           "register": { "participants": [], "problems": [], "before": "", "after": "", "text": "", "blob": "" },
           "catalogue": { "models": [], "practices": [] },
           "sources": { "count": 0, "problems": 0 },
-          "resources": { "count": 0, "problems": 0 }
+          "resources": { "count": 0, "problems": 0 },
+          "restrictions": []
         },
         "products": []
       },
@@ -1026,6 +1158,46 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-settings-views.participantNotes",
+  "summary": "The notes a participant's form shows for its type, by their codes: an endpoint's key stays in this browser; a CI agent on GitHub's machines names its key as an Actions secret, says why nothing stored here reaches a workflow, that a runner on an agent's machine reaches it with no inbound connection and no key on GitHub, and what the SSH alternative costs; one on a self-hosted runner uses the login its CLI has there and serves Agent M only from a private repository, and a public instance refuses it; an agent on a bridge uses its own login there, and a sandboxed agent's bridge is reached through a tunnel — a forward on this computer, or a remote session.",
+  "params": [
+    { "name": "type", "type": "string" },
+    { "name": "runner", "type": "string" },
+    { "name": "visibility", "type": "string" }
+  ],
+  "result": "ParticipantNotes",
+  "async": false,
+  "refusals": [{ "code": "not-a-type", "when": "the type is none of the five" }],
+  "examples": [
+    {
+      "name": "a CI agent on GitHub's machines",
+      "input": { "type": "CI agent", "runner": "", "visibility": "private" },
+      "result": {
+        "type": "CI agent",
+        "notes": ["secret-named", "why-no-key", "runner-on-agent-machine", "ssh-alternative"]
+      }
+    },
+    {
+      "name": "a CI agent on a self-hosted runner of a public instance",
+      "input": { "type": "CI agent", "runner": "gpu-1", "visibility": "public" },
+      "result": { "type": "CI agent", "notes": ["runner-login", "why-no-key", "private-only", "public-refused"] }
+    },
+    {
+      "name": "a sandboxed agent",
+      "input": { "type": "sandboxed agent", "runner": "", "visibility": "private" },
+      "result": { "type": "sandboxed agent", "notes": ["own-login", "tunnel-address"] }
+    },
+    {
+      "name": "a type of none of the five",
+      "input": { "type": "robot", "runner": "", "visibility": "private" },
+      "refused": "not-a-type"
+    }
+  ]
+}
+```
+
 ### MOD-settings-page
 
 ```json module
@@ -1033,10 +1205,10 @@ flowchart LR
   "id": "MOD-settings-page",
   "folder": "src/settings-page/",
   "layer": "shell",
-  "responsibility": "The page settings.html at the root of the instance's Pages site, where every setting is reached: it routes, reads what the instance and its products keep, tests a setting of this browser with that setting alone, opens the form of a repository's setting in place, saves the configuration, a product's pseudonymisation and its collaborators as one commit on a click, finds the files that still name a person, keeps and clears the browser's settings through the settings store, and holds every text the page shows.",
+  "responsibility": "The page settings.html at the root of the instance's Pages site, where every setting is reached: it routes, reads what the instance and its products keep — with what each restricted source permits —, tests a setting of this browser with that setting alone, reads the agents a bridge reports and tests a participant through its bridge, opens the form of a repository's setting in place, saves the configuration, a product's pseudonymisation and its collaborators as one commit on a click, finds the files that still name a person, keeps and clears the browser's settings through the settings store, and holds every text the page shows.",
   "realises": ["A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY", "SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS"],
-  "owns": ["SettingsRoute", "SettingTest", "NamingFile"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views", "MOD-source-library", "MOD-resource-register", "MOD-bridge-feed", "MOD-bridge-tunnel", "MOD-mailbox", "MOD-bridge-server", "MOD-model-servers", "MOD-hub"]
+  "owns": ["SettingsRoute", "BridgeAgents", "SettingTest", "NamingFile"],
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views", "MOD-source-library", "MOD-resource-register", "MOD-bridge-feed", "MOD-bridge-tunnel", "MOD-mailbox", "MOD-bridge-server", "MOD-model-servers", "MOD-hub", "MOD-job-runner"]
 }
 ```
 
@@ -1100,7 +1272,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-settings-page.readConfig",
-  "summary": "What the instance and the products keep in their repositories, each read at the head of its default branch: the instance's visibility, its participant register with its text and blob, the catalogue with the products declaring each model, how many sources it registers and how many resources it declares; for each product its head, whether a token may write to it, its visibility, its declaration with the blob of docs/process.md, the model it declares read at the version it declares, the requirements of its SPEC, whether a test schedule is saved, how many sources it links and resources it declares, its pseudonymisation and the people who agreed to be named, each with its blob — or why it could not be read.",
+  "summary": "What the instance and the products keep in their repositories, each read at the head of its default branch: the instance's visibility, its participant register with its text and blob, the catalogue with the products declaring each model, how many sources it registers — an entry that does not read counted as a problem — and how many resources it declares, and the processing places each restricted source permits (MOD-source-library.restrictionsOf); for each product its head, whether a token may write to it, its visibility, its declaration with the blob of docs/process.md, the model it declares read at the version it declares, the requirements of its SPEC, whether a test schedule is saved, how many sources it links and resources it declares, the restrictions of the sources it links, its pseudonymisation and the people who agreed to be named, each with its blob — or why it could not be read.",
   "params": [
     { "name": "instance", "type": "string" },
     { "name": "products", "type": "string[]" },
@@ -1175,8 +1347,8 @@ flowchart LR
                   { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
                   { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
                   { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
-                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "562b5705aac046546510b5f9a80f90b3799acdf7" },
-                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "c9ca55f748bdc67e21163340ed579ab044c3fdd9" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "210e4956f470be33e3103bba4222977caae50d44" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" },
                   { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
                   { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
                   { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
@@ -1249,7 +1421,7 @@ flowchart LR
             "response": { "status": 401, "body": { "message": "401 Unauthorized" } }
           }
         ],
-        "texts": { "1f23b5829774f9d58652b9ae33e9bcf83c517d39": "---\nmodel: scrum\nmodel_file: docs/process-models/scrum.md\nmodel_version: a900000000000000000000000000000000000000\nsprint_close: alice\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | cli-dev, ci-dev |\n\n## Branches\n\n| Phase or time box | Branch |\n|---|---|\n| Sprint | `sprint/<nn>` |\n", "39aa49976758648c9a46b24c8a1c2a8c49053e2e": "---\nname: devops\nkind: practice\nfits: v-model, pulled\n---\n# DevOps\n\nA release is deployed after validation, once its deployment check is green.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Deployment | Operator | the deployed release |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Validation | Deployment | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Validation → Deployment | TST | the deployment check is green | CI check `deploy` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Operator | agent | read the repository, run code and tests |\n", "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd": "---\nname: scrum\nkind: pulled\nmeasure: remaining items per time box\n---\n# Scrum\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Sprint planning | Product Owner | ITM |\n| Development | Developers | MOD, TST |\n| Sprint review | Product Owner | the review of the increment |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Sprint planning | Development | sequence |\n| Development | Sprint review | sequence |\n| Sprint review | Sprint planning | sequence |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Sprint planning → Development | ITM | the sprint's items are ready | Product Owner |\n| Development → Sprint review | MOD | CI is green | Product Owner |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | none |\n| Time box | 2 weeks |\n| Sprints | yes |\n", "5cc214fdd33f6a93860ea257f5d26f0f00f2d139": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## gpt2\n\n- kind: model\n- system: —\n- address: https://huggingface.co/openai-community/gpt2\n- pin: 607a30d783dfa663caf39e06633721c8d4cfcd7e\n- licence: mit\n- redistribution: yes\n- maintainer: @openai-community\n- route: browser\n- place: —\n- secret: —\n\n## whisper-finetuned\n\n- kind: model\n- system: —\n- address: smb://lab-share/models/whisper-finetuned\n- pin: —\n- licence: unknown\n- redistribution: unknown\n- maintainer: collaborator: Bob Example\n- route: runner:gpu\n- place: —\n- secret: —\n", "856921837cdfd759b62ae92008161c6c6064a51f": "---\nname: v-model\nkind: planned\nmeasure: plan entries per phase\n---\n# V-model\n\nEvery accepted requirement passes every phase; each later phase checks an earlier one.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Requirements | Analyst | requirements, UC |\n| Design | Architect | ARC |\n| Implementation | Developers | MOD |\n| Testing | Tester | TST |\n| Validation | Analyst | the validation of the requirements |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Requirements | Design | sequence |\n| Design | Implementation | sequence |\n| Implementation | Testing | sequence |\n| Testing | Implementation | back |\n| Testing | Validation | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n| Design | Testing |\n| Requirements | Validation |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Design → Implementation | ARC | every requirement has an ARC, and the design is accepted | Architect |\n| Implementation → Testing | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Analyst | either | draft text, read the repository |\n| Architect | person | read the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Tester | either | read the repository, run code and tests |\n", "9155ce091497d00913361ab80b4eb450df163a4c": "# Collaborators\n\nThe people who agreed to be named in this repository (UC-042), each with the account they have on its server.\n\n| Name | Account |\n|---|---|\n| Bob Example | @bob |\n| Carla Muster | @carla |\n", "aabf3b8ef80783e035447b59bfcac2ba6d42bd13": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n", "c5d9667de09becf75567ee9c19b1bed43c7f2621": "# Requirement sources\n\n| Source | Version | SHA-256 | Part | Look at again |\n|---|---|---|---|---|\n| SRC-iec-62304 | 1 | 7caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | safety class B | — |\n| SRC-thesis-guide | 1 | 08bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | — | — |\n", "ed9f1cd7e5f305b45281308b4127da5e44589dda": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n", "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n", "fff94463cd4955ed56f1e4700570c7dbbab3b739": "# Notes — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n" }
+        "texts": { "1f23b5829774f9d58652b9ae33e9bcf83c517d39": "---\nmodel: scrum\nmodel_file: docs/process-models/scrum.md\nmodel_version: a900000000000000000000000000000000000000\nsprint_close: alice\n---\n# How the thesis tool is developed\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | cli-dev, ci-dev |\n\n## Branches\n\n| Phase or time box | Branch |\n|---|---|\n| Sprint | `sprint/<nn>` |\n", "210e4956f470be33e3103bba4222977caae50d44": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Content stream | Note |\n|---|---|---|---|---|---|---|\n| 1 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — | — |\n", "39aa49976758648c9a46b24c8a1c2a8c49053e2e": "---\nname: devops\nkind: practice\nfits: v-model, pulled\n---\n# DevOps\n\nA release is deployed after validation, once its deployment check is green.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Deployment | Operator | the deployed release |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Validation | Deployment | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Validation → Deployment | TST | the deployment check is green | CI check `deploy` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Operator | agent | read the repository, run code and tests |\n", "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd": "---\nname: scrum\nkind: pulled\nmeasure: remaining items per time box\n---\n# Scrum\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Sprint planning | Product Owner | ITM |\n| Development | Developers | MOD, TST |\n| Sprint review | Product Owner | the review of the increment |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Sprint planning | Development | sequence |\n| Development | Sprint review | sequence |\n| Sprint review | Sprint planning | sequence |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Sprint planning → Development | ITM | the sprint's items are ready | Product Owner |\n| Development → Sprint review | MOD | CI is green | Product Owner |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | none |\n| Time box | 2 weeks |\n| Sprints | yes |\n", "5cc214fdd33f6a93860ea257f5d26f0f00f2d139": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## gpt2\n\n- kind: model\n- system: —\n- address: https://huggingface.co/openai-community/gpt2\n- pin: 607a30d783dfa663caf39e06633721c8d4cfcd7e\n- licence: mit\n- redistribution: yes\n- maintainer: @openai-community\n- route: browser\n- place: —\n- secret: —\n\n## whisper-finetuned\n\n- kind: model\n- system: —\n- address: smb://lab-share/models/whisper-finetuned\n- pin: —\n- licence: unknown\n- redistribution: unknown\n- maintainer: collaborator: Bob Example\n- route: runner:gpu\n- place: —\n- secret: —\n", "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4": "---\nid: SRC-thesis-guide\nname: Thesis writing guide of the faculty\nkind: document\nauthority: advisory\nlicence: republish\nterms: CC BY 4.0\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-thesis-guide Thesis writing guide of the faculty\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Content stream | Note |\n|---|---|---|---|---|---|---|\n| 1 | 2025 edition | 2025-10-01 | thesis-guide-2025.md | 0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711 | — | — |\n", "856921837cdfd759b62ae92008161c6c6064a51f": "---\nname: v-model\nkind: planned\nmeasure: plan entries per phase\n---\n# V-model\n\nEvery accepted requirement passes every phase; each later phase checks an earlier one.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Requirements | Analyst | requirements, UC |\n| Design | Architect | ARC |\n| Implementation | Developers | MOD |\n| Testing | Tester | TST |\n| Validation | Analyst | the validation of the requirements |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Requirements | Design | sequence |\n| Design | Implementation | sequence |\n| Implementation | Testing | sequence |\n| Testing | Implementation | back |\n| Testing | Validation | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n| Design | Testing |\n| Requirements | Validation |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Design → Implementation | ARC | every requirement has an ARC, and the design is accepted | Architect |\n| Implementation → Testing | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Analyst | either | draft text, read the repository |\n| Architect | person | read the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Tester | either | read the repository, run code and tests |\n", "9155ce091497d00913361ab80b4eb450df163a4c": "# Collaborators\n\nThe people who agreed to be named in this repository (UC-042), each with the account they have on its server.\n\n| Name | Account |\n|---|---|\n| Bob Example | @bob |\n| Carla Muster | @carla |\n", "aabf3b8ef80783e035447b59bfcac2ba6d42bd13": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n", "c5d9667de09becf75567ee9c19b1bed43c7f2621": "# Requirement sources\n\n| Source | Version | SHA-256 | Part | Look at again |\n|---|---|---|---|---|\n| SRC-iec-62304 | 1 | 7caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | safety class B | — |\n| SRC-thesis-guide | 1 | 08bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | — | — |\n", "ed9f1cd7e5f305b45281308b4127da5e44589dda": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n", "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n", "fff94463cd4955ed56f1e4700570c7dbbab3b739": "# Notes — Specification\n\n## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n" }
       },
       "result": {
         "instance": {
@@ -1385,7 +1557,8 @@ flowchart LR
             ]
           },
           "sources": { "count": 2, "problems": 0 },
-          "resources": { "count": 1, "problems": 0 }
+          "resources": { "count": 1, "problems": 0 },
+          "restrictions": [{ "source": "SRC-iec-62304", "permitted": ["this machine", "NHR@FAU, Erlangen"] }]
         },
         "products": [
           {
@@ -1507,6 +1680,7 @@ flowchart LR
               "blob": "9155ce091497d00913361ab80b4eb450df163a4c",
               "problem": ""
             },
+            "restrictions": [{ "source": "SRC-iec-62304", "permitted": ["this machine", "NHR@FAU, Erlangen"] }],
             "problem": null
           },
           {
@@ -1523,6 +1697,7 @@ flowchart LR
             "resources": { "count": 0, "problems": 0 },
             "pseudonymisation": { "value": "on", "set": false, "blob": "", "problem": "" },
             "collaborators": { "people": [], "blob": "", "problem": "" },
+            "restrictions": [],
             "problem": { "refused": "token-refused", "reason": "gitlab.example.org refused the token" }
           }
         ]
@@ -1625,8 +1800,8 @@ flowchart LR
                   { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
                   { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
                   { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
-                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "562b5705aac046546510b5f9a80f90b3799acdf7" },
-                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "c9ca55f748bdc67e21163340ed579ab044c3fdd9" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "210e4956f470be33e3103bba4222977caae50d44" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" },
                   { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
                   { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
                   { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
@@ -1680,7 +1855,7 @@ flowchart LR
             }
           }
         ],
-        "texts": { "21c97253b3b8a7c443ef3fc1ef28edb69ff665c4": "# plain — Specification\n", "39aa49976758648c9a46b24c8a1c2a8c49053e2e": "---\nname: devops\nkind: practice\nfits: v-model, pulled\n---\n# DevOps\n\nA release is deployed after validation, once its deployment check is green.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Deployment | Operator | the deployed release |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Validation | Deployment | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Validation → Deployment | TST | the deployment check is green | CI check `deploy` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Operator | agent | read the repository, run code and tests |\n", "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd": "---\nname: scrum\nkind: pulled\nmeasure: remaining items per time box\n---\n# Scrum\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Sprint planning | Product Owner | ITM |\n| Development | Developers | MOD, TST |\n| Sprint review | Product Owner | the review of the increment |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Sprint planning | Development | sequence |\n| Development | Sprint review | sequence |\n| Sprint review | Sprint planning | sequence |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Sprint planning → Development | ITM | the sprint's items are ready | Product Owner |\n| Development → Sprint review | MOD | CI is green | Product Owner |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | none |\n| Time box | 2 weeks |\n| Sprints | yes |\n", "7c0d3deb87cdc087ab8a9a492dfe450860fc4e8d": "---\npseudonymisation: off\n---\n\n# Settings\n\nKept off: the data stay in the lab's private repository.\n", "856921837cdfd759b62ae92008161c6c6064a51f": "---\nname: v-model\nkind: planned\nmeasure: plan entries per phase\n---\n# V-model\n\nEvery accepted requirement passes every phase; each later phase checks an earlier one.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Requirements | Analyst | requirements, UC |\n| Design | Architect | ARC |\n| Implementation | Developers | MOD |\n| Testing | Tester | TST |\n| Validation | Analyst | the validation of the requirements |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Requirements | Design | sequence |\n| Design | Implementation | sequence |\n| Implementation | Testing | sequence |\n| Testing | Implementation | back |\n| Testing | Validation | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n| Design | Testing |\n| Requirements | Validation |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Design → Implementation | ARC | every requirement has an ARC, and the design is accepted | Architect |\n| Implementation → Testing | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Analyst | either | draft text, read the repository |\n| Architect | person | read the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Tester | either | read the repository, run code and tests |\n", "aabf3b8ef80783e035447b59bfcac2ba6d42bd13": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n", "ed9f1cd7e5f305b45281308b4127da5e44589dda": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n", "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
+        "texts": { "210e4956f470be33e3103bba4222977caae50d44": "---\nid: SRC-iec-62304\nname: IEC 62304 — Medical device software — Software life cycle processes\nkind: standard\nauthority: normative\nlicence: restricted\nterms: © IEC; copies may not be passed on\ncontent: files\naddress:\nlocation: https://github.com/alice/norms\nplaces:\n  - this machine\n  - NHR@FAU, Erlangen\nparts:\n  - safety class A\n  - safety class B\n  - safety class C\n---\n\n# SRC-iec-62304 IEC 62304 — Medical device software — Software life cycle processes\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Content stream | Note |\n|---|---|---|---|---|---|---|\n| 1 | IEC 62304:2006+AMD1:2015 | 2015-06-25 | iec-62304-2015.pdf | 4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2 | — | — |\n", "21c97253b3b8a7c443ef3fc1ef28edb69ff665c4": "# plain — Specification\n", "39aa49976758648c9a46b24c8a1c2a8c49053e2e": "---\nname: devops\nkind: practice\nfits: v-model, pulled\n---\n# DevOps\n\nA release is deployed after validation, once its deployment check is green.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Deployment | Operator | the deployed release |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Validation | Deployment | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Validation → Deployment | TST | the deployment check is green | CI check `deploy` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Operator | agent | read the repository, run code and tests |\n", "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd": "---\nname: scrum\nkind: pulled\nmeasure: remaining items per time box\n---\n# Scrum\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Sprint planning | Product Owner | ITM |\n| Development | Developers | MOD, TST |\n| Sprint review | Product Owner | the review of the increment |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Sprint planning | Development | sequence |\n| Development | Sprint review | sequence |\n| Sprint review | Sprint planning | sequence |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Sprint planning → Development | ITM | the sprint's items are ready | Product Owner |\n| Development → Sprint review | MOD | CI is green | Product Owner |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | none |\n| Time box | 2 weeks |\n| Sprints | yes |\n", "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4": "---\nid: SRC-thesis-guide\nname: Thesis writing guide of the faculty\nkind: document\nauthority: advisory\nlicence: republish\nterms: CC BY 4.0\ncontent: files\naddress:\nlocation:\nplaces:\nparts:\n---\n\n# SRC-thesis-guide Thesis writing guide of the faculty\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Content stream | Note |\n|---|---|---|---|---|---|---|\n| 1 | 2025 edition | 2025-10-01 | thesis-guide-2025.md | 0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711 | — | — |\n", "7c0d3deb87cdc087ab8a9a492dfe450860fc4e8d": "---\npseudonymisation: off\n---\n\n# Settings\n\nKept off: the data stay in the lab's private repository.\n", "856921837cdfd759b62ae92008161c6c6064a51f": "---\nname: v-model\nkind: planned\nmeasure: plan entries per phase\n---\n# V-model\n\nEvery accepted requirement passes every phase; each later phase checks an earlier one.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Requirements | Analyst | requirements, UC |\n| Design | Architect | ARC |\n| Implementation | Developers | MOD |\n| Testing | Tester | TST |\n| Validation | Analyst | the validation of the requirements |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Requirements | Design | sequence |\n| Design | Implementation | sequence |\n| Implementation | Testing | sequence |\n| Testing | Implementation | back |\n| Testing | Validation | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n| Design | Testing |\n| Requirements | Validation |\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Design → Implementation | ARC | every requirement has an ARC, and the design is accepted | Architect |\n| Implementation → Testing | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Analyst | either | draft text, read the repository |\n| Architect | person | read the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n| Tester | either | read the repository, run code and tests |\n", "aabf3b8ef80783e035447b59bfcac2ba6d42bd13": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n", "ed9f1cd7e5f305b45281308b4127da5e44589dda": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n", "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b": "---\nname: kanban\nkind: pulled\nmeasure: items per state over time\nmanages: work that arrives unpredictably and must flow without long waits\naccepts: no fixed delivery date for a set of items\nsuits: maintaining a product that receives issues every week\nchapter: Vibe Coding, ch. 7 §4\n---\n# Kanban\n\nWork is pulled from the backlog as capacity frees up.\n\n## Phases\n\n| Name | Role | Produces |\n|---|---|---|\n| Backlog | Product Owner | ITM |\n| Doing | Developers | MOD, TST |\n| Done | Product Owner | the merged item |\n\n## Transitions\n\n| From | To | Kind |\n|---|---|---|\n| Backlog | Doing | sequence |\n| Doing | Done | sequence |\n\n## Verification pairs\n\n| Phase | Checked by |\n|---|---|\n\n## Gates\n\n| Between | Artifacts | Condition | Decider |\n|---|---|---|---|\n| Doing → Done | MOD | CI is green | CI check `tests` |\n\n## Roles\n\n| Name | Filled by | Capabilities |\n|---|---|---|\n| Product Owner | person | read the repository, write to the repository |\n| Developers | agent | read the repository, write to the repository, run code and tests |\n\n## Flow control\n\n| Kind | Value |\n|---|---|\n| WIP limit | 3 |\n| Time box | none |\n| Sprints | no |\n" }
       },
       "result": {
         "instance": {
@@ -1814,7 +1989,8 @@ flowchart LR
             ]
           },
           "sources": { "count": 2, "problems": 0 },
-          "resources": { "count": 1, "problems": 0 }
+          "resources": { "count": 1, "problems": 0 },
+          "restrictions": [{ "source": "SRC-iec-62304", "permitted": ["this machine", "NHR@FAU, Erlangen"] }]
         },
         "products": [
           {
@@ -1831,6 +2007,7 @@ flowchart LR
             "resources": { "count": 0, "problems": 0 },
             "pseudonymisation": { "value": "off", "set": true, "blob": "7c0d3deb87cdc087ab8a9a492dfe450860fc4e8d", "problem": "" },
             "collaborators": { "people": [], "blob": "", "problem": "" },
+            "restrictions": [],
             "problem": null
           }
         ]
@@ -3872,6 +4049,1177 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-settings-page.agentsOn",
+  "summary": "The agents a bridge reports, from its greeting GET /hello with its token, through its route: the bridge paired in this browser at its address — on this computer, or a forward to another machine —, or a remote session's bridge through the session's route — its forward, the tunnel's local address, or the jump host's HTTPS address —; each refusal named — no bridge paired, no such session, a session without its token, no answer, a refused token, a bridge of another protocol.",
+  "params": [
+    { "name": "bridge", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "BridgeAgents",
+  "async": true,
+  "refusals": [
+    { "code": "no-bridge", "when": "no bridge is paired in this browser" },
+    { "code": "unknown-bridge", "when": "the bridge named is neither this computer's nor a remote session's" },
+    { "code": "no-session", "when": "no remote session of that name is stored" },
+    { "code": "no-token", "when": "the bridge or the session has no token stored" },
+    { "code": "no-jump-host", "when": "no jump host is set" },
+    { "code": "not-a-host", "when": "the jump host is no host name or IPv4 address" },
+    { "code": "not-a-user", "when": "the SSH user is no login name" },
+    { "code": "bad-range", "when": "the port range lies outside 1024–65535 or runs backwards" },
+    { "code": "not-a-key-file", "when": "a key file is no file name" },
+    { "code": "not-https", "when": "the HTTPS address is no https address, or carries a query, a fragment or a login" },
+    { "code": "no-login", "when": "the HTTPS address has no web-server login" },
+    { "code": "not-a-session", "when": "the session names no name, port or bridge port" },
+    { "code": "no-https", "when": "the session's route is HTTPS and the jump host has no HTTPS address" },
+    { "code": "not-an-address", "when": "the bridge's address is no address" },
+    { "code": "not-loopback", "when": "the bridge's address is no loopback address" },
+    { "code": "unknown-route", "when": "the route is of another kind" },
+    { "code": "unreachable", "when": "no answer arrives: the bridge does not run there, the address is wrong, or the browser blocks the call" },
+    { "code": "login-refused", "when": "the jump host's web server refuses its login" },
+    { "code": "token-refused", "when": "the bridge refuses the token" },
+    { "code": "refused", "when": "the bridge refuses the page's origin or the address" },
+    { "code": "not-found", "when": "the bridge has no such path" },
+    { "code": "not-allowed", "when": "the bridge does not take the method" },
+    { "code": "bridge-error", "when": "the bridge answers with another error" },
+    { "code": "other-protocol", "when": "the bridge speaks another major version of the protocol" }
+  ],
+  "examples": [
+    {
+      "name": "the bridge on this computer",
+      "input": {
+        "bridge": "this computer",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "tray", "reason": "" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "bridge": "this computer",
+        "version": "2026.10.1",
+        "agents": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ]
+      }
+    },
+    {
+      "name": "the GPU box's bridge through its forward",
+      "input": {
+        "bridge": "session:gpu-box",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://localhost:20001/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "headless", "reason": "no desktop session; the bridge's settings come from an export, its state is read through GET /hello" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "bridge": "session:gpu-box",
+        "version": "2026.10.1",
+        "agents": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ]
+      }
+    },
+    {
+      "name": "the lab PC's bridge over HTTPS",
+      "input": {
+        "bridge": "session:lab-pc",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://jump.example.org/agent-m/20002/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "headless", "reason": "no desktop session; the bridge's settings come from an export, its state is read through GET /hello" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "bridge": "session:lab-pc",
+        "version": "2026.10.1",
+        "agents": [
+          { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+          { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+          { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+        ]
+      }
+    },
+    {
+      "name": "no bridge paired",
+      "input": {
+        "bridge": "this computer",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "refused": "no-bridge"
+    },
+    {
+      "name": "a session not stored",
+      "input": {
+        "bridge": "session:cluster",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "refused": "no-session"
+    },
+    {
+      "name": "a session without its token",
+      "input": {
+        "bridge": "session:gpu-box",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "refused": "no-token"
+    },
+    {
+      "name": "nothing answers",
+      "input": {
+        "bridge": "this computer",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "refused": "unreachable"
+    },
+    {
+      "name": "a bridge of another protocol",
+      "input": {
+        "bridge": "this computer",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 2,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "tray", "reason": "" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "refused": "other-protocol"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-settings-page.testParticipant",
+  "summary": "The test of a CLI or sandboxed agent before it is saved, one harmless request through its bridge — the greeting —: it works where the bridge reports the agent's CLI ready, and shows what answered — the CLI with its version, the bridge and the bridge's version —; otherwise it is refused, why named — no bridge paired, no such session or no token, no answer because the bridge does not run there or the address is wrong, a refused token, the CLI not logged in there or not installed — with what works instead.",
+  "params": [
+    { "name": "form", "type": "ParticipantForm" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "SettingTest",
+  "async": true,
+  "refusals": [{ "code": "no-test", "when": "the participant is neither a CLI agent nor a sandboxed agent" }],
+  "examples": [
+    {
+      "name": "Claude Code on the bridge on this computer",
+      "input": {
+        "form": {
+          "name": "claude",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "claude-opus-5-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "tray", "reason": "" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "claude 2.1.290, ready on the bridge on this computer, Agent M Bridge 2026.10.1",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a sandboxed agent behind the GPU box's session",
+      "input": {
+        "form": {
+          "name": "box-dev",
+          "type": "sandboxed agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "session:gpu-box",
+          "model": "claude-opus-5-5",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "a container on the lab's GPU box, Erlangen"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://localhost:20001/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "headless", "reason": "no desktop session; the bridge's settings come from an export, its state is read through GET /hello" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "claude 2.1.290, ready on the bridge of the session gpu-box, Agent M Bridge 2026.10.1",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "Codex, not logged in there",
+      "input": {
+        "form": {
+          "name": "codex",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "codex",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "codex-model",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "tray", "reason": "" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "codex 0.48.0 is not logged in on the bridge on this computer",
+        "alternatives": ["codex login, run once on that machine"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "opencode, not installed there",
+      "input": {
+        "form": {
+          "name": "oc",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "opencode",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "anthropic/claude-sonnet-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/hello" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "protocol": 1,
+                "version": "2026.10.1",
+                "pairedOrigin": "https://alice.github.io",
+                "shell": { "mode": "tray", "reason": "" },
+                "agents": [
+                  { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+                  { "agent": "codex", "version": "0.48.0", "state": "not-logged-in", "loginStep": "codex login", "install": "" },
+                  { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "opencode is not installed on the bridge on this computer",
+        "alternatives": ["https://opencode.ai/docs/#install"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "the bridge does not answer",
+      "input": {
+        "form": {
+          "name": "claude",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "claude-opus-5-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "result": {
+        "result": "refused",
+        "reason": "no answer from http://127.0.0.1:47321/hello: the bridge does not run there, or this browser blocks the call",
+        "alternatives": ["the bridge started on its machine", "the address its window shows, where it is not http://127.0.0.1:47321", "the route over HTTPS through the jump host, where this browser blocks the call"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a token the bridge no longer holds",
+      "input": {
+        "form": {
+          "name": "claude",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "claude-opus-5-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/hello" },
+            "response": {
+              "status": 401,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": ""
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "the bridge refuses the token; pair it again with the token its window shows",
+        "alternatives": ["Pair anew in the bridge's window, and paste its new token here"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "no bridge paired in this browser",
+      "input": {
+        "form": {
+          "name": "claude",
+          "type": "CLI agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "this computer",
+          "model": "claude-opus-5-5",
+          "context": 200000,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "this machine"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "result": {
+        "result": "refused",
+        "reason": "no bridge is paired in this browser",
+        "alternatives": ["the bridge, paired on this page with the token its window shows"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a session without its token",
+      "input": {
+        "form": {
+          "name": "box-dev",
+          "type": "sandboxed agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "session:gpu-box",
+          "model": "claude-opus-5-5",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "a container on the lab's GPU box, Erlangen"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "result": {
+        "result": "refused",
+        "reason": "the session gpu-box has no bridge token",
+        "alternatives": ["the token its bridge's window shows, pasted here", "this browser's export, imported into that bridge"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "the lab PC's web server refuses its login",
+      "input": {
+        "form": {
+          "name": "lab-dev",
+          "type": "sandboxed agent",
+          "account": "",
+          "server": "",
+          "endpoint": "",
+          "cli": "claude",
+          "runner": "",
+          "bridge": "session:lab-pc",
+          "model": "claude-opus-5-5",
+          "context": null,
+          "price": null,
+          "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+          "place": "the lab PC, Erlangen"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://jump.example.org/agent-m/20002/hello" },
+            "response": { "status": 401, "headers": { "www-authenticate": "Basic realm=\"Agent M\"" }, "body": "" }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "the jump host's web server refuses its login",
+        "alternatives": ["the web server's login as the password file on the jump host holds it"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a person",
+      "input": {
+        "form": {
+          "name": "bob",
+          "type": "person",
+          "account": "bob",
+          "server": "github.com",
+          "endpoint": "",
+          "cli": "",
+          "runner": "",
+          "bridge": "",
+          "model": "",
+          "context": null,
+          "price": null,
+          "capabilities": [],
+          "place": ""
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": []
+      },
+      "refused": "no-test"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-settings-page.saveConfig",
   "summary": "One save of the configuration on a click: the default branch's head read with the participant register there where a participant is saved, the file planned on it (MOD-process-config.planConfig) with the repository's visibility, and written in one commit on that head; a file that holds history — a withdrawal note, the date of a change — is not written (MOD-artifacts.historyIn).",
   "params": [
@@ -3889,6 +5237,7 @@ flowchart LR
     { "code": "no-token", "when": "no token is stored for the repository" },
     { "code": "moved", "when": "the branch moved on after the head read" },
     { "code": "public-repository", "when": "MOD-process-config.planConfig refuses the change — by its code, such as public-repository" },
+    { "code": "not-tested", "when": "MOD-process-config.planConfig refuses a CLI or sandboxed agent saved neither after its test worked nor by the author's choice to save it untested" },
     { "code": "holds-history", "when": "a file the plan writes holds a withdrawal note or the date of a change (MOD-artifacts.historyIn)" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
@@ -3913,12 +5262,13 @@ flowchart LR
             "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "a self-hosted runner on lab-pc-3, Erlangen",
-            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "route": "the workflow agent-m-job: claude on the runner gpu-1",
             "line": 0
           },
           "replaces": "",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": true
+          "selfHosted": true,
+          "tested": ""
         },
         "settings": {
           "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
@@ -3973,8 +5323,8 @@ flowchart LR
                   { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
                   { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
                   { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
-                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "562b5705aac046546510b5f9a80f90b3799acdf7" },
-                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "c9ca55f748bdc67e21163340ed579ab044c3fdd9" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "210e4956f470be33e3103bba4222977caae50d44" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" },
                   { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
                   { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
                   { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
@@ -3993,7 +5343,7 @@ flowchart LR
               "body": {
                 "base_tree": "db00000000000000000000000000000000000000",
                 "tree": [
-                  { "path": "docs/participants.md", "mode": "100644", "type": "blob", "content": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n| gpu-runner | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | a self-hosted runner on lab-pc-3, Erlangen | the workflow agent-m-job on the self-hosted runner gpu-1 |\n\nEvery participant that works with a language model names its model.\n" }
+                  { "path": "docs/participants.md", "mode": "100644", "type": "blob", "content": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n| gpu-runner | CI agent | claude-opus-5-5 | 200000 | — | read the repository, write to the repository, run code and tests | a self-hosted runner on lab-pc-3, Erlangen | the workflow agent-m-job: claude on the runner gpu-1 |\n\nEvery participant that works with a language model names its model.\n" }
                 ]
               }
             },
@@ -4042,12 +5392,13 @@ flowchart LR
             "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "a self-hosted runner on lab-pc-3, Erlangen",
-            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "route": "the workflow agent-m-job: claude on the runner gpu-1",
             "line": 0
           },
           "replaces": "",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": true
+          "selfHosted": true,
+          "tested": ""
         },
         "settings": {
           "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
@@ -4102,8 +5453,8 @@ flowchart LR
                   { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
                   { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
                   { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
-                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "562b5705aac046546510b5f9a80f90b3799acdf7" },
-                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "c9ca55f748bdc67e21163340ed579ab044c3fdd9" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "210e4956f470be33e3103bba4222977caae50d44" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" },
                   { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
                   { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
                   { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
@@ -4131,12 +5482,13 @@ flowchart LR
             "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "a self-hosted runner on lab-pc-3, Erlangen",
-            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "route": "the workflow agent-m-job: claude on the runner gpu-1",
             "line": 0
           },
           "replaces": "",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": true
+          "selfHosted": true,
+          "tested": ""
         },
         "settings": {
           "github": null,
@@ -4170,12 +5522,13 @@ flowchart LR
             "price": null,
             "capabilities": ["read the repository", "write to the repository", "run code and tests"],
             "place": "the lab's server room, Erlangen, moved there on 2026-09-30",
-            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "route": "the workflow agent-m-job: claude on the runner gpu-1",
             "line": 0
           },
           "replaces": "",
           "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
-          "selfHosted": true
+          "selfHosted": true,
+          "tested": ""
         },
         "settings": {
           "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
@@ -4230,8 +5583,8 @@ flowchart LR
                   { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
                   { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
                   { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
-                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "562b5705aac046546510b5f9a80f90b3799acdf7" },
-                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "c9ca55f748bdc67e21163340ed579ab044c3fdd9" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "210e4956f470be33e3103bba4222977caae50d44" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" },
                   { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
                   { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
                   { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
@@ -4244,6 +5597,226 @@ flowchart LR
         "authority": { "kind": "click" }
       },
       "refused": "holds-history"
+    },
+    {
+      "name": "Claude Code added from the bridge's offer",
+      "input": {
+        "target": "https://github.com/alice/agent-m",
+        "change": {
+          "kind": "participant",
+          "participant": {
+            "name": "claude",
+            "type": "CLI agent",
+            "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
+            "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+            "place": "this machine",
+            "route": "the bridge on this computer: claude",
+            "line": 0
+          },
+          "replaces": "",
+          "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
+          "selfHosted": false,
+          "tested": "works"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
+                  { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
+                  { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "210e4956f470be33e3103bba4222977caae50d44" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" },
+                  { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
+                  { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
+                  { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "tree": { "sha": "db00000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/trees",
+              "body": {
+                "base_tree": "db00000000000000000000000000000000000000",
+                "tree": [
+                  { "path": "docs/participants.md", "mode": "100644", "type": "blob", "content": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n| claude | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on this computer: claude |\n\nEvery participant that works with a language model names its model.\n" }
+                ]
+              }
+            },
+            "response": { "status": 201, "body": { "sha": "dc00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://api.github.com/repos/alice/agent-m/git/commits",
+              "body": {
+                "message": "participant claude added",
+                "tree": "dc00000000000000000000000000000000000000",
+                "parents": ["a900000000000000000000000000000000000000"]
+              }
+            },
+            "response": {
+              "status": 201,
+              "body": { "sha": "dd00000000000000000000000000000000000000", "html_url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+            }
+          },
+          {
+            "request": {
+              "method": "PATCH",
+              "url": "https://api.github.com/repos/alice/agent-m/git/refs/heads/main",
+              "body": { "sha": "dd00000000000000000000000000000000000000", "force": false }
+            },
+            "response": { "status": 200, "body": { "object": { "sha": "dd00000000000000000000000000000000000000" } } }
+          }
+        ],
+        "texts": { "ed9f1cd7e5f305b45281308b4127da5e44589dda": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n" },
+        "authority": { "kind": "click" }
+      },
+      "result": { "sha": "dd00000000000000000000000000000000000000", "url": "https://github.com/alice/agent-m/commit/dd00000000000000000000000000000000000000" }
+    },
+    {
+      "name": "an agent neither tested nor saved untested",
+      "input": {
+        "target": "https://github.com/alice/agent-m",
+        "change": {
+          "kind": "participant",
+          "participant": {
+            "name": "claude",
+            "type": "CLI agent",
+            "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
+            "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+            "place": "this machine",
+            "route": "the bridge on this computer: claude",
+            "line": 0
+          },
+          "replaces": "",
+          "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
+          "selfHosted": false,
+          "tested": ""
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
+                  { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
+                  { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "210e4956f470be33e3103bba4222977caae50d44" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" },
+                  { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
+                  { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
+                  { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": { "ed9f1cd7e5f305b45281308b4127da5e44589dda": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n" },
+        "authority": { "kind": "click" }
+      },
+      "refused": "not-tested"
     }
   ]
 }
@@ -5628,6 +7201,30 @@ flowchart LR
 
 ```json type
 {
+  "$id": "ParticipantNotes",
+  "description": "The notes a participant's form shows, by their codes — key-stays, secret-named, why-no-key, runner-on-agent-machine, ssh-alternative, runner-login, private-only, public-refused, own-login, tunnel-address —, for its type.",
+  "type": "object",
+  "required": ["type", "notes"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "type": "string" },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["key-stays", "secret-named", "why-no-key", "runner-on-agent-machine", "ssh-alternative", "runner-login", "private-only", "public-refused", "own-login", "tunnel-address"]
+      }
+    }
+  },
+  "examples": [
+    { "type": "CI agent", "notes": ["secret-named", "why-no-key", "runner-on-agent-machine", "ssh-alternative"] },
+    { "type": "CI agent", "notes": ["runner-login", "why-no-key", "private-only", "public-refused"] }
+  ]
+}
+```
+
+```json type
+{
   "$id": "ProductSettingsContent",
   "description": "What the markdown-front-matter syntax reads from docs/settings.md.",
   "type": "object",
@@ -5742,9 +7339,9 @@ flowchart LR
 ```json type
 {
   "$id": "InstanceConfig",
-  "description": "What the instance keeps for the settings page: its address, head and visibility, its participant register, the catalogue, and how many sources it registers and resources it declares.",
+  "description": "What the instance keeps for the settings page: its address, head and visibility, its participant register, the catalogue, how many sources it registers and resources it declares, and the processing places each restricted source of its register permits.",
   "type": "object",
-  "required": ["address", "head", "visibility", "register", "catalogue", "sources", "resources"],
+  "required": ["address", "head", "visibility", "register", "catalogue", "sources", "resources", "restrictions"],
   "additionalProperties": false,
   "properties": {
     "address": { "type": "string" },
@@ -5753,7 +7350,8 @@ flowchart LR
     "register": { "$ref": "RegisterRead" },
     "catalogue": { "$ref": "Catalogue" },
     "sources": { "$ref": "SettingCount" },
-    "resources": { "$ref": "SettingCount" }
+    "resources": { "$ref": "SettingCount" },
+    "restrictions": { "type": "array", "items": { "$ref": "Restriction" } }
   },
   "examples": [
     {
@@ -5763,7 +7361,8 @@ flowchart LR
       "register": { "participants": [], "problems": [], "before": "", "after": "", "text": "", "blob": "" },
       "catalogue": { "models": [], "practices": [] },
       "sources": { "count": 0, "problems": 0 },
-      "resources": { "count": 0, "problems": 0 }
+      "resources": { "count": 0, "problems": 0 },
+      "restrictions": []
     }
   ]
 }
@@ -5781,9 +7380,9 @@ flowchart LR
 ```json type
 {
   "$id": "ProductConfig",
-  "description": "What a product keeps for the settings page: its address and head, whether a token may write to it, its visibility — empty where its server does not say —, its declaration with the blob of docs/process.md, the model it declares at the version it declares — null without one —, the requirements of its SPEC, whether a test schedule is saved, how many sources it links and resources it declares, its pseudonymisation, the people who agreed to be named, and why it could not be read — null where it could.",
+  "description": "What a product keeps for the settings page: its address and head, whether a token may write to it, its visibility — empty where its server does not say —, its declaration with the blob of docs/process.md, the model it declares at the version it declares — null without one —, the requirements of its SPEC, whether a test schedule is saved, how many sources it links and resources it declares, the restrictions of the sources it links, its pseudonymisation, the people who agreed to be named, and why it could not be read — null where it could.",
   "type": "object",
-  "required": ["address", "head", "writable", "visibility", "declaration", "declarationBlob", "model", "requirements", "schedule", "links", "resources", "pseudonymisation", "collaborators", "problem"],
+  "required": ["address", "head", "writable", "visibility", "declaration", "declarationBlob", "model", "requirements", "schedule", "links", "resources", "pseudonymisation", "collaborators", "restrictions", "problem"],
   "additionalProperties": false,
   "properties": {
     "address": { "type": "string" },
@@ -5799,6 +7398,7 @@ flowchart LR
     "resources": { "$ref": "SettingCount" },
     "pseudonymisation": { "$ref": "PseudonymisationRead" },
     "collaborators": { "$ref": "CollaboratorsRead" },
+    "restrictions": { "type": "array", "items": { "$ref": "Restriction" } },
     "problem": { "$ref": "RefusalOrNone" }
   },
   "examples": [
@@ -5816,6 +7416,7 @@ flowchart LR
       "resources": { "count": 0, "problems": 0 },
       "pseudonymisation": { "value": "on", "set": false, "blob": "", "problem": "" },
       "collaborators": { "people": [], "blob": "", "problem": "" },
+      "restrictions": [],
       "problem": { "refused": "token-refused", "reason": "gitlab.example.org refused the token" }
     }
   ]
@@ -5842,7 +7443,8 @@ flowchart LR
         "register": { "participants": [], "problems": [], "before": "", "after": "", "text": "", "blob": "" },
         "catalogue": { "models": [], "practices": [] },
         "sources": { "count": 0, "problems": 0 },
-        "resources": { "count": 0, "problems": 0 }
+        "resources": { "count": 0, "problems": 0 },
+        "restrictions": []
       },
       "products": []
     }
@@ -5872,6 +7474,32 @@ flowchart LR
     { "instance": "https://github.com/alice/agent-m", "view": "declaration", "product": "https://github.com/alice/notes", "name": "", "type": "", "address": "" },
     { "instance": "https://github.com/alice/agent-m", "view": "participant", "product": "", "name": "", "type": "model endpoint", "address": "http://gpu01:8000/v1" },
     { "instance": "https://github.com/alice/agent-m", "view": "collaborators", "product": "https://github.com/alice/notes", "name": "", "type": "", "address": "" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "BridgeAgents",
+  "description": "The agents a bridge reports: the bridge — this computer, or session:<name> —, its version, and every supported agent with its version and state.",
+  "type": "object",
+  "required": ["bridge", "version", "agents"],
+  "additionalProperties": false,
+  "properties": {
+    "bridge": { "type": "string" },
+    "version": { "type": "string" },
+    "agents": { "type": "array", "items": { "$ref": "AgentFound" } }
+  },
+  "examples": [
+    {
+      "bridge": "session:gpu-box",
+      "version": "2026.10.1",
+      "agents": [
+        { "agent": "claude", "version": "2.1.290", "state": "ready", "loginStep": "", "install": "" },
+        { "agent": "codex", "version": "", "state": "missing", "loginStep": "", "install": "https://learn.chatgpt.com/docs/codex/cli" },
+        { "agent": "opencode", "version": "", "state": "missing", "loginStep": "", "install": "https://opencode.ai/docs/#install" }
+      ]
+    }
   ]
 }
 ```
@@ -5975,14 +7603,20 @@ flowchart LR
 | UC-002 3b | MOD-settings-page.readConfig, MOD-settings-page.readModel, MOD-process-config.declarationView, MOD-process-model.modelChanges |
 | UC-002 4a | MOD-process-config.declarationView, MOD-process-config.planConfig |
 | UC-002 4b | MOD-process-config.declarationView, MOD-settings-page.route |
+| UC-002 4c | MOD-settings-page.readConfig, MOD-source-library.parseSource, MOD-source-library.restrictionsOf, MOD-source-library.parseLinks, MOD-settings-page.readModel, MOD-process-config.declarationView, MOD-process-model.assignable |
 | UC-002 7a | MOD-process-config.declarationView |
 | UC-002 7b | MOD-process-config.declarationView, MOD-process-model.deriveWorkflow |
 | UC-017 1 | MOD-settings-page.route, MOD-settings-page.readConfig |
 | UC-017 2 | MOD-process-config.participantPreset |
+| UC-017 3 | MOD-settings-views.participantNotes, MOD-settings-page.agentsOn, MOD-bridge-tunnel.sessionRoute, MOD-bridge-server.callBridge, MOD-bridge-server.admit, MOD-bridge-app.hello, MOD-bridge-server.speaks, MOD-process-config.participantOf, MOD-job-runner.ciAgentOf, MOD-git-host.secretsPageUrl, MOD-git-host.runnersPageUrl |
 | UC-017 4 | MOD-process-config.participantPreset |
 | UC-017 5 | MOD-process-config.participantPreset |
+| UC-017 6 | MOD-settings-page.testParticipant, MOD-settings-page.agentsOn, MOD-bridge-tunnel.sessionRoute, MOD-bridge-server.callBridge, MOD-bridge-server.admit, MOD-bridge-app.hello, MOD-bridge-server.speaks |
 | UC-017 7 | MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatParticipants, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-017 3a | MOD-settings-store.storeEndpoint, MOD-settings-store.saveEntries, MOD-settings-page.testSetting, MOD-participants.testEndpoint |
+| UC-017 6a | MOD-settings-page.testParticipant, MOD-settings-page.agentsOn, MOD-bridge-tunnel.sessionRoute, MOD-bridge-server.callBridge, MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatParticipants, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
+| UC-017 5a | MOD-settings-page.readConfig, MOD-source-library.parseSource, MOD-source-library.restrictionsOf, MOD-process-config.participantOf, MOD-process-config.sourcesBarred, MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatParticipants, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
+| UC-017 3b | MOD-settings-views.participantNotes, MOD-git-host.runnersPageUrl |
 | UC-017 7a | MOD-settings-page.readConfig, MOD-settings-page.readModel, MOD-process-config.participantUse |
 | UC-042 6 | MOD-settings-store.secretsHeld, MOD-settings-store.exportSettings, MOD-settings-store.importSettings, MOD-settings-store.mergeImport, MOD-settings-store.clearEverything, MOD-settings-store.saveEntries |
 | UC-042 1 | MOD-settings-page.route, MOD-settings-store.readSettings, MOD-settings-page.readConfig, MOD-settings-views.settingsPage |
@@ -5998,3 +7632,5 @@ flowchart LR
 | UC-042 4a | MOD-settings-views.pseudonymisationNotice, MOD-review-page.clickAuthority, MOD-settings-page.savePseudonymisation, MOD-settings-views.parseProductSettings, MOD-settings-views.formatProductSettings, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-042 5a | MOD-settings-views.withoutCollaborator, MOD-settings-views.formatCollaborators, MOD-review-page.clickAuthority, MOD-settings-page.saveCollaborators, MOD-artifacts.historyIn, MOD-git-host.writeFiles, MOD-settings-page.filesNaming, MOD-settings-views.namedIn |
 | UC-042 6a | MOD-settings-store.importSettings, MOD-settings-store.mergeImport, MOD-settings-store.saveEntries |
+| UC-044 5 | MOD-settings-page.agentsOn, MOD-bridge-server.callBridge, MOD-bridge-server.admit, MOD-bridge-app.hello, MOD-bridge-server.speaks, MOD-process-config.bridgeOffer, MOD-process-config.participantPreset, MOD-review-page.clickAuthority, MOD-process-config.participantOf, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatParticipants, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
+| UC-011 1c.5 | MOD-settings-page.route, MOD-process-config.participantPreset, MOD-settings-views.participantNotes, MOD-process-config.participantOf, MOD-git-host.runnersPageUrl, MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-git-host.repositoryInfo, MOD-process-config.planConfig, MOD-process-model.formatParticipants, MOD-artifacts.historyIn, MOD-git-host.writeFiles, MOD-job-runner.ciAgentOf, MOD-ci-generator.jobWorkflow, MOD-job-runner.dispatchPlan |

@@ -363,9 +363,9 @@ flowchart LR
   (decision 11). A commit of the fetch, made with that token, starts the workflow again, which then finds nothing to
   fetch.
 - **Not realised here — what reads the register elsewhere.** An item whose sources permit their content only where no
-  holder of the role works (UC-034 3a), a participant whose place some sources do not permit (UC-017 5a) and a role whose
-  holder processes data where a linked source does not permit it (UC-002 4c) need the main page and the settings page to
-  read the register and hand `MOD-source-library.restrictionsOf` to the interfaces that take `Restriction[]`.
+  holder of the role works (UC-034 3a) needs the main page to read the register and hand
+  `MOD-source-library.restrictionsOf` to the interfaces that take `Restriction[]`, as the settings page does for a
+  participant (UC-017 5a) and for a product's roles (UC-002 4c; ARC-026 decision 4).
 - **Elsewhere.** A product's resources (UC-040) are designed in ARC-034, which carries the link to the resources' page
   (UC-015 2c); the label of a source's content for `MOD-job-harness.mayReceive` comes with the jobs that send it — a
   `ContentLabel` with no places allows any place, so a restricted source that permits none needs its own form there.
