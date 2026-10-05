@@ -20,8 +20,8 @@ export const MENU = [
 // The view a stage opens, or null while none of its views is built. built: Set of view names (views.mjs builtViews).
 export const stageView = (entry, built) => entry.views.find((v) => built.has(v)) ?? null;
 
-// The stage a view belongs to, or null — for marking the entry of the page shown.
-export const stageOf = (view) => MENU.find((e) => e.views.includes(view))?.key ?? null;
+// The menu entry a view belongs to, or null — for marking the entry of the page shown.
+export const entryOf = (view) => MENU.find((e) => e.views.includes(view))?.key ?? null;
 
 // The menu as HTML. href(view): the address of a view — on the review pages "#<view>", on the main page "docs/#<view>".
 // tabs: the review pages' entries are tabs of one page (role "tab"); the main page's are links to other pages.
@@ -31,8 +31,8 @@ export function menuHtml({ built, href = (v) => `#${v}`, tabs = false }) {
     const label = `${e.icon ? `<span aria-hidden="true">${h(e.icon)}</span> ` : ""}${h(e.label)}`;
     const title = e.title ? ` title="${h(e.title)}"` : "";
     if (!view) {
-      return `<span class="soon" data-stage="${h(e.key)}" aria-disabled="true" title="${h(e.label)} — not built yet">${label}</span>`;
+      return `<span class="soon" data-entry="${h(e.key)}" aria-disabled="true" title="${h(e.label)} — not built yet">${label}</span>`;
     }
-    return `<a href="${h(href(view))}"${tabs ? ` role="tab" id="tab-${h(view)}"` : ""} data-stage="${h(e.key)}"${title}>${label}</a>`;
+    return `<a href="${h(href(view))}"${tabs ? ` role="tab" id="tab-${h(view)}"` : ""} data-entry="${h(e.key)}"${title}>${label}</a>`;
   }).join("\n");
 }

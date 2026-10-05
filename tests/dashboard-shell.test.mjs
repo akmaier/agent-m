@@ -50,14 +50,14 @@ const FILES = {
 // THE MENU FOLLOWS THE PROCESS: with the view files of today, the menu entry by entry — each stage of the process linking to the
 // first of its views that is built, a stage none of whose views is built named without a link, then maintenance and settings.
 const MENU_OF_TODAY = [
-  '<a href="#spec" role="tab" id="tab-spec" data-stage="requirements">Requirements</a>',
-  '<a href="#uc" role="tab" id="tab-uc" data-stage="use-cases">Use cases</a>',
-  '<a href="#arc" role="tab" id="tab-arc" data-stage="architecture">Architecture</a>',
-  '<a href="#backlog" role="tab" id="tab-backlog" data-stage="implementation">Implementation</a>',
-  '<span class="soon" data-stage="tests" aria-disabled="true" title="Tests — not built yet">Tests</span>',
-  '<span class="soon" data-stage="releases" aria-disabled="true" title="Releases — not built yet">Releases</span>',
-  '<span class="soon" data-stage="maintenance" aria-disabled="true" title="Maintenance — not built yet">Maintenance</span>',
-  '<a href="#settings" role="tab" id="tab-settings" data-stage="settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
+  '<a href="#spec" role="tab" id="tab-spec" data-entry="requirements">Requirements</a>',
+  '<a href="#uc" role="tab" id="tab-uc" data-entry="use-cases">Use cases</a>',
+  '<a href="#arc" role="tab" id="tab-arc" data-entry="architecture">Architecture</a>',
+  '<a href="#backlog" role="tab" id="tab-backlog" data-entry="implementation">Implementation</a>',
+  '<span class="soon" data-entry="tests" aria-disabled="true" title="Tests — not built yet">Tests</span>',
+  '<span class="soon" data-entry="releases" aria-disabled="true" title="Releases — not built yet">Releases</span>',
+  '<span class="soon" data-entry="maintenance" aria-disabled="true" title="Maintenance — not built yet">Maintenance</span>',
+  '<a href="#settings" role="tab" id="tab-settings" data-entry="settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
 ];
 
 test("with every view file of today, the menu shows the stages of the process in their order, each linked to its page", async () => {

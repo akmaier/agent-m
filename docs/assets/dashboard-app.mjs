@@ -35,7 +35,7 @@ import {
 } from "./review-core.mjs";
 import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
 import { DASHBOARD, builtViews } from "../../src/site/views.mjs";
-import { menuHtml, stageOf } from "../../src/site/menu.mjs";
+import { menuHtml, entryOf } from "../../src/site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -406,12 +406,12 @@ function context() {
 
 // ---------------------------------------------------------------- routing
 
-// THE MENU FOLLOWS THE PROCESS: the site's menu, each stage leading to the first of its views whose file is built; the entry of
-// the stage whose view is shown is marked.
+// THE MENU FOLLOWS THE PROCESS: the site's menu, each entry leading to the first of its views whose file is built; the entry of
+// the view shown is marked.
 let available = null;
 function markTab(kind) {
-  const stage = stageOf(kind || "uc");
-  document.querySelectorAll(".tabs [data-stage]").forEach((t) => t.classList.toggle("active", t.dataset.stage === stage));
+  const entry = entryOf(kind || "uc");
+  document.querySelectorAll(".tabs [data-entry]").forEach((t) => t.classList.toggle("active", t.dataset.entry === entry));
 }
 async function renderTabs() {
   const el = document.getElementById("tabs");

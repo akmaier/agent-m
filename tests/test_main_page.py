@@ -68,7 +68,7 @@ def text_of(html: str) -> str:
 
 def labels(html: str) -> list:
     """The labels of a menu's entries, in the order they stand."""
-    return [text_of(m[1]) for m in re.findall(r"<(a|span)\b[^>]*\bdata-stage=\"[^\"]+\"[^>]*>(.*?)</\1>", html, re.S)]
+    return [text_of(m[1]) for m in re.findall(r"<(a|span)\b[^>]*\bdata-entry=\"[^\"]+\"[^>]*>(.*?)</\1>", html, re.S)]
 
 
 class TheMenuFollowsTheProcess(unittest.TestCase):
@@ -89,9 +89,9 @@ class TheMenuFollowsTheProcess(unittest.TestCase):
 
     def test_a_stage_whose_page_is_built_links_to_it_and_one_not_built_is_named_without_a_link(self):
         html = js("return menu.menuHtml({ built: new Set(['uc']), href: (v) => 'docs/#' + v });")
-        self.assertRegex(html, r'<a [^>]*href="docs/#uc"[^>]*data-stage="use-cases"')
-        self.assertRegex(html, r'<span [^>]*data-stage="tests"[^>]*>Tests</span>')
-        self.assertNotRegex(html, r'data-stage="tests"[^>]*href=|href="[^"]*#tests"')
+        self.assertRegex(html, r'<a [^>]*href="docs/#uc"[^>]*data-entry="use-cases"')
+        self.assertRegex(html, r'<span [^>]*data-entry="tests"[^>]*>Tests</span>')
+        self.assertNotRegex(html, r'data-entry="tests"[^>]*href=|href="[^"]*#tests"')
 
     def test_the_main_page_and_the_review_pages_carry_the_menu(self):
         for page in ("index.html", "docs/index.html"):

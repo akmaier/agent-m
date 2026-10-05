@@ -7,7 +7,8 @@ host's HTTPS address, and the package registries and resource hosts the page nam
 The built site is what Pages serves from the root of the repository (THE PAGES ROOT IS THE REPOSITORY ROOT) and a browser
 runs. There is no build step, so it is the tracked files of the site: the main page index.html at the root, src/ with its
 modules, style sheets and the lab's logo, and docs/ with the review pages, their modules, the vendored libraries, and the
-Markdown files the review pages render — besides docs/, the root's SPEC.md, README.md and PLAN.md. Three checks:
+Markdown files the review pages render — besides docs/, the root's README.md and PLAN.md; the SPEC is read by no test
+on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
 
 1. Every address written into the site's own code names a permitted host. Configured endpoints, the GitLab servers of
    products and the jump host come from the settings or from a product's address and are never written into the code,
@@ -97,7 +98,7 @@ PERMITTED_CHANNELS = {
 }
 
 
-SITE = ("index.html", "src", "docs", "SPEC.md", "README.md", "PLAN.md")
+SITE = ("index.html", "src", "docs", "README.md", "PLAN.md")
 
 
 def tracked(*paths: str) -> list[str]:
