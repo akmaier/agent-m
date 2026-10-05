@@ -12,8 +12,10 @@ realises:
   - AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST
   - AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES
   - A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES
+  - ONE MODULE, ONE FILE
   - A MODULE IS A FOLDER
-  - SKELETONS, DOCUMENTATION, SAMPLES AND TESTS ARE GENERATED FROM THE ARCHITECTURE
+  - AN ARCHITECTURE STAYS AT THE LEVEL OF MODULES
+  - DEVELOP AGAINST INTERFACES
   - EVERY ARTIFACT NAMES ITS ORIGIN
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
@@ -37,11 +39,11 @@ realises:
 ---
 # UC-024 Implement modules from the architecture
 
-**Goal.** An accepted module becomes code: Agent M generates its skeleton, its interface documentation, its sample
-input files and one failing test per example from the decision that designs it, and hands an implementation job to a
-coding participant, which adds failing tests first, then the code, on a branch; the pull request is merged once the
-product's Definition of Done holds (UC-002, step 8). Every code file lies in its module's folder, and every test names
-the module it exercises.
+**Goal.** An accepted module becomes code: Agent M hands an implementation job to a coding participant, which writes
+failing tests for the behaviour the module's file describes first, then the code, on a branch; the pull request is
+merged once the product's Definition of Done holds (UC-002, step 8). The questions the architecture leaves to the
+implementation are answered here. Every code file lies in its module's folder, and every test names the module it
+exercises.
 This is also the implementation part of a run (UC-043), where one job per module starts by itself, in
 the order of the modules' interfaces; started here, it is one job for the modules the author picks.
 
@@ -71,10 +73,9 @@ the review point (ch. 12 §10).
    (UC-025), or after an architecture change (UC-023 step 6). The author may add further modules to
    the same job.
 2. Agent M assembles the job:
-   - the decisions that design the modules, with their interfaces, types and examples, and the requirements and use
-     cases they realise;
-   - the **interfaces** — not the code — of the modules they use (ch. 10 §3: develop against
-     interfaces);
+   - the modules' files, the decisions of their subsystems and of the system, and the SPEC;
+   - the **interfaces** — not the code — of the modules they use, as their files state them (ch. 10 §3: develop
+     against interfaces);
    - the code in the modules' folders and the tests that name the modules;
    - the product's coding standards file, if it has one (ch. 12 §1);
    - the job instruction from the single definition: the test-first cycle and the folders the job may change.
@@ -89,14 +90,13 @@ the review point (ch. 12 §10).
 5. Agent M commits the job's start record `docs/jobs/JOB-<id>.md` — part of the author's click — and
    hands the job over: through the local bridge with its bridge token, or by starting the workflow
    on the self-hosted runner. The job writes its end record when it ends. The participant creates a branch named after the job.
-6. **Red.** The job's first commit holds what Agent M generates from the decisions for these modules: one failing test
-   per example and the sample input files. The participant adds tests for behaviour the examples do not cover; each
-   test names the requirement it guards and the module it exercises. It commits tests only and pushes; CI runs and must
-   be **red**.
-7. **Green, refactor.** The participant starts from the generated skeleton and interface documentation in the modules'
-   folders and writes the code; every code file it creates lies in the folder of one of the job's modules. It runs the
-   tests locally, refactors with them green, and pushes; CI runs.
-8. The participant opens a pull request naming the job, the modules, the requirements they realise,
+6. **Red.** The participant writes tests for the behaviour the modules' files describe; each test names the requirement
+   it guards and the module it exercises. The job's first commit holds these tests only; the participant pushes, CI runs
+   and must be **red**.
+7. **Green, refactor.** The participant writes the code in the modules' folders, as their files describe it; every code
+   file it creates lies in the folder of one of the job's modules. It runs the tests locally, refactors with them green,
+   and pushes; CI runs.
+8. The participant opens a pull request naming the job, the modules, the requirements its tests guard,
    and the participant, model, Agent M version and date. Agent M's job check — a step in the
    product's CI, so that it holds whoever merges — confirms the product's Definition of Done: by
    default, the first commit contained only tests and its CI run was red; every changed code file lies in the
@@ -116,14 +116,14 @@ sequenceDiagram
     participant C as CI
     participant G as Product repository
     A->>M: Implement module, choose participant, Start job
-    M->>P: modules, requirements, decisions, used interfaces, instruction
-    P->>G: branch, commit generated and own tests only
+    M->>P: module files, decisions, SPEC, used interfaces, instruction
+    P->>G: branch, commit tests only
     G->>C: run
     C-->>G: red
     P->>G: commit code in the modules' folders
     G->>C: run
     C-->>G: green
-    P->>G: pull request naming job, modules, requirements
+    P->>G: pull request naming job, modules, guarded requirements
     M->>G: check red first commit, folders, scope
     A->>M: Merge, once the Definition of Done holds (or the participant merges)
     M->>G: merge pull request

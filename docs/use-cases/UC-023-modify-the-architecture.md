@@ -6,6 +6,7 @@ actors:
   - Author
   - Reviewer
   - Deriving participant
+  - Reviewing participant
   - Product repository
 realises:
   - AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
@@ -14,6 +15,21 @@ realises:
   - A MODULE IS A FOLDER
   - AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT
   - A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES
+  - ONE MODULE, ONE FILE
+  - A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS
+  - ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES
+  - THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT
+  - NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY
+  - A CHANGE ACROSS MODULES IS CHECKED AS A WHOLE
+  - AN ARCHITECTURE IS CHECKED BY REVIEW, NOT BY TESTS
+  - THE ARCHITECTURE IS REVIEWED AGAINST THE SPECIFICATION
+  - EVERY USE CASE IS CHECKED AGAINST THE ARCHITECTURE
+  - A SUBSYSTEM IS CHECKED AGAINST THE SYSTEM
+  - A MODULE IS CHECKED AGAINST ITS SUBSYSTEM
+  - NO MODULE IS CHECKED AGAINST THE USE CASES
+  - A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON
+  - NO REVIEWER IS THE DRAFTER
+  - A REVIEWER'S FINDING IS A WARNING
   - ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
   - THE DERIVATION RULES HOLD FOR ARCHITECTURE
   - A REUSE DECISION RECORDS ITS DUE DILIGENCE
@@ -30,9 +46,9 @@ realises:
 ---
 # UC-023 Modify the architecture
 
-**Goal.** The author changes an architecture decision and the modules it designs — by editing it, or by describing
-the change to a participant — and the reviewer accepts the change only after seeing which modules,
-code files, tests and requirements it touches.
+**Goal.** The author changes the architecture — a decision or a module's file — by editing it, or by describing the
+change to a participant, and the reviewer accepts the change only after seeing which modules, code files, tests and
+requirements it touches.
 
 Architecture decisions "can be revisited later" (book ch. 10 §2); revisiting one is cheap on paper
 and expensive in code. The impact list is what makes the price visible before the decision, not
@@ -43,30 +59,33 @@ after.
 - **Author** — proposes the change.
 - **Reviewer** — accepts it; may be the author.
 - **Deriving participant** — drafts the change when the author describes it in words (UC-017).
+- **Reviewing participant** — another participant, using another model, that checks the complete change against the
+  entire project (UC-022, step 6).
 - **Product repository** — holds the architecture, the code and the tests.
 
 ## Precondition
 
-- The product has at least one decision or module under `docs/architecture/` (UC-022).
+- The product has an architecture (UC-022).
+- The use cases the change concerns are accepted (UC-008).
 
 ## Main flow
 
-1. The author opens a decision on the **Architecture** view and chooses one of two routes:
+1. The author opens a decision or a module's file on the **Architecture** view and chooses one of two routes:
    - **Edit** — the dashboard's editor with live preview, Mermaid included;
    - **Describe the change** — a text field, for example *"Split MOD-sync into a reader and a writer"*
      or *"Replace the charting library; it has had no release in two years"*.
-2. **Describe the change:** the author chooses a deriving participant and presses **Run**. Agent M
-   sends the description with the whole existing architecture and the requirements and use cases it
-   names, under the rules of UC-022 steps 3–6, so that the changed decision passes the checks without a model and
-   the review before the author sees it. The participant returns changes under the existing identifiers, and new
-   decisions or modules only where something new is needed. A new or replaced
-   library goes through the due diligence of UC-022 step 7.
-3. The author reviews the draft or finishes the edit and presses **Save** — one click. Agent M commits
-   the changed files to the default branch. They are now *changed since acceptance*, because no
-   approval record names their new text.
+2. **Describe the change:** the author chooses a deriving and a reviewing participant and presses **Run**. Agent M
+   sends the description with the entire project — the whole SPEC, every use case and the whole architecture. The
+   participant returns changes under the existing identifiers, and new decisions or modules only where something new
+   is needed. Once the change is complete, it is checked as in UC-022 step 6 before the author sees it — a change that
+   concerns more than one module together with the whole architecture; every finding is weighed before anything is
+   changed for it. A new or replaced library goes through the due diligence of UC-022 step 7.
+3. The author reviews the draft or finishes the edit and presses **Save** — one click. Before saving an edit, the author
+   may have it checked in the same way. Agent M commits the changed files to the default branch. They are now *changed
+   since acceptance*, because no approval record names their new text.
 4. **The impact list.** When a reviewer opens a changed decision, Agent M derives from the
    default branch, beside the difference between the accepted and the changed text:
-   - the modules the decision designs, and the modules that use an interface the change alters or removes;
+   - the modules the change concerns, and the modules that use an interface it alters or removes;
    - the code files in each affected module's folder;
    - the tests that exercise each affected module, and the requirements they guard;
    - the requirements and use cases the changed file names — and those it no longer names.
@@ -86,10 +105,10 @@ sequenceDiagram
     participant P as Deriving participant
     participant G as Product repository
     A->>M: Edit, or Describe the change
-    M->>P: description, existing architecture, named requirements
-    P-->>M: changes under existing identifiers
+    M->>P: description, whole SPEC, every use case, whole architecture
+    P-->>M: changes under existing identifiers, checked as a whole
     A->>M: Save
-    M->>G: commit changed ARC files
+    M->>G: commit changed architecture files
     R->>M: open changed file
     M->>G: read modules, code files, tests, requirements
     M-->>R: difference and impact list
@@ -100,14 +119,14 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **1a. The author removes a decision or a module.** The decision's file, or the module's part of it, leaves the
-  working tree; the version history keeps it, and its identifier is never given to anything else. The impact list
+- **1a. The author removes a decision or a module.** The decision's or the module's file leaves the working tree; the
+  version history keeps it, and its identifier is never given to anything else. The impact list
   shows every code file in the module's folder and every test that still names it.
 - **1b. The author splits or merges modules.** The new modules get new identifiers and folders; the old ones are
   removed as in 1a. Moving code files into the new folders is an implementation job (UC-024).
-- **2a. The participant proposes a new identifier for something that exists.** The deduplication of
-  UC-022 step 6 turns it into a change under the existing identifier, or the author does so in the
-  panel.
+- **2a. The participant proposes a new identifier for something that exists.** Agent M classes it as a change under
+  the existing identifier, as a derivation classes its candidates (`THE DERIVATION RULES HOLD FOR ARCHITECTURE`), or
+  the author does so in the panel.
 - **4a. The change removes an interface that another module uses.** The impact list shows that module
   first, marked *breaks*; accepting stays possible — the author may intend to change both.
 - **4b. The changed file names a requirement or use case that is not accepted.** *Accept* stays
