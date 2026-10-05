@@ -4,6 +4,7 @@ title: The tests pages are a shell at tests.html of the Pages site that reads a 
 forced_by:
   - THE TEST SCHEDULE IS DECLARED PER PRODUCT
   - THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE
+  - A DOCUMENT HOLDS NO HISTORY
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - EVERY TEST RUN LEAVES A RESULT RECORD
   - TEST RESULTS ARE KEPT IN THE REPOSITORY
@@ -90,7 +91,8 @@ repository at each visit (UC-029).
 5. **Save, then merge.** *Save* (`MOD-tests-page.saveSchedule`) plans the change against the default branch's head
    (`MOD-test-views.scheduleChange`): the schedule and the configuration generated from it in one commit on the branch
    `agent-m/test-schedule`, started on that head where it does not exist, and one pull request into the default branch.
-   A file at the configuration's path that Agent M did not generate is never written over. *Merge*
+   A file at the configuration's path that Agent M did not generate is never written over, and a schedule whose text holds
+   history — a withdrawal note, the date of a change — is not written (`MOD-artifacts.historyIn`, ARC-006). *Merge*
    (`MOD-tests-page.mergeSchedule`) merges that pull request once every check on its head passed, was skipped or is
    neutral, and otherwise returns the checks it waits for; on GitLab it then creates or changes the nightly pipeline
    schedule to the time of the schedule merged, where a row runs nightly (`MOD-git-host.savePipelineSchedule`), as
@@ -215,6 +217,8 @@ flowchart LR
   addition, the product otherwise. Missing is the requirement's own statement: the four fields of a requirement
   (ARC-006 decision 4) carry none, and the candidate that names what it constrains (UC-005 5, 5b) comes with the
   derivation of requirements.
+- `A DOCUMENT HOLDS NO HISTORY` is kept across the decisions (ARC-020); here the save of the schedule writes no text in
+  which `MOD-artifacts.historyIn` finds history (decision 5).
 - A committed audit is a record of what the view showed and is never read back: the view is derived again at each
   visit (`THE TRACEABILITY MATRIX IS DERIVED`), and an audit committed before its report was accepted stays as committed.
 - The nightly run's lateness is read from the records alone. On GitHub, scheduled workflows of a public repository are
@@ -7809,7 +7813,7 @@ flowchart LR
   "responsibility": "The shell of tests.html at the root of the instance's Pages site: routes, reads a product's tests, the names they may guard, its result records, commits, pull requests and tags, what the server holds of its schedule, a release with the acceptance of its report and the instance's source register, and writes on a person's click — the schedule's pull request and its merge, a GitLab project's nightly pipeline schedule, a run on a commit, the outcomes of user tests, a release candidate, the release and its tag, the audit of a release —; it holds every text and all HTML of the page.",
   "realises": ["THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK", "ONE CLICK PER DECISION", "EVERY STEP EXPLAINS ITSELF", "CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI", "A RESULT RECORD IS NEVER REWRITTEN", "ACCEPTING THE RELEASE TEST REPORT RELEASES", "A VERSION IS NOT REWRITTEN", "GITLAB PRODUCTS ARE SUPPORTED"],
   "owns": ["TestsRoute", "TestsRead", "RecordsAt", "TestsSetup", "TestsRefs", "ScheduleMerged", "UserOutcome", "CandidateStarted", "ReleaseShown", "ReleaseDone", "AuditRead"],
-  "uses": ["MOD-contracts", "MOD-test-views", "MOD-test-records", "MOD-ci-generator", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-process-model", "MOD-review-core", "MOD-library-page"]
+  "uses": ["MOD-contracts", "MOD-test-views", "MOD-test-records", "MOD-ci-generator", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-process-model", "MOD-review-core", "MOD-library-page", "MOD-artifacts"]
 }
 ```
 
@@ -8780,7 +8784,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-tests-page.saveSchedule",
-  "summary": "The schedule and the configuration generated from it in one pull request from agent-m/test-schedule (UC-027 5), on an authority, planned by scheduleChange against the default branch's head: the branch started on that head where it does not exist, the files written on its head, and the pull request opened where none is open.",
+  "summary": "The schedule and the configuration generated from it in one pull request from agent-m/test-schedule (UC-027 5), on an authority, planned by scheduleChange against the default branch's head: a schedule whose text holds history — a withdrawal note, the date of a change — not written (MOD-artifacts.historyIn); the branch started on that head where it does not exist, the files written on its head, and the pull request opened where none is open.",
   "params": [
     { "name": "address", "type": "string" },
     { "name": "schedule", "type": "Schedule" },
@@ -8797,6 +8801,7 @@ flowchart LR
     { "code": "no-token", "when": "no token for the product is stored" },
     { "code": "schedule-has-errors", "when": "the schedule has an error" },
     { "code": "foreign-configuration", "when": "the default branch holds at the configuration's path a file Agent M did not generate" },
+    { "code": "holds-history", "when": "the schedule's text holds a withdrawal note or the date of a change (MOD-artifacts.historyIn)" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "no-access", "when": "the token lacks the permission or the repository" },
     { "code": "not-found", "when": "the repository is not found" },
@@ -9097,6 +9102,104 @@ flowchart LR
         "authority": { "kind": "click" }
       },
       "refused": "foreign-configuration"
+    },
+    {
+      "name": "a command that notes when it changed",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "schedule": {
+          "declared": true,
+          "nightly": "02:00",
+          "command": "npm test, changed from make test on 2026-09-28",
+          "rows": [
+            {
+              "tests": "unit",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "component",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "system",
+              "occasions": ["every commit", "pull request", "nightly", "release candidate", "on demand"],
+              "runsOn": "hosted",
+              "line": 0
+            },
+            {
+              "tests": "paid",
+              "occasions": ["nightly", "release candidate", "on demand"],
+              "runsOn": "cli-dev",
+              "line": 0
+            },
+            { "tests": "release", "occasions": ["release candidate", "on demand"], "runsOn": "hosted", "line": 0 },
+            { "tests": "user", "occasions": ["release candidate", "on demand"], "runsOn": "people", "line": 0 }
+          ]
+        },
+        "setup": {
+          "instance": "https://github.com/alice/agent-m",
+          "version": "a100000000000000000000000000000000000000",
+          "paidSecrets": ["AGENT_M_KEY_HUB"]
+        },
+        "participants": [
+          {
+            "name": "alice",
+            "type": "person",
+            "model": "",
+            "context": null,
+            "price": null,
+            "capabilities": ["draft text", "read the repository", "write to the repository"],
+            "place": "",
+            "route": "the GitHub account `alice`",
+            "line": 5
+          },
+          {
+            "name": "cli-dev",
+            "type": "CLI agent",
+            "model": "claude-opus-5-5",
+            "context": null,
+            "price": null,
+            "capabilities": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
+            "place": "this machine",
+            "route": "the bridge on the Mac of `alice`",
+            "line": 9
+          }
+        ],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2027-01-01", "tested": null },
+          "gitlab": [
+            { "address": "https://gitlab.example.org/group/tools/thesis", "token": "glpat-example", "expires": "", "tested": null }
+          ],
+          "products": ["https://github.com/alice/thesis", "https://gitlab.example.org/group/tools/thesis"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": { "status": 200, "body": { "visibility": "private", "default_branch": "main" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/contents/.github/workflows/agent-m-tests.yml?ref=c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Generated by Agent M from docs/tests/schedule.md; change the schedule, not this file.\nname: agent-m tests\non:\n  push:\n    branches-ignore: [test-results]\n    paths-ignore: [\"docs/jobs/**\"]\n  pull_request:\n    paths-ignore: [\"docs/jobs/**\"]\n  schedule:\n    - cron: \"0 2 * * *\"\n  workflow_dispatch:\n    inputs:\n      AGENT_M_OCCASION:\n        description: release candidate or on demand\n        type: choice\n        options: [\"on demand\", \"release candidate\"]\n        default: \"on demand\"\n      AGENT_M_COMMIT:\n        description: the commit to test, empty for the head of the branch\n        type: string\n        default: \"\"\n      AGENT_M_TESTS:\n        description: the kinds of test to run on demand, separated by spaces, empty for every kind\n        type: string\n        default: \"\"\npermissions:\n  contents: read\njobs:\n  occasion:\n    runs-on: ubuntu-latest\n    outputs:\n      occasion: ${{ steps.o.outputs.occasion }}\n      commit: ${{ steps.o.outputs.commit }}\n      unit: ${{ steps.o.outputs.unit }}\n      component: ${{ steps.o.outputs.component }}\n      system: ${{ steps.o.outputs.system }}\n      paid: ${{ steps.o.outputs.paid }}\n      release: ${{ steps.o.outputs.release }}\n    steps:\n      - id: o\n        env:\n          EVENT: ${{ github.event_name }}\n          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}\n          OCCASION: ${{ inputs.AGENT_M_OCCASION }}\n          COMMIT: ${{ inputs.AGENT_M_COMMIT }}\n          TESTS: ${{ inputs.AGENT_M_TESTS }}\n        run: |\n          case \"$EVENT\" in\n            push) occasion=\"every commit\" ;;\n            pull_request) occasion=\"pull request\" ;;\n            schedule) occasion=\"nightly\" ;;\n            *) occasion=\"$OCCASION\" ;;\n          esac\n          case \"$occasion\" in\n            \"every commit\") runs=\"unit component system\" ;;\n            \"pull request\") runs=\"unit component system\" ;;\n            \"nightly\") runs=\"unit component system paid\" ;;\n            \"release candidate\") runs=\"unit component system paid release\" ;;\n            \"on demand\") runs=\"unit component system paid release\" ;;\n            *) runs=\"\" ;;\n          esac\n          if [ \"$occasion\" = \"on demand\" ] && [ -n \"$TESTS\" ]; then\n            chosen=\"\"\n            for t in $runs; do case \" $TESTS \" in *\" $t \"*) chosen=\"$chosen $t\" ;; esac; done\n            runs=\"${chosen# }\"\n          fi\n          echo \"occasion=$occasion\" >> \"$GITHUB_OUTPUT\"\n          echo \"commit=${COMMIT:-$HEAD}\" >> \"$GITHUB_OUTPUT\"\n          for t in unit component system paid release; do\n            case \" $runs \" in *\" $t \"*) echo \"$t=yes\" ;; *) echo \"$t=no\" ;; esac >> \"$GITHUB_OUTPUT\"\n          done\n  unit:\n    needs: occasion\n    if: needs.occasion.outputs.unit == 'yes'\n    runs-on: ubuntu-latest\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_KIND: unit\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out/unit\n      AGENT_M_JUNIT: ${{ github.workspace }}/agent-m-out/unit/junit.xml\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ needs.occasion.outputs.commit }}\n          path: product\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: 9f00000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - id: tests\n        working-directory: product\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" test\n      - if: always()\n        env:\n          OUTCOME: ${{ steps.tests.outcome }}\n        run: |\n          missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n          mkdir -p \"$AGENT_M_OUT\"\n          {\n            echo \"kind: $AGENT_M_KIND\"\n            echo \"outcome: ${OUTCOME:-skipped}\"\n            echo \"missing: $missing\"\n            echo \"run: gh-${{ github.run_id }}-${{ github.run_attempt }}-unit\"\n            echo \"log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"\n            echo \"participant: GitHub Actions, runner $RUNNER_NAME\"\n          } > \"$AGENT_M_OUT/run.txt\"\n      - if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: agent-m-unit\n          path: agent-m-out/unit\n  component:\n    needs: occasion\n    if: needs.occasion.outputs.component == 'yes'\n    runs-on: ubuntu-latest\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_KIND: component\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out/component\n      AGENT_M_JUNIT: ${{ github.workspace }}/agent-m-out/component/junit.xml\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ needs.occasion.outputs.commit }}\n          path: product\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: 9f00000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - id: tests\n        working-directory: product\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" test\n      - if: always()\n        env:\n          OUTCOME: ${{ steps.tests.outcome }}\n        run: |\n          missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n          mkdir -p \"$AGENT_M_OUT\"\n          {\n            echo \"kind: $AGENT_M_KIND\"\n            echo \"outcome: ${OUTCOME:-skipped}\"\n            echo \"missing: $missing\"\n            echo \"run: gh-${{ github.run_id }}-${{ github.run_attempt }}-component\"\n            echo \"log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"\n            echo \"participant: GitHub Actions, runner $RUNNER_NAME\"\n          } > \"$AGENT_M_OUT/run.txt\"\n      - if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: agent-m-component\n          path: agent-m-out/component\n  system:\n    needs: occasion\n    if: needs.occasion.outputs.system == 'yes'\n    runs-on: ubuntu-latest\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_KIND: system\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out/system\n      AGENT_M_JUNIT: ${{ github.workspace }}/agent-m-out/system/junit.xml\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ needs.occasion.outputs.commit }}\n          path: product\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: 9f00000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - id: tests\n        working-directory: product\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" test\n      - if: always()\n        env:\n          OUTCOME: ${{ steps.tests.outcome }}\n        run: |\n          missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n          mkdir -p \"$AGENT_M_OUT\"\n          {\n            echo \"kind: $AGENT_M_KIND\"\n            echo \"outcome: ${OUTCOME:-skipped}\"\n            echo \"missing: $missing\"\n            echo \"run: gh-${{ github.run_id }}-${{ github.run_attempt }}-system\"\n            echo \"log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"\n            echo \"participant: GitHub Actions, runner $RUNNER_NAME\"\n          } > \"$AGENT_M_OUT/run.txt\"\n      - if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: agent-m-system\n          path: agent-m-out/system\n  paid:\n    needs: occasion\n    if: needs.occasion.outputs.paid == 'yes'\n    runs-on: [self-hosted, cli-dev]\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_KIND: paid\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out/paid\n      AGENT_M_JUNIT: ${{ github.workspace }}/agent-m-out/paid/junit.xml\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ needs.occasion.outputs.commit }}\n          path: product\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: 9f00000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - id: secrets\n        env:\n          AGENT_M_KEY_HUB: ${{ secrets.AGENT_M_KEY_HUB }}\n        run: |\n          missing=\"\"\n          [ -n \"$AGENT_M_KEY_HUB\" ] || missing=\"$missing AGENT_M_KEY_HUB\"\n          missing=\"${missing# }\"\n          echo \"$missing\" > \"$AGENT_M_OUT/missing\"\n          [ -z \"$missing\" ] || { echo \"the secret(s) $missing missing\"; exit 1; }\n      - id: tests\n        if: steps.secrets.outcome == 'success'\n        working-directory: product\n        env:\n          AGENT_M_KEY_HUB: ${{ secrets.AGENT_M_KEY_HUB }}\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" test\n      - if: always()\n        env:\n          OUTCOME: ${{ steps.tests.outcome }}\n        run: |\n          missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n          mkdir -p \"$AGENT_M_OUT\"\n          {\n            echo \"kind: $AGENT_M_KIND\"\n            echo \"outcome: ${OUTCOME:-skipped}\"\n            echo \"missing: $missing\"\n            echo \"run: gh-${{ github.run_id }}-${{ github.run_attempt }}-paid\"\n            echo \"log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"\n            echo \"participant: GitHub Actions, runner $RUNNER_NAME\"\n          } > \"$AGENT_M_OUT/run.txt\"\n      - if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: agent-m-paid\n          path: agent-m-out/paid\n  release:\n    needs: occasion\n    if: needs.occasion.outputs.release == 'yes'\n    runs-on: ubuntu-latest\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_KIND: release\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out/release\n      AGENT_M_JUNIT: ${{ github.workspace }}/agent-m-out/release/junit.xml\n    steps:\n      - run: rm -rf \"$AGENT_M_OUT\" && mkdir -p \"$AGENT_M_OUT\"\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ needs.occasion.outputs.commit }}\n          path: product\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: 9f00000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - id: tests\n        working-directory: product\n        run: node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" test\n      - if: always()\n        env:\n          OUTCOME: ${{ steps.tests.outcome }}\n        run: |\n          missing=\"$(cat \"$AGENT_M_OUT/missing\" 2>/dev/null)\"\n          mkdir -p \"$AGENT_M_OUT\"\n          {\n            echo \"kind: $AGENT_M_KIND\"\n            echo \"outcome: ${OUTCOME:-skipped}\"\n            echo \"missing: $missing\"\n            echo \"run: gh-${{ github.run_id }}-${{ github.run_attempt }}-release\"\n            echo \"log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"\n            echo \"participant: GitHub Actions, runner $RUNNER_NAME\"\n          } > \"$AGENT_M_OUT/run.txt\"\n      - if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: agent-m-release\n          path: agent-m-out/release\n  results:\n    needs: [occasion, unit, component, system, paid, release]\n    if: always() && needs.occasion.result == 'success'\n    runs-on: ubuntu-latest\n    env:\n      AGENT_M_HOME: ${{ github.workspace }}/agent-m\n      AGENT_M_OUT: ${{ github.workspace }}/agent-m-out\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ needs.occasion.outputs.commit }}\n          path: product\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: 9f00000000000000000000000000000000000000\n          path: agent-m\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - uses: actions/download-artifact@v4\n        continue-on-error: true\n        with:\n          pattern: agent-m-*\n          path: agent-m-out\n      - working-directory: product\n        env:\n          AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}\n          AGENT_M_OCCASION: ${{ needs.occasion.outputs.occasion }}\n          AGENT_M_COMMIT: ${{ needs.occasion.outputs.commit }}\n        run: AGENT_M_NOTES=\"$(ls \"$AGENT_M_OUT\" 2>/dev/null | tr '\\n' ' ')\" node \"$AGENT_M_HOME/src/ci-entry/main.mjs\" results\n" }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "refused": "holds-history"
     },
     {
       "name": "no click",
@@ -13846,10 +13949,10 @@ flowchart LR
 | UC-027 2 | MOD-test-views.scheduleView, MOD-ci-generator.scheduleProblems |
 | UC-027 3 | MOD-test-views.scheduleView, MOD-ci-generator.scheduleProblems |
 | UC-027 4 | MOD-test-views.scheduleView, MOD-ci-generator.secretsNeeded, MOD-git-host.secretsPageUrl |
-| UC-027 5 | MOD-review-page.clickAuthority, MOD-tests-page.saveSchedule, MOD-test-views.scheduleChange, MOD-ci-generator.scheduleProblems, MOD-ci-generator.testWorkflow, MOD-ci-generator.scheduleText, MOD-git-host.readFile, MOD-git-host.createBranch, MOD-git-host.writeFiles, MOD-git-host.pullRequests, MOD-git-host.openPullRequest |
+| UC-027 5 | MOD-review-page.clickAuthority, MOD-tests-page.saveSchedule, MOD-test-views.scheduleChange, MOD-ci-generator.scheduleProblems, MOD-ci-generator.testWorkflow, MOD-ci-generator.scheduleText, MOD-git-host.readFile, MOD-artifacts.historyIn, MOD-git-host.createBranch, MOD-git-host.writeFiles, MOD-git-host.pullRequests, MOD-git-host.openPullRequest |
 | UC-027 6 | MOD-tests-page.readScheduleState, MOD-git-host.checks, MOD-test-views.scheduleView, MOD-review-page.clickAuthority, MOD-tests-page.mergeSchedule, MOD-git-host.mergePullRequest |
 | UC-027 7 | MOD-ci-generator.testWorkflow, MOD-ci-entry.recordRuns, MOD-tests-page.readRecords, MOD-test-views.scheduleView |
-| UC-027 1b | MOD-test-views.scheduleView, MOD-ci-generator.testWorkflow, MOD-review-core.lineDiff, MOD-tests-page.saveSchedule |
+| UC-027 1b | MOD-test-views.scheduleView, MOD-ci-generator.testWorkflow, MOD-review-core.lineDiff, MOD-tests-page.saveSchedule, MOD-artifacts.historyIn |
 | UC-027 3a | MOD-tests-page.mergeSchedule, MOD-git-host.readFile, MOD-ci-generator.parseSchedule, MOD-ci-generator.nightlySchedule, MOD-git-host.savePipelineSchedule, MOD-tests-page.readScheduleState, MOD-git-host.pipelineSchedules, MOD-test-views.scheduleView, MOD-git-host.pipelineSchedulesPageUrl, MOD-tests-page.saveNightly |
 | UC-027 4a | MOD-ci-generator.testWorkflow, MOD-ci-entry.recordRuns, MOD-test-records.commitOutcomes, MOD-test-views.runsView |
 | UC-027 6a | MOD-tests-page.mergeSchedule, MOD-git-host.checks, MOD-tests-page.readRecords, MOD-test-views.runsView |

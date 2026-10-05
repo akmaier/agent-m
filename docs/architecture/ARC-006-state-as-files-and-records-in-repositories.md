@@ -97,11 +97,12 @@ history, authorship and integrity by hash.
    and ends at a blank line, a heading or the next requirement; a section is found by its heading line, which stands
    once outside code blocks, and ends before the next heading of the same or a higher level, or before a given end line.
    What counts as the history a file must not hold (`A DOCUMENT HOLDS NO HISTORY`): in a SPEC, the date in a requirement's
-   source (`MOD-artifacts.checkSpec`); in a product's settings file — one of the six of point 2 —, a line that marks
-   something withdrawn, by the word *withdrawn* or by text struck through with `~~`, or a line with a date beside an edit
-   or a change: *drafted*, *revised*, *edited*, *updated*, *modified*, *changed*, *added*, *removed*, *switched*, *moved*,
-   *since*, *until*, *as of* (`MOD-artifacts.historyIn`). A date without such a word — a served model's identifier, a
-   source's edition — is no history.
+   source (`MOD-artifacts.checkSpec`); in a settings file of point 2 — a product's six, the instance's participants, its
+   process models and its resources —, a line that marks something withdrawn, by the word *withdrawn* or by text struck
+   through with `~~`, or a line with a date beside an edit or a change: *drafted*, *revised*, *edited*, *updated*,
+   *modified*, *changed*, *added*, *removed*, *switched*, *moved*, *since*, *until*, *as of* (`MOD-artifacts.historyIn`). A
+   date without such a word — a served model's identifier, a source's edition — is no history. The instance's sources are
+   no such file: a source's versions name the dates they took effect.
 5. **Traceability is one link graph per commit**, in `MOD-traceability`. Its nodes are the requirements of the SPEC and
    of the open queue entries, the use cases, the decisions, the modules they design, the code files and the tests, each
    by its identifier — a requirement by its name, a code file or a test by its path. Its edges are the names each states:
@@ -150,8 +151,9 @@ flowchart LR
 - A test names its module and what it guards in its first lines (ARC-020); a test without them is a gap, not an error.
 - The same functions serve the dashboard, a run's final validation and an audit export, so they cannot disagree.
 - `A DOCUMENT HOLDS NO HISTORY` is kept across the decisions (ARC-020). Here `MOD-artifacts` finds it in a text it is given,
-  a SPEC or a product's settings file; the saves of ARC-026 decisions 8 and 9 write no text in which
-  `MOD-artifacts.historyIn` finds history.
+  a SPEC or a settings file. These saves run `MOD-artifacts.historyIn` and write no text in which it finds history: the
+  configuration, pseudonymisation and the collaborators (ARC-026), a list of resources (ARC-034) and the test schedule
+  (ARC-028). The save of a product's links to its sources (`MOD-library-page.saveLinks`, ARC-032) does not run it.
 
 ## Modules
 
@@ -299,11 +301,13 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-artifacts.historyIn",
-  "summary": "Every finding of history in a product's settings file — one of the six files of ARC-006 decision 2: a line that marks something withdrawn, by the word withdrawn or by text struck through with ~~, and a line with a date beside an edit or a change — drafted, revised, edited, updated, modified, changed, added, removed, switched, moved, since, until, as of.",
+  "summary": "Every finding of history in a settings file of a product or of the instance — a product's six files of ARC-006 decision 2, the instance's docs/participants.md, its process models under docs/process-models/ and its docs/resources.md: a line that marks something withdrawn, by the word withdrawn or by text struck through with ~~, and a line with a date beside an edit or a change — drafted, revised, edited, updated, modified, changed, added, removed, switched, moved, since, until, as of.",
   "params": [{ "name": "path", "type": "string" }, { "name": "text", "type": "string" }],
   "result": "Finding[]",
   "async": false,
-  "refusals": [{ "code": "not-a-settings-file", "when": "the path is none of a product's six settings files" }],
+  "refusals": [
+    { "code": "not-a-settings-file", "when": "the path is none of the settings files of a product or the instance" }
+  ],
   "examples": [
     {
       "name": "a person struck through and one added with a date",
@@ -356,8 +360,50 @@ flowchart LR
       "result": []
     },
     {
+      "name": "a participant struck through in the instance's register",
+      "input": {
+        "path": "docs/participants.md",
+        "text": "# Participants\n\n| Name | Type | Model | Capabilities | Place | Route |\n|---|---|---|---|---|---|\n| alice | person | | draft text, read the repository, write to the repository | | the GitHub account `alice` |\n| ~~cli-old~~ | CLI agent | claude-opus-5-5 | run code and tests | this machine | the bridge on this computer: claude |\n"
+      },
+      "result": [
+        {
+          "artifact": "docs/participants.md",
+          "line": 6,
+          "kind": "error",
+          "what": "a withdrawal note",
+          "rule": "A DOCUMENT HOLDS NO HISTORY",
+          "fix": "remove the line; the version history keeps what was withdrawn"
+        }
+      ]
+    },
+    {
+      "name": "a process model that notes when it changed",
+      "input": {
+        "path": "docs/process-models/scrum-lab.md",
+        "text": "# Scrum of the lab\n\nAdapted from Scrum. Changed on 2026-09-01: sprints of two weeks instead of three.\n"
+      },
+      "result": [
+        {
+          "artifact": "docs/process-models/scrum-lab.md",
+          "line": 3,
+          "kind": "error",
+          "what": "the date of a change",
+          "rule": "A DOCUMENT HOLDS NO HISTORY",
+          "fix": "write what holds now, without the date and the change; the version history keeps who changed what when"
+        }
+      ]
+    },
+    {
       "name": "the SPEC, which checkSpec reads",
       "input": { "path": "SPEC.md", "text": "# Agent M — Specification\n" },
+      "refused": "not-a-settings-file"
+    },
+    {
+      "name": "a source of the instance, whose version names when it took effect",
+      "input": {
+        "path": "docs/sources/SRC-007.md",
+        "text": "# EU AI Act\n\n- authority: European Union\n- version: Regulation (EU) 2024/1689, in force since 2024-08-01\n"
+      },
       "refused": "not-a-settings-file"
     }
   ]

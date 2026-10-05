@@ -1,6 +1,6 @@
 ---
 id: ARC-034
-title: The product's resources — what a product or the instance is built with, tested on or calls at runtime, one list per repository with each resource of six kinds pinned, licensed, maintained and reached by its route, its credential named where it is held and never written, and the page where the list is kept
+title: The product's resources — what a product or the instance is built with, tested on or calls at runtime, one list per repository with each resource of six kinds pinned, licensed, maintained, reached and checked by its route — compute and a model server through the bridge, which is sent no key —, its credential named where it is held and never written, and the page where the list is kept
 forced_by:
   - A PRODUCT DECLARES ITS RESOURCES
   - A RESOURCE IS USED, A PARTICIPANT DEVELOPS
@@ -21,6 +21,7 @@ forced_by:
   - THE INSTANCE DECLARES ITS OWN RESOURCES
   - INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT
   - A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
+  - A DOCUMENT HOLDS NO HISTORY
   - NO SECRET IN THE REPOSITORY
   - CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
   - A TOKEN IS SCOPED TO WHAT IT WRITES
@@ -63,7 +64,8 @@ Facts this decision rests on:
   answer's fields include `sha`, `author`, `private`, `cardData`, `lastModified` — "Date of last commit to the repo" — and
   `gated`, "Is the repo gated. If so, whether there is manual or automatic approval", one of `"auto"`, `"manual"` or `false`
   (`https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/hf_api.py`, `model_info`, `dataset_info`,
-  `ModelInfo`). The same client asks `{endpoint}/api/whoami-v2` for the account behind a token. It reads a `401` from a
+  `ModelInfo`). The same client asks `{endpoint}/api/whoami-v2` for the account behind a token and reads its `name`, and
+  calls that endpoint "heavily rate-limited for security reasons" (`whoami`, `_inner_whoami`). It reads a `401` from a
   repository's API as a repository not found — "401 is misleading as it is returned for: private and gated repos if user
   is not authenticated; missing repos" —, a `403` as a token without "the correct permissions", and a missing revision by
   the error code `RevisionNotFound`
@@ -100,15 +102,43 @@ Facts this decision rests on:
   the API for the token's scope" (`https://docs.gitlab.com/security/tokens/access_token_scopes/`); the role Guest "Cannot
   push code or access repository", Reporter may "View code, create issues, and generate reports. Cannot push code or
   manage protected branches" (`https://docs.gitlab.com/user/permissions/`).
+- A model server lists its models in the OpenAI-compatible form. OpenAI's description of its API answers `GET /models`
+  with an object whose `object` is `"list"` and whose `data` holds each model with its `id`, "The model identifier, which
+  can be referenced in the API endpoints" (`https://raw.githubusercontent.com/openai/openai-openapi/main/openapi.json`,
+  `listModels`, `ListModelsResponse`, `Model`). Ollama serves `/v1/models`, and for its local server "The client requires
+  an API key value, but Ollama ignores it"
+  (`https://raw.githubusercontent.com/ollama/ollama/main/docs/api/openai-compatibility.mdx`). vLLM's server asks for a
+  key only when started with one: "When `--api-key` is configured, the following endpoints require Bearer token
+  authentication", among them "`/v1/models` - List available models"
+  (`https://raw.githubusercontent.com/vllm-project/vllm/main/docs/usage/security.md`). LiteLLM's proxy takes a key only
+  where its configuration sets one: `general_settings: master_key` is "[OPTIONAL] if set all calls to proxy will require
+  either this key or a valid generated token"
+  (`https://raw.githubusercontent.com/BerriAI/litellm-docs/3bf928a08a0ec0f28bbbdc23b9241f12d1a4d0aa/docs/proxy/configs.md`);
+  a generated key, a virtual key, needs that master key and a database — "Set a `master key`, this is your Proxy Admin
+  key - you can use this to create other keys"
+  (`https://raw.githubusercontent.com/BerriAI/litellm-docs/3bf928a08a0ec0f28bbbdc23b9241f12d1a4d0aa/docs/proxy/virtual_keys.md`)
+  —; its quick start sends `POST /chat/completions` with no key, and its endpoints include "GET `/models` - available
+  models on server"
+  (`https://raw.githubusercontent.com/BerriAI/litellm-docs/3bf928a08a0ec0f28bbbdc23b9241f12d1a4d0aa/docs/proxy/quick_start.md`).
+  So each of the three answers a request without a key as it starts by default.
+- A SLURM cluster lists its partitions with `sinfo`: `-h, --noheader` does "not print a header on the output", and
+  `-o, --format` gives "the information to be displayed using an sinfo format string", in which `%P` is the "Partition name
+  followed by "*" for the default partition", `%a` the "State/availability of a partition", `%D` the "Number of nodes" and
+  `%G` the "Generic resources (gres) associated with the nodes" (`https://slurm.schedmd.com/sinfo.html`). A GPU machine
+  lists its GPUs with `nvidia-smi -L, --list-gpus`, which will "List each of the NVIDIA GPUs in the system, along with their
+  UUIDs"; its return code 9 is "NVIDIA driver is not loaded" (`https://docs.nvidia.com/deploy/nvidia-smi/index.html`).
 
 ## Decision
 
-1. **One decision, three modules.** `MOD-resource-register`, a kernel, holds the six kinds, the list's format and its check,
+1. **One decision, five modules.** `MOD-resource-register`, a kernel, holds the six kinds, the list's format and its check,
    a new resource and the list's edits, the pins, a repository's due diligence, what a restricted resource keeps out of
-   the repository, the key a resource's requests carry, the newer state upstream and the move of a pin, and the views the
-   page shows. `MOD-hub` is the adapter of the Hugging Face Hub. `MOD-resources-page` is the shell of `resources.html` at
-   the root of the instance's Pages site: its route, the reading of a list, a repository resource on its server, a model or
-   a dataset on the Hub, the save on a click, and every text and all HTML of the page.
+   the repository, the key a resource's requests carry, the bridge's request that checks a resource, the newer state
+   upstream, what the models a server serves mean for a pin and the move of a pin, and the views the page shows.
+   `MOD-hub` is the adapter of the Hugging Face Hub. `MOD-model-servers` is the adapter of a model server's list of models,
+   and `MOD-local-compute` that of the command the bridge runs to check compute on its machine. `MOD-resources-page` is the
+   shell of `resources.html` at the root of the instance's Pages site: its route, the reading of a list, a repository
+   resource on its server, a model or a dataset on the Hub, the check by a resource's route, the save on a click, and
+   every text and all HTML of the page.
 2. **The list** (`ResourcesFile`, `MOD-resource-register.parseResources`, `MOD-resource-register.formatResources`):
    `docs/resources.md` of the repository whose list it is — a product's, or the instance's (`A PRODUCT DECLARES ITS
    RESOURCES`, `THE INSTANCE DECLARES ITS OWN RESOURCES`) —, a heading, a sentence that a credential is named and never
@@ -177,14 +207,14 @@ Facts this decision rests on:
      person selects, computed where the page runs, the files going nowhere (`MOD-source-library.sha256Files`,
      `MOD-resource-register.withFiles`).
    - *Compute, an endpoint and an agent* are named, their route chosen and, for an endpoint or an agent, its base address
-     entered; nothing is read from the page.
+     entered; nothing of them is read before **Check** (decision 16).
 7. **A pin the person enters** (`MOD-resource-register.enteredPin`). Where the Hub does not answer the browser, the revision
    is pasted from the Hub's *Files and versions* page (UC-040 3b); where a repository cannot be read and the person saves
    it unchecked, its commit is pasted (UC-040 3a): in both, only a full 40-character commit hash is taken, never a
    branch's name such as `main`, which moves. An endpoint's or an agent's pin is the identifier of the model it serves:
-   the check through the bridge or a runner records it (UC-040 7); saved without that check, it is the identifier the
-   person enters, one word as the server's list of models names it (`meta-llama/Llama-3.1-8B-Instruct`, `qwen2.5:7b`).
-   Compute takes no pin.
+   the check through the bridge records it (decision 16); saved without that check — and for one a self-hosted runner
+   reaches, which the page does not check (consequences) —, it is the identifier the person enters, one word as the
+   server's list of models names it (`meta-llama/Llama-3.1-8B-Instruct`, `qwen2.5:7b`). Compute takes no pin.
 8. **Credentials** (`A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE`, `A RESOURCE CREDENTIAL GOES ONLY TO ITS
    RESOURCE`). An entry names where its credential is held: `ci <NAME>` — a CI secret of the repository by its name, its
    value stored on the server's page of the repository's CI secrets, which the page links (`MOD-git-host.secretsPageUrl`),
@@ -193,9 +223,10 @@ Facts this decision rests on:
    github.com, else the origin of the resource's address (`MOD-resource-register.keyServer`,
    `MOD-settings-store.storeResourceKey`, `MOD-settings-store.saveEntries`) —, and a request carries it only where that
    origin is the one the key is stored for (`MOD-resource-register.resourceKey`): a key stored for another server is
-   refused, not sent. The Hub's key goes to `https://huggingface.co` alone (`MOD-hub.hubInfo`). This holds for the
-   requests of this page; the key a request through the bridge would carry to compute, an endpoint or an agent comes with
-   the check of the second part (consequences). Before a list is written,
+   refused, not sent. The Hub's key goes to `https://huggingface.co` alone (`MOD-hub.hubInfo`). A request through the
+   bridge carries the bridge's own token and no key of a resource (`MOD-resource-register.checkPath`, decision 16): the
+   bridge asks a server on its machine without a key, so a key kept here leaves the browser only for the server it is
+   stored for — from this page, and from the settings page's test of it (ARC-026 decision 5). Before a list is written,
    the page looks for every token, key and password this browser keeps — each of at least eight characters — in its text
    and refuses the save where one stands in it (`MOD-resource-register.secretFree`). No key stands in an address
    (`A CREDENTIAL IS NEVER PLACED IN A URL`).
@@ -238,10 +269,10 @@ Facts this decision rests on:
     consenting collaborators (`MOD-resources-page.readResources`) and shows it grouped by kind
     (`MOD-resource-register.resourcesView`). It saves on a click (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`, `ONE
     CLICK PER DECISION`, `A PERSON'S OWN INPUT IS COMMITTED DIRECTLY`): one commit of `docs/resources.md` on the head read,
-    refused where the file changed after the page read it, its check finds an error, or it holds a secret of this
-    browser (`MOD-resources-page.saveResources`). A rule a resource imposes is no requirement through its entry: the page
-    links the library to register its terms as a source and link them to the product (`MOD-library-page.route`; UC-040 2b,
-    4b).
+    refused where the file changed after the page read it, its check finds an error, it holds a secret of this browser,
+    or it holds a withdrawal note or the date of a change (`MOD-resources-page.saveResources`, `MOD-artifacts.historyIn`,
+    ARC-006). A rule a resource imposes is no requirement through its entry: the page links the library to register its
+    terms as a source and link them to the product (`MOD-library-page.route`; UC-040 2b, 4b).
 15. **The page's texts** (`EVERY STEP EXPLAINS ITSELF`). The list folds out *What is this?*: "A resource is something this
     product is built with, tested on or calls at runtime — a private repository of DLLs, meta-llama/Llama-3.1-8B on
     Hugging Face at a fixed revision, the SLURM cluster Alex at NHR@FAU, a vLLM endpoint on gpu01 that the product
@@ -275,6 +306,39 @@ Facts this decision rests on:
     time, as a participant; the two entries share nothing." A rule, not a thing used: "Is it a rule the product must meet?
     Then it is a requirement source." A resource the instance declares: "The instance declares this resource. Copy it into
     this product's list: the copy is the product's own, and a later change on either side leaves the other as it is."
+16. **Check by the resource's route** (`MOD-resources-page.checkResource`; UC-040 7). A repository on its server and a
+    model or a dataset on the Hub are read as decision 6 reads them, each with the state upstream beside its pin
+    (`MOD-resource-register.newerState`); data or a model pinned by its files has nothing to read, and its check shows
+    the hashes computed when its files were selected. Compute, an endpoint or an agent whose route is `bridge` is
+    checked through a bridge the person picks — the one paired in this browser, or a remote session's through the
+    session's route (`MOD-bridge-tunnel.sessionRoute`, ARC-013) — with one request that names the resource and carries
+    the bridge's token and nothing else (`MOD-resource-register.checkPath`, `MOD-bridge-server.callBridge`).
+    `GET /compute/check?system=<system>` is answered with what the bridge's machine lists, each line as printed — a
+    SLURM cluster's partitions with `sinfo --noheader --format=%P %a %D %G`, a GPU machine's GPUs with
+    `nvidia-smi --list-gpus` (`MOD-local-compute.computeProbe`, `MOD-local-compute.computeFound`) —;
+    `GET /endpoint/models?address=<address>` with the models the server at that address serves, asked from the bridge's
+    machine without a key (`MOD-model-servers.servedModels`); the bridge app composes both routes (ARC-011). The model
+    an endpoint or an agent serves becomes its pin where it has none and one is served; where several are, the person
+    chooses one; a pin among those served stays; a pin no longer served is shown beside them and changes only by the
+    person's **Move**, which puts the chosen model into the list and saves it on that click
+    (`MOD-resource-register.servedPin`, `MOD-resource-register.movePin`; decision 12, UC-040 7c). A refusal is named
+    with its reason, and nothing is saved until the person saves the list unchecked, an endpoint's pin entered by hand
+    (decision 7; UC-040 7a). A resource a self-hosted runner reaches is not checked from the page (consequences). The
+    check's texts (`EVERY STEP EXPLAINS ITSELF`): **Check through** offers "the bridge on this computer" and each remote
+    session by its name, and folds out "Check reaches the resource the way a job does — a repository or a model on its
+    host, compute and a model server through the bridge. The bridge is sent its own token and nothing of a key." Beside
+    a pin set: "The pin is now <model>, the model the server serves." Several served: "The server serves several models:
+    choose the one this product uses, and it becomes the pin." A pin no longer served: "The server now serves <models>;
+    the pin stays <pin> until you press Move." Nothing served: "The server serves no model." The bridge not answering:
+    "The bridge did not answer: <reason>. Check again once it answers, or save the entry unchecked." A server started
+    with a key: "<address> asks for a key, so it is not reachable through the bridge: a request through the bridge
+    carries none, and a key kept in this browser goes to its own server only. Enter the model it serves and save the
+    entry unchecked." A command missing on the bridge's machine: "<command> could not be started on the bridge's
+    machine. Check through a bridge on a machine of the cluster, or on the GPU machine itself." A self-hosted runner's
+    resource: "A resource a self-hosted runner reaches is checked by a job on that runner, which the product's workflow
+    does not run. Save the entry unchecked." Any other refusal: "The check did not get through: <reason>. Check again,
+    or save the entry unchecked." — the reason as the adapter that refused names it, such as "nvidia-smi exited with 9"
+    or "sinfo listed no partition".
 
 ```mermaid
 flowchart LR
@@ -284,14 +348,22 @@ flowchart LR
     HB["MOD-hub"]
     GH["MOD-git-host"]
     SS["MOD-settings-store"]
+    BS["MOD-bridge-server<br/>callBridge"]
+    BR["a bridge: this computer's<br/>or a remote session's"]
+    MS["MOD-model-servers"]
+    LC["MOD-local-compute"]
     HF["huggingface.co"]
     R["product or instance<br/>docs/resources.md"]
     X["a repository resource"]
+    M["a model server, a cluster,<br/>a GPU machine"]
     P -->|"route, click"| RP
     RP -->|"entries, checks, pins, keys"| RR
     RP -->|"model or dataset"| HB --- HF
     RP -->|"read, write"| GH
     RP -->|"keys"| SS
+    RP -->|"check: bridge token only"| BS --> BR
+    BR --> MS --- M
+    BR --> LC --- M
     GH --- R
     GH --- X
 ```
@@ -322,27 +394,23 @@ flowchart LR
 
 - The kernel reads, checks and edits the list with no request; the page alone reads and writes repositories, through the
   git adapter, and the Hub, through its adapter.
-- **Not realised here — the check by the resource's route** (UC-040 7, 7a, 7b, 7c). Step 7 reaches each resource by its
-  route: a read on the host for a repository, data or a model — `MOD-resources-page.readRepository`,
-  `MOD-resources-page.readHub` —, and through the bridge a harmless request — a SLURM cluster's partitions, an endpoint's
-  served models — for which the bridge has no handler yet: its route table names `GET /endpoint/models` (ARC-011) and no
-  module answers it, and none lists a cluster's partitions. A key the bridge would forward leaves the browser, so the
-  request's credential is part of that design (`A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE`). 7a names the bridge's
-  refusals, 7b runs a check job on a runner's label through the product's workflow (ARC-015, ARC-029), 7c compares the
-  served model with the pin. They come with the second part of this decision.
-- **Not realised here — the instance's own list through the settings page** (UC-040 1b): it runs steps 2 to 8, step 7
-  among them; the route, the reading and the save of the instance's list are designed (`MOD-resources-page.route` without
-  a product).
-- **Not realised here — the jobs** (UC-040 9, 9a, 9b, 1a; `A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE`). Which jobs
-  and tests name a resource, which runtimes and participants reach it by its route, and the pinned state in a job's
-  inputs need the job definitions to name the resources they use (ARC-007) and the dispatch to filter by route
-  (ARC-029). 9a also shows "the jobs that use the resource" beside a newer state and covers a served model; the newer
-  commit or revision and its move are designed (decision 12). They come with the second part.
-- **The test of a resource key on the settings page** comes with the second part: it reads, with the key alone, a resource
-  that names it — a repository on its server, a model on the Hub, an endpoint through the bridge —; the settings page
-  reads the lists that name the keys (ARC-026 decision 4), and the test waits for the check through the bridge. A public
-  model on the Hub answers a request with an invalid key as one without, so the Hub's key is tested at `/api/whoami-v2`,
-  which answers `401` without a valid one.
+- **Not realised here — the check on a self-hosted runner** (UC-040 7b). The browser reaches no runner: the check is a job
+  on the runner's label that runs the command of `MOD-local-compute` or asks a server's list of models, and reports to the
+  dashboard. That needs a job of the product's workflow that runs on a label and reports (ARC-015) and its dispatch on a
+  click (ARC-029); the workflows ARC-015 generates hold none, and the job workflow carries out implementation, refactoring
+  and derivation jobs alone (ARC-029 decision 8).
+- **Not realised here — the jobs** (UC-040 9, 9a, 9b, 1a; `A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE`). Which
+  runtimes and participants reach a resource by its route, the resources a job needs and their pinned state in its inputs,
+  and the start that ends a job whose participant does not reach them are designed with the job runtimes (ARC-029 decision
+  13). Steps 9 and 9b also need the offer: the start panels and a drafting job's drafters list the participants without
+  asking whether they reach the job's resources (ARC-024, ARC-031). 9a shows the jobs that use the resource beside a newer
+  state — the newer commit, revision or served model are designed (decisions 12, 16) —, and the page reads no job
+  definitions, which say whether a kind of job takes the product's resources (ARC-007). 1a lists the jobs and tests that
+  name a resource: a test names its module and what it guards (ARC-020), and no resource.
+- A key kept in this browser is tested on the settings page at the one server it is stored for — a repository's server,
+  the Hub's account at `/api/whoami-v2`, a model server's list of models —, never through the bridge (ARC-026 decision 5).
+- A model server that asks for a key is not checked through the bridge, which sends none; its pin is entered by hand
+  (decision 7).
 - **An open measurement** (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`): the Hub's answers above were read with `curl`
   sending the page's origin; whether current browsers read them from a Pages origin, with and without a key, is measured
   before the page is released and recorded in `docs/measurements/`. A Hub that does not answer the browser is answered by
@@ -356,11 +424,12 @@ flowchart LR
   RESOURCE'S TERMS ENTER AS A SOURCE`: a requirement naming a resource as its source names no source the product links,
   which `MOD-artifacts.checkSpec` reports (ARC-006). `A TOKEN IS SCOPED TO WHAT IT WRITES` (`MOD-setup`, ARC-033); this
   decision asks for no token that writes.
-- **Kept in part, not placed** (`A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE`): the browser's half is kept — a key
-  goes only to the origin it is stored for (`MOD-resource-register.keyServer`, `MOD-resource-register.resourceKey`), the
-  Hub's key only to the Hub (`MOD-hub.hubInfo`); the half of a request through the bridge, which would carry a key to
-  compute, an endpoint or an agent, waits for the check of the second part. The requirement is placed when both are
-  designed.
+- `A DOCUMENT HOLDS NO HISTORY` is kept across the decisions (ARC-020); here the save of a list writes no text in which
+  `MOD-artifacts.historyIn` finds history (decision 14).
+- `A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE` is placed with `MOD-resource-register`: a key goes only to the origin
+  it is stored for (`MOD-resource-register.keyServer`, `MOD-resource-register.resourceKey`) — from this page, from the
+  Hub's adapter (`MOD-hub.hubInfo`, `MOD-hub.hubWhoami`) and from the settings page's test —, and the bridge's request
+  carries none (`MOD-resource-register.checkPath`).
 - **Kept in part, not placed** (`A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT`): a resource's maintainer is named by account,
   by organisation, or as a collaborator the repository lists as consenting, which the check keeps
   (`MOD-resource-register.checkResources`, against `MOD-settings-views.parseCollaborators`). A name in any other
@@ -382,8 +451,8 @@ flowchart LR
   "folder": "src/resource-register/",
   "layer": "kernel",
   "responsibility": "The resources a product or the instance is built with, tested on or calls at runtime: the six kinds and what each records, the list's format and its check, a new resource, the list's edits, the pin a read gives, a person enters or the files' hashes make, a repository's due diligence, what a restricted resource keeps out of the repository, the key a resource's requests carry and where a read-only one is made, the newer state upstream and the move of a pin, the list as the page shows it, and the participant a resource that also works on the product is declared as.",
-  "realises": ["A PRODUCT DECLARES ITS RESOURCES", "A RESOURCE IS USED, A PARTICIPANT DEVELOPS", "THE RESOURCE KIND IS ONE OF A CLOSED SET", "A RESOURCE IS PINNED TO AN EXACT STATE", "A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT", "A RESOURCE DECLARES ITS LICENCE", "A RESOURCE NAMES ITS MAINTAINER", "A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE", "A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER", "A RESOURCE DECLARES WHERE IT PROCESSES DATA"],
-  "owns": ["ResourceKind", "ResourceFile", "ResourceField", "ResourceEntry", "ResourceForm", "SecretValue", "SecretFree", "ResourceRestriction", "DueDiligence", "DueDiligenceOrNone", "ResourceKeyUse", "ReadTokenLink", "NewerState", "ResourceLine", "ResourcesGroup", "ParticipantPrefill", "ResourcesFile"],
+  "realises": ["A PRODUCT DECLARES ITS RESOURCES", "A RESOURCE IS USED, A PARTICIPANT DEVELOPS", "THE RESOURCE KIND IS ONE OF A CLOSED SET", "A RESOURCE IS PINNED TO AN EXACT STATE", "A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT", "A RESOURCE DECLARES ITS LICENCE", "A RESOURCE NAMES ITS MAINTAINER", "A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE", "A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER", "A RESOURCE DECLARES WHERE IT PROCESSES DATA", "A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE"],
+  "owns": ["ResourceKind", "ResourceFile", "ResourceField", "ResourceEntry", "ResourceForm", "SecretValue", "SecretFree", "ResourceRestriction", "DueDiligence", "DueDiligenceOrNone", "ResourceKeyUse", "ReadTokenLink", "NewerState", "ResourceLine", "ResourcesGroup", "ParticipantPrefill", "BridgeCheck", "ServedPin", "ServedPinOrNone", "NewerStateOrNone", "ResourcesFile"],
   "uses": ["MOD-contracts"]
 }
 ```
@@ -2559,6 +2628,406 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-resource-register.checkPath",
+  "summary": "The bridge's request that checks a resource reached through it — for compute what its system lists, a SLURM cluster's partitions or a GPU machine's GPUs; for an endpoint or an agent the models its server serves at its address —, naming the resource and nothing else: no key of a resource goes through the bridge.",
+  "params": [{ "name": "entry", "type": "ResourceEntry" }],
+  "result": "BridgeCheck",
+  "async": false,
+  "refusals": [
+    { "code": "not-through-the-bridge", "when": "the resource's route is not the bridge" },
+    { "code": "no-bridge-check", "when": "the kind is checked where the page reads it: a repository, data or a model" },
+    { "code": "not-an-address", "when": "an endpoint's or an agent's address is no http or https address without a login, a query or a fragment" },
+    { "code": "no-system", "when": "a compute resource is none of what it may be" }
+  ],
+  "examples": [
+    {
+      "name": "the lab's endpoint",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        }
+      },
+      "result": { "method": "GET", "path": "/endpoint/models?address=http%3A%2F%2Flocalhost%3A11434%2Fv1" }
+    },
+    {
+      "name": "the cluster through the bridge",
+      "input": {
+        "entry": {
+          "name": "alex",
+          "kind": "compute",
+          "system": "SLURM cluster",
+          "address": "",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "NHR@FAU, Erlangen",
+          "secret": "",
+          "others": []
+        }
+      },
+      "result": { "method": "GET", "path": "/compute/check?system=SLURM%20cluster" }
+    },
+    {
+      "name": "the GPU box",
+      "input": {
+        "entry": {
+          "name": "gpu-box",
+          "kind": "compute",
+          "system": "GPU machine",
+          "address": "",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "the group's GPU box, Erlangen",
+          "secret": "",
+          "others": []
+        }
+      },
+      "result": { "method": "GET", "path": "/compute/check?system=GPU%20machine" }
+    },
+    {
+      "name": "an endpoint a runner reaches",
+      "input": {
+        "entry": {
+          "name": "local-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://gpu01:8000/v1",
+          "pin": "meta-llama/Llama-3.1-8B-Instruct",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "runner:gpu",
+          "place": "the group's server room, Erlangen",
+          "secret": "ci LOCAL_LLM_KEY",
+          "others": []
+        }
+      },
+      "refused": "not-through-the-bridge"
+    },
+    {
+      "name": "a checkpoint on a share the bridge's machine reaches",
+      "input": {
+        "entry": {
+          "name": "whisper-finetuned",
+          "kind": "model",
+          "system": "",
+          "address": "smb://lab-share/models/whisper-finetuned",
+          "pin": "",
+          "files": [],
+          "licence": "unknown",
+          "redistribution": "unknown",
+          "maintainer": "collaborator: Bob Example",
+          "route": "bridge",
+          "place": "",
+          "secret": "",
+          "others": []
+        }
+      },
+      "refused": "no-bridge-check"
+    },
+    {
+      "name": "an address with a login",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://alice:secret@localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        }
+      },
+      "refused": "not-an-address"
+    },
+    {
+      "name": "compute that is none of the two",
+      "input": {
+        "entry": {
+          "name": "alex",
+          "kind": "compute",
+          "system": "cloud",
+          "address": "",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "NHR@FAU, Erlangen",
+          "secret": "",
+          "others": []
+        }
+      },
+      "refused": "no-system"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-resource-register.servedPin",
+  "summary": "What the models an endpoint or an agent serves mean for its pin: the identifier it serves becomes its pin where it has none and one is served; where several are served the person chooses one; a pin among those served is kept; a pin no longer served is shown beside them and changes only by the person's Move.",
+  "params": [{ "name": "entry", "type": "ResourceEntry" }, { "name": "served", "type": "string[]" }],
+  "result": "ServedPin",
+  "async": false,
+  "refusals": [{ "code": "not-served", "when": "the resource is neither an endpoint nor an agent" }],
+  "examples": [
+    {
+      "name": "the pin among those served",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:7b", "llama3.2:3b"]
+      },
+      "result": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:7b", "llama3.2:3b"],
+        "state": "pinned"
+      }
+    },
+    {
+      "name": "one model served, none pinned",
+      "input": {
+        "entry": {
+          "name": "gpu01-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://gpu01:8000/v1",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "the group's server room, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "served": ["meta-llama/Llama-3.1-8B-Instruct"]
+      },
+      "result": {
+        "entry": {
+          "name": "gpu01-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://gpu01:8000/v1",
+          "pin": "meta-llama/Llama-3.1-8B-Instruct",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "the group's server room, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "served": ["meta-llama/Llama-3.1-8B-Instruct"],
+        "state": "set"
+      }
+    },
+    {
+      "name": "several served, none pinned",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:7b", "llama3.2:3b"]
+      },
+      "result": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:7b", "llama3.2:3b"],
+        "state": "choose"
+      }
+    },
+    {
+      "name": "another model served now",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:14b"]
+      },
+      "result": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:14b"],
+        "state": "differs"
+      }
+    },
+    {
+      "name": "nothing served",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": []
+      },
+      "result": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": [],
+        "state": "empty"
+      }
+    },
+    {
+      "name": "a cluster",
+      "input": {
+        "entry": {
+          "name": "alex",
+          "kind": "compute",
+          "system": "SLURM cluster",
+          "address": "",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "runner:alex",
+          "place": "NHR@FAU, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:7b"]
+      },
+      "refused": "not-served"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-resource-register.resourcesView",
   "summary": "The list as the page shows it, grouped by the six kinds in their order: each resource with what it is, its address, pin, licence, maintainer, route, place and secret, whether it is restricted, and how many errors its check found.",
   "params": [{ "name": "entries", "type": "ResourceEntry[]" }, { "name": "findings", "type": "Finding[]" }],
@@ -2766,7 +3235,7 @@ flowchart LR
   "layer": "adapter",
   "responsibility": "The Hugging Face Hub, read from the browser through the fetch port: a model's or a dataset's repository from its address, and what the Hub's API says of it at a revision — its commit, its licence, whether it is gated or private, and who owns it; a key goes to the Hub alone.",
   "realises": [],
-  "owns": ["HubRepo", "HubInfo"],
+  "owns": ["HubRepo", "HubInfo", "HubAccount"],
   "uses": ["MOD-contracts"]
 }
 ```
@@ -3019,6 +3488,65 @@ flowchart LR
 }
 ```
 
+```json interface
+{
+  "id": "MOD-hub.hubWhoami",
+  "summary": "The account a key of the Hub acts as, read at https://huggingface.co/api/whoami-v2 with that key alone — the test of a key kept in this browser.",
+  "params": [{ "name": "key", "type": "string" }, { "name": "fetch", "type": "FetchPort" }],
+  "result": "HubAccount",
+  "async": true,
+  "refusals": [
+    { "code": "no-key", "when": "no key is given" },
+    { "code": "key-refused", "when": "the Hub does not accept the key" },
+    { "code": "rate-limited", "when": "the Hub's rate limit is used up" },
+    { "code": "server-error", "when": "the Hub answers with another error" },
+    { "code": "unreachable", "when": "no answer arrives: the browser may not reach the Hub" }
+  ],
+  "examples": [
+    {
+      "name": "alice's read key",
+      "input": {
+        "key": "hf_example_read_token",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://huggingface.co/api/whoami-v2" },
+            "response": { "status": 200, "body": { "type": "user", "name": "alice" } }
+          }
+        ]
+      },
+      "result": { "name": "alice" }
+    },
+    {
+      "name": "a key the Hub does not accept",
+      "input": {
+        "key": "hf_no_such_key",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://huggingface.co/api/whoami-v2" },
+            "response": { "status": 401, "body": { "error": "Invalid credentials in Authorization header" } }
+          }
+        ]
+      },
+      "refused": "key-refused"
+    },
+    {
+      "name": "the Hub's limit used up",
+      "input": {
+        "key": "hf_example_read_token",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://huggingface.co/api/whoami-v2" },
+            "response": { "status": 429, "body": { "error": "rate limit" } }
+          }
+        ]
+      },
+      "refused": "rate-limited"
+    },
+    { "name": "no key", "input": { "key": "", "fetch": [] }, "refused": "no-key" }
+  ]
+}
+```
+
 ### MOD-resources-page
 
 ```json module
@@ -3028,8 +3556,8 @@ flowchart LR
   "layer": "shell",
   "responsibility": "The page resources.html at the root of the instance's Pages site, where a product's resources — or the instance's own — are declared: its route, the reading of a list with its check and the people consenting to be named, a repository resource read on its server and a model or a dataset on the Hub, the save of the list on a click, and every text and all HTML of the page.",
   "realises": ["A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED", "THE INSTANCE DECLARES ITS OWN RESOURCES", "INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT"],
-  "owns": ["ResourcesRoute", "ResourcesRead", "RepositoryRead"],
-  "uses": ["MOD-contracts", "MOD-resource-register", "MOD-hub", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-settings-views", "MOD-source-library"]
+  "owns": ["ResourcesRoute", "ResourcesRead", "RepositoryRead", "ResourceCheck"],
+  "uses": ["MOD-contracts", "MOD-resource-register", "MOD-hub", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-settings-views", "MOD-source-library", "MOD-artifacts", "MOD-bridge-server", "MOD-bridge-tunnel"]
 }
 ```
 
@@ -3916,8 +4444,1023 @@ flowchart LR
 
 ```json interface
 {
+  "id": "MOD-resources-page.checkResource",
+  "summary": "Check (UC-040 7): a resource reached by its route — a repository read on its server and a model or a dataset on the Hub, each with the state upstream beside its pin; data or a model pinned by its files, whose check is the hashes computed when they were selected; compute, an endpoint or an agent reached through the bridge — the one paired in this browser, or a remote session's through its route —, the request carrying the bridge's token and nothing else, and answered with a cluster's partitions or a machine's GPUs as the bridge's machine lists them, or with the models a server serves and what they mean for the pin. A resource a self-hosted runner reaches is not checked from the page.",
+  "params": [
+    { "name": "entry", "type": "ResourceEntry" },
+    { "name": "via", "type": "string" },
+    { "name": "settings", "type": "Settings" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "ResourceCheck",
+  "async": true,
+  "refusals": [
+    { "code": "runner-check", "when": "a self-hosted runner reaches the resource: it is checked by a job on that runner, which the product's workflow does not run" },
+    { "code": "no-bridge", "when": "the check goes through the bridge, and none is paired in this browser" },
+    { "code": "no-session", "when": "the check goes through a remote session this browser does not keep" },
+    { "code": "unknown-via", "when": "the check names neither the bridge nor a remote session" },
+    { "code": "not-through-the-bridge", "when": "the resource's route is not the bridge" },
+    { "code": "not-an-address", "when": "the address is no address of what is read" },
+    { "code": "no-system", "when": "a compute resource is none of what it may be" },
+    { "code": "no-token", "when": "no token of that bridge is stored" },
+    { "code": "not-loopback", "when": "the bridge's stored address is no loopback address" },
+    { "code": "token-refused", "when": "the bridge refuses its token" },
+    { "code": "login-refused", "when": "the jump host's web server refuses its login" },
+    { "code": "refused", "when": "the bridge refuses this page's origin or the address it was called at" },
+    { "code": "not-found", "when": "the bridge, or the repository's server, knows no such route or repository" },
+    { "code": "not-allowed", "when": "the bridge does not take the request's method" },
+    { "code": "bridge-error", "when": "the bridge answers with another error" },
+    { "code": "needs-key", "when": "the model server asks for a key: the bridge sends none" },
+    { "code": "no-answer", "when": "the model server does not answer the bridge's machine" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "not-a-model-list", "when": "the model server answers no list of models" },
+    { "code": "not-installed", "when": "the command that lists the compute cannot be started on the bridge's machine" },
+    { "code": "failed", "when": "the command exits with another code than 0" },
+    { "code": "nothing-listed", "when": "the command lists nothing" },
+    { "code": "unreachable", "when": "no answer arrives: the bridge does not run there, the address is wrong, or the browser blocks the call" },
+    { "code": "no-key", "when": "the key the entry names is not stored in this browser" },
+    { "code": "other-server", "when": "the key the entry names is stored for another server than the one the resource's requests go to" },
+    { "code": "no-server", "when": "the entry's address is no web address" },
+    { "code": "not-a-hub-address", "when": "a model's or a dataset's address names nothing on the Hub" },
+    { "code": "not-readable", "when": "the Hub lets this browser not read the repository: it does not exist, it is private or gated, or the key cannot read it" },
+    { "code": "no-revision", "when": "the repository has no such revision" },
+    { "code": "rate-limited", "when": "the Hub's rate limit is used up" },
+    { "code": "not-an-address", "when": "the address is no repository's address" },
+    { "code": "token-refused", "when": "the server refuses the token" },
+    { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    { "code": "no-access", "when": "the token lacks the permission or the repository" }
+  ],
+  "examples": [
+    {
+      "name": "a private repository read with its own read-only key",
+      "input": {
+        "entry": {
+          "name": "speech-dlls",
+          "kind": "repository",
+          "system": "",
+          "address": "https://github.com/alice-lab/speech-dlls",
+          "pin": "5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e",
+          "files": [],
+          "licence": "internal use within the lab",
+          "redistribution": "no",
+          "maintainer": "@alice-lab",
+          "route": "browser",
+          "place": "",
+          "secret": "browser SPEECH_DLLS_READ",
+          "others": []
+        },
+        "via": "",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice-lab/speech-dlls" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice-lab/speech-dlls/commits/main" },
+            "response": { "status": 200, "body": { "sha": "5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice-lab/speech-dlls/git/trees/5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "LICENSE.md", "type": "blob", "sha": "a41b8be40b8f37f8a528d47115a6a502a4bae07a" },
+                  { "path": "README.md", "type": "blob", "sha": "3ceaef976df0a8f3dd6f3aaf7f470c49d439a26f" },
+                  { "path": "lib/speech.dll", "type": "blob", "sha": "261c09db966025730eaa0fcdf977bf729c3a8e7a" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice-lab/speech-dlls/contents/LICENSE.md?ref=5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e" },
+            "response": { "status": 200, "body": "# Licence\n\nThe speech DLLs may be used within the lab only. They may not be passed on.\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice-lab/speech-dlls/commits?sha=5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e&per_page=100" },
+            "response": {
+              "status": 200,
+              "body": [
+                {
+                  "sha": "5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e",
+                  "commit": {
+                    "message": "Build the DLLs for the new recogniser",
+                    "committer": { "date": "2026-09-21T09:12:00Z" },
+                    "author": { "name": "Carla Muster" }
+                  },
+                  "author": { "login": "carla" }
+                },
+                {
+                  "sha": "4c2b000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "Fix the 32-bit build",
+                    "committer": { "date": "2026-06-02T15:40:00Z" },
+                    "author": { "name": "Bob Example" }
+                  },
+                  "author": { "login": "bob" }
+                },
+                {
+                  "sha": "3a19000000000000000000000000000000000000",
+                  "commit": {
+                    "message": "First build",
+                    "committer": { "date": "2025-03-11T08:05:00Z" },
+                    "author": { "name": "Carla Muster" }
+                  },
+                  "author": { "login": "carla" }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "speech-dlls",
+        "by": "host",
+        "answer": ["5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e at the head of main", "the licence file LICENSE.md"],
+        "newer": { "name": "speech-dlls", "pin": "5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e", "upstream": "5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e", "newer": false },
+        "served": null
+      }
+    },
+    {
+      "name": "GPT-2 on the Hub",
+      "input": {
+        "entry": {
+          "name": "gpt2",
+          "kind": "model",
+          "system": "",
+          "address": "https://huggingface.co/openai-community/gpt2",
+          "pin": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+          "files": [],
+          "licence": "mit",
+          "redistribution": "yes",
+          "maintainer": "@openai-community",
+          "route": "browser",
+          "place": "",
+          "secret": "",
+          "others": []
+        },
+        "via": "",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://huggingface.co/api/models/openai-community/gpt2" },
+            "response": {
+              "status": 200,
+              "body": {
+                "id": "openai-community/gpt2",
+                "author": "openai-community",
+                "sha": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+                "lastModified": "2024-02-19T10:57:45.000Z",
+                "private": false,
+                "gated": false,
+                "cardData": { "license": "mit" }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "gpt2",
+        "by": "host",
+        "answer": ["607a30d783dfa663caf39e06633721c8d4cfcd7e at the newest revision", "the licence mit"],
+        "newer": { "name": "gpt2", "pin": "607a30d783dfa663caf39e06633721c8d4cfcd7e", "upstream": "607a30d783dfa663caf39e06633721c8d4cfcd7e", "newer": false },
+        "served": null
+      }
+    },
+    {
+      "name": "a checkpoint pinned by its files",
+      "input": {
+        "entry": {
+          "name": "whisper-finetuned",
+          "kind": "model",
+          "system": "",
+          "address": "smb://lab-share/models/whisper-finetuned",
+          "pin": "files",
+          "files": [
+            { "name": "config.json", "sha256": "4b22222222222222222222222222222222222222222222222222222222222222" },
+            { "name": "model.safetensors", "sha256": "a799999999999999999999999999999999999999999999999999999999999999" }
+          ],
+          "licence": "unknown",
+          "redistribution": "unknown",
+          "maintainer": "collaborator: Bob Example",
+          "route": "runner:gpu",
+          "place": "",
+          "secret": "",
+          "others": []
+        },
+        "via": "",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": []
+      },
+      "result": {
+        "name": "whisper-finetuned",
+        "by": "files",
+        "answer": ["config.json 4b22222222222222222222222222222222222222222222222222222222222222", "model.safetensors a799999999999999999999999999999999999999999999999999999999999999"],
+        "newer": null,
+        "served": null
+      }
+    },
+    {
+      "name": "the lab's endpoint through the bridge on this computer",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/endpoint/models?address=http%3A%2F%2Flocalhost%3A11434%2Fv1" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "address": "http://localhost:11434/v1", "models": ["qwen2.5:7b", "llama3.2:3b"] }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "lab-llm",
+        "by": "bridge",
+        "answer": ["qwen2.5:7b", "llama3.2:3b"],
+        "newer": null,
+        "served": {
+          "entry": {
+            "name": "lab-llm",
+            "kind": "endpoint",
+            "system": "",
+            "address": "http://localhost:11434/v1",
+            "pin": "qwen2.5:7b",
+            "files": [],
+            "licence": "",
+            "redistribution": "",
+            "maintainer": "",
+            "route": "bridge",
+            "place": "this machine",
+            "secret": "",
+            "others": []
+          },
+          "served": ["qwen2.5:7b", "llama3.2:3b"],
+          "state": "pinned"
+        }
+      }
+    },
+    {
+      "name": "an endpoint without its pin, through the GPU box's bridge",
+      "input": {
+        "entry": {
+          "name": "box-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "the group's GPU box, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "via": "session:gpu-box",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://localhost:20001/endpoint/models?address=http%3A%2F%2Flocalhost%3A11434%2Fv1" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "address": "http://localhost:11434/v1", "models": ["qwen2.5:7b"] }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "box-llm",
+        "by": "bridge",
+        "answer": ["qwen2.5:7b"],
+        "newer": null,
+        "served": {
+          "entry": {
+            "name": "box-llm",
+            "kind": "endpoint",
+            "system": "",
+            "address": "http://localhost:11434/v1",
+            "pin": "qwen2.5:7b",
+            "files": [],
+            "licence": "",
+            "redistribution": "",
+            "maintainer": "",
+            "route": "bridge",
+            "place": "the group's GPU box, Erlangen",
+            "secret": "",
+            "others": []
+          },
+          "served": ["qwen2.5:7b"],
+          "state": "set"
+        }
+      }
+    },
+    {
+      "name": "the endpoint serving another model now",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/endpoint/models?address=http%3A%2F%2Flocalhost%3A11434%2Fv1" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "address": "http://localhost:11434/v1", "models": ["qwen2.5:14b"] }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "lab-llm",
+        "by": "bridge",
+        "answer": ["qwen2.5:14b"],
+        "newer": null,
+        "served": {
+          "entry": {
+            "name": "lab-llm",
+            "kind": "endpoint",
+            "system": "",
+            "address": "http://localhost:11434/v1",
+            "pin": "qwen2.5:7b",
+            "files": [],
+            "licence": "",
+            "redistribution": "",
+            "maintainer": "",
+            "route": "bridge",
+            "place": "this machine",
+            "secret": "",
+            "others": []
+          },
+          "served": ["qwen2.5:14b"],
+          "state": "differs"
+        }
+      }
+    },
+    {
+      "name": "the cluster through the lab's login node, over HTTPS",
+      "input": {
+        "entry": {
+          "name": "alex",
+          "kind": "compute",
+          "system": "SLURM cluster",
+          "address": "",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "NHR@FAU, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "via": "session:lab-pc",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://jump.example.org/agent-m/20002/compute/check?system=SLURM%20cluster" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "system": "SLURM cluster", "lines": ["a100* up 20 gpu:a100:8", "a40 up 8 gpu:a40:8"] }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "alex",
+        "by": "bridge",
+        "answer": ["a100* up 20 gpu:a100:8", "a40 up 8 gpu:a40:8"],
+        "newer": null,
+        "served": null
+      }
+    },
+    {
+      "name": "the GPU box through its own bridge",
+      "input": {
+        "entry": {
+          "name": "gpu-box",
+          "kind": "compute",
+          "system": "GPU machine",
+          "address": "",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "the group's GPU box, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "via": "session:gpu-box",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://localhost:20001/compute/check?system=GPU%20machine" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "system": "GPU machine",
+                "lines": ["GPU 0: NVIDIA A40 (UUID: GPU-3f1c2a7e-8d4b-4c1e-9a2f-6b7d8e9f0a1b)", "GPU 1: NVIDIA A40 (UUID: GPU-7a2b3c4d-5e6f-4a1b-8c2d-9e0f1a2b3c4d)"]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "name": "gpu-box",
+        "by": "bridge",
+        "answer": ["GPU 0: NVIDIA A40 (UUID: GPU-3f1c2a7e-8d4b-4c1e-9a2f-6b7d8e9f0a1b)", "GPU 1: NVIDIA A40 (UUID: GPU-7a2b3c4d-5e6f-4a1b-8c2d-9e0f1a2b3c4d)"],
+        "newer": null,
+        "served": null
+      }
+    },
+    {
+      "name": "the cluster through the bridge on a machine without sinfo",
+      "input": {
+        "entry": {
+          "name": "alex",
+          "kind": "compute",
+          "system": "SLURM cluster",
+          "address": "",
+          "pin": "",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "NHR@FAU, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/compute/check?system=SLURM%20cluster" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "refused": "not-installed", "reason": "sinfo could not be started on the bridge's machine: the bridge that checks a SLURM cluster runs on one of its machines" }
+            }
+          }
+        ]
+      },
+      "refused": "not-installed"
+    },
+    {
+      "name": "a server that asks for a key",
+      "input": {
+        "entry": {
+          "name": "gpu01-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://gpu01:8000/v1",
+          "pin": "meta-llama/Llama-3.1-8B-Instruct",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "the group's server room, Erlangen",
+          "secret": "",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/endpoint/models?address=http%3A%2F%2Fgpu01%3A8000%2Fv1" },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "refused": "needs-key", "reason": "http://gpu01:8000/v1 asks for a key, and the request carried none" }
+            }
+          }
+        ]
+      },
+      "refused": "needs-key"
+    },
+    {
+      "name": "no bridge answers",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": []
+      },
+      "refused": "unreachable"
+    },
+    {
+      "name": "a token the bridge no longer holds",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "cf33a859fd1c8745de6b28f0990cc74fb03af8801edc4aa31470ba2e8ceb5e02", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://127.0.0.1:47321/endpoint/models?address=http%3A%2F%2Flocalhost%3A11434%2Fv1" },
+            "response": {
+              "status": 401,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": ""
+            }
+          }
+        ]
+      },
+      "refused": "token-refused"
+    },
+    {
+      "name": "no bridge paired in this browser",
+      "input": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": []
+      },
+      "refused": "no-bridge"
+    },
+    {
+      "name": "an endpoint a self-hosted runner reaches",
+      "input": {
+        "entry": {
+          "name": "local-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://gpu01:8000/v1",
+          "pin": "meta-llama/Llama-3.1-8B-Instruct",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "runner:gpu",
+          "place": "the group's server room, Erlangen",
+          "secret": "ci LOCAL_LLM_KEY",
+          "others": []
+        },
+        "via": "bridge",
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null },
+            { "name": "lab-pc", "port": 20002, "bridgePort": 47321, "route": "https", "token": "94f07d1ec04c02a635dc6eb0118acc42e1599e2b82bafd70d719ae8feb3ac561", "tested": null }
+          ],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": []
+      },
+      "refused": "runner-check"
+    }
+  ]
+}
+```
+
+```json interface
+{
   "id": "MOD-resources-page.saveResources",
-  "summary": "A resource list written to its repository's docs/resources.md on a click: one commit on the head read, where the file is still the version the page opened — none, for a new list —, its check against the consenting collaborators finds no error, and it holds none of the secrets this browser keeps; nothing else is written.",
+  "summary": "A resource list written to its repository's docs/resources.md on a click: one commit on the head read, where the file is still the version the page opened — none, for a new list —, its check against the consenting collaborators finds no error, it holds none of the secrets this browser keeps, and no history — a withdrawal note, the date of a change (MOD-artifacts.historyIn); nothing else is written.",
   "params": [
     { "name": "target", "type": "string" },
     { "name": "text", "type": "string" },
@@ -3934,6 +5477,7 @@ flowchart LR
     { "code": "no-token", "when": "no token is stored for the repository" },
     { "code": "not-saved", "when": "the check of the list finds an error" },
     { "code": "secret-in-text", "when": "the list holds the value of a secret this browser keeps" },
+    { "code": "holds-history", "when": "the list holds a withdrawal note or the date of a change (MOD-artifacts.historyIn)" },
     { "code": "moved", "when": "the file changed after the page read it" },
     { "code": "not-https", "when": "the address does not use https" },
     { "code": "credential-in-address", "when": "the address carries a user name or a token" },
@@ -4287,6 +5831,33 @@ flowchart LR
       "refused": "secret-in-text"
     },
     {
+      "name": "a licence that notes when it changed",
+      "input": {
+        "target": "https://github.com/alice/notes",
+        "text": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## gpt2\n\n- kind: model\n- system: —\n- address: https://huggingface.co/openai-community/gpt2\n- pin: 607a30d783dfa663caf39e06633721c8d4cfcd7e\n- licence: mit, changed from apache-2.0 on 2026-09-01\n- redistribution: yes\n- maintainer: @openai-community\n- route: browser\n- place: —\n- secret: —\n",
+        "openedBlob": "eb0836abf0751e200b5cbdbdd3b3c27a5e49f84f",
+        "collaborators": [{ "name": "Bob Example", "account": "@bob" }],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null }
+          ]
+        },
+        "fetch": [],
+        "authority": { "kind": "click" }
+      },
+      "refused": "holds-history"
+    },
+    {
       "name": "the list changed meanwhile",
       "input": {
         "target": "https://github.com/alice/notes",
@@ -4367,6 +5938,234 @@ flowchart LR
         "fetch": []
       },
       "refused": "no-authority"
+    }
+  ]
+}
+```
+
+### MOD-model-servers
+
+```json module
+{
+  "id": "MOD-model-servers",
+  "folder": "src/model-servers/",
+  "layer": "adapter",
+  "responsibility": "A model server's list of the models it serves, read in the OpenAI-compatible form at its base address, the key in the server's own header only where one is given: asked without a key by the bridge on whose machine the server runs, with a resource's key by the settings page at the server that key is stored for.",
+  "realises": [],
+  "owns": ["ServedModels"],
+  "uses": ["MOD-contracts"]
+}
+```
+
+```json interface
+{
+  "id": "MOD-model-servers.servedModels",
+  "summary": "The models a model server serves, read in the OpenAI-compatible form — GET <address>/models, answered with a list whose data names each model by its id —, the key in the server's own header only where one is given: the bridge asks a server on its machine without a key, the settings page asks with a resource's key the server it is stored for.",
+  "params": [
+    { "name": "address", "type": "string" },
+    { "name": "key", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "ServedModels",
+  "async": true,
+  "refusals": [
+    { "code": "not-an-address", "when": "the address is no http or https address without a login, a query or a fragment" },
+    { "code": "needs-key", "when": "the server asks for a key, and the request carried none" },
+    { "code": "key-refused", "when": "the server refuses the key" },
+    { "code": "server-error", "when": "the server answers with another error" },
+    { "code": "not-a-model-list", "when": "the answer holds no list of models, each with its id" },
+    { "code": "no-answer", "when": "the server does not answer" }
+  ],
+  "examples": [
+    {
+      "name": "an Ollama server on the bridge's machine",
+      "input": {
+        "address": "http://localhost:11434/v1",
+        "key": "",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://localhost:11434/v1/models" },
+            "response": {
+              "status": 200,
+              "body": {
+                "object": "list",
+                "data": [
+                  { "id": "qwen2.5:7b", "object": "model", "created": 1759276800, "owned_by": "library" },
+                  { "id": "llama3.2:3b", "object": "model", "created": 1759276800, "owned_by": "library" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": { "address": "http://localhost:11434/v1", "models": ["qwen2.5:7b", "llama3.2:3b"] }
+    },
+    {
+      "name": "a server asked with its key",
+      "input": {
+        "address": "http://gpu01:8000/v1",
+        "key": "key-example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://gpu01:8000/v1/models" },
+            "response": {
+              "status": 200,
+              "body": {
+                "object": "list",
+                "data": [
+                  { "id": "meta-llama/Llama-3.1-8B-Instruct", "object": "model", "created": 1759276800, "owned_by": "vllm" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": { "address": "http://gpu01:8000/v1", "models": ["meta-llama/Llama-3.1-8B-Instruct"] }
+    },
+    {
+      "name": "a server that asks for a key",
+      "input": {
+        "address": "http://gpu01:8000/v1",
+        "key": "",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://gpu01:8000/v1/models" },
+            "response": { "status": 401, "body": { "error": { "message": "Unauthorized" } } }
+          }
+        ]
+      },
+      "refused": "needs-key"
+    },
+    {
+      "name": "a key the server refuses",
+      "input": {
+        "address": "http://gpu01:8000/v1",
+        "key": "key-wrong",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://gpu01:8000/v1/models" },
+            "response": { "status": 401, "body": { "error": { "message": "Unauthorized" } } }
+          }
+        ]
+      },
+      "refused": "key-refused"
+    },
+    {
+      "name": "a page that is no list of models",
+      "input": {
+        "address": "http://localhost:11434/v1",
+        "key": "",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "http://localhost:11434/v1/models" },
+            "response": {
+              "status": 200,
+              "headers": { "content-type": "text/html" },
+              "body": "<html><body>Welcome</body></html>"
+            }
+          }
+        ]
+      },
+      "refused": "not-a-model-list"
+    },
+    {
+      "name": "no answer",
+      "input": { "address": "http://localhost:11434/v1", "key": "", "fetch": [] },
+      "refused": "no-answer"
+    },
+    {
+      "name": "an address with a login",
+      "input": { "address": "http://alice:secret@localhost:11434/v1", "key": "", "fetch": [] },
+      "refused": "not-an-address"
+    }
+  ]
+}
+```
+
+### MOD-local-compute
+
+```json module
+{
+  "id": "MOD-local-compute",
+  "folder": "src/local-compute/",
+  "layer": "adapter",
+  "responsibility": "The harmless command the bridge runs on its machine to check a compute resource — a SLURM cluster's partitions with sinfo, a GPU machine's GPUs with nvidia-smi —, as an argument list, and what it printed, read line by line as written; the bridge app runs the process.",
+  "realises": [],
+  "owns": ["CommandRun", "ComputeFound"],
+  "uses": ["MOD-contracts"]
+}
+```
+
+```json interface
+{
+  "id": "MOD-local-compute.computeProbe",
+  "summary": "The harmless command the bridge runs on its machine to check a compute resource, as an argument list, never through a shell: for a SLURM cluster sinfo with no header and the format of each partition — its name, a star after the default one —, its state, its number of nodes and their generic resources; for a GPU machine nvidia-smi listing each GPU with its UUID.",
+  "params": [{ "name": "system", "type": "string" }],
+  "result": "string[]",
+  "async": false,
+  "refusals": [{ "code": "unknown-system", "when": "the system is none of SLURM cluster and GPU machine" }],
+  "examples": [
+    {
+      "name": "a SLURM cluster",
+      "input": { "system": "SLURM cluster" },
+      "result": ["sinfo", "--noheader", "--format=%P %a %D %G"]
+    },
+    { "name": "a GPU machine", "input": { "system": "GPU machine" }, "result": ["nvidia-smi", "--list-gpus"] },
+    { "name": "a cloud", "input": { "system": "cloud" }, "refused": "unknown-system" }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-local-compute.computeFound",
+  "summary": "What the compute check found on the bridge's machine, each line as the command printed it: a cluster's partitions or a machine's GPUs; the command not started there, its exit with another code than 0 with the last line of its error output, or nothing listed, each refused with the reason.",
+  "params": [{ "name": "system", "type": "string" }, { "name": "run", "type": "CommandRun" }],
+  "result": "ComputeFound",
+  "async": false,
+  "refusals": [
+    { "code": "unknown-system", "when": "the system is none of SLURM cluster and GPU machine" },
+    { "code": "not-installed", "when": "the command could not be started on the bridge's machine" },
+    { "code": "failed", "when": "the command exited with another code than 0" },
+    { "code": "nothing-listed", "when": "the command printed nothing" }
+  ],
+  "examples": [
+    {
+      "name": "the partitions of Alex",
+      "input": {
+        "system": "SLURM cluster",
+        "run": { "exitCode": 0, "stdout": "a100* up 20 gpu:a100:8\na40 up 8 gpu:a40:8\n", "stderr": "" }
+      },
+      "result": { "system": "SLURM cluster", "lines": ["a100* up 20 gpu:a100:8", "a40 up 8 gpu:a40:8"] }
+    },
+    {
+      "name": "the GPUs of the GPU box",
+      "input": {
+        "system": "GPU machine",
+        "run": { "exitCode": 0, "stdout": "GPU 0: NVIDIA A40 (UUID: GPU-3f1c2a7e-8d4b-4c1e-9a2f-6b7d8e9f0a1b)\nGPU 1: NVIDIA A40 (UUID: GPU-7a2b3c4d-5e6f-4a1b-8c2d-9e0f1a2b3c4d)\n", "stderr": "" }
+      },
+      "result": {
+        "system": "GPU machine",
+        "lines": ["GPU 0: NVIDIA A40 (UUID: GPU-3f1c2a7e-8d4b-4c1e-9a2f-6b7d8e9f0a1b)", "GPU 1: NVIDIA A40 (UUID: GPU-7a2b3c4d-5e6f-4a1b-8c2d-9e0f1a2b3c4d)"]
+      }
+    },
+    {
+      "name": "a machine without sinfo",
+      "input": {
+        "system": "SLURM cluster",
+        "run": { "exitCode": null, "stdout": "", "stderr": "sinfo: command not found" }
+      },
+      "refused": "not-installed"
+    },
+    {
+      "name": "nvidia-smi without its driver",
+      "input": { "system": "GPU machine", "run": { "exitCode": 9, "stdout": "", "stderr": "" } },
+      "refused": "failed"
+    },
+    {
+      "name": "no partition listed",
+      "input": { "system": "SLURM cluster", "run": { "exitCode": 0, "stdout": "\n", "stderr": "" } },
+      "refused": "nothing-listed"
     }
   ]
 }
@@ -4836,6 +6635,209 @@ flowchart LR
 }
 ```
 
+```json type
+{
+  "$id": "BridgeCheck",
+  "description": "The bridge's request that checks a resource reached through it: its method and its path with the query naming the resource — no key.",
+  "type": "object",
+  "required": ["method", "path"],
+  "additionalProperties": false,
+  "properties": {
+    "method": { "type": "string", "enum": ["GET"] },
+    "path": { "type": "string", "pattern": "^/(endpoint/models|compute/check)\\?" }
+  },
+  "examples": [
+    { "method": "GET", "path": "/endpoint/models?address=http%3A%2F%2Flocalhost%3A11434%2Fv1" },
+    { "method": "GET", "path": "/compute/check?system=SLURM%20cluster" }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ServedPin",
+  "description": "What the models an endpoint or an agent serves mean for its pin: the entry — its pin set where it had none and one model is served —, the models served, and the state: pinned among them, set, to choose among several, differing — the pin shown beside them until a Move —, or nothing served.",
+  "type": "object",
+  "required": ["entry", "served", "state"],
+  "additionalProperties": false,
+  "properties": {
+    "entry": { "$ref": "ResourceEntry" },
+    "served": { "type": "array", "items": { "type": "string" } },
+    "state": { "type": "string", "enum": ["pinned", "set", "choose", "differs", "empty"] }
+  },
+  "examples": [
+    {
+      "entry": {
+        "name": "gpu01-llm",
+        "kind": "endpoint",
+        "system": "",
+        "address": "http://gpu01:8000/v1",
+        "pin": "meta-llama/Llama-3.1-8B-Instruct",
+        "files": [],
+        "licence": "",
+        "redistribution": "",
+        "maintainer": "",
+        "route": "bridge",
+        "place": "the group's server room, Erlangen",
+        "secret": "",
+        "others": []
+      },
+      "served": ["meta-llama/Llama-3.1-8B-Instruct"],
+      "state": "set"
+    },
+    {
+      "entry": {
+        "name": "lab-llm",
+        "kind": "endpoint",
+        "system": "",
+        "address": "http://localhost:11434/v1",
+        "pin": "qwen2.5:7b",
+        "files": [],
+        "licence": "",
+        "redistribution": "",
+        "maintainer": "",
+        "route": "bridge",
+        "place": "this machine",
+        "secret": "",
+        "others": []
+      },
+      "served": ["qwen2.5:14b"],
+      "state": "differs"
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ServedPinOrNone",
+  "description": "What the served models mean for a pin, or null where the resource serves none.",
+  "anyOf": [{ "$ref": "ServedPin" }, { "type": "null" }],
+  "examples": [null]
+}
+```
+
+```json type
+{
+  "$id": "NewerStateOrNone",
+  "description": "A resource's pin beside the state upstream, or null where nothing upstream was read.",
+  "anyOf": [{ "$ref": "NewerState" }, { "type": "null" }],
+  "examples": [null]
+}
+```
+
+```json type
+{
+  "$id": "HubAccount",
+  "description": "The account a key of the Hub acts as.",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": false,
+  "properties": { "name": { "type": "string" } },
+  "examples": [{ "name": "alice" }]
+}
+```
+
+```json type
+{
+  "$id": "ResourceCheck",
+  "description": "What a check of a resource found: the resource, how it was reached — read on its host, its files, or through the bridge —, what answered, line by line as shown, the state upstream beside the pin where one was read, and what the models served mean for the pin of an endpoint or an agent.",
+  "type": "object",
+  "required": ["name", "by", "answer", "newer", "served"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "by": { "type": "string", "enum": ["host", "files", "bridge"] },
+    "answer": { "type": "array", "items": { "type": "string" } },
+    "newer": { "$ref": "NewerStateOrNone" },
+    "served": { "$ref": "ServedPinOrNone" }
+  },
+  "examples": [
+    {
+      "name": "lab-llm",
+      "by": "bridge",
+      "answer": ["qwen2.5:7b", "llama3.2:3b"],
+      "newer": null,
+      "served": {
+        "entry": {
+          "name": "lab-llm",
+          "kind": "endpoint",
+          "system": "",
+          "address": "http://localhost:11434/v1",
+          "pin": "qwen2.5:7b",
+          "files": [],
+          "licence": "",
+          "redistribution": "",
+          "maintainer": "",
+          "route": "bridge",
+          "place": "this machine",
+          "secret": "",
+          "others": []
+        },
+        "served": ["qwen2.5:7b", "llama3.2:3b"],
+        "state": "pinned"
+      }
+    },
+    {
+      "name": "alex",
+      "by": "bridge",
+      "answer": ["a100* up 20 gpu:a100:8", "a40 up 8 gpu:a40:8"],
+      "newer": null,
+      "served": null
+    }
+  ]
+}
+```
+
+```json type
+{
+  "$id": "ServedModels",
+  "description": "The models a model server serves, by the identifiers its list names, at its base address.",
+  "type": "object",
+  "required": ["address", "models"],
+  "additionalProperties": false,
+  "properties": { "address": { "type": "string" }, "models": { "type": "array", "items": { "type": "string" } } },
+  "examples": [{ "address": "http://localhost:11434/v1", "models": ["qwen2.5:7b", "llama3.2:3b"] }]
+}
+```
+
+```json type
+{
+  "$id": "CommandRun",
+  "description": "What a command the bridge ran gave: its exit code — null where it could not be started —, its output and its error output.",
+  "type": "object",
+  "required": ["exitCode", "stdout", "stderr"],
+  "additionalProperties": false,
+  "properties": {
+    "exitCode": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+    "stdout": { "type": "string" },
+    "stderr": { "type": "string" }
+  },
+  "examples": [{ "exitCode": 0, "stdout": "a100* up 20 gpu:a100:8\na40 up 8 gpu:a40:8\n", "stderr": "" }]
+}
+```
+
+```json type
+{
+  "$id": "ComputeFound",
+  "description": "What the compute check found on the bridge's machine: the system, and each line as the command printed it.",
+  "type": "object",
+  "required": ["system", "lines"],
+  "additionalProperties": false,
+  "properties": {
+    "system": { "type": "string", "enum": ["SLURM cluster", "GPU machine"] },
+    "lines": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 }
+  },
+  "examples": [
+    { "system": "SLURM cluster", "lines": ["a100* up 20 gpu:a100:8", "a40 up 8 gpu:a40:8"] },
+    {
+      "system": "GPU machine",
+      "lines": ["GPU 0: NVIDIA A40 (UUID: GPU-3f1c2a7e-8d4b-4c1e-9a2f-6b7d8e9f0a1b)", "GPU 1: NVIDIA A40 (UUID: GPU-7a2b3c4d-5e6f-4a1b-8c2d-9e0f1a2b3c4d)"]
+    }
+  ]
+}
+```
+
 ```json format
 {
   "$id": "ResourcesFile",
@@ -4857,14 +6859,18 @@ flowchart LR
 | UC-040 4 | MOD-resource-register.withResource, MOD-resource-register.formatResources, MOD-resource-register.checkResources, MOD-resource-register.restriction |
 | UC-040 5 | MOD-git-host.secretsPageUrl, MOD-resource-register.keyServer, MOD-settings-store.storeResourceKey, MOD-settings-store.saveEntries |
 | UC-040 6 | MOD-resource-register.placePreset |
-| UC-040 8 | MOD-resource-register.enteredPin, MOD-resource-register.withResource, MOD-resource-register.formatResources, MOD-resources-page.saveResources |
+| UC-040 8 | MOD-resource-register.enteredPin, MOD-resource-register.withResource, MOD-resource-register.formatResources, MOD-review-page.clickAuthority, MOD-resources-page.saveResources, MOD-resource-register.checkResources, MOD-resource-register.secretFree, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
+| UC-040 7 | MOD-resources-page.checkResource, MOD-resources-page.readRepository, MOD-resource-register.newerState, MOD-resources-page.readHub, MOD-hub.hubInfo, MOD-resource-register.checkPath, MOD-bridge-tunnel.sessionRoute, MOD-bridge-server.callBridge, MOD-bridge-server.admit, MOD-bridge-server.dispatch, MOD-model-servers.servedModels, MOD-local-compute.computeProbe, MOD-local-compute.computeFound, MOD-resource-register.servedPin, MOD-resource-register.withResource |
+| UC-040 1b | MOD-settings-views.settingsPage, MOD-resources-page.route, MOD-resources-page.readResources, MOD-resource-register.kinds, MOD-resource-register.newResource, MOD-resource-register.withResource, MOD-resources-page.checkResource, MOD-resource-register.formatResources, MOD-review-page.clickAuthority, MOD-resources-page.saveResources, MOD-resource-register.checkResources, MOD-resource-register.secretFree, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-040 2a | MOD-resource-register.participantFor, MOD-settings-page.route, MOD-process-config.participantPreset |
 | UC-040 2b | MOD-library-page.route |
-| UC-040 2c | MOD-resources-page.readResources, MOD-resource-register.copyResource, MOD-resource-register.formatResources, MOD-resources-page.saveResources |
-| UC-040 3a | MOD-resources-page.readRepository, MOD-resource-register.readTokenLink, MOD-resource-register.keyServer, MOD-settings-store.storeResourceKey, MOD-settings-store.saveEntries, MOD-resource-register.enteredPin, MOD-resource-register.withResource, MOD-resource-register.formatResources, MOD-resources-page.saveResources |
+| UC-040 2c | MOD-resources-page.readResources, MOD-resource-register.copyResource, MOD-resource-register.formatResources, MOD-review-page.clickAuthority, MOD-resources-page.saveResources, MOD-resource-register.checkResources, MOD-resource-register.secretFree, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
+| UC-040 3a | MOD-resources-page.readRepository, MOD-resource-register.readTokenLink, MOD-resource-register.keyServer, MOD-settings-store.storeResourceKey, MOD-settings-store.saveEntries, MOD-resource-register.enteredPin, MOD-resource-register.withResource, MOD-resource-register.formatResources, MOD-review-page.clickAuthority, MOD-resources-page.saveResources, MOD-resource-register.checkResources, MOD-resource-register.secretFree, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-040 3b | MOD-resources-page.readHub, MOD-resource-register.enteredPin |
 | UC-040 3c | MOD-resources-page.readHub, MOD-resource-register.keyServer, MOD-settings-store.storeResourceKey, MOD-settings-store.saveEntries |
 | UC-040 4a | MOD-resource-register.newResource, MOD-resource-register.fromHub, MOD-resource-register.restriction, MOD-resource-register.withResource, MOD-resource-register.formatResources, MOD-resource-register.checkResources |
 | UC-040 4b | MOD-library-page.route |
 | UC-040 4c | MOD-resource-register.dueDiligence, MOD-resource-register.busFactorOne |
+| UC-040 7a | MOD-resources-page.checkResource, MOD-resource-register.checkPath, MOD-bridge-server.callBridge, MOD-resource-register.enteredPin, MOD-resource-register.withResource, MOD-resource-register.formatResources, MOD-review-page.clickAuthority, MOD-resources-page.saveResources, MOD-resource-register.checkResources, MOD-resource-register.secretFree, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
+| UC-040 7c | MOD-resources-page.checkResource, MOD-resource-register.checkPath, MOD-bridge-server.callBridge, MOD-bridge-server.admit, MOD-bridge-server.dispatch, MOD-model-servers.servedModels, MOD-resource-register.servedPin, MOD-review-page.clickAuthority, MOD-resource-register.movePin, MOD-resource-register.formatResources, MOD-resources-page.saveResources, MOD-resource-register.checkResources, MOD-resource-register.secretFree, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-015 2c | MOD-resources-page.route, MOD-library-page.route |

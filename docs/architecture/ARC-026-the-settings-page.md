@@ -104,35 +104,62 @@ Facts this decision rests on:
    and its `docs/collaborators.md` (decision 8), each with its blob.
 5. **A browser setting is tested with itself alone** (`MOD-settings-page.testSetting`): a token asks its own server
    which account it acts as, and a refused one gives the page where it is renewed (ARC-004); an endpoint the browser
-   calls answers the short test request, or the test names why not and what works instead (ARC-009); the bridge on this
-   computer greets with its version, the origin it is paired with and the agents it found, or the test names its refusal
-   and what works instead (ARC-012); a remote session's bridge greets the same way through the session's route — its
-   forward, or the jump host's HTTPS address with the web server's login (`MOD-bridge-tunnel.sessionRoute`, ARC-013) —, or
-   the test names its refusal and what works instead: where no answer arrives over HTTPS, first *the certificate of the
-   jump host's HTTPS address: one the browsers trust, issued for its name, such as Let's Encrypt's or the institution's
-   own; a self-signed one does not work*, then *the web server's configuration this page shows, in place on the jump
-   host*, then *the reverse tunnel on the machine behind NAT, or its bridge*; where the web server refuses its login,
-   *the web server's login as the password file on the jump host holds it*; where nothing answers through a forward, *the forward on this computer: the command this page shows, or a bridge here
-   that opens it*, then *the reverse tunnel on the machine behind NAT, or its bridge*, then *the session's route over HTTPS
-   through the jump host*; a mailbox's reading or sending
-   is tested on its route without changing anything in the mailbox, or stays untested where the bridge that tests it
-   does not answer (`MOD-mailbox.testMailbox`, ARC-014). A test's result is kept with the setting
-   (`MOD-settings-store.recordTest`). **+ Remote session** gives a session its port and its bridge token
-   (`MOD-bridge-tunnel.newSession`, `MOD-bridge-server.newToken`); the jump host's line shows its tunnel commands, its
-   service files and its web-server configuration (`MOD-bridge-tunnel.tunnelCommands`, `MOD-bridge-tunnel.serviceFiles`,
-   `MOD-bridge-tunnel.webServerConfig`), and its own test answers `no-test`: it is tested through its sessions. The
-   bridge's form presets the address of a bridge on this computer (`MOD-bridge-server.defaultAddress`), so that pairing is
-   the token pasted and **Pair**. Storing a value and **Clear** change the entries through the store and write them at
-   once (ARC-005). **Clear** asks for one confirmation that says what no longer works in this browser without the
-   setting — a text the page holds for each kind of setting, chosen by the line's `setting`, as for an export (decision
-   7); for the bridge: mail on the IMAP route, local agents and compute resources (UC-042 2a); for the mailbox: reading
-   mail for issues and sending replies, while issues and their mail identifiers stay (UC-042 2b). After the clear the page
-   reads the entries again and shows the line as not set. Under the bridge's line, *Get the Agent M Bridge* offers the
-   bridge's files for this browser (ARC-017 decision 7): the page reads the latest release (`MOD-git-host.latestRelease`)
-   and shows what `MOD-bridge-feed.downloadFor` offers, in HTML of its own.
+   calls answers the short test request, or the test names why not and what works instead (ARC-009); an endpoint a
+   bridge calls — the one paired here, or a remote session's (UC-003 2a) — answers the same request through that bridge:
+   `POST /endpoint/chat` carries the bridge's token and the endpoint's address, model and messages, never its key, and
+   the bridge sends the turn to the server in the endpoint's format without a key (`MOD-participants.chatRequest`,
+   `MOD-participants.readAnswer`, ARC-011). The model servers UC-003 2a names answer it as they start by default: Ollama
+   ignores a key, vLLM asks for one only when started with `--api-key`, LiteLLM only where its configuration sets a
+   master key, which its generated keys need (ARC-034's context). A server started with a key is named not reachable
+   through the bridge — *<endpoint> asks for a key, and a request through the bridge carries none: it is not reachable
+   through the bridge* —, with *the model server started without a key on the bridge's machine*, then *the browser
+   route, where the server answers this site and its key stays in this browser*; a bridge not paired here is named — *no
+   bridge is paired in this browser, and <endpoint> is reached through it* — with *the bridge on this computer, paired
+   on this page*, a remote session not kept here — *no remote session <session> is stored, and <endpoint> is reached
+   through its bridge* — with *the session, added on this page with + Remote session*, and a bridge that does not answer
+   as its own test names it; a key a resource names (UC-042 1, 2) reads, with that key alone and at the one server it is
+   stored for, the first resource of the instance's list, then of each product's, that names it for that server
+   (`MOD-resource-register.keyServer`): a repository on its server (`MOD-git-host.repositoryInfo`) — a key that does not
+   read it gives the page where a read-only key is made (`MOD-resource-register.readTokenLink`) —, the account the Hub's
+   key acts as (`MOD-hub.hubWhoami`) — a refused one gives `https://huggingface.co/settings/tokens` —, the models a
+   server serves (`MOD-model-servers.servedModels`) — a server that does not answer this browser is named with *the
+   server's permission for this site, where it is to answer it: a key kept here goes to <server> alone, never through
+   the bridge* —; a compute resource's key goes to no server from this page, and a key no resource names is not tested.
+   The key's test reads *<key> reads <address> for <resource>*, *<server> refuses <key>*, *<key> does not read
+   <address>*, *<key> acts as <account> on the Hub, for <resource>*, *<address> serves <models> to <key>, for
+   <resource>* or *no answer from <address> to this browser*; a key no resource names, *no resource of the instance or
+   of a product names <key> for <server>*; a key of compute, *<key> belongs to <resource>, a compute resource, whose key
+   this page sends to no server*; the bridge on this computer greets with its version, the origin it is paired with and
+   the agents it found, or the test names its refusal and what works instead (ARC-012); a remote session's bridge greets
+   the same way through the session's route — its forward, or the jump host's HTTPS address with the web server's login
+   (`MOD-bridge-tunnel.sessionRoute`, ARC-013) —, or the test names its refusal and what works instead: where no answer
+   arrives over HTTPS, first *the certificate of the jump host's HTTPS address: one the browsers trust, issued for its
+   name, such as Let's Encrypt's or the institution's own; a self-signed one does not work*, then *the web server's
+   configuration this page shows, in place on the jump host*, then *the reverse tunnel on the machine behind NAT, or its
+   bridge*; where the web server refuses its login, *the web server's login as the password file on the jump host holds
+   it*; where nothing answers through a forward, *the forward on this computer: the command this page shows, or a bridge
+   here that opens it*, then *the reverse tunnel on the machine behind NAT, or its bridge*, then *the session's route
+   over HTTPS through the jump host*; a mailbox's reading or sending is tested on its route without changing anything in
+   the mailbox, or stays untested where the bridge that tests it does not answer (`MOD-mailbox.testMailbox`, ARC-014). A
+   test's result is kept with the setting (`MOD-settings-store.recordTest`). **+ Remote session** gives a session its
+   port and its bridge token (`MOD-bridge-tunnel.newSession`, `MOD-bridge-server.newToken`); the jump host's line shows
+   its tunnel commands, its service files and its web-server configuration (`MOD-bridge-tunnel.tunnelCommands`,
+   `MOD-bridge-tunnel.serviceFiles`, `MOD-bridge-tunnel.webServerConfig`), and its own test answers `no-test`: it is
+   tested through its sessions. The bridge's form presets the address of a bridge on this computer
+   (`MOD-bridge-server.defaultAddress`), so that pairing is the token pasted and **Pair**. Storing a value and **Clear**
+   change the entries through the store and write them at once (ARC-005). **Clear** asks for one confirmation that says
+   what no longer works in this browser without the setting — a text the page holds for each kind of setting, chosen by
+   the line's `setting`, as for an export (decision 7); for the bridge: mail on the IMAP route, local agents and compute
+   resources (UC-042 2a); for the mailbox: reading mail for issues and sending replies, while issues and their mail
+   identifiers stay (UC-042 2b). After the clear the page reads the entries again and shows the line as not set. Under
+   the bridge's line, *Get the Agent M Bridge* offers the bridge's files for this browser (ARC-017 decision 7): the page
+   reads the latest release (`MOD-git-host.latestRelease`) and shows what `MOD-bridge-feed.downloadFor` offers, in HTML
+   of its own.
 6. **A repository setting is saved as one commit on a click** (`MOD-settings-page.saveConfig`): the head read, the file
    planned on it by `MOD-process-config.planConfig` with the repository's visibility, and written in one commit on that
-   head; a product's settings are saved in the product's repository, never only in the browser.
+   head; a product's settings are saved in the product's repository, never only in the browser. A file the plan writes
+   — the instance's participants or a process model, a product's process — holds only what holds now: one that holds a
+   withdrawal note or the date of a change is not written (`MOD-artifacts.historyIn`, ARC-006).
 7. **Export and import** are those of ARC-005: before an export is saved the page names every token, key and password it
    holds (`MOD-settings-store.secretsHeld`), each with what it grants — a text the page holds for each kind of setting;
    an import keeps what the browser has and lists what it added and what it did not (`MOD-settings-store.mergeImport`).
@@ -248,13 +275,17 @@ flowchart LR
   `library.html`, not served yet, answered 404, and `resources.html` and `tests.html` were not requested —, nor was how a
   browser shows a page in a frame. A page that does not show in the panel is opened on its own from the same address, by
   the panel's link *Open this page on its own* (decision 11).
-- `A DOCUMENT HOLDS NO HISTORY` is kept across the decisions (ARC-020). The saves of decisions 8 and 9 write no text in
-  which the history check of a product's settings files (`MOD-artifacts.historyIn`, ARC-006) finds a withdrawal note or
-  the date of a change.
-- The test of a resource key reads, with that key alone, a resource that names it — a repository on its server, a model or
-  a dataset on the Hub, an endpoint through the bridge (ARC-034) —; this page reads the lists that name the keys
-  (decision 4), and the test waits for the check through the bridge, ARC-034's second part. Until then a resource key's
-  line shows its state and **Clear**, and its test answers `no-test`, as the jump host's does.
+- `A DOCUMENT HOLDS NO HISTORY` is kept across the decisions (ARC-020). These saves run the history check of the settings
+  files (`MOD-artifacts.historyIn`, ARC-006) and write no text in which it finds a withdrawal note or the date of a
+  change: this page's configuration (decision 6), pseudonymisation and the collaborators (decisions 8 and 9), and in the
+  panel a list of resources (`MOD-resources-page.saveResources`, ARC-034) and the test schedule
+  (`MOD-tests-page.saveSchedule`, ARC-028). The save of a product's links to its sources, in the panel too
+  (`MOD-library-page.saveLinks`, ARC-032), does not run it.
+- A key a resource names leaves this browser only for the server it is stored for: its test reads one resource that names
+  it there (decision 5), and a request through the bridge — an endpoint's test, a resource's check (ARC-034) — carries the
+  bridge's token alone. The test reads the instance's list and each product's until one names the key, three requests a
+  repository; an endpoint a bridge calls is called there without its key, so a server started with one is reached from the
+  browser or not at all.
 - **Kept in part, not placed** (`A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT`): the people a repository lists as
   consenting are read here (`MOD-settings-views.parseCollaborators`), and a resource's maintainer is checked against them
   (`MOD-resource-register.checkResources`, ARC-034). A name in any other artifact — above all one a participant
@@ -268,12 +299,9 @@ flowchart LR
   participant jobs over a mail's content (ARC-014), and the decision that designs it places the rule.
 - Finding the files that still name a person reads every file of the head once — a file read before is taken from the
   kept texts (ARC-005 decision 9) —; a repository of many files costs as many requests.
-- Not realised here: the steps that need those tests or settings not designed yet — UC-042 1 and 2, which wait for the
-  test of a resource key: step 1 shows the line of a resource key with a state — works or refused — that only that test
-  gives, and step 2's **Test** of it sends nothing yet; it comes with the check through the bridge, ARC-034's second part.
-  UC-003 2a (a model server through the bridge), UC-017 3, 3b, 5a, 6, 6a (a participant on the bridge and its test, which
-  come with the bridge as a job runtime, and the sources' places), UC-002 4c (the sources' places), and UC-031 4a
-  (keeping an unfinished model in the browser, for which the store has no key).
+- Not realised here: the steps that need those tests or settings not designed yet — UC-017 3, 3b, 5a, 6, 6a (a participant
+  on the bridge and its test, which come with the bridge as a job runtime, and the sources' places), UC-002 4c (the
+  sources' places), and UC-031 4a (keeping an unfinished model in the browser, for which the store has no key).
 
 ## Modules
 
@@ -1008,7 +1036,7 @@ flowchart LR
   "responsibility": "The page settings.html at the root of the instance's Pages site, where every setting is reached: it routes, reads what the instance and its products keep, tests a setting of this browser with that setting alone, opens the form of a repository's setting in place, saves the configuration, a product's pseudonymisation and its collaborators as one commit on a click, finds the files that still name a person, keeps and clears the browser's settings through the settings store, and holds every text the page shows.",
   "realises": ["A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY", "SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS"],
   "owns": ["SettingsRoute", "SettingTest", "NamingFile"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views", "MOD-source-library", "MOD-resource-register", "MOD-bridge-feed", "MOD-bridge-tunnel", "MOD-mailbox"]
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-participants", "MOD-process-model", "MOD-process-config", "MOD-artifacts", "MOD-settings-views", "MOD-source-library", "MOD-resource-register", "MOD-bridge-feed", "MOD-bridge-tunnel", "MOD-mailbox", "MOD-bridge-server", "MOD-model-servers", "MOD-hub"]
 }
 ```
 
@@ -1994,7 +2022,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-settings-page.testSetting",
-  "summary": "The test of a setting this browser keeps, one harmless request with that setting alone: a token asks its own server which account it acts as, and a refused one gives the page where it is renewed; an endpoint the browser calls answers the short test request, or the test names why not and what works instead; the bridge on this computer greets with its version, the origin it is paired with and the agents it found, or the test names its refusal and what works instead; and so does a remote session's bridge through the session's route, its forward or the jump host's HTTPS address; a mailbox's reading or sending is tested on its route without changing anything in the mailbox, or stays untested where the bridge that tests it does not answer.",
+  "summary": "The test of a setting this browser keeps, one harmless request with that setting alone: a token asks its own server which account it acts as, and a refused one gives the page where it is renewed; an endpoint the browser calls answers the short test request, or the test names why not and what works instead; an endpoint a bridge calls — the one paired here, or a remote session's — answers the same request through that bridge, the endpoint's key never sent; a resource's key reads, at the one server it is stored for, the first resource of the instance's list or of a product's that names it — a repository on its server, the account the Hub's key acts as, the models a server serves —, and a compute resource's key has no test; the bridge on this computer greets with its version, the origin it is paired with and the agents it found, or the test names its refusal and what works instead; and so does a remote session's bridge through the session's route, its forward or the jump host's HTTPS address; a mailbox's reading or sending is tested on its route without changing anything in the mailbox, or stays untested where the bridge that tests it does not answer.",
   "params": [
     { "name": "ref", "type": "SettingRef" },
     { "name": "settings", "type": "Settings" },
@@ -2006,6 +2034,8 @@ flowchart LR
   "refusals": [
     { "code": "not-set", "when": "the setting is not stored" },
     { "code": "no-test", "when": "the setting has no test on this page" },
+    { "code": "unused", "when": "no resource of the instance or of a product names the key for the server it is stored for" },
+    { "code": "rate-limited", "when": "the Hub's rate limit is used up" },
     { "code": "untested", "when": "the bridge that tests the mailbox does not answer, or none is paired" },
     { "code": "unknown-part", "when": "the part of a mailbox test is neither read nor send" },
     { "code": "not-an-address", "when": "the instance's address is no web address" },
@@ -3054,6 +3084,787 @@ flowchart LR
         "fetch": []
       },
       "refused": "no-test"
+    },
+    {
+      "name": "an endpoint through the bridge on this computer",
+      "input": {
+        "ref": { "setting": "endpoint", "item": "box" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            },
+            { "name": "box", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "bridge", "tested": null },
+            { "name": "gpu-box-llm", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "session:gpu-box", "tested": null },
+            { "name": "locked", "url": "http://gpu01:8000/v1", "model": "meta-llama/Llama-3.1-8B-Instruct", "key": "key-example", "via": "bridge", "tested": null }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/endpoint/chat",
+              "body": {
+                "url": "http://localhost:11434/v1",
+                "model": "qwen2.5:7b",
+                "messages": [{ "role": "user", "content": "Answer with the single word OK." }],
+                "maxTokens": 16
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "text": "OK",
+                "usage": { "inputTokens": 14, "outputTokens": 1, "minutes": null },
+                "cost": null
+              }
+            }
+          }
+        ]
+      },
+      "result": { "result": "works", "reason": "", "alternatives": [], "renew": "" }
+    },
+    {
+      "name": "an endpoint through a remote session's bridge",
+      "input": {
+        "ref": { "setting": "endpoint", "item": "gpu-box-llm" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            },
+            { "name": "box", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "bridge", "tested": null },
+            { "name": "gpu-box-llm", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "session:gpu-box", "tested": null },
+            { "name": "locked", "url": "http://gpu01:8000/v1", "model": "meta-llama/Llama-3.1-8B-Instruct", "key": "key-example", "via": "bridge", "tested": null }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://localhost:20001/endpoint/chat",
+              "body": {
+                "url": "http://localhost:11434/v1",
+                "model": "qwen2.5:7b",
+                "messages": [{ "role": "user", "content": "Answer with the single word OK." }],
+                "maxTokens": 16
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": {
+                "text": "OK",
+                "usage": { "inputTokens": 14, "outputTokens": 1, "minutes": null },
+                "cost": null
+              }
+            }
+          }
+        ]
+      },
+      "result": { "result": "works", "reason": "", "alternatives": [], "renew": "" }
+    },
+    {
+      "name": "a server that asks for a key, through the bridge",
+      "input": {
+        "ref": { "setting": "endpoint", "item": "locked" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            },
+            { "name": "box", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "bridge", "tested": null },
+            { "name": "gpu-box-llm", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "session:gpu-box", "tested": null },
+            { "name": "locked", "url": "http://gpu01:8000/v1", "model": "meta-llama/Llama-3.1-8B-Instruct", "key": "key-example", "via": "bridge", "tested": null }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "http://127.0.0.1:47321/endpoint/chat",
+              "body": {
+                "url": "http://gpu01:8000/v1",
+                "model": "meta-llama/Llama-3.1-8B-Instruct",
+                "messages": [{ "role": "user", "content": "Answer with the single word OK." }],
+                "maxTokens": 16
+              }
+            },
+            "response": {
+              "status": 200,
+              "headers": { "access-control-allow-origin": "https://alice.github.io" },
+              "body": { "refused": "unauthorised", "reason": "http://gpu01:8000/v1 refused the key: Unauthorized" }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "locked asks for a key, and a request through the bridge carries none: it is not reachable through the bridge",
+        "alternatives": ["the model server started without a key on the bridge's machine", "the browser route, where the server answers this site and its key stays in this browser"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "an endpoint whose bridge does not answer",
+      "input": {
+        "ref": { "setting": "endpoint", "item": "box" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            },
+            { "name": "box", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "bridge", "tested": null },
+            { "name": "gpu-box-llm", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "session:gpu-box", "tested": null },
+            { "name": "locked", "url": "http://gpu01:8000/v1", "model": "meta-llama/Llama-3.1-8B-Instruct", "key": "key-example", "via": "bridge", "tested": null }
+          ],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": {
+            "host": "jump.example.org",
+            "user": "alice",
+            "portFrom": 20001,
+            "portTo": 20010,
+            "reverseKey": "~/.ssh/id_ed25519",
+            "forwardKey": "~/.ssh/id_ed25519",
+            "https": "https://jump.example.org/agent-m",
+            "login": { "user": "alice", "password": "web-example" },
+            "tested": null
+          },
+          "sessions": [
+            { "name": "gpu-box", "port": 20001, "bridgePort": 47321, "route": "forward", "token": "51ae3adc7d0ac063f3992b6ecf478a009e175ce84078ba2e94d76b4ca8f8821e", "tested": null }
+          ],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": []
+      },
+      "result": {
+        "result": "refused",
+        "reason": "no answer from http://127.0.0.1:47321/endpoint/chat: the bridge does not run there, or this browser blocks the call",
+        "alternatives": ["start the bridge on this computer", "the bridge reached over HTTPS through the jump host", "a CI agent, which needs no bridge"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "an endpoint reached through a bridge not paired here",
+      "input": {
+        "ref": { "setting": "endpoint", "item": "box" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            },
+            { "name": "box", "url": "http://localhost:11434/v1", "model": "qwen2.5:7b", "key": "", "via": "bridge", "tested": null }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": []
+      },
+      "result": {
+        "result": "refused",
+        "reason": "no bridge is paired in this browser, and box is reached through it",
+        "alternatives": ["the bridge on this computer, paired on this page"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a repository's read-only key",
+      "input": {
+        "ref": { "setting": "resource-key", "item": "SPEECH_DLLS_READ" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/models"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null },
+            { "name": "LOCAL_LLM_KEY", "server": "http://gpu01:8000", "key": "key-example", "tested": null },
+            { "name": "ALEX_KEY", "server": "https://alex.nhr.fau.de", "key": "alex-key-example", "tested": null },
+            { "name": "OLD_KEY", "server": "https://example.org", "key": "old-key-example", "tested": null }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/resources.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c800000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/contents/docs/resources.md?ref=c800000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## thesis-model\n\n- kind: model\n- system: —\n- address: https://huggingface.co/alice/thesis-model\n- pin: 7e3d000000000000000000000000000000000000\n- licence: unknown\n- redistribution: unknown\n- maintainer: @alice\n- route: browser\n- place: —\n- secret: browser HF_TOKEN\n\n## gpu01-llm\n\n- kind: endpoint\n- system: —\n- address: http://gpu01:8000/v1\n- pin: meta-llama/Llama-3.1-8B-Instruct\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:gpu\n- place: the group's server room, Erlangen\n- secret: browser LOCAL_LLM_KEY\n\n## alex\n\n- kind: compute\n- system: SLURM cluster\n- address: https://alex.nhr.fau.de\n- pin: —\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:alex\n- place: NHR@FAU, Erlangen\n- secret: browser ALEX_KEY\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice-lab/speech-dlls" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "SPEECH_DLLS_READ reads https://github.com/alice-lab/speech-dlls for speech-dlls",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a repository's key that does not read it",
+      "input": {
+        "ref": { "setting": "resource-key", "item": "SPEECH_DLLS_READ" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/models"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_without_it_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null },
+            { "name": "LOCAL_LLM_KEY", "server": "http://gpu01:8000", "key": "key-example", "tested": null },
+            { "name": "ALEX_KEY", "server": "https://alex.nhr.fau.de", "key": "alex-key-example", "tested": null },
+            { "name": "OLD_KEY", "server": "https://example.org", "key": "old-key-example", "tested": null }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/resources.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c800000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/contents/docs/resources.md?ref=c800000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## thesis-model\n\n- kind: model\n- system: —\n- address: https://huggingface.co/alice/thesis-model\n- pin: 7e3d000000000000000000000000000000000000\n- licence: unknown\n- redistribution: unknown\n- maintainer: @alice\n- route: browser\n- place: —\n- secret: browser HF_TOKEN\n\n## gpu01-llm\n\n- kind: endpoint\n- system: —\n- address: http://gpu01:8000/v1\n- pin: meta-llama/Llama-3.1-8B-Instruct\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:gpu\n- place: the group's server room, Erlangen\n- secret: browser LOCAL_LLM_KEY\n\n## alex\n\n- kind: compute\n- system: SLURM cluster\n- address: https://alex.nhr.fau.de\n- pin: —\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:alex\n- place: NHR@FAU, Erlangen\n- secret: browser ALEX_KEY\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice-lab/speech-dlls" },
+            "response": { "status": 404, "body": { "message": "Not Found" } }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "SPEECH_DLLS_READ does not read https://github.com/alice-lab/speech-dlls",
+        "alternatives": [],
+        "renew": "https://github.com/settings/personal-access-tokens/new?name=Agent+M+reads+speech-dlls&description=Read-only+access+to+alice-lab%2Fspeech-dlls+for+the+resource+speech-dlls&target_name=alice-lab&expires_in=90&contents=read"
+      }
+    },
+    {
+      "name": "the Hub's key",
+      "input": {
+        "ref": { "setting": "resource-key", "item": "HF_TOKEN" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/models"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null },
+            { "name": "LOCAL_LLM_KEY", "server": "http://gpu01:8000", "key": "key-example", "tested": null },
+            { "name": "ALEX_KEY", "server": "https://alex.nhr.fau.de", "key": "alex-key-example", "tested": null },
+            { "name": "OLD_KEY", "server": "https://example.org", "key": "old-key-example", "tested": null }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/resources.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c800000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/contents/docs/resources.md?ref=c800000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## thesis-model\n\n- kind: model\n- system: —\n- address: https://huggingface.co/alice/thesis-model\n- pin: 7e3d000000000000000000000000000000000000\n- licence: unknown\n- redistribution: unknown\n- maintainer: @alice\n- route: browser\n- place: —\n- secret: browser HF_TOKEN\n\n## gpu01-llm\n\n- kind: endpoint\n- system: —\n- address: http://gpu01:8000/v1\n- pin: meta-llama/Llama-3.1-8B-Instruct\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:gpu\n- place: the group's server room, Erlangen\n- secret: browser LOCAL_LLM_KEY\n\n## alex\n\n- kind: compute\n- system: SLURM cluster\n- address: https://alex.nhr.fau.de\n- pin: —\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:alex\n- place: NHR@FAU, Erlangen\n- secret: browser ALEX_KEY\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://huggingface.co/api/whoami-v2" },
+            "response": { "status": 200, "body": { "type": "user", "name": "alice" } }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "HF_TOKEN acts as alice on the Hub, for thesis-model",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "an endpoint's key",
+      "input": {
+        "ref": { "setting": "resource-key", "item": "LOCAL_LLM_KEY" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/models"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null },
+            { "name": "LOCAL_LLM_KEY", "server": "http://gpu01:8000", "key": "key-example", "tested": null },
+            { "name": "ALEX_KEY", "server": "https://alex.nhr.fau.de", "key": "alex-key-example", "tested": null },
+            { "name": "OLD_KEY", "server": "https://example.org", "key": "old-key-example", "tested": null }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/resources.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c800000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/contents/docs/resources.md?ref=c800000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## thesis-model\n\n- kind: model\n- system: —\n- address: https://huggingface.co/alice/thesis-model\n- pin: 7e3d000000000000000000000000000000000000\n- licence: unknown\n- redistribution: unknown\n- maintainer: @alice\n- route: browser\n- place: —\n- secret: browser HF_TOKEN\n\n## gpu01-llm\n\n- kind: endpoint\n- system: —\n- address: http://gpu01:8000/v1\n- pin: meta-llama/Llama-3.1-8B-Instruct\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:gpu\n- place: the group's server room, Erlangen\n- secret: browser LOCAL_LLM_KEY\n\n## alex\n\n- kind: compute\n- system: SLURM cluster\n- address: https://alex.nhr.fau.de\n- pin: —\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:alex\n- place: NHR@FAU, Erlangen\n- secret: browser ALEX_KEY\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "http://gpu01:8000/v1/models" },
+            "response": {
+              "status": 200,
+              "body": {
+                "object": "list",
+                "data": [
+                  { "id": "meta-llama/Llama-3.1-8B-Instruct", "object": "model", "created": 1759276800, "owned_by": "vllm" }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "result": "works",
+        "reason": "http://gpu01:8000/v1 serves meta-llama/Llama-3.1-8B-Instruct to LOCAL_LLM_KEY, for gpu01-llm",
+        "alternatives": [],
+        "renew": ""
+      }
+    },
+    {
+      "name": "an endpoint's key, its server not answering this browser",
+      "input": {
+        "ref": { "setting": "resource-key", "item": "LOCAL_LLM_KEY" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/models"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null },
+            { "name": "LOCAL_LLM_KEY", "server": "http://gpu01:8000", "key": "key-example", "tested": null },
+            { "name": "ALEX_KEY", "server": "https://alex.nhr.fau.de", "key": "alex-key-example", "tested": null },
+            { "name": "OLD_KEY", "server": "https://example.org", "key": "old-key-example", "tested": null }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/resources.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c800000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/contents/docs/resources.md?ref=c800000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## thesis-model\n\n- kind: model\n- system: —\n- address: https://huggingface.co/alice/thesis-model\n- pin: 7e3d000000000000000000000000000000000000\n- licence: unknown\n- redistribution: unknown\n- maintainer: @alice\n- route: browser\n- place: —\n- secret: browser HF_TOKEN\n\n## gpu01-llm\n\n- kind: endpoint\n- system: —\n- address: http://gpu01:8000/v1\n- pin: meta-llama/Llama-3.1-8B-Instruct\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:gpu\n- place: the group's server room, Erlangen\n- secret: browser LOCAL_LLM_KEY\n\n## alex\n\n- kind: compute\n- system: SLURM cluster\n- address: https://alex.nhr.fau.de\n- pin: —\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:alex\n- place: NHR@FAU, Erlangen\n- secret: browser ALEX_KEY\n" }
+          }
+        ]
+      },
+      "result": {
+        "result": "refused",
+        "reason": "no answer from http://gpu01:8000/v1 to this browser",
+        "alternatives": ["the server's permission for this site, where it is to answer it: a key kept here goes to http://gpu01:8000 alone, never through the bridge"],
+        "renew": ""
+      }
+    },
+    {
+      "name": "a key of compute",
+      "input": {
+        "ref": { "setting": "resource-key", "item": "ALEX_KEY" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/models"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null },
+            { "name": "LOCAL_LLM_KEY", "server": "http://gpu01:8000", "key": "key-example", "tested": null },
+            { "name": "ALEX_KEY", "server": "https://alex.nhr.fau.de", "key": "alex-key-example", "tested": null },
+            { "name": "OLD_KEY", "server": "https://example.org", "key": "old-key-example", "tested": null }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/resources.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c800000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/contents/docs/resources.md?ref=c800000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## thesis-model\n\n- kind: model\n- system: —\n- address: https://huggingface.co/alice/thesis-model\n- pin: 7e3d000000000000000000000000000000000000\n- licence: unknown\n- redistribution: unknown\n- maintainer: @alice\n- route: browser\n- place: —\n- secret: browser HF_TOKEN\n\n## gpu01-llm\n\n- kind: endpoint\n- system: —\n- address: http://gpu01:8000/v1\n- pin: meta-llama/Llama-3.1-8B-Instruct\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:gpu\n- place: the group's server room, Erlangen\n- secret: browser LOCAL_LLM_KEY\n\n## alex\n\n- kind: compute\n- system: SLURM cluster\n- address: https://alex.nhr.fau.de\n- pin: —\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:alex\n- place: NHR@FAU, Erlangen\n- secret: browser ALEX_KEY\n" }
+          }
+        ]
+      },
+      "refused": "no-test"
+    },
+    {
+      "name": "a key no resource names",
+      "input": {
+        "ref": { "setting": "resource-key", "item": "OLD_KEY" },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": null },
+          "gitlab": [],
+          "products": ["https://github.com/alice/models"],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": [
+            { "name": "SPEECH_DLLS_READ", "server": "https://api.github.com", "key": "github_pat_read_example", "tested": null },
+            { "name": "HF_TOKEN", "server": "https://huggingface.co", "key": "hf_example_read_token", "tested": null },
+            { "name": "LOCAL_LLM_KEY", "server": "http://gpu01:8000", "key": "key-example", "tested": null },
+            { "name": "ALEX_KEY", "server": "https://alex.nhr.fau.de", "key": "alex-key-example", "tested": null },
+            { "name": "OLD_KEY", "server": "https://example.org", "key": "old-key-example", "tested": null }
+          ]
+        },
+        "instance": "https://github.com/alice/agent-m",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/contents/docs/resources.md?ref=a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## lab-llm\n\n- kind: endpoint\n- system: —\n- address: http://localhost:11434/v1\n- pin: qwen2.5:7b\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: bridge\n- place: this machine\n- secret: —\n" }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c800000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/models/contents/docs/resources.md?ref=c800000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": "# Resources\n\nOne section per resource this repository is built with, tested on or calls at runtime (UC-040). A credential is named\nwhere it is held, never written here.\n\n## speech-dlls\n\n- kind: repository\n- system: —\n- address: https://github.com/alice-lab/speech-dlls\n- pin: 5d1e0c7a9b3f2e4d6c8a0b1c2d3e4f5a6b7c8d9e\n- licence: internal use within the lab\n- redistribution: no\n- maintainer: @alice-lab\n- route: browser\n- place: —\n- secret: browser SPEECH_DLLS_READ\n\n## thesis-model\n\n- kind: model\n- system: —\n- address: https://huggingface.co/alice/thesis-model\n- pin: 7e3d000000000000000000000000000000000000\n- licence: unknown\n- redistribution: unknown\n- maintainer: @alice\n- route: browser\n- place: —\n- secret: browser HF_TOKEN\n\n## gpu01-llm\n\n- kind: endpoint\n- system: —\n- address: http://gpu01:8000/v1\n- pin: meta-llama/Llama-3.1-8B-Instruct\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:gpu\n- place: the group's server room, Erlangen\n- secret: browser LOCAL_LLM_KEY\n\n## alex\n\n- kind: compute\n- system: SLURM cluster\n- address: https://alex.nhr.fau.de\n- pin: —\n- licence: —\n- redistribution: —\n- maintainer: —\n- route: runner:alex\n- place: NHR@FAU, Erlangen\n- secret: browser ALEX_KEY\n" }
+          }
+        ]
+      },
+      "refused": "unused"
     }
   ]
 }
@@ -3062,7 +3873,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-settings-page.saveConfig",
-  "summary": "One save of the configuration on a click: the default branch's head read with the participant register there where a participant is saved, the file planned on it (MOD-process-config.planConfig) with the repository's visibility, and written in one commit on that head.",
+  "summary": "One save of the configuration on a click: the default branch's head read with the participant register there where a participant is saved, the file planned on it (MOD-process-config.planConfig) with the repository's visibility, and written in one commit on that head; a file that holds history — a withdrawal note, the date of a change — is not written (MOD-artifacts.historyIn).",
   "params": [
     { "name": "target", "type": "string" },
     { "name": "change", "type": "ConfigChange" },
@@ -3078,6 +3889,7 @@ flowchart LR
     { "code": "no-token", "when": "no token is stored for the repository" },
     { "code": "moved", "when": "the branch moved on after the head read" },
     { "code": "public-repository", "when": "MOD-process-config.planConfig refuses the change — by its code, such as public-repository" },
+    { "code": "holds-history", "when": "a file the plan writes holds a withdrawal note or the date of a change (MOD-artifacts.historyIn)" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
     { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
@@ -3343,6 +4155,95 @@ flowchart LR
         "authority": { "kind": "click" }
       },
       "refused": "no-token"
+    },
+    {
+      "name": "a participant whose place notes when it moved",
+      "input": {
+        "target": "https://github.com/alice/agent-m",
+        "change": {
+          "kind": "participant",
+          "participant": {
+            "name": "gpu-runner",
+            "type": "CI agent",
+            "model": "claude-opus-5-5",
+            "context": 200000,
+            "price": null,
+            "capabilities": ["read the repository", "write to the repository", "run code and tests"],
+            "place": "the lab's server room, Erlangen, moved there on 2026-09-30",
+            "route": "the workflow agent-m-job on the self-hosted runner gpu-1",
+            "line": 0
+          },
+          "replaces": "",
+          "openedBlob": "ed9f1cd7e5f305b45281308b4127da5e44589dda",
+          "selfHosted": true
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-10-19", "tested": { "ok": "2026-10-02" } },
+          "gitlab": [
+            {
+              "address": "https://gitlab.example.org/group/lab",
+              "token": "glpat-example",
+              "expires": "2026-12-31",
+              "tested": { "refused": true }
+            }
+          ],
+          "products": ["https://github.com/alice/notes", "https://gitlab.example.org/group/lab"],
+          "endpoints": [
+            {
+              "name": "hub",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1",
+              "model": "llama-3.3-70b",
+              "key": "hub-key-example",
+              "via": "browser",
+              "tested": { "ok": "2026-10-08" }
+            }
+          ],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/participants.md", "type": "blob", "sha": "ed9f1cd7e5f305b45281308b4127da5e44589dda" },
+                  { "path": "docs/process-models/scrum.md", "type": "blob", "sha": "3cf5eb32eb2b19fb8d78144763f87ae102efdbbd" },
+                  { "path": "docs/resources.md", "type": "blob", "sha": "aabf3b8ef80783e035447b59bfcac2ba6d42bd13" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "562b5705aac046546510b5f9a80f90b3799acdf7" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "c9ca55f748bdc67e21163340ed579ab044c3fdd9" },
+                  { "path": "src/process-model/catalogue/devops.md", "type": "blob", "sha": "39aa49976758648c9a46b24c8a1c2a8c49053e2e" },
+                  { "path": "src/process-model/catalogue/kanban.md", "type": "blob", "sha": "f05591dcf5cff8213c42f8f75ec82b41ada9dc0b" },
+                  { "path": "src/process-model/catalogue/v-model.md", "type": "blob", "sha": "856921837cdfd759b62ae92008161c6c6064a51f" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": { "ed9f1cd7e5f305b45281308b4127da5e44589dda": "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n| alice | person | — | — | — | draft text, read the repository, write to the repository | — | the GitHub account `alice` |\n| hub-writer | model endpoint | llama-3.3-70b | — | — | draft text | NHR@FAU, Erlangen | the endpoint hub of this browser |\n| gw-writer | model endpoint | gateway-model | 32000 | 0.2 / 0.6 EUR per million tokens | draft text | a gateway in Frankfurt, Germany | the endpoint gw of this browser |\n| ci-dev | CI agent | claude-opus-5-5 | — | — | read the repository, write to the repository, run code and tests | GitHub's machines, a provider in the USA | the workflow agent-m-job |\n| cli-dev | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools | this machine | the bridge on the Mac of `alice` |\n\nEvery participant that works with a language model names its model.\n" },
+        "authority": { "kind": "click" }
+      },
+      "refused": "holds-history"
     }
   ]
 }
@@ -5048,12 +5949,13 @@ flowchart LR
 | UC-003 4a | MOD-settings-page.testSetting, MOD-participants.testEndpoint, MOD-settings-store.recordTest, MOD-settings-store.saveEntries |
 | UC-003 4b | MOD-settings-page.testSetting, MOD-participants.readAnswer, MOD-settings-store.recordTest, MOD-settings-store.saveEntries |
 | UC-003 2b | MOD-settings-store.clearSetting, MOD-settings-store.saveEntries, MOD-settings-store.readSettings, MOD-settings-views.settingsPage |
+| UC-003 2a | MOD-settings-store.storeEndpoint, MOD-settings-store.saveEntries, MOD-settings-page.testSetting, MOD-bridge-tunnel.sessionRoute, MOD-bridge-server.callBridge, MOD-bridge-server.admit, MOD-bridge-server.dispatch, MOD-participants.chatRequest, MOD-participants.readAnswer, MOD-settings-store.recordTest, MOD-settings-store.saveEntries |
 | UC-031 1 | MOD-settings-page.route, MOD-settings-page.readConfig, MOD-process-config.catalogueOf |
 | UC-031 2 | MOD-settings-page.readModel, MOD-process-config.startModel, MOD-process-config.modelDraft, MOD-process-config.modelDiagram |
 | UC-031 3 | MOD-process-config.modelDraft |
 | UC-031 4 | MOD-process-config.modelDraft, MOD-process-model.validateModel |
 | UC-031 5 | MOD-settings-page.readConfig, MOD-process-config.planPreview |
-| UC-031 6 | MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-git-host.writeFiles |
+| UC-031 6 | MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-031 7 | MOD-settings-page.readConfig, MOD-process-config.catalogueOf, MOD-process-config.declarationView |
 | UC-031 2a | MOD-process-config.startModel, MOD-process-config.modelDraft |
 | UC-031 2b | MOD-process-config.catalogueOf, MOD-settings-page.readModel, MOD-process-config.startModel, MOD-process-config.planConfig |
@@ -5068,8 +5970,8 @@ flowchart LR
 | UC-002 6 | MOD-settings-page.readModel, MOD-process-config.declarationView |
 | UC-002 7 | MOD-process-config.declarationView, MOD-process-model.deriveWorkflow |
 | UC-002 8 | MOD-process-config.declarationView, MOD-process-model.definitionOfDone |
-| UC-002 9 | MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatDeclaration, MOD-git-host.writeFiles |
-| UC-002 3a | MOD-settings-page.route, MOD-process-config.startModel, MOD-settings-page.saveConfig, MOD-process-config.planConfig |
+| UC-002 9 | MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatDeclaration, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
+| UC-002 3a | MOD-settings-page.route, MOD-process-config.startModel, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-002 3b | MOD-settings-page.readConfig, MOD-settings-page.readModel, MOD-process-config.declarationView, MOD-process-model.modelChanges |
 | UC-002 4a | MOD-process-config.declarationView, MOD-process-config.planConfig |
 | UC-002 4b | MOD-process-config.declarationView, MOD-settings-page.route |
@@ -5079,15 +5981,17 @@ flowchart LR
 | UC-017 2 | MOD-process-config.participantPreset |
 | UC-017 4 | MOD-process-config.participantPreset |
 | UC-017 5 | MOD-process-config.participantPreset |
-| UC-017 7 | MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatParticipants, MOD-git-host.writeFiles |
+| UC-017 7 | MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-process-config.planConfig, MOD-process-model.formatParticipants, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-017 3a | MOD-settings-store.storeEndpoint, MOD-settings-store.saveEntries, MOD-settings-page.testSetting, MOD-participants.testEndpoint |
 | UC-017 7a | MOD-settings-page.readConfig, MOD-settings-page.readModel, MOD-process-config.participantUse |
 | UC-042 6 | MOD-settings-store.secretsHeld, MOD-settings-store.exportSettings, MOD-settings-store.importSettings, MOD-settings-store.mergeImport, MOD-settings-store.clearEverything, MOD-settings-store.saveEntries |
+| UC-042 1 | MOD-settings-page.route, MOD-settings-store.readSettings, MOD-settings-page.readConfig, MOD-settings-views.settingsPage |
+| UC-042 2 | MOD-settings-views.settingsPage, MOD-settings-page.testSetting, MOD-git-host.tokenAccount, MOD-participants.testEndpoint, MOD-bridge-tunnel.sessionRoute, MOD-bridge-server.callBridge, MOD-bridge-app.hello, MOD-bridge-server.speaks, MOD-participants.chatRequest, MOD-participants.readAnswer, MOD-mailbox.testMailbox, MOD-resource-register.parseResources, MOD-resource-register.keyServer, MOD-git-host.repositoryInfo, MOD-resource-register.readTokenLink, MOD-hub.hubWhoami, MOD-model-servers.servedModels, MOD-settings-store.recordTest, MOD-settings-store.storeGitHubToken, MOD-settings-store.storeGitLabToken, MOD-settings-store.storeEndpoint, MOD-settings-store.storeBridge, MOD-settings-store.storeMailbox, MOD-settings-store.storeJumpHost, MOD-settings-store.storeRemoteSession, MOD-settings-store.storeResourceKey, MOD-settings-store.clearSetting, MOD-settings-store.saveEntries, MOD-settings-store.readSettings |
 | UC-042 1a | MOD-settings-views.settingsPage, MOD-settings-store.expiryWarnings, MOD-git-host.tokenPageUrl |
 | UC-042 1b | MOD-settings-page.testSetting, MOD-settings-store.recordTest, MOD-settings-views.settingsPage |
 | UC-042 2a | MOD-settings-views.settingsPage, MOD-settings-store.clearSetting, MOD-settings-store.saveEntries, MOD-settings-store.readSettings, MOD-settings-views.settingsPage |
 | UC-042 2b | MOD-settings-views.settingsPage, MOD-settings-store.clearSetting, MOD-settings-store.saveEntries, MOD-settings-store.readSettings, MOD-settings-views.settingsPage |
-| UC-042 3 | MOD-settings-page.readConfig, MOD-resource-register.parseResources, MOD-resource-register.checkResources, MOD-settings-views.parseProductSettings, MOD-settings-views.parseCollaborators, MOD-source-library.parseLinks, MOD-settings-views.settingsPage, MOD-settings-page.route, MOD-library-page.route, MOD-resources-page.route, MOD-tests-page.route, MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-library-page.saveSource, MOD-library-page.saveLinks, MOD-resources-page.saveResources, MOD-tests-page.saveSchedule, MOD-settings-page.savePseudonymisation, MOD-settings-page.saveCollaborators |
+| UC-042 3 | MOD-settings-page.readConfig, MOD-resource-register.parseResources, MOD-resource-register.checkResources, MOD-settings-views.parseProductSettings, MOD-settings-views.parseCollaborators, MOD-source-library.parseLinks, MOD-settings-views.settingsPage, MOD-settings-page.route, MOD-library-page.route, MOD-resources-page.route, MOD-tests-page.route, MOD-review-page.clickAuthority, MOD-settings-page.saveConfig, MOD-library-page.saveSource, MOD-library-page.saveLinks, MOD-resources-page.saveResources, MOD-tests-page.saveSchedule, MOD-settings-page.savePseudonymisation, MOD-settings-page.saveCollaborators, MOD-artifacts.historyIn |
 | UC-042 4 | MOD-settings-page.route, MOD-settings-page.readConfig, MOD-settings-views.parseProductSettings, MOD-settings-views.pseudonymisationNotice, MOD-review-page.clickAuthority, MOD-settings-page.savePseudonymisation, MOD-settings-views.formatProductSettings, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-042 5 | MOD-settings-page.route, MOD-settings-page.readConfig, MOD-settings-views.parseCollaborators, MOD-settings-views.withCollaborator, MOD-settings-views.formatCollaborators, MOD-review-page.clickAuthority, MOD-settings-page.saveCollaborators, MOD-artifacts.historyIn, MOD-git-host.writeFiles |
 | UC-042 3a | MOD-settings-page.readConfig, MOD-settings-views.settingsPage |
