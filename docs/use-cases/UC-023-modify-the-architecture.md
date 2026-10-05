@@ -88,14 +88,17 @@ after.
    - the modules the change concerns, and the modules that use an interface it alters or removes;
    - the code files in each affected module's folder;
    - the tests that exercise each affected module, and the requirements they guard;
-   - the requirements and use cases the changed file names — and those it no longer names.
+   - the requirements and use cases the changed file names — and those it no longer names;
+   - the backlog items (UC-032) and the steps of the implementation plan (UC-045) that name an affected module,
+     which then need to be looked at again.
 5. The reviewer presses **Accept** — one click. The dashboard commits the approval record under the
    reviewer's own account (UC-008 step 4). Accepting a change to the architecture does not change any
    code. A change that touches many files — a restructuring — is accepted on the architecture's review
    page instead (UC-008 3e): every changed file with its difference and its impact list, every new file in
    full, every removed decision with its impact list, and **Accept all N shown** for all of them in one commit.
-6. Agent M lists the affected modules with **Implement** next to each, which starts UC-024 with the
-   module preselected.
+6. Agent M lists the affected modules, each with the steps of the implementation plan or the backlog items that
+   name it. Once the planner or the Product Owner has looked at them again (UC-045, UC-032), the change is
+   implemented as the product's process model prescribes (UC-024).
 
 ```mermaid
 sequenceDiagram
@@ -114,7 +117,7 @@ sequenceDiagram
     M-->>R: difference and impact list
     R->>M: Accept
     M->>G: approval record (reviewer's token)
-    M-->>R: affected modules, Implement
+    M-->>R: affected modules, with their plan steps or backlog items
 ```
 
 ## Alternative flows

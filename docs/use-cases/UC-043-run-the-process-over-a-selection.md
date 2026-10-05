@@ -16,6 +16,10 @@ realises:
   - A RUN IS A JOB THAT NAMES ITS JOBS
   - A RUN ENDS WITH THE VALIDATION OF ITS MODULES
   - THE MODEL DETERMINES THE PHASES AND THE GATES
+  - A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN
+  - AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
+  - A PLAN STEP NAMES THE TESTS OF ITS LEVEL
+  - AGILE IMPLEMENTATION STARTS FROM THE BACKLOG
   - A JOB GOES ONLY TO A HOLDER OF ITS ROLE
   - A JOB STOPS AT EVERY GATE
   - A GATE NAMES WHO DECIDES IT
@@ -33,17 +37,18 @@ realises:
 ---
 # UC-043 Run the process over a selection
 
-**Goal.** The author selects what to build — one module, several, or all accepted modules — and starts
-one **run**. Agent M carries it out the way the product's process model (UC-002, UC-031) prescribes: the
-CI configuration if it is missing, the modules in the order of their interfaces, the test battery, and at
-the end the validation of what was built. The author is asked only where the model puts a gate that a
-person decides, or when a limit fixed at the start is reached. For a critical module, the single steps
-remain: UC-024, UC-026 and UC-027 can each be started on their own.
+**Goal.** The author selects what to build — steps of the implementation plan in a model that plans its
+work (UC-045), backlog items in Scrum or Kanban (UC-032) — and starts one **run**. Agent M carries it out
+the way the product's process model (UC-002, UC-031) prescribes: the CI configuration if it is missing, the
+steps in the plan's order or the items in the backlog's, the test battery, and at the end the validation of
+what was built. The author is asked only where the model puts a gate that a person decides, or when a limit
+fixed at the start is reached. For a critical step, the single parts remain: UC-024, UC-026 and UC-027 can
+each be started on their own.
 
 | Part of the run | What it does | On its own |
 |---|---|---|
 | CI | generates the CI configuration from the test schedule, if the product has none | UC-027 |
-| Implementation | one job per module, in the order of the modules' interfaces; independent modules side by side | UC-024 |
+| Implementation | one job per step of the implementation plan, in its order — the modules, then each subsystem's integration, then the system; independent steps side by side | UC-024 |
 | Tests | the test battery for the selected modules at every level of the schedule; release tests by a participant other than the implementer | UC-026 |
 | Validation | what each module realises, its code and tests, and every gap | UC-025 |
 
@@ -62,14 +67,15 @@ work-in-progress limit (UC-034), and each item's job includes its tests.
 ## Precondition
 
 - The product declares a process model with its roles assigned (UC-002).
-- The modules to build, and the architecture decisions they follow, are accepted (UC-022, UC-023).
+- The architecture is accepted (UC-022, UC-023).
+- The product has an implementation plan (UC-045), or, in Scrum or Kanban, a planned and filled backlog (UC-032).
 
 ## Main flow
 
-1. The author opens **Run** for the product. Agent M lists the accepted modules, each with its state —
-   no code, code with gaps, complete —, preselects those without code, and shows the dependency order
-   computed from their interfaces as a Mermaid diagram.
-2. The author keeps the selection, narrows it — down to one module — or selects all.
+1. The author opens **Run** for the product. Agent M lists the steps of the implementation plan, each with
+   its derived state — waiting, ready, in progress, done —, preselects those not done, and shows their order
+   and what each waits for as a Mermaid diagram.
+2. The author keeps the selection, narrows it — down to one step — or selects all.
 3. Agent M shows the plan from the model: the parts of the run in their order, the jobs they consist of,
    the participant of each role that will do them, every gate on the way and who decides it, and what is
    sent where.
@@ -81,8 +87,8 @@ work-in-progress limit (UC-034), and each item's job includes its tests.
 6. The run proceeds by itself:
    1. **CI** — if the product has no CI configuration, the job of UC-027 generates it from the schedule
       (the book's default where none is declared) and its pull request is merged once green;
-   2. **Implementation** — one job per module (UC-024), each starting as soon as the modules whose
-      interfaces it uses are done; up to the limit of jobs at once;
+   2. **Implementation** — one job per step (UC-024), each starting as soon as the steps it waits for are
+      done, and a phase's steps once the gate before it is recorded; up to the limit of jobs at once;
    3. **Tests** — the job of UC-026 for the selection, at every level the schedule names; release tests
       go to a participant other than the one who implemented;
    4. **Validation** — UC-025 for the selection.
@@ -109,7 +115,7 @@ sequenceDiagram
         M->>P: CI job (UC-027)
         P->>G: pull request, merged on green
     end
-    loop modules in interface order, up to the limit at once
+    loop steps in the plan's order, up to the limit at once
         M->>P: implementation job (UC-024)
         P->>G: failing tests, code, pull request
         G->>C: run
@@ -125,8 +131,8 @@ sequenceDiagram
 - **1a. The product works from a backlog (Scrum, Kanban).** The selection is backlog items, not modules:
   the ready items of the current sprint, or as many as the work-in-progress limit allows. Each item's job
   is that of UC-034, including its tests; the rest of this use case applies unchanged.
-- **1b. A selected module names a requirement, use case or decision that is not accepted.** It cannot be
-  selected; Agent M names what is open and links to UC-006, UC-008 or UC-022.
+- **1b. A selected step's module file or decision is not accepted.** It cannot be selected; Agent M names
+  what is open and links to UC-022 or UC-023.
 - **3a. The interfaces form a cycle.** The run cannot start; Agent M names the modules of the cycle and
   links to UC-023 to change the architecture.
 - **3b. No participant holds a role the plan needs.** Agent M names the role and the missing capability
@@ -142,13 +148,15 @@ sequenceDiagram
   the remaining jobs under the same run.
 - **6d. The author stops the run.** **Stop run** — one click — cancels every running job
   (`A CANCELLED JOB WRITES NOTHING MORE`) and starts no further one; what was merged stays.
-- **1c. The author wants only one step for one module** — for example a critical module implemented and
+- **1c. The author wants only one part for one step** — for example a critical module implemented and
   reviewed by hand. They start UC-024, UC-026 or UC-027 on its own; no run is created.
+- **1d. The product has no implementation plan, or no ready backlog item.** Agent M links to UC-045 or
+  UC-032; nothing starts.
 
 ## Postcondition
 
-- Every selected module has code and tests merged through pull requests whose Definition of Done held, or
-  is listed with the job that failed or the gate that waits.
+- Every selected step or item has code and tests merged through pull requests whose Definition of Done
+  held, or is listed with the job that failed or the gate that waits.
 - The run's record names the selection, the limits, every job it started and the end state; each job's
   record names the run.
 - The author clicked to start, and wherever the model gave a gate to a person — nowhere else.

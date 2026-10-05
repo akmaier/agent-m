@@ -9,6 +9,7 @@ actors:
 realises:
   - THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
   - A BACKLOG ITEM NAMES WHAT IT REALISES
+  - A BACKLOG ITEM NAMES THE MODULES IT CHANGES
   - NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
   - EVOLUTION ENTERS THROUGH THE SPECIFICATION
   - EVERY ARTIFACT NAMES ITS ORIGIN
@@ -49,7 +50,9 @@ so that the work is ordered and planned like every other item.
      - for a *bug*, the requirement that UC-012's analysis named as violated, for example
        `EXPORT IS A PDF`;
      - for a *change*, the entries of the queue under `docs/spec-freigaben/` that UC-012 wrote for
-       this issue, by requirement name.
+       this issue, by requirement name;
+   - **modules**: the modules of the architecture the fix or the change will touch, as UC-012's analysis
+     and the architecture name them; the Product Owner confirms or corrects them.
 3. Agent M shows where the item will enter the order. By default this is the top for a bug, and the
    bottom for a change. The Product Owner may move it.
 4. The Product Owner presses **Add**: one click. Agent M:
@@ -96,11 +99,13 @@ sequenceDiagram
   committed. Agent M shows the comment text with a copy button and the issue's address.
 - **1b. The product works from a plan.** There is no backlog.
   - A bug is fixed directly (UC-012, step 5).
-  - An accepted change enters the plan by itself, because the plan covers every accepted requirement
-    (`A PLAN COVERS THE WHOLE SPECIFICATION`, UC-035).
+  - An accepted change enters the plan of requirements × phases by itself, because that plan covers every
+    accepted requirement (`A PLAN COVERS THE WHOLE SPECIFICATION`, UC-035). Its implementation needs a step
+    of the implementation plan, which the planner adds (UC-045) — after the architecture is changed, where
+    the change needs it (UC-023).
 
 ## Postcondition
 
-- The backlog holds an item that names the issue as its origin, and what it realises.
+- The backlog holds an item that names the issue as its origin, what it realises and the modules it changes.
 - The issue names the item.
 - No implementation job can start for a change item before its specification change is accepted.

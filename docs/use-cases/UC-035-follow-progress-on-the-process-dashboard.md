@@ -9,6 +9,7 @@ realises:
   - PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
   - A PLAN COVERS THE WHOLE SPECIFICATION
+  - A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN
   - THE GATE IS RECORDED
   - STATUS IS DERIVED FROM THE RECORDS
   - THE TRACEABILITY MATRIX IS DERIVED
@@ -31,9 +32,15 @@ inspection (ch. 7 §5).
 
 | Model kind | Progress measure | What the dashboard draws |
 |---|---|---|
-| planned (V-model, waterfall) | plan entries per phase | a grid of requirements × phases, each cell open, in progress or done; phases on a timeline with their gates as milestones (ch. 15 §3) |
+| planned (V-model, waterfall) | plan entries per phase | a grid of requirements × phases, each cell open, in progress or done; phases on a timeline with their gates as milestones (ch. 15 §3); beside it, the steps of the implementation plan with their states (UC-045) |
 | pulled, time boxes (Scrum) | remaining items per time box | the sprint's items, and a burn-down of remaining items per day of the sprint |
 | pulled, WIP limit (Kanban) | items per state over time | the board with its columns and WIP limit, and a cumulative flow chart |
+
+A planned model has two plans, and they answer different questions. The grid of requirements × phases
+(`A PLAN COVERS THE WHOLE SPECIFICATION`) measures how far every accepted requirement has come in every phase;
+it fills itself as requirements are accepted, and it is the progress measure. The implementation plan (UC-045)
+sets the order in which the system is built — modules, then each subsystem's integration, then the system —;
+its steps are what implementation jobs start for (UC-024).
 
 ## Actors
 
@@ -51,7 +58,7 @@ inspection (ch. 7 §5).
 1. The reader opens **Progress** for the product. Agent M reads everything it needs from the product
    repository:
    - the model declaration, the SPEC and the approval records;
-   - the backlog and sprint selections, or the plan derived from the SPEC;
+   - the backlog and sprint selections, or the plan derived from the SPEC and the implementation plan;
    - gate records, branches, pull requests and CI runs;
    - the running jobs, from the job dashboard's sources (UC-036).
 2. Agent M computes the progress in the measure the model defines, and draws it as in the table above.

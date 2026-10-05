@@ -10,6 +10,7 @@ realises:
   - AGILE IMPLEMENTATION STARTS FROM THE BACKLOG
   - THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
   - A BACKLOG ITEM NAMES WHAT IT REALISES
+  - A BACKLOG ITEM NAMES THE MODULES IT CHANGES
   - NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
   - A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
@@ -25,9 +26,12 @@ realises:
 # UC-032 Maintain the backlog
 
 **Goal.** In a product whose model pulls its work from a backlog (Scrum, Kanban), whoever orders the
-work — a person or an agent — keeps an ordered backlog. Its items come from accepted requirements and
-use cases, and from issues (UC-033). They choose what is worked on next: a sprint selection in Scrum, a pull
-under the work-in-progress limit in Kanban (book ch. 7 §4–5).
+work — a person or an agent — plans and fills an ordered backlog before it is implemented (UC-024, UC-034).
+Its items come from accepted requirements and use cases, and from issues (UC-033); each names the modules of
+the accepted architecture that its implementation changes, since agile work, too, needs to know "where the
+system runs, which interfaces exist" (book ch. 7). They choose what is worked on next: a sprint selection in
+Scrum, a pull under the work-in-progress limit in Kanban (book ch. 7 §4–5). In a model that plans its work in
+advance, the implementation plan takes the backlog's place (UC-045).
 
 ## Actors
 
@@ -42,6 +46,7 @@ under the work-in-progress limit in Kanban (book ch. 7 §4–5).
 - The product declares a model that pulls its work from a backlog, with a holder of the ordering
   role (UC-002).
 - The product has accepted requirements or use cases (UC-006, UC-008).
+- The architecture is accepted (UC-022, UC-023).
 
 ## Main flow
 
@@ -54,12 +59,13 @@ under the work-in-progress limit in Kanban (book ch. 7 §4–5).
    - *done*.
    The top of the page shows accepted requirements and use cases that no item realises yet.
 2. The Product Owner chooses **Propose items for uncovered requirements**. The run panel names the
-   participant and what is sent: the requirements, the use cases and the existing items. The
-   Product Owner presses **Run**.
-3. The participant drafts items. Each item has a title, a description of the outcome, and the
-   requirements and use cases it realises. Where the item was drafted from a use case, it also has
-   acceptance criteria taken from that use case's postcondition. Agent M rejects a draft that
-   realises nothing, and flags a draft that restates an existing item.
+   participant and what is sent: the requirements, the use cases, the architecture and the existing items.
+   The Product Owner presses **Run**.
+3. The participant drafts items. Each item has a title, a description of the outcome, the requirements
+   and use cases it realises, and the modules of the architecture its implementation changes. Where the
+   item was drafted from a use case, it also has acceptance criteria taken from that use case's
+   postcondition. Agent M rejects a draft that realises nothing or names no module the architecture
+   describes, and flags a draft that restates an existing item.
 4. The Product Owner edits or discards drafts and presses **Add to backlog**: one click. Agent M
    commits one Markdown file per item under `docs/backlog/`, for example
    `docs/backlog/ITM-014-export-thesis-as-pdf.md`, and appends the items to the order.
@@ -91,8 +97,8 @@ sequenceDiagram
     M->>G: read items, order, SPEC, approvals, pull requests
     M-->>O: ordered items with derived state, uncovered requirements
     O->>M: Propose items, Run
-    M->>E: requirements, use cases, existing items
-    E-->>M: draft items naming what they realise
+    M->>E: requirements, use cases, architecture, existing items
+    E-->>M: draft items naming what they realise and the modules they change
     O->>M: edit, Add to backlog
     M->>G: commit item files and order
     O->>M: reorder, Save order
@@ -104,7 +110,10 @@ sequenceDiagram
 ## Alternative flows
 
 - **2a. The Product Owner writes an item by hand.** They choose **+ Item**, fill in the title, the
-  outcome and what it realises, and press **Add**. The item is committed as their own input.
+  outcome, what it realises and the modules it changes, and press **Add**. The item is committed as their
+  own input.
+- **3b. An item needs a module the architecture does not have.** The draft names the gap instead of
+  inventing a module; the item waits until the architecture is changed (UC-023).
 - **3a. A requirement is too large for one item.** The participant proposes several items that each
   realise it. The requirement counts as covered only when all of them are done.
 - **6a. An item is added during a running sprint.** It goes to the product backlog, not into the
@@ -121,8 +130,8 @@ sequenceDiagram
 - **1a. A requirement an item realises is withdrawn or changed.** The item is marked. Agent M
   offers to point it at the replacing requirement, or to remove it. Nothing changes until the
   Product Owner decides.
-- **1b. The product's model works from a plan.** There is no backlog. Agent M links to the plan
-  view (UC-035).
+- **1b. The product's model works from a plan.** There is no backlog. Agent M links to the
+  implementation plan (UC-045).
 - **1c. The Product Owner is an agent.** It does steps 1–6 through its own runtime instead of the
   dashboard — reads the backlog, writes or adds items, saves the order, plans, starts and ends a sprint —,
   and commits each under its name. What the role does not decide — a SPEC change, the acceptance of a use case, a
@@ -134,4 +143,4 @@ sequenceDiagram
 - The product repository holds its backlog as one Markdown file per item, plus an order and, in
   Scrum, the sprint selections. No state is stored in them. State is derived from approvals, jobs
   and pull requests.
-- Every item names what it realises and where it came from.
+- Every item names what it realises, the modules it changes and where it came from.

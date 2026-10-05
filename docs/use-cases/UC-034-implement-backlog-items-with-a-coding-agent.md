@@ -9,7 +9,10 @@ actors:
   - Gate decider
 realises:
   - AGILE IMPLEMENTATION STARTS FROM THE BACKLOG
-  - A PLAN COVERS THE WHOLE SPECIFICATION
+  - A BACKLOG ITEM NAMES THE MODULES IT CHANGES
+  - A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN
+  - AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES
+  - DEVELOP AGAINST INTERFACES
   - NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
   - NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
   - A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
@@ -66,8 +69,9 @@ names a person.
 
 ## Precondition
 
-- The product works from a backlog. There is a current sprint selection (Scrum) or a WIP limit
-  (Kanban) (UC-032).
+- The product works from a backlog, planned and filled from the accepted requirements, use cases and
+  architecture. There is a current sprint selection (Scrum) or a WIP limit (Kanban) (UC-032).
+- The architecture is accepted (UC-022, UC-023).
 - At least one participant with the needed capabilities is assigned to the implementing role
   (UC-002).
 - The product's CI runs the test suite on pull requests.
@@ -86,7 +90,9 @@ names a person.
    implementing role. The run panel shows, per item:
    - the participant;
    - where the participant processes data;
-   - what is sent: the item, the requirements and use cases it realises, their existing tests, and
+   - what is sent: the item; the requirements and use cases it realises, and their existing tests; the
+     files of the modules it changes, the decisions of their subsystems and of the system, and the
+     interfaces — not the code — of the modules they use (ch. 10 §3: develop against interfaces); and
      the process requirements that apply;
    - the gates the job will meet.
 
@@ -98,7 +104,7 @@ names a person.
 5. The coding agent works in a branch named after the item:
    1. It writes tests for the item's acceptance criteria. Each test names the requirement it guards.
       The agent commits the tests, and CI records them as **failing**.
-   2. It implements until the tests pass, and commits.
+   2. It implements, in the folders of the modules the item names, until the tests pass, and commits.
    3. It pushes and opens a pull request. The pull request names the item, the requirements it
       realises and, for an item from an issue, the issue (UC-033). It also records the Agent M
       version, the participant, the model and the date.
@@ -149,12 +155,10 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **1a. The product works from a plan (V-model, waterfall).** There is no backlog.
-  - Agent M offers the open plan entries of the current phase instead, one per accepted requirement
-    (`A PLAN COVERS THE WHOLE SPECIFICATION`). In the V-model's Design phase, for example, the
-    entries produce the `ARC-` artifacts and the tests of the paired Testing phase.
-  - Jobs of the next phase start only after the gate that closes the current phase is recorded.
-  - Steps 3–8 apply per plan entry.
+- **1a. The product works from a plan (V-model, waterfall, reuse-oriented).** There is no backlog. Its
+  architecture is implemented step by step along its implementation plan (UC-045), one job per step,
+  as UC-024 describes; jobs of the next phase start only after the gate that closes the current phase is
+  recorded.
 - **2a. No item can be started.** Agent M lists each item with its reason, and starts nothing.
 - **3a. No holder of the role can receive an item's content.** A source the item depends on permits
   processing only in places no holder uses (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
@@ -167,6 +171,9 @@ sequenceDiagram
 - **5b. The agent finds that the item contradicts the specification or leaves a case open.** It
   stops and proposes a specification change instead of guessing (UC-012, change). The item goes back
   to *waiting for acceptance*.
+- **5c. The item needs a change to a module it does not name.** The agent stops and names the module and
+  why — it does not work around the other module in its own code (ch. 10 §3). The Product Owner adds the
+  module to the item, or the architecture is changed first (UC-023).
 - **6a. CI stays red after the retry limit.** The job ends as *failed*, with the last CI log linked.
   The item is *blocked*, and the author may retry with the same or another participant (UC-036).
 - **6b. Two jobs touch the same files.** The later push is rebased onto the default branch. On a
