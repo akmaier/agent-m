@@ -2,6 +2,7 @@
 id: ARC-032
 title: The source library — the instance's register of requirement sources, one file per source with its versions fixed by identifier and hash and their content committed where it may be kept, the EU's legal texts fetched by a workflow of the instance, a product's links to the versions that apply with the requirements to look at again after a move, and the page where it is kept
 forced_by:
+  - A DOCUMENT HOLDS NO HISTORY
   - THE SOURCE MODEL IS GENERIC
   - THE INSTANCE KEEPS THE SOURCE REGISTER
   - THE SOURCE KIND IS ONE OF A CLOSED SET
@@ -69,7 +70,14 @@ Facts this decision rests on:
   HTTPS from GitHub Pages (ARC-001).
 - The git adapter commits a file by its text or by its bytes, and lets a source's content under
   `docs/sources/<id>/<version>/` — a PDF, a Word file or a zip archive — reach a default branch beside Markdown
-  (`MOD-git-host.writeFiles`; ARC-004 decisions 3, 4 and 10).
+  (`MOD-git-host.writeFiles`; ARC-004 decisions 3, 4 and 10). It reads a file as its text (`MOD-git-host.readFile`,
+  `MOD-git-host.readBlob`), and as its bytes by its blob, base64 in the JSON the fetch port carries
+  (`MOD-git-host.readBlobBytes`); a commit's tree it reads whole, or refuses (`MOD-git-host.readSnapshot`; ARC-004
+  decisions 3, 4).
+- The text of a version is derived from its files' bytes when it is read, never stored: of a version kept as files or an
+  archive once each file is checked against the SHA-256 the version records (`MOD-source-text.versionText`), of a
+  repository at its commit once each file is checked against its blob (`MOD-source-text.repositoryText`) — of two commits
+  only the files that changed (`MOD-source-text.changedFiles`; ARC-036).
 - The Publications Office's repository, Cellar, answers by content negotiation: "The dissemination service uses a global
   negotiation system that returns always a "303 - See other" response"; a text's content stream is asked for with
   `GET http://publications.europa.eu/resource/{ps-name}/{ps-id}`, `Accept:{mime-type}` — `application/pdf` among the
@@ -197,11 +205,16 @@ Facts this decision rests on:
     repository the entry names (`MOD-library-page.saveContent`), and a product's links to the product
     (`MOD-library-page.saveLinks`), checked against the register read — each one commit on the head read, refused where
     the file changed after the page read it, a content file exists already or the check finds an error
-    (`A PERSON'S OWN INPUT IS COMMITTED DIRECTLY`). An EU legal text's view offers **Fetch again** where its fetch
+    (`A PERSON'S OWN INPUT IS COMMITTED DIRECTLY`); a product's links that hold a withdrawal note or the date of a change are
+    not written (`MOD-artifacts.historyIn`, ARC-006). An EU legal text's view offers **Fetch again** where its fetch
     failed (`MOD-library-page.fetchAgain`), and the library offers **Set up the fetch** while the instance's default
     branch holds no fetch workflow as generated (`MOD-library-page.proposeFetch`; decision 12). Where a repository is
     not reachable with the stored token, the page names the refusal and links the token's page of that repository's
-    server to extend it (`MOD-git-host.parseProductAddress`, `MOD-git-host.tokenPageUrl`; UC-004 4c).
+    server to extend it (`MOD-git-host.parseProductAddress`, `MOD-git-host.tokenPageUrl`; UC-004 4c). Where the server
+    lists a repository's tree only in part (`truncated`, ARC-004), the page neither reads the library from it nor writes to
+    it (`too-large`) — an entry or a link it does not list would be missing, a file it does not list could be written
+    over — and says: "The server lists only part of the files of <repository>; the library neither reads nor writes
+    there."; a product so read is listed with that sentence.
 11. **The page's texts** (`EVERY STEP EXPLAINS ITSELF`). *+ Register source* asks what the source is, each with one
     sentence and an example: "An EU legal text — paste its EUR-Lex or ELI address, for example
     https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689"; "A standard — its designation from the cover
@@ -221,7 +234,17 @@ Facts this decision rests on:
     the fetch** says: "The fetch workflow reaches the instance through a pull request, as every generated file does. It
     writes with your Agent M token, stored as the secret AGENT_M_TOKEN of the instance's repository." and links that
     page (`MOD-git-host.secretsPageUrl`). **Move to the new version** lists the requirements that came from the source
-    and the passages that changed; a requirement marked *source changed* offers **Looked at**.
+    and the passages that changed, file by file: a file under its name — "manual-2.md (was manual-1.md)" where its name
+    changed, "annex.md: added", "annex.md: removed" —, each passage under "Line 3 (was line 3)", in a PDF's text under
+    "Page 2, line 18 (was page 2, line 18)", its removed lines struck through and its added lines marked; a file without a
+    text reads its name and why, as ARC-036 decision 5 words it: "rules-2019.doc: a Word 97–2003 file; its text is not
+    read. Register a version saved as .docx or PDF.", "scan.pdf: a PDF without text, such as a scan.", "locked.pdf: a PDF
+    locked by a password.", "manual.pdf: this file cannot be read as what its name says.", "measure.py: no PDF, Word or
+    Markdown file.". Where the texts are refused, the page reads, for `changed`: "<file> is not the file version <n>
+    registered: its bytes have changed. Register the file as a new version."; for `too-many-files`: "More than 500 files
+    with a text changed between the two commits; their passages are not shown."; for `too-large`: "The server lists the
+    repository's tree only in part; its passages are not compared."; any other refusal by its reason, with the token's
+    page where the repository is not reachable (decision 10). A requirement marked *source changed* offers **Looked at**.
 12. **The fetch workflow** (UC-004 7, 7a, UC-016 2a; `AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY`):
     `MOD-source-fetch` and `MOD-eu-publications`. Its file, `.github/workflows/agent-m-fetch-sources.yml`
     (`MOD-source-library.fetchWorkflow`), runs on a push to the instance's default branch that changes a register entry,
@@ -244,11 +267,24 @@ Facts this decision rests on:
     (`MOD-source-library.checkSource`), and the PDF are committed on the head the entry was read at, where none of the
     files it adds exists yet — so that a version's content is never overwritten, as on the page (decision 5) —, on the
     CI secret's authority of ARC-003 (`MOD-source-fetch.recordFetch`, `MOD-git-host.writeFiles`); the PDF where the
-    entry keeps its content, in the instance or, in a commit of its own, in the repository it names (decision 5).
-13. **The passages that changed** (UC-016 4): where both versions are text, the page reads each version's Markdown files
-    where the entry keeps its content (`MOD-library-page.versionTexts`) and shows, file by file, the passages that differ
-    — the lines removed and added, each with the line it begins at — and a file found in one version only
-    (`MOD-source-library.changedPassages`); a PDF, a Word file or an archive is named as no text.
+    entry keeps its content, in the instance or, in a commit of its own, in the repository it names (decision 5). A
+    register or a head the server lists only in part is neither read nor written (`too-large`): the run ends with that
+    reason, and nothing is recorded.
+13. **The passages that changed** (UC-016 4): where both versions are text, the page reads the texts of both
+    (`MOD-library-page.versionTexts`) and shows the passages that differ (`MOD-source-library.changedPassages`). A
+    version kept as files or an archive is read where the entry keeps its content (`MOD-source-library.publicity`), at
+    the head of that repository (`MOD-review-page.open`): a Markdown file as its text, checked against its blob
+    (`MOD-review-page.readFileAt`), any other file as its bytes by its blob (`MOD-git-host.readBlobBytes`); its text is
+    derived once every file is checked against the SHA-256 the version records, and a file whose bytes differ refuses
+    the whole (`changed`; `MOD-source-text.versionText`). A repository is read at both commits, and only the files that
+    changed between them — by their blob, or by a path one commit alone holds — are read, as their bytes
+    (`MOD-source-text.changedFiles`, `MOD-source-text.repositoryText`; ARC-036 decision 4). The files of the two
+    versions are paired by name, and where each version holds one file without a partner, those two, whatever their
+    names — an edition often stands in its file's name. For each pair: the lines removed and added, found as a longest
+    common subsequence of the two texts' lines in memory that grows with their length, not with its square; each passage
+    with the line it begins at in either version and, in a PDF's text, the page it stands on — one more than the
+    form-feed lines before it (ARC-036). A file of one version only is named as added or removed, and a file without a
+    text with why (decision 11).
 14. **A move and its marking** (UC-016 5, 6; `A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST`). **Move** sets the
     product's link to the new version and its hash and lists, under *Look at again*, the requirements whose source names
     the source (`MOD-source-library.moveLink`), saved as any change of the links (`MOD-library-page.saveLinks`). The
@@ -266,10 +302,12 @@ flowchart LR
     PR["product<br/>docs/sources.md"]
     W["MOD-source-fetch<br/>the fetch workflow"]
     EP["MOD-eu-publications"]
+    ST["MOD-source-text"]
     E["the EU's publication repository"]
     P -->|"route, click"| LP
     LP -->|"entries, links, hashes, checks"| SL
     LP -->|"read, write"| GH
+    LP -->|"texts of two versions"| ST
     GH --- I
     GH --- PR
     I -->|"push of an entry"| W
@@ -296,6 +334,14 @@ flowchart LR
   `AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY` asks for a workflow of the instance.
 - **A consolidated text kept as XHTML, or turned into Markdown** — rejected: `A SOURCE IS FILES, AN ARCHIVE OR A
   REPOSITORY` lists PDF, Word and Markdown files, and a text turned into Markdown is not the bytes that were read.
+- **Files paired by name only** — rejected: the editions of one document often carry their edition in the file's name
+  (`manual-1.md`, `manual-2.md`; `iec-62304-2006.pdf`, `iec-62304-2015.pdf`), and a pairing by name shows one file removed
+  and another added, with no passage.
+- **The full table of a longest common subsequence** — rejected: it grows with the product of the two texts' lengths. On
+  the text ARC-036 derives from the AI Act's PDF, 6 391 lines, against a copy with three changes far apart, it raised the
+  peak memory of a fresh Node 25.9.0 process by 238 MB in 232 ms; computed in memory that grows with the texts' length, by
+  1 MB in 145 ms, with the same three passages; on 3 000 pairs of random texts both gave the same number of removed and
+  added lines (`docs/measurements/2026-10-05_source-texts.md`).
 - **The fetch workflow generated by `MOD-ci-generator`** — not chosen: ARC-015 generates a product's CI from its test
   schedule; the fetch workflow is the instance's alone and follows its register, as the bridge's release workflow is its
   module's own (ARC-017).
@@ -304,6 +350,8 @@ flowchart LR
 
 ## Consequences
 
+- `A DOCUMENT HOLDS NO HISTORY` is kept across the decisions (ARC-020); here the save of a product's links writes no text in
+  which `MOD-artifacts.historyIn` finds history.
 - The kernel reads and checks the register and the links, with no request; the page alone reads and writes repositories,
   through the git adapter.
 - **A consolidated version held in no PDF.** The repository serves the consolidated version measured as XHTML only; its
@@ -317,12 +365,10 @@ flowchart LR
 - **Not realised here — what reads the register elsewhere.** An item whose sources permit their content only where no
   holder of the role works (UC-034 3a), a participant whose place some sources do not permit (UC-017 5a) and a role whose
   holder processes data where a linked source does not permit it (UC-002 4c) need the main page and the settings page to
-  read the register and hand `MOD-source-library.restrictionsOf` to the interfaces that take `Restriction[]`; the link to
-  the resources' page (UC-015 2c) comes with the resources (UC-040).
-- **The rest of the module.** A product's resources (UC-040) and the due diligence of a reused library are designed in
-  `MOD-source-library` with later parts of this decision; the label of a source's content for
-  `MOD-job-harness.mayReceive` comes with the jobs that send it — a `ContentLabel` with no places allows any place, so a
-  restricted source that permits none needs its own form there.
+  read the register and hand `MOD-source-library.restrictionsOf` to the interfaces that take `Restriction[]`.
+- **Elsewhere.** A product's resources (UC-040) are designed in ARC-034, which carries the link to the resources' page
+  (UC-015 2c); the label of a source's content for `MOD-job-harness.mayReceive` comes with the jobs that send it — a
+  `ContentLabel` with no places allows any place, so a restricted source that permits none needs its own form there.
 
 ## Modules
 
@@ -4364,7 +4410,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-source-library.changedPassages",
-  "summary": "The passages that changed between two versions' texts, file by file: a file of one version only, or the lines that differ — each passage with the line it begins at in either version, the lines removed and the lines added.",
+  "summary": "The passages that changed between two versions' texts, file by file — the files paired by name, and where each version holds one file without a partner, those two —: a file of one version only, or the lines that differ, found in memory that grows with the texts' length — each passage with the line it begins at in either version and, in a PDF's text, its page there, the lines removed and the lines added.",
   "params": [{ "name": "from", "type": "VersionText[]" }, { "name": "to", "type": "VersionText[]" }],
   "result": "ChangedFile[]",
   "async": false,
@@ -4383,15 +4429,89 @@ flowchart LR
       "result": [
         {
           "name": "manual.md",
+          "from": "manual.md",
           "kind": "changed",
           "passages": [
             {
               "fromLine": 3,
+              "fromPage": 0,
               "removed": ["Book the microscope a day ahead."],
               "toLine": 3,
+              "toPage": 0,
               "added": ["Book the microscope two days ahead."]
             },
-            { "fromLine": 6, "removed": [], "toLine": 6, "added": ["Report a fault at once."] }
+            {
+              "fromLine": 6,
+              "fromPage": 0,
+              "removed": [],
+              "toLine": 6,
+              "toPage": 0,
+              "added": ["Report a fault at once."]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "two editions, each under its own name",
+      "input": {
+        "from": [
+          { "name": "manual-1.md", "text": "# Lab manual\n\nBook the microscope a day ahead.\nClean the stage after use.\nLog every session.\n" }
+        ],
+        "to": [
+          { "name": "manual-2.md", "text": "# Lab manual\n\nBook the microscope two days ahead.\nClean the stage after use.\nLog every session.\nReport a fault at once.\n" }
+        ]
+      },
+      "result": [
+        {
+          "name": "manual-2.md",
+          "from": "manual-1.md",
+          "kind": "changed",
+          "passages": [
+            {
+              "fromLine": 3,
+              "fromPage": 0,
+              "removed": ["Book the microscope a day ahead."],
+              "toLine": 3,
+              "toPage": 0,
+              "added": ["Book the microscope two days ahead."]
+            },
+            {
+              "fromLine": 6,
+              "fromPage": 0,
+              "removed": [],
+              "toLine": 6,
+              "toPage": 0,
+              "added": ["Report a fault at once."]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a PDF's text, a passage on its second page",
+      "input": {
+        "from": [
+          { "name": "rules.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault at once.\n" }
+        ],
+        "to": [
+          { "name": "rules-2026.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault to the safety officer at once.\n" }
+        ]
+      },
+      "result": [
+        {
+          "name": "rules-2026.pdf",
+          "from": "rules.pdf",
+          "kind": "changed",
+          "passages": [
+            {
+              "fromLine": 18,
+              "fromPage": 2,
+              "removed": ["Report a fault at once."],
+              "toLine": 18,
+              "toPage": 2,
+              "added": ["Report a fault to the safety officer at once."]
+            }
           ]
         }
       ]
@@ -4399,7 +4519,7 @@ flowchart LR
     {
       "name": "a file only in the newer version",
       "input": { "from": [], "to": [{ "name": "annex.md", "text": "# Annex\n" }] },
-      "result": [{ "name": "annex.md", "kind": "added", "passages": [] }]
+      "result": [{ "name": "annex.md", "from": "", "kind": "added", "passages": [] }]
     }
   ]
 }
@@ -4412,10 +4532,10 @@ flowchart LR
   "id": "MOD-library-page",
   "folder": "src/library-page/",
   "layer": "shell",
-  "responsibility": "The page library.html at the root of the instance's Pages site, where requirement sources are registered and a product's links are set: its route, the reading of the instance's register and of the products' links and requirements, a repository's current commit for a source that is one, the saves on a click — a register entry with the content the instance keeps, a content kept in the repository an entry names, and a product's links —, and every text and all HTML of the page.",
+  "responsibility": "The page library.html at the root of the instance's Pages site, where requirement sources are registered and a product's links are set: its route, the reading of the instance's register and of the products' links and requirements, a repository's current commit for a source that is one, the texts of two versions for the passages that changed, the saves on a click — a register entry with the content the instance keeps, a content kept in the repository an entry names, and a product's links —, and every text and all HTML of the page.",
   "realises": [],
   "owns": ["LibraryRoute", "RegisterEntryRead", "ProductSources", "LibraryInstance", "Library", "RepositoryCommit", "VersionTexts"],
-  "uses": ["MOD-contracts", "MOD-source-library", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-artifacts"]
+  "uses": ["MOD-contracts", "MOD-source-library", "MOD-source-text", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-artifacts"]
 }
 ```
 
@@ -4483,7 +4603,8 @@ flowchart LR
     { "code": "no-access", "when": "the token lacks the permission or the repository" },
     { "code": "not-found", "when": "the server knows no such repository" },
     { "code": "server-error", "when": "the server answers with another error" },
-    { "code": "unreachable", "when": "no answer arrives" }
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "too-large", "when": "the server lists the instance's tree only in part: an entry it does not list would be missing" }
   ],
   "examples": [
     {
@@ -4790,6 +4911,62 @@ flowchart LR
         "texts": {}
       },
       "refused": "token-refused"
+    },
+    {
+      "name": "an instance the server lists only in part",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "products": [],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/main" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "35e2e90d40d57082070460c61eb11ff55b9bf641" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "583211b642e28222ab8ac45d928ee7d02da95bfd" },
+                  { "path": "docs/sources/SRC-lab-manual.md", "type": "blob", "sha": "11c8875e39d38c1e876d5e52bf1b7d7c3f2df334" },
+                  { "path": "docs/sources/SRC-lab-manual/1/manual-1.md", "type": "blob", "sha": "b8a73d5c2dd2af50bb29edd21a228f97e7c566a6" },
+                  { "path": "docs/sources/SRC-lab-manual/2/manual-2.md", "type": "blob", "sha": "8ffad8e0bc926bd80666482ddab36e2769c02dfe" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "06c5ed2dc0a6a300bccaf45cb28e957ba7da62a9" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" }
+                ],
+                "truncated": true
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/user" },
+            "response": { "status": 200, "body": { "login": "alice" } }
+          }
+        ],
+        "texts": {}
+      },
+      "refused": "too-large"
     }
   ]
 }
@@ -4899,6 +5076,7 @@ flowchart LR
     { "code": "no-authority", "when": "no click authorises the save" },
     { "code": "no-token", "when": "no token is stored for the repository" },
     { "code": "moved", "when": "the file changed after the page read it" },
+    { "code": "too-large", "when": "the server lists the repository's tree only in part: nothing is written on part of a tree" },
     { "code": "not-saved", "when": "the check of the file finds an error" },
     { "code": "not-an-address", "when": "the address is no repository's address" },
     { "code": "token-refused", "when": "the server refuses the token" },
@@ -5366,7 +5544,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-library-page.saveLinks",
-  "summary": "A product's links, docs/sources.md, committed to the product on the head read, on a click: where the file is still the version the page opened and its check against the register the page read finds no error.",
+  "summary": "A product's links, docs/sources.md, committed to the product on the head read, on a click: where the file is still the version the page opened and its check against the register the page read finds no error, and they hold no history — a withdrawal note, the date of a change (MOD-artifacts.historyIn).",
   "params": [
     { "name": "product", "type": "string" },
     { "name": "text", "type": "string" },
@@ -5383,7 +5561,9 @@ flowchart LR
     { "code": "no-authority", "when": "no click authorises the save" },
     { "code": "no-token", "when": "no token is stored for the repository" },
     { "code": "moved", "when": "the file changed after the page read it" },
+    { "code": "too-large", "when": "the server lists the repository's tree only in part: nothing is written on part of a tree" },
     { "code": "not-saved", "when": "the check of the file finds an error" },
+    { "code": "holds-history", "when": "the links hold a withdrawal note or the date of a change (MOD-artifacts.historyIn)" },
     { "code": "not-an-address", "when": "the address is no repository's address" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
@@ -5819,6 +5999,171 @@ flowchart LR
         "authority": { "kind": "click" }
       },
       "refused": "not-saved"
+    },
+    {
+      "name": "links that note when a source was moved",
+      "input": {
+        "product": "https://github.com/alice/notes",
+        "text": "# Requirement sources\n\n| Source | Version | SHA-256 | Part | Look at again |\n|---|---|---|---|---|\n| SRC-iec-62304 | 2 | a8a847caf389bcb49eaa400e56cce9143c088832756ebb1edd9cbffe779d2eb5 | safety class B | TRACEABLE CHANGES |\n| SRC-thesis-guide | 1 | c11ba317fad6c64b4b5f0e4d8084cb3613d988d1527f630ddbeb54d4ea9e4f6c | — | — |\n\nMoved to the edition of 2015 on 2026-09-30.\n",
+        "openedBlob": "758c36f5f7d17ea3ddb1b0d1249661d6c9f182c5",
+        "register": [
+          {
+            "id": "SRC-ai-act",
+            "name": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+            "kind": "regulation",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "reuse permitted with acknowledgement of the source",
+            "content": "files",
+            "address": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+            "location": "",
+            "places": [],
+            "parts": ["prohibited practice", "high-risk AI system", "general-purpose AI model"],
+            "versions": [
+              { "version": 1, "identifier": "32024R1689", "date": "", "files": [], "contentStream": "", "note": "" }
+            ],
+            "language": "eng"
+          },
+          {
+            "id": "SRC-iec-62304",
+            "name": "IEC 62304 — Medical device software — Software life cycle processes",
+            "kind": "standard",
+            "authority": "normative",
+            "licence": "restricted",
+            "terms": "© IEC; copies may not be passed on",
+            "content": "files",
+            "address": "",
+            "location": "https://github.com/alice/norms",
+            "places": ["this machine", "NHR@FAU, Erlangen"],
+            "parts": ["safety class A", "safety class B", "safety class C"],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "IEC 62304:2006",
+                "date": "2006-05-09",
+                "files": [
+                  { "name": "iec-62304-2006.pdf", "sha256": "7cae7d990dd0e233bd6324c2a253df5d6cf539d0686ff294d980ba9910cc7506" }
+                ],
+                "contentStream": "",
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "IEC 62304:2006+AMD1:2015",
+                "date": "2015-06-25",
+                "files": [
+                  { "name": "iec-62304-2015.pdf", "sha256": "4f1ebb9b03585db4baa0b2eabbc49297482331feb3568e5fb4c7084bee569ca2" }
+                ],
+                "contentStream": "",
+                "note": ""
+              }
+            ],
+            "language": ""
+          },
+          {
+            "id": "SRC-lab-tools",
+            "name": "lab-tools — the group's measurement scripts",
+            "kind": "system",
+            "authority": "informational",
+            "licence": "restricted",
+            "terms": "internal; not to be passed on",
+            "content": "repository",
+            "address": "https://github.com/alice/lab-tools",
+            "location": "",
+            "places": ["this machine"],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f",
+                "date": "2026-09-20",
+                "files": [],
+                "contentStream": "",
+                "note": ""
+              }
+            ],
+            "language": ""
+          },
+          {
+            "id": "SRC-thesis-guide",
+            "name": "Thesis writing guide of the faculty",
+            "kind": "document",
+            "authority": "advisory",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "2025 edition",
+                "date": "2025-10-01",
+                "files": [
+                  { "name": "thesis-guide-2025.md", "sha256": "0896c66609e0d5a248025bad128127eedced1ecf4e788f7a6de60e877cca0711" }
+                ],
+                "contentStream": "",
+                "note": ""
+              }
+            ],
+            "language": ""
+          },
+          {
+            "id": "SRC-lab-manual",
+            "name": "The lab's manual",
+            "kind": "document",
+            "authority": "normative",
+            "licence": "republish",
+            "terms": "CC BY 4.0",
+            "content": "files",
+            "address": "",
+            "location": "",
+            "places": [],
+            "parts": [],
+            "language": "",
+            "versions": [
+              {
+                "version": 1,
+                "identifier": "edition 1",
+                "date": "2025-02-01",
+                "files": [
+                  { "name": "manual-1.md", "sha256": "28f6228f668549645837bb9c4021680b8270829fa65fbf6cd304b3d2b83583f5" }
+                ],
+                "contentStream": "",
+                "note": ""
+              },
+              {
+                "version": 2,
+                "identifier": "edition 2",
+                "date": "2026-02-01",
+                "files": [
+                  { "name": "manual-2.md", "sha256": "2ed5192dd9b941e6f2c67300493c867c1dd21574dbf174f8419fbbb4381850aa" }
+                ],
+                "contentStream": "",
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [],
+        "texts": {},
+        "authority": { "kind": "click" }
+      },
+      "refused": "holds-history"
     }
   ]
 }
@@ -5846,6 +6191,7 @@ flowchart LR
     { "code": "no-token", "when": "no token is stored for the repository's server" },
     { "code": "exists", "when": "a file of the content exists already" },
     { "code": "moved", "when": "the branch moved on after the head read" },
+    { "code": "too-large", "when": "the server lists the repository's tree only in part: nothing is written on part of a tree" },
     { "code": "not-an-address", "when": "the address is no repository's address" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
@@ -6128,6 +6474,7 @@ flowchart LR
     { "code": "set-up", "when": "the default branch holds the workflow as generated" },
     { "code": "branch-exists", "when": "the branch agent-m/fetch-sources exists already" },
     { "code": "moved", "when": "the branch moved on after the head read" },
+    { "code": "too-large", "when": "the server lists the repository's tree only in part: nothing is written on part of a tree" },
     { "code": "not-an-address", "when": "the address is no repository's address" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
@@ -6412,7 +6759,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-library-page.versionTexts",
-  "summary": "The texts of two versions of a source, for the passages that changed: each Markdown file of each version, read where the entry keeps its content — the instance, or the repository it names —; the files that are no text are named.",
+  "summary": "The texts of two versions of a source, for the passages that changed: a version kept as files or an archive read where the entry keeps its content — the instance, or the repository it names —, each Markdown file as its text and every other file as its bytes, and its text derived once each file is checked against the SHA-256 the version records; a repository read at its two commits, only the files that changed, as their bytes; and every file without a text, named with why.",
   "params": [
     { "name": "instance", "type": "string" },
     { "name": "entry", "type": "SourceEntry" },
@@ -6426,7 +6773,14 @@ flowchart LR
   "async": true,
   "refusals": [
     { "code": "no-version", "when": "the source has no such version" },
-    { "code": "no-content", "when": "the entry keeps no content of its own" },
+    { "code": "no-content", "when": "the entry keeps no content: only its hashes are recorded" },
+    { "code": "no-file", "when": "a file the version records is not where the entry keeps its content, or the version records none yet" },
+    { "code": "wrong-text", "when": "a Markdown file's text does not hash to its blob" },
+    { "code": "wrong-bytes", "when": "a file's bytes do not hash to its blob" },
+    { "code": "changed", "when": "a file's bytes are not those its version fixes: their SHA-256 is another than the version records, or a repository's file is not its commit's blob" },
+    { "code": "not-the-commit", "when": "a repository's version names no commit by its full SHA, and its tree is read at another" },
+    { "code": "too-large", "when": "the server lists the tree of the repository that keeps the content, or of the source's repository, only in part" },
+    { "code": "too-many-files", "when": "more than 500 files with a text changed between a repository's two commits" },
     { "code": "not-an-address", "when": "the address is no repository's address" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
@@ -6538,7 +6892,123 @@ flowchart LR
       }
     },
     {
-      "name": "a repository's versions",
+      "name": "the rules' two editions as PDF",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "entry": {
+          "id": "SRC-lab-rules",
+          "name": "The imaging lab's rules",
+          "kind": "document",
+          "authority": "normative",
+          "licence": "republish",
+          "terms": "CC BY 4.0",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "2025 edition",
+              "date": "2025-11-03",
+              "files": [
+                { "name": "rules.pdf", "sha256": "92a2932d729b5019362f58bca86a9fe049f2b759a8c2845e1a22dcb0b0ffb04b" }
+              ],
+              "contentStream": "",
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "2026 edition",
+              "date": "2026-06-01",
+              "files": [
+                { "name": "rules-2026.pdf", "sha256": "595de3d3c80c751f9c6cf2483b9d1dba7b7d3f28df35e3fd148d353f52c7a2a1" }
+              ],
+              "contentStream": "",
+              "note": ""
+            }
+          ],
+          "language": ""
+        },
+        "from": 1,
+        "to": 2,
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/main" },
+            "response": { "status": 200, "body": { "sha": "ae00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/ae00000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "35e2e90d40d57082070460c61eb11ff55b9bf641" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "583211b642e28222ab8ac45d928ee7d02da95bfd" },
+                  { "path": "docs/sources/SRC-lab-manual.md", "type": "blob", "sha": "11c8875e39d38c1e876d5e52bf1b7d7c3f2df334" },
+                  { "path": "docs/sources/SRC-lab-manual/1/manual-1.md", "type": "blob", "sha": "b8a73d5c2dd2af50bb29edd21a228f97e7c566a6" },
+                  { "path": "docs/sources/SRC-lab-manual/2/manual-2.md", "type": "blob", "sha": "8ffad8e0bc926bd80666482ddab36e2769c02dfe" },
+                  { "path": "docs/sources/SRC-lab-rules/1/rules.pdf", "type": "blob", "sha": "a455fa0fabcf29ae3af50f180fda983e394ada99" },
+                  { "path": "docs/sources/SRC-lab-rules/2/rules-2026.pdf", "type": "blob", "sha": "22aeb8a6663e306a910fc15d3f331b61ccab5aec" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "06c5ed2dc0a6a300bccaf45cb28e957ba7da62a9" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/user" },
+            "response": { "status": 200, "body": { "login": "alice" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/blobs/a455fa0fabcf29ae3af50f180fda983e394ada99" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0xlbmd0aCAyODggPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKFJ1bGVzIG9mIHRoZSBpbWFnaW5nIGxhYikgVGogVCogKENIQVBURVIgSSkgVGogVCogKEdlbmVyYWwgcHJvdmlzaW9ucykgVGogVCogKEFydGljbGUgMSkgVGogVCogKFNjb3BlKSBUaiBUKiAoVGhlc2UgcnVsZXMgYXBwbHkgdG8gZXZlcnkgcGVyc29uIGluIHRoZSBsYWIuKSBUaiBUKiAoQXJ0aWNsZSAyKSBUaiBUKiAoRGVmaW5pdGlvbnMpIFRqIFQqIChBIHNhbXBsZSBpcyBhbnkgc3BlY2ltZW4gYnJvdWdodCBpbnRvIHRoZSBsYWIuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAyMjQgPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKENIQVBURVIgSUkpIFRqIFQqIChQcm90ZWN0aW9uKSBUaiBUKiAoQXJ0aWNsZSAzKSBUaiBUKiAoRXllcykgVGogVCogKFdlYXIgcHJvdGVjdGl2ZSBnbGFzc2VzIHdoZW5ldmVyIGEgbGFzZXIgaXMgb24uKSBUaiBUKiAoQXJ0aWNsZSA0KSBUaiBUKiAoUmVwb3J0aW5nKSBUaiBUKiAoUmVwb3J0IGEgZmF1bHQgYXQgb25jZS4pIFRqIFQqIEVUCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDYgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDEgMCBSID4+ID4+IC9Db250ZW50cyA0IDAgUiA+PgplbmRvYmoKNiAwIG9iago8PCAvVHlwZSAvUGFnZXMgL0tpZHMgWzMgMCBSIDUgMCBSXSAvQ291bnQgMiA+PgplbmRvYmoKNyAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgNiAwIFIgPj4KZW5kb2JqCnhyZWYKMCA4CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMTA2IDAwMDAwIG4gCjAwMDAwMDA0NDUgMDAwMDAgbiAKMDAwMDAwMDU3MSAwMDAwMCBuIAowMDAwMDAwODQ2IDAwMDAwIG4gCjAwMDAwMDA5NzIgMDAwMDAgbiAKMDAwMDAwMTAzNSAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDggL1Jvb3QgNyAwIFIgPj4Kc3RhcnR4cmVmCjEwODQKJSVFT0YK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/blobs/22aeb8a6663e306a910fc15d3f331b61ccab5aec" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0xlbmd0aCAyODggPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKFJ1bGVzIG9mIHRoZSBpbWFnaW5nIGxhYikgVGogVCogKENIQVBURVIgSSkgVGogVCogKEdlbmVyYWwgcHJvdmlzaW9ucykgVGogVCogKEFydGljbGUgMSkgVGogVCogKFNjb3BlKSBUaiBUKiAoVGhlc2UgcnVsZXMgYXBwbHkgdG8gZXZlcnkgcGVyc29uIGluIHRoZSBsYWIuKSBUaiBUKiAoQXJ0aWNsZSAyKSBUaiBUKiAoRGVmaW5pdGlvbnMpIFRqIFQqIChBIHNhbXBsZSBpcyBhbnkgc3BlY2ltZW4gYnJvdWdodCBpbnRvIHRoZSBsYWIuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAyNDYgPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKENIQVBURVIgSUkpIFRqIFQqIChQcm90ZWN0aW9uKSBUaiBUKiAoQXJ0aWNsZSAzKSBUaiBUKiAoRXllcykgVGogVCogKFdlYXIgcHJvdGVjdGl2ZSBnbGFzc2VzIHdoZW5ldmVyIGEgbGFzZXIgaXMgb24uKSBUaiBUKiAoQXJ0aWNsZSA0KSBUaiBUKiAoUmVwb3J0aW5nKSBUaiBUKiAoUmVwb3J0IGEgZmF1bHQgdG8gdGhlIHNhZmV0eSBvZmZpY2VyIGF0IG9uY2UuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUiA1IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDYgMCBSID4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDEwNiAwMDAwMCBuIAowMDAwMDAwNDQ1IDAwMDAwIG4gCjAwMDAwMDA1NzEgMDAwMDAgbiAKMDAwMDAwMDg2OCAwMDAwMCBuIAowMDAwMDAwOTk0IDAwMDAwIG4gCjAwMDAwMDEwNTcgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDcgMCBSID4+CnN0YXJ0eHJlZgoxMTA2CiUlRU9GCg==" }
+            }
+          }
+        ],
+        "texts": {}
+      },
+      "result": {
+        "from": [
+          { "name": "rules.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault at once.\n" }
+        ],
+        "to": [
+          { "name": "rules-2026.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault to the safety officer at once.\n" }
+        ],
+        "notText": []
+      }
+    },
+    {
+      "name": "a newer commit of the group's scripts",
       "input": {
         "instance": "https://github.com/alice/agent-m",
         "entry": {
@@ -6561,12 +7031,20 @@ flowchart LR
               "files": [],
               "contentStream": "",
               "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "5b9e0c7d3a2f418e6b1c0d9a8f7e6d5c4b3a2918",
+              "date": "2026-10-01",
+              "files": [],
+              "contentStream": "",
+              "note": ""
             }
           ],
           "language": ""
         },
         "from": 1,
-        "to": 1,
+        "to": 2,
         "settings": {
           "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
           "gitlab": [],
@@ -6579,10 +7057,201 @@ flowchart LR
           "sessions": [],
           "resourceKeys": []
         },
-        "fetch": [],
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/commits/e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f" },
+            "response": { "status": 200, "body": { "sha": "e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/trees/e4c1b2a39f00d7a1c3b5e6f708192a3b4c5d6e7f?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "README.md", "type": "blob", "sha": "1da4d58710b31295e277c8e63159f862a09b2117" },
+                  { "path": "docs/figures/stage.png", "type": "blob", "sha": "029ace0fcbb58feb758971feed0457fd34dbb60b" },
+                  { "path": "docs/old/rules-2019.doc", "type": "blob", "sha": "b507e5035b4bffb42e4d0fa327a810a577ca0d3d" },
+                  { "path": "docs/rules.pdf", "type": "blob", "sha": "a455fa0fabcf29ae3af50f180fda983e394ada99" },
+                  { "path": "docs/safety/eyes.md", "type": "blob", "sha": "5bbcff73dea0f265660eaddcc0fdfacd3e078677" },
+                  { "path": "docs/safety/lasers.md", "type": "blob", "sha": "2d4a1727dc03eafc3fa0288935f86a3590cfb8a8" },
+                  { "path": "measure.py", "type": "blob", "sha": "3773c8ef870ca0dfb448af01df2d233951d121d5" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/commits/5b9e0c7d3a2f418e6b1c0d9a8f7e6d5c4b3a2918" },
+            "response": { "status": 200, "body": { "sha": "5b9e0c7d3a2f418e6b1c0d9a8f7e6d5c4b3a2918" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/trees/5b9e0c7d3a2f418e6b1c0d9a8f7e6d5c4b3a2918?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "README.md", "type": "blob", "sha": "1da4d58710b31295e277c8e63159f862a09b2117" },
+                  { "path": "docs/figures/stage.png", "type": "blob", "sha": "029ace0fcbb58feb758971feed0457fd34dbb60b" },
+                  { "path": "docs/old/rules-2019.doc", "type": "blob", "sha": "b507e5035b4bffb42e4d0fa327a810a577ca0d3d" },
+                  { "path": "docs/rules.pdf", "type": "blob", "sha": "22aeb8a6663e306a910fc15d3f331b61ccab5aec" },
+                  { "path": "docs/safety/eyes.md", "type": "blob", "sha": "47b343777079553543f6bca950971e83f004b345" },
+                  { "path": "docs/safety/fire.md", "type": "blob", "sha": "f699a2411afb2e599874b6c1099061b01d6a89ac" },
+                  { "path": "docs/safety/lasers.md", "type": "blob", "sha": "2d4a1727dc03eafc3fa0288935f86a3590cfb8a8" },
+                  { "path": "measure.py", "type": "blob", "sha": "349d7b8a700bbe02571832f735b8abd99a99b1ac" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/blobs/a455fa0fabcf29ae3af50f180fda983e394ada99" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0xlbmd0aCAyODggPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKFJ1bGVzIG9mIHRoZSBpbWFnaW5nIGxhYikgVGogVCogKENIQVBURVIgSSkgVGogVCogKEdlbmVyYWwgcHJvdmlzaW9ucykgVGogVCogKEFydGljbGUgMSkgVGogVCogKFNjb3BlKSBUaiBUKiAoVGhlc2UgcnVsZXMgYXBwbHkgdG8gZXZlcnkgcGVyc29uIGluIHRoZSBsYWIuKSBUaiBUKiAoQXJ0aWNsZSAyKSBUaiBUKiAoRGVmaW5pdGlvbnMpIFRqIFQqIChBIHNhbXBsZSBpcyBhbnkgc3BlY2ltZW4gYnJvdWdodCBpbnRvIHRoZSBsYWIuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAyMjQgPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKENIQVBURVIgSUkpIFRqIFQqIChQcm90ZWN0aW9uKSBUaiBUKiAoQXJ0aWNsZSAzKSBUaiBUKiAoRXllcykgVGogVCogKFdlYXIgcHJvdGVjdGl2ZSBnbGFzc2VzIHdoZW5ldmVyIGEgbGFzZXIgaXMgb24uKSBUaiBUKiAoQXJ0aWNsZSA0KSBUaiBUKiAoUmVwb3J0aW5nKSBUaiBUKiAoUmVwb3J0IGEgZmF1bHQgYXQgb25jZS4pIFRqIFQqIEVUCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDYgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDEgMCBSID4+ID4+IC9Db250ZW50cyA0IDAgUiA+PgplbmRvYmoKNiAwIG9iago8PCAvVHlwZSAvUGFnZXMgL0tpZHMgWzMgMCBSIDUgMCBSXSAvQ291bnQgMiA+PgplbmRvYmoKNyAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgNiAwIFIgPj4KZW5kb2JqCnhyZWYKMCA4CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMTA2IDAwMDAwIG4gCjAwMDAwMDA0NDUgMDAwMDAgbiAKMDAwMDAwMDU3MSAwMDAwMCBuIAowMDAwMDAwODQ2IDAwMDAwIG4gCjAwMDAwMDA5NzIgMDAwMDAgbiAKMDAwMDAwMTAzNSAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDggL1Jvb3QgNyAwIFIgPj4Kc3RhcnR4cmVmCjEwODQKJSVFT0YK" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/blobs/5bbcff73dea0f265660eaddcc0fdfacd3e078677" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "IyBFeWVzCgpXZWFyIHByb3RlY3RpdmUgZ2xhc3NlcyB3aGVuZXZlciBhIGxhc2VyIGlzIG9uLgo=" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/blobs/22aeb8a6663e306a910fc15d3f331b61ccab5aec" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0xlbmd0aCAyODggPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKFJ1bGVzIG9mIHRoZSBpbWFnaW5nIGxhYikgVGogVCogKENIQVBURVIgSSkgVGogVCogKEdlbmVyYWwgcHJvdmlzaW9ucykgVGogVCogKEFydGljbGUgMSkgVGogVCogKFNjb3BlKSBUaiBUKiAoVGhlc2UgcnVsZXMgYXBwbHkgdG8gZXZlcnkgcGVyc29uIGluIHRoZSBsYWIuKSBUaiBUKiAoQXJ0aWNsZSAyKSBUaiBUKiAoRGVmaW5pdGlvbnMpIFRqIFQqIChBIHNhbXBsZSBpcyBhbnkgc3BlY2ltZW4gYnJvdWdodCBpbnRvIHRoZSBsYWIuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAyNDYgPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKENIQVBURVIgSUkpIFRqIFQqIChQcm90ZWN0aW9uKSBUaiBUKiAoQXJ0aWNsZSAzKSBUaiBUKiAoRXllcykgVGogVCogKFdlYXIgcHJvdGVjdGl2ZSBnbGFzc2VzIHdoZW5ldmVyIGEgbGFzZXIgaXMgb24uKSBUaiBUKiAoQXJ0aWNsZSA0KSBUaiBUKiAoUmVwb3J0aW5nKSBUaiBUKiAoUmVwb3J0IGEgZmF1bHQgdG8gdGhlIHNhZmV0eSBvZmZpY2VyIGF0IG9uY2UuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUiA1IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDYgMCBSID4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDEwNiAwMDAwMCBuIAowMDAwMDAwNDQ1IDAwMDAwIG4gCjAwMDAwMDA1NzEgMDAwMDAgbiAKMDAwMDAwMDg2OCAwMDAwMCBuIAowMDAwMDAwOTk0IDAwMDAwIG4gCjAwMDAwMDEwNTcgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDcgMCBSID4+CnN0YXJ0eHJlZgoxMTA2CiUlRU9GCg==" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/blobs/47b343777079553543f6bca950971e83f004b345" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "IyBFeWVzCgpXZWFyIHByb3RlY3RpdmUgZ2xhc3NlcyB3aGVuZXZlciBhIGxhc2VyIGlzIG9uLgpUYWtlIHRoZW0gb2ZmIG91dHNpZGUgdGhlIHJvb20gb25seS4K" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/lab-tools/git/blobs/f699a2411afb2e599874b6c1099061b01d6a89ac" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "IyBGaXJlCgpMZWF2ZSBieSB0aGUgbm9ydGggZG9vci4K" }
+            }
+          }
+        ],
         "texts": {}
       },
-      "refused": "no-content"
+      "result": {
+        "from": [
+          { "name": "docs/rules.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault at once.\n" },
+          { "name": "docs/safety/eyes.md", "text": "# Eyes\n\nWear protective glasses whenever a laser is on.\n" }
+        ],
+        "to": [
+          { "name": "docs/rules.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault to the safety officer at once.\n" },
+          { "name": "docs/safety/eyes.md", "text": "# Eyes\n\nWear protective glasses whenever a laser is on.\nTake them off outside the room only.\n" },
+          { "name": "docs/safety/fire.md", "text": "# Fire\n\nLeave by the north door.\n" }
+        ],
+        "notText": [{ "name": "measure.py", "why": "other-kind" }]
+      }
+    },
+    {
+      "name": "a PDF whose bytes changed since its version was registered",
+      "input": {
+        "instance": "https://github.com/alice/agent-m",
+        "entry": {
+          "id": "SRC-lab-rules",
+          "name": "The imaging lab's rules",
+          "kind": "document",
+          "authority": "normative",
+          "licence": "republish",
+          "terms": "CC BY 4.0",
+          "content": "files",
+          "address": "",
+          "location": "",
+          "places": [],
+          "parts": [],
+          "versions": [
+            {
+              "version": 1,
+              "identifier": "2025 edition",
+              "date": "2025-11-03",
+              "files": [
+                { "name": "rules.pdf", "sha256": "92a2932d729b5019362f58bca86a9fe049f2b759a8c2845e1a22dcb0b0ffb04b" }
+              ],
+              "contentStream": "",
+              "note": ""
+            },
+            {
+              "version": 2,
+              "identifier": "2026 edition",
+              "date": "2026-06-01",
+              "files": [
+                { "name": "rules-2026.pdf", "sha256": "595de3d3c80c751f9c6cf2483b9d1dba7b7d3f28df35e3fd148d353f52c7a2a1" }
+              ],
+              "contentStream": "",
+              "note": ""
+            }
+          ],
+          "language": ""
+        },
+        "from": 1,
+        "to": 2,
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/main" },
+            "response": { "status": 200, "body": { "sha": "ae00000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/ae00000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "35e2e90d40d57082070460c61eb11ff55b9bf641" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "583211b642e28222ab8ac45d928ee7d02da95bfd" },
+                  { "path": "docs/sources/SRC-lab-manual.md", "type": "blob", "sha": "11c8875e39d38c1e876d5e52bf1b7d7c3f2df334" },
+                  { "path": "docs/sources/SRC-lab-manual/1/manual-1.md", "type": "blob", "sha": "b8a73d5c2dd2af50bb29edd21a228f97e7c566a6" },
+                  { "path": "docs/sources/SRC-lab-manual/2/manual-2.md", "type": "blob", "sha": "8ffad8e0bc926bd80666482ddab36e2769c02dfe" },
+                  { "path": "docs/sources/SRC-lab-rules/1/rules.pdf", "type": "blob", "sha": "22aeb8a6663e306a910fc15d3f331b61ccab5aec" },
+                  { "path": "docs/sources/SRC-lab-rules/2/rules-2026.pdf", "type": "blob", "sha": "22aeb8a6663e306a910fc15d3f331b61ccab5aec" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "06c5ed2dc0a6a300bccaf45cb28e957ba7da62a9" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" }
+                ]
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/user" },
+            "response": { "status": 200, "body": { "login": "alice" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/blobs/22aeb8a6663e306a910fc15d3f331b61ccab5aec" },
+            "response": {
+              "status": 200,
+              "body": { "encoding": "base64", "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0xlbmd0aCAyODggPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKFJ1bGVzIG9mIHRoZSBpbWFnaW5nIGxhYikgVGogVCogKENIQVBURVIgSSkgVGogVCogKEdlbmVyYWwgcHJvdmlzaW9ucykgVGogVCogKEFydGljbGUgMSkgVGogVCogKFNjb3BlKSBUaiBUKiAoVGhlc2UgcnVsZXMgYXBwbHkgdG8gZXZlcnkgcGVyc29uIGluIHRoZSBsYWIuKSBUaiBUKiAoQXJ0aWNsZSAyKSBUaiBUKiAoRGVmaW5pdGlvbnMpIFRqIFQqIChBIHNhbXBsZSBpcyBhbnkgc3BlY2ltZW4gYnJvdWdodCBpbnRvIHRoZSBsYWIuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAyNDYgPj4Kc3RyZWFtCkJUIC9GMSAxMSBUZiAxNCBUTCA3MiA3NzAgVGQgKENIQVBURVIgSUkpIFRqIFQqIChQcm90ZWN0aW9uKSBUaiBUKiAoQXJ0aWNsZSAzKSBUaiBUKiAoRXllcykgVGogVCogKFdlYXIgcHJvdGVjdGl2ZSBnbGFzc2VzIHdoZW5ldmVyIGEgbGFzZXIgaXMgb24uKSBUaiBUKiAoQXJ0aWNsZSA0KSBUaiBUKiAoUmVwb3J0aW5nKSBUaiBUKiAoUmVwb3J0IGEgZmF1bHQgdG8gdGhlIHNhZmV0eSBvZmZpY2VyIGF0IG9uY2UuKSBUaiBUKiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUiA1IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDYgMCBSID4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDEwNiAwMDAwMCBuIAowMDAwMDAwNDQ1IDAwMDAwIG4gCjAwMDAwMDA1NzEgMDAwMDAgbiAKMDAwMDAwMDg2OCAwMDAwMCBuIAowMDAwMDAwOTk0IDAwMDAwIG4gCjAwMDAwMDEwNTcgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDcgMCBSID4+CnN0YXJ0eHJlZgoxMTA2CiUlRU9GCg==" }
+            }
+          }
+        ],
+        "texts": {}
+      },
+      "refused": "changed"
     },
     {
       "name": "a version the source does not have",
@@ -6846,6 +7515,7 @@ flowchart LR
     { "code": "not-https", "when": "the instance's address does not use https" },
     { "code": "credential-in-address", "when": "the address carries a user name or a token" },
     { "code": "not-a-repository", "when": "the address names no repository" },
+    { "code": "too-large", "when": "the server lists the register's tree only in part: an entry it does not list would be missed" },
     { "code": "not-an-address", "when": "the address is no repository's address" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
@@ -6952,6 +7622,7 @@ flowchart LR
   "refusals": [
     { "code": "no-token", "when": "the workflow's environment holds no AGENT_M_TOKEN" },
     { "code": "exists", "when": "a file it would add exists already at that head" },
+    { "code": "too-large", "when": "the server lists the head's tree only in part: no record is committed on part of a tree" },
     { "code": "moved", "when": "the branch moved on after the head the entry was read at" },
     { "code": "not-https", "when": "the repository's address does not use https" },
     { "code": "credential-in-address", "when": "the address carries a user name or a token" },
@@ -7109,6 +7780,56 @@ flowchart LR
         ]
       },
       "refused": "exists"
+    },
+    {
+      "name": "a head the server lists only in part",
+      "input": {
+        "repository": "https://github.com/alice/agent-m",
+        "head": "",
+        "files": [
+          { "path": "docs/sources/SRC-ai-act.md", "text": "---\nid: SRC-ai-act\nname: Regulation (EU) 2024/1689 — Artificial Intelligence Act\nkind: regulation\nauthority: normative\nlicence: republish\nterms: reuse permitted with acknowledgement of the source\ncontent: files\naddress: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689\nlocation:\nlanguage: eng\nplaces:\nparts:\n  - prohibited practice\n  - high-risk AI system\n  - general-purpose AI model\n---\n\n# SRC-ai-act Regulation (EU) 2024/1689 — Artificial Intelligence Act\n\n## Versions\n\n| Version | Identifier | Date | File | SHA-256 | Content stream | Note |\n|---|---|---|---|---|---|---|\n| 1 | 32024R1689 | 2026-09-02 | 32024R1689.pdf | a3203f14799d9a53ea8f7cb3f3635c14b02e8d21d25d5d0c2e81e952559a5c56 | http://publications.europa.eu/resource/cellar/dc8116a1-3fe6-11ef-865a-01aa75ed71a1.0006.01/DOC_1 | — |\n" },
+          { "path": "docs/sources/SRC-ai-act/1/32024R1689.pdf", "base64": "JVBERi0xLjcgUmVndWxhdGlvbiAoRVUpIDIwMjQvMTY4OSwgYXMgc2VydmVk" }
+        ],
+        "replaces": ["docs/sources/SRC-ai-act.md"],
+        "message": "docs: SRC-ai-act fetched",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "public", "private": false, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "a900000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/commits/a900000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "a900000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/agent-m/git/trees/a900000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/sources/SRC-ai-act.md", "type": "blob", "sha": "35e2e90d40d57082070460c61eb11ff55b9bf641" },
+                  { "path": "docs/sources/SRC-iec-62304.md", "type": "blob", "sha": "583211b642e28222ab8ac45d928ee7d02da95bfd" },
+                  { "path": "docs/sources/SRC-lab-manual.md", "type": "blob", "sha": "11c8875e39d38c1e876d5e52bf1b7d7c3f2df334" },
+                  { "path": "docs/sources/SRC-lab-manual/1/manual-1.md", "type": "blob", "sha": "b8a73d5c2dd2af50bb29edd21a228f97e7c566a6" },
+                  { "path": "docs/sources/SRC-lab-manual/2/manual-2.md", "type": "blob", "sha": "8ffad8e0bc926bd80666482ddab36e2769c02dfe" },
+                  { "path": "docs/sources/SRC-lab-tools.md", "type": "blob", "sha": "06c5ed2dc0a6a300bccaf45cb28e957ba7da62a9" },
+                  { "path": "docs/sources/SRC-thesis-guide.md", "type": "blob", "sha": "7207eaffcb04d8ce8f954cfb4706b79c2522a5c4" }
+                ],
+                "truncated": true
+              }
+            }
+          }
+        ]
+      },
+      "refused": "too-large"
     },
     {
       "name": "no token in the environment",
@@ -7451,7 +8172,7 @@ flowchart LR
 ```json type
 {
   "$id": "FileBytes",
-  "description": "A file the person selected: its name and its bytes, base64-encoded.",
+  "description": "A file by its name and its bytes, base64-encoded — as the person selected it, or as read from a repository.",
   "type": "object",
   "required": ["name", "base64"],
   "additionalProperties": false,
@@ -8056,7 +8777,7 @@ flowchart LR
 ```json type
 {
   "$id": "VersionText",
-  "description": "A Markdown file of a version, by its name, with its text.",
+  "description": "A file of a version that has a text, by its name — a repository's by its path —, with its text.",
   "type": "object",
   "required": ["name", "text"],
   "additionalProperties": false,
@@ -8070,22 +8791,34 @@ flowchart LR
 ```json type
 {
   "$id": "Passage",
-  "description": "A passage that changed: the line it begins at in the older version, the lines removed, the line it begins at in the newer, and the lines added.",
+  "description": "A passage that changed: the line it begins at in the older version and, in a PDF's text, its page there — 0 for any other text —, the lines removed, the line and the page it begins at in the newer, and the lines added.",
   "type": "object",
-  "required": ["fromLine", "removed", "toLine", "added"],
+  "required": ["fromLine", "fromPage", "removed", "toLine", "toPage", "added"],
   "additionalProperties": false,
   "properties": {
     "fromLine": { "type": "integer", "minimum": 1 },
+    "fromPage": { "type": "integer", "minimum": 0 },
     "removed": { "type": "array", "items": { "type": "string" } },
     "toLine": { "type": "integer", "minimum": 1 },
+    "toPage": { "type": "integer", "minimum": 0 },
     "added": { "type": "array", "items": { "type": "string" } }
   },
   "examples": [
     {
       "fromLine": 3,
+      "fromPage": 0,
       "removed": ["Book the microscope a day ahead."],
       "toLine": 3,
+      "toPage": 0,
       "added": ["Book the microscope two days ahead."]
+    },
+    {
+      "fromLine": 18,
+      "fromPage": 2,
+      "removed": ["Report a fault at once."],
+      "toLine": 18,
+      "toPage": 2,
+      "added": ["Report a fault to the safety officer at once."]
     }
   ]
 }
@@ -8094,30 +8827,64 @@ flowchart LR
 ```json type
 {
   "$id": "ChangedFile",
-  "description": "A file whose text differs between two versions: changed, with its passages, or found in one version only.",
+  "description": "A file whose text differs between two versions: its name — in the newer version, or the older where it is in that one only —, its name in the older version — empty where it is in the newer only —, and whether it changed, with its passages, or is found in one version only.",
   "type": "object",
-  "required": ["name", "kind", "passages"],
+  "required": ["name", "from", "kind", "passages"],
   "additionalProperties": false,
   "properties": {
     "name": { "type": "string", "minLength": 1 },
+    "from": { "type": "string" },
     "kind": { "type": "string", "enum": ["changed", "added", "removed"] },
     "passages": { "type": "array", "items": { "$ref": "Passage" } }
   },
   "examples": [
     {
       "name": "manual.md",
+      "from": "manual.md",
       "kind": "changed",
       "passages": [
         {
           "fromLine": 3,
+          "fromPage": 0,
           "removed": ["Book the microscope a day ahead."],
           "toLine": 3,
+          "toPage": 0,
           "added": ["Book the microscope two days ahead."]
         },
-        { "fromLine": 6, "removed": [], "toLine": 6, "added": ["Report a fault at once."] }
+        {
+          "fromLine": 6,
+          "fromPage": 0,
+          "removed": [],
+          "toLine": 6,
+          "toPage": 0,
+          "added": ["Report a fault at once."]
+        }
       ]
     },
-    { "name": "annex.md", "kind": "added", "passages": [] }
+    {
+      "name": "manual-2.md",
+      "from": "manual-1.md",
+      "kind": "changed",
+      "passages": [
+        {
+          "fromLine": 3,
+          "fromPage": 0,
+          "removed": ["Book the microscope a day ahead."],
+          "toLine": 3,
+          "toPage": 0,
+          "added": ["Book the microscope two days ahead."]
+        },
+        {
+          "fromLine": 6,
+          "fromPage": 0,
+          "removed": [],
+          "toLine": 6,
+          "toPage": 0,
+          "added": ["Report a fault at once."]
+        }
+      ]
+    },
+    { "name": "annex.md", "from": "", "kind": "added", "passages": [] }
   ]
 }
 ```
@@ -8244,24 +9011,27 @@ flowchart LR
 ```json type
 {
   "$id": "VersionTexts",
-  "description": "The texts of two versions of a source: each Markdown file of the older and of the newer, and the files that are no text.",
+  "description": "The texts of two versions of a source: the text of each file of the older and of the newer that has one — of a repository, of each file that changed —, and every file without a text, with why.",
   "type": "object",
   "required": ["from", "to", "notText"],
   "additionalProperties": false,
   "properties": {
     "from": { "type": "array", "items": { "$ref": "VersionText" } },
     "to": { "type": "array", "items": { "$ref": "VersionText" } },
-    "notText": { "type": "array", "items": { "type": "string" } }
+    "notText": { "type": "array", "items": { "$ref": "NoText" } }
   },
   "examples": [
     {
       "from": [
-        { "name": "manual-1.md", "text": "# Lab manual\n\nBook the microscope a day ahead.\nClean the stage after use.\nLog every session.\n" }
+        { "name": "docs/rules.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault at once.\n" },
+        { "name": "docs/safety/eyes.md", "text": "# Eyes\n\nWear protective glasses whenever a laser is on.\n" }
       ],
       "to": [
-        { "name": "manual-2.md", "text": "# Lab manual\n\nBook the microscope two days ahead.\nClean the stage after use.\nLog every session.\nReport a fault at once.\n" }
+        { "name": "docs/rules.pdf", "text": "Rules of the imaging lab\nCHAPTER I\nGeneral provisions\nArticle 1\nScope\nThese rules apply to every person in the lab.\nArticle 2\nDefinitions\nA sample is any specimen brought into the lab.\n\f\nCHAPTER II\nProtection\nArticle 3\nEyes\nWear protective glasses whenever a laser is on.\nArticle 4\nReporting\nReport a fault to the safety officer at once.\n" },
+        { "name": "docs/safety/eyes.md", "text": "# Eyes\n\nWear protective glasses whenever a laser is on.\nTake them off outside the room only.\n" },
+        { "name": "docs/safety/fire.md", "text": "# Fire\n\nLeave by the north door.\n" }
       ],
-      "notText": []
+      "notText": [{ "name": "measure.py", "why": "other-kind" }]
     }
   ]
 }
@@ -8309,16 +9079,16 @@ flowchart LR
 | UC-015 1 | MOD-library-page.route, MOD-library-page.readLibrary, MOD-source-library.linkChoices |
 | UC-015 2 | MOD-source-library.linkChoices |
 | UC-015 3 | MOD-source-library.linkChoices |
-| UC-015 4 | MOD-source-library.versionHash, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks |
+| UC-015 4 | MOD-source-library.versionHash, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks, MOD-artifacts.historyIn |
 | UC-015 2a | MOD-library-page.route |
 | UC-015 2b | MOD-source-library.sourceRequirements |
-| UC-015 3a | MOD-source-library.linkChoices, MOD-source-library.versionHash, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks |
+| UC-015 3a | MOD-source-library.linkChoices, MOD-source-library.versionHash, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks, MOD-artifacts.historyIn |
 | UC-016 1 | MOD-library-page.route, MOD-library-page.readLibrary, MOD-source-library.libraryView, MOD-source-library.euAddress, MOD-source-library.sha256Files, MOD-library-page.repositoryCommit |
 | UC-016 2 | MOD-source-library.addVersion, MOD-source-library.contentFiles, MOD-source-library.publicity, MOD-source-library.formatSource, MOD-source-library.checkSource, MOD-library-page.saveSource, MOD-library-page.saveContent |
 | UC-016 3 | MOD-library-page.readLibrary, MOD-source-library.libraryView |
-| UC-016 4 | MOD-library-page.route, MOD-source-library.sourceRequirements, MOD-library-page.versionTexts, MOD-source-library.changedPassages |
-| UC-016 5 | MOD-source-library.moveLink, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks, MOD-source-library.sourceChanged |
-| UC-016 6 | MOD-source-library.lookedAt, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks, MOD-source-library.sourceChanged |
+| UC-016 4 | MOD-library-page.route, MOD-source-library.sourceRequirements, MOD-library-page.versionTexts, MOD-source-library.publicity, MOD-review-page.open, MOD-git-host.parseProductAddress, MOD-git-host.readSnapshot, MOD-source-text.changedFiles, MOD-review-page.readFileAt, MOD-git-host.readBlobBytes, MOD-source-text.versionText, MOD-source-text.repositoryText, MOD-source-library.changedPassages |
+| UC-016 5 | MOD-source-library.moveLink, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks, MOD-artifacts.historyIn, MOD-source-library.sourceChanged |
+| UC-016 6 | MOD-source-library.lookedAt, MOD-source-library.formatLinks, MOD-source-library.checkLinks, MOD-library-page.saveLinks, MOD-artifacts.historyIn, MOD-source-library.sourceChanged |
 | UC-016 2a | MOD-source-fetch.readPending, MOD-source-library.awaitingFetch, MOD-eu-publications.celexOfEli, MOD-eu-publications.textRequest, MOD-eu-publications.textAnswer, MOD-source-library.fetchedVersion, MOD-source-library.fetchFailed, MOD-source-library.formatSource, MOD-source-library.checkSource, MOD-source-fetch.recordFetch, MOD-git-host.writeFiles, MOD-library-page.readLibrary, MOD-source-library.libraryView, MOD-library-page.fetchAgain |
 | UC-016 1a | MOD-source-library.addVersion |
 | UC-016 4a | MOD-source-library.libraryView |

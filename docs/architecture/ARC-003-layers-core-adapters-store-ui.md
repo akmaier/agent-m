@@ -96,7 +96,14 @@ develop against interfaces, not implementations; the open-closed principle.
    are written by the shell that shows it.
 6. **Shared shapes.** A refusal, a finding and an authority have one shape everywhere, defined by `MOD-contracts`.
 7. **Repository checks** keep the boundaries: no file outside an adapter's folder and a shell's `ports.mjs` names
-   `fetch`, `localStorage` or `caches`.
+   `fetch`, `localStorage` or `caches`. A vendored library's file under `src/vendor/` is no module's code (ARC-002); two
+   are set apart by name, each on its one reason: `mermaid.min.js`, which names `fetch` only as a method of its own and
+   calls no platform's `fetch`; and pdf.js's two files, which call it only for what they are given the address of — a
+   document, character maps, fonts, decoders —, and which only `MOD-source-text` imports, giving them bytes and never an
+   address (ARC-036 decision 8). `tests/test_no_backend.py`, the check of `NO SERVER` (ARC-016 decision 2), holds these
+   reasons: it lists every request channel of a vendored file with its reason, and it finds a file outside
+   `src/source-text/` that imports pdf.js, and a call of `getDocument` that names `url`, `cMapUrl`,
+   `standardFontDataUrl`, `wasmUrl` or `iccUrl` (`docs/measurements/2026-10-05_source-texts.md` counts the channels).
 
 ```mermaid
 flowchart TB

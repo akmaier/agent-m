@@ -68,7 +68,10 @@ computes for each view, and when it writes.
    shown — the instance's, derived from the Pages address `https://<owner>.github.io/<repo>/docs/`, or a product's by
    its address —, the view, the item, the version — current or a release tag — and the version compared with.
    `MOD-review-page.open` reads that repository once, at the default branch or the tag. Every view is computed from that
-   commit; its link graph is built once, from `MOD-review-views.traceInput`.
+   commit; its link graph is built once, from `MOD-review-views.traceInput`. Where the server lists the commit's tree
+   only in part (`truncated`, ARC-004), `MOD-review-page.open` gives the files listed with that mark, and the page says
+   so above every view: "The server lists only part of this repository's files. What this page shows may be incomplete,
+   and nothing is written here."
 3. **Ports over the commit.** The page's read port gives a file's text at the commit: the text kept in the browser by
    its blob SHA, or the one read from the server and then kept (ARC-005); without a token, GitHub's raw host by path,
    checked against the blob. A second port reads earlier texts by blob, a third the time of a record's commit, which the
@@ -88,12 +91,17 @@ computes for each view, and when it writes.
    - `MOD-review-page.saveSpecEdit` — a SPEC edit as an entry of the person's queue of the day, never `SPEC.md`;
      refused when the section changed meanwhile.
 
-   A refused save keeps the editor's text as typed, shown beside the newer version (`MOD-review-views.keptEdit`).
+   `MOD-review-page.readHead` gives the head with every file the server lists and, where it lists the tree only in part,
+   the mark (`truncated`), as `MOD-git-host.readSnapshot` does. Each of these writes refuses a head so marked
+   (`too-large`), and no SPEC edit is planned on one (`MOD-review-page.specEditPlan`), since a file the head does not list
+   could be written over or taken for missing; the page names that refusal in the notice's words (decision 2). A
+   refused save keeps the editor's text as typed, shown beside the newer version (`MOD-review-views.keptEdit`).
 6. **Without a token, GitHub's own pages.** Accepting opens GitHub's new-file page with the record prefilled
    (`MOD-review-page.acceptLink`). Saving puts each file's text on the clipboard and opens GitHub's editor at its path —
    or its new-file page with no value for a new file — after comparing it with the head
-   (`MOD-review-page.fallbackLinks`); no reviewed text travels in a link. A GitLab product without its project token is
-   only read.
+   (`MOD-review-page.fallbackLinks`); no reviewed text travels in a link. A head marked truncated gives no links
+   (`too-large`): a file it does not list would be offered as new. A GitLab product without its project token is only
+   read.
 7. **The person is the token's account.** A SPEC edit is filed under the account the token acts as (ARC-004); without a
    token, under the owner of the instance's Pages site, the only account the page knows.
 8. **What the views compute.** The lists of a kind with their groups; a file with its difference, prerequisites and
@@ -136,6 +144,9 @@ flowchart LR
 ## Consequences
 
 - Every view is a function of one commit; after a write, the page opens the new head and computes its views again.
+- A repository whose tree the server lists only in part — on GitHub beyond 100 000 entries or 7 MB (ARC-004) — is shown
+  with that notice, and none of the page's writes is made on it. `MOD-review-page.open` and `MOD-review-page.readHead`
+  give the other pages that read through them the files listed with the mark; what each does with it, ARC-004 names.
 - Opening a repository takes four requests, and each file not yet kept one more. Without a token, GitHub allows sixty
   requests an hour for a network, so texts come from its raw host, which does not count them.
 - Removing a decision or a module's file (UC-023 1a, 1b) and accepting such a removal on the architecture's review page
@@ -2329,7 +2340,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-review-page.open",
-  "summary": "The repository a route names, read at one commit: the product, its default branch, the ref read — the default branch or a release tag —, every file of that commit with its blob, and the account the stored token acts as, empty without one.",
+  "summary": "The repository a route names, read at one commit: the product, its default branch, the ref read — the default branch or a release tag —, every file of that commit the server lists, with its blob — marked truncated where it lists the tree only in part —, and the account the stored token acts as, empty without one.",
   "params": [
     { "name": "where", "type": "Route" },
     { "name": "settings", "type": "Settings" },
@@ -2405,6 +2416,62 @@ flowchart LR
             { "path": "SPEC.md", "blob": "94bea49343a82e2f1148dc91f52fb2d200a054ab" },
             { "path": "docs/use-cases/UC-002-write-a-chapter.md", "blob": "1c630e7fb251f2ec88103812f9041c9edafc3c2a" }
           ]
+        },
+        "account": "alice"
+      }
+    },
+    {
+      "name": "a repository the server lists only in part",
+      "input": {
+        "where": { "instance": "https://github.com/alice/agent-m", "repository": "https://github.com/alice/thesis", "view": "specification", "item": "", "version": "v2026.10.0", "compare": "current", "arrange": false },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": null,
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/v2026.10.0" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [{ "path": "SPEC.md", "type": "blob", "sha": "94bea49343a82e2f1148dc91f52fb2d200a054ab" }],
+                "truncated": true
+              }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/user" },
+            "response": { "status": 200, "body": { "login": "alice" } }
+          }
+        ]
+      },
+      "result": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "branch": "main",
+        "ref": "v2026.10.0",
+        "snapshot": {
+          "commit": "c100000000000000000000000000000000000000",
+          "tree": [{ "path": "SPEC.md", "blob": "94bea49343a82e2f1148dc91f52fb2d200a054ab" }],
+          "truncated": true
         },
         "account": "alice"
       }
@@ -2814,7 +2881,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-review-page.readHead",
-  "summary": "The head of a branch read as one commit and every file of it — what a write checks against and is planned on.",
+  "summary": "The head of a branch read as one commit, with every file of it the server lists — marked truncated where it lists the tree only in part (ARC-004) —: what a write checks against and is planned on.",
   "params": [
     { "name": "product", "type": "Product" },
     { "name": "branch", "type": "string" },
@@ -2869,6 +2936,39 @@ flowchart LR
           { "path": "docs/use-cases/UC-002-write-a-chapter.md", "blob": "1c630e7fb251f2ec88103812f9041c9edafc3c2a" }
         ]
       }
+    },
+    {
+      "name": "a head the server lists only in part",
+      "input": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "branch": "main",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [{ "path": "SPEC.md", "type": "blob", "sha": "94bea49343a82e2f1148dc91f52fb2d200a054ab" }],
+                "truncated": true
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "commit": "c100000000000000000000000000000000000000",
+        "tree": [{ "path": "SPEC.md", "blob": "94bea49343a82e2f1148dc91f52fb2d200a054ab" }],
+        "truncated": true
+      }
     }
   ]
 }
@@ -2909,6 +3009,7 @@ flowchart LR
     { "code": "no-authority", "when": "no authority is given" },
     { "code": "no-token", "when": "no token is stored for the product" },
     { "code": "moved", "when": "the branch moved on after the head read" },
+    { "code": "too-large", "when": "the server lists the head's tree only in part: no write is planned on it" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
     { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
@@ -3161,6 +3262,52 @@ flowchart LR
         "at": "2026-10-03T12:00:00.000Z"
       },
       "refused": "moved"
+    },
+    {
+      "name": "a head the server lists only in part",
+      "input": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "branch": "main",
+        "items": [
+          {
+            "kind": "use-case",
+            "id": "UC-002",
+            "path": "docs/use-cases/UC-002-write-a-chapter.md",
+            "blob": "1c630e7fb251f2ec88103812f9041c9edafc3c2a",
+            "changed": true,
+            "impactShown": false,
+            "requirements": ["NO SERVER"],
+            "requires": []
+          }
+        ],
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/use-cases/UC-002-write-a-chapter.md", "type": "blob", "sha": "1c630e7fb251f2ec88103812f9041c9edafc3c2a" }
+                ],
+                "truncated": true
+              }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "at": "2026-10-03T12:00:00.000Z"
+      },
+      "refused": "too-large"
     }
   ]
 }
@@ -3264,6 +3411,7 @@ flowchart LR
     { "code": "no-authority", "when": "no authority is given" },
     { "code": "no-token", "when": "no token is stored for the product" },
     { "code": "moved", "when": "the branch moved on after the head read" },
+    { "code": "too-large", "when": "the server lists the head's tree only in part: no write is planned on it" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
     { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
@@ -3394,6 +3542,41 @@ flowchart LR
         "authority": { "kind": "click" }
       },
       "refused": "identifier-changed"
+    },
+    {
+      "name": "a head the server lists only in part",
+      "input": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "branch": "main",
+        "file": { "path": "docs/use-cases/UC-002-write-a-chapter.md", "blob": "1c630e7fb251f2ec88103812f9041c9edafc3c2a", "id": "UC-002" },
+        "edited": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it with one click.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n",
+        "message": "edit UC-002",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/use-cases/UC-002-write-a-chapter.md", "type": "blob", "sha": "1c630e7fb251f2ec88103812f9041c9edafc3c2a" }
+                ],
+                "truncated": true
+              }
+            }
+          }
+        ],
+        "authority": { "kind": "click" }
+      },
+      "refused": "too-large"
     }
   ]
 }
@@ -3417,6 +3600,7 @@ flowchart LR
   "async": true,
   "refusals": [
     { "code": "changed-meanwhile", "when": "the section at the head is not the blob it was opened at" },
+    { "code": "too-large", "when": "the head is marked truncated: the server lists its tree only in part, and no edit is planned on it" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
     { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
@@ -3499,6 +3683,47 @@ flowchart LR
         },
         "others": ["2026-10-03_writing 01"]
       }
+    },
+    {
+      "name": "a head the server lists only in part",
+      "input": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "head": {
+          "commit": "c100000000000000000000000000000000000000",
+          "tree": [
+            { "path": "SPEC.md", "blob": "94bea49343a82e2f1148dc91f52fb2d200a054ab" },
+            { "path": "docs/approvals/ARC-001-42485189f621.md", "blob": "a730719e4a9cd327a60b4b336ee4587b480e43e7" },
+            { "path": "docs/approvals/UC-001-b9debf11cce6.md", "blob": "4880f13a598169f9a5338e1b0cf3968885da2805" },
+            { "path": "docs/approvals/UC-002-340895773e21.md", "blob": "c1bdc8edbcac92bc50f9329573ed989319c69061" },
+            { "path": "docs/architecture/ARC-001-static-pages.md", "blob": "07677c2c633221b6b139237cf96a2344bcaf138a" },
+            { "path": "docs/architecture/ARC-002-export.md", "blob": "0123fc84d43802d6e5a0a1c664efdaea63743db6" },
+            { "path": "docs/groups/requirements.md", "blob": "b7484692e6f4c0138d738411a830ef2a533392f0" },
+            { "path": "docs/groups/use-cases.md", "blob": "3306ac5e392de59f6d556f19b4c298c1997ea8cc" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/01-writing.begruendung.md", "blob": "3396500018033b3d7f3c7ada69734599bdb8af2f" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/01-writing.md", "blob": "0c262bc9099af066ff9a572409e212de4d17e943" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/entscheidungen.md", "blob": "fe7ef9a0c1a6aee7108374eb4a392e3bb048faf5" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/index.md", "blob": "91fb86d64e97a198e3ead61f3d061b5e3b24b46d" },
+            { "path": "docs/use-cases/UC-001-accept-a-chapter.md", "blob": "b9debf11cce66dfe31249380461a6f7fb3fb10ea" },
+            { "path": "docs/use-cases/UC-002-write-a-chapter.md", "blob": "1c630e7fb251f2ec88103812f9041c9edafc3c2a" },
+            { "path": "docs/use-cases/UC-003-export-a-chapter.md", "blob": "159ddc97b31591f90ccce7aac8bb7e310aeac8af" },
+            { "path": "src/pages/index.mjs", "blob": "003c2920ae59a0be65d173c5a52364326dec0f28" },
+            { "path": "tests/pages.test.mjs", "blob": "d34f4b944b0af3769f1423d9d4e4ed9fd257a784" }
+          ],
+          "truncated": true
+        },
+        "edit": {
+          "opened": { "target": "requirement", "path": "SPEC.md", "id": "ONE CLICK", "text": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n", "blob": "110555c78424b4615aad957f738cd8448376dc48", "anchor": "## 1. Writing", "bis": "" },
+          "edited": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click, from any page.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n",
+          "why": "A decision is taken where it is shown.",
+          "impact": ["UC-001"]
+        },
+        "account": "alice",
+        "date": "2026-10-03",
+        "token": "github_pat_example",
+        "fetch": [],
+        "texts": {}
+      },
+      "refused": "too-large"
     }
   ]
 }
@@ -3526,6 +3751,7 @@ flowchart LR
     { "code": "no-authority", "when": "no authority is given" },
     { "code": "no-token", "when": "no token is stored for the product" },
     { "code": "moved", "when": "the branch moved on after the head read" },
+    { "code": "too-large", "when": "the server lists the head's tree only in part: no write is planned on it" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "rate-limited-account", "when": "the account's rate limit is used up" },
     { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
@@ -3690,6 +3916,45 @@ flowchart LR
         "authority": { "kind": "click" }
       },
       "refused": "changed-meanwhile"
+    },
+    {
+      "name": "a head the server lists only in part",
+      "input": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "branch": "main",
+        "edit": {
+          "opened": { "target": "requirement", "path": "SPEC.md", "id": "ONE CLICK", "text": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n", "blob": "110555c78424b4615aad957f738cd8448376dc48", "anchor": "## 1. Writing", "bis": "" },
+          "edited": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click, from any page.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n",
+          "why": "A decision is taken where it is shown.",
+          "impact": ["UC-001"]
+        },
+        "account": "alice",
+        "date": "2026-10-03",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [{ "path": "SPEC.md", "type": "blob", "sha": "94bea49343a82e2f1148dc91f52fb2d200a054ab" }],
+                "truncated": true
+              }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" }
+      },
+      "refused": "too-large"
     }
   ]
 }
@@ -3707,7 +3972,10 @@ flowchart LR
   ],
   "result": "FileLink[]",
   "async": false,
-  "refusals": [{ "code": "not-github", "when": "the product is not on GitHub: without a token there is no saving" }],
+  "refusals": [
+    { "code": "too-large", "when": "the head is marked truncated: a file the server does not list would be offered as new" },
+    { "code": "not-github", "when": "the product is not on GitHub: without a token there is no saving" }
+  ],
   "examples": [
     {
       "name": "an edited use case and a new group file",
@@ -3764,6 +4032,40 @@ flowchart LR
         ]
       },
       "refused": "not-github"
+    },
+    {
+      "name": "a head the server lists only in part",
+      "input": {
+        "product": { "kind": "github", "address": "https://github.com/alice/thesis", "host": "github.com", "server": "https://github.com", "repo": "alice/thesis" },
+        "branch": "main",
+        "head": {
+          "commit": "c100000000000000000000000000000000000000",
+          "tree": [
+            { "path": "SPEC.md", "blob": "94bea49343a82e2f1148dc91f52fb2d200a054ab" },
+            { "path": "docs/approvals/ARC-001-42485189f621.md", "blob": "a730719e4a9cd327a60b4b336ee4587b480e43e7" },
+            { "path": "docs/approvals/UC-001-b9debf11cce6.md", "blob": "4880f13a598169f9a5338e1b0cf3968885da2805" },
+            { "path": "docs/approvals/UC-002-340895773e21.md", "blob": "c1bdc8edbcac92bc50f9329573ed989319c69061" },
+            { "path": "docs/architecture/ARC-001-static-pages.md", "blob": "07677c2c633221b6b139237cf96a2344bcaf138a" },
+            { "path": "docs/architecture/ARC-002-export.md", "blob": "0123fc84d43802d6e5a0a1c664efdaea63743db6" },
+            { "path": "docs/groups/requirements.md", "blob": "b7484692e6f4c0138d738411a830ef2a533392f0" },
+            { "path": "docs/groups/use-cases.md", "blob": "3306ac5e392de59f6d556f19b4c298c1997ea8cc" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/01-writing.begruendung.md", "blob": "3396500018033b3d7f3c7ada69734599bdb8af2f" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/01-writing.md", "blob": "0c262bc9099af066ff9a572409e212de4d17e943" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/entscheidungen.md", "blob": "fe7ef9a0c1a6aee7108374eb4a392e3bb048faf5" },
+            { "path": "docs/spec-freigaben/2026-10-03_writing/index.md", "blob": "91fb86d64e97a198e3ead61f3d061b5e3b24b46d" },
+            { "path": "docs/use-cases/UC-001-accept-a-chapter.md", "blob": "b9debf11cce66dfe31249380461a6f7fb3fb10ea" },
+            { "path": "docs/use-cases/UC-002-write-a-chapter.md", "blob": "1c630e7fb251f2ec88103812f9041c9edafc3c2a" },
+            { "path": "docs/use-cases/UC-003-export-a-chapter.md", "blob": "159ddc97b31591f90ccce7aac8bb7e310aeac8af" },
+            { "path": "src/pages/index.mjs", "blob": "003c2920ae59a0be65d173c5a52364326dec0f28" },
+            { "path": "tests/pages.test.mjs", "blob": "d34f4b944b0af3769f1423d9d4e4ed9fd257a784" }
+          ],
+          "truncated": true
+        },
+        "edits": [
+          { "path": "docs/use-cases/UC-002-write-a-chapter.md", "blob": "1c630e7fb251f2ec88103812f9041c9edafc3c2a", "text": "---\nid: UC-002\ntitle: Write a chapter\narea: writing\nactors:\n  - Author\nrealises:\n  - NO SERVER\n---\n# UC-002 Write a chapter\n\n## Actors\n\n- **Author** — writes.\n\n## Precondition\n\n- The repository exists.\n\n## Main flow\n\n1. The author writes the chapter in the editor.\n2. The author saves it with one click.\n\n## Alternative flows\n\n- **1a. No token.** GitHub's page opens.\n\n## Postcondition\n\n- The chapter is saved.\n" }
+        ]
+      },
+      "refused": "too-large"
     }
   ]
 }
@@ -4782,7 +5084,7 @@ flowchart LR
 ```json type
 {
   "$id": "Opened",
-  "description": "A repository read at one commit: the product, its default branch, the ref read, the commit with every file, and the account the token acts as, empty without one.",
+  "description": "A repository read at one commit: the product, its default branch, the ref read, the commit with every file the server lists — marked truncated where it lists the tree only in part —, and the account the token acts as, empty without one.",
   "type": "object",
   "required": ["product", "branch", "ref", "snapshot", "account"],
   "additionalProperties": false,

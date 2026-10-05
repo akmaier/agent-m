@@ -1,6 +1,6 @@
 ---
 id: ARC-002
-title: Plain ES modules without a build step, and three vendored libraries for Markdown, sanitising and Mermaid
+title: Plain ES modules without a build step, and five vendored libraries — for Markdown, sanitising, Mermaid, a PDF's text and zip archives
 forced_by:
   - NO SERVER
   - ARTIFACTS ARE MARKDOWN
@@ -11,11 +11,12 @@ forced_by:
   - AGENT M IS MIT-LICENSED
   - THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE
   - AGENT M'S SOURCE CODE LIVES IN SRC
+  - A SOURCE IS FILES, AN ARCHIVE OR A REPOSITORY
 keeps:
   - AGENT M IS MIT-LICENSED
   - THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE
 ---
-# ARC-002 Plain ES modules without a build step, and three vendored libraries
+# ARC-002 Plain ES modules without a build step, and five vendored libraries
 
 ## Context
 
@@ -24,20 +25,28 @@ files (ARC-001) and read by readers of a book who fork Agent M and may change it
 `node --test` in CI and be compiled into the bridge with Deno.
 
 Rendering untrusted Markdown into a page that holds tokens in `localStorage` needs an HTML sanitiser; a Markdown parser
-and the Mermaid renderer are needed because artifacts are Markdown and their diagrams Mermaid. No CDN may serve code to
-the page.
+and the Mermaid renderer are needed because artifacts are Markdown and their diagrams Mermaid. The text of a source
+version kept as PDF, Word or zip files is read from their bytes in the browser, in CI and in the bridge (ARC-036): a PDF
+needs a reader of its own, and a zip archive — and a Word file, a zip package itself — a reader of its members. No CDN may
+serve code to the page.
 
 ## Decision
 
 1. **No build step.** Agent M is plain ECMAScript modules (`.mjs`) under `src/`, loaded by the browser as they are in
    the repository, imported unchanged by `node --test` and by the bridge's Deno entry point. No bundler, no transpiler,
    no package manager at run time. Book ch. 10 §3: KISS — a fork's owner can read and change what runs.
-2. **Three libraries, vendored** in `src/vendor/`, copied unchanged from the npm registry with their licence files; the
+2. **Five libraries, vendored** in `src/vendor/`, copied unchanged from the npm registry with their licence files; the
    table in `src/vendor/README.md` names package, version and licence. Updating one is a pull request that replaces the
    file and its table row.
    - `marked` — Markdown to HTML;
    - `dompurify` — every HTML string from Markdown passes `DOMPurify.sanitize` before it reaches the DOM;
-   - `mermaid` — renders diagrams, with `securityLevel: "strict"`.
+   - `mermaid` — renders diagrams, with `securityLevel: "strict"`;
+   - `pdfjs-dist` — a PDF's text: its legacy build's `pdf.min.mjs` and `pdf.worker.min.mjs`, the worker's code run in the
+     thread of the module that reads the text (ARC-036);
+   - `fflate` — the members of a zip archive and the parts of a Word file: `esm/browser.js`, kept as `fflate.browser.mjs`
+     (ARC-036).
+
+   The due diligence of the first three follows; that of `pdfjs-dist` and `fflate` stands in ARC-036, which chose them.
 3. **Agent M's licence is MIT**, stated in `LICENSE` at the root of the repository. A library is vendored only under a
    licence compatible with it — one that permits redistribution in an MIT project with its notice kept —, and its
    licence file lies beside it in `src/vendor/`.
@@ -77,7 +86,8 @@ project with its notice kept.
 ## Consequences
 
 - `mermaid.min.js` is the largest file of the site and loads on every page; loading it on the first diagram is an
-  implementation option.
+  implementation option. pdf.js's two files, 1.85 MB, load on the first PDF whose text is read, and the bridge's build
+  includes them: `deno compile` includes a dynamic import whose specifier is a string literal (ARC-036).
 - Mermaid has many open issues; a diagram that fails to render is shown with the error beside its source.
 - Updating a library is a deliberate pull request with CI; nothing changes under the reader.
 - The licence files travel with the vendored files; the README table is the product's own record of reuse and is kept in

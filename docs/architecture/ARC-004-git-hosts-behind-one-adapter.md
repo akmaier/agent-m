@@ -34,6 +34,7 @@ forced_by:
   - UC-041
   - UC-004
   - UC-016
+  - UC-005
 keeps:
   - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
 ---
@@ -62,12 +63,23 @@ different causes — a token that has expired, a permission it lacks, a rate lim
    is the head the caller read, and an update of the branch with `force: false`. A file of bytes is first written as a
    blob, its content base64 — "Currently, "utf-8" and "base64" are supported" (`https://docs.github.com/en/rest/git/blobs`)
    —, and enters the tree by its `sha`: "Use either tree.sha or content to specify the contents of the entry"
-   (`https://docs.github.com/en/rest/git/trees`).
+   (`https://docs.github.com/en/rest/git/trees`). A commit's tree is read whole, every file with its blob
+   (`MOD-git-host.readSnapshot`), and the snapshot says where the answer lists it only in part (`truncated`): "If
+   truncated is true in the response then the number of items in the tree array exceeded our maximum limit", and "The
+   limit for the tree array is 100,000 entries with a maximum size of 7 MB when using the recursive parameter" (the same
+   page). A file's bytes are read as its blob, which the API answers "with content as a base64 encoded string",
+   supporting "blobs up to 100 megabytes in size" (`https://docs.github.com/en/rest/git/blobs`) — a JSON answer, which the
+   fetch port carries —, and are checked to hash to the blob (`MOD-git-host.readBlobBytes`).
 4. **GitLab** is read and written through the REST API v4 of the server in the product's address, under that project's
    path only. A write is one `POST …/repository/commits` with one action per file, each existing file with
    `last_commit_id` set to the head the caller read, after the branch was read again and found still at that head; a
    file of bytes is an action whose `encoding` is `base64` — "`text` or `base64`. `text` is default."
-   (`https://docs.gitlab.com/api/commits/`).
+   (`https://docs.gitlab.com/api/commits/`). A commit's tree is read a hundred entries to a page, at most 100 000 entries,
+   the bound GitHub sets; beyond, the snapshot says it lists the tree only in part (`truncated`). A file's bytes are read
+   through `GET /projects/:id/repository/blobs/:sha`, whose `content` is "Base64 encoded blob content" — "For text files
+   not stored as valid UTF-8 in Git (such as UTF-16 or `ISO-8859-1`), `content` is converted to UTF-8 before Base64
+   encoding", which the check of the blob's hash refuses (`https://docs.gitlab.com/api/repositories/`;
+   `MOD-git-host.readBlobBytes`).
 5. **A token goes only to its own API**, as a header the adapter builds: a GitHub token as `Authorization: Bearer` to
    `https://api.github.com`, a GitLab project token as `PRIVATE-TOKEN` to `<server>/api/v4/projects/<this project>` and
    to `<server>/api/v4/user`, which names the account it acts as, and nowhere else; a request whose URL holds the token
@@ -188,9 +200,37 @@ flowchart LR
   two requests and then only the files it shows.
 - On GitLab a file that a write only read — and did not write — can change between the head check and the commit; the
   head check narrows the gap, it does not close it.
+- **A tree read in part.** A tree beyond the server's bound — on GitHub 100 000 entries or 7 MB, on GitLab 100 000
+  entries — is read in part, and its snapshot says so (`truncated`). What the callers of `MOD-git-host.readSnapshot` do
+  with it:
+  - `MOD-review-page.open` and `MOD-review-page.readHead` give it on with the mark (ARC-022); the review page shows the
+    files listed under a notice, and none of its writes is made on such a head (`too-large`);
+  - the library page, its fetch workflow and the text of a source refuse it (`too-large`; ARC-032, ARC-036) — and so
+    does `MOD-library-page.versionTexts`, through which a derivation reads a version (ARC-035);
+  - every other caller computes what it shows, decides or writes from the files listed and does not look at the mark;
+    how it handles a tree listed in part is designed nowhere yet. Through `MOD-review-page.open`: the main page
+    (`MOD-main-page.readProduct`, ARC-024) and the engine on CI, which reads a product through it (`MOD-ci-entry.engine`,
+    ARC-015), the settings page (`MOD-settings-page.readConfig`, `MOD-settings-page.filesNaming`, ARC-026), the tests
+    pages (`MOD-tests-page.readTests`, `MOD-tests-page.readNames`, `MOD-tests-page.readAudit`, ARC-028) and the resources
+    page (`MOD-resources-page.readResources`, ARC-034). Through `MOD-review-page.readHead`: the main page's writes and
+    starts (`MOD-main-page.commitChange`, `MOD-main-page.runOnCi`, `MOD-main-page.runOnBridge`), the settings page's
+    saves (`MOD-settings-page.saveConfig`, `MOD-settings-page.savePseudonymisation`,
+    `MOD-settings-page.saveCollaborators`), the tests pages' acceptance of a release, its audit and tag
+    (`MOD-tests-page.acceptRelease`, `MOD-tests-page.readAudit`, `MOD-tests-page.commitAudit`,
+    `MOD-tests-page.tagRelease`) and the resources page's save (`MOD-resources-page.saveResources`). Reading
+    `readSnapshot` themselves: the tests pages' records and release (`MOD-tests-page.readRecords`,
+    `MOD-tests-page.acceptRelease`), the job steps' outcomes and gates (`MOD-job-steps.startStep`,
+    `MOD-job-steps.observeStep`, `MOD-job-steps.doneCheck`, ARC-029), the setup page, which writes the files of the
+    review layout the listed tree lacks (`MOD-setup-page.addProduct`, ARC-033), and the resources page's check of a
+    repository, which looks for its licence file among the files listed (`MOD-resources-page.readRepository`,
+    `MOD-resources-page.checkResource`, ARC-034).
+- A file's bytes cross the fetch port as base64 in JSON, a third more than the file. On GitLab, "For blobs larger than
+  10 MB, this endpoint has a rate limit of 5 requests per minute" (`https://docs.gitlab.com/api/repositories/`): a sixth
+  such blob within a minute meets that limit.
 - No use-case step is realised here. The steps of UC-024, UC-035, UC-036 and UC-041 that read pull requests and CI or
   merge, start and cancel are actions on the dashboard's pages and in the runtimes; they are realised where those are
-  designed, by their interfaces together with these.
+  designed, by their interfaces together with these — as the reading of a source's files by their bytes is, in the
+  passages of a move (UC-016 4, ARC-032) and in a derivation (UC-005).
 
 ## Modules
 
@@ -441,7 +481,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-git-host.readSnapshot",
-  "summary": "A branch, tag or commit resolved to one commit, and every file of that commit with its blob SHA.",
+  "summary": "A branch, tag or commit resolved to one commit, and every file of that commit with its blob SHA — marked truncated where the server lists the tree only in part.",
   "params": [
     { "name": "product", "type": "Product" },
     { "name": "ref", "type": "string" },
@@ -566,6 +606,44 @@ flowchart LR
         ]
       },
       "refused": "rate-limited-account"
+    },
+    {
+      "name": "a tree GitHub lists only in part",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "ref": "main",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/main" },
+            "response": { "status": 200, "body": { "sha": "c000000000000000000000000000000000000000" } }
+          },
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/trees/c000000000000000000000000000000000000000?recursive=1"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [{ "path": "SPEC.md", "type": "blob", "sha": "f500000000000000000000000000000000000000" }],
+                "truncated": true
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "commit": "c000000000000000000000000000000000000000",
+        "tree": [{ "path": "SPEC.md", "blob": "f500000000000000000000000000000000000000" }],
+        "truncated": true
+      }
     }
   ]
 }
@@ -764,6 +842,159 @@ flowchart LR
         ]
       },
       "refused": "wrong-text"
+    }
+  ]
+}
+```
+
+```json interface
+{
+  "id": "MOD-git-host.readBlobBytes",
+  "summary": "A file's bytes by their blob SHA, base64-encoded as the server's API answers a blob in JSON — GitHub's git blob, GitLab's blob of the repository API —, checked to hash to the blob.",
+  "params": [
+    { "name": "product", "type": "Product" },
+    { "name": "blob", "type": "string" },
+    { "name": "token", "type": "string" },
+    { "name": "fetch", "type": "FetchPort" }
+  ],
+  "result": "string",
+  "async": true,
+  "refusals": [
+    { "code": "not-a-blob", "when": "the blob is no SHA" },
+    {
+      "code": "wrong-bytes",
+      "when": "the bytes read do not hash to the blob — among them a text file GitLab converted to UTF-8"
+    },
+    {
+      "code": "token-refused",
+      "when": "the server answers 401: the token has expired, or was regenerated, rotated or revoked"
+    },
+    {
+      "code": "rate-limited-account",
+      "when": "the account's rate limit is used up; the reason names when it resets, where the server says"
+    },
+    { "code": "rate-limited-network", "when": "the network's rate limit for requests without a token is used up" },
+    {
+      "code": "no-access",
+      "when": "the server answers 403 for another reason: the token lacks the permission or the repository"
+    },
+    { "code": "not-found", "when": "the server answers 404" },
+    { "code": "server-error", "when": "the server answers with another error, or with no base64 content" },
+    { "code": "unreachable", "when": "no answer arrives" },
+    { "code": "credential-in-url", "when": "the URL of a request would hold the token; nothing is sent" }
+  ],
+  "examples": [
+    {
+      "name": "a PDF's bytes on GitHub",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "blob": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/blobs/195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea",
+                "size": 27,
+                "encoding": "base64",
+                "content": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk\n"
+              }
+            }
+          }
+        ]
+      },
+      "result": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk"
+    },
+    {
+      "name": "a PDF's bytes on a GitLab server",
+      "input": {
+        "product": {
+          "kind": "gitlab",
+          "address": "https://gitlab.example.org/group/tools/thesis",
+          "host": "gitlab.example.org",
+          "server": "https://gitlab.example.org",
+          "repo": "group/tools/thesis"
+        },
+        "blob": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea",
+        "token": "glpat-example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://gitlab.example.org/api/v4/projects/group%2Ftools%2Fthesis/repository/blobs/195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "size": 27,
+                "encoding": "base64",
+                "content": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk",
+                "sha": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea"
+              }
+            }
+          }
+        ]
+      },
+      "result": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk"
+    },
+    {
+      "name": "bytes that do not hash to the blob",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "blob": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea",
+        "token": "github_pat_example",
+        "fetch": [
+          {
+            "request": {
+              "method": "GET",
+              "url": "https://api.github.com/repos/alice/thesis/git/blobs/195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea"
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "sha": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea",
+                "size": 21,
+                "encoding": "base64",
+                "content": "JVBERi0xLjcgYW5vdGhlciB0ZXh0"
+              }
+            }
+          }
+        ]
+      },
+      "refused": "wrong-bytes"
+    },
+    {
+      "name": "no blob SHA",
+      "input": {
+        "product": {
+          "kind": "github",
+          "address": "https://github.com/alice/thesis",
+          "host": "github.com",
+          "server": "https://github.com",
+          "repo": "alice/thesis"
+        },
+        "blob": "main",
+        "token": "github_pat_example",
+        "fetch": []
+      },
+      "refused": "not-a-blob"
     }
   ]
 }
@@ -2803,7 +3034,7 @@ flowchart LR
               "url": "https://api.github.com/repos/alice/thesis/git/blobs",
               "body": { "content": "JVBERi0xLjcgdGhlIGFjdCBhcyBmZXRjaGVk", "encoding": "base64" }
             },
-            "response": { "status": 201, "body": { "sha": "c700000000000000000000000000000000000000" } }
+            "response": { "status": 201, "body": { "sha": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea" } }
           },
           {
             "request": {
@@ -2822,7 +3053,7 @@ flowchart LR
                     "path": "docs/sources/SRC-ai-act/1/32024R1689.pdf",
                     "mode": "100644",
                     "type": "blob",
-                    "sha": "c700000000000000000000000000000000000000"
+                    "sha": "195d7e8ed2d31fdad2ab3c5cf2da1e3b726008ea"
                   }
                 ]
               }
@@ -6773,18 +7004,24 @@ flowchart LR
 ```json type
 {
   "$id": "Snapshot",
-  "description": "One commit and every file of it.",
+  "description": "One commit and every file of it — or, marked truncated, the files the server lists of a tree it lists only in part.",
   "type": "object",
   "required": ["commit", "tree"],
   "additionalProperties": false,
   "properties": {
     "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "tree": { "type": "array", "items": { "$ref": "TreeEntry" } }
+    "tree": { "type": "array", "items": { "$ref": "TreeEntry" } },
+    "truncated": { "type": "boolean", "const": true }
   },
   "examples": [
     {
       "commit": "c000000000000000000000000000000000000000",
       "tree": [{ "path": "SPEC.md", "blob": "f500000000000000000000000000000000000000" }]
+    },
+    {
+      "commit": "c000000000000000000000000000000000000000",
+      "tree": [{ "path": "SPEC.md", "blob": "f500000000000000000000000000000000000000" }],
+      "truncated": true
     }
   ]
 }
