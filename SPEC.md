@@ -321,7 +321,8 @@ neither blocks a run.
 ## 5. Process models and practices
 
 **THE PROCESS MODEL IS DECLARED PER PRODUCT** *(PO A. Maier)*
-Each managed product declares exactly one process model; Agent M does not assume a default.
+Each managed product declares exactly one process model before its implementation starts; Agent M does not assume a
+default.
 *Check:* `tests/test_model_declared.py`
 
 **THE CATALOGUE IS DATA** *(PO A. Maier)*
@@ -835,6 +836,35 @@ The GitHub Pages site of an Agent M instance is served from the root of its defa
 The page at the root of the instance's Pages site is the dashboard of what goes on in the instance — the progress
 of each product and every job.
 *Check:* `tests/test_main_page.py`
+
+**THE MENU FOLLOWS THE PROCESS** *(PO A. Maier)*
+The menu of the instance's site lists the requirements, the use cases, the architecture, the implementation, the tests and
+the releases in this order, followed by the maintenance — issues and mail — and the settings.
+*Check:* `tests/test_main_page.py` — the menu's entries stand in this order; counter-proof: a menu with two stages swapped
+fails.
+
+**THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE** *(PO A. Maier)*
+The main page shows each product's progress as one bar of six stages — requirements, use cases, architecture,
+implementation, tests, release —, each filled by the share of its work that is accepted or done.
+*Check:* `tests/test_main_page.py` — a fixture product with three of its four use cases accepted shows its use-case stage
+at 75 %; counter-proof: with all four accepted, at 100 %.
+
+**WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS** *(PO A. Maier)*
+While the instance manages no product, the main page shows Agent M's own progress in the same bar, which is full once
+Agent M's first release is tagged.
+*Check:* `tests/test_main_page.py` — without a product the bar shows Agent M; counter-proof: with one product, the
+product.
+
+**THE BUILD IS SHOWN AS IT HAPPENS** *(PO A. Maier)*
+While a product is implemented, the main page shows the steps of its implementation plan or its backlog items that are in
+progress, each with the job working on it.
+*Check:* `tests/test_main_page.py` — a fixture product with a running job shows the job beside its step; counter-proof:
+once the job has ended, the step shows done.
+
+**THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK** *(PO A. Maier)*
+The instance's site uses the colours of the FAU's Faculty of Engineering as lme.tf.fau.de shows them — FAU blue
+`#04316a`, dark blue `#041e42`, metallic `#8c9fb1` — and the logo of the Pattern Recognition Lab.
+*Check:* no automatic check; at review.
 
 **DOCUMENTS ARE REVIEWED AND EDITED UNDER DOCS** *(PO A. Maier)*
 Documents are reviewed and edited on the page under `docs/` of the instance's Pages site.
