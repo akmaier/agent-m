@@ -4,16 +4,19 @@
 repository servers of the instance and its products, the mail provider's API and sign-in, the local bridge, the jump
 host's HTTPS address, and the package registries and resource hosts the page names before it calls them.
 
-The built site is what Pages serves from docs/ and a browser runs. There is no build step (ARC-002), so it is the
-tracked files under docs/: the page, its style sheets, its modules, the vendored libraries, and the Markdown files the
-dashboard renders. Three checks:
+The built site is what Pages serves from the root of the repository (THE PAGES ROOT IS THE REPOSITORY ROOT) and a browser
+runs. There is no build step, so it is the tracked files of the site: the main page index.html at the root, src/ with its
+modules, style sheets and the lab's logo, and docs/ with the review pages, their modules, the vendored libraries, and the
+Markdown files the review pages render — besides docs/, the root's README.md and PLAN.md; the SPEC is read by no test
+on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
 
 1. Every address written into the site's own code names a permitted host. Configured endpoints, the GitLab servers of
    products and the jump host come from the settings or from a product's address and are never written into the code,
    so the hosts that may stand there literally are GitHub's (the repository server of the instance and of GitHub
    products; github.com itself is navigation to GitHub's own pages), Microsoft Graph and its sign-in (the mail
-   provider), and the loopback names of the local bridge. A package registry or resource host enters this list
-   together with the notice that names it before it is called.
+   provider), the loopback names of the local bridge, and the two pages the site only links to — the lab's and the
+   book's —, which no channel of check 2 may call. A package registry or resource host enters this list together with
+   the notice that names it before it is called.
 2. A request leaves the page only through a known channel, in the own code and in the vendored libraries alike: the git
    host's request helper, whose origin gate admits only the instance's own origin, GitHub's API and raw hosts and the
    product's own GitLab project (`prepare` in git-host.mjs, tested in tests/review-core.d/git-host.test.mjs); the
@@ -45,6 +48,8 @@ PERMITTED_HOSTS = {
     "graph.microsoft.com", "login.microsoftonline.com",
     # The local bridge, on this machine or at the near end of a tunnel's forward.
     "localhost", "127.0.0.1", "[::1]",
+    # Navigation only, never called: the Pattern Recognition Lab and the book, linked from the main page's footer.
+    "lme.tf.fau.de", "link.springer.com",
 }
 
 ADDRESS = re.compile(r"\b(?:https?|wss?)://(\[[0-9a-f:]+\]|[a-z0-9.-]+)", re.I)
@@ -93,8 +98,12 @@ PERMITTED_CHANNELS = {
 }
 
 
-def tracked(prefix: str = "docs") -> list[str]:
-    out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", prefix], capture_output=True, text=True, check=True).stdout
+SITE = ("index.html", "src", "docs", "README.md", "PLAN.md")
+
+
+def tracked(*paths: str) -> list[str]:
+    out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", *(paths or SITE)], capture_output=True, text=True,
+                         check=True).stdout
     return [f for f in out.split("\0") if f and (ROOT / f).is_file()]
 
 
@@ -149,7 +158,8 @@ class NoServer(unittest.TestCase):
 
     def test_the_site_has_code_to_check(self):
         # A scan that finds no file proves nothing: the page, the dashboard's modules and the vendored libraries are there.
-        for f in ("docs/index.html", "docs/assets/dashboard-app.mjs", "docs/assets/git-host.mjs", "docs/assets/vendor/mermaid.min.js"):
+        for f in ("index.html", "src/home/home.mjs", "docs/index.html", "docs/assets/dashboard-app.mjs", "docs/assets/git-host.mjs",
+                  "docs/assets/vendor/mermaid.min.js"):
             self.assertIn(f, self.files)
 
     def test_every_address_in_the_own_code_names_a_permitted_host(self):

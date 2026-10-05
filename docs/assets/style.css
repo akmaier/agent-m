@@ -1,42 +1,15 @@
 /* Module: MOD-dashboard-app */
-:root {
-  --bg: #fbfbfa; --fg: #1d1f21; --muted: #666a70; --line: #e2e2de; --panel: #ffffff;
-  --accent: #2455c3; --accent-fg: #ffffff; --code: #f2f2ef;
-  --ok: #1a7f37; --ok-bg: #dafbe1; --warn: #9a6700; --warn-bg: #fff4d6; --bad: #b42318; --bad-bg: #fde8e7;
-  --open: #57606a; --open-bg: #eef0f2; --add: #dafbe1; --del: #ffe4e1;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-:root:not([data-theme="light"]) { color-scheme: light dark; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #15171a; --fg: #e6e6e3; --muted: #9ba1a8; --line: #2c3036; --panel: #1c1f23;
-    --accent: #7aa2ff; --accent-fg: #0d1117; --code: #23272d;
-    --ok: #56d364; --ok-bg: #12301b; --warn: #e3b341; --warn-bg: #33280e; --bad: #ff7b72; --bad-bg: #3a1614;
-    --open: #b1b8c0; --open-bg: #2a2f36; --add: #12301b; --del: #3a1614;
-  }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.55; }
-a { color: var(--accent); }
+/* The colours, the font, the header with the menu and the footer are the site's: src/theme/lme.css, linked before this file.
+   What follows are the review pages' own parts. */
 code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
 code { background: var(--code); padding: .1em .35em; border-radius: 4px; }
 pre { background: var(--code); padding: .8em 1em; border-radius: 6px; overflow-x: auto; }
 pre code { background: none; padding: 0; }
 
-.top { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
-  padding: .7rem 16px 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1.5rem; }
-.brand { display: flex; gap: .75rem; align-items: center; }
-.logo { width: 2.2rem; height: 2.2rem; border-radius: 8px; background: var(--accent); color: var(--accent-fg);
-  display: grid; place-items: center; font-weight: 800; font-size: 1.25rem; }
-h1 { font-size: 1.15rem; margin: 0; }
-h1 .sub { color: var(--muted); font-weight: 500; }
-.repo { margin: 0; font-size: .82rem; color: var(--muted); }
-.tabs { display: flex; gap: .25rem; align-self: flex-end; flex-wrap: wrap; }
-.tabs a { padding: .55rem .8rem; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; }
-.tabs a.active { color: var(--fg); border-color: var(--accent); font-weight: 600; }
+.header-tools .repo { font-size: .82rem; overflow-wrap: anywhere; }
+.header-tools .help { font-size: .88rem; white-space: nowrap; }
 
 main { max-width: 1240px; margin: 0 auto; padding: 1.2rem 16px 3rem; }
-.foot { max-width: 1240px; margin: 0 auto; padding: 0 16px 2rem; color: var(--muted); font-size: .82rem; }
 .head h2 { margin: .2rem 0 .3rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .meta, .muted { color: var(--muted); }
 .small { font-size: .85em; }

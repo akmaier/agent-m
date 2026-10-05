@@ -1,0 +1,87 @@
+/* The main page (index.html at the root of the site): the greeting, the cards of the products — or of Agent M itself — with
+   their bars of six stages and the build, and what waits for a person. The colours are the theme's (src/theme/lme.css). */
+
+.hero { background: linear-gradient(120deg, var(--fau-blue) 0%, var(--fau-dark) 100%); color: #ffffff; }
+.hero .inner { max-width: 1240px; margin: 0 auto; padding: 40px 16px 44px; display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px 40px; align-items: center; }
+.hero h1 { margin: 0 0 .35rem; color: #ffffff; font-size: clamp(2rem, 4.5vw, 2.9rem); letter-spacing: -.01em; }
+.hero .lead { margin: 0 0 .9rem; max-width: 46rem; color: var(--metallic-25); font-size: 1.15rem; }
+.hero .first { margin: 0 0 1.1rem; max-width: 46rem; color: var(--metallic-37); }
+.hero .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero .btn { background: transparent; border-color: rgba(255, 255, 255, .55); color: #ffffff; }
+.hero .btn:hover { border-color: #ffffff; background: rgba(255, 255, 255, .08); }
+.hero .btn.primary { background: #ffffff; border-color: #ffffff; color: var(--fau-blue); }
+.hero .btn.primary:hover { background: var(--metallic-12); }
+.hero .sign { width: 150px; height: auto; opacity: .95; }
+.hero details { margin-top: 1.1rem; max-width: 46rem; color: var(--metallic-25); }
+.hero summary { cursor: pointer; color: #ffffff; font-weight: 600; }
+.hero details > div { margin-top: .5rem; padding: .8rem 1rem; border-left: 3px solid var(--tf-metallic); background: rgba(255, 255, 255, .06); }
+.hero details p { margin: .3rem 0; }
+@media (max-width: 760px) { .hero .inner { grid-template-columns: 1fr; padding: 28px 16px 32px; } .hero .sign { display: none; } }
+
+main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 0; }
+main > section > h2 { margin: 32px 0 14px; font-size: 1.35rem; }
+main > section > h2 small { margin-left: .5rem; color: var(--muted); font-size: .9rem; font-weight: 500; }
+
+.cards { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+.card { padding: 18px 20px 20px; border: 1px solid var(--line); border-top: 4px solid var(--fau-blue); border-radius: 4px;
+  background: var(--panel); box-shadow: 0 1px 2px rgba(4, 30, 66, .06); min-width: 0; }
+.card.is-error { border-top-color: var(--bad); }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 14px; }
+.card-head h2 { margin: 0; font-size: 1.3rem; }
+.card-repo { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.card-model { margin: .25rem 0 0; color: var(--muted); font-size: .92rem; }
+.card .warn { color: var(--bad); }
+.card-add { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; padding: 14px 20px;
+  border-top-color: var(--tf-metallic); }
+.card-add h2 { margin: 0 0 2px; font-size: 1.1rem; }
+.card-add p { margin: 0; color: var(--muted); }
+.card-add .btn { white-space: nowrap; }
+
+.journey p { margin: .7rem 0 .45rem; }
+.journey strong { color: var(--accent); font-size: 1.7rem; }
+.meter { height: 14px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.meter span { display: block; height: 100%; width: calc(var(--share) * 100%); border-radius: 999px;
+  background: linear-gradient(90deg, var(--fau-blue), var(--blue-62)); }
+
+/* The bar of six stages: each stage a box filled from below by its share; the stage the product is in is outlined. */
+.stages { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px;
+  counter-reset: stage; }
+.stage { counter-increment: stage; min-width: 0; }
+.stage-head { position: relative; display: block; min-height: 66px; padding: 8px 9px 13px; overflow: hidden; border-radius: 4px;
+  background: var(--metallic-12); color: var(--heading); text-decoration: none; }
+a.stage-head:hover { background: var(--metallic-25); }
+.stage-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--track); }
+.stage-fill { position: absolute; left: 0; bottom: 0; z-index: 1; height: 6px; width: calc(var(--share) * 100%); background: var(--fau-blue); }
+.stage-name { display: block; font-size: .82rem; font-weight: 700; hyphens: auto; }
+.stage-name::before { content: counter(stage) " · "; color: var(--muted); }
+.stage-share { display: block; margin-top: 2px; color: var(--fau-blue); font-size: 1.35rem; font-weight: 700; }
+.stage.is-current .stage-head { background: var(--panel); box-shadow: inset 0 0 0 2px var(--fau-blue); }
+.stage.is-unknown .stage-share { color: var(--muted); }
+.stage-detail { display: block; margin-top: 5px; color: var(--muted); font-size: .78rem; line-height: 1.3; overflow-wrap: anywhere; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .stage-head { background: #102847; }
+  :root:not([data-theme="light"]) a.stage-head:hover { background: #163257; }
+  :root:not([data-theme="light"]) .stage-share { color: var(--accent); }
+  :root:not([data-theme="light"]) .stage-fill { background: var(--accent); }
+  :root:not([data-theme="light"]) .stage.is-current .stage-head { box-shadow: inset 0 0 0 2px var(--accent); }
+}
+@media (max-width: 760px) { .stages { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.build { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); }
+.build h3 { margin: 0 0 4px; color: var(--muted); font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; }
+.build ul { list-style: none; margin: 0; padding: 0; }
+.build-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.build-row:last-child { border-bottom: none; }
+.build-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; font-weight: 600; }
+.build-job { width: 100%; color: var(--muted); font-size: .85rem; }
+.badge { display: inline-block; padding: .05rem .5rem; border-radius: 999px; font-size: .74rem; font-weight: 700; white-space: nowrap; }
+.b-in-progress { background: var(--blue-12); color: var(--fau-blue); }
+.b-done { background: var(--ok-bg); color: var(--ok); }
+.b-blocked { background: var(--bad-bg); color: var(--bad); }
+
+.waits { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.waits li { padding: 10px 14px; border: 1px solid var(--line); border-left: 4px solid var(--tf-metallic); border-radius: 4px; background: var(--panel); }
+.waits a { text-decoration: none; }
+.waits a:hover strong { text-decoration: underline; }

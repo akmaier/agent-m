@@ -14,10 +14,11 @@
 // Module: MOD-dashboard-app
 //
 // The views are files of their own, docs/assets/dashboard/<view>-view.mjs, and the settings page's sections
-// docs/assets/dashboard/settings/<section>.mjs — each loaded by its name from one table (DASHBOARD), which also makes the tab
-// bar. Which of the table's files are built is read from one data file beside them, docs/assets/dashboard/built.json, so that a
-// page load asks for no file that is not there (one 404 each on GitHub Pages); an item that adds a view adds its file and its
-// line there. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a
+// docs/assets/dashboard/settings/<section>.mjs — each loaded by its name from one table (DASHBOARD, src/site/views.mjs, which
+// the main page reads too). The menu above the views is the site's one menu, in the order of the process (src/site/menu.mjs).
+// Which of the table's files are built is read from one data file beside them, docs/assets/dashboard/built.json, so that a page
+// load asks for no file that is not there (one 404 each on GitHub Pages); a change that adds a view adds its file and its line
+// there. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a
 // stylesheet of its own beside style.css; a section module exports `renderSection(app, box)`. Both get `app`, this page's
 // context: what is read, what is kept, and the helpers every view uses.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
@@ -33,68 +34,14 @@ import {
   parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
 } from "./review-core.mjs";
 import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
+import { DASHBOARD, builtViews } from "../../src/site/views.mjs";
+import { menuHtml, entryOf } from "../../src/site/menu.mjs";
+import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
 
+export { DASHBOARD, UPSTREAM };
 
-// ---------------------------------------------------------------- the views and the settings sections (one table)
-//
-// Every view and every settings section the accepted use cases call for, in the order of the tab bar and of the settings page.
-// A view or section whose file is not built yet — not named in dashboard/built.json — is not shown and not asked for; a later
-// item adds one as a new file and one line of built.json, without editing this one.
-// view: the route (#<view>/…); tab: its label in the tab bar, if it has a tab. section: a part of the settings page; built in:
-// written by settings-view.mjs itself.
-export const DASHBOARD = [
-  { view: "uc", file: "review-views.mjs", tab: "Use cases", useCases: ["UC-008"] },
-  { view: "arc", file: "review-views.mjs", tab: "Architecture", useCases: ["UC-022", "UC-023"] },
-  { view: "spec", file: "spec-changes-view.mjs", tab: "SPEC changes", useCases: ["UC-006", "UC-018"] },
-  { view: "review", file: "review-views.mjs", useCases: ["UC-008", "UC-022", "UC-023"] },
-  { view: "specification", file: "specification-view.mjs", tab: "Specification", useCases: ["UC-020"] },
-  { view: "arrange", file: "arrange-view.mjs", useCases: ["UC-021"] },
-  { view: "derive-requirements", file: "derive-requirements-view.mjs", useCases: ["UC-005"] },
-  { view: "derive-use-cases", file: "derive-use-cases-view.mjs", useCases: ["UC-007"] },
-  { view: "derive-architecture", file: "derive-architecture-view.mjs", useCases: ["UC-022"] },
-  { view: "modules", file: "modules-view.mjs", tab: "Modules", useCases: ["UC-025"] },
-  { view: "library", file: "library-view.mjs", tab: "Library", useCases: ["UC-004", "UC-016"] },
-  { view: "sources", file: "sources-view.mjs", useCases: ["UC-015"] },
-  { view: "resources", file: "resources-view.mjs", tab: "Resources", useCases: ["UC-040"] },
-  { view: "participants", file: "participants-view.mjs", tab: "Participants", useCases: ["UC-017"] },
-  { view: "process-models", file: "process-models-view.mjs", tab: "Process models", useCases: ["UC-031"] },
-  { view: "process", file: "process-view.mjs", tab: "How this product is developed", useCases: ["UC-002"] },
-  { view: "backlog", file: "backlog-view.mjs", tab: "Backlog", useCases: ["UC-032", "UC-033"] },
-  { view: "progress", file: "progress-view.mjs", tab: "Progress", useCases: ["UC-035"] },
-  { view: "sprint-close", file: "sprint-close-view.mjs", useCases: ["UC-041"] },
-  { view: "jobs", file: "jobs-view.mjs", tab: "Jobs", useCases: ["UC-036"] },
-  { view: "run", file: "run-view.mjs", tab: "Run", useCases: ["UC-043", "UC-034", "UC-024"] },
-  { view: "tests", file: "tests-runs-view.mjs", tab: "Tests", useCases: ["UC-028"] },
-  { view: "tests-browser", file: "tests-browser-view.mjs", useCases: ["UC-029"] },
-  { view: "tests-schedule", file: "tests-schedule-view.mjs", useCases: ["UC-027"] },
-  { view: "tests-generate", file: "tests-generate-view.mjs", useCases: ["UC-026"] },
-  { view: "release", file: "release-view.mjs", tab: "Release", useCases: ["UC-013"] },
-  { view: "audit", file: "audit-view.mjs", useCases: ["UC-030"] },
-  { view: "issues", file: "issues-view.mjs", tab: "Issues", useCases: ["UC-012", "UC-033"] },
-  { view: "mail", file: "mail-view.mjs", tab: "Mail", useCases: ["UC-038"] },
-  { view: "mail-replies", file: "mail-replies-view.mjs", useCases: ["UC-039"] },
-  { view: "how", file: "how-view.mjs", tab: "How acceptance works", useCases: ["UC-006", "UC-008"] },
-  { view: "settings", file: "settings-view.mjs", tab: "Settings", icon: "⚙", title: "Every setting Agent M uses", useCases: ["UC-042"] },
-  { view: "add", file: "add-product-view.mjs", useCases: ["UC-001"] },
-  { view: "setup", file: "setup-view.mjs", useCases: ["UC-014"] },
-  { view: "get-your-own", file: "get-your-own-view.mjs", useCases: ["UC-014"] },
-  { section: "browser", builtIn: true, useCases: ["UC-042"] },
-  { section: "endpoints", file: "settings/endpoints.mjs", useCases: ["UC-003"] },
-  { section: "mailbox", file: "settings/mailbox.mjs", useCases: ["UC-037"] },
-  { section: "bridge", file: "settings/bridge.mjs", useCases: ["UC-044"] },
-  { section: "instance", file: "settings/instance.mjs", useCases: ["UC-042"] },
-  { section: "product", builtIn: true, useCases: ["UC-042"] },
-  { section: "export", builtIn: true, useCases: ["UC-042"] },
-  { section: "clear", builtIn: true, useCases: ["UC-042"] },
-];
 
 const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-
-// The tab bar: one link per view with a tab whose file is there, in the table's order.
-export function tabsHtml(views) {
-  return views.filter((v) => v.view && v.tab).map((v) => `<a href="#${h(v.view)}" role="tab" id="tab-${h(v.view)}"${v.title
-    ? ` title="${h(v.title)}"` : ""}>${v.icon ? `<span aria-hidden="true">${h(v.icon)}</span> ` : ""}${h(v.tab)}</a>`).join("\n");
-}
 
 // The table's files that are built (dashboard/built.json). Whether a view or section is there is read from this list, never by
 // asking the server for its file: each file that is not there would cost one 404 per page load.
@@ -229,16 +176,12 @@ export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date
 
 // ---------------------------------------------------------------- instance, product, token
 
-export const UPSTREAM = "akmaier/agent-m";
-
 // AN INSTANCE IS A FORK OF AGENT M: the instance is the repository of the Pages address this page is served from
-// (<owner>.github.io/<name>/), else Agent M itself. The product is chosen with ?repo=owner/name (GitHub) or ?product=<address>
+// (<owner>.github.io/<name>/), else Agent M itself (src/site/instance-repository.mjs). The product is chosen with ?repo=owner/name (GitHub) or ?product=<address>
 // (GitHub or GitLab). A GitLab product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read
 // from GitLab). Moved here from docs/assets/review-core.mjs (ITM-130): it reads the page's own address.
 export function deriveTarget({ hostname, pathname, search }) {
-  const owner = hostname.endsWith(".github.io") ? hostname.split(".")[0] : null;
-  const name = pathname.split("/").filter(Boolean)[0];
-  const instance = owner && name ? `${owner}/${name}` : UPSTREAM;
+  const instance = instanceOf({ hostname, pathname });
   const q = new URLSearchParams(search || "");
   const refOk = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..");
   const ref = refOk ? q.get("ref") : "main";
@@ -463,16 +406,16 @@ function context() {
 
 // ---------------------------------------------------------------- routing
 
-// The views with a tab whose file is there, found once per page: the tab bar shows only those.
+// THE MENU FOLLOWS THE PROCESS: the site's menu, each entry leading to the first of its views whose file is built; the entry of
+// the view shown is marked.
 let available = null;
 function markTab(kind) {
-  document.querySelectorAll(".tabs a").forEach((t) => t.classList.toggle("active", t.getAttribute("href") === `#${kind || "uc"}`));
+  const entry = entryOf(kind || "uc");
+  document.querySelectorAll(".tabs [data-entry]").forEach((t) => t.classList.toggle("active", t.dataset.entry === entry));
 }
 async function renderTabs() {
-  const tabs = DASHBOARD.filter((v) => v.view && v.tab);
-  const there = await Promise.all(tabs.map((v) => present(v.file)));
   const el = document.getElementById("tabs");
-  if (el) el.innerHTML = tabsHtml(tabs.filter((_, i) => there[i]));
+  if (el) el.innerHTML = menuHtml({ built: builtViews(builtFiles), tabs: true });
   const [kind, a] = location.hash.replace(/^#/, "").split("/");
   markTab(kind === "review" ? a : kind);
 }

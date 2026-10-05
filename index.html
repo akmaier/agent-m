@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent M</title>
+  <meta name="description" content="Agent M — requirements-driven software engineering with people and agents: where each product of this instance stands, stage by stage.">
+  <link rel="icon" type="image/png" sizes="32x32" href="src/brand/favicon-32.png">
+  <link rel="apple-touch-icon" href="src/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="src/theme/lme.css">
+  <link rel="stylesheet" href="src/home/home.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="./" aria-label="Agent M — the main page">
+        <picture>
+          <source srcset="src/brand/prl-lettered-white.png" media="(prefers-color-scheme: dark)">
+          <img src="src/brand/prl-lettered.png" alt="Pattern Recognition Lab" width="126" height="44">
+        </picture>
+        <span class="name">Agent M<small>requirements-driven software engineering</small></span>
+      </a>
+      <nav class="menu" id="tabs" aria-label="The process, stage by stage"></nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="inner">
+      <div>
+        <h1>Welcome to Agent M</h1>
+        <p class="lead">Agent M runs the software engineering cycle of the book <em>Vibe Coding</em> on your own repositories —
+          requirements, use cases, architecture, implementation, tests and release — with agents doing the work and people
+          deciding at every gate.</p>
+        <p class="first" id="first-step">Start with the requirements and the use cases: each is reviewed and accepted on its own
+          page. Then add the repository of a product you build.</p>
+        <p class="actions">
+          <a class="btn primary" href="docs/#uc" id="first-link">Review the use cases</a>
+          <a class="btn" href="docs/#add">+ Add product</a>
+        </p>
+        <details>
+          <summary>What is this?</summary>
+          <div>
+            <p>This page shows where each product of this instance stands on its way through the process: one bar of six
+              stages, each filled by the share of its work that is accepted or done. While this browser manages no product,
+              it shows Agent M itself, on its way to its first release.</p>
+            <p>Everything is read from the repositories when the page opens; nothing is stored. Your products and your token
+              live only in this browser. The menu above leads through the process in its order; each entry opens the page
+              where that stage's work is reviewed and done.</p>
+          </div>
+        </details>
+      </div>
+      <img class="sign" src="src/brand/prl-sign-white.png" alt="" width="150" height="150">
+    </div>
+  </section>
+
+  <main>
+    <section aria-labelledby="progress-title">
+      <h2 id="progress-title">Progress</h2>
+      <div id="cards" class="cards"><p class="muted">Reading…</p></div>
+    </section>
+    <section aria-labelledby="waits-title">
+      <h2 id="waits-title">What waits for a person</h2>
+      <div id="waits"><p class="muted">Reading…</p></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <img src="src/brand/prl-sign-white.png" alt="" width="52" height="52">
+      <p><strong>Agent M</strong> — the companion tool to the book <a href="https://link.springer.com/book/9783032399069">Vibe Coding</a>
+        (Springer), from the <a href="https://lme.tf.fau.de/">Pattern Recognition Lab</a> of FAU Erlangen-Nürnberg.</p>
+      <p>No server: this page reads the repositories directly and writes only when you click — one commit under your own account.</p>
+      <p>Source and MIT licence: <a href="https://github.com/akmaier/agent-m">github.com/akmaier/agent-m</a>.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="src/home/home.mjs"></script>
+</body>
+</html>

@@ -47,6 +47,18 @@ const GITLAB_PIPELINE = { success: "passed", failed: "failed", canceling: "cance
   created: "running", waiting_for_resource: "running", preparing: "running", waiting_for_callback: "running",
   pending: "running", running: "running", scheduled: "running", manual: "running" };
 
+// The CI state of one commit — "running", "passed", "failed", "cancelled", or null where the server names none — as get(n)
+// reads it for a pull request's head: on GitHub the workflow runs of the commit, on GitLab its newest pipeline. One request.
+export async function commitCi({ product, commit, token = null }) {
+  if (!/^[0-9a-f]{40}$/.test(String(commit))) throw new Error(`not a commit: ${commit}`);
+  if (isGitLab(product)) {
+    const list = await json(`${gitlabApiBase(product)}/pipelines?sha=${commit}&order_by=id&sort=desc&per_page=1`, gitlabAuth(product, token));
+    return GITLAB_PIPELINE[list[0]?.status] ?? null;
+  }
+  const runs = (await json(`https://api.github.com/repos/${product.repo}/actions/runs?head_sha=${commit}&per_page=${PAGE}`, token)).workflow_runs ?? [];
+  return githubCi(runs);
+}
+
 // ---------------------------------------------------------------- each host's answer, as the one shape
 
 function fromGitHub(p) {

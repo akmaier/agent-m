@@ -3,8 +3,8 @@
 The SPEC names Python files as checks for behaviour that lives in docs/assets/*.mjs. Rather than
 re-implementing that behaviour in Python (two implementations drift apart), these tests ask node.
 
-Every module file below docs/assets/ (the vendored libraries excepted) is reached in the expression by its file name
-in camelCase — `gitHost` for git-host.mjs, `bridgeTunnel` for bridge-tunnel.mjs, `settingsStore`, `reviewCore` — and
+Every module file below docs/assets/ (the vendored libraries excepted) and below src/ is reached in the expression by its
+file name in camelCase — `gitHost` for git-host.mjs, `bridgeTunnel` for bridge-tunnel.mjs, `settingsStore`, `reviewCore` — and
 is imported when the expression names it. `core` (review-core.mjs) and `store` (settings-store.mjs) are always there.
 """
 import json
@@ -12,7 +12,9 @@ import re
 import subprocess
 from pathlib import Path
 
-ASSETS = Path(__file__).resolve().parents[1] / "docs" / "assets"
+ROOT = Path(__file__).resolve().parents[1]
+ASSETS = ROOT / "docs" / "assets"
+SRC = ROOT / "src"
 ALIASES = {"core": "review-core.mjs", "store": "settings-store.mjs"}
 
 
@@ -25,8 +27,8 @@ def namespace(path: Path) -> str:
 def module_files() -> dict:
     """{ name: path } for every module file of the site, and the two aliases."""
     found = {}
-    for f in sorted(ASSETS.rglob("*.mjs")):
-        if "vendor" in f.relative_to(ASSETS).parts:
+    for f in [*sorted(ASSETS.rglob("*.mjs")), *sorted(SRC.rglob("*.mjs"))]:
+        if f.is_relative_to(ASSETS) and "vendor" in f.relative_to(ASSETS).parts:
             continue
         name = namespace(f)
         if name in found or name in ALIASES:

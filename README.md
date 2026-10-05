@@ -19,12 +19,13 @@ you can turn them on:
 
 1. **Fork this repository** — button *Fork* at the top right of this page.
 2. In your fork, click the tab **Settings** (top of the page), then **Pages** in the left column.
-   Under *Build and deployment* choose *Deploy from a branch*, branch `main`, folder `/docs`, and
+   Under *Build and deployment* choose *Deploy from a branch*, branch `main`, folder `/ (root)`, and
    press *Save*.
 3. Still in your fork, click the tab **Actions** and press the green button *I understand my
    workflows, go ahead and enable them*.
 
-After a minute your dashboard is at `https://<your-github-name>.github.io/agent-m/`. From there,
+After a minute your instance's main page is at `https://<your-github-name>.github.io/agent-m/` — where each of your
+products stands, stage by stage —, and its review pages are under `…/agent-m/docs/`. From there,
 **+ Add product** guides you through everything else, including the GitHub key it needs — with an
 explanation behind every step if you are new to GitHub.
 

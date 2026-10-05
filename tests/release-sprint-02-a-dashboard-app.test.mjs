@@ -464,6 +464,7 @@ test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a decision and a m
 // view is built is read here from the disk — the files under docs/assets/dashboard/ —, not from the shell's own list of them.
 
 const { DASHBOARD } = await import("../docs/assets/dashboard-app.mjs");
+const { MENU } = await import("../src/site/menu.mjs");
 const builtOnDisk = (file) => fs.existsSync(path.join(ROOT, "docs/assets/dashboard", file));
 const VIEWS = DASHBOARD.filter((v) => v.view);
 const ADDRESSES = ["", ...VIEWS.map((v) => `#${v.view}`),
@@ -486,16 +487,17 @@ test("release · ITM-129 UC-024: a page load of every address asks for no file b
   assert.deepEqual(notThere, {}, "files asked for that are not there, by address");
 });
 
-// UC-024 · ITM-129 — Expected: the tab bar holds one tab for each view of the table that has a tab and whose file is on the
-// disk, in the table's order, and none for a view whose file is not; each of those views, opened at its address, is shown —
-// its page is not the use-case list the shell falls back to —, while the address of a view whose file is not there shows the
-// use-case list and asks for no file of that view.
-test("release · ITM-129 UC-024: every tab and view of today is shown; a view whose file is not built is not", async () => {
+// UC-024 · ITM-129 — Expected: the menu links each stage of the process to the first of its views whose file is on the disk, in
+// the order of the process (THE MENU FOLLOWS THE PROCESS), and no view whose file is not; each view of the table whose file is
+// there, opened at its address, is shown — its page is not the use-case list the shell falls back to —, while the address of a
+// view whose file is not there shows the use-case list and asks for no file of that view.
+test("release · ITM-129 UC-024: every menu entry and view of today is shown; a view whose file is not built is not", async () => {
   const w = await world();
   const page = await open(w, { hash: "#uc", direct: true });
   const tabs = [...page.el("tabs").matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
-  const expected = VIEWS.filter((v) => v.tab && builtOnDisk(v.file)).map((v) => v.view);
-  assert.deepEqual(tabs, expected, "the tabs of the views built, in the table's order");
+  const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
+  const expected = MENU.map((e) => e.views.find((v) => builtOnDisk(fileOf(v)))).filter(Boolean);
+  assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
   assert.ok(expected.length >= 4, `the views of today: ${expected.join(", ")}`);
   const fallback = page.main();
   assert.match(fallback, /#uc\/UC-001"/, "known positive: #uc is the use-case list");
