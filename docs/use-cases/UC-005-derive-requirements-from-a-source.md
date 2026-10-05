@@ -8,7 +8,7 @@ actors:
   - GitHub
 realises:
   - A REQUIREMENT HAS A REGISTERED SOURCE
-  - A REQUIREMENT HAS FIVE FIELDS
+  - A REQUIREMENT HAS FOUR FIELDS
   - ONE STATEMENT PER REQUIREMENT
   - A REQUIREMENT NAMES ITS CHECK
   - A GENERATED ARTIFACT IS A PROPOSAL
@@ -39,7 +39,7 @@ realises:
 # UC-005 Derive requirements from a source
 
 **Goal.** Agent M turns the content of a registered source into candidate requirements in the
-five-field form, for the author to approve or reject one by one.
+four-field form, for the author to approve or reject one by one.
 
 ## Actors
 
@@ -66,8 +66,8 @@ five-field form, for the author to approve or reject one by one.
    the decision.
 4. Agent M sends both with the requirement prompt from the repository's single definition. The prompt
    asks for candidates *against* the existing requirements, not beside them.
-5. The participant returns candidates, each with name, source passage, rule, occasion, check,
-   whether it constrains the **product** or the **process** — and a class:
+5. The participant returns candidates, each with name, source passage, rule and check, whether it
+   constrains the **product** or the **process** — and a class:
    - **new** — nothing existing covers it;
    - **change** — it alters a named existing requirement;
    - **duplicate** — it restates a named existing requirement;
@@ -77,22 +77,30 @@ five-field form, for the author to approve or reject one by one.
    2. a candidate whose name or normalised rule equals an existing requirement's is classified as a
       duplicate without a model, whatever the model said;
    3. Agent M sends back to the participant, as compiler-like findings, every candidate without one of
-      the five fields or without a check (errors), and every rule containing a conjunction (warning: split
+      the four fields or without a check (errors), and every rule containing a conjunction (warning: split
       or give a reason); the participant corrects, up to the limit of rounds the run panel states. What is
       left after the last round is shown flagged in step 7; conflicts are never sent back.
 7. The review panel shows the candidates grouped by class, each beside the existing requirement it
    refers to. The author can move a candidate to another class — for example, from *new* to
    *duplicate of X* — and choose how each conflict is resolved.
 8. The author presses **Write proposals** — one click. Agent M writes a new queue under
-   `docs/spec-freigaben/`, where the entries are open until accepted:
-   - **new:** an entry adding the requirement to its section;
-   - **change:** an entry for the section holding the existing requirement, changing it **under its
-     name**, with the current text beside it and its impact list;
-   - **duplicate:** an entry that adds the new source to the existing requirement;
+   `docs/spec-freigaben/`, one entry for each section of the SPEC the candidates touch, where the
+   entries are open until accepted:
+   - **new:** the requirement added to its section;
+   - **change:** the existing requirement changed **under its name**, with the current text beside it
+     and its impact list;
+   - **duplicate:** the new source added to the existing requirement;
    - **conflict:** written only as the author resolved it in step 7; undecided conflicts stay in the
      panel and are not written.
 
-   Every entry records Agent M version, participant, model and date.
+   Not written either, and named in the panel with why: a candidate still without its name, rule or
+   check, or referring to no existing requirement; a candidate that refers to a requirement proposed
+   only in an open change queue, until that proposal is decided; a new requirement for which no section
+   of the SPEC is chosen; and a duplicate whose requirement names the source already.
+
+   Each entry's rationale names the source passages and, where the participant gave it, why each
+   candidate follows from its passage. The commit that writes the queue names the Agent M version,
+   the participant and the model; no entry names them.
 9. The author reviews and accepts entries as in UC-006.
 
 ```mermaid
@@ -123,7 +131,7 @@ sequenceDiagram
   Agent M lists it as a hint to link the source first (UC-015).
 - **1a. The file's hash differs from the one recorded for the linked version.** Nothing is sent;
   Agent M says that the content changed and that a new version must be registered (UC-016).
-- **6a. The author splits a flagged candidate.** Each part becomes an entry of its own.
+- **6a. The author splits a flagged candidate.** Each part becomes a requirement of its own.
 - **5b. A candidate constrains the process.** It is marked as such; once accepted, it adds its gates
   and artifacts to the product's workflow (UC-002, step 7).
 - **7a. A conflict involves a normative source.** The panel says which side is normative; the author
@@ -131,6 +139,8 @@ sequenceDiagram
   that source's scope.
 - **7b. Every candidate is a duplicate.** The panel says so; writing then only adds sources to existing
   requirements.
+- **8a. Every candidate the author decided is held.** Nothing is written; the panel says that there is
+  nothing to write and why each candidate is held.
 
 ## Postcondition
 
@@ -138,4 +148,5 @@ sequenceDiagram
   accepted.
 - No proposal duplicates an existing requirement: what the source adds is new, what it alters is a
   change under the existing name, what it repeats is an added source.
-- Each proposal names its source passage, the source version and the participant that produced it.
+- Each proposal names its source passage and the source version; the commit that writes it names the
+  participant that produced it.

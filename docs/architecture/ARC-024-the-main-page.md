@@ -29,6 +29,7 @@ forced_by:
   - THE TRACEABILITY MATRIX IS DERIVED
   - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
   - UC-001
+  - UC-005
   - UC-007
   - UC-014
   - UC-032
@@ -64,7 +65,8 @@ together: what it reads of a product, what it computes for each view, and what i
    all HTML of the page.
 2. **Route.** `MOD-main-page.route` reads the instance from the root of its Pages site,
    `https://<owner>.github.io/<repo>/`, and from the fragment the view — the overview, a product's progress, backlog,
-   run, sprint close or derivation of use cases (`#derive`, ARC-031 decision 5), or every job —, the product by its
+   run, sprint close, derivation of use cases (`#derive`, ARC-031 decision 5) or derivation of requirements from a linked
+   source (`#requirements`, ARC-035), or every job —, the product by its
    address, an item, a sprint, and a commit to read instead of the default branch's head. The overview shows a line per product of the instance (`MOD-process-views.summaryOf`) and
    the list of every job.
 3. **A product is read at one commit** (`MOD-main-page.readProduct`): its files through the review page's read port, the
@@ -114,7 +116,9 @@ together: what it reads of a product, what it computes for each view, and what i
    enter the default branch as open (`A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN`), their marks and the
    findings left in the commit's message with the job's provenance as its record names it, and only on the head they
    were numbered at —, and written as cancelled with no results and nothing else where a cancel record names the job by
-   then (ARC-031 decision 12). Items a drafting job proposed carry its provenance in the commit's message
+   then (ARC-031 decision 12). Items a drafting job proposed, and the change queue a derivation of requirements proposed
+   as the author decided it — of a job that ended done, holding an entry, written only on the head it was planned at
+   (ARC-035 decision 8) —, carry the job's provenance in the commit's message
    (`MOD-job-harness.commitMessage`), never in their texts. A new item
    gets its identifier from `MOD-work-items.nextItemId` over every identifier the files and the version history of
    `docs/backlog/` hold, a new job from `MOD-run-engine.newJobId` with a draw of the random port. On the same click the
@@ -210,7 +214,7 @@ flowchart LR
   "layer": "feature",
   "responsibility": "Computes what the main page shows of a product from one commit through read ports and from what its server and runtimes report, given as data — its process, backlog, records and acceptance, an item's facts, the backlog and board, the progress page with its gates, blocked items and who works on what, what lies behind a point of a chart, the job list over every product, the start panel of items, the panel of a run and the review of a sprint's increment — and the files of every write the page makes, planned on the head.",
   "realises": ["PROGRESS AND JOB STATE ARE DERIVED, NOT STORED", "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "ONE DASHBOARD SHOWS EVERY JOB", "A RUN ENDS WITH THE VALIDATION OF ITS MODULES", "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "A CANCELLED JOB WRITES NOTHING MORE"],
-  "owns": ["ProductProcess", "WorkflowOrNone", "CloseRef", "Backlog", "DatedGate", "Records", "Acceptance", "LiveJob", "ProductState", "BacklogRow", "SprintStatus", "SprintStatusOrNone", "SprintPlanning", "SprintPlanningOrNone", "WipStatus", "BacklogView", "ProgressOrNone", "ProgressView", "GateRow", "BlockedRow", "WorkJob", "ParticipantWork", "ProgressPage", "PlanTotals", "PlanTotalsOrNone", "StateCountsOrNone", "ProductSummary", "ChartPoint", "BehindItem", "Behind", "JobSource", "JobFilter", "Sends", "SendsOrNone", "StartGate", "StartRow", "StartPanel", "RunCandidate", "RoleCandidates", "RunPlanOrNone", "RefusalOrNone", "RunPanel", "DoneRow", "NotDoneRow", "CloseView", "JobStart", "ItemsChange", "EndedChange", "OrderChange", "SprintChange", "ReplanChange", "EndChange", "GateChange", "CancelChange", "JobsChange", "FirstJob", "RunChange", "StopChange", "LimitsChange", "RetryChange", "PageChange", "HeadFacts", "PlannedCommit"],
+  "owns": ["ProductProcess", "WorkflowOrNone", "CloseRef", "Backlog", "DatedGate", "Records", "Acceptance", "LiveJob", "ProductState", "BacklogRow", "SprintStatus", "SprintStatusOrNone", "SprintPlanning", "SprintPlanningOrNone", "WipStatus", "BacklogView", "ProgressOrNone", "ProgressView", "GateRow", "BlockedRow", "WorkJob", "ParticipantWork", "ProgressPage", "PlanTotals", "PlanTotalsOrNone", "StateCountsOrNone", "ProductSummary", "ChartPoint", "BehindItem", "Behind", "JobSource", "JobFilter", "Sends", "SendsOrNone", "StartGate", "StartRow", "StartPanel", "RunCandidate", "RoleCandidates", "RunPlanOrNone", "RefusalOrNone", "RunPanel", "DoneRow", "NotDoneRow", "CloseView", "JobStart", "ItemsChange", "EndedChange", "ProposalsChange", "OrderChange", "SprintChange", "ReplanChange", "EndChange", "GateChange", "CancelChange", "JobsChange", "FirstJob", "RunChange", "StopChange", "LimitsChange", "RetryChange", "PageChange", "HeadFacts", "PlannedCommit"],
   "uses": ["MOD-contracts", "MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-process-model", "MOD-work-items", "MOD-run-engine", "MOD-job-runner", "MOD-job-harness"]
 }
 ```
@@ -9460,7 +9464,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-process-views.planChange",
-  "summary": "The files and the message of one write of the page, planned on the head read: new items appended to the order, each with the identifier MOD-work-items.nextItemId gives over every one the files and the version history hold; a new order of the same items; a sprint started or its selection changed; a sprint's end; a person's gate decision — never on their own work, never by one who does not hold the deciding role —; a cancel; the start records of jobs, of a run and its first jobs, or of a retry naming the job it retries, each with an identifier from MOD-run-engine.newJobId; the end of a job the page ran in the browser tab — with the use cases a derivation drafted, written as open, the marks and findings left and the job's provenance as its record names it in the message; cancelled, with no results and nothing else, where a cancel record names it by then (ARC-031) —; and items a drafting job proposed with its provenance in the message (MOD-job-harness.commitMessage).",
+  "summary": "The files and the message of one write of the page, planned on the head read: new items appended to the order, each with the identifier MOD-work-items.nextItemId gives over every one the files and the version history hold; a new order of the same items; a sprint started or its selection changed; a sprint's end; a person's gate decision — never on their own work, never by one who does not hold the deciding role —; a cancel; the start records of jobs, of a run and its first jobs, or of a retry naming the job it retries, each with an identifier from MOD-run-engine.newJobId; the end of a job the page ran in the browser tab — with the use cases a derivation drafted, written as open, the marks and findings left and the job's provenance as its record names it in the message; cancelled, with no results and nothing else, where a cancel record names it by then (ARC-031) —; items a drafting job proposed; and the change queue a derivation of requirements proposed, as the author decided it, of a job that ended done and holding an entry (ARC-035) — the items and the queue each with the job's provenance in the message (MOD-job-harness.commitMessage).",
   "params": [{ "name": "change", "type": "PageChange" }, { "name": "head", "type": "HeadFacts" }],
   "result": "PlannedCommit",
   "async": false,
@@ -9487,6 +9491,8 @@ flowchart LR
     { "code": "not-ended", "when": "a retried job has not failed, been cancelled or ended without a record" },
     { "code": "no-run", "when": "the change names no run of the product" },
     { "code": "not-in-the-tab", "when": "the end recorded is of a job the page did not run in the browser tab" },
+    { "code": "not-done", "when": "the change queue written is of a job that has not ended done" },
+    { "code": "nothing-to-write", "when": "the change queue holds no entry" },
     { "code": "unknown-change", "when": "the change is of no kind the page makes" }
   ],
   "examples": [
@@ -10974,6 +10980,193 @@ flowchart LR
         ],
         "message": "backlog: ITM-019 added\n\nJob: JOB-20261009-0920-4e4e\nParticipant: hub-writer\nModel: llama-3.3-70b\nAgent-M: 2026.10.1\nRounds: 2\n"
       }
+    },
+    {
+      "name": "the change queue a derivation of requirements proposed",
+      "input": {
+        "change": {
+          "kind": "proposals",
+          "job": "JOB-20261009-0940-5c5c",
+          "queue": {
+            "folder": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules",
+            "files": [
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/index.md", "text": "# SPEC approvals — queue 2026-10-09_derived-src-exam-rules\n\n**Zieldatei aller Einträge:** `SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | ## 1. Writing | — | — |\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/entscheidungen.md", "text": "# Decisions — queue 2026-10-09_derived-src-exam-rules\n\nAppend-only.\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.md", "text": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n**A THESIS HAS AT MOST 80 000 WORDS** *(SRC-exam-rules)*\nA thesis has at most 80 000 words.\n*Check:* `tests/test_word_limit.py`\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.begruendung.md", "text": "# 1. Writing\n\nDerived from SRC-exam-rules, version Examination regulations 2025.\n\n- **A THESIS HAS AT MOST 80 000 WORDS** — new, from \"A thesis has at most 80 000 words.\" and \"In short: a thesis has at most 80 000 words.\" — the regulations cap a thesis's length\n\n**Impact list.** none.\n" }
+            ],
+            "entries": [{ "nr": 1, "anchor": "## 1. Writing", "names": ["A THESIS HAS AT MOST 80 000 WORDS"] }],
+            "held": []
+          },
+          "at": "d100000000000000000000000000000000000000"
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0940-5c5c",
+                "path": "docs/jobs/JOB-20261009-0940-5c5c.md",
+                "kind": "derive-requirements",
+                "phase": "Sprint planning",
+                "role": "Product Owner",
+                "participant": "hub-writer",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": ["SRC-exam-rules"],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "llama-3.3-70b",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [
+                  { "at": "2026-10-09T09:40:00Z", "state": "queued", "note": "" },
+                  { "at": "2026-10-09T09:44:00Z", "state": "done", "note": "7 candidate requirements drafted and shown, 2 findings left" }
+                ],
+                "results": ["A THESIS HAS AT MOST 80 000 WORDS", "A CHAPTER SHOWS ITS WORD COUNT", "EVERY TEXT IS REVIEWED", "NO SERVER", "A THESIS IS SUBMITTED AS ONE PDF", "A THESIS CITES EVERY SOURCE", "A THESIS IS SHORT"],
+                "rounds": 2,
+                "cost": null,
+                "usage": { "inputTokens": 4600, "outputTokens": 1250, "minutes": null },
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:46:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "result": {
+        "files": [
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/index.md", "text": "# SPEC approvals — queue 2026-10-09_derived-src-exam-rules\n\n**Zieldatei aller Einträge:** `SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | ## 1. Writing | — | — |\n" },
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/entscheidungen.md", "text": "# Decisions — queue 2026-10-09_derived-src-exam-rules\n\nAppend-only.\n" },
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.md", "text": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n**A THESIS HAS AT MOST 80 000 WORDS** *(SRC-exam-rules)*\nA thesis has at most 80 000 words.\n*Check:* `tests/test_word_limit.py`\n" },
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.begruendung.md", "text": "# 1. Writing\n\nDerived from SRC-exam-rules, version Examination regulations 2025.\n\n- **A THESIS HAS AT MOST 80 000 WORDS** — new, from \"A thesis has at most 80 000 words.\" and \"In short: a thesis has at most 80 000 words.\" — the regulations cap a thesis's length\n\n**Impact list.** none.\n" }
+        ],
+        "message": "2026-10-09_derived-src-exam-rules: 1 entry proposed for SPEC.md\n\nJob: JOB-20261009-0940-5c5c\nParticipant: hub-writer\nModel: llama-3.3-70b\nAgent-M: 2026.10.1\nRounds: 2\n"
+      }
+    },
+    {
+      "name": "a change queue of a derivation not ended",
+      "input": {
+        "change": {
+          "kind": "proposals",
+          "job": "JOB-20261009-0940-5c5c",
+          "queue": {
+            "folder": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules",
+            "files": [
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/index.md", "text": "# SPEC approvals — queue 2026-10-09_derived-src-exam-rules\n\n**Zieldatei aller Einträge:** `SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | ## 1. Writing | — | — |\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/entscheidungen.md", "text": "# Decisions — queue 2026-10-09_derived-src-exam-rules\n\nAppend-only.\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.md", "text": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n**A THESIS HAS AT MOST 80 000 WORDS** *(SRC-exam-rules)*\nA thesis has at most 80 000 words.\n*Check:* `tests/test_word_limit.py`\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.begruendung.md", "text": "# 1. Writing\n\nDerived from SRC-exam-rules, version Examination regulations 2025.\n\n- **A THESIS HAS AT MOST 80 000 WORDS** — new, from \"A thesis has at most 80 000 words.\" and \"In short: a thesis has at most 80 000 words.\" — the regulations cap a thesis's length\n\n**Impact list.** none.\n" }
+            ],
+            "entries": [{ "nr": 1, "anchor": "## 1. Writing", "names": ["A THESIS HAS AT MOST 80 000 WORDS"] }],
+            "held": []
+          },
+          "at": "d100000000000000000000000000000000000000"
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": {
+            "jobs": [
+              {
+                "id": "JOB-20261009-0940-5c5c",
+                "path": "docs/jobs/JOB-20261009-0940-5c5c.md",
+                "kind": "derive-requirements",
+                "phase": "Sprint planning",
+                "role": "Product Owner",
+                "participant": "hub-writer",
+                "runtime": "browser",
+                "run": "",
+                "slot": "",
+                "item": "",
+                "modules": [],
+                "inputs": ["SRC-exam-rules"],
+                "retryOf": "",
+                "agentM": "2026.10.1",
+                "model": "llama-3.3-70b",
+                "log": "",
+                "selection": [],
+                "limits": null,
+                "assignments": [],
+                "states": [{ "at": "2026-10-09T09:40:00Z", "state": "queued", "note": "" }],
+                "results": [],
+                "rounds": 0,
+                "cost": null,
+                "usage": null,
+                "jobs": []
+              }
+            ],
+            "gates": [],
+            "cancels": [],
+            "limits": [],
+            "problems": []
+          },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:46:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "refused": "not-done"
+    },
+    {
+      "name": "a change queue with nothing to write",
+      "input": {
+        "change": {
+          "kind": "proposals",
+          "job": "JOB-20261009-0940-5c5c",
+          "queue": {
+            "folder": "",
+            "files": [],
+            "entries": [],
+            "held": [
+              { "artifact": "NO SERVER", "line": 0, "kind": "person", "what": "the conflict with NO SERVER is not decided", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide the conflict: as a change, or keep the existing requirement" }
+            ]
+          },
+          "at": "d100000000000000000000000000000000000000"
+        },
+        "head": {
+          "backlog": {
+            "items": [],
+            "order": { "title": "", "intro": "", "order": [], "unplaced": [], "unknown": [], "notes": "" },
+            "sprints": [],
+            "closes": [],
+            "added": [],
+            "problems": []
+          },
+          "records": { "jobs": [], "gates": [], "cancels": [], "limits": [], "problems": [] },
+          "history": [],
+          "account": "alice",
+          "now": "2026-10-09T09:46:00Z",
+          "draws": ["7f3a", "0b1c", "9e2d"]
+        }
+      },
+      "refused": "nothing-to-write"
     }
   ]
 }
@@ -10989,14 +11182,14 @@ flowchart LR
   "responsibility": "The page at the root of the instance's Pages site that shows what goes on in the instance: it routes, reads each product at one commit with what its server reports, turns a trusted click into one commit planned on the head, merges a sprint's increment through a pull request, and holds every text the page shows.",
   "realises": ["THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE"],
   "owns": ["MainRoute", "ProductRead", "MergeOutcome", "CiDispatched", "EngineDispatched", "RunSlotView", "FailedSlot", "RunView", "RetryPanel", "CiCancelled", "BridgeWaiting", "BridgeHanded", "BridgeCancelled"],
-  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner", "MOD-bridge-server", "MOD-job-harness", "MOD-drafting"]
+  "uses": ["MOD-contracts", "MOD-git-host", "MOD-settings-store", "MOD-review-page", "MOD-review-views", "MOD-traceability", "MOD-process-model", "MOD-process-views", "MOD-run-engine", "MOD-job-runner", "MOD-bridge-server", "MOD-job-harness", "MOD-drafting", "MOD-source-library", "MOD-library-page", "MOD-derivation"]
 }
 ```
 
 ```json interface
 {
   "id": "MOD-main-page.route",
-  "summary": "What the main page shows, from its address and the fragment: the instance — derived from the root of its Pages site —, the view — the overview of every product, a product's progress, backlog, run, sprint close or derivation of use cases, or every job —, the product, an item and a sprint.",
+  "summary": "What the main page shows, from its address and the fragment: the instance — derived from the root of its Pages site —, the view — the overview of every product, a product's progress, backlog, run, sprint close, derivation of use cases or derivation of requirements from a linked source, or every job —, the product, an item and a sprint.",
   "params": [{ "name": "hash", "type": "string" }, { "name": "pagesAddress", "type": "string" }],
   "result": "MainRoute",
   "async": false,
@@ -11026,6 +11219,11 @@ flowchart LR
       "name": "a product's derivation of use cases",
       "input": { "hash": "#derive?product=https%3A%2F%2Fgithub.com%2Falice%2Fthesis", "pagesAddress": "https://alice.github.io/agent-m/" },
       "result": { "instance": "https://github.com/alice/agent-m", "view": "derive", "product": "https://github.com/alice/thesis", "item": "", "sprint": "", "at": "" }
+    },
+    {
+      "name": "a product's derivation of requirements",
+      "input": { "hash": "#requirements?product=https%3A%2F%2Fgithub.com%2Falice%2Fthesis", "pagesAddress": "https://alice.github.io/agent-m/" },
+      "result": { "instance": "https://github.com/alice/agent-m", "view": "requirements", "product": "https://github.com/alice/thesis", "item": "", "sprint": "", "at": "" }
     },
     {
       "name": "a product's view without the product",
@@ -11562,7 +11760,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-main-page.commitChange",
-  "summary": "One write of the page on a click: the default branch's head read, the backlog and records at it — with the version history of docs/backlog/ for new items — and the token's account, the files planned on them (MOD-process-views.planChange), and written in one commit on that head; a job's end that writes use cases is written only on the head they were numbered at.",
+  "summary": "One write of the page on a click: the default branch's head read, the backlog and records at it — with the version history of docs/backlog/ for new items — and the token's account, the files planned on them (MOD-process-views.planChange), and written in one commit on that head; a job's end that writes use cases is written only on the head they were numbered at, and a derivation's change queue only on the head it was planned at.",
   "params": [
     { "name": "address", "type": "string" },
     { "name": "change", "type": "PageChange" },
@@ -11578,7 +11776,7 @@ flowchart LR
   "refusals": [
     { "code": "no-authority", "when": "no click authorises the write" },
     { "code": "no-token", "when": "no token is stored for the product" },
-    { "code": "moved", "when": "the branch moved on after the head read, or since the use cases a job's end writes were numbered" },
+    { "code": "moved", "when": "the branch moved on after the head read, since the use cases a job's end writes were numbered, or since a derivation's change queue was planned" },
     { "code": "not-an-address", "when": "the product is no web address" },
     { "code": "token-refused", "when": "the server refuses the token" },
     { "code": "no-access", "when": "the token lacks the permission or the repository" },
@@ -12021,6 +12219,73 @@ flowchart LR
         "texts": {},
         "authority": { "kind": "click" },
         "clock": "2026-10-09T09:34:00Z",
+        "random": [0.5]
+      },
+      "refused": "moved"
+    },
+    {
+      "name": "a change queue planned at an earlier head",
+      "input": {
+        "address": "https://github.com/alice/thesis",
+        "change": {
+          "kind": "proposals",
+          "job": "JOB-20261009-0940-5c5c",
+          "queue": {
+            "folder": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules",
+            "files": [
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/index.md", "text": "# SPEC approvals — queue 2026-10-09_derived-src-exam-rules\n\n**Zieldatei aller Einträge:** `SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | ## 1. Writing | — | — |\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/entscheidungen.md", "text": "# Decisions — queue 2026-10-09_derived-src-exam-rules\n\nAppend-only.\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.md", "text": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n**A THESIS HAS AT MOST 80 000 WORDS** *(SRC-exam-rules)*\nA thesis has at most 80 000 words.\n*Check:* `tests/test_word_limit.py`\n" },
+              { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.begruendung.md", "text": "# 1. Writing\n\nDerived from SRC-exam-rules, version Examination regulations 2025.\n\n- **A THESIS HAS AT MOST 80 000 WORDS** — new, from \"A thesis has at most 80 000 words.\" and \"In short: a thesis has at most 80 000 words.\" — the regulations cap a thesis's length\n\n**Impact list.** none.\n" }
+            ],
+            "entries": [{ "nr": 1, "anchor": "## 1. Writing", "names": ["A THESIS HAS AT MOST 80 000 WORDS"] }],
+            "held": []
+          },
+          "at": "d000000000000000000000000000000000000000"
+        },
+        "settings": {
+          "github": { "token": "github_pat_example", "expires": "2026-12-31", "tested": null },
+          "gitlab": [],
+          "products": [],
+          "endpoints": [],
+          "bridge": { "address": "http://127.0.0.1:47321", "token": "025eeb8c2eba7014a34adc1e80f83ab04fc70c99f0286bde45871cfd59a833cf", "tested": null },
+          "mailbox": null,
+          "notAnIssue": [],
+          "jumpHost": null,
+          "sessions": [],
+          "resourceKeys": []
+        },
+        "fetch": [
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis" },
+            "response": {
+              "status": 200,
+              "body": { "visibility": "private", "private": true, "default_branch": "main" }
+            }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/ref/heads/main" },
+            "response": { "status": 200, "body": { "object": { "sha": "c100000000000000000000000000000000000000" } } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/commits/c100000000000000000000000000000000000000" },
+            "response": { "status": 200, "body": { "sha": "c100000000000000000000000000000000000000" } }
+          },
+          {
+            "request": { "method": "GET", "url": "https://api.github.com/repos/alice/thesis/git/trees/c100000000000000000000000000000000000000?recursive=1" },
+            "response": {
+              "status": 200,
+              "body": {
+                "tree": [
+                  { "path": "docs/jobs/JOB-20261009-0940-5c5c.md", "type": "blob", "sha": "d3a0d5b8aa2439ece8f9dfb599259c9a1e3ed38c" }
+                ]
+              }
+            }
+          }
+        ],
+        "texts": {},
+        "authority": { "kind": "click" },
+        "clock": "2026-10-09T09:46:00Z",
         "random": [0.5]
       },
       "refused": "moved"
@@ -15351,6 +15616,40 @@ flowchart LR
 
 ```json type
 {
+  "$id": "ProposalsChange",
+  "description": "The change queue a derivation of requirements proposed, as the author decided it (ARC-035): the job that drafted its candidates, the queue as planned, and the head it was planned at.",
+  "type": "object",
+  "required": ["kind", "job", "queue", "at"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "proposals" },
+    "job": { "type": "string", "pattern": "^JOB-[0-9]{8}-[0-9]{4}-[0-9a-f]{4}$" },
+    "queue": { "$ref": "QueuePlan" },
+    "at": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  },
+  "examples": [
+    {
+      "kind": "proposals",
+      "job": "JOB-20261009-0940-5c5c",
+      "queue": {
+        "folder": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules",
+        "files": [
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/index.md", "text": "# SPEC approvals — queue 2026-10-09_derived-src-exam-rules\n\n**Zieldatei aller Einträge:** `SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | ## 1. Writing | — | — |\n" },
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/entscheidungen.md", "text": "# Decisions — queue 2026-10-09_derived-src-exam-rules\n\nAppend-only.\n" },
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.md", "text": "## 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n**A THESIS HAS AT MOST 80 000 WORDS** *(SRC-exam-rules)*\nA thesis has at most 80 000 words.\n*Check:* `tests/test_word_limit.py`\n" },
+          { "path": "docs/spec-freigaben/2026-10-09_derived-src-exam-rules/01-writing.begruendung.md", "text": "# 1. Writing\n\nDerived from SRC-exam-rules, version Examination regulations 2025.\n\n- **A THESIS HAS AT MOST 80 000 WORDS** — new, from \"A thesis has at most 80 000 words.\" and \"In short: a thesis has at most 80 000 words.\" — the regulations cap a thesis's length\n\n**Impact list.** none.\n" }
+        ],
+        "entries": [{ "nr": 1, "anchor": "## 1. Writing", "names": ["A THESIS HAS AT MOST 80 000 WORDS"] }],
+        "held": []
+      },
+      "at": "d100000000000000000000000000000000000000"
+    }
+  ]
+}
+```
+
+```json type
+{
   "$id": "OrderChange",
   "description": "A new order of the backlog's items.",
   "type": "object",
@@ -15706,7 +16005,8 @@ flowchart LR
     { "$ref": "StopChange" },
     { "$ref": "LimitsChange" },
     { "$ref": "RetryChange" },
-    { "$ref": "EndedChange" }
+    { "$ref": "EndedChange" },
+    { "$ref": "ProposalsChange" }
   ],
   "examples": [{ "kind": "order", "order": ["ITM-016", "ITM-015"] }]
 }
@@ -15778,7 +16078,10 @@ flowchart LR
   "additionalProperties": false,
   "properties": {
     "instance": { "type": "string" },
-    "view": { "type": "string", "enum": ["overview", "progress", "backlog", "jobs", "run", "close", "derive"] },
+    "view": {
+      "type": "string",
+      "enum": ["overview", "progress", "backlog", "jobs", "run", "close", "derive", "requirements"]
+    },
     "product": { "type": "string" },
     "item": { "type": "string" },
     "sprint": { "type": "string" },

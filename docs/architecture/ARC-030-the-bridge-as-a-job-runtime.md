@@ -211,9 +211,10 @@ sequenceDiagram
   table serves the dashboard's live state, the log and the cancel.
 - The bridge's writes carry the person's own git login: its commits, its pull requests and its merges are the person's
   on the server, as an agent's in an interactive session there would be.
-- A drafting job of another kind is not taken: the jobs that draft requirements (UC-005, UC-019) come with the
-  derivation rules, and backlog items are drafted in the browser tab (ARC-031 decision 2); the bridge refuses them with
-  the reason, which step 2's handover (`MOD-main-page.runOnBridge`) shows.
+- A drafting job of another kind is not taken: backlog items, and requirements derived from a source (ARC-035), are
+  drafted in the browser tab, where they are shown before anything is written (ARC-031 decision 2), and a change by prompt
+  (UC-019) comes with its job; the bridge refuses them with the reason, which step 2's handover
+  (`MOD-main-page.runOnBridge`) shows.
 - UC-011 2, 3, 4 and 5 stand for both kinds of job: a drafting job is handed over by the **Run** of the product's
   derivation view (ARC-031 decision 6), an agent's job by the click that starts it (UC-034's rows).
 - Not realised here — what other decisions bring: a sandboxed agent, and an agent behind a remote session, with the

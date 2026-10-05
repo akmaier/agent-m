@@ -25,6 +25,7 @@ forced_by:
   - A USE CASE REALISES NAMED REQUIREMENTS
   - ONE USE CASE, ONE FILE
   - THE NAME IS THE ID AND IT SURVIVES
+  - UC-005
   - UC-007
   - UC-032
 ---
@@ -57,7 +58,9 @@ participant that drafts text hold it.
    (`AGENT M WORKS WITHOUT A LOCAL INSTALLATION`); CI and the bridge take them turn by turn for the agents they run
    (`MOD-job-steps.draftTurn`, ARC-029; ARC-030), from the same definition (`ONE DEFINITION, THREE DRIVERS`).
 2. **What a drafting job produces decides where it runs.** Backlog items are shown to the Product Owner, who adds them
-   (UC-032 4): a job that drafts them runs in the tab, since an item written by CI would enter the backlog unseen. Use
+   (UC-032 4): a job that drafts them runs in the tab, since an item written by CI would enter the backlog unseen;
+   requirements a derivation drafts from a source are shown to the author in a review panel before a queue is written
+   (UC-005 7, 8), and that job runs in the tab as well (ARC-035). Use
    cases are written as open with the job's end in every runtime
    (`A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN`): the tab writes them with the end of its own job (ARC-024's
    change `ended`), CI and the bridge with the job's last turn (`MOD-job-steps.draftTurn`, ARC-029 decision 12).
@@ -232,7 +235,11 @@ Every use case of the product:
      drafted under the placeholder `UC-NNN`, under the next identifier after the product's use cases, Agent M giving it
      its own once the loop ended (decision 11); a change under the identifier of the use case it changes (UC-007 6a) —,
      each finding named by the draft's place in the answer, as `use case 1`; a draft naming any other identifier
-     (`THE NAME IS THE ID AND IT SURVIVES`), or a second change of one use case (`ONE USE CASE, ONE FILE`), is an error.
+     (`THE NAME IS THE ID AND IT SURVIVES`), or a second change of one use case (`ONE USE CASE, ONE FILE`), is an error;
+   - `requirement-candidates`: `MOD-derivation.candidateFindings` on each requirement a derivation drafted from a source,
+     as the requirement it would become, against the existing requirements and the product's links, each finding named by
+     the candidate's place in the answer, as `candidate 1` (ARC-035 decision 5); the context of a round carries what it is
+     checked against.
 8. **The rounds in the tab** (`MOD-drafting.runRounds`): the prompt is sent as the first message (`MOD-participants.chat`),
    each answer allowed up to 4 096 tokens; while the loop continues, its answer and the message sending it back follow;
    the rounds end when the loop stops — passed, at its limit, or unchanged — or when the endpoint refuses, which is the
@@ -264,15 +271,15 @@ Every use case of the product:
     writes on. The tab shows the use cases written with the rounds the draft took and each round's findings, from the
     rounds it ran (`THE ROUNDS ARE COUNTED AND SHOWN`) — the page writes these texts.
 12. **The end of a drafting job** (`MOD-drafting.jobEnd`), alike in every runtime: done once its draft is shown or written —
-    the titles of the items shown; or the use cases written, their files, and the marks and findings their commit's
-    message carries (decision 11), or `no change` —, with the rounds, the usage reported and the cost a CLI reported, an
-    endpoint reporting none; failed where the rounds failed or no answer could be read, with the reason, the rounds taken
-    and the usage reported until then, and nothing written. CI and the bridge write it with the job's last turn
-    (`MOD-job-steps.draftTurn`). The tab commits it to the job's record as the end of its own job (ARC-024's change
-    `ended`) on the authority the Run click made, the use cases it drafted beside it and the job's provenance, as its record
-    names it, in the message; where a cancel record names the job by then, the end is written as cancelled and nothing else
-    (`A CANCELLED JOB WRITES NOTHING MORE`). A page closed before the end leaves the record as started; the job dashboard
-    shows its last recorded state (`MOD-run-engine.jobState`).
+    the titles of the items shown, or the names of the requirements a derivation drafted and shows; or the use cases
+    written, their files, and the marks and findings their commit's message carries (decision 11), or `no change` —, with
+    the rounds, the usage reported and the cost a CLI reported, an endpoint reporting none; failed where the rounds failed or
+    no answer could be read, with the reason, the rounds taken and the usage reported until then, and nothing written. CI
+    and the bridge write it with the job's last turn (`MOD-job-steps.draftTurn`). The tab commits it to the job's record as
+    the end of its own job (ARC-024's change `ended`) on the authority the Run click made, the use cases it drafted beside
+    it and the job's provenance, as its record names it, in the message; where a cancel record names the job by then, the
+    end is written as cancelled and nothing else (`A CANCELLED JOB WRITES NOTHING MORE`). A page closed before the end
+    leaves the record as started; the job dashboard shows its last recorded state (`MOD-run-engine.jobState`).
 
 ```mermaid
 flowchart LR
@@ -322,9 +329,9 @@ flowchart LR
   counts as covered only once all of them are done is a coverage no view shows yet — the backlog view names the
   requirements no item realises (UC-032 1) — and comes with the coverage of a requirement on the backlog and progress
   views (ARC-024).
-- **Not realised here — the other drafting jobs.** Requirements derived from a source (UC-005) and a change by prompt
-  (UC-019), which a change to requirements makes subject to the derivation rules
-  (`A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES`), come with the derivation rules; mails into issues
+- **Not realised here — the other drafting jobs.** Requirements derived from a source are ARC-035's (UC-005); a change by
+  prompt (UC-019), which a change to requirements makes subject to the derivation rules
+  (`A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES`), comes with its job; mails into issues
   (UC-038) with the mail pipeline (ARC-014); an agent as Product Owner (UC-032 1c) with its job. A job started on
   GitHub's Actions page rather than the dashboard (UC-010 1), and a tab job's live state, its cancel and its retry on the
   job dashboard (UC-035, UC-036), are left in ARC-029's consequences.
@@ -341,10 +348,10 @@ flowchart LR
   "id": "MOD-drafting",
   "folder": "src/drafting/",
   "layer": "feature",
-  "responsibility": "The steps every runtime performs alike for a drafting job: which holders of the job's role may draft it, and where, by what it drafts; what a derivation of use cases may cover; what proposing backlog items and deriving use cases send; the run panel's prompt and verdict; one round of the correction loop read against the job's definition and its named checks; the conversation as one prompt for a CLI; the rounds against a model endpoint the browser calls; the drafted items as the person sees them; the use cases as the files written; and the end a drafting job states.",
+  "responsibility": "The steps every runtime performs alike for a drafting job: which holders of the job's role may draft it, and where, by what it drafts; what a derivation of use cases may cover; what proposing backlog items and deriving use cases send; the run panel's prompt and verdict; one round of the correction loop read against the job's definition and its named checks — a derivation's candidates through MOD-derivation —; the conversation as one prompt for a CLI; the rounds against a model endpoint the browser calls; the drafted items as the person sees them; the use cases as the files written; and the end a drafting job states.",
   "realises": ["THE PAGE STATES WHAT IT SENDS WHERE"],
   "owns": ["Drafter", "Drafters", "UseCaseText", "DraftSources", "DraftPanel", "DraftContext", "UseCaseRef", "SelectableRequirement", "UseCaseSelection", "UseCaseFiles", "UseCaseFilesOrNone", "DraftRound", "LoopStepOrNone", "DraftFailure", "DraftFailureOrNone", "DraftRun", "DraftedItem", "JobEnd"],
-  "uses": ["MOD-contracts", "MOD-job-harness", "MOD-job-runner", "MOD-work-items", "MOD-participants", "MOD-artifacts", "MOD-architecture"]
+  "uses": ["MOD-contracts", "MOD-job-harness", "MOD-job-runner", "MOD-work-items", "MOD-participants", "MOD-artifacts", "MOD-architecture", "MOD-derivation"]
 }
 ```
 
@@ -1988,7 +1995,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-drafting.draftRound",
-  "summary": "One round of a drafting job's correction loop: the answer read as JSON — the whole text, or its first fenced block — conforming to the definition's output schema (MOD-architecture.conforms); the checks the definition names run on it — for a drafted item, MOD-work-items.itemProblems, each finding named by the item's place in the draft —; the justifications it carries; and the loop's step (MOD-job-harness.loopStep), which makes an answer that cannot be read an error of its own. Refused when the definition names a check no drafting job has.",
+  "summary": "One round of a drafting job's correction loop: the answer read as JSON — the whole text, or its first fenced block — conforming to the definition's output schema (MOD-architecture.conforms); the checks the definition names run on it — for a drafted item, MOD-work-items.itemProblems, each finding named by the item's place in the draft; for a requirement derived from a source, MOD-derivation.candidateFindings —; the justifications it carries; and the loop's step (MOD-job-harness.loopStep), which makes an answer that cannot be read an error of its own. Refused when the definition names a check no drafting job has.",
   "params": [
     { "name": "definition", "type": "JobDefinition" },
     { "name": "loop", "type": "LoopState" },
@@ -2729,6 +2736,111 @@ flowchart LR
         "draft": {
           "useCases": [
             { "text": "---\nid: UC-042\ntitle: Count the words while writing\narea: writing\nactors:\n  - Author\nrealises:\n  - A CHAPTER SHOWS ITS WORD COUNT\n---\n# UC-NNN Count the words while writing\n\n## Actors\n\n- **Author** — writes a chapter.\n\n## Precondition\n\n- The chapter is open in the editor.\n\n## Main flow\n\n1. The author types in the editor.\n2. The editor shows how many words the chapter has.\n\n## Alternative flows\n\n- **2a. The chapter is empty.** The editor shows 0 words.\n\n## Postcondition\n\n- The author knows the chapter's length.\n\n```mermaid\nsequenceDiagram\n    actor A as Author\n    participant E as Editor\n    A->>E: types\n    E-->>A: word count\n```\n" }
+          ],
+          "justifications": []
+        }
+      }
+    },
+    {
+      "name": "requirements derived from a source, a check and a single statement missing",
+      "input": {
+        "definition": {
+          "kind": "derive-requirements",
+          "mode": "draft",
+          "produces": ["requirement"],
+          "capabilities": ["draft text"],
+          "inputs": [
+            { "name": "source", "of": "SRC", "all": false },
+            { "name": "requirements", "of": "requirement", "all": true }
+          ],
+          "output": {
+            "type": "object",
+            "required": ["candidates", "justifications"],
+            "properties": {
+              "candidates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["class"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "rule": { "type": "string" },
+                    "check": { "type": "string" },
+                    "passage": { "type": "string" },
+                    "reason": { "type": "string" },
+                    "section": { "type": "string" },
+                    "constrains": { "type": "string" },
+                    "class": { "type": "string", "enum": ["new", "change", "duplicate", "conflict"] },
+                    "refersTo": { "type": "string" },
+                    "source": { "type": "string" }
+                  }
+                }
+              },
+              "justifications": { "type": "array" }
+            }
+          },
+          "checks": ["requirement-candidates"],
+          "rounds": 3,
+          "result": "queue-entry",
+          "prompt": "Derive candidate requirements from the excerpt of a source below, against the product's existing requirements, which follow\nit: a rule the excerpt states becomes a candidate, classed by what the existing requirements already say.\n\nA requirement has a name in capitals that is its identifier, its source, one rule stated as a single testable sentence, and\nthe check that guards it: the test that guards it, `tests/<file>`, or: no automatic check; at review.\n\nClass each candidate against the existing requirements:\n- \"new\" — no existing requirement covers it: give its name, and in \"section\" the section of the SPEC it belongs to;\n- \"change\" — it alters an existing requirement: name that requirement in \"refersTo\", and give the rule and check as they\n  should read;\n- \"duplicate\" — it restates an existing requirement: name that requirement in \"refersTo\";\n- \"conflict\" — it contradicts an existing requirement: name that requirement in \"refersTo\", and give the source's rule.\n\nFor each candidate, quote in \"passage\" the sentence of the excerpt it comes from, word for word; say in \"reason\" why the\nrule follows from that passage; and state in \"constrains\" whether it constrains the \"product\" or the development \"process\".\nA rule the excerpt takes from another source names that source's identifier in \"source\".\n\nAnswer with JSON only, in this form:\n{\"candidates\": [{\"name\": \"…\", \"rule\": \"…\", \"check\": \"…\", \"passage\": \"…\", \"reason\": \"…\", \"section\": \"…\", \"constrains\": \"product\", \"class\": \"new\", \"refersTo\": \"\", \"source\": \"\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"candidate <its number in your list>\", \"line\": 1, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe excerpt:\n\n{{source}}\n\nThe existing requirements:\n\n{{requirements}}\n"
+        },
+        "loop": { "limit": 3, "rounds": [] },
+        "answer": "{\"candidates\":[{\"name\":\"A THESIS HAS AT MOST 80 000 WORDS\",\"rule\":\"A thesis has at most 80 000 words.\",\"check\":\"`tests/test_word_limit.py`\",\"passage\":\"A thesis has at most 80 000 words.\",\"reason\":\"the regulations cap a thesis's length\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A CHAPTER SHOWS ITS WORD COUNT\",\"rule\":\"Each chapter shows its word count.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"Each chapter shows its word count.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"A document binds only once two reviewers accept it.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"A thesis binds only once two reviewers accept it.\",\"reason\":\"the regulations ask for a second reviewer\",\"section\":\"\",\"constrains\":\"process\",\"class\":\"change\",\"refersTo\":\"EVERY TEXT IS REVIEWED\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"The thesis is kept on the faculty's server.\",\"check\":\"no automatic check; at review.\",\"passage\":\"The thesis is kept on the faculty's server.\",\"reason\":\"the faculty archives every thesis\",\"section\":\"\",\"constrains\":\"product\",\"class\":\"conflict\",\"refersTo\":\"NO SERVER\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AS ONE PDF\",\"rule\":\"The thesis is submitted as one PDF file.\",\"check\":\"\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AND ARCHIVED\",\"rule\":\"The thesis is submitted as one PDF file and archived.\",\"check\":\"`tests/export.test.mjs`\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS CITES EVERY SOURCE\",\"rule\":\"A thesis cites every source it uses.\",\"check\":\"no automatic check; at review.\",\"passage\":\"Cite every source you use.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"SRC-uni-statutes\"}],\"justifications\":[]}",
+        "context": {
+          "known": [],
+          "changing": [],
+          "items": [],
+          "useCases": [],
+          "derivation": {
+            "existing": [
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "where": "SPEC.md" },
+              { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "where": "SPEC.md" },
+              { "name": "A CHAPTER SHOWS ITS WORD COUNT", "source": "PO A. Maier", "rule": "The editor shows how many words the chapter being written has.", "check": "`tests/pages.test.mjs`", "section": "1. Writing", "where": "SPEC.md" },
+              { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "where": "SPEC.md" },
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click once its inputs are complete.", "check": "no automatic check; at review.", "section": "1. Writing", "where": "docs/spec-freigaben/2026-10-03_writing 01" },
+              { "name": "A CHAPTER IS EXPORTED", "source": "PO A. Maier", "rule": "Every accepted chapter can be exported as PDF.", "check": "`tests/export.test.mjs`", "section": "1. Writing", "where": "docs/spec-freigaben/2026-10-03_writing 01" }
+            ],
+            "linked": ["SRC-exam-rules"],
+            "source": "SRC-exam-rules"
+          }
+        }
+      },
+      "result": {
+        "step": {
+          "loop": {
+            "limit": 3,
+            "rounds": [
+              {
+                "back": [
+                  { "artifact": "candidate 5", "line": 1, "kind": "error", "what": "no check", "rule": "A REQUIREMENT HAS FOUR FIELDS", "fix": "add a line *Check:* naming the test that guards it, or: no automatic check; at review." },
+                  { "artifact": "candidate 6", "line": 1, "kind": "warning", "what": "the rule contains \"and\"", "rule": "ONE STATEMENT PER REQUIREMENT", "fix": "split the rule into one requirement per statement, or give the reason it states one thing" }
+                ],
+                "person": [
+                  { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+                  { "artifact": "candidate 7", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+                ],
+                "justified": []
+              }
+            ]
+          },
+          "outcome": "continue",
+          "send": "Your draft has these findings. Fix every error; fix every warning, or justify it in one line.\n\ncandidate 5:1: error: no check [A REQUIREMENT HAS FOUR FIELDS] — add a line *Check:* naming the test that guards it, or: no automatic check; at review.\ncandidate 6:1: warning: the rule contains \"and\" [ONE STATEMENT PER REQUIREMENT] — split the rule into one requirement per statement, or give the reason it states one thing\n\nYour draft:\n\n{\"candidates\":[{\"name\":\"A THESIS HAS AT MOST 80 000 WORDS\",\"rule\":\"A thesis has at most 80 000 words.\",\"check\":\"`tests/test_word_limit.py`\",\"passage\":\"A thesis has at most 80 000 words.\",\"reason\":\"the regulations cap a thesis's length\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A CHAPTER SHOWS ITS WORD COUNT\",\"rule\":\"Each chapter shows its word count.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"Each chapter shows its word count.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"A document binds only once two reviewers accept it.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"A thesis binds only once two reviewers accept it.\",\"reason\":\"the regulations ask for a second reviewer\",\"section\":\"\",\"constrains\":\"process\",\"class\":\"change\",\"refersTo\":\"EVERY TEXT IS REVIEWED\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"The thesis is kept on the faculty's server.\",\"check\":\"no automatic check; at review.\",\"passage\":\"The thesis is kept on the faculty's server.\",\"reason\":\"the faculty archives every thesis\",\"section\":\"\",\"constrains\":\"product\",\"class\":\"conflict\",\"refersTo\":\"NO SERVER\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AS ONE PDF\",\"rule\":\"The thesis is submitted as one PDF file.\",\"check\":\"\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AND ARCHIVED\",\"rule\":\"The thesis is submitted as one PDF file and archived.\",\"check\":\"`tests/export.test.mjs`\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS CITES EVERY SOURCE\",\"rule\":\"A thesis cites every source it uses.\",\"check\":\"no automatic check; at review.\",\"passage\":\"Cite every source you use.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"SRC-uni-statutes\"}],\"justifications\":[]}",
+          "remaining": [],
+          "person": [
+            { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+            { "artifact": "candidate 7", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+          ],
+          "justified": []
+        },
+        "draft": {
+          "candidates": [
+            { "name": "A THESIS HAS AT MOST 80 000 WORDS", "rule": "A thesis has at most 80 000 words.", "check": "`tests/test_word_limit.py`", "passage": "A thesis has at most 80 000 words.", "reason": "the regulations cap a thesis's length", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+            { "name": "A CHAPTER SHOWS ITS WORD COUNT", "rule": "Each chapter shows its word count.", "check": "`tests/pages.test.mjs`", "passage": "Each chapter shows its word count.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+            { "name": "", "rule": "A document binds only once two reviewers accept it.", "check": "`tests/pages.test.mjs`", "passage": "A thesis binds only once two reviewers accept it.", "reason": "the regulations ask for a second reviewer", "section": "", "constrains": "process", "class": "change", "refersTo": "EVERY TEXT IS REVIEWED", "source": "" },
+            { "name": "", "rule": "The thesis is kept on the faculty's server.", "check": "no automatic check; at review.", "passage": "The thesis is kept on the faculty's server.", "reason": "the faculty archives every thesis", "section": "", "constrains": "product", "class": "conflict", "refersTo": "NO SERVER", "source": "" },
+            { "name": "A THESIS IS SUBMITTED AS ONE PDF", "rule": "The thesis is submitted as one PDF file.", "check": "", "passage": "The thesis is submitted as one PDF file.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+            { "name": "A THESIS IS SUBMITTED AND ARCHIVED", "rule": "The thesis is submitted as one PDF file and archived.", "check": "`tests/export.test.mjs`", "passage": "The thesis is submitted as one PDF file.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+            { "name": "A THESIS CITES EVERY SOURCE", "rule": "A thesis cites every source it uses.", "check": "no automatic check; at review.", "passage": "Cite every source you use.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "SRC-uni-statutes" }
           ],
           "justifications": []
         }
@@ -3496,6 +3608,176 @@ flowchart LR
         "turns": 2,
         "failure": null
       }
+    },
+    {
+      "name": "requirements derived from a source, sent back once",
+      "input": {
+        "endpoint": { "name": "hub", "url": "https://hub.nhr.fau.de/api/llmgw/v1", "model": "llama-3.3-70b", "key": "hub-key-example", "via": "browser", "tested": null },
+        "definition": {
+          "kind": "derive-requirements",
+          "mode": "draft",
+          "produces": ["requirement"],
+          "capabilities": ["draft text"],
+          "inputs": [
+            { "name": "source", "of": "SRC", "all": false },
+            { "name": "requirements", "of": "requirement", "all": true }
+          ],
+          "output": {
+            "type": "object",
+            "required": ["candidates", "justifications"],
+            "properties": {
+              "candidates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["class"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "rule": { "type": "string" },
+                    "check": { "type": "string" },
+                    "passage": { "type": "string" },
+                    "reason": { "type": "string" },
+                    "section": { "type": "string" },
+                    "constrains": { "type": "string" },
+                    "class": { "type": "string", "enum": ["new", "change", "duplicate", "conflict"] },
+                    "refersTo": { "type": "string" },
+                    "source": { "type": "string" }
+                  }
+                }
+              },
+              "justifications": { "type": "array" }
+            }
+          },
+          "checks": ["requirement-candidates"],
+          "rounds": 3,
+          "result": "queue-entry",
+          "prompt": "Derive candidate requirements from the excerpt of a source below, against the product's existing requirements, which follow\nit: a rule the excerpt states becomes a candidate, classed by what the existing requirements already say.\n\nA requirement has a name in capitals that is its identifier, its source, one rule stated as a single testable sentence, and\nthe check that guards it: the test that guards it, `tests/<file>`, or: no automatic check; at review.\n\nClass each candidate against the existing requirements:\n- \"new\" — no existing requirement covers it: give its name, and in \"section\" the section of the SPEC it belongs to;\n- \"change\" — it alters an existing requirement: name that requirement in \"refersTo\", and give the rule and check as they\n  should read;\n- \"duplicate\" — it restates an existing requirement: name that requirement in \"refersTo\";\n- \"conflict\" — it contradicts an existing requirement: name that requirement in \"refersTo\", and give the source's rule.\n\nFor each candidate, quote in \"passage\" the sentence of the excerpt it comes from, word for word; say in \"reason\" why the\nrule follows from that passage; and state in \"constrains\" whether it constrains the \"product\" or the development \"process\".\nA rule the excerpt takes from another source names that source's identifier in \"source\".\n\nAnswer with JSON only, in this form:\n{\"candidates\": [{\"name\": \"…\", \"rule\": \"…\", \"check\": \"…\", \"passage\": \"…\", \"reason\": \"…\", \"section\": \"…\", \"constrains\": \"product\", \"class\": \"new\", \"refersTo\": \"\", \"source\": \"\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"candidate <its number in your list>\", \"line\": 1, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe excerpt:\n\n{{source}}\n\nThe existing requirements:\n\n{{requirements}}\n"
+        },
+        "prompt": "Derive candidate requirements from the excerpt of a source below, against the product's existing requirements, which follow\nit: a rule the excerpt states becomes a candidate, classed by what the existing requirements already say.\n\nA requirement has a name in capitals that is its identifier, its source, one rule stated as a single testable sentence, and\nthe check that guards it: the test that guards it, `tests/<file>`, or: no automatic check; at review.\n\nClass each candidate against the existing requirements:\n- \"new\" — no existing requirement covers it: give its name, and in \"section\" the section of the SPEC it belongs to;\n- \"change\" — it alters an existing requirement: name that requirement in \"refersTo\", and give the rule and check as they\n  should read;\n- \"duplicate\" — it restates an existing requirement: name that requirement in \"refersTo\";\n- \"conflict\" — it contradicts an existing requirement: name that requirement in \"refersTo\", and give the source's rule.\n\nFor each candidate, quote in \"passage\" the sentence of the excerpt it comes from, word for word; say in \"reason\" why the\nrule follows from that passage; and state in \"constrains\" whether it constrains the \"product\" or the development \"process\".\nA rule the excerpt takes from another source names that source's identifier in \"source\".\n\nAnswer with JSON only, in this form:\n{\"candidates\": [{\"name\": \"…\", \"rule\": \"…\", \"check\": \"…\", \"passage\": \"…\", \"reason\": \"…\", \"section\": \"…\", \"constrains\": \"product\", \"class\": \"new\", \"refersTo\": \"\", \"source\": \"\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"candidate <its number in your list>\", \"line\": 1, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe excerpt:\n\nSRC-exam-rules, version Examination regulations 2025\n\n# Examination regulations for theses\n\n## Length\n\nA thesis has at most 80 000 words.\n\nEach chapter shows its word count.\n\n## Submission\n\nThe thesis is submitted as one PDF file.\n\nThe thesis is kept on the faculty's server.\n\n## Review\n\nA thesis binds only once two reviewers accept it.\n\n## In short\n\nIn short: a thesis has at most 80 000 words.\n\nThe existing requirements:\n\n### 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n### 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n### Proposed in docs/spec-freigaben/2026-10-03_writing 01, not yet accepted\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click once its inputs are complete.\n*Check:* no automatic check; at review.\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nEvery accepted chapter can be exported as PDF.\n*Check:* `tests/export.test.mjs`\n",
+        "context": {
+          "known": [],
+          "changing": [],
+          "items": [],
+          "useCases": [],
+          "derivation": {
+            "existing": [
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "where": "SPEC.md" },
+              { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "where": "SPEC.md" },
+              { "name": "A CHAPTER SHOWS ITS WORD COUNT", "source": "PO A. Maier", "rule": "The editor shows how many words the chapter being written has.", "check": "`tests/pages.test.mjs`", "section": "1. Writing", "where": "SPEC.md" },
+              { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "where": "SPEC.md" },
+              { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click once its inputs are complete.", "check": "no automatic check; at review.", "section": "1. Writing", "where": "docs/spec-freigaben/2026-10-03_writing 01" },
+              { "name": "A CHAPTER IS EXPORTED", "source": "PO A. Maier", "rule": "Every accepted chapter can be exported as PDF.", "check": "`tests/export.test.mjs`", "section": "1. Writing", "where": "docs/spec-freigaben/2026-10-03_writing 01" }
+            ],
+            "linked": ["SRC-exam-rules"],
+            "source": "SRC-exam-rules"
+          }
+        },
+        "limit": 3,
+        "fetch": [
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1/chat/completions",
+              "body": {
+                "model": "llama-3.3-70b",
+                "max_tokens": 4096,
+                "messages": [
+                  { "role": "user", "content": "Derive candidate requirements from the excerpt of a source below, against the product's existing requirements, which follow\nit: a rule the excerpt states becomes a candidate, classed by what the existing requirements already say.\n\nA requirement has a name in capitals that is its identifier, its source, one rule stated as a single testable sentence, and\nthe check that guards it: the test that guards it, `tests/<file>`, or: no automatic check; at review.\n\nClass each candidate against the existing requirements:\n- \"new\" — no existing requirement covers it: give its name, and in \"section\" the section of the SPEC it belongs to;\n- \"change\" — it alters an existing requirement: name that requirement in \"refersTo\", and give the rule and check as they\n  should read;\n- \"duplicate\" — it restates an existing requirement: name that requirement in \"refersTo\";\n- \"conflict\" — it contradicts an existing requirement: name that requirement in \"refersTo\", and give the source's rule.\n\nFor each candidate, quote in \"passage\" the sentence of the excerpt it comes from, word for word; say in \"reason\" why the\nrule follows from that passage; and state in \"constrains\" whether it constrains the \"product\" or the development \"process\".\nA rule the excerpt takes from another source names that source's identifier in \"source\".\n\nAnswer with JSON only, in this form:\n{\"candidates\": [{\"name\": \"…\", \"rule\": \"…\", \"check\": \"…\", \"passage\": \"…\", \"reason\": \"…\", \"section\": \"…\", \"constrains\": \"product\", \"class\": \"new\", \"refersTo\": \"\", \"source\": \"\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"candidate <its number in your list>\", \"line\": 1, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe excerpt:\n\nSRC-exam-rules, version Examination regulations 2025\n\n# Examination regulations for theses\n\n## Length\n\nA thesis has at most 80 000 words.\n\nEach chapter shows its word count.\n\n## Submission\n\nThe thesis is submitted as one PDF file.\n\nThe thesis is kept on the faculty's server.\n\n## Review\n\nA thesis binds only once two reviewers accept it.\n\n## In short\n\nIn short: a thesis has at most 80 000 words.\n\nThe existing requirements:\n\n### 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n### 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n### Proposed in docs/spec-freigaben/2026-10-03_writing 01, not yet accepted\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click once its inputs are complete.\n*Check:* no automatic check; at review.\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nEvery accepted chapter can be exported as PDF.\n*Check:* `tests/export.test.mjs`\n" }
+                ]
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "choices": [
+                  {
+                    "message": { "role": "assistant", "content": "{\"candidates\":[{\"name\":\"A THESIS HAS AT MOST 80 000 WORDS\",\"rule\":\"A thesis has at most 80 000 words.\",\"check\":\"`tests/test_word_limit.py`\",\"passage\":\"A thesis has at most 80 000 words.\",\"reason\":\"the regulations cap a thesis's length\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A CHAPTER SHOWS ITS WORD COUNT\",\"rule\":\"Each chapter shows its word count.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"Each chapter shows its word count.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"A document binds only once two reviewers accept it.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"A thesis binds only once two reviewers accept it.\",\"reason\":\"the regulations ask for a second reviewer\",\"section\":\"\",\"constrains\":\"process\",\"class\":\"change\",\"refersTo\":\"EVERY TEXT IS REVIEWED\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"The thesis is kept on the faculty's server.\",\"check\":\"no automatic check; at review.\",\"passage\":\"The thesis is kept on the faculty's server.\",\"reason\":\"the faculty archives every thesis\",\"section\":\"\",\"constrains\":\"product\",\"class\":\"conflict\",\"refersTo\":\"NO SERVER\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AS ONE PDF\",\"rule\":\"The thesis is submitted as one PDF file.\",\"check\":\"\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AND ARCHIVED\",\"rule\":\"The thesis is submitted as one PDF file and archived.\",\"check\":\"`tests/export.test.mjs`\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS CITES EVERY SOURCE\",\"rule\":\"A thesis cites every source it uses.\",\"check\":\"no automatic check; at review.\",\"passage\":\"Cite every source you use.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"SRC-uni-statutes\"}],\"justifications\":[]}" }
+                  }
+                ],
+                "usage": { "prompt_tokens": 1900, "completion_tokens": 610 }
+              }
+            }
+          },
+          {
+            "request": {
+              "method": "POST",
+              "url": "https://hub.nhr.fau.de/api/llmgw/v1/chat/completions",
+              "body": {
+                "model": "llama-3.3-70b",
+                "max_tokens": 4096,
+                "messages": [
+                  { "role": "user", "content": "Derive candidate requirements from the excerpt of a source below, against the product's existing requirements, which follow\nit: a rule the excerpt states becomes a candidate, classed by what the existing requirements already say.\n\nA requirement has a name in capitals that is its identifier, its source, one rule stated as a single testable sentence, and\nthe check that guards it: the test that guards it, `tests/<file>`, or: no automatic check; at review.\n\nClass each candidate against the existing requirements:\n- \"new\" — no existing requirement covers it: give its name, and in \"section\" the section of the SPEC it belongs to;\n- \"change\" — it alters an existing requirement: name that requirement in \"refersTo\", and give the rule and check as they\n  should read;\n- \"duplicate\" — it restates an existing requirement: name that requirement in \"refersTo\";\n- \"conflict\" — it contradicts an existing requirement: name that requirement in \"refersTo\", and give the source's rule.\n\nFor each candidate, quote in \"passage\" the sentence of the excerpt it comes from, word for word; say in \"reason\" why the\nrule follows from that passage; and state in \"constrains\" whether it constrains the \"product\" or the development \"process\".\nA rule the excerpt takes from another source names that source's identifier in \"source\".\n\nAnswer with JSON only, in this form:\n{\"candidates\": [{\"name\": \"…\", \"rule\": \"…\", \"check\": \"…\", \"passage\": \"…\", \"reason\": \"…\", \"section\": \"…\", \"constrains\": \"product\", \"class\": \"new\", \"refersTo\": \"\", \"source\": \"\"}], \"justifications\": []}\nWhere a finding sent back to you is a warning you keep, add to \"justifications\"\n{\"artifact\": \"candidate <its number in your list>\", \"line\": 1, \"rule\": \"<the rule it names>\", \"reason\": \"<one line>\"}.\n\nThe excerpt:\n\nSRC-exam-rules, version Examination regulations 2025\n\n# Examination regulations for theses\n\n## Length\n\nA thesis has at most 80 000 words.\n\nEach chapter shows its word count.\n\n## Submission\n\nThe thesis is submitted as one PDF file.\n\nThe thesis is kept on the faculty's server.\n\n## Review\n\nA thesis binds only once two reviewers accept it.\n\n## In short\n\nIn short: a thesis has at most 80 000 words.\n\nThe existing requirements:\n\n### 1. Writing\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click.\n*Check:* no automatic check; at review.\n\n**NO SERVER** *(PO A. Maier)*\nThe product runs no server of its own.\n*Check:* `tests/test_no_server.py`\n\n**A CHAPTER SHOWS ITS WORD COUNT** *(PO A. Maier)*\nThe editor shows how many words the chapter being written has.\n*Check:* `tests/pages.test.mjs`\n\n### 2. Review\n\n**EVERY TEXT IS REVIEWED** *(PO A. Maier)*\nA document binds only once it is accepted.\n*Check:* `tests/pages.test.mjs`\n\n### Proposed in docs/spec-freigaben/2026-10-03_writing 01, not yet accepted\n\n**ONE CLICK** *(PO A. Maier)*\nA decision takes one click once its inputs are complete.\n*Check:* no automatic check; at review.\n\n**A CHAPTER IS EXPORTED** *(PO A. Maier)*\nEvery accepted chapter can be exported as PDF.\n*Check:* `tests/export.test.mjs`\n" },
+                  { "role": "assistant", "content": "{\"candidates\":[{\"name\":\"A THESIS HAS AT MOST 80 000 WORDS\",\"rule\":\"A thesis has at most 80 000 words.\",\"check\":\"`tests/test_word_limit.py`\",\"passage\":\"A thesis has at most 80 000 words.\",\"reason\":\"the regulations cap a thesis's length\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A CHAPTER SHOWS ITS WORD COUNT\",\"rule\":\"Each chapter shows its word count.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"Each chapter shows its word count.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"A document binds only once two reviewers accept it.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"A thesis binds only once two reviewers accept it.\",\"reason\":\"the regulations ask for a second reviewer\",\"section\":\"\",\"constrains\":\"process\",\"class\":\"change\",\"refersTo\":\"EVERY TEXT IS REVIEWED\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"The thesis is kept on the faculty's server.\",\"check\":\"no automatic check; at review.\",\"passage\":\"The thesis is kept on the faculty's server.\",\"reason\":\"the faculty archives every thesis\",\"section\":\"\",\"constrains\":\"product\",\"class\":\"conflict\",\"refersTo\":\"NO SERVER\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AS ONE PDF\",\"rule\":\"The thesis is submitted as one PDF file.\",\"check\":\"\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AND ARCHIVED\",\"rule\":\"The thesis is submitted as one PDF file and archived.\",\"check\":\"`tests/export.test.mjs`\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS CITES EVERY SOURCE\",\"rule\":\"A thesis cites every source it uses.\",\"check\":\"no automatic check; at review.\",\"passage\":\"Cite every source you use.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"SRC-uni-statutes\"}],\"justifications\":[]}" },
+                  { "role": "user", "content": "Your draft has these findings. Fix every error; fix every warning, or justify it in one line.\n\ncandidate 5:1: error: no check [A REQUIREMENT HAS FOUR FIELDS] — add a line *Check:* naming the test that guards it, or: no automatic check; at review.\ncandidate 6:1: warning: the rule contains \"and\" [ONE STATEMENT PER REQUIREMENT] — split the rule into one requirement per statement, or give the reason it states one thing\n\nYour draft:\n\n{\"candidates\":[{\"name\":\"A THESIS HAS AT MOST 80 000 WORDS\",\"rule\":\"A thesis has at most 80 000 words.\",\"check\":\"`tests/test_word_limit.py`\",\"passage\":\"A thesis has at most 80 000 words.\",\"reason\":\"the regulations cap a thesis's length\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A CHAPTER SHOWS ITS WORD COUNT\",\"rule\":\"Each chapter shows its word count.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"Each chapter shows its word count.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"A document binds only once two reviewers accept it.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"A thesis binds only once two reviewers accept it.\",\"reason\":\"the regulations ask for a second reviewer\",\"section\":\"\",\"constrains\":\"process\",\"class\":\"change\",\"refersTo\":\"EVERY TEXT IS REVIEWED\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"The thesis is kept on the faculty's server.\",\"check\":\"no automatic check; at review.\",\"passage\":\"The thesis is kept on the faculty's server.\",\"reason\":\"the faculty archives every thesis\",\"section\":\"\",\"constrains\":\"product\",\"class\":\"conflict\",\"refersTo\":\"NO SERVER\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AS ONE PDF\",\"rule\":\"The thesis is submitted as one PDF file.\",\"check\":\"\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AND ARCHIVED\",\"rule\":\"The thesis is submitted as one PDF file and archived.\",\"check\":\"`tests/export.test.mjs`\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS CITES EVERY SOURCE\",\"rule\":\"A thesis cites every source it uses.\",\"check\":\"no automatic check; at review.\",\"passage\":\"Cite every source you use.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"SRC-uni-statutes\"}],\"justifications\":[]}" }
+                ]
+              }
+            },
+            "response": {
+              "status": 200,
+              "body": {
+                "choices": [
+                  {
+                    "message": { "role": "assistant", "content": "{\"candidates\":[{\"name\":\"A THESIS HAS AT MOST 80 000 WORDS\",\"rule\":\"A thesis has at most 80 000 words.\",\"check\":\"`tests/test_word_limit.py`\",\"passage\":\"A thesis has at most 80 000 words.\",\"reason\":\"the regulations cap a thesis's length\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A CHAPTER SHOWS ITS WORD COUNT\",\"rule\":\"Each chapter shows its word count.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"Each chapter shows its word count.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"A document binds only once two reviewers accept it.\",\"check\":\"`tests/pages.test.mjs`\",\"passage\":\"A thesis binds only once two reviewers accept it.\",\"reason\":\"the regulations ask for a second reviewer\",\"section\":\"\",\"constrains\":\"process\",\"class\":\"change\",\"refersTo\":\"EVERY TEXT IS REVIEWED\",\"source\":\"\"},{\"name\":\"\",\"rule\":\"The thesis is kept on the faculty's server.\",\"check\":\"no automatic check; at review.\",\"passage\":\"The thesis is kept on the faculty's server.\",\"reason\":\"the faculty archives every thesis\",\"section\":\"\",\"constrains\":\"product\",\"class\":\"conflict\",\"refersTo\":\"NO SERVER\",\"source\":\"\"},{\"name\":\"A THESIS IS SUBMITTED AS ONE PDF\",\"rule\":\"The thesis is submitted as one PDF file.\",\"check\":\"`tests/export.test.mjs`\",\"passage\":\"The thesis is submitted as one PDF file.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"},{\"name\":\"A THESIS CITES EVERY SOURCE\",\"rule\":\"A thesis cites every source it uses.\",\"check\":\"no automatic check; at review.\",\"passage\":\"Cite every source you use.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"SRC-uni-statutes\"},{\"name\":\"A THESIS IS SHORT\",\"rule\":\"A thesis has at most 80 000 words\",\"check\":\"`tests/test_word_limit.py`\",\"passage\":\"In short: a thesis has at most 80 000 words.\",\"reason\":\"\",\"section\":\"1. Writing\",\"constrains\":\"product\",\"class\":\"new\",\"refersTo\":\"\",\"source\":\"\"}],\"justifications\":[]}" }
+                  }
+                ],
+                "usage": { "prompt_tokens": 2700, "completion_tokens": 640 }
+              }
+            }
+          }
+        ]
+      },
+      "result": {
+        "step": {
+          "loop": {
+            "limit": 3,
+            "rounds": [
+              {
+                "back": [
+                  { "artifact": "candidate 5", "line": 1, "kind": "error", "what": "no check", "rule": "A REQUIREMENT HAS FOUR FIELDS", "fix": "add a line *Check:* naming the test that guards it, or: no automatic check; at review." },
+                  { "artifact": "candidate 6", "line": 1, "kind": "warning", "what": "the rule contains \"and\"", "rule": "ONE STATEMENT PER REQUIREMENT", "fix": "split the rule into one requirement per statement, or give the reason it states one thing" }
+                ],
+                "person": [
+                  { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+                  { "artifact": "candidate 7", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+                ],
+                "justified": []
+              },
+              {
+                "back": [],
+                "person": [
+                  { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+                  { "artifact": "candidate 6", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+                ],
+                "justified": []
+              }
+            ]
+          },
+          "outcome": "passed",
+          "send": "",
+          "remaining": [],
+          "person": [
+            { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+            { "artifact": "candidate 6", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+          ],
+          "justified": []
+        },
+        "draft": {
+          "candidates": [
+            { "name": "A THESIS HAS AT MOST 80 000 WORDS", "rule": "A thesis has at most 80 000 words.", "check": "`tests/test_word_limit.py`", "passage": "A thesis has at most 80 000 words.", "reason": "the regulations cap a thesis's length", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+            { "name": "A CHAPTER SHOWS ITS WORD COUNT", "rule": "Each chapter shows its word count.", "check": "`tests/pages.test.mjs`", "passage": "Each chapter shows its word count.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+            { "name": "", "rule": "A document binds only once two reviewers accept it.", "check": "`tests/pages.test.mjs`", "passage": "A thesis binds only once two reviewers accept it.", "reason": "the regulations ask for a second reviewer", "section": "", "constrains": "process", "class": "change", "refersTo": "EVERY TEXT IS REVIEWED", "source": "" },
+            { "name": "", "rule": "The thesis is kept on the faculty's server.", "check": "no automatic check; at review.", "passage": "The thesis is kept on the faculty's server.", "reason": "the faculty archives every thesis", "section": "", "constrains": "product", "class": "conflict", "refersTo": "NO SERVER", "source": "" },
+            { "name": "A THESIS IS SUBMITTED AS ONE PDF", "rule": "The thesis is submitted as one PDF file.", "check": "`tests/export.test.mjs`", "passage": "The thesis is submitted as one PDF file.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+            { "name": "A THESIS CITES EVERY SOURCE", "rule": "A thesis cites every source it uses.", "check": "no automatic check; at review.", "passage": "Cite every source you use.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "SRC-uni-statutes" },
+            { "name": "A THESIS IS SHORT", "rule": "A thesis has at most 80 000 words", "check": "`tests/test_word_limit.py`", "passage": "In short: a thesis has at most 80 000 words.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" }
+          ],
+          "justifications": []
+        },
+        "usage": { "inputTokens": 4600, "outputTokens": 1250, "minutes": null },
+        "cost": null,
+        "turns": 2,
+        "failure": null
+      }
     }
   ]
 }
@@ -3832,7 +4114,7 @@ flowchart LR
 ```json interface
 {
   "id": "MOD-drafting.jobEnd",
-  "summary": "How a drafting job ended once its rounds stopped, alike in every runtime, for its record and the commit that writes it: done once its draft was shown or written — the titles of the items shown; or the use cases written as open (MOD-drafting.useCaseFiles) with their files and, for the commit's message, their marks and the findings the loop left, or no change where nothing differs —, with the rounds it took and the usage and cost reported; failed where the rounds failed or no answer could be read in any round, with the reason, the rounds taken and the usage reported until then, and nothing written.",
+  "summary": "How a drafting job ended once its rounds stopped, alike in every runtime, for its record and the commit that writes it: done once its draft was shown or written — the titles of the items shown, or the names of the requirements a derivation drafted and shows (ARC-035); or the use cases written as open (MOD-drafting.useCaseFiles) with their files and, for the commit's message, their marks and the findings the loop left, or no change where nothing differs —, with the rounds it took and the usage and cost reported; failed where the rounds failed or no answer could be read in any round, with the reason, the rounds taken and the usage reported until then, and nothing written.",
   "params": [{ "name": "run", "type": "DraftRun" }, { "name": "written", "type": "UseCaseFilesOrNone" }],
   "result": "JobEnd",
   "async": false,
@@ -4173,6 +4455,74 @@ flowchart LR
         "files": [],
         "notes": []
       }
+    },
+    {
+      "name": "requirements a derivation shows",
+      "input": {
+        "run": {
+          "step": {
+            "loop": {
+              "limit": 3,
+              "rounds": [
+                {
+                  "back": [
+                    { "artifact": "candidate 5", "line": 1, "kind": "error", "what": "no check", "rule": "A REQUIREMENT HAS FOUR FIELDS", "fix": "add a line *Check:* naming the test that guards it, or: no automatic check; at review." },
+                    { "artifact": "candidate 6", "line": 1, "kind": "warning", "what": "the rule contains \"and\"", "rule": "ONE STATEMENT PER REQUIREMENT", "fix": "split the rule into one requirement per statement, or give the reason it states one thing" }
+                  ],
+                  "person": [
+                    { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+                    { "artifact": "candidate 7", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+                  ],
+                  "justified": []
+                },
+                {
+                  "back": [],
+                  "person": [
+                    { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+                    { "artifact": "candidate 6", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+                  ],
+                  "justified": []
+                }
+              ]
+            },
+            "outcome": "passed",
+            "send": "",
+            "remaining": [],
+            "person": [
+              { "artifact": "candidate 4", "line": 1, "kind": "person", "what": "the candidate contradicts NO SERVER", "rule": "A CONFLICT IS DECIDED BY A PERSON", "fix": "decide between NO SERVER and the source's rule; nothing is written until you do" },
+              { "artifact": "candidate 6", "line": 1, "kind": "person", "what": "the product does not link SRC-uni-statutes", "rule": "A REQUIREMENT HAS A REGISTERED SOURCE", "fix": "link the source in the product's docs/sources.md first (UC-015); the candidate is not proposed until then" }
+            ],
+            "justified": []
+          },
+          "draft": {
+            "candidates": [
+              { "name": "A THESIS HAS AT MOST 80 000 WORDS", "rule": "A thesis has at most 80 000 words.", "check": "`tests/test_word_limit.py`", "passage": "A thesis has at most 80 000 words.", "reason": "the regulations cap a thesis's length", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+              { "name": "A CHAPTER SHOWS ITS WORD COUNT", "rule": "Each chapter shows its word count.", "check": "`tests/pages.test.mjs`", "passage": "Each chapter shows its word count.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+              { "name": "", "rule": "A document binds only once two reviewers accept it.", "check": "`tests/pages.test.mjs`", "passage": "A thesis binds only once two reviewers accept it.", "reason": "the regulations ask for a second reviewer", "section": "", "constrains": "process", "class": "change", "refersTo": "EVERY TEXT IS REVIEWED", "source": "" },
+              { "name": "", "rule": "The thesis is kept on the faculty's server.", "check": "no automatic check; at review.", "passage": "The thesis is kept on the faculty's server.", "reason": "the faculty archives every thesis", "section": "", "constrains": "product", "class": "conflict", "refersTo": "NO SERVER", "source": "" },
+              { "name": "A THESIS IS SUBMITTED AS ONE PDF", "rule": "The thesis is submitted as one PDF file.", "check": "`tests/export.test.mjs`", "passage": "The thesis is submitted as one PDF file.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" },
+              { "name": "A THESIS CITES EVERY SOURCE", "rule": "A thesis cites every source it uses.", "check": "no automatic check; at review.", "passage": "Cite every source you use.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "SRC-uni-statutes" },
+              { "name": "A THESIS IS SHORT", "rule": "A thesis has at most 80 000 words", "check": "`tests/test_word_limit.py`", "passage": "In short: a thesis has at most 80 000 words.", "reason": "", "section": "1. Writing", "constrains": "product", "class": "new", "refersTo": "", "source": "" }
+            ],
+            "justifications": []
+          },
+          "usage": { "inputTokens": 4600, "outputTokens": 1250, "minutes": null },
+          "cost": null,
+          "turns": 2,
+          "failure": null
+        },
+        "written": null
+      },
+      "result": {
+        "state": "done",
+        "note": "7 candidate requirements drafted and shown, 2 findings left",
+        "results": ["A THESIS HAS AT MOST 80 000 WORDS", "A CHAPTER SHOWS ITS WORD COUNT", "EVERY TEXT IS REVIEWED", "NO SERVER", "A THESIS IS SUBMITTED AS ONE PDF", "A THESIS CITES EVERY SOURCE", "A THESIS IS SHORT"],
+        "rounds": 2,
+        "usage": { "inputTokens": 4600, "outputTokens": 1250, "minutes": null },
+        "cost": null,
+        "files": [],
+        "notes": []
+      }
     }
   ]
 }
@@ -4362,7 +4712,7 @@ flowchart LR
 ```json type
 {
   "$id": "DraftContext",
-  "description": "What a draft's checks need besides the draft: the names a draft may realise — for an item the accepted ones and those open proposals add, for a use case the requirements of the SPEC —, those open proposals change or remove, the items of the backlog, and the use cases of the product.",
+  "description": "What a draft's checks need besides the draft: the names a draft may realise — for an item the accepted ones and those open proposals add, for a use case the requirements of the SPEC —, those open proposals change or remove, the items of the backlog, the use cases of the product, and for requirements derived from a source what they are checked against (ARC-035).",
   "type": "object",
   "required": ["known", "changing", "items", "useCases"],
   "additionalProperties": false,
@@ -4370,7 +4720,8 @@ flowchart LR
     "known": { "type": "array", "items": { "type": "string" } },
     "changing": { "type": "array", "items": { "type": "string" } },
     "items": { "type": "array", "items": { "$ref": "BacklogItem" } },
-    "useCases": { "type": "array", "items": { "$ref": "UseCaseRef" } }
+    "useCases": { "type": "array", "items": { "$ref": "UseCaseRef" } },
+    "derivation": { "$ref": "DerivationContext" }
   },
   "examples": [
     {
@@ -4454,6 +4805,24 @@ flowchart LR
         { "id": "UC-002", "path": "docs/use-cases/UC-002-write-a-chapter.md" },
         { "id": "UC-003", "path": "docs/use-cases/UC-003-export-a-chapter.md" }
       ]
+    },
+    {
+      "known": [],
+      "changing": [],
+      "items": [],
+      "useCases": [],
+      "derivation": {
+        "existing": [
+          { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click.", "check": "no automatic check; at review.", "section": "1. Writing", "where": "SPEC.md" },
+          { "name": "NO SERVER", "source": "PO A. Maier", "rule": "The product runs no server of its own.", "check": "`tests/test_no_server.py`", "section": "1. Writing", "where": "SPEC.md" },
+          { "name": "A CHAPTER SHOWS ITS WORD COUNT", "source": "PO A. Maier", "rule": "The editor shows how many words the chapter being written has.", "check": "`tests/pages.test.mjs`", "section": "1. Writing", "where": "SPEC.md" },
+          { "name": "EVERY TEXT IS REVIEWED", "source": "PO A. Maier", "rule": "A document binds only once it is accepted.", "check": "`tests/pages.test.mjs`", "section": "2. Review", "where": "SPEC.md" },
+          { "name": "ONE CLICK", "source": "PO A. Maier", "rule": "A decision takes one click once its inputs are complete.", "check": "no automatic check; at review.", "section": "1. Writing", "where": "docs/spec-freigaben/2026-10-03_writing 01" },
+          { "name": "A CHAPTER IS EXPORTED", "source": "PO A. Maier", "rule": "Every accepted chapter can be exported as PDF.", "check": "`tests/export.test.mjs`", "section": "1. Writing", "where": "docs/spec-freigaben/2026-10-03_writing 01" }
+        ],
+        "linked": ["SRC-exam-rules"],
+        "source": "SRC-exam-rules"
+      }
     }
   ]
 }
