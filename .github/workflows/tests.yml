@@ -1,15 +1,17 @@
-# Continuous integration: every push and pull request runs the whole suite.
+# Continuous integration: every pull request and every push to main runs the Python and the node suite, side by side.
+# The check that runs both suites once more — no test opens Agent M's own SPEC — runs nightly instead (nightly.yml).
 name: tests
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  test:
+  python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,5 +20,12 @@ jobs:
           node-version: "22"
       - name: Python checks
         run: cd tests && python3 -m unittest -v
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Dashboard core
         run: node --test tests/*.test.mjs
