@@ -115,13 +115,15 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   network. Errors: `LimitationMissing` (naming the tests and rates), `Incomplete`, `TagExists`, `Moved`, `TokenRefused`,
   `PermissionMissing`, `RateLimited`, `Unreachable`.
 - `auditRows(at: Snapshot, results: Snapshot, release: { tag: string, commit: string }, gates: Array<{ requirement: string,
-  gate: string, record: string }>) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
+  gate: string, record: string }>, instanceSpec: string) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
   worse: number, byImplementer: number, accepted: boolean, limitations: string[] }, rows: Array<{ requirement: string,
   constrains: "product" | "process", sources: Array<{ id: string, authority: string, version: string, hashes: string[] }>,
   tests: Array<{ id: string, level: string, outcome: string, counterProof: string | null }>, gates: string[] }> }` — one
   row per requirement valid at the release, a requirement without a test or without a passing outcome included and
-  counted; `gates` are the gate records of the product's process requirements, which the caller reads through Process,
-  since Process lies above this subsystem. A release before Agent M's records says which parts cannot be derived.
+  counted: each requirement of the product's SPEC at the release, which constrains the product, and each process
+  requirement whose gate the product's workflow holds — a requirement of the instance's SPEC, `instanceSpec`, which
+  constrains the development process (MOD-spec-document) — with its gate records. `gates` are those records, which the
+  caller reads through Process, since Process lies above this subsystem. A release before Agent M's records says which parts cannot be derived.
 - `auditDocument(audit: { summary: object, rows: object[] }, release: { tag: string, commit: string }) -> string` — the
   self-contained Markdown document of the audit; the browser saves it, and a person with write access may commit it to
   `docs/audits/<tag>.md`.
@@ -132,7 +134,8 @@ branch `test-results`.
 ## Files
 
 - Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests, the report, the approval records —,
-  the branch `test-results`, the schedule, and the instance's source register.
+  the branch `test-results`, the schedule, and the instance's source register and `SPEC.md`, whose requirements are the
+  process requirements.
 - Writes `docs/tests/releases/v<version>.md`, `docs/approvals/release-v<version>-<blob12>.md`, `CHANGELOG.md`, the tags
   `v<version>-rc.<N>` and `v<version>`, and, on a person's click, `docs/audits/<tag>.md`.
 
@@ -146,7 +149,8 @@ branch `test-results`.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, listTags, commitFiles, createTag — the product at a commit, its
   tags, the release commit and the tags.
 - MOD-documents.Document, loadSchema, readDocument, writeDocument — the report and the records by their schemas.
-- MOD-spec-document.parseSpec — the requirements valid at the release and what each constrains.
+- MOD-spec-document.parseSpec — the product's requirements valid at the release, and the process requirements of the
+  instance's SPEC.
 - MOD-test-document.testDeclarations — the tests at the release.
 - MOD-trace-graph.traceGraph, tracesTo — the tests and sources of each requirement.
 - MOD-source-register.sourceSchemas, linkedVersion — each source's authority, version and hashes.

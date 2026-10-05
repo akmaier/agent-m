@@ -41,6 +41,10 @@ uses:
   - MOD-result-records.rateComparison
   - MOD-result-records.testHistory
   - MOD-release-evidence.auditRows
+  - MOD-product-process.declarationSchema
+  - MOD-product-process.workflowOf
+  - MOD-product-process.gateSchema
+  - MOD-product-process.gateStates
   - MOD-release-evidence.auditDocument
   - MOD-artifact-edits.saveFile
 provides:
@@ -108,7 +112,8 @@ TraceView = {
 It writes one file, and only on a person's click: the audit document under `docs/audits/<tag>.md` (*Commit export*).
 It reads the product's snapshot at the chosen version through its host — the SPEC, the group files, use cases,
 architecture files, code files, tests, approval records, the product's links to sources —, the history of the SPEC and
-the result records on the branch `test-results`.
+the result records on the branch `test-results`; for the audit, the product's `docs/process.md` and `docs/gates/` at the
+release's commit, and the instance's `SPEC.md`, whose requirements are the process requirements.
 
 ## Uses
 
@@ -129,5 +134,8 @@ the result records on the branch `test-results`.
 - MOD-test-schedule.occasionsOf — when the schedule runs a test.
 - MOD-result-records.resultsAt, MOD-result-records.flakyTests, MOD-result-records.rateComparison,
   MOD-result-records.testHistory — outcomes, flaky tests, rates and history.
-- MOD-release-evidence.auditRows, MOD-release-evidence.auditDocument — the audit and its document.
+- MOD-release-evidence.auditRows, MOD-release-evidence.auditDocument — the audit and its document; the audit is given the
+  instance's SPEC, where the process requirements stand.
+- MOD-product-process.declarationSchema, workflowOf, gateSchema, gateStates — the product's workflow and its gate records at
+  the release's commit, from which the audit's process rows take each process requirement's gates and records (UC-030).
 - MOD-artifact-edits.saveFile — *Commit export*, as the person's own input.

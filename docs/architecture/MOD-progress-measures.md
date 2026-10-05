@@ -184,14 +184,15 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - Reads, for `productFacts`: the product's `SPEC.md`, `docs/approvals/`, `docs/spec-freigaben/`, `docs/use-cases/`,
   `docs/architecture/`, `docs/process.md` and its history, `docs/plan/` or `docs/backlog/` with `docs/backlog/sprints/`,
   `docs/gates/`, `docs/jobs/`, `docs/tests/schedule.md`, the generated configurations, the test files, `docs/resources.md`
-  and the branch `test-results`; its pull requests, CI runs and tags; of the instance, `docs/participants.md` and the process models.
+  and the branch `test-results`; its pull requests, CI runs and tags; of the instance, `docs/participants.md`, the process models and `SPEC.md`, whose requirements are the process
+  requirements.
 - Writes nothing.
 
 ## Uses
 
 - MOD-work-plans.ItemState, itemStates, planSchemas — the steps and items, their order, the sprints, and each one's state.
 - MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates — the declared process, its gates
-  and their states.
+  and their states. The workflow is read with the instance's SPEC, where the process requirements stand.
 - MOD-model-catalogue.Model, catalogue, planGrid — the model and its plan of requirements times phases.
 - MOD-approvals.statuses — accepted, open and changed files.
 - MOD-spec-changes.Queue, queues — decided and open SPEC changes.

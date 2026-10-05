@@ -82,7 +82,7 @@ It keeps nothing. It owns two formats.
 | `## Practices` | a list of practice names, or `none` |
 | `## Branches` | a table: `Phase or time box`, `Branch`; without a row, work merges into the default branch (`WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET`) |
 | `## Definition of Done` | the conditions added to the job rules, one per line — `review: <n> by participants other than the implementer`, `check: <CI check name>`, `gate: <gate>` —, or the sentence that the job rules hold and no condition is added |
-| `## Gates added by requirements` | optional; a table: `Requirement`, `Between`, `Artifacts`, `Condition`, `Decider` — a gate a process requirement adds, named by the requirement |
+| `## Gates added by requirements` | optional; a table: `Requirement`, `Between`, `Artifacts`, `Condition`, `Decider` — a gate a process requirement adds, named by the requirement of the instance's SPEC that adds it (a process requirement: MOD-spec-document) |
 | other sections | free text — the model in words, how sprints run, boundaries |
 
 The job rules, which every Definition of Done holds (`THE DEFAULT DEFINITION OF DONE IS THE JOB RULES`): CI is green; the
@@ -104,18 +104,21 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   transitions: Array<{ from: string, to: string, kind: string }>, pairs: Array<{ phase: string, checkedBy: string }>,
   gates: Array<{ name: string, from: string, to: string, artifacts: string, condition: string, decider: string,
   addedBy: { requirement: string, source: string } | null, practice: string | null }>, roles: Array<{ name: string,
-  filledBy: string, capabilities: string[], holders: string[] }>, branches: Record<string, string>, done: string[],
-  unmapped: string[] }`; `unmapped` names the process requirements that add no gate or artifact yet.
+  filledBy: string, capabilities: string[], holders: string[] }>, branches: Record<string, string>, done: string[] }`.
 - `declarationSchema: Schema` — the declaration's schema, for MOD-documents and for the form of UC-002.
-- `declarationFindings(declaration: Document, catalogue: Model[], participants: Document, sources: Document[]) ->
-  Finding[]` — a model that is not in the catalogue, has error findings or lacks the named version; a role that needs a
-  person and has none; a holder that lacks a capability its role needs, naming it (`A ROLE NAMES THE CAPABILITIES IT
-  NEEDS`); a practice that does not fit the model; a branch for a phase the model lacks — each an error; a holder at a
+- `declarationFindings(declaration: Document, catalogue: Model[], participants: Document, sources: Document[],
+  instanceSpec: string) -> Finding[]` — a model that is not in the catalogue, has error findings or lacks the named
+  version; a role that needs a person and has none; a holder that lacks a capability its role needs, naming it (`A ROLE
+  NAMES THE CAPABILITIES IT NEEDS`); a practice that does not fit the model; a branch for a phase the model lacks; a gate
+  under `## Gates added by requirements` whose requirement the instance's SPEC, `instanceSpec`, does not hold — each an
+  error; a holder at a
   processing place a linked source does not permit — a warning naming the source and the role, whose content that holder
   is then never given (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
-- `workflowOf(declaration: Document, model: Model, practices: Document[], spec: string) -> Workflow` — the model's phases,
-  transitions, pairs and gates, the practices' additions, and the gates and artifacts the process requirements add, each
-  marked with its requirement and source; nothing else enters the workflow.
+- `workflowOf(declaration: Document, model: Model, practices: Document[], instanceSpec: string) -> Workflow` — the model's
+  phases, transitions, pairs and gates, the practices' additions, and the gates and artifacts the process requirements
+  add, as the declaration's `## Gates added by requirements` names them, each marked with its requirement and the source
+  that requirement names in the instance's SPEC, `instanceSpec`; nothing else enters the workflow. A gate whose
+  requirement that SPEC does not hold stays in the workflow with `addedBy.source` null; `declarationFindings` names it.
 - `holdsRole(declaration: Document, participant: string, role: string) -> boolean` — whether the declaration assigns the
   participant to the role (`A JOB GOES ONLY TO A HOLDER OF ITS ROLE`).
 - `gateSchema: Schema` — the gate record's schema.
@@ -156,8 +159,9 @@ MOD-repository-hosts'.
 
 ## Files
 
-- Reads `docs/process.md`, `docs/gates/*.md`, the instance's `docs/participants.md` and source register, the product's
-  `docs/sources.md`, `SPEC.md`, the module files under `docs/architecture/`, and the test files a pull request changes.
+- Reads `docs/process.md`, `docs/gates/*.md`, the instance's `docs/participants.md`, source register and `SPEC.md` — whose
+  requirements are the process requirements —, the product's `docs/sources.md`, the module files under
+  `docs/architecture/`, and the test files a pull request changes.
 - Writes `docs/gates/<…>.md` through `recordGateDecision`; the declaration itself is committed by the page as the person's own
   input.
 
@@ -166,7 +170,7 @@ MOD-repository-hosts'.
 - MOD-model-catalogue.Model, catalogue, modelFindings — the declared model, its version and its validity.
 - MOD-participant-list.participantSchema, eligible — the holders' capabilities and processing places.
 - MOD-source-register.sourceSchemas, permittedPlaces — where the content of a linked source may go.
-- MOD-spec-document.parseSpec — the process requirements and their sources.
+- MOD-spec-document.parseSpec — the process requirements, which the instance's SPEC holds, and their sources.
 - MOD-test-document.testDeclarations — whether new tests name a requirement and a module, and whether a refactoring
   changed an expected result.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, readRegister — declaration, gate records,

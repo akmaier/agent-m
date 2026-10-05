@@ -162,7 +162,7 @@ It writes, only on a person's click and as that person's commit: the product's `
 functions, or, for a drafted plan or drafted items, through the writer of their kind; a job's start record, and the end of a cancelled job, through
 MOD-runtimes; merges of pull requests, and the pull
 request of a sprint branch. It reads the product's snapshot, its pull requests and CI runs, and the instance's
-participants and process models.
+participants, process models and `SPEC.md`, whose requirements are the process requirements.
 
 ## Uses
 
@@ -185,7 +185,8 @@ participants and process models.
   MOD-model-catalogue.planGrid, MOD-model-catalogue.modelDiagram — models.
 - MOD-product-process.declarationSchema, MOD-product-process.declarationFindings, MOD-product-process.workflowOf,
   MOD-product-process.holdsRole, MOD-product-process.doneCheck — the declaration, its workflow and gates, and the
-  Definition of Done of a pull request.
+  Definition of Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
+  where the process requirements stand.
 - MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.planFindings,
   MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts — plans, backlogs, sprints and their states;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.saveOrder, MOD-work-plans.startSprint,

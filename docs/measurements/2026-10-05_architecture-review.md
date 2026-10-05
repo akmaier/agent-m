@@ -129,3 +129,53 @@ no person's name left in the draft.
   offered, the layers kept, no cycle among the modules, every requirement a decision names present in the SPEC.
 - No file of the draft names the participant or the model that drafted or reviewed it; this record and the commit do
   (`AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT`).
+
+## Addendum, 2026-10-06 — what a requirement constrains
+
+**MESSUNG** — 2026-10-05 and 2026-10-06. The Product Owner ruled on how `A REQUIREMENT NAMES WHAT IT CONSTRAINS` is read,
+on 2026-10-05: "The product has its spec; agent-m has its spec. No need to write this down a second time. The location
+either with agent m or a product makes this distinction. No need to specify this as spec or clarify in spec correctly."
+The drafter changed the draft to match: what a requirement constrains is where it stands — a product's SPEC constrains
+the product, the instance's own SPEC the development process —, and no line of a SPEC states it (MOD-spec-document); a
+derivation proposes a process candidate in the instance's SPEC (MOD-spec-changes); the gates process requirements add,
+and the audit's process rows, come from the instance's SPEC (MOD-product-process, MOD-release-evidence); the callers and
+the scenarios say so. Nine files changed. The change was checked with the whole architecture (`A CHANGE ACROSS MODULES IS
+CHECKED AS A WHOLE`).
+
+| Round | Reviewer | What it read | Findings | Fixed | Answered | Left |
+|---|---|---|---|---|---|---|
+| A | `reviewer-sonnet`, the instance of rounds 1–3 | the nine changed files, in full | 4 | 3 | 1 | 0 |
+| B | `reviewer-sonnet`, a new instance | everything, in full; nothing compacted | 2 | 2 | 0 | 0 |
+| C | the instance of round B | — | stopped | — | — | — |
+
+- **Round A** ran in a context that was compacted during the round. The reviewer said so, read again in full the files
+  it had lost, and checked its findings against the files; the rest of the project then stood in its context only as a
+  summary. That is why round B started anew and read everything.
+- **Round C** was stopped by the Product Owner before it reported ("no. more checks"; "it is good enough for me to
+  review"). The two fixes of round B are therefore checked by the drafter's check of the files' form — 17 decisions, 52
+  module files, the five known reports that are no faults —, not by the reviewer.
+
+### Round A — findings and how they were weighed
+
+docs/architecture/ARC-037-agent-m-as-a-whole.md:574: warning: the UC-030 scenario still reads "the audit Tests and releases derives at the tag from the Artifact model, Sources and resources' links, the result records and the approval records", naming no dependency on the instance's SPEC, although MOD-release-evidence.auditRows (what this scenario describes) now takes an `instanceSpec` parameter for exactly the process rows UC-030 step 2 asks for [THE USE CASES ARE THE SCENARIOS OF THE ARCHITECTURE] — add the instance's SPEC to this row, as was done for UC-002 and UC-005.
+    → fixed: UC-030's scenario names the instance's SPEC, for the process requirements whose gates the product's workflow holds. Files: ARC-037.
+
+docs/architecture/MOD-spec-changes.md:176: warning: the `queue-entries` writer can now commit to two repositories from one derivation job — a candidate classed as constraining the development process goes to a queue of the instance's SPEC, every other candidate to the product's — but UC-005's postcondition ("The product repository holds a queue of proposals") and step 5b ("it adds its gates and artifacts to the product's workflow") do not say a proposal from a job run against a product can land in the instance's repository instead [EVERY USE CASE IS CHECKED AGAINST THE ARCHITECTURE] — say in UC-005 that a process-constraining candidate's proposal is written to the instance's queue, not the product's, or confirm this reading with the Product Owner.
+    → answered: the Product Owner's ruling of 2026-10-05 places process requirements in the instance's SPEC, so UC-005 5b's process candidate is proposed there; UC-005's postcondition stays true for the product's candidates, and UC-005 does not say where a process candidate's proposal stands. The Product Owner is told of this effect with the change.
+
+docs/architecture/MOD-progress-measures.md:184: warning: the Files section lists, for the instance, only `docs/participants.md` and the process models, but the Uses section two pages later says "the workflow is read with the instance's SPEC, where the process requirements stand" — the instance's `SPEC.md` is read but not named among the files this module reads [A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES] — add the instance's `SPEC.md` to the Files section.
+    → fixed: the Files sections of MOD-progress-measures, MOD-implementation-pages, MOD-release-evidence, MOD-trace-pages and MOD-workflow-entries (its product-side entries) name the instance's `SPEC.md`, whose requirements are the process requirements.
+
+docs/architecture/MOD-product-process.md:118: warning: `workflowOf` throws `UnknownRequirement { name }` for a gate whose requirement the instance's SPEC does not hold, while every other problem of the same kind and severity — an unknown model, a branch for a phase the model lacks, a role without a needed capability — is an error `declarationFindings` returns, not a thrown exception [MODULE GAPS ARE REPORTED, NOT FORBIDDEN] — fold this check into `declarationFindings` (which would need the instance's SPEC too), or say why this one case must stop the whole workflow instead of being reported beside the others.
+    → fixed: `declarationFindings` takes the instance's SPEC and reports a gate whose requirement that SPEC does not hold as an error; `workflowOf` keeps such a gate with `addedBy.source` null and throws nothing. Files: MOD-product-process, MOD-implementation-pages.
+
+### Round B — findings and how they were weighed
+
+docs/architecture/MOD-product-process.md:163: warning: the Files section names an unqualified "SPEC.md" next to the product's `docs/sources.md`, giving it no owner, although the Uses section two lines further down says the process requirements read here come from the instance's SPEC [A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES] — name it "the instance's SPEC.md" in the Files section, as the round-1 fix already did for MOD-progress-measures, MOD-implementation-pages, MOD-release-evidence, MOD-trace-pages and MOD-workflow-entries.
+    Line 172: "MOD-spec-document.parseSpec — the process requirements, which the instance's SPEC holds, and their sources." — the same gap the round-1 finding closed elsewhere was left open here.
+    → fixed: MOD-product-process's Files section names the instance's `SPEC.md`, whose requirements are the process requirements. Files: MOD-product-process.
+
+docs/architecture/MOD-trace-pages.md:133: warning: the audit view calls MOD-release-evidence.auditRows, whose `gates` parameter that module's own file says is "read through Process, since Process lies above this subsystem" (MOD-release-evidence.md:126), but MOD-trace-pages names no MOD-product-process function anywhere, in its `uses:` front matter or its Files section [A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES] — add the dependency that derives, at the release's commit, each process requirement's gate and gate record (e.g. through MOD-product-process's workflow and gate-state functions), or name the module that supplies it.
+    UC-030 step 2 needs exactly this: "for a process requirement, also the gate records and artifacts it added to the workflow (UC-002, step 7)."
+    → fixed: MOD-trace-pages uses MOD-product-process's declarationSchema, workflowOf, gateSchema and gateStates for the product's workflow and gate records at the release's commit, which the audit's process rows take, and its Files section names `docs/process.md` and `docs/gates/` there. Files: MOD-trace-pages; ARC-042 already offered these functions.
+

@@ -173,7 +173,8 @@ entry with `failed` and the server's or participant's message, and a job it had 
 
 ## Files
 
-In a product: reads the snapshot of the checkout — `docs/participants.md` through the instance's checkout, the product's
+In a product: reads the snapshot of the checkout — `docs/participants.md` and `SPEC.md`, whose requirements are the
+process requirements, through the instance's checkout, the product's
 `docs/process.md`, its plan or backlog, `docs/jobs/` and `docs/gates/` —, writes job and gate records and the results of
 jobs through Access's local clone; reads pull requests and closes issues through the server's API, since the local clone
 does no server operation; appends result records to the branch `test-results`; on GitLab, sets the project's pipeline
@@ -199,8 +200,9 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-progress-measures.productFacts` — the product's facts, read once per entry, from which the next actions of its
   runs are computed.
 - `MOD-run-planner.runOf`, `nextActions` — the runs and their next actions.
-- `MOD-product-process.declarationSchema`, `workflowOf`, `gateSchema`, `gateStates`, `doneCheck` — the workflow, the gates
-  and the Definition of Done, checked by `onDoneCheck`; `recordGateDecision` — a CI check's decision on a gate.
+- `MOD-product-process.declarationSchema`, `workflowOf`, `gateSchema`, `gateStates`, `doneCheck` — the workflow, the
+  gates and the Definition of Done, checked by `onDoneCheck`; `recordGateDecision` — a CI check's decision on a gate.
+  The workflow is read with the instance's SPEC, where the process requirements stand.
 - `MOD-test-schedule.applyPipelineSchedule` — the nightly pipeline schedule on GitLab once a run's CI is merged.
 - `MOD-result-records.parseOutcomes`, `appendResult` — a run's outcomes read from its JUnit XML report, and its result
   record.

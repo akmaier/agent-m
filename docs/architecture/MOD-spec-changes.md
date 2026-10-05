@@ -19,6 +19,7 @@ uses:
   - MOD-documents.readDocument
   - MOD-documents.writeDocument
   - MOD-documents.readRegister
+  - MOD-documents.classifyCandidates
   - MOD-documents.appendSection
   - MOD-spec-document.parseSpec
   - MOD-spec-document.sectionText
@@ -172,7 +173,11 @@ earlier entry of the queue creates it.
   - recipe `named-requirements` — the requirements the job's parameters name, each with its whole section;
   - recipe `chosen-requirements` — the requirements the person chose; without a choice, every requirement of the SPEC
     that no use case realises;
-  - writer `queue-entries` — writes classified candidates as one new queue, one entry per section they touch: a `new`
+  - writer `queue-entries` — writes classified candidates as a new queue of the SPEC each belongs in, where it stands
+    being what it constrains (MOD-spec-document): a candidate classed as constraining the development process goes to a
+    queue of the instance's SPEC, its class decided against that SPEC and its open queues as for the product's, every
+    other candidate to a queue of the product's SPEC — one queue, and one commit, for each of the two that gets one. Within
+    a queue, one entry per section the candidates touch: a `new`
     candidate added to its section; a `change` in the section of the requirement it changes, under its name
     (`A CHANGE IS PROPOSED UNDER THE EXISTING NAME`); a `duplicate` as an added source of the existing requirement
     (`A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT`); a `conflict` only as the person resolved it, an undecided one not at
@@ -195,7 +200,8 @@ earlier entry of the queue creates it.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory, commitFiles — reading queues and the head, the author
   of a queue and the history of a requirement, and the one commit of a proposal or an acceptance.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, readRegister, appendSection — the queue's files
-  by their schemas, the links and register handed in, and the appended decision row.
+  by their schemas, the links and register handed in, and the appended decision row; MOD-documents.classifyCandidates —
+  the classes of process candidates against the instance's SPEC.
 - MOD-spec-document.parseSpec, sectionText, replaceSection, requirementNamesIn, renamedRequirements — the requirements,
   a section's exact bytes and its replacement, the names an edit touches.
 - MOD-trace-graph.traceGraph, requirementImpact, coverageGaps — impact lists, and the requirements no use case realises.
