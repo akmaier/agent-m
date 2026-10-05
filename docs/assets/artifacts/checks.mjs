@@ -15,8 +15,7 @@
 //                          (requirements.mjs requirementProblems), and the names themselves (identity.mjs identifiers)
 //   use-case               useCaseProblems (use-cases.mjs), and the identifier the file was opened with
 //   architecture-decision  parseArchitecture's problems (artifacts.mjs), each with its rule, line and correction; a diagram
-//   module                 stored as an image; the withdrawal note; a module's origin (identity.mjs originProblems); unknown
-//                          names; the identifier the file was opened with
+//                          stored as an image; the withdrawal note; unknown names; the identifier the file was opened with
 //   test                   levelProblems (headers.mjs), originProblems and the TST- identifiers (identity.mjs), unknown names
 //                          under Guards:
 //   group-file             the hierarchy over the known items (groups.mjs parseGroupFile, hierarchy)
@@ -27,7 +26,7 @@
 //   knownNames     the product's requirement names (a list, a Set, or the Map parseRequirements gives); without them a name
 //                  is checked for its form only
 //   linkedSources  requirement: the sources the product links (docs/sources.md), as requirementProblems takes them
-//   openedId       use case, decision, module: the identifier the file was opened with (AN EDITED FILE KEEPS ITS IDENTIFIER)
+//   openedId       use case, decision: the identifier the file was opened with (AN EDITED FILE KEEPS ITS IDENTIFIER)
 //   items          group file: the known items of its kind, as hierarchy takes them
 
 import { HEADER_LINES, identifierKept, parseArchitecture, parseFrontMatter, reviewedId } from "../artifacts.mjs";
@@ -38,7 +37,7 @@ import { identifiers, originProblems } from "./identity.mjs";
 import { hierarchy, parseGroupFile } from "./groups.mjs";
 
 // The kinds formatChecks knows, as a job definition names them.
-export const FORMAT_KINDS = ["requirement", "use-case", "architecture-decision", "module", "test", "group-file"];
+export const FORMAT_KINDS = ["requirement", "use-case", "architecture-decision", "test", "group-file"];
 
 const ORIGIN = "EVERY ARTIFACT NAMES ITS ORIGIN";
 const SURVIVES = "THE NAME IS THE ID AND IT SURVIVES";
@@ -77,7 +76,7 @@ function useCaseChecks(text, context) {
   return [...useCaseProblems(context.path, text, context.knownNames).map(shape), ...keptFindings(context.openedId, text)];
 }
 
-// ---------------------------------------------------------------- architecture decision and module
+// ---------------------------------------------------------------- architecture decision
 
 const ARCHITECTURE = {
   "architecture-decision": {
@@ -85,19 +84,12 @@ const ARCHITECTURE = {
     parts: "AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES", noun: "a decision",
     keys: "id, title and forced_by",
   },
-  "module": {
-    file: "ONE MODULE, ONE FILE", form: "docs/architecture/MOD-<slug>.md",
-    parts: "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES", noun: "a module",
-    keys: "id, title, realises, follows, uses and provides",
-  },
 };
+// What parseArchitecture can take a file under docs/architecture/ for.
+const NOUN = { "architecture-decision": "a decision", module: "a module" };
 // What each list of the front matter holds, and the rule that asks for it.
 const LISTS = {
   forced_by: { rule: () => ORIGIN, item: "name a requirement by its name in capitals, as the SPEC writes it, or a use case UC-<nnn>." },
-  realises: { rule: () => ORIGIN, item: "name a requirement by its name in capitals, as the SPEC writes it, or a use case UC-<nnn>." },
-  follows: { rule: () => ORIGIN, item: "name an architecture decision as ARC-<nnn>." },
-  uses: { rule: (a) => a.parts, item: "name an interface of another module as MOD-<slug>.<interface>." },
-  provides: { rule: (a) => a.parts, item: "name the interface alone, as its bullet in ## Interfaces begins." },
 };
 
 // One problem of parseArchitecture, its file name taken off, as a finding: its rule, its line and the correction. Every
@@ -127,11 +119,6 @@ function architectureFinding(a, artifact, text, what) {
   if ((m = /^key (\w+) belongs to (?:a module|an architecture decision)$/.exec(what))) {
     return one(a.file, at(m[1]), `remove ${m[1]}: — it belongs to the other kind of architecture file, not to ${a.noun}.`);
   }
-  if (what === "provides names an interface twice") return one(a.parts, at("provides"), "list each interface once under provides:.");
-  if ((m = /^interface (\w+) is not described in ## Interfaces$/.exec(what))) {
-    return one(a.parts, at("provides", m[1]),
-      `describe ${m[1]} in ## Interfaces by a bullet - \`${m[1]}(…) -> …\` — …, or remove it from provides:.`);
-  }
   if ((m = /^missing section (.*)$/.exec(what))) return one(a.parts, 1, `add the section ${m[1]} to the file.`);
   return one(a.file, 1, `correct the file as ${a.form} requires.`);
 }
@@ -143,8 +130,8 @@ function architectureChecks(kind, text, context) {
   const artifact = reviewedId(path) ?? name;
   const out = [];
   if (parsed.kind && parsed.kind !== kind) {
-    out.push(finding(artifact, 1, "error", a.file, `the file is ${ARCHITECTURE[parsed.kind].noun}, not ${a.noun}`,
-      `name the file ${a.form}, or check it as ${ARCHITECTURE[parsed.kind].noun}.`));
+    out.push(finding(artifact, 1, "error", a.file, `the file is ${NOUN[parsed.kind]}, not ${a.noun}`,
+      `name the file ${a.form}.`));
     return out;
   }
   const problems = parsed.problems.map((p) => (p.startsWith(`${name}: `) ? p.slice(name.length + 2) : p));
@@ -155,19 +142,13 @@ function architectureChecks(kind, text, context) {
   }
   for (const p of problems) out.push(architectureFinding(a, artifact, text, p));
   const known = nameSet(context.knownNames);
-  const key = kind === "module" ? "realises" : "forced_by";
+  const key = "forced_by";
   if (known) {
     for (const n of parsed.requirements) {
       if (isRequirementName(n) && !known.has(n)) {
         out.push(finding(artifact, keyLine(text, key, n), "error", ORIGIN, `${key} "${n}" matches no requirement`,
           "use an existing name or remove the line."));
       }
-    }
-  }
-  if (kind === "module") {
-    // A module realises something and follows a decision (originProblems; a decision's forced_by is parseArchitecture's).
-    for (const f of originProblems({ [path]: text })) {
-      out.push({ ...shape(f), artifact, line: keyLine(text, /realises/.test(f.what) ? "realises" : "follows") });
     }
   }
   const { body } = parseFrontMatter(text);
@@ -221,8 +202,7 @@ export function formatChecks(kind, text, context = {}) {
   switch (kind) {
     case "requirement": return requirementChecks(t, c);
     case "use-case": return useCaseChecks(t, c);
-    case "architecture-decision":
-    case "module": return architectureChecks(kind, t, c);
+    case "architecture-decision": return architectureChecks(kind, t, c);
     case "test": return testChecks(t, c);
     case "group-file": return groupFileChecks(t, c);
     default: throw new TypeError(`formatChecks: unknown kind ${JSON.stringify(kind)} — one of ${FORMAT_KINDS.join(", ")}`);

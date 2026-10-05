@@ -515,7 +515,7 @@ test("release · ITM-129 UC-024: every tab and view of today is shown; a view wh
 //
 // ITM-142: "no shell file reads past what MOD-git-host provides; the dashboard's reads behave as before". From the accepted
 // architecture: MOD-git-host's "request helper … is internal and no caller sets a header" and its `provides` list
-// (the interfaces of MOD-git-host in docs/architecture/ARC-004-*.md, ARC-020); ARC-003 decision 6, "no module file but the adapters' calls fetch". A file belongs to a
+// (HOST_PROVIDES below); ARC-003 decision 6, "no module file but the adapters' calls fetch". A file belongs to a
 // module by its `Module:` line (ARC-020). The kernel's half — no kernel file imports from the git host — is in
 // tests/release-sprint-02-a-review-core.test.mjs.
 
@@ -551,13 +551,15 @@ function namesFrom(file, module) {
   return out;
 }
 const SHELL_FILES = codeFiles().filter((f) => moduleOf(f) === "MOD-dashboard-app");
-// MOD-git-host's interfaces, read from the json interface blocks of the decision that designs it (ARC-020 decision 2).
-const HOST_PROVIDES = (() => {
-  const arc = fs.readdirSync(path.join(ROOT, "docs/architecture")).find((f) => /^ARC-004-.+\.md$/.test(f));
-  const t = fs.readFileSync(path.join(ROOT, "docs/architecture", arc), "utf8");
-  return new Set([...t.matchAll(/```json interface\n([\s\S]*?)\n```/g)].map((m) => JSON.parse(m[1]).id)
-    .filter((id) => id.startsWith("MOD-git-host.")).map((id) => id.slice("MOD-git-host.".length)));
-})();
+// MOD-git-host's interfaces: the names it provides to the other modules, as the code is built.
+const HOST_PROVIDES = new Set(["assetAnswer", "assetRequest", "authHeaders", "branchHead", "branchProtection", "cancelRun",
+  "candidateTags", "checks", "commentIssue", "commitFiles", "commitOf", "commitsTouching", "createBranch", "createIssue", "createTag",
+  "dispatchWorkflow", "editUrl", "fileUrl", "issueClosedBy", "issueComments", "issueLabel", "issues", "latestRelease",
+  "mergePullRequest", "newFileUrl", "openPullRequest", "parseProductAddress", "pathHistory", "pipelineSchedules",
+  "pipelineSchedulesPageUrl", "pullRequestCommits", "pullRequests", "readBlob", "readBlobBytes", "readFile", "readSnapshot",
+  "recentCommits", "releaseTags", "releaseText", "releaseWith", "repositoryInfo", "requiredPermissions", "runnersPageUrl",
+  "savePipelineSchedule", "secretsPageUrl", "setIssueBody", "setIssueState", "tagCommits", "tokenAccount", "tokenPageUrl",
+  "treeUrl", "workflowPageUrl", "workflowRuns", "writeFiles"]);
 
 // ITM-130 · MOD-git-host's request helper is internal — Expected: no file whose Module: line names MOD-dashboard-app imports
 // `fetchText` (or the helper `request`) from a file of MOD-git-host. Known positive of the reader: a planted import of it is seen.

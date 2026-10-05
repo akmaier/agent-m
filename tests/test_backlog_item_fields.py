@@ -220,6 +220,7 @@ class TestTheJobThatDraftsItems(unittest.TestCase):
         self.assertEqual(again, [["warning", 'the item restates ITM-014 ("Export the thesis as PDF")']])
 
 
+@unittest.skipUnless(any((DOCS / "backlog").glob("ITM-*.md")), "this repository has no backlog items")
 class TestAgentMsOwnBacklog(unittest.TestCase):
     OWN = DOCS / "backlog"
 

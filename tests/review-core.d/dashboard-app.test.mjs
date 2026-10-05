@@ -26,17 +26,9 @@ import { ASSETS, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fak
 // Every module file of the site (vendored libraries excepted), with the modules its Module line names.
 const moduleFiles = () => readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
   .sort().map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") }));
-// The adapters (ARC-003 decision 1): the modules of the group Adapters in docs/groups/modules.md.
+// The adapters (ARC-003 decision 1): the modules that reach the outside, as the code is built.
 function adapterModules() {
-  const out = new Set();
-  let inGroup = false;
-  for (const l of readFileSync(new URL("../../docs/groups/modules.md", import.meta.url), "utf8").split("\n")) {
-    const top = /^- (.+)$/.exec(l);
-    if (top) { inGroup = top[1].trim() === "Adapters"; continue; }
-    const m = /^\s+- (MOD-[a-z0-9-]+)\s*$/.exec(l);
-    if (inGroup && m) out.add(m[1]);
-  }
-  return out;
+  return new Set(["MOD-git-host", "MOD-settings-store", "MOD-participants", "MOD-mailbox", "MOD-bridge-server", "MOD-bridge-tunnel"]);
 }
 
 test("the app never calls fetch directly — every request goes through fetchText", () => {
@@ -44,7 +36,7 @@ test("the app never calls fetch directly — every request goes through fetchTex
   // kernel and feature file. A file's module is its Module line; a file naming no adapter is checked.
   const adapters = adapterModules(), files = moduleFiles();
   const checked = files.filter((f) => !headerModules(f.text).some((m) => adapters.has(m)));
-  assert.ok(adapters.has("MOD-git-host") && adapters.has("MOD-settings-store"), "the adapters are read from the group file");
+  assert.ok(adapters.has("MOD-git-host") && adapters.has("MOD-settings-store"), "the adapters are listed");
   assert.ok(!checked.some((f) => f.file === "git-host.mjs") && checked.some((f) => f.file === "dashboard-app.mjs")
     && checked.some((f) => f.file === "artifacts.mjs") && checked.some((f) => f.file.startsWith("dashboard/")), "kernel and shell files are checked");
   const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
@@ -56,17 +48,10 @@ test("the app never calls fetch directly — every request goes through fetchTex
   assert.doesNotMatch("saved in this browser (its <code>localStorage</code>)", FORBIDDEN);
 });
 
-// The kernel (ARC-003 decision 1): the modules of the group Kernel in docs/groups/modules.md.
+// The kernel (ARC-003 decision 1): the modules of pure functions and data, as the code is built.
 function kernelModules() {
-  const out = new Set();
-  let inGroup = false;
-  for (const l of readFileSync(new URL("../../docs/groups/modules.md", import.meta.url), "utf8").split("\n")) {
-    const top = /^- (.+)$/.exec(l);
-    if (top) { inGroup = top[1].trim() === "Kernel"; continue; }
-    const m = /^\s+- (MOD-[a-z0-9-]+)\s*$/.exec(l);
-    if (inGroup && m) out.add(m[1]);
-  }
-  return out;
+  return new Set(["MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-job-harness", "MOD-run-engine", "MOD-process-model",
+    "MOD-work-items"]);
 }
 // The three write functions of the git host (MOD-git-host): the one write path and the commit on each kind of server.
 const GIT_HOST_WRITES = ["commitFiles", "commitFilesGitLab", "writeFiles"];
@@ -138,13 +123,15 @@ test("the shells read only through what the git host provides — no file of the
 // The git host's reads that MOD-git-host keeps to itself: the request helper and the GitLab reads behind readSnapshot,
 // readFile and repositoryInfo. Each sends a request; none is in MOD-git-host's `provides`.
 const GIT_HOST_INTERNAL_READS = ["fetchText", "request", "gitlabProject", "gitlabSnapshot", "gitlabReadFile"];
-// MOD-git-host's interfaces, read from the json interface blocks of the decision that designs it (ARC-020 decision 2).
-const gitHostProvides = () => {
-  const dir = new URL("../../docs/architecture/", import.meta.url);
-  const arc = readdirSync(dir).find((f) => /^ARC-004-.+\.md$/.test(f));
-  return new Set([...readFileSync(new URL(arc, dir), "utf8").matchAll(/```json interface\n([\s\S]*?)\n```/g)]
-    .map((m) => JSON.parse(m[1]).id).filter((id) => id.startsWith("MOD-git-host.")).map((id) => id.slice("MOD-git-host.".length)));
-};
+// MOD-git-host's interfaces: the names it provides to the other modules, as the code is built.
+const gitHostProvides = () => new Set(["assetAnswer", "assetRequest", "authHeaders", "branchHead", "branchProtection", "cancelRun",
+  "candidateTags", "checks", "commentIssue", "commitFiles", "commitOf", "commitsTouching", "createBranch", "createIssue", "createTag",
+  "dispatchWorkflow", "editUrl", "fileUrl", "issueClosedBy", "issueComments", "issueLabel", "issues", "latestRelease",
+  "mergePullRequest", "newFileUrl", "openPullRequest", "parseProductAddress", "pathHistory", "pipelineSchedules",
+  "pipelineSchedulesPageUrl", "pullRequestCommits", "pullRequests", "readBlob", "readBlobBytes", "readFile", "readSnapshot",
+  "recentCommits", "releaseTags", "releaseText", "releaseWith", "repositoryInfo", "requiredPermissions", "runnersPageUrl",
+  "savePipelineSchedule", "secretsPageUrl", "setIssueBody", "setIssueState", "tagCommits", "tokenAccount", "tokenPageUrl",
+  "treeUrl", "workflowPageUrl", "workflowRuns", "writeFiles"]);
 
 // Guards: UC-024; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
 test("the shells read only through what the git host provides — no file of the dashboard imports a read MOD-git-host keeps to itself", () => {

@@ -94,6 +94,7 @@ class TestASprintThatIsNotOne(unittest.TestCase):
                          [(9, "error", SELECTED, "the selection names ITM-014 a second time")])
 
 
+@unittest.skipUnless(any((DOCS / "backlog" / "sprints").glob("sprint-*.md")), "this repository has no sprint records")
 class TestAgentMsOwnSprints(unittest.TestCase):
     """The sprint records of this repository: Agent M is the instance's own product (`docs/process.md`)."""
 

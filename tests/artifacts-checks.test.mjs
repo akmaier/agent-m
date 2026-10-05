@@ -15,7 +15,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { FORMAT_KINDS, formatChecks } from "../docs/assets/artifacts/checks.mjs";
 import { isRequirementName, parseRequirements, requirementProblems } from "../docs/assets/artifacts/requirements.mjs";
 import { useCaseProblems } from "../docs/assets/artifacts/use-cases.mjs";
@@ -45,7 +45,6 @@ const ARC = "docs/architecture/ARC-001-static-client.md";
 const MOD = "docs/architecture/MOD-view.md";
 const TEST = "tests/view.spec.mjs";
 const decision = (text, more = {}) => formatChecks("architecture-decision", text, { path: ARC, knownNames: KNOWN, ...more });
-const module_ = (text, more = {}) => formatChecks("module", text, { path: MOD, knownNames: KNOWN, ...more });
 const testFile = (text, more = {}) => formatChecks("test", text, { path: TEST, knownNames: KNOWN, ...more });
 
 // The requirements fixture, well formed for a product that links these three sources.
@@ -63,8 +62,6 @@ const HAS_ID = "EVERY ARTIFACT HAS AN IDENTIFIER";
 const KEPT = "AN EDITED FILE KEEPS ITS IDENTIFIER";
 const ARC_FILE = "ONE ARCHITECTURE DECISION, ONE FILE";
 const ARC_PARTS = "AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES";
-const MOD_FILE = "ONE MODULE, ONE FILE";
-const MOD_PARTS = "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES";
 
 // Every finding the tests below provoke, for the test of their form.
 const SEEN = [];
@@ -72,9 +69,10 @@ const seen = (fs) => { SEEN.push(...fs); return fs; };
 
 // ---------------------------------------------------------------- the kinds
 
-test("formatChecks knows the six kinds, and refuses another by naming them", () => {
-  assert.deepEqual(FORMAT_KINDS, ["requirement", "use-case", "architecture-decision", "module", "test", "group-file"]);
-  assert.throws(() => formatChecks("decision", ""), /unknown kind "decision" — one of requirement, use-case, architecture-decision, module, test, group-file/);
+test("formatChecks knows the five kinds, and refuses another by naming them", () => {
+  assert.deepEqual(FORMAT_KINDS, ["requirement", "use-case", "architecture-decision", "test", "group-file"]);
+  assert.throws(() => formatChecks("decision", ""), /unknown kind "decision" — one of requirement, use-case, architecture-decision, test, group-file/);
+  assert.throws(() => formatChecks("module", ""), /unknown kind "module"/, "a module file is not format-checked");
   assert.throws(() => formatChecks(undefined, ""), /unknown kind/);
 });
 
@@ -83,10 +81,6 @@ test("a complete artifact of every kind yields no finding", () => {
   assert.deepEqual(formatChecks("requirement", V2("SPEC.md"), { linkedSources: ["SRC-po"] }), [], "the fixture product's SPEC");
   assert.deepEqual(useCase(UC_TEXT, { openedId: "UC-001" }), [], "the complete use case, opened as UC-001");
   assert.deepEqual(decision(V2(ARC), { openedId: "ARC-001" }), [], ARC);
-  for (const m of ["MOD-page", "MOD-reader", "MOD-view"]) {
-    const path = `docs/architecture/${m}.md`;
-    assert.deepEqual(formatChecks("module", V2(path), { path, knownNames: KNOWN, openedId: m }), [], path);
-  }
   for (const t of ["tests/reader.spec.mjs", "tests/view.spec.mjs"]) {
     assert.deepEqual(formatChecks("test", V2(t), { path: t, knownNames: KNOWN }), [], t);
   }
@@ -208,36 +202,6 @@ test("a decision: each broken part, origin, key, identifier, diagram and withdra
     "a decision outside docs/architecture/ is named for its place");
 });
 
-// ---------------------------------------------------------------- module (UC-022)
-
-test("a module: each broken interface, origin, key and part is one finding at its line", () => {
-  const T = V2(MOD);
-  const cases = [
-    [plant(T, "  - MOD-reader.readFile\n", "  - readFile\n"),
-      [["MOD-view", 11, "error", MOD_PARTS, 'uses: "readFile" is not an interface of another module (MOD-<slug>.<interface>)']]],
-    [plant(T, "  - showStatus\n", "  - showStatus\n  - hideStatus\n"),
-      [["MOD-view", 14, "error", MOD_PARTS, "interface hideStatus is not described in ## Interfaces"]]],
-    [plant(T, "  - showStatus\n", "  - showStatus\n  - showStatus\n"),
-      [["MOD-view", 12, "error", MOD_PARTS, "provides names an interface twice"]]],
-    [plant(T, "  - showStatus\n", "  - showStatus\nforced_by:\n  - UC-002\n"),
-      [["MOD-view", 14, "error", MOD_FILE, "key forced_by belongs to an architecture decision"]]],
-    [plant(T, "realises:\n  - THE STATUS IS SHOWN\n  - EVERY FILE HAS A STATUS\n  - UC-002\n", "realises: []\n"),
-      [["MOD-view", 4, "error", ORIGIN, "the module names nothing it realises"]]],
-    [plant(T, "follows:\n  - ARC-001\n", "follows: []\n"),
-      [["MOD-view", 8, "error", ORIGIN, "the module names no decision it follows"]]],
-    [plant(T, "  - EVERY FILE HAS A STATUS\n", "  - EVERY FILE HAS A COLOUR\n"),
-      [["MOD-view", 6, "error", ORIGIN, 'realises "EVERY FILE HAS A COLOUR" matches no requirement']]],
-    [plant(T, "## Interfaces\n", ""), [
-      ["MOD-view", 13, "error", MOD_PARTS, "interface showStatus is not described in ## Interfaces"],
-      ["MOD-view", 1, "error", MOD_PARTS, "missing section ## Interfaces"]]],
-  ];
-  for (const [text, want] of cases) assert.deepEqual(brief(seen(module_(text))), want, want[0][4]);
-  assert.deepEqual(brief(seen(module_(T, { openedId: "MOD-page" }))),
-    [["MOD-page", 2, "error", KEPT, "the file was opened as MOD-page, but the text carries the identifier MOD-view"]]);
-  assert.deepEqual(module_(plant(T, "  - EVERY FILE HAS A STATUS\n", "  - EVERY FILE HAS A COLOUR\n"), { knownNames: undefined }), [],
-    "without known names, a name is checked for its form only");
-});
-
 // ---------------------------------------------------------------- test
 
 test("a test: its level, its module, what it guards and its case identifiers are each one finding", () => {
@@ -299,14 +263,12 @@ test("one shape in every check of MOD-artifacts — fix, never correction", () =
 
 // ---------------------------------------------------------------- this repository
 
-test("every use case, decision, module and group file of this repository passes formatChecks", () => {
-  const files = (dir) => readdirSync(new URL(dir, ROOT)).map((n) => `${dir}${n}`);
-  for (const path of files("docs/use-cases/").filter((p) => /\/UC-[^/]+\.md$/.test(p))) {
+test("every use case and group file of this repository passes formatChecks", () => {
+  const files = (dir) => (existsSync(new URL(dir, ROOT)) ? readdirSync(new URL(dir, ROOT)).map((n) => `${dir}${n}`) : []);
+  const useCases = files("docs/use-cases/").filter((p) => /\/UC-[^/]+\.md$/.test(p));
+  assert.ok(useCases.length > 0, "the use cases are read at all");
+  for (const path of useCases) {
     assert.deepEqual(brief(formatChecks("use-case", read(path, ROOT), { path })), [], path);
-  }
-  for (const path of files("docs/architecture/")) {
-    const kind = /\/ARC-/.test(path) ? "architecture-decision" : /\/MOD-/.test(path) ? "module" : null;
-    if (kind) assert.deepEqual(brief(formatChecks(kind, read(path, ROOT), { path })), [], path);
   }
   for (const path of files("docs/groups/")) {
     assert.deepEqual(brief(formatChecks("group-file", read(path, ROOT), { path })), [], path);

@@ -86,8 +86,8 @@ def tracked() -> list[str]:
 class ArtifactsAreMarkdown(unittest.TestCase):
     def test_every_artifact_of_this_repository_is_markdown_with_mermaid_diagrams(self):
         places = [f for f in tracked() if is_artifact_place(f)]
-        # Not vacuous: the places hold the SPEC, use cases, decisions, records, items and measurements.
-        for kind in ("SPEC.md", "docs/use-cases/", "docs/architecture/", "docs/approvals/", "docs/backlog/", "docs/measurements/"):
+        # Not vacuous: the places hold the SPEC, use cases, records and measurements.
+        for kind in ("SPEC.md", "docs/use-cases/", "docs/approvals/", "docs/measurements/"):
             self.assertTrue(any(f == kind or f.startswith(kind) for f in places), kind)
         found = []
         for f in places:

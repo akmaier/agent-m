@@ -157,6 +157,7 @@ class TestTheOrder(unittest.TestCase):
         self.assertEqual(order(text, files(BACKLOG))["unplaced"], ["ITM-015", "ITM-017"])
 
 
+@unittest.skipUnless(any((DOCS / "backlog").glob("ITM-*.md")), "this repository has no backlog items")
 class TestAgentMsOwnBacklog(unittest.TestCase):
     """The backlog of this repository: Agent M is the instance's own product (`docs/process.md`)."""
 
