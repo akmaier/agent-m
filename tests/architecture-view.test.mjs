@@ -45,9 +45,9 @@ test("ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — the blocked panel: Accept dis
 // ---------------------------------------------------------------- the app
 
 test("the dashboard has an Architecture tab that lists, reviews, accepts and edits ARC and MOD files like use cases", async () => {
-  // The tab bar is written by the dashboard from its table of views; the page's own tab bar is read.
+  // The menu is written by the dashboard from the stages of the process and its table of views; the page's own menu is read.
   const html = (await openDashboard({ server: await repoServer({ files: { "SPEC.md": "# SPEC\n" } }) })).el("tabs");
-  assert.match(html, /<a href="#arc" role="tab" id="tab-arc">Architecture<\/a>/);
+  assert.match(html, /<a href="#arc" role="tab" id="tab-arc" data-stage="architecture">Architecture<\/a>/);
   const app = dashboardText();
   assert.match(app, /paths\(ARCHITECTURE_FILE\)/, "the files are read by the core's pattern");
   assert.deepEqual(archPaths.concat(["docs/architecture/README.md", "docs/architecture/ARC-1-x.md", "docs/use-cases/UC-001-x.md",

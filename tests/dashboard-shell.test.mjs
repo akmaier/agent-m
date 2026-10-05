@@ -1,10 +1,10 @@
-// The dashboard shell — the tab bar written from the table of views, each view loaded by its name, a view or settings section
-// whose file is not there not shown, and not asked for, a view's own stylesheet, and the request handlers a view's tests bring
-// to the harness.
+// The dashboard shell — the site's menu written from the stages of the process and the table of views, each view loaded by its
+// name, a view or settings section whose file is not there not shown, and not asked for, a view's own stylesheet, and the
+// request handlers a view's tests bring to the harness.
 // Run: node --test tests/
 //
 // Module: MOD-dashboard-app
-// Guards: EVERY SETTING IS REACHED FROM ONE PAGE; UC-001; UC-006; UC-008; UC-014; UC-022; UC-023; UC-024; UC-042
+// Guards: EVERY SETTING IS REACHED FROM ONE PAGE; THE MENU FOLLOWS THE PROCESS; UC-001; UC-006; UC-008; UC-014; UC-022; UC-023; UC-024; UC-042
 // Level: component
 //
 // The real dashboard (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock. The counter-proofs
@@ -19,6 +19,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { repoServer, openDashboard } from "./app-harness.mjs";
 import { DASHBOARD } from "../docs/assets/dashboard-app.mjs";
+import { MENU } from "../src/site/menu.mjs";
 
 // What a page asks the server for below docs/assets/dashboard/: in a browser every import of a view or section file is a request
 // to GitHub Pages, and one for a file that is not there is answered 404. Under node the harness's fetch does not see imports, so
@@ -46,20 +47,22 @@ const FILES = {
   [UC]: "---\nid: UC-001\ntitle: Add a product\narea: setup\nrealises:\n  - NO SERVER\n---\n# UC-001 Add a product\n",
 };
 
-// The tab bar docs/index.html carried before the views had files of their own, link for link — and the tab of each view built
-// since, in the table's order: Backlog (ITM-147).
-const TABS_BEFORE = [
-  '<a href="#uc" role="tab" id="tab-uc">Use cases</a>',
-  '<a href="#arc" role="tab" id="tab-arc">Architecture</a>',
-  '<a href="#spec" role="tab" id="tab-spec">SPEC changes</a>',
-  '<a href="#backlog" role="tab" id="tab-backlog">Backlog</a>',
-  '<a href="#how" role="tab" id="tab-how">How acceptance works</a>',
-  '<a href="#settings" role="tab" id="tab-settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
+// THE MENU FOLLOWS THE PROCESS: with the view files of today, the menu entry by entry — each stage of the process linking to the
+// first of its views that is built, a stage none of whose views is built named without a link, then maintenance and settings.
+const MENU_OF_TODAY = [
+  '<a href="#spec" role="tab" id="tab-spec" data-stage="requirements">Requirements</a>',
+  '<a href="#uc" role="tab" id="tab-uc" data-stage="use-cases">Use cases</a>',
+  '<a href="#arc" role="tab" id="tab-arc" data-stage="architecture">Architecture</a>',
+  '<a href="#backlog" role="tab" id="tab-backlog" data-stage="implementation">Implementation</a>',
+  '<span class="soon" data-stage="tests" aria-disabled="true" title="Tests — not built yet">Tests</span>',
+  '<span class="soon" data-stage="releases" aria-disabled="true" title="Releases — not built yet">Releases</span>',
+  '<span class="soon" data-stage="maintenance" aria-disabled="true" title="Maintenance — not built yet">Maintenance</span>',
+  '<a href="#settings" role="tab" id="tab-settings" data-stage="settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
 ];
 
-test("with every view file of today, the tab bar shows the tabs it showed before and those built since, in their order", async () => {
+test("with every view file of today, the menu shows the stages of the process in their order, each linked to its page", async () => {
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
-  assert.deepEqual(page.el("tabs").split("\n"), TABS_BEFORE);
+  assert.deepEqual(page.el("tabs").split("\n"), MENU_OF_TODAY);
 });
 
 test("every view of today is shown — use cases, architecture, SPEC changes, how acceptance works, settings, add product, setup, review pages", async () => {
@@ -80,16 +83,16 @@ test("every view of today is shown — use cases, architecture, SPEC changes, ho
 test("a view or settings section whose file is not there yet is not shown, and its address shows the use cases", async () => {
   const views = new URL("../docs/assets/dashboard/", import.meta.url);
   const missing = DASHBOARD.filter((x) => x.file && !existsSync(new URL(x.file, views)));
-  const view = missing.find((x) => x.view && x.tab), section = missing.find((x) => x.section);
-  assert.ok(view && section, "the table names a view with a tab and a settings section that have no file yet");
+  const view = missing.find((x) => x.view && MENU.some((e) => e.views.includes(x.view))), section = missing.find((x) => x.section);
+  assert.ok(view && section, "the table names a view of a menu stage and a settings section that have no file yet");
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
-  assert.doesNotMatch(page.el("tabs"), new RegExp(`id="tab-${view.view}"`));
+  assert.doesNotMatch(page.el("tabs"), new RegExp(`href="#${view.view}"|id="tab-${view.view}"`));
   await page.go(`#${view.view}`);
   assert.match(page.main(), /<h2>Use cases<\/h2>/);
   await page.go("#settings");
   assert.doesNotMatch(page.main(), new RegExp(`data-settings-section="${section.section}"`));
-  // Counter-proof: a view whose file is there has its tab, and a built-in section is on the page.
-  assert.match(page.el("tabs"), /id="tab-how"/);
+  // Counter-proof: a view whose file is there is linked from its stage, and a built-in section is on the page.
+  assert.match(page.el("tabs"), /<a href="#uc" role="tab" id="tab-uc"/);
   assert.match(page.main(), /id="product-settings"/);
 });
 
@@ -137,10 +140,12 @@ test("a request handler a test brings answers before the harness's own GitHub", 
 });
 
 test("a view may link a stylesheet of its own beside style.css — once, when it is first shown", async () => {
-  // A copy of the site whose how-view.mjs names a stylesheet; the view is otherwise the real one.
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-assets-")));
+  // A copy of the site whose how-view.mjs names a stylesheet; the view is otherwise the real one. The copy keeps the site's
+  // layout — docs/assets/ beside src/, which the dashboard's modules import from.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-assets-"))), dir = join(root, "docs", "assets");
   try {
     cpSync(new URL("../docs/assets/", import.meta.url), dir, { recursive: true });
+    cpSync(new URL("../src/", import.meta.url), join(root, "src"), { recursive: true });
     const view = join(dir, "dashboard", "how-view.mjs");
     writeFileSync(view, readFileSync(view, "utf8") + '\nexport const stylesheet = "how-view.css";\n');
     const assets = pathToFileURL(dir + "/");
@@ -154,6 +159,6 @@ test("a view may link a stylesheet of its own beside style.css — once, when it
     const real = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#how" });
     assert.deepEqual(real.stylesheets(), []);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
   }
 });

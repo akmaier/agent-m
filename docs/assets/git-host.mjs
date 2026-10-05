@@ -376,6 +376,17 @@ export async function commitsTouching({ product, commit, path, token = null, lim
   return list.map((c) => ({ sha: c.sha, date: c.commit?.committer?.date, author: c.author?.login ?? c.commit?.author?.name ?? null }));
 }
 
+// The release tags of the repository, vYYYY.MINOR.PATCH (A RELEASE IS TAGGED AND LOGGED) -> [name]. One request: GitHub's
+// refs under tags/v, GitLab's tags whose name begins with v (the first hundred).
+export async function releaseTags({ product, token = null }) {
+  const names = isGitLab(product)
+    ? JSON.parse(await fetchText(`${gitlabApiBase(product)}/repository/tags?search=${encodeURIComponent("^v")}&per_page=100`, {},
+      gitlabAuth(product, token))).map((t) => t.name)
+    : JSON.parse(await fetchText(`${GITHUB_API}/repos/${product.repo}/git/matching-refs/tags/v`, { headers: GITHUB_JSON }, token))
+      .map((r) => String(r.ref).replace(/^refs\/tags\//, ""));
+  return names.filter((n) => /^v\d{4}\.\d+\.\d+$/.test(n));
+}
+
 // What the server reports about the repository -> { visibility: "public" | "private" | "internal", defaultBranch, role? }.
 // role: on GitLab the access level the token acts with (10 Guest … 50 Owner), null when the server names none.
 export async function repositoryInfo({ product, token = null }) {

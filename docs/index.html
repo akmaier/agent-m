@@ -5,23 +5,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Agent M · Review</title>
-  <meta name="description" content="Review dashboard of Agent M: use cases, architecture and SPEC changes, accepted by a commit on GitHub or GitLab.">
+  <meta name="description" content="Review pages of Agent M: requirements, use cases, architecture and the work that follows them, accepted by a commit on GitHub or GitLab.">
+  <link rel="icon" type="image/png" sizes="32x32" href="../src/brand/favicon-32.png">
+  <link rel="apple-touch-icon" href="../src/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="../src/theme/lme.css">
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/vendor/mermaid.min.js"></script>
 </head>
 <body>
-  <header class="top">
-    <div class="brand">
-      <span class="logo" aria-hidden="true">M</span>
-      <div>
-        <h1>Agent M <span class="sub">Review</span></h1>
-        <p class="repo" id="repo-line">loading…</p>
+  <header class="site-header top">
+    <div class="inner">
+      <a class="brand" href="../" title="The main page">
+        <picture>
+          <source srcset="../src/brand/prl-lettered-white.png" media="(prefers-color-scheme: dark)">
+          <img src="../src/brand/prl-lettered.png" alt="Pattern Recognition Lab" width="126" height="44">
+        </picture>
+        <span class="name">Agent M<small>Review</small></span>
+      </a>
+      <div class="header-tools">
+        <span class="repo" id="repo-line">loading…</span>
+        <label class="product">Product
+          <select id="product" aria-label="Product"></select>
+        </label>
+        <a class="help" href="#how">How acceptance works</a>
       </div>
+      <nav class="menu tabs" role="tablist" id="tabs" aria-label="The process, stage by stage"></nav>
     </div>
-    <label class="product">Product
-      <select id="product" aria-label="Product"></select>
-    </label>
-    <nav class="tabs" role="tablist" id="tabs"></nav>
   </header>
 
   <div id="token-banner" class="banner-slot"></div>
@@ -30,9 +39,13 @@
     <p class="muted">Loading…</p>
   </main>
 
-  <footer class="foot">
-    Reads from GitHub and from the GitLab servers of your products. It writes only when you click —
-    Accept, Save, Add product: one commit under your own account, made with your own token (SPEC §10).
+  <footer class="site-footer foot">
+    <div class="inner">
+      <img src="../src/brand/prl-sign-white.png" alt="" width="52" height="52">
+      <p><strong>Agent M</strong> reads from GitHub and from the GitLab servers of your products. It writes only when you click —
+        Accept, Save, Add product: one commit under your own account, made with your own token.</p>
+      <p><a href="../">The main page</a> · the progress of every product, stage by stage.</p>
+    </div>
   </footer>
 
   <script type="module" src="assets/dashboard-app.mjs"></script>

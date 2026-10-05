@@ -1,0 +1,91 @@
+/* The look of the site — THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK: the colours of the FAU's Faculty of Engineering
+   as lme.tf.fau.de shows them (FAU blue #04316a, dark blue #041e42, metallic #8c9fb1, and tints of them), the lab's logo in
+   the header (src/brand/), and the header, menu and footer every page of the site carries. The font is the FAU sites'
+   Source Sans where the reader has it installed; the site loads no font from anywhere (NO SERVER). */
+
+:root {
+  --fau-blue: #04316a; --fau-dark: #041e42; --tf-metallic: #8c9fb1;
+  --blue-62: #627ea2; --blue-12: #e0e5ec;
+  --metallic-62: #b7c3ce; --metallic-37: #d4dbe2; --metallic-25: #e2e7eb; --metallic-12: #f1f3f5;
+
+  --bg: var(--metallic-12); --panel: #ffffff; --fg: #1b2737; --heading: var(--fau-dark); --muted: #5b6b7d;
+  --line: var(--metallic-37); --accent: var(--fau-blue); --accent-fg: #ffffff; --code: #eef1f4; --track: var(--metallic-25);
+  --ok: #1a7f37; --ok-bg: #e2f3e7; --warn: #8a5a00; --warn-bg: #fdf3dc; --bad: #b42318; --bad-bg: #fde8e7;
+  --open: #4c5d70; --open-bg: var(--metallic-25); --add: #e2f3e7; --del: #fde8e7;
+  --font: "Source Sans 3", "Source Sans Pro", Roboto, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font);
+}
+:root:not([data-theme="light"]) { color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #071526; --panel: #0d213d; --fg: #e3e9f0; --heading: #f4f7fb; --muted: #9db0c5; --line: #20395c;
+    --accent: #a9c4ec; --accent-fg: var(--fau-dark); --code: #13294a; --track: #1d3557;
+    --ok: #56d364; --ok-bg: #12301b; --warn: #e3b341; --warn-bg: #33280e; --bad: #ff7b72; --bad-bg: #3a1614;
+    --open: #b6c2ce; --open-bg: #1d3557; --add: #12301b; --del: #3a1614;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.55; font-size: 16px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, summary:focus-visible, select:focus-visible { outline: 3px solid var(--tf-metallic); outline-offset: 2px; }
+h1, h2, h3, h4 { color: var(--heading); line-height: 1.25; }
+.muted { color: var(--muted); }
+.small { font-size: .85em; }
+
+/* ---- the header: the lab's logo, the site's name, the menu of the process ---- */
+
+.site-header { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(4, 30, 66, .06); }
+.site-header::before { content: ""; display: block; height: 4px; background: var(--fau-blue); }
+.site-header .inner { max-width: 1240px; margin: 0 auto; padding: 10px 16px 0; display: flex; flex-wrap: wrap;
+  align-items: center; justify-content: space-between; gap: 8px 24px; }
+.brand { display: flex; align-items: center; gap: 14px; color: inherit; text-decoration: none; min-width: 0; }
+.brand img { display: block; height: 44px; width: auto; }
+.brand .name { padding-left: 14px; border-left: 2px solid var(--line); font-size: 1.35rem; font-weight: 700;
+  color: var(--heading); line-height: 1.1; }
+.brand .name small { display: block; font-size: .78rem; font-weight: 500; color: var(--muted); letter-spacing: .01em; }
+.header-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: .9rem; color: var(--muted); }
+
+/* The menu follows the process: its first six entries are the stages, numbered; maintenance and settings stand apart. */
+.menu { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0 2px; width: 100%; margin-top: 4px; counter-reset: stage; }
+.menu > a, .menu > .soon { display: inline-flex; align-items: center; gap: 6px; padding: 9px 11px 8px; border-bottom: 3px solid transparent;
+  color: var(--heading); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.menu > :nth-child(-n+6)::before { counter-increment: stage; content: counter(stage); display: inline-grid; place-items: center;
+  width: 1.35em; height: 1.35em; border-radius: 50%; background: var(--metallic-25); color: var(--heading); font-size: .72em; font-weight: 700; }
+.menu > :nth-child(7) { margin-left: auto; }
+.menu > a:hover { border-bottom-color: var(--metallic-62); }
+.menu > a.active { border-bottom-color: var(--fau-blue); color: var(--fau-blue); }
+.menu > a.active::before { background: var(--fau-blue); color: #ffffff; }
+.menu > .soon { color: var(--muted); font-weight: 500; cursor: default; }
+.menu > .soon::after { content: "soon"; padding: 0 6px; border-radius: 999px; background: var(--metallic-25); color: var(--muted);
+  font-size: .64rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .menu > a.active { color: var(--accent); border-bottom-color: var(--accent); }
+  :root:not([data-theme="light"]) .menu > a.active::before { background: var(--accent); color: var(--fau-dark); }
+}
+@media (max-width: 760px) {
+  .brand img { height: 36px; }
+  .brand .name { font-size: 1.15rem; }
+  .menu { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+  .menu > :nth-child(7) { margin-left: 12px; }
+}
+
+/* ---- buttons ---- */
+
+.btn { display: inline-block; padding: .5rem .95rem; border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
+  color: var(--fg); font: inherit; font-size: .95rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--fau-blue); border-color: var(--fau-blue); color: #ffffff; }
+.btn.primary:hover { background: var(--fau-dark); }
+
+/* ---- the footer: the lab, the book, where the source is ---- */
+
+.site-footer { margin-top: 48px; background: var(--fau-dark); color: var(--metallic-37); font-size: .92rem; }
+.site-footer .inner { max-width: 1240px; margin: 0 auto; padding: 28px 16px 32px; display: grid; grid-template-columns: auto 1fr;
+  gap: 4px 20px; align-items: start; }
+.site-footer img { grid-row: span 3; width: 52px; height: 52px; }
+.site-footer p { margin: 0 0 .4rem; }
+.site-footer a { color: #ffffff; }
+.site-footer strong { color: #ffffff; }
