@@ -216,19 +216,23 @@ test("release · Backlog tab: with the limit reached, every ready item says it c
 });
 
 // NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED at the board (UC-032 step 1: "waiting for acceptance: it names a requirement that is
-// not yet accepted"; a use case is accepted when an approval record names its current text). Expected, for this repository with
-// UC-033 changed after its acceptance: every selected item not started that realises UC-033 waits for acceptance and names
-// UC-033; the others keep their states.
+// not yet accepted"; a use case is accepted when an approval record names its current text). The use case changed here is the
+// first, by identifier, that this repository holds as accepted and that a ready item of the sprint realises — so that the case
+// does not depend on which use cases happen to be open for review. Expected, with that use case changed after its acceptance:
+// every selected item not started that realises it waits for acceptance and names it; the others keep their states.
 test("release · Backlog tab: an item realising a use case changed since its acceptance waits for acceptance", async () => {
-  const path = REPO_FILES.find((p) => p.startsWith("docs/use-cases/UC-033-"));
+  const realisedByReady = (u) => SELECTION.some((id) => expectedState(id) === "ready" && ITEMS.get(id).realises.includes(u));
+  const uc = [...ACCEPTED_UC].sort().find(realisedByReady);
+  assert.ok(uc, "an accepted use case is realised by a ready item of the sprint");
+  const path = REPO_FILES.find((p) => p.startsWith(`docs/use-cases/${uc}-`));
   const { page } = await backlogPage({ files: { ...FILES, [path]: `${TEXTS[path]}\nA line added after the acceptance.\n` } });
   const html = page.main();
-  const waits = SELECTION.filter((id) => expectedState(id) === "ready" && ITEMS.get(id).realises.includes("UC-033")).sort();
-  assert.ok(waits.length > 0, "a ready item of the sprint realises UC-033");
+  const waits = SELECTION.filter((id) => expectedState(id) === "ready" && ITEMS.get(id).realises.includes(uc)).sort();
+  assert.ok(waits.length > 0, `a ready item of the sprint realises ${uc}`);
   const expected = Object.fromEntries(STATES.map((s) => [s, EXPECTED_BOARD[s].filter((id) => !waits.includes(id))]));
   expected["waiting for acceptance"] = [...EXPECTED_BOARD["waiting for acceptance"], ...waits].sort();
   assert.deepEqual(boardOf(html).columns, expected);
-  for (const id of waits) assert.match(text(card(html, id)), /UC-033/, `${id}: names UC-033`);
+  for (const id of waits) assert.match(text(card(html, id)), new RegExp(uc), `${id}: names ${uc}`);
 });
 
 // UC-032 step 1: "Agent M shows the items in their order … The top of the page shows accepted requirements and use cases that no
