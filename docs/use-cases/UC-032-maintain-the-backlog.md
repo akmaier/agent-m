@@ -33,6 +33,12 @@ system runs, which interfaces exist" (book ch. 7). They choose what is worked on
 Scrum, a pull under the work-in-progress limit in Kanban (book ch. 7 §4–5). In a model that plans its work in
 advance, the implementation plan takes the backlog's place (UC-045).
 
+Filled from the architecture, the backlog builds the system bottom-up, as the implementation plan does: first the
+items that implement modules, then the items that integrate a subsystem, then the items for the system as a whole.
+An item **builds on** the items that implement the interfaces its modules use; an item that integrates a subsystem
+builds on the items of that subsystem's modules; an item for the system builds on the subsystems' integration. Within
+that order, the Product Owner orders by value.
+
 ## Actors
 
 - **Product Owner**: the person or agent the product assigned to the role that orders the backlog
@@ -53,6 +59,7 @@ advance, the implementation plan takes the backlog's place (UC-045).
 1. The Product Owner opens **Backlog** for the product. Agent M shows the items in their order.
    Each item has its identifier, title, what it realises, where it came from, and a derived state:
    - *waiting for acceptance*: it names a requirement that is not yet accepted;
+   - *waiting for an item it builds on*: an item it builds on is not done;
    - *ready*;
    - *in progress*: a job is running, or a pull request is open;
    - *blocked*: a job failed or waits for a person;
@@ -61,18 +68,25 @@ advance, the implementation plan takes the backlog's place (UC-045).
 2. The Product Owner chooses **Propose items for uncovered requirements**. The run panel names the
    participant and what is sent: the requirements, the use cases, the architecture and the existing items.
    The Product Owner presses **Run**.
-3. The participant drafts items. Each item has a title, a description of the outcome, the requirements
-   and use cases it realises, and the modules of the architecture its implementation changes. Where the
-   item was drafted from a use case, it also has acceptance criteria taken from that use case's
-   postcondition. Agent M rejects a draft that realises nothing or names no module the architecture
-   describes, and flags a draft that restates an existing item.
+3. The participant drafts items bottom-up: items that implement modules, a module's after those of the
+   modules whose interfaces it uses; then one item per subsystem that integrates its modules; then the
+   items for the system. Each item has a title, a description of the outcome, the requirements and use
+   cases it realises, the modules of the architecture its implementation changes — for an integration,
+   the subsystem's modules —, and the items it builds on. Its acceptance criteria name the tests of its
+   level — unit tests for a module, component tests for a subsystem, system and release tests for the
+   system — and, where the item was drafted from a use case, that use case's postcondition. Agent M
+   rejects a draft that realises nothing, names no module the architecture describes, or builds on an
+   item placed after it, and flags a draft that restates an existing item.
 4. The Product Owner edits or discards drafts and presses **Add to backlog**: one click. Agent M
    commits one Markdown file per item under `docs/backlog/`, for example
-   `docs/backlog/ITM-014-export-thesis-as-pdf.md`, and appends the items to the order.
-5. The Product Owner reorders the backlog by dragging items, then presses **Save order**: one click.
-   Agent M commits the new order.
+   `docs/backlog/ITM-014-export-thesis-as-pdf.md`, and places the items in the order, each after the items
+   it builds on.
+5. The Product Owner reorders the backlog by dragging items — by value, within what the items build on —,
+   then presses **Save order**: one click. Agent M commits the new order.
 6. **A model with sprints (Scrum):** the Product Owner chooses **Plan sprint**. Agent M shows the ready
-   items from the top. Items that are *waiting for acceptance* are shown but cannot be selected. The
+   items from the top. Items that are *waiting for acceptance* are shown but cannot be selected; an item is
+   selected only together with, or after, the items it builds on, and its job starts once they are done
+   (UC-034). The
    Product Owner sets the sprint goal, the start date and — where the model has a time box — the end
    date its length gives, the selection, and who closes the
    sprint — themselves by default, or a participant such as an agent (UC-041) —, and presses
@@ -110,12 +124,14 @@ sequenceDiagram
 ## Alternative flows
 
 - **2a. The Product Owner writes an item by hand.** They choose **+ Item**, fill in the title, the
-  outcome, what it realises and the modules it changes, and press **Add**. The item is committed as their
+  outcome, what it realises, the modules it changes and the items it builds on, and press **Add**. The item is committed as their
   own input.
 - **3b. An item needs a module the architecture does not have.** The draft names the gap instead of
   inventing a module; the item waits until the architecture is changed (UC-023).
 - **3a. A requirement is too large for one item.** The participant proposes several items that each
   realise it. The requirement counts as covered only when all of them are done.
+- **5a. The Product Owner drags an item above an item it builds on.** The order is not saved; Agent M names
+  the item it builds on.
 - **6a. An item is added during a running sprint.** It goes to the product backlog, not into the
   sprint. Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what
   it removes or adds (`SOFTWARE_MAINTENANCE.md`: sprint scope is fixed at planning).
@@ -144,3 +160,4 @@ sequenceDiagram
   Scrum, the sprint selections. No state is stored in them. State is derived from approvals, jobs
   and pull requests.
 - Every item names what it realises, the modules it changes and where it came from.
+- The order builds the system bottom-up: no item stands before an item it builds on.

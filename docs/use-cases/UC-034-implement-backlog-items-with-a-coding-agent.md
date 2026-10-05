@@ -10,6 +10,7 @@ actors:
 realises:
   - AGILE IMPLEMENTATION STARTS FROM THE BACKLOG
   - A BACKLOG ITEM NAMES THE MODULES IT CHANGES
+  - A RUN FOLLOWS THE MODULES' INTERFACES
   - A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN
   - AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES
   - DEVELOP AGAINST INTERFACES
@@ -83,6 +84,8 @@ names a person.
 2. Agent M checks each item. It starts no job for an item when:
    - the item is not selected for the current sprint;
    - a requirement or use case the item names is not accepted;
+   - an item it builds on — one that implements an interface its modules use, or, for an integration, one of
+     its subsystem's modules — is not done (UC-032);
    - the WIP limit would be exceeded.
 
    For each item it cannot start, Agent M names the reason.
@@ -135,7 +138,7 @@ sequenceDiagram
     participant CI as CI
     participant K as Gate decider
     A->>M: select ready items
-    M->>M: sprint, acceptance, WIP limit checked
+    M->>M: sprint, acceptance, items built on, WIP limit checked
     M-->>A: participant, data destination, gates per item
     A->>M: Start jobs
     M->>C: job per item (bridge or workflow)
