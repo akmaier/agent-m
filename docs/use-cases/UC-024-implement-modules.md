@@ -55,9 +55,9 @@ realises:
 ---
 # UC-024 Implement the architecture
 
-**Goal.** The accepted architecture becomes software the way the product's process model prescribes. The model the
-author declared (UC-002) decides how the software is assembled — what one implementation job is, where the work comes
-from, in which order it is done and where it stops at a gate:
+**Goal.** The accepted architecture becomes software the way the product's process model prescribes. The process is
+configured here, in the first step of implementing (UC-002), because the model decides how the software is assembled —
+what one implementation job is, where the work comes from, in which order it is done and where it stops at a gate:
 
 | Process model | The work comes from | One job implements | Order |
 |---|---|---|---|
@@ -90,18 +90,24 @@ it is one job per step the author picks; in a run (UC-043), the steps' jobs star
 
 ## Precondition
 
-- The product declares a process model, with its roles assigned (UC-002).
 - The architecture is accepted (UC-022, UC-023).
-- In a model that plans its work, the product has an implementation plan (UC-045); in Scrum or Kanban, a planned and filled
-  backlog (UC-032).
 - The product's CI runs its tests on pull requests.
 - At least one holder of the implementing role declares *write to the repository* and *run code and tests* (UC-017).
 
 ## Main flow
 
-1. The author opens **Implement** for the product. Agent M shows the process model the product declares and the route it
-   prescribes, with the table above and a folded **What is this?** pointing to book ch. 6 and 7. For Scrum or Kanban it
-   continues with the backlog (UC-034).
+1. The author opens **Implement** for the product. The process comes first, because it decides how the software is
+   assembled:
+   - if the product has no process model yet, the author configures it here, as UC-002 describes — the model, its roles
+     and the participants that hold them, the branches, the Definition of Done, the practices — and saves it; a model
+     configured before is shown, and may be changed here (UC-002, 3b);
+   - Agent M shows the route the model prescribes, with the table above and a folded **What is this?** pointing to book
+     ch. 6 and 7;
+   - where the work is not planned yet, it is planned next: the implementation plan for a model that plans its work
+     (UC-045), the backlog for Scrum or Kanban (UC-032).
+
+   For Scrum or Kanban, implementation continues with the backlog's items (UC-034); the steps below are those of a model
+   that plans its work.
 2. Agent M shows the steps of the implementation plan in their order, each with its derived state — *waiting* for a step
    it depends on, *ready*, *in progress*, *done* — and the phase it belongs to. It preselects the ready steps of the
    current phase.
@@ -154,7 +160,14 @@ sequenceDiagram
     participant C as CI
     participant G as Product repository
     A->>M: Implement
-    M->>G: read process model, plan, architecture
+    M->>G: read process model, plan or backlog, architecture
+    opt no process model yet
+        A->>M: configure the process (UC-002), Save
+        M->>G: commit the declaration
+    end
+    opt the work not planned yet
+        A->>M: plan the implementation (UC-045) or fill the backlog (UC-032)
+    end
     M-->>A: route of the model, ready steps of the plan
     A->>M: choose steps and participants, Start jobs
     M->>P: step: files, decisions, SPEC, used interfaces, instruction
@@ -173,13 +186,12 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **1a. The product declares no process model.** Agent M says that the model decides how the architecture is
-  implemented and links to UC-002; nothing starts, and no model is assumed.
-- **1b. The product works from a backlog (Scrum, Kanban).** The work is backlog items: the ready items of the current
+- **1a. The product works from a backlog (Scrum, Kanban).** The work is backlog items: the ready items of the current
   sprint, or the next ones under the work-in-progress limit. Each item's job is that of UC-034; if the backlog has no
   ready item, Agent M links to UC-032 to plan and fill it.
-- **1c. The product plans its work but has no implementation plan.** Agent M links to UC-045; nothing starts.
-- **1d. The product is on a GitLab server.** Pull request means merge request, CI means GitLab CI; the flow is the same.
+- **1b. The author leaves the process unconfigured, or the work unplanned.** Nothing starts, and no model is assumed;
+  the page says what is missing.
+- **1c. The product is on a GitLab server.** Pull request means merge request, CI means GitLab CI; the flow is the same.
 - **2a. A step waits for a step that is not done.** It is shown as *waiting*, with the step it waits for, and cannot be
   selected.
 - **2b. The current phase's gate is not recorded.** The steps of the next phase are shown but cannot be selected; Agent M

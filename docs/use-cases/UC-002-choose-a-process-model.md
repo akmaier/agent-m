@@ -1,7 +1,7 @@
 ---
 id: UC-002
 title: Choose how the product is developed
-area: setup
+area: 5 implementation
 actors:
   - Author
 realises:
@@ -28,7 +28,10 @@ realises:
 # UC-002 Choose how the product is developed
 
 **Goal.** The author decides how the product's team of people and agents works: who does what, in
-which order, and where someone has to approve before the work continues.
+which order, and where someone has to approve before the work continues. This is the first step of
+implementing the architecture (UC-024, step 1): the model decides how the software is assembled — along
+an implementation plan (UC-045) or from a backlog (UC-032). Until then the product needs no model; its
+requirements, use cases and architecture are worked out the same way whatever the process.
 
 **Two things this use case keeps apart:**
 
@@ -48,7 +51,8 @@ and its process requirements show up here as additions to whatever model the aut
 
 ## Precondition
 
-- The product is managed by Agent M (UC-001).
+- The product's architecture is accepted (UC-022, UC-023), and the author starts its implementation
+  (UC-024, step 1) or returns to change the model (3b).
 
 ## Main flow
 
@@ -131,3 +135,5 @@ sequenceDiagram
   zero or more practices.
 - The workflow Agent M offers for the product follows from the model, the practices and the
   product's process requirements — and from nothing else.
+- Implementation continues as the model calls for: with the implementation plan (UC-045) or the
+  backlog (UC-032), then the jobs (UC-024, UC-034).

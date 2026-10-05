@@ -91,7 +91,7 @@ sequenceDiagram
     participant G as Product repository
     N->>M: Plan
     M->>G: read process model, architecture, existing plan
-    M-->>N: system, subsystems, modules; the plan with derived states
+    M-->>N: system, subsystems and modules, and the plan with derived states
     N->>M: Draft the plan, Run
     M->>E: architecture, process model, existing plan
     E-->>M: steps: modules, subsystems' integration, system, with their tests

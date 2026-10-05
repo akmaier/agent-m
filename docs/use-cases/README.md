@@ -20,7 +20,6 @@ nine **steps** of the cycle are the areas below.
 | ID | Use case |
 |---|---|
 | [UC-001](UC-001-add-a-managed-product.md) | Add a managed product |
-| [UC-002](UC-002-choose-a-process-model.md) | Choose how the product is developed |
 | [UC-003](UC-003-configure-a-model-endpoint.md) | Configure a model endpoint |
 | [UC-014](UC-014-set-up-an-agent-m-instance.md) | Get your own Agent M |
 | [UC-017](UC-017-configure-participants.md) | Configure the participants of the instance |
@@ -66,6 +65,7 @@ nine **steps** of the cycle are the areas below.
 
 | ID | Use case |
 |---|---|
+| [UC-002](UC-002-choose-a-process-model.md) | Choose how the product is developed |
 | [UC-024](UC-024-implement-modules.md) | Implement the architecture — as the process model prescribes |
 | [UC-045](UC-045-plan-the-implementation.md) | Plan the implementation — plan-driven models |
 | [UC-032](UC-032-maintain-the-backlog.md) | Maintain the backlog — Scrum and Kanban |
@@ -118,12 +118,12 @@ nine **steps** of the cycle are the areas below.
 
 ```mermaid
 flowchart LR
-    S[Setup<br/>UC-014 UC-044 UC-042 UC-017 UC-001 UC-002 UC-003 UC-031 UC-037] --> Q[1 Sources<br/>UC-004 UC-015 UC-016]
+    S[Setup<br/>UC-014 UC-044 UC-042 UC-017 UC-001 UC-003 UC-031 UC-037] --> Q[1 Sources<br/>UC-004 UC-015 UC-016]
     S --> RES[Resources<br/>UC-040]
     Q --> R[2 Requirements<br/>UC-005 UC-006]
     R --> U[3 Use cases<br/>UC-007 UC-008]
     U --> A[4 Architecture<br/>UC-022 UC-023 UC-025]
-    A --> I[5 Implementation<br/>UC-043 UC-024 UC-045 UC-032 UC-034 UC-041]
+    A --> I[5 Implementation<br/>UC-002 UC-043 UC-024 UC-045 UC-032 UC-034 UC-041]
     I --> T[6 Tests<br/>UC-026 UC-027 UC-028 UC-029]
     T --> REL[Release and audit<br/>UC-013 UC-030]
     REL --> E[Evolution<br/>UC-012 UC-033 UC-038 UC-039]
