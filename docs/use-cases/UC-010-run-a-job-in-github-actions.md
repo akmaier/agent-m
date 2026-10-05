@@ -70,8 +70,8 @@ sequenceDiagram
 
 - **3a. The secret is missing.** The workflow fails with a message naming the secret; nothing is
   written.
-- **4a. The result equals the current artifacts.** No artifact is committed — only the job's end record, noting "no
-  change" (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`) —; the run reports "no change".
+- **4a. The result equals the current artifacts.** Nothing is committed; the run reports
+  "no change".
 
 ## Postcondition
 

@@ -47,7 +47,7 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
 ## Main flow
 
 1. On the instance's dashboard, the author opens the product selector and chooses **+ Add product**.
-   The setup page opens on its Add view, a panel with the steps below.
+   A panel opens on the same page.
 2. The author pastes the address of the product repository, as it appears in the browser — for
    example `https://github.com/alice/thesis-tool` or
    `https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool`. Agent M recognises the server and
@@ -104,20 +104,14 @@ sequenceDiagram
 - **4a. The check fails.** Agent M names the repository it cannot reach and shows Step A again.
 - **5a. The write is refused** although the read succeeded — a public repository not yet added to the
   token. Agent M says so and shows Step A again; nothing was written.
-- **2a. The product repository does not exist yet.** The server answers for it as for a repository
-  the key does not reach, so Agent M says that it cannot find the repository — it does not exist yet,
-  or the key does not reach it —, shows Step A again and, beside it, links the server's page for a
-  new repository — on GitHub with the owner and name filled in —, with a folded explanation of the
-  choices there; the author returns and continues at step 2.
-- **2b. The GitHub repository belongs to another owner than the instance.** The one key reaches the
-  repositories of the instance's owner only (UC-014, step 1), so Agent M names both owners and adds
-  nothing; it says that the repository's owner can transfer it to the instance's owner on GitHub —
-  *Settings*, *Danger Zone*, *Transfer* —, after which the author continues at step 2.
+- **2a. The product repository does not exist yet.** Agent M says so and links GitHub's page for a
+  new repository, with a folded explanation of the choices there; the author returns and continues
+  at step 2.
 - **5b. The product already has the complete layout.** Nothing is committed; only the address is
   added to the list in this browser.
 - **1a. The author works in another browser or on another computer.** Its product list is empty, as it
-  has no token either; each product is added again on the setup page's Add view — for a product that
-  already has its layout, that is *Check* and *Add product* (5b).
+  has no token either; each product is added again with *+ Add product* — for a product that already
+  has its layout, that is *Check* and *Add product* (5b).
 - **3c. The product is on a GitLab server.** Step A becomes **Create a key for this project**: a
   button opens the project's *Settings → Access tokens* page on that server; underneath, what to set
   there — name `Agent M`, role **Maintainer**, scope **`api`**, an expiry date — then *Create project

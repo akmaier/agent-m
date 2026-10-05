@@ -33,15 +33,13 @@ decides to — seeing first which of its requirements are affected.
    UC-004: a new EUR-Lex address or consolidated version, a new designation (for example the next
    edition of a norm), new files, or a newer commit of a repository.
 2. Agent M records the new version with its identifier, date and hashes; earlier versions stay as
-   they are. For an EU legal text, its date and hashes come with its fetch (2a).
+   they are.
 3. The library shows which products still link to an earlier version.
 4. For one of them, the author chooses **Move to the new version**. Agent M lists the product's
    requirements that came from this source, and — where both versions are text — which passages
    changed.
 5. The author presses **Move** — one click. Agent M updates the product's `docs/sources.md`; the listed
    requirements are marked *source changed* on the dashboard until each is looked at again.
-6. Having looked at a listed requirement again, the author presses **Looked at** beside it — one
-   click. Agent M takes it off the list in `docs/sources.md`, and its mark goes.
 
 ```mermaid
 sequenceDiagram
@@ -56,15 +54,10 @@ sequenceDiagram
     D-->>A: affected requirements, changed passages
     A->>D: Move
     D->>P: update docs/sources.md
-    A->>D: Looked at, beside a listed requirement
-    D->>P: update docs/sources.md
 ```
 
 ## Alternative flows
 
-- **2a. The new version is an EU legal text.** As in UC-004 7, the fetch workflow then downloads
-  it from the EU's publication repository and completes the version with its retrieval date, the
-  repository's version identifier and its SHA-256; a fetch that fails is shown as in UC-004 7a.
 - **4a. The author keeps a product on the old version** — for example because it was certified
   against it. Nothing changes; the library keeps showing that a newer version exists.
 - **1a. The new version has the same bytes as an existing one.** Agent M says so and records nothing.
