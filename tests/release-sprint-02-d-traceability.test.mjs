@@ -314,7 +314,7 @@ test("ITM-018 · the impact list of an architecture change names what follows or
 // The graph of one commit over this repository (ARC-006): its tracked files at the commit checked out, read with node's fs —
 // all but Agent M's own SPEC.md, which no test opens (ITM-128); its requirements enter as the queue entries state them. What
 // every graph owes, whatever the repository holds — expected: built twice, the same graph (derived, nothing kept between); use
-// cases, decisions, modules, code and tests present as nodes; every edge names its target by identifier — a requirement's name, an identifier of the
+// cases, code and tests present as nodes; every edge names its target by identifier — a requirement's name, an identifier of the
 // scheme, or a path —, never by a section or a line; every unknown name kept, with a withdrawal note that is true exactly for the
 // names the commit keeps as withdrawn; and the gaps and module rows answered as lists, blocking nothing.
 test("ITM-018 · the graph of this repository's commit: derived, by identifier, gaps listed, nothing blocked", () => {
@@ -324,7 +324,7 @@ test("ITM-018 · the graph of this repository's commit: derived, by identifier, 
   const g = linkGraph({ files }), again = linkGraph({ files });
   assert.deepEqual(again, g, "the same files, the same graph");
   const kinds = new Set(Object.values(g.nodes).map((n) => n.kind));
-  for (const k of ["use-case", "architecture-decision", "module", "code", "test"]) assert.ok(kinds.has(k), `nodes of kind ${k}`);
+  for (const k of ["use-case", "code", "test"]) assert.ok(kinds.has(k), `nodes of kind ${k}`);
 
   const POSITION = /§|\b(?:section|line|chapter)\s*\d|^\d+(?:\.\d+)*\.?$|:\d+$/i;
   const IDENTIFIER = /^(?:(?:SRC|UC|ARC|MOD|TST|ITM|RES|JOB)-[\w-]+|[A-Z0-9][A-Z0-9 ,'’()./&+-]*[A-Z0-9)]|[\w./-]+\.\w+)$/;

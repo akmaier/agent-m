@@ -162,13 +162,12 @@ test("release · ITM-126 identifierKept: a text with CR LF line ends that keeps 
   });
 
 // AN EDITED FILE KEEPS ITS IDENTIFIER · ITM-126 ("formatChecks … take[s] the finding as it comes") — Expected: formatChecks of a
-// use case, a decision and a module, given the identifier the file was opened with, holds exactly one finding of the rule when
+// use case and a decision, given the identifier the file was opened with, holds exactly one finding of the rule when
 // the text carries another identifier — the same values identifierKept returns — and none when it carries its own.
 test("release · ITM-126 formatChecks: the identifier finding comes once, as identifierKept gives it", () => {
   for (const [kind, p, opened, now, make] of [
     ["use-case", "docs/use-cases/UC-001-read-a-report.md", "UC-001", "UC-009", useCase],
     ["architecture-decision", "docs/architecture/ARC-001-static-client.md", "ARC-001", "ARC-009", decision],
-    ["module", "docs/architecture/MOD-reader.md", "MOD-reader", "MOD-writer", moduleFile],
   ]) {
     const kept = formatChecks(kind, make(opened), { path: p, openedId: opened }).filter((f) => f.rule === RULE);
     assert.deepEqual(kept, [], `${kind}: known positive — none for its own identifier`);

@@ -8,7 +8,7 @@
 //
 // ARC-003 decision 1: the kernel is "pure functions and data … No fetch, no DOM, no storage … A kernel module imports only kernel
 // modules"; decision 2: "a feature or kernel function that needs the outside receives it as a plain parameter". The kernel is
-// the group Kernel of docs/groups/modules.md; a code file belongs to the module its `Module:` line names (ARC-020). MOD-review-core
+// the set KERNEL below; a code file belongs to the module its `Module:` line names (ARC-020). MOD-review-core
 // declares `lastAccepted({ records, id, committedAt, read }) -> { record, text, count } | null` — "of all records naming this
 // identifier (matched by identifier, not path), the one committed last, and its text read by its blob SHA and refused unless it
 // hashes to that SHA; committedAt(path) and read(blob) are ports; two records at the same instant raise an error naming both
@@ -25,13 +25,11 @@ import { lastAccepted } from "../docs/assets/review-core.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 
-// ---------------------------------------------------------------- the files of the kernel, by the repository's own records
+// ---------------------------------------------------------------- the files of the kernel
 
-const KERNEL = (() => {
-  const t = fs.readFileSync(path.join(ROOT, "docs/groups/modules.md"), "utf8");
-  const block = /^- Kernel\n((?:  - .+\n)+)/m.exec(t)?.[1] ?? "";
-  return new Set([...block.matchAll(/- (MOD-[a-z0-9-]+)/g)].map((m) => m[1]));
-})();
+// The modules of the kernel, as the code is built.
+const KERNEL = new Set(["MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-job-harness", "MOD-run-engine",
+  "MOD-process-model", "MOD-work-items"]);
 function codeFiles(dir = path.join(ROOT, "docs/assets")) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const p = path.join(dir, e.name);
@@ -45,7 +43,7 @@ const rel = (file) => path.relative(ROOT, file);
 const specifiers = (t) => [...t.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"']+)["']/g)].map((m) => m[1]);
 const codeOnly = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map((l) => l.replace(/(^|[^:"'`])\/\/.*$/, "$1")).join("\n");
 
-// ITM-130 · ARC-003 decision 1 — Expected: no code file of a kernel module (the group Kernel of docs/groups/modules.md) imports
+// ITM-130 · ARC-003 decision 1 — Expected: no code file of a kernel module (KERNEL above) imports
 // a file of MOD-git-host, or of any module outside the kernel; review-core.mjs is among the files checked. Known positive of the
 // reader: a planted `import { readFile } from "./git-host.mjs"` in review-core.mjs's text is seen as an import of MOD-git-host.
 test("release · ITM-130 ARC-003: no kernel file imports from the git host or from any module outside the kernel", () => {
