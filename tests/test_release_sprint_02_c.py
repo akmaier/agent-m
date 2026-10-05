@@ -219,6 +219,12 @@ class TheWatcherSeesAKnownRead(unittest.TestCase):
         self.assertEqual(not_from_a_scan(seen_node, markdown), seen_node)
 
 
+# Both suites run once more here, which takes longer than everything else of a CI run: this class runs in the nightly workflow
+# (.github/workflows/nightly.yml), which sets AGENT_M_NIGHTLY=1, and is skipped on every push.
+NIGHTLY = os.environ.get("AGENT_M_NIGHTLY") == "1"
+
+
+@unittest.skipUnless(NIGHTLY, "runs nightly: it runs both suites once more (.github/workflows/nightly.yml)")
 class NoTestOpensAgentMsOwnSpec(unittest.TestCase):
     """Both suites, run as CI runs them, with Agent M's own SPEC.md watched. Expected: the suites run; no node test opens it,
     and every Python open of it comes from a whole-repository scan (ITM-128's corrected criterion)."""

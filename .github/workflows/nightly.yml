@@ -1,0 +1,22 @@
+# Nightly: the checks too slow for every push. Today one: both suites run once more with Agent M's own SPEC watched, and no
+# test may open it (tests/test_release_sprint_02_c.py). Started by hand as well, from the repository's Actions page.
+name: nightly
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: No test opens Agent M's own SPEC
+        run: cd tests && AGENT_M_NIGHTLY=1 python3 -m unittest -v test_release_sprint_02_c
