@@ -1,10 +1,9 @@
-# Continuous integration: every pull request and every push to main runs the Python and the node suite, side by side.
-# The check that runs both suites once more — no test opens Agent M's own SPEC — runs nightly instead (nightly.yml).
+# Continuous integration: every pull request runs the Python and the node suite, side by side. A push to main runs
+# nothing here: code reaches main only through a pull request that ran both suites, and a document pushed to main changes
+# no code. main itself is checked every night, when both suites run once more with Agent M's own SPEC watched (nightly.yml).
 name: tests
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 permissions:
