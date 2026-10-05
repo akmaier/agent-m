@@ -8,7 +8,7 @@ actors:
   - GitHub
 realises:
   - A REQUIREMENT HAS A REGISTERED SOURCE
-  - A REQUIREMENT HAS FIVE FIELDS
+  - A REQUIREMENT HAS FOUR FIELDS
   - ONE STATEMENT PER REQUIREMENT
   - A REQUIREMENT NAMES ITS CHECK
   - A GENERATED ARTIFACT IS A PROPOSAL
@@ -39,7 +39,7 @@ realises:
 # UC-005 Derive requirements from a source
 
 **Goal.** Agent M turns the content of a registered source into candidate requirements in the
-five-field form, for the author to approve or reject one by one.
+four-field form, for the author to approve or reject one by one.
 
 ## Actors
 
@@ -66,7 +66,7 @@ five-field form, for the author to approve or reject one by one.
    the decision.
 4. Agent M sends both with the requirement prompt from the repository's single definition. The prompt
    asks for candidates *against* the existing requirements, not beside them.
-5. The participant returns candidates, each with name, source passage, rule, occasion, check,
+5. The participant returns candidates, each with name, source passage, rule, check,
    whether it constrains the **product** or the **process** — and a class:
    - **new** — nothing existing covers it;
    - **change** — it alters a named existing requirement;
@@ -77,7 +77,7 @@ five-field form, for the author to approve or reject one by one.
    2. a candidate whose name or normalised rule equals an existing requirement's is classified as a
       duplicate without a model, whatever the model said;
    3. Agent M sends back to the participant, as compiler-like findings, every candidate without one of
-      the five fields or without a check (errors), and every rule containing a conjunction (warning: split
+      the four fields or without a check (errors), and every rule containing a conjunction (warning: split
       or give a reason); the participant corrects, up to the limit of rounds the run panel states. What is
       left after the last round is shown flagged in step 7; conflicts are never sent back.
 7. The review panel shows the candidates grouped by class, each beside the existing requirement it
