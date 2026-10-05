@@ -1462,6 +1462,30 @@ in every phase the model defines.
 V-model definition of P phases, the derived plan has exactly N × P entries. Accepting one more
 requirement adds P entries.
 
+**A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN** *(PO A. Maier)*
+In a model that plans its work in advance, an implementation job starts only for a step of the product's implementation
+plan.
+*Check:* `tests/test_job_preconditions.py` — in a V-model fixture, a job for work that no step of the plan names does not
+start and says so; counter-proof: a job for a step of the plan starts.
+
+**AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES** *(PO A. Maier; Vibe Coding, ch. 6)*
+A product's implementation plan orders the modules of each subsystem by the interfaces they use, then the integration of
+each subsystem, then the system.
+*Check:* `tests/test_implementation_plan.py` — a drafted plan that leaves a module, a subsystem or the system without a step,
+or orders a module before one whose interface it uses, is refused and the gap named; counter-proof: a plan in the order of
+the interfaces is accepted.
+
+**A PLAN STEP NAMES THE TESTS OF ITS LEVEL** *(PO A. Maier; Vibe Coding, ch. 6)*
+Every step of an implementation plan names the tests of its level: unit tests for a module, component tests for a
+subsystem, system and release tests for the system.
+*Check:* `tests/test_implementation_plan.py` — a step without the tests of its level, or with tests of another level, is
+refused; counter-proof: a step naming the tests of its level is accepted.
+
+**THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY** *(PO A. Maier)*
+A product's implementation plan is kept as Markdown under `docs/plan/` of the product's own repository.
+*Check:* `tests/test_plan_layout.py` — a fixture product's plan is read from `docs/plan/`; counter-proof: a plan written
+anywhere else is not found.
+
 **AGILE IMPLEMENTATION STARTS FROM THE BACKLOG** *(PO A. Maier)*
 In a model that pulls its work from a backlog, every implementation job implements one item of the
 product's backlog.
@@ -1475,6 +1499,11 @@ A product's backlog is kept as Markdown under `docs/backlog/` of the product's o
 **A BACKLOG ITEM NAMES WHAT IT REALISES** *(PO A. Maier)*
 Every backlog item names at least one requirement or use case that it realises.
 *Check:* `tests/test_backlog_item_fields.py`
+
+**A BACKLOG ITEM NAMES THE MODULES IT CHANGES** *(PO A. Maier)*
+Every backlog item names the modules of the architecture that its implementation changes.
+*Check:* `tests/test_backlog_item_fields.py` — an item that names no module, or a module the architecture does not
+describe, is reported; counter-proof: an item naming modules the architecture describes passes.
 
 **NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED** *(PO A. Maier)*
 An implementation job starts for a backlog item only when every requirement and use case the item
