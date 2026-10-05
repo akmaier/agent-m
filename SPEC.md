@@ -1037,83 +1037,182 @@ the text named by the most recent approval record for the same identifier and th
 last accepted text; counter-proof: with two approval records, the older text is not the one compared.
 ## 11. Architecture and implementation
 
+**AN ARCHITECTURE IS THE ORGANISATION OF THE WHOLE SYSTEM** *(Vibe Coding, ch. 10 §1, after IEEE 1471)*
+A product's architecture describes the fundamental organisation of its whole system: its components, their
+relationships to each other and to the environment, and the principles guiding its design and evolution.
+*Check:* no automatic check; at review.
+
+**AN ARCHITECTURE STATES STRUCTURE, INTERACTION AND STRATEGY** *(Vibe Coding, ch. 10 §1)*
+An architecture states the static decomposition of the system into its components, the dynamic interaction of those
+components at runtime, and the overarching strategy that holds both together.
+*Check:* no automatic check; at review.
+
+**A SYSTEM IS DECOMPOSED INTO SUBSYSTEMS AND MODULES** *(PO A. Maier; Vibe Coding, ch. 10 §3)*
+An architecture decomposes the product's system into subsystems, and each subsystem into modules.
+*Check:* no automatic check; at review.
+
+**A MODULE BELONGS TO ONE SUBSYSTEM** *(PO A. Maier)*
+Every module belongs to exactly one subsystem.
+*Check:* no automatic check; at review.
+
+**AN ARCHITECTURE IS DOCUMENTED IN FOUR VIEWS** *(Vibe Coding, ch. 10 §2, after Kruchten's 4+1 view model)*
+An architecture is documented in a logical view of its abstractions, a process view of its behaviour at runtime, a
+development view of its modules and files, and a physical view of where each of its parts runs.
+*Check:* no automatic check; at review.
+
+**THE USE CASES ARE THE SCENARIOS OF THE ARCHITECTURE** *(Vibe Coding, ch. 10 §2, after Kruchten's 4+1 view model)*
+Each accepted use case appears in the architecture as a scenario that names the subsystems taking part and how they
+interact, which shows that the system makes the use case possible.
+*Check:* no automatic check; at review.
+
+**THE ARCHITECTURE DOES NOT RESTATE THE USE CASES** *(PO A. Maier)*
+No use case is restated step by step in the architecture.
+*Check:* no automatic check; at review.
+
+**THE ARCHITECTURE IS CUT BY FUNCTION, NOT BY USE-CASE STEP** *(PO A. Maier)*
+Subsystems and modules are cut by the functions and data the system needs to make its use cases possible, never by the
+steps of the use cases.
+*Check:* no automatic check; at review.
+
+**AN ARCHITECTURE NAMES ITS PATTERNS** *(Vibe Coding, ch. 10 §4–§6)*
+An architecture names the architectural patterns it combines — structuring patterns such as layers, pipe-and-filter or a
+repository, adaptable-system patterns such as plug-ins, distributed-system patterns such as client-server, a broker or
+service orientation — and, for each, the part of the system it organises and why it was chosen.
+*Check:* no automatic check; at review.
+
+**AN ARCHITECTURE STAYS AT THE LEVEL OF MODULES** *(PO A. Maier)*
+An architecture describes the system down to its modules and their interfaces, and leaves every question that only an
+implementation can answer to the implementation.
+*Check:* no automatic check; at review.
+
+**DIVIDE AND CONQUER** *(Vibe Coding, ch. 10 §3)*
+A system is decomposed top-down into smaller, independent parts, each of which can be built and checked on its own.
+*Check:* no automatic check; at review.
+
+**DESIGN TO TEST** *(Vibe Coding, ch. 10 §3)*
+An architecture states how the system, each subsystem and each module will be tested.
+*Check:* no automatic check; at review.
+
+**KEEP IT SIMPLE** *(Vibe Coding, ch. 10 §3)*
+An architecture is the simplest design that meets the accepted requirements and use cases.
+*Check:* no automatic check; at review.
+
+**YOU AREN'T GONNA NEED IT** *(Vibe Coding, ch. 10 §3)*
+An architecture designs nothing that the product will not actually need.
+*Check:* no automatic check; at review.
+
+**DON'T REPEAT YOURSELF** *(Vibe Coding, ch. 10 §3)*
+An architecture defines each function, data structure and rule in one place.
+*Check:* no automatic check; at review.
+
+**LEAST ASTONISHMENT** *(Vibe Coding, ch. 10 §3)*
+Every interface behaves the way its users expect from its name and its description.
+*Check:* no automatic check; at review.
+
+**OPEN FOR EXTENSION, CLOSED FOR CHANGE** *(Vibe Coding, ch. 10 §3)*
+A module can be extended with new functions without changing the functions it already offers.
+*Check:* no automatic check; at review.
+
+**DEVELOP AGAINST INTERFACES** *(Vibe Coding, ch. 10 §3)*
+A module uses another module only through that module's interface, never through its implementation.
+*Check:* no automatic check; at review.
+
+**AN INTERFACE TELLS ITS USER WHAT TO CONSIDER** *(Vibe Coding, ch. 10 §3)*
+The definition of an interface states everything its user must consider to use it.
+*Check:* no automatic check; at review.
+
+**AN INTERFACE HIDES ITS IMPLEMENTATION** *(Vibe Coding, ch. 10 §6)*
+An interface exposes functions and data structures and hides how they are implemented.
+*Check:* no automatic check; at review.
+
+**A REMOTE INTERFACE NAMES HOW IT FAILS** *(Vibe Coding, ch. 10 §6)*
+An interface whose calls cross a network states that they do, and how a call fails when the network or the other side
+is unavailable.
+*Check:* no automatic check; at review.
+
+**A MODULE INTERFACE IS MINIMAL** *(PO A. Maier)*
+A module's interface offers only the functions that other modules need.
+*Check:* no automatic check; at review.
+
+**MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE** *(PO A. Maier)*
+The modules an architecture designs use each other's interfaces without a cycle.
+*Check:* no automatic check; at review.
+
 **ONE ARCHITECTURE DECISION, ONE FILE** *(PO A. Maier)*
 Each architecture decision is a single Markdown file named
 `docs/architecture/ARC-<nnn>-<slug>.md` in the product repository.
 *Check:* `tests/test_architecture_files.py`
 
-**AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES** *(Vibe Coding, ch. 10 §2)*
+**AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES** *(PO A. Maier; Vibe Coding, ch. 10 §2)*
 An architecture decision names the situation that calls for it, the decision taken, the alternatives
 that were considered, and the consequences accepted with it.
 *Check:* `tests/test_architecture_files.py`
 
-**A MODULE IS A FOLDER** *(PO A. Maier)*
-Each module is one folder of its product's source code, named by its identifier `MOD-<slug>` in the architecture
-decision that designs it.
-*Check:* `tests/test_architecture_files.py` — every module a decision names has its folder.
+**ONE DECISION STATES THE WHOLE ARCHITECTURE** *(PO A. Maier)*
+One architecture decision of a product states its system as a whole — its patterns, its subsystems and their
+relationships, its four views and its scenarios —, and every other decision of the product refines it.
+*Check:* no automatic check; at review.
+
+**ONE DECISION PER SUBSYSTEM** *(PO A. Maier)*
+Each subsystem is stated in an architecture decision of its own, which names its responsibility within the system, the
+interface it offers and its modules.
+*Check:* no automatic check; at review.
+
+**ONE MODULE, ONE FILE** *(PO A. Maier)*
+Each module is described in a single Markdown file named `docs/architecture/MOD-<slug>.md` in the product repository.
+*Check:* `tests/review-core.test.mjs` — the file `docs/architecture/MOD-<slug>.md` is reviewed as the module
+`MOD-<slug>`.
 
 **A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES** *(Vibe Coding, ch. 10 §3, ch. 12 §6; PO A. Maier)*
-The architecture decision that designs a module states the module's responsibility, its interfaces, and the
-format of every file it reads or writes.
-*Check:* `tests/test_architecture_files.py`
+A module's file states the subsystem it belongs to, its single responsibility and what it implements — the parts it
+consists of, the data it keeps, the interface it provides, the files it reads or writes and the interfaces of other
+modules it uses —, so that a developer or an agent can implement the module from its file.
+*Check:* no automatic check; at review.
+
+**A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS** *(PO A. Maier)*
+A module's file is written, reviewed, accepted and changed as an architecture decision is.
+*Check:* `tests/review-core.test.mjs` — a module file without an approval record naming its text is shown as open;
+counter-proof: with one, it is shown as accepted.
+
+**A MODULE IS A FOLDER** *(PO A. Maier)*
+Each module is one folder of its product's source code, named after its identifier `MOD-<slug>`.
+*Check:* `tests/test_coverage_report.py` — a code file outside every module's folder is reported.
 
 **AN INTERFACE STATES ITS TYPES** *(PO A. Maier)*
-Every interface of a module states the type of each parameter, of its result and of every refusal it can return.
-*Check:* `tests/test_architecture_files.py` — an interface with a parameter, result or refusal without a type is an
-error.
+Every function of a module's interface states the type of each parameter and of its result, and the errors its caller
+must handle.
+*Check:* no automatic check; at review.
 
-**A TYPE IS DEFINED ONCE, IN MACHINE-READABLE FORM** *(PO A. Maier)*
-Every data structure and file format an architecture uses is defined once, in machine-readable form, in the
-architecture decision that designs the module owning it.
-*Check:* `tests/test_architecture_files.py` — a type used but defined nowhere, or defined twice, is an error.
+**A DATA FORMAT IS DEFINED ONCE** *(PO A. Maier)*
+Every data structure and file format that crosses a module boundary is defined once, in the file of the module that
+owns it.
+*Check:* no automatic check; at review.
 
-**EVERY TYPE HAS A SAMPLE** *(PO A. Maier)*
-Every data structure and file format an architecture defines has at least one sample that conforms to its definition.
-*Check:* `tests/test_architecture_files.py` — every sample is validated against its definition without a model;
-counter-proof: a sample missing a required field is an error.
+**ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES** *(PO A. Maier)*
+An architecture is drafted or changed only against use cases whose current text an approval record names.
+*Check:* `tests/test_job_preconditions.py` — a job that drafts an architecture against an open use case does not start
+and names that use case; counter-proof: once an approval record names its text, the job starts.
 
-**EVERY INTERFACE HAS AN EXAMPLE** *(PO A. Maier)*
-Every interface of a module has at least one example: an input and the result or refusal it gives.
-*Check:* `tests/test_architecture_files.py` — every example's input and result conform to the interface's types.
+**THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE** *(PO A. Maier)*
+A product's first architecture is drafted in one piece, for every requirement of its SPEC and every one of its use cases.
+*Check:* `tests/test_derivation_context.py` — the first derivation for a fixture product offers no selection and sends
+every requirement and every use case; counter-proof: a derivation of part of them is refused.
 
-**EVERY NAME IN AN ARCHITECTURE RESOLVES** *(PO A. Maier)*
-Every requirement, use case, decision, module, interface and type an architecture decision names exists.
-*Check:* `tests/test_architecture_files.py` — an unknown name is an error.
+**AN ARCHITECTURE IS DERIVED FROM THE WHOLE TO ITS MODULES** *(PO A. Maier; Vibe Coding, ch. 10 §3)*
+An architecture is derived top-down: first the system's context, its patterns, its subsystems and the four views, then
+the scenarios of the use cases, then the decisions of its subsystems, and only then the files of its modules.
+*Check:* no automatic check; at review.
 
-**MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE** *(PO A. Maier)*
-The modules an architecture designs use each other's interfaces without a cycle.
-*Check:* `tests/test_architecture_files.py` — a cycle is an error that names its modules.
+**THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT** *(PO A. Maier)*
+A participant that drafts or checks an architecture receives the whole SPEC, every accepted use case and the whole
+architecture.
+*Check:* `tests/test_derivation_context.py` — the input sent to a fixture drafter and to a fixture reviewer contains
+every requirement, every accepted use case and every file of the architecture.
 
-**EVERY USE-CASE STEP IS CARRIED BY AN INTERFACE** *(PO A. Maier)*
-For every step of every accepted use case, the architecture names the module interfaces that carry it out.
-*Check:* `tests/test_architecture_coverage.py` — a step that no interface carries is a warning.
-
-**EVERY REQUIREMENT HAS ITS PLACE IN THE ARCHITECTURE** *(PO A. Maier)*
-Every accepted requirement is realised by a module, or is named by the decision it forces as a rule that no single
-module keeps.
-*Check:* `tests/test_architecture_coverage.py` — a requirement without a place is a warning.
-
-**THE USE-CASE MAPPING IS REVIEWED** *(PO A. Maier)*
-A reviewing participant checks, for every step of every accepted use case, that the interfaces the architecture
-names for it carry the step out — with the inputs the step needs, the results it produces and the refusals it can meet.
-*Check:* `tests/test_architecture_review.py` — on a fixed set of drafts with planted wrong mappings, how often the
-reviewer finds them is measured as a rate, reported and not gated.
-
-**THE ARCHITECTURE IS REVIEWED AGAINST THE SPECIFICATION** *(PO A. Maier)*
-A reviewing participant checks, for every accepted requirement, that the module or decision the architecture places
-it with keeps it.
-*Check:* `tests/test_architecture_review.py` — on a fixed set of drafts with planted unkept requirements, how often
-the reviewer finds them is measured as a rate, reported and not gated.
-
-**NO REVIEWER IS THE DRAFTER** *(PO A. Maier)*
-The reviewing participant of an architecture draft is not the participant that drafted it and does not use its model.
-*Check:* `tests/test_architecture_review.py` — a reviewer that is the drafter, or uses its model, is refused before
-anything is sent; counter-proof: another participant with another model is accepted.
-
-**A REVIEWER'S FINDING IS A WARNING** *(PO A. Maier)*
-A finding of the reviewing participant of an architecture draft is a warning.
-*Check:* `tests/test_correction_loop.py` — a reviewer's finding answered with a justification ends the loop;
-counter-proof: an unanswered one does not.
+**NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY** *(PO A. Maier)*
+If the SPEC, the accepted use cases and the architecture do not fit into a participant's context, nothing is sent and
+the dashboard says what does not fit.
+*Check:* `tests/test_derivation_context.py`
 
 **ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS** *(PO A. Maier)*
 An architecture decision can be accepted only when every requirement and use case it names is
@@ -1129,15 +1228,63 @@ accepted.
 "requirement" read as "architecture decision" and "source" read as "the requirement or use case that forces it".
 *Check:* `tests/test_derivation_classes.py` — the same battery, with architecture fixtures.
 
+**AN ARCHITECTURE IS CHECKED WHEN IT IS COMPLETE** *(PO A. Maier)*
+An architecture draft is checked only once it is complete, and then as a whole.
+*Check:* `tests/test_architecture_review.py` — a fixture reviewer receives the complete draft; counter-proof: no review
+starts for a draft that lacks the decision stating the whole architecture.
+
+**A CHANGE ACROSS MODULES IS CHECKED AS A WHOLE** *(PO A. Maier)*
+A change to an architecture that concerns more than one module is checked together with the whole architecture.
+*Check:* `tests/test_architecture_review.py` — a change to two module files sends every file of the architecture
+to the reviewer.
+
+**AN ARCHITECTURE IS CHECKED BY REVIEW, NOT BY TESTS** *(PO A. Maier)*
+An architecture is checked by reviewing participants and by a person; no test or CI run checks it.
+*Check:* no automatic check; at review.
+
+**THE ARCHITECTURE IS REVIEWED AGAINST THE SPECIFICATION** *(PO A. Maier)*
+A reviewing participant checks the whole architecture against the whole SPEC, the principles of this section included.
+*Check:* no automatic check; at review.
+
+**EVERY USE CASE IS CHECKED AGAINST THE ARCHITECTURE** *(PO A. Maier)*
+A reviewing participant checks every accepted use case against the system, by whether its scenario is possible with the
+subsystems and their interfaces.
+*Check:* no automatic check; at review.
+
+**A SUBSYSTEM IS CHECKED AGAINST THE SYSTEM** *(PO A. Maier)*
+A reviewing participant checks every subsystem against the system, by whether it fulfils the responsibility and offers
+the interface that the decision stating the system gives it.
+*Check:* no automatic check; at review.
+
+**A MODULE IS CHECKED AGAINST ITS SUBSYSTEM** *(PO A. Maier)*
+A reviewing participant checks every module against its subsystem, by whether it fulfils the part of the subsystem's
+responsibility and interface that the subsystem's decision gives it.
+*Check:* no automatic check; at review.
+
+**NO MODULE IS CHECKED AGAINST THE USE CASES** *(PO A. Maier)*
+No module is checked against the use cases.
+*Check:* no automatic check; at review.
+
+**NO REVIEWER IS THE DRAFTER** *(PO A. Maier)*
+The reviewing participant of an architecture draft is not the participant that drafted it and does not use its model.
+*Check:* `tests/test_architecture_review.py` — a reviewer that is the drafter, or uses its model, is refused before
+anything is sent; counter-proof: another participant with another model is accepted.
+
+**A REVIEWER'S FINDING IS A WARNING** *(PO A. Maier)*
+A finding of the reviewing participant of an architecture draft is a warning.
+*Check:* `tests/test_correction_loop.py` — a reviewer's finding answered with a justification ends the loop;
+counter-proof: an unanswered one does not.
+
+**A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON** *(PO A. Maier)*
+A finding of a reviewing participant changes nothing until it has been checked against the SPEC, the use cases and the
+architecture; a finding that does not hold is answered with the reason it does not.
+*Check:* no automatic check; at review.
+
 **AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT** *(PO A. Maier)*
-A drafted architecture decision runs, in the correction loop and before a person sees it, through the checks of
-`AN INTERFACE STATES ITS TYPES`, `A TYPE IS DEFINED ONCE, IN MACHINE-READABLE FORM`, `EVERY TYPE HAS A SAMPLE`,
-`EVERY INTERFACE HAS AN EXAMPLE`, `EVERY NAME IN AN ARCHITECTURE RESOLVES`,
-`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`, `EVERY USE-CASE STEP IS CARRIED BY AN INTERFACE`,
-`EVERY REQUIREMENT HAS ITS PLACE IN THE ARCHITECTURE`, `THE USE-CASE MAPPING IS REVIEWED` and
+A drafted architecture runs, in the correction loop and before a person sees it, through the review of
 `THE ARCHITECTURE IS REVIEWED AGAINST THE SPECIFICATION`.
-*Check:* `tests/test_correction_loop.py` — a fixture draft with an untyped interface is sent back, and so is a
-fixture reviewer's finding; the person sees only the corrected draft.
+*Check:* `tests/test_correction_loop.py` — a fixture reviewer's finding is sent back, and the person sees only the
+corrected draft.
 
 **A REUSE DECISION RECORDS ITS DUE DILIGENCE** *(Vibe Coding, ch. 6 §5)*
 An architecture decision that adopts an external library, service or API records, for the chosen
@@ -1165,12 +1312,6 @@ counter-proof with a record whose package does not exist in the registry.
 Before a change to an accepted architecture decision is accepted, the modules it designs, their code files and
 tests, and the requirements that reference it are shown beside the change.
 *Check:* `tests/review-core.test.mjs`
-
-**SKELETONS, DOCUMENTATION, SAMPLES AND TESTS ARE GENERATED FROM THE ARCHITECTURE** *(PO A. Maier)*
-From an accepted architecture decision, each module's source skeleton, its interface documentation, its sample input
-files and one failing test per example are generated without a model.
-*Check:* `tests/test_generate_from_architecture.py` — two generations give identical files, every generated sample
-conforms to its type, and every generated test fails against the skeleton.
 
 **AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST** *(Vibe Coding, ch. 13 §5)*
 The first commit of an implementation job that adds or changes behaviour contains only tests, and the
