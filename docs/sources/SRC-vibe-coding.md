@@ -8,8 +8,9 @@ licence: may be republished — CC BY 4.0
 # SRC-vibe-coding Vibe Coding
 
 The book *Vibe Coding: Software Engineering in the Age of AI*, to be published open access by Springer under CC BY 4.0
-(<https://link.springer.com/book/9783032399069>). Its chapters are kept here in Markdown as a snapshot of the book's
-Markdown edition at the commit named below; that edition stays the book's source.
+(<https://link.springer.com/book/9783032399069>). This source's content is all 17 chapters of the book in Markdown, in
+`SRC-vibe-coding/2026-10-05/`: every file as the book's own repository holds it at the commit named under Versions, copied
+here unchanged and listed with its SHA-256. A later state of the chapters is added as a new version beside this one.
 
 ## Versions
 
