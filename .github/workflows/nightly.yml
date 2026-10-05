@@ -1,5 +1,6 @@
-# Nightly: the checks too slow for every push. Today one: both suites run once more with Agent M's own SPEC watched, and no
-# test may open it (tests/test_release_sprint_02_c.py). Started by hand as well, from the repository's Actions page.
+# Nightly: main's own check. Both suites run once more, as CI runs them, and fail the run when a test fails; Agent M's own
+# SPEC is watched, and no test may open it (tests/test_release_sprint_02_c.py). Pull requests run both suites (tests.yml);
+# a push to main runs none. Started by hand as well, from the repository's Actions page.
 name: nightly
 
 on:
