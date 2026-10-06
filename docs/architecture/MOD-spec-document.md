@@ -98,8 +98,9 @@ version history.
 
 ## Files
 
-It reads its own `skeleton.md` when it is loaded. It reads and writes no file of a repository; its callers give it the
-texts.
+It reads its own `skeleton.md` when it is loaded. If that read fails, the module still loads, and `specSkeleton` fails
+with the reason when it is called, so that no page that loads the module fails with it. It reads and writes no file of a
+repository; its callers give it the texts.
 
 ## Uses
 

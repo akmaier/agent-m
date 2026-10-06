@@ -151,8 +151,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   only into the authorisation header of requests to the server that issued it (`A TOKEN GOES ONLY TO THE SERVER THAT
   ISSUED IT`). With `clone`, files are read and committed in that clone and pushed with the clone's own credentials, and
   every other function uses the REST adapter where a token is given, or throws `NotSupported`. No request is made yet.
-- `readSnapshot(ref: string) -> Promise<Snapshot>` — the repository at a branch, tag or commit: one request for the
-  commit and its tree, then one per file read. Crosses the network; fails with `NotFound`, `TokenRefused`,
+- `readSnapshot(ref: string) -> Promise<Snapshot>` — the repository at a branch, tag or commit: the commit and its whole
+  tree in a fixed number of requests, however many folders it has — two on GitHub, the commit and then its tree —, then
+  one per file read. Crosses the network; fails with `NotFound`, `TokenRefused`,
   `PermissionMissing`, `RateLimited`, `Unreachable`.
 - `readHistory(path: string | null, options: { ref?: string, limit?: number }) -> Promise<HistoryEntry[]>` — the commits
   that changed a path, or the repository, newest first. Crosses the network; fails as `readSnapshot`.
@@ -164,7 +165,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`, or `NotSupported` without a token.
 - `commitFiles(change: { branch: string, expectedHead: string, files: FileWrite[], message: string }) -> Promise<{ commit:
   string, url: string }>` — one commit of all the files together, made only if the branch still stands at `expectedHead`;
-  through a clone, a commit pushed only if the push fast-forwards. The message is written as given; it carries what its
+  through a clone, a commit pushed only if the push fast-forwards. GitLab's API makes no commit on such a condition: there
+  the head is read again just before the write and the commit refused with `Moved` if it moved; a commit that lands
+  between that read and the write is not refused. The message is written as given; it carries what its
   caller puts there, such as the provenance of a generated artifact. Before anything is sent, a file whose text holds a
   configured secret refuses the whole commit with `SecretRefused`. Crosses the network; fails with `Moved`,
   `SecretRefused`, `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`. Nothing is written on any failure.
