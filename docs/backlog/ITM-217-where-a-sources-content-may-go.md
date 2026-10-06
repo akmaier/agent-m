@@ -22,9 +22,17 @@ origin:
 ## Outcome
 
 MOD-source-register's interface, as its file states it, for UC-002: `sourceSchemas` and `permittedPlaces`, in
-`src/source-register/`: the register entries and a product's links read by their schemas, and the processing places to
-which the content of a linked source may be given. Registering, fetching and reading a source's content are not part of
-this item.
+`src/source-register/`: the register entries read by their schema, and the processing places to which the content of a
+linked source may be given. Registering, fetching and reading a source's content are not part of this item.
+
+The schema of a product's links file — `sourceSchemas`' `links` — is not part of this item; `sourceSchemas` gives the
+entry's schema.
+- A product's `docs/sources.md` holds its table under the product's own title, for example "# Requirement sources of
+  Agent M".
+- MOD-source-register's file names no fixed heading for that table, while MOD-documents names a table's section by its
+  heading line.
+- That gap is a change request to akmaier. An item of its own brings the links schema as akmaier decides it.
+- ITM-218 is not held up: `declarationFindings` is given the linked sources' entries by its caller.
 
 The module checks no participant's place against those places. MOD-participant-list's `eligible` does that for a job or
 a role (ITM-216), and MOD-product-process' `declarationFindings` does it for a declaration (ITM-218).
@@ -32,7 +40,7 @@ a role (ITM-216), and MOD-product-process' `declarationFindings` does it for a d
 ## Acceptance
 
 - Unit tests that name MOD-source-register state, before the code exists:
-  - a register entry and a product's links file, read through MOD-documents with `sourceSchemas`;
+  - a register entry read through MOD-documents with the entry's schema `sourceSchemas` gives;
   - `permittedPlaces` of four entries: one whose content may be republished — any place —; a restricted one with its
     places — those places —; a restricted one that declares none — no place —; and one whose licence is `unknown`,
     which counts as restricted;
