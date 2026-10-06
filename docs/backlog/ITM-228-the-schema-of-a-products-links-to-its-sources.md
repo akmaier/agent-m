@@ -40,5 +40,7 @@ The item builds the module's file as it is accepted when the item starts.
     on that file's own form goes to the review; the file does not change.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
-- The existing tests stay green, with no expected result changed.
+- One existing expected result changes: the reads that `tests/source-register.test.mjs` expects when the module loads
+  gain `links.schema.md`, the second schema file the module's file names. Every other test stays green with no expected
+  result changed.
 - Only `src/source-register/` and the tests that name MOD-source-register change (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`).
