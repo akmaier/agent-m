@@ -21,14 +21,29 @@ origin:
 
 ## Outcome
 
-MOD-spec-document's `parseSpec`, as its file states it, in `src/spec-document/` beside `specSkeleton`: a SPEC's
-sections and requirements with their name, source, rule and check, and whether each constrains the product or the
-development process — which MOD-product-process reads as the process requirements and their sources.
+MOD-spec-document's `parseSpec`, with `Spec`, `SpecSection` and `Requirement`, as its file states it, in
+`src/spec-document/` beside `specSkeleton`. It reads a SPEC's sections and its requirements, each with its name, its
+source and that source's items (`sources`), its rule, its check, its section and its line.
+
+What a requirement constrains follows from the SPEC it stands in, and no field of `Requirement` holds it (the module's
+file, Data): the requirements of the instance's SPEC constrain the development process, those of a product's SPEC the
+product. MOD-product-process takes the requirements of the instance's SPEC as the process requirements, with their
+sources.
+
+`requirementFindings`, `sectionText`, `replaceSection`, `requirementNamesIn` and `renamedRequirements` are not part of
+this item.
 
 ## Acceptance
 
-- Unit tests that name MOD-spec-document state, before the code exists, the requirements of a fixture SPEC with their four fields and their section; a process requirement told from a
-product requirement; and a requirement whose field is missing named as a finding, not guessed.
+- Unit tests that name MOD-spec-document state, before the code exists, on fixture SPECs only — no test opens Agent M's
+  own `SPEC.md` (`KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE`, `SOFTWARE_MAINTENANCE.md`):
+  - the requirements of a fixture SPEC with their four fields, their section and their line;
+  - a source over several lines, and several sources split at `;` into `sources`, with and without the part each draws
+    on;
+  - a check naming several tests split at ` · `, and one at review naming none;
+  - a requirement missing a field, read with that field `null`, not guessed;
+  - the text of one section, such as a change queue's proposal, read as a SPEC is read.
+- `src/spec-document/index.mjs` keeps its one read of `skeleton.md` as `tests/test_no_backend.py` permits it.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests stay green, with no expected result changed.

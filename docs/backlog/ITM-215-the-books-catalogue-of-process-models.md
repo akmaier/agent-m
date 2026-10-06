@@ -35,12 +35,26 @@ source register holds it (`docs/sources/SRC-vibe-coding/2026-10-05/`, chapters 6
 names the chapter it follows. `docs/assets/process-model.mjs` is the model for reading and validating a definition.
 `planGrid` and `modelDiagram` are not part of this item.
 
+The item builds the module's file as it is accepted when the item starts. UC-002 step 2 also shows, for each model, the
+risk it manages well, the risk it accepts and an example project it suits. Those are not part of this item, whatever
+the module's file says of them by then; an item of their own brings them.
+
 ## Acceptance
 
-- Unit tests that name MOD-model-catalogue state, before the code exists, that the catalogue holds exactly the five models in their two groups and the four practices; that every shipped
-model passes `modelFindings` without an error; and, for each rule `modelFindings` enforces, a definition that breaks it —
-a transition or a verification pair naming a phase the model lacks, a gate without artifacts, condition or decider, a role
-without capabilities, a phase without a role, no declaration of planned or pulled work — named as an error.
+- Unit tests that name MOD-model-catalogue state, before the code exists:
+  - that the catalogue holds exactly the five models in their two groups and the four practices;
+  - that every shipped model passes `modelFindings` without an error;
+  - for each rule the module's file names for `modelFindings`, a definition that breaks it, named as an error:
+    - a transition naming a phase that is not defined, or a phase that no transition reaches from the first phase;
+    - a verification pair naming a missing phase;
+    - a gate without artifacts, without a condition or without a decider;
+    - a role without capabilities, or a phase without a role;
+    - a gate that checks a kind of artifact no earlier phase produces;
+    - pulled work with neither a time box nor a work-in-progress limit, or with both;
+    - a measure that does not fit the kind of work;
+    - no declaration of planned or pulled work;
+  - that no model or practice name stands in the module's code: the shipped models and practices are found as data
+    (`THE CATALOGUE IS DATA`).
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests stay green, with no expected result changed.

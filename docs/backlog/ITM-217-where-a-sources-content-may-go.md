@@ -26,10 +26,17 @@ MOD-source-register's interface, as its file states it, for UC-002: `sourceSchem
 which the content of a linked source may be given. Registering, fetching and reading a source's content are not part of
 this item.
 
+The module checks no participant's place against those places. MOD-participant-list's `eligible` does that for a job or
+a role (ITM-216), and MOD-product-process' `declarationFindings` does it for a declaration (ITM-218).
+
 ## Acceptance
 
-- Unit tests that name MOD-source-register state, before the code exists, the places a fixture source with a restricted licence permits, and those of an open one; and a participant's
-place checked against them, named when it is not permitted.
+- Unit tests that name MOD-source-register state, before the code exists:
+  - a register entry and a product's links file, read through MOD-documents with `sourceSchemas`;
+  - `permittedPlaces` of four entries: one whose content may be republished — any place —; a restricted one with its
+    places — those places —; a restricted one that declares none — no place —; and one whose licence is `unknown`,
+    which counts as restricted;
+  - this instance's entry `SRC-vibe-coding`, whose licence permits republishing, permitting any place.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests stay green, with no expected result changed.
