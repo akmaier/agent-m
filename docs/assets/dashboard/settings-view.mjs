@@ -425,7 +425,9 @@ export function renderBrowserSettings(app) {
   }));
   box.querySelectorAll('[data-change="agent-m.github-token"]').forEach((b) => b.addEventListener("click", () => {
     document.getElementById("token-change").hidden = false;
-    document.getElementById("token-ack").focus();
+    // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: the notice's box while it is not ticked, the paste field once it is.
+    const tokenAck = document.getElementById("token-ack");
+    (tokenAck.checked ? document.getElementById("token-input") : tokenAck).focus();
   }));
   box.querySelector(`[data-test="agent-m.github-token"]`)?.addEventListener("click", async () => {
     say("agent-m.github-token", `Reading ${T.instance}…`);
@@ -478,6 +480,8 @@ export function renderBrowserSettings(app) {
       <label>Expires on <input type="date" data-gl-expires value="${h(defaultExpiry())}"></label>
       <button class="btn primary" data-gl-store>Store</button></p>
       <p class="muted small">The expiry date GitLab showed for the token. The dashboard warns ${EXPIRY_WARN_DAYS} days before.</p>`;
+    // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: the field for the new token.
+    form.querySelector("[data-gl-token]").focus();
     form.querySelector("[data-gl-store]").addEventListener("click", () => {
       const v = form.querySelector("[data-gl-token]").value.trim(), exp = form.querySelector("[data-gl-expires]").value;
       const bad = gitlabTokenProblem(v, exp);
