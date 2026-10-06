@@ -1,6 +1,6 @@
 // The schema language — a schema read from its data file and checked against the language (MOD-documents, Data: The schema
 // language; Interfaces: loadSchema), and the parts of the language the reader and the writer share: conditions, variants,
-// path patterns, fenced blocks.
+// path patterns, fenced blocks, and which section of the schema a document's section is.
 //
 // Module: MOD-documents
 //
@@ -17,6 +17,10 @@
 // and a variant may each name in `rule` the requirement they apply, a requirement's name in capitals; whether the SPEC holds
 // it is not decided here. The rule of a path pattern and of an appended section are not read yet, and a schema that names
 // no rule is not refused yet.
+//
+// The section under the title (ITM-226): a format whose table stands under its title, and whose title changes from file to
+// file, names that section { "underTitle": true } in place of a heading. A schema names at most one, as its first section,
+// and then no section of level one.
 
 // The identifier scheme of EVERY ARTIFACT HAS AN IDENTIFIER, each kind with the form of what follows its prefix: three or
 // more digits for numbered kinds, a slug of lower-case words for named ones, and a job's identifier. MOD-identifiers owns
@@ -44,7 +48,7 @@ const SPEC_KEYS = ["type", "required", "nonEmpty", "rule", "values", "digits", "
   "forbiddenWhen", "variants"];
 const VARIANT_KEYS = ["when", "rule", "type", "nonEmpty", "values", "digits", "of", "item"];
 const ITEM_KEYS = ["type", "values", "digits", "of", "item"];
-const SECTION_KEYS = ["heading", "required", "rule", "fields", "table"];
+const SECTION_KEYS = ["heading", "underTitle", "required", "rule", "fields", "table"];
 const APPENDED_KEYS = ["heading", "fields", "repeat"];
 const TABLE_KEYS = ["columns", "header", "appendOnly"];
 const PLACEHOLDERS = ["id", "nnn", "slug", "blob12", "any"];
@@ -286,6 +290,14 @@ function checker(owner) {
     taken.push(value);
   }
 
+  // A section under the title: { underTitle: true } in place of a heading, and the schema's first section, so at most one.
+  function underTitle(section, i) {
+    const at = `sections[${i}]`;
+    if (section.underTitle !== true) fail(`${at}.underTitle`, "true: the section is the text under the document's title");
+    if ("heading" in section) fail(`${at}.heading`, "a section under the title is named { underTitle: true } in place of a heading");
+    if (i !== 0) fail(`${at}.underTitle`, "a schema names at most one section under the title, as its first section");
+  }
+
   function table(value, at, frontKeys, headings) {
     if (!isObject(value)) fail(at, "a table is { columns, header, appendOnly }");
     onlyKeys(value, TABLE_KEYS, at, "a table");
@@ -327,15 +339,23 @@ function checker(owner) {
     if ("sections" in s && !Array.isArray(s.sections)) fail("sections", "a list of sections");
     if ("appended" in s && !Array.isArray(s.appended)) fail("appended", "a list of the sections that may be appended");
     const headings = [];
-    (s.sections ?? []).forEach((section, i) => {
-      if (!isObject(section)) fail(`sections[${i}]`, "a section is { heading, required, fields or table }");
-      heading(section.heading, `sections[${i}].heading`, headings);
+    const sections = s.sections ?? [];
+    sections.forEach((section, i) => {
+      if (!isObject(section)) fail(`sections[${i}]`, "a section is { heading or underTitle, required, fields or table }");
+      if ("underTitle" in section) {
+        underTitle(section, i);
+      } else {
+        heading(section.heading, `sections[${i}].heading`, headings);
+        if (sections[0].underTitle === true && HEADING_FORM.exec(section.heading)[1].length === 1) {
+          fail(`sections[${i}].heading`, "a schema that names the section under the title names no section of level one");
+        }
+      }
     });
     (s.appended ?? []).forEach((section, i) => {
       if (!isObject(section)) fail(`appended[${i}]`, "an appended section is { heading, fields, repeat }");
       heading(section.heading, `appended[${i}].heading`, headings);
     });
-    const sectionHeadings = (s.sections ?? []).map((section) => section.heading);
+    const sectionHeadings = sections.filter((section) => !section.underTitle).map((section) => section.heading);
 
     if ("identifier" in s) {
       if (!isObject(s.identifier)) fail("identifier", "{ field, kind }");
@@ -417,17 +437,32 @@ function pathPattern(pattern, kind) {
   return { re, idOf: (match) => (idGroup === null ? null : `${prefix}${match[idGroup]}`) };
 }
 
+// What a schema compiles to: its path patterns; the level of its sections, that of the headings it names, ## when it names
+// none; the section under the title, where it names one, and its other sections by heading, each with its place among the
+// schema's sections; its appended sections by heading; and the sections that hold a table.
 function compile(s) {
   const kind = s.identifier?.kind ?? null;
   const patterns = s.path === undefined ? [] : (Array.isArray(s.path) ? s.path : [s.path]).map((p) => pathPattern(p, kind));
-  const levels = [...(s.sections ?? []), ...(s.appended ?? [])].map((section) => HEADING_FORM.exec(section.heading)[1].length);
+  const sections = s.sections ?? [];
+  const headed = sections.filter((spec) => !spec.underTitle);
+  const levels = [...headed, ...(s.appended ?? [])].map((section) => HEADING_FORM.exec(section.heading)[1].length);
   return {
     patterns,
     level: levels.length ? Math.max(...levels) : 2,
-    sections: new Map((s.sections ?? []).map((spec, index) => [spec.heading, { spec, index }])),
+    underTitle: sections[0]?.underTitle ? { spec: sections[0], index: 0 } : null,
+    sections: new Map(headed.map((spec) => [spec.heading, { spec, index: sections.indexOf(spec) }])),
     appended: new Map((s.appended ?? []).map((spec) => [spec.heading, spec])),
-    tables: (s.sections ?? []).filter((spec) => spec.table).map((spec) => spec.heading),
+    tables: sections.filter((spec) => spec.table),
   };
+}
+
+// sectionOf(compiled, section, place, title) -> { spec, index } | undefined — the section of the schema that a document's
+// section is, with its place among the schema's sections: the section under the title for the first section of a document
+// with a title — the reader reads the title line as its heading —, where the schema names one; else the section its
+// heading names.
+export function sectionOf(compiled, section, place, title) {
+  if (place === 0 && typeof title === "string" && compiled.underTitle) return compiled.underTitle;
+  return compiled.sections.get(section?.heading);
 }
 
 function freeze(value) {
