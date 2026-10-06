@@ -12,7 +12,8 @@ import { acceptItems, saveReviewedFile, clickAuthority } from "./writes.mjs";
 import { lastAccepted } from "./reads.mjs";
 import { writeRoute, webFileUrl, newFileUrl, editUrl } from "../git-host.mjs";
 import { parseFrontMatter, reviewedId, ARCHITECTURE_FILE, parseArchitecture } from "../artifacts.mjs";
-import { moduleHeaders, architectureImpact, linkGraph, componentDiagram } from "../traceability.mjs";
+import { moduleHeaders, architectureImpact, linkGraph } from "../traceability.mjs";
+import { componentDiagram } from "../../../src/trace-pages/diagram.mjs";
 
 export const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const esc = h;
@@ -571,9 +572,11 @@ async function viewArchitecture(app) {
     ${table("module", "<th>Realises</th><th>Follows</th>", (f) => `<td>${f.arch.names.length}</td><td>${f.arch.follows.map(h).join(", ")}</td>`)}
     ${mods.length ? `<section class="panel"><h3>Components</h3>
       <div class="md">${md("```mermaid\n" + componentDiagram(mods.map((f) => f.arch)) + "```\n")}</div>
-      <details class="explain"><summary>What is this?</summary><div>Computed from the modules' <code>uses</code> and
-        <code>provides</code> at the commit shown: an arrow from a module to the module whose interface it uses. An interface that
-        no module provides is drawn dashed and marked <em>missing</em>.</div></details></section>` : ""}`;
+      <details class="explain"><summary>What is this?</summary><div>Computed from the module files at the commit shown: one box
+        per module, inside the box of its subsystem — the first decision it <code>follows</code>; a module that follows none
+        stands outside every subsystem's box. One arrow from a module to each module it <code>uses</code>, however many of that
+        module's interfaces it uses. A used module that has no file is drawn as a box of its own, dashed and marked
+        <em>missing</em>.</div></details></section>` : ""}`;
   wireAccept(app, main());
   await renderMermaid(main());
 }
