@@ -31,7 +31,8 @@ provides:
 
 It belongs to Access (ARC-047). It keeps everything that belongs to one person on one browser — tokens with their
 expiry, the list of products, endpoints and their keys, the Bridge's address and token, the mailbox connection, the jump
-host and remote sessions, the mails marked *not an issue* — in that browser's `localStorage` and nowhere else
+host and remote sessions, the mails marked *not an issue*, the notifications of what waits for acceptance and what they
+notified — in that browser's `localStorage` and nowhere else
 (`CONFIGURATION LIVES IN THE BROWSER`, `CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE`); it knows every key it
 writes, so that each can be shown, tested and cleared on one page (`EVERY SETTING IS REACHED FROM ONE PAGE`); and it
 exports all of it, secrets included, into one file that may be locked with a passphrase, and imports it again
@@ -64,6 +65,8 @@ instances in one browser never share an entry. Each value is JSON. The settings 
 | `mailbox` | the connection's fields as MOD-mail-routes defines them — route, address, folders, allowed places, the client identifier of the app registration, or servers and password | the password |
 | `mailbox-sign-in` | not a key of its own: the keys the Microsoft sign-in library writes for its token cache under its own names (ARC-053), found by the client identifier the `mailbox` entry names and by the library's own key names | yes |
 | `not-an-issue` | the identifiers of mails marked *not an issue* | no |
+| `notifications` | `{ checked }` — present while the person has switched the notifications of what waits for acceptance on in this browser (UC-047), absent while they are off; `checked` the date and time of this browser's last check, `null` before the first | no |
+| `notified` | `{ "<repository>": { "<path>": "<blob>" } }` — what was notified: for each repository by the address a person opens, every file that waits there, by its path — a SPEC change entry by its proposal's —, with the blob of the text that was notified | no |
 | `acknowledged:<notice>` | the date a notice was ticked as read, such as the shared-origin notice | no |
 | `last-test:<key>` | `{ at, outcome }` — the last test of a setting | no |
 

@@ -43,7 +43,8 @@ provides:
 It belongs to the Site (ARC-038). Its one responsibility is the page at the root of the instance's Pages address: what
 goes on in the instance — each product's progress as a bar of six stages, or Agent M's own while the browser manages no
 product, the build as it happens, what waits for a person — and every job of every product, with its detail and the
-decisions a person takes on a job. It serves UC-046 and UC-036.
+decisions a person takes on a job. It serves UC-046 and UC-036, and opens at its list of what waits for a notification of
+UC-047.
 
 It shows only what the services derive; it computes no share and no state of its own (`PROGRESS AND JOB STATE ARE
 DERIVED, NOT STORED`). It runs no job in the tab, so it hands the frame no strategies: retrying a job that ran in a tab
@@ -72,7 +73,9 @@ an interval the repository servers' rate limits allow, so the build stays curren
     to that stage's page under `docs/` for the product, and its build — the steps or items in progress, each with the job
     working on it, its participant, state and elapsed time; without a product, Agent M's own card from the instance
     repository and *+ Add product*; a card whose repository cannot be read says which and links the token's setting;
-    below the cards, what waits for a person across the instance, each item linked to the page where it is decided.
+    below the cards, what waits for a person across the instance, each item linked to the page where it is decided. With
+    `params.at` set to `waits`, the page opens at that list — the address a notification of more than three files that
+    have come to wait carries (MOD-notifications).
   - `jobs` — every job of every product and of the instance in one list, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
     runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason.

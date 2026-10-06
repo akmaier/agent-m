@@ -55,6 +55,7 @@ forced_by:
   - THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE
   - WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS
   - THE BUILD IS SHOWN AS IT HAPPENS
+  - A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
   - UC-002
   - UC-024
   - UC-031
@@ -66,6 +67,7 @@ forced_by:
   - UC-043
   - UC-045
   - UC-046
+  - UC-047
 designs:
   - MOD-model-catalogue
   - MOD-product-process
@@ -82,8 +84,9 @@ participants, its gates with what they check and who decides them, a Definition 
 gates and artifacts its process requirements add (UC-002, UC-031). The work is organised in an implementation plan or a
 backlog that builds the system bottom-up along the modules' interfaces (UC-045, UC-032). Jobs start only for what is
 accepted, selected and below the limits, stop at every gate, and a run carries a whole selection through the model
-without a click between its jobs (UC-024, UC-034, UC-043). Progress is shown in the model's own measure (UC-035), and
-on the main page as stages (UC-046) — all derived from records.
+without a click between its jobs (UC-024, UC-034, UC-043). Progress is shown in the model's own measure (UC-035) and
+on the main page as stages (UC-046), and what waits for a person's acceptance is told by the Site's notifications
+(UC-047) — all derived from records.
 
 ## Decision
 
@@ -101,8 +104,8 @@ Participants and jobs, Access and the artifact model.
 Validating process models and the product's declaration; deriving the product's workflow, its gates' states and whether
 a participant may decide a gate; checking a pull request against the Definition of Done; keeping implementation plans,
 backlogs and sprints, and deriving each item's state and whether it can start; turning a selection into a run and
-computing its next actions, the implementation job's inputs included; computing progress in the model's measure and the
-stages of the main page.
+computing its next actions, the implementation job's inputs included; computing progress in the model's measure, the
+stages of the main page, and what waits for a person's acceptance.
 
 ### The interface it offers
 
@@ -112,7 +115,7 @@ stages of the main page.
 | MOD-product-process | `declarationSchema`, `declarationFindings`, `workflowOf`, `holdsRole`, `gateSchema`, `gateStates`, `mayDecide`, `recordGateDecision`, `doneCheck`, `processStrategies` |
 | MOD-work-plans | `planSchemas`, `itemStates`, `startable`, `planFindings`, `backlogFindings`, `sprintFacts`, `savePlan`, `saveItems`, `saveOrder`, `startSprint`, `endSprint`, `closeSprint`, `workStrategies` |
 | MOD-run-planner | `runOf`, `nextActions`, `raiseLimits`, `runStrategies` |
-| MOD-progress-measures | `productFacts`, `progressIn`, `stageShares`, `currentStage`, `gateOverview`, `blocked`, `whoWorksOnWhat`, `buildInProgress`, `waitingForAPerson` |
+| MOD-progress-measures | `productFacts`, `progressIn`, `stageShares`, `currentStage`, `gateOverview`, `blocked`, `whoWorksOnWhat`, `buildInProgress`, `waitingForAPerson`, `waitingForAcceptance` |
 
 ### Its modules
 
@@ -122,7 +125,7 @@ stages of the main page.
 | MOD-product-process | `src/product-process/` | the schema of the product's `docs/process.md`: model and version, roles and their holders, practices, branches, Definition of Done, the closer of a sprint; the workflow with the gates process requirements add; the schema of gate records under `docs/gates/` and their states; who may decide a gate; the Definition-of-Done check of a pull request, which the product's CI runs; the recipe and writer of an agent's gate decision |
 | MOD-work-plans | `src/work-plans/` | the schemas of the order of a plan's steps under `docs/plan/` and of a backlog under `docs/backlog/`, and of sprints under `docs/backlog/sprints/` with their review and retrospective; each item's derived state and what keeps it from starting — acceptance, what it builds on, the sprint's selection, the work-in-progress limit, the gate before its phase —; checks of a plan or backlog against the architecture; the recipes, checks and writers of drafting a plan, proposing items and closing a sprint |
 | MOD-run-planner | `src/run-planner/` | a run as the job that names its jobs, with its selection and limits; its next actions from the records — CI set up first, then the steps in the order of the modules' interfaces and of the model's phases and gates, then the tests, then the validation, none above a limit, none after a failed job it depends on —; the recipe of an implementation job's inputs: the module's file, its subsystem's and the system's decisions, the SPEC, the interfaces of the modules it uses, its code and tests |
-| MOD-progress-measures | `src/progress-measures/` | the facts of a product gathered once; progress in the model's measure — plan entries per phase, remaining items per time box, items per state over time —; gates passed, pending, not reached; what is blocked; who works on what; the six stages of the main page, the build in progress, what waits for a person |
+| MOD-progress-measures | `src/progress-measures/` | the facts of a product gathered once; progress in the model's measure — plan entries per phase, remaining items per time box, items per state over time —; gates passed, pending, not reached; what is blocked; who works on what; the six stages of the main page, the build in progress, what waits for a person; what waits for a person's acceptance in a repository, from its snapshot alone |
 
 ```mermaid
 flowchart BT

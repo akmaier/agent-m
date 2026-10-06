@@ -73,6 +73,7 @@ forced_by:
   - UC-044
   - UC-045
   - UC-046
+  - UC-047
 ---
 # ARC-037 Agent M as a whole
 
@@ -179,7 +180,7 @@ that are its own (process view). Nothing is kept anywhere else, so any driver ca
 
 | Subsystem | Decision | Responsibility | What it offers the subsystems above it |
 |---|---|---|---|
-| Site | ARC-038 | the pages people use: the main page at the root and the review pages under `docs/`; the menu in the order of the process; the Pattern Recognition Lab's look; one review page and one trace page for every kind and view; Markdown and Mermaid rendered safely; editors, forms, run panels, explanations | its frame and renderer, which the Bridge's window uses |
+| Site | ARC-038 | the pages people use: the main page at the root and the review pages under `docs/`; the menu in the order of the process; the Pattern Recognition Lab's look; one review page and one trace page for every kind and view; Markdown and Mermaid rendered safely; editors, forms, run panels, explanations; the browser's notifications of what waits for acceptance | its frame and renderer, which the Bridge's window uses |
 | Workflows | ARC-039 | the CI driver: the entries of Agent M's job workflow in each product repository — queued jobs, runs, gates decided by CI checks, the Definition-of-Done check, events in time — and of the instance's own workflows | workflow entries, run by CI |
 | Bridge | ARC-040 | the desktop app on a person's computer: its local API, the jobs of coding agents on that computer, IMAP and SMTP, SSH tunnels, its window, its signed releases | the Bridge API, over HTTP, to the page and to the Bridge client |
 | Specification and design | ARC-041 | the change control of every reviewed artifact — requirements, use cases, the architecture, release test reports —: statuses from approval records, acceptance, change queues, saves | statuses, acceptance, proposals, saves, and the recipes and writers its artifacts' job kinds use |
@@ -446,7 +447,7 @@ browser.
 
 | Subsystem | Module folders under `src/` |
 |---|---|
-| Site | `site-frame`, `markdown-render`, `main-page`, `review-pages`, `trace-pages`, `implementation-pages`, `test-pages`, `maintenance-pages`, `settings-pages` |
+| Site | `site-frame`, `markdown-render`, `main-page`, `review-pages`, `trace-pages`, `implementation-pages`, `test-pages`, `maintenance-pages`, `settings-pages`, `notifications` |
 | Workflows | `workflow-entries` |
 | Bridge | `bridge-http`, `bridge-jobs`, `mail-protocols`, `tunnels`, `desktop-shell`, `bridge-build` |
 | Specification and design | `approvals`, `spec-changes`, `artifact-edits` |
@@ -496,7 +497,7 @@ flowchart TB
     glci["GitLab CI runners"]
   end
   subgraph own["The person's computer"]
-    browser["Browser: the Site and every layer below it, localStorage"]
+    browser["Browser: the Site and every layer below it, localStorage, the Site's service worker"]
     bridgeA["Agent M Bridge, on loopback"]
     cliA["Coding-agent CLIs"]
   end
@@ -534,6 +535,10 @@ flowchart TB
 | Workflows, with the same subsystems | GitHub's or GitLab's runners, or a self-hosted runner, with Node | the product's server with the person's token from a CI secret; the participant's endpoint or agent with its key from a CI secret |
 | Bridge | a person's computer, as a signed app | coding-agent CLIs, mail servers, local model servers, compute; the jump host over SSH; product repositories with the computer's own git login |
 | Jump host's web server | the jump host | the end of a Bridge's reverse tunnel, on the jump host's loopback |
+
+The Site's service worker (MOD-notifications) runs in the same browser, registered from its module's folder, which is
+its scope: it controls no page and makes no request; the pages show their notifications through its registration, and
+it opens the page a notification names when the person clicks it.
 
 ### Scenarios
 
@@ -588,6 +593,7 @@ the strategies it uses are named with the subsystem that offers them.
 | UC-044 | Site offers the signed file of the Bridge's release and pairs it through Access; the Bridge's window, drawn with the Site's frame, lists the agents Participants and jobs finds, shows its token and opens its own tunnels. |
 | UC-045 | The runner runs the planning kind with Process's recipe of the architecture and the model; Process checks the draft against the module order the Artifact model derives; the plan is committed through Access. |
 | UC-046 | Site's main page reads the instance's or each product's snapshot through Access; Process derives the stage shares, the build in progress and what waits for a person, with the job states of Participants and jobs. |
+| UC-047 | Site's settings page asks the browser's permission on the person's click and keeps the switch in the browser's store through Access; while a page is open, the Site reads every five minutes the instance's and each product's snapshot through Access, each with its own token; Process derives from each what waits for acceptance, from its files and approval records; the Site compares it with what the browser's store keeps as notified, shows what has come to wait through its service worker, and the worker opens the page where it is accepted on a click. |
 
 ### Testing
 
