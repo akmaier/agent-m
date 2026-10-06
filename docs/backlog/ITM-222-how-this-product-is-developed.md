@@ -50,6 +50,10 @@ Reading the linked sources and the list of 3b follow parts 2 and 3 of the change
 waits for akmaier's decision on it. The comparison of two versions of the declared model (UC-031 6a) and the other routes
 of the module are not part of this item. How the dashboard reaches the route is a change between jobs.
 
+Before `declarationFindings` judges it and before `saveFile` writes it, the form's document is written with `writeDocument`
+and read back with `readDocument`, so that an edited section's rows are read again. The route inserts the form into the
+page in the same turn as `schemaForm` returns it, so that its first field is focused.
+
 ## Acceptance
 
 - Unit tests that name MOD-implementation-pages state, before the code exists, through the route with fixture
