@@ -78,8 +78,8 @@ STORED`) — the product's progress in the measure its model names (`PROGRESS IS
 state of every gate, what is blocked and who works on what (UC-035), and, for the main page, the bar of six stages, the
 stage the product is in, the build in progress and what waits for a person (`THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS
 BY STAGE`, `WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS`, `THE BUILD IS SHOWN AS IT HAPPENS`). From a
-repository's snapshot alone it derives what waits there for the person's acceptance, for the Site's notifications (`A
-PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in the browser and in Node.
+repository's snapshot and tags alone it derives what waits there for the person's acceptance, for the Site's
+notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in the browser and in Node.
 
 ## Parts
 
@@ -222,7 +222,7 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-test-schedule.scheduleSchema, defaultSchedule, configurationDrift — the schedule, or its default, and whether the
   CI configuration is generated from it.
 - MOD-result-records.resultsAt — the outcomes recorded for the default branch.
-- MOD-release-evidence.reportsAwaitingAcceptance — the release test reports that wait for acceptance.
+- MOD-release-evidence.reportsAwaitingAcceptance — the release test report that waits for acceptance, if one does.
 - MOD-test-document.TestDeclaration, testDeclarations, MOD-trace-graph.Graph, traceGraph, tracesTo — which tests guard
   which requirement, and the traces behind a cell of the grid.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.

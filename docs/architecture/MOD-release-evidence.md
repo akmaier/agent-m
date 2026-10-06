@@ -49,8 +49,8 @@ provides:
 
 It belongs to Tests and releases (ARC-043). It gives each product its own calendar version line (`CALENDAR VERSIONS`,
 `EVERY PRODUCT HAS ITS OWN VERSION LINE`), marks a release candidate and starts the complete run on it (`A RELEASE RUNS
-EVERY TEST AT EVERY LEVEL`), composes the release test report from the result records, tells which reports wait for that
-acceptance (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`), and releases when a person accepts the report: the
+EVERY TEST AT EVERY LEVEL`), composes the release test report from the result records, tells whether a report waits for
+that acceptance (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`), and releases when a person accepts the report: the
 report, its approval record with every known limitation and the changelog entry in one commit, then the tag on the
 tested commit (`THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON`, `ACCEPTING THE RELEASE TEST REPORT RELEASES`, `A RED
 RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED`, `A RELEASE IS TAGGED AND LOGGED`). It derives the audit of a
@@ -62,7 +62,7 @@ release and its export (`THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE`)
 - `index.mjs` — the interface.
 - `version.mjs` — the next version and the tags of a product's line.
 - `candidate.mjs` — the release candidate and its complete run.
-- `report.mjs` — the release test report, the reports that wait for acceptance, and releasing on its acceptance.
+- `report.mjs` — the release test report, whether one waits for acceptance, and releasing on its acceptance.
 - `audit.mjs` — the audit rows, their summary and the export.
 
 ## Data

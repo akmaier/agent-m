@@ -140,4 +140,5 @@ unregisters its own `worker.mjs` with the browser.
   its own token; MOD-repository-hosts.repositoryInfo — each repository's default branch, read once per page;
   MOD-repository-hosts.readSnapshot, MOD-repository-hosts.Snapshot — the default branch at its head, at every check, handed
   to `waitingForAcceptance`.
-- MOD-progress-measures.waitingForAcceptance — what waits for acceptance in a repository, from its snapshot alone.
+- MOD-progress-measures.waitingForAcceptance — what waits for acceptance in a repository, from its snapshot and, through
+  its host, its tags.

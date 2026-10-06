@@ -71,8 +71,8 @@ product's resources and paid services, and Participants and jobs, Access and the
 Keeping each product's test schedule and the CI configuration generated from it in agreement — with Agent M's
 Definition-of-Done check among its jobs and no run for a commit of job records only —; recording every run's outcomes
 and counter-proofs and reading them back per commit, test and release; computing versions, running release candidates,
-composing the release test report, telling which reports wait for a person's acceptance, releasing on its acceptance, and
-deriving the audit.
+composing the release test report, telling whether a report waits for a person's acceptance, releasing on its
+acceptance, and deriving the audit.
 
 ### The interface it offers
 
@@ -88,7 +88,7 @@ deriving the audit.
 |---|---|---|
 | MOD-test-schedule | `src/test-schedule/` | the schema of the product's schedule of levels by occasion, the book's default, its rules — the release candidate column always ticked, tests calling a paid service never on a commit or pull request —; the generated configuration for GitHub Actions or GitLab CI, with the Definition-of-Done check job, the step that appends each run's record, the secrets it needs by name, and no run for job records only; the difference between the configuration and the schedule; the writer that sets up CI in a run |
 | MOD-result-records | `src/result-records/` | the schema of the result record and of the counter-proof record on the branch `test-results`, written only by appending, never changed, deleted or force-pushed; the outcomes of a commit per level, *not run* for a level without a record; flaky tests; model-dependent rates against the last release; a test's history across commits and releases; the recipe of the existing tests that guard a selection, the check of proposed test cases against them, the writer of records |
-| MOD-release-evidence | `src/release-evidence/` | the next calendar version of a product's own line; the release candidate tag and its complete run; the release test report under `docs/tests/releases/`, and which reports wait for acceptance; acceptance with its known limitations, the changelog entry and the tag on the tested commit in one decision; the audit rows of a release and their export as one Markdown document |
+| MOD-release-evidence | `src/release-evidence/` | the next calendar version of a product's own line; the release candidate tag and its complete run; the release test report under `docs/tests/releases/`, and whether one waits for acceptance; acceptance with its known limitations, the changelog entry and the tag on the tested commit in one decision; the audit rows of a release and their export as one Markdown document |
 
 ```mermaid
 flowchart BT
