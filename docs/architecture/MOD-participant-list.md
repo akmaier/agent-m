@@ -8,12 +8,14 @@ follows:
 uses:
   - MOD-documents.loadSchema
   - MOD-documents.Schema
+  - MOD-documents.Document
 provides:
   - Participant
   - Capability
   - Need
   - Eligibility
   - participantSchema
+  - participantsOf
   - eligible
   - differs
 ---
@@ -28,7 +30,7 @@ NEEDS`), the places its data may go (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOU
 MAIL MAY GO ARE CONFIGURED`), the context it must hold, and that a reviewer or checker is neither the drafter nor uses
 the drafter's model (`NO REVIEWER IS THE DRAFTER`, `NO CHECKER IS THE REWRITER`). It runs unchanged in a browser and in
 Node; it keeps no state and performs no input or output: the register's text is read by its callers through
-MOD-documents with the schema this module gives.
+MOD-documents with the schema this module gives, and `participantsOf` turns what they read into participants.
 
 ## Parts
 
@@ -65,8 +67,8 @@ and accepts a person's row without one. An example row:
 
 - `Participant` — `{ name: string, type: "person" | "model endpoint" | "CI agent" | "CLI agent" | "sandboxed agent",
   model: string | null, context: number | null, price: { input: number, output: number, currency: string } | null,
-  capabilities: Capability[], place: string | null, route: string }`: one row of the register as MOD-documents reads it
-  with this module's schema.
+  capabilities: Capability[], place: string | null, route: string }`: one row of the register, as `participantsOf`
+  gives it.
 - `Capability` — `"draft text" | "read the repository" | "write to the repository" | "run code and tests" | "use tools" |
   "reach the web"`.
 - `Need` — `{ capabilities: Capability[], size?: number, places?: { from: string, allowed: string[] }[], notLike?:
@@ -77,7 +79,12 @@ and accepts a person's row without one. An example row:
   participant considered appears in exactly one of the two lists.
 - `participantSchema() -> Schema` — the schema of `docs/participants.md`, read from this module's data file with
   MOD-documents' `loadSchema`. Callers read and write the register through MOD-documents with it, and build forms from
-  it; this module offers no reader of its own.
+  it.
+- `participantsOf(register: Document) -> Participant[]` — the participants of a register read with `participantSchema`,
+  one per row of its table, in its order: `Name` as `name`, `Type` as `type`, `Model` as `model`, `Context` as `context`,
+  `Price` as `price`, `Capabilities` as `capabilities`, `Processing place` as `place`, `Route` as `route`; a value left
+  out as `null`, and `Price` as its input, output and currency, `null` where it is not of the form under Data. It judges
+  no row: a row's errors are those `documentFindings` names with `participantSchema`.
 - `eligible(participants: Participant[], need: Need) -> Eligibility` — which participants may do the job, and for each one
   left out every reason, in words a person can act on: a capability it lacks, named; a processing place a source or the
   mailbox does not allow, naming both; a context smaller than the size of the job, or none declared; that it is, or uses
@@ -98,3 +105,4 @@ written by its callers, through MOD-documents with `participantSchema`, and comm
 
 - `MOD-documents.loadSchema` — to load the register's schema from its data file.
 - `MOD-documents.Schema` — the type `participantSchema` returns.
+- `MOD-documents.Document` — the register `participantsOf` turns into participants.
