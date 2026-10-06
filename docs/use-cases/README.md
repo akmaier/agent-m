@@ -20,6 +20,7 @@ nine **steps** of the cycle are the areas below.
 | ID | Use case |
 |---|---|
 | [UC-046](UC-046-see-what-goes-on-in-the-instance.md) | See what goes on in the instance — every product's progress, or Agent M's own |
+| [UC-047](UC-047-be-told-what-waits-for-your-acceptance.md) | Be told what waits for your acceptance — a notification while a page of the dashboard is open |
 
 ## Setup — instance, products, participants, process
 
