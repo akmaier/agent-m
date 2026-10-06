@@ -97,10 +97,11 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   which the person stored it; in Node, the folder of a local clone to work in; the values of every configured secret, which
   no commit may contain.
 - `Host` — the object `connect` returns; the functions below, from `readSnapshot` on, are its functions.
-- `Snapshot` — `{ repository: RepositoryAddress, ref: string, commit: string, paths: string[], read(path: string) ->
+- `Snapshot` — `{ repository: RepositoryAddress, ref: string, commit: string | null, paths: string[], read(path: string) ->
   Promise<string | null>, blob(path: string) -> string | null }`: one repository at one commit; `read` fetches a file's
   text once and returns `null` for a path the commit does not hold; `blob` gives its blob SHA from the tree, without a
-  request.
+  request. A repository without any commit yet — an empty one — is a snapshot whose `commit` is `null` and which holds no
+  path.
 - `HistoryEntry` — `{ commit: string, parents: string[], author: { account: string | null, name: string }, date: string,
   message: string, changes: { path: string, change: "added" | "modified" | "deleted" | "renamed", from?: string }[] }`.
 - `FileWrite` — `{ path: string, text?: string, bytes?: Uint8Array, delete?: true }`: one file of a commit.
@@ -164,8 +165,12 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   stored token may write. Crosses the network; fails as `readSnapshot`.
 - `createBranch(name: string, from: string) -> Promise<void>` — a branch at a commit. Crosses the network; fails with
   `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`, or `NotSupported` without a token.
-- `commitFiles(change: { branch: string, expectedHead: string, files: FileWrite[], message: string }) -> Promise<{ commit:
+- `commitFiles(change: { branch: string, expectedHead: string | null, files: FileWrite[], message: string }) -> Promise<{ commit:
   string, url: string }>` — one commit of all the files together, made only if the branch still stands at `expectedHead`;
+  `expectedHead` `null` makes the repository's first commit, only while it has none. GitHub's Git database answers 409 until
+  a repository holds a commit, so there the first file is written through its contents API and the others in one commit on
+  it, on the same condition — two commits, of which the second is returned; a GitLab project without a commit is refused
+  with the advice to push a first commit to it;
   through a clone, a commit pushed only if the push fast-forwards. GitLab's API makes no commit on such a condition: there
   the head is read again just before the write and the commit refused with `Moved` if it moved; a commit that lands
   between that read and the write is not refused. The message is written as given; it carries what its

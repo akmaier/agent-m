@@ -104,7 +104,8 @@ The review layout it writes into a product, skipping whatever exists:
   from. A GitLab product has no fallback (`A GITLAB PRODUCT IS WRITTEN WITH A TOKEN`).
 - `reviewLayoutCommit(host: Host) -> Promise<{ commit: { sha: string, url: string }, written: string[] } | { complete:
   true }>` — writes the missing parts of the review layout into the product's default branch, which `repositoryInfo`
-  names, in one commit without a pull request, and returns the commit `commitFiles` made — its identifier as `sha`, its
+  names, in one commit without a pull request — into an empty repository, in the two commits `commitFiles` makes there —,
+  and returns the commit `commitFiles` made — its identifier as `sha`, its
   address, which the page links it by, as `url` —; nothing when the layout is complete. The commit is made with the token the host was connected with,
   so it is under the person's account; its message names no one. Crosses the network. Errors: `Moved`, `TokenRefused`,
   `PermissionMissing` (a public repository the token does not reach yet: nothing was written), `NotFound`,
