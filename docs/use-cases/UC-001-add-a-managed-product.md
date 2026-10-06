@@ -83,8 +83,8 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
      the instance repository;
    - shows the commit as a link, and offers to switch to the new product.
 
-Every step carries a folded **What is this?** explanation for newcomers: what a repository is, why a
-the product gets a key of its own, what the commit contains, how to undo it, and why the product list
+Every step carries a folded **What is this?** explanation for newcomers: what a repository is, why the
+product gets a key of its own, what the commit contains, how to undo it, and why the product list
 lives in this browser only.
 
 ```mermaid
@@ -122,7 +122,7 @@ sequenceDiagram
   added to the list in this browser.
 - **1a. The author works in another browser or on another computer.** Its product list is empty, as it
   has no token either; each product is added again with *+ Add product* — for a product that already
-  has its layout, that is *Check* and *Add product* (5b).
+  has its layout, that is its key in Step A (3b), *Check* and *Add product* (5b).
 - **3c. The product is on a GitLab server.** Step A becomes **Create a key for this project**: a
   button opens the project's *Settings → Access tokens* page on that server; underneath, what to set
   there — name `Agent M`, role **Maintainer**, scope **`api`**, an expiry date — then *Create project
