@@ -213,9 +213,15 @@ async function viewAddProduct(app, preset = "") {
         body: `<p><button class="btn" id="add-check-btn" ${valid ? "" : "disabled"}>Check</button></p><p id="add-check" class="muted"></p>`,
         explain: EXPLAIN.check });
       steps.innerHTML = `<div id="add-step-a">${a}</div>` + b + c;
-      wireStoreKey(app, () => [T.instance, ...others, ...(valid ? [repo] : [])], (res) => {
+      wireStoreKey(app, () => [T.instance, ...others, ...(valid ? [repo] : [])], async (res) => {
         const mine = res.find(([r]) => r === repo);
-        if (mine) document.getElementById("add-check").innerHTML = reachLine(mine);
+        if (mine) {
+          // UC-001 step 4 after Store and check, without another click. A product the read did not reach is read once more
+          // for the status of the refusal, so that a missing repository is named with GitHub's page for a new one, as Check
+          // does (2a).
+          const x = mine[1].ok ? mine[1] : await checkProduct(app, repo);
+          document.getElementById("add-check").innerHTML = reachLine([repo, x]) + (x.status === 404 ? missingRepositoryHtml(repo, links.newRepository) : "");
+        }
         document.getElementById("add-go").disabled = !valid;
       });
       document.getElementById("add-check-btn").addEventListener("click", async () => {

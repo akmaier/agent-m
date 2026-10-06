@@ -634,7 +634,7 @@ test("UC-001 5a: the write is refused although the read succeeded — nothing is
   // MOD-repository-hosts' PermissionMissing (tests/repository-hosts.test.mjs, UC-001 5a). The page's words around it stay.
   const said = dom.byId("add-result").textContent;
   assert.ok(said.startsWith("Your key cannot write to alice/thesis yet (") &&
-    said.endsWith("). Do Step A — add the product to your key on GitHub — and click again."), said);
+    said.endsWith("). Do Step A — give Agent M a key that reaches the product — and click again."), said);
   assert.equal(dom.byId("add-go").disabled, false, "Add product can be clicked again");
 });
 
