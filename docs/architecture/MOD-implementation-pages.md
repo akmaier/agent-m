@@ -123,7 +123,14 @@ Its formats are those of the modules it uses.
     role — only those with every capability, each with where it processes data —, phases, transitions, verification
     pairs and gates with their deciders, a branch for a phase or sprint, practices, what the product's process
     requirements add, the Definition of Done, in a form from the declaration's schema; *Save* writes the declaration with
-    `saveFile`, naming the declared model's version by the commit of the instance its catalogue was read at.
+    `saveFile`, naming the declared model's version by the commit of the instance its catalogue was read at. When the
+    catalogue as it stands holds another version of the declared model than the commit the declaration names — their
+    `version`s differ —, the route shows what the new version changes for the product before *Save* names it (UC-031
+    6a):
+    - the phases, gates and roles of `workflowOf` under each version, side by side;
+    - the difference of the two model files, with `showDifference`;
+    - the assignments that become invalid: what `declarationFindings` finds for the declaration as it would be saved,
+      naming the current commit, against the catalogue as it stands.
   - `models`, `models/<name>` — the instance's process models: the catalogue, *Adapt* and *+ New model* with a form from
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
     every phase, *Save* only without errors, with `saveFile`.

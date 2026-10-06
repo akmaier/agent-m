@@ -123,9 +123,8 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 - `workflowOf(declaration: Document, model: Model, practices: Document[], instanceSpec: string) -> Workflow` — the model's
   phases, transitions, pairs and gates, the practices' additions, and the gates and artifacts the process requirements
   add, as the declaration's `## Gates added by requirements` names them, each marked with its requirement and the source
-  that requirement names in the instance's SPEC, `instanceSpec`; nothing else enters the workflow. `model` is the
-  declared version, as the catalogue at the commit `model_version` names holds it. A gate whose requirement that SPEC
-  does not hold stays in the workflow with `addedBy.source` null; `declarationFindings` names it.
+  that requirement names in the instance's SPEC, `instanceSpec`; nothing else enters the workflow. A gate whose
+  requirement that SPEC does not hold stays in the workflow with `addedBy.source` null; `declarationFindings` names it.
 - `holdsRole(declaration: Document, participant: string, role: string) -> boolean` — whether the declaration assigns the
   participant to the role (`A JOB GOES ONLY TO A HOLDER OF ITS ROLE`).
 - `gateSchema: Schema` — the gate record's schema.
