@@ -1,19 +1,25 @@
 // The checks a schema decides — whether a value fits its value specification (MOD-documents, Data: the value specification,
-// its types, and the values that depend on other values). writeDocument refuses a value that does not fit with DocumentError
-// (ITM-213). documentFindings, which names every finding a schema decides, is not built yet.
+// its types, and the values that depend on other values), and the findings of documentFindings (Interfaces). writeDocument
+// refuses a value that does not fit with DocumentError (ITM-213); documentFindings names it as a finding (ITM-227).
 //
 // Module: MOD-documents
 //
 // A value as the reader gives it: a text, a list of texts, or a number. A value is left out when it is absent, or an empty
 // text — in a table an empty cell or `—`, in front matter a key with nothing after its colon. An empty list is a value: a
 // list that holds nothing, which `nonEmpty` forbids.
+//
+// documentFindings finds what ITM-227 builds: front matter keys missing, unknown, out of order, required or forbidden by a
+// condition; values not of their type or of the variant that holds, or empty where nonEmpty; the rows of a table, cell by
+// cell, in the same way; required sections missing, sections out of order, and sections the schema forbids. The path, the
+// identifier against the path, the title, describedIn, diagrams and images, the marks of history, the fields of a section, a
+// record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with
+// MOD-text-tools' finding, and names the rule of the part of the schema closest to it (Data, The requirement a finding
+// names). A key or a section that is missing stands on no line: its finding names line 1, as the dashboard's checks of
+// today do (docs/assets/artifacts/use-cases.mjs).
 
-import { KIND_FORMS, effective, holds } from "./schema-language.mjs";
+import { finding } from "../text-tools/index.mjs";
+import { KIND_FORMS, REQUIREMENT_NAME, compiledOf, effective, holds } from "./schema-language.mjs";
 
-// A requirement's name in capitals, as the SPEC writes it: capital letters, digits, blanks, apostrophes, commas and hyphens,
-// at least one capital letter, none of them at either end but an apostrophe at its end, and none of the identifiers'
-// prefixes. MOD-text-tools checks a finding's rule by the same form in a file of its own that is not its interface.
-const REQUIREMENT_NAME = /^(?!(?:SRC|UC|ARC|MOD|TST|ITM|RES|JOB)-)(?=[A-Z0-9 ',-]*[A-Z])[A-Z0-9](?:[A-Z0-9 ',-]*[A-Z0-9'])?$/;
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HTTPS_ADDRESS = /^https:\/\/[^\s/?#]+(?:[/?#]\S*)?$/;
@@ -106,19 +112,158 @@ const conditionText = (condition) => (condition.all ? condition.all.map(conditio
   : condition.any ? condition.any.map(conditionText).join(" or ")
     : `${condition.field} is ${condition.in ? "" : "not "}${(condition.in ?? condition.notIn).join(" or ")}`);
 
-// valueProblem(value, spec, lookup, where) -> why a value does not fit its value specification, or null: left out where it
-// is required — always, or where its requiredWhen condition holds —; given where its forbiddenWhen condition holds; not of
-// the type and constraints of the variant that holds, or of the specification; an empty list where nonEmpty. lookup(field)
-// gives the text of another value of the same document or row, as conditions compare it.
-export function valueProblem(value, spec, lookup, where) {
+// valueCheck(value, spec, lookup, where) -> null when a value fits its value specification, else { why, condition }: why it
+// does not — left out where it is required, always or where its requiredWhen condition holds; given where its forbiddenWhen
+// condition holds; not of the type and constraints of the variant that holds, or of the specification; an empty list where
+// nonEmpty —, and the condition that requires or forbids it, or null. lookup(field) gives the text of another value of the
+// same document or row, as conditions compare it.
+function valueCheck(value, spec, lookup, where) {
   if (leftOut(value)) {
-    if (spec.required === true) return "is required, and left out";
-    if (spec.requiredWhen && holds(spec.requiredWhen, lookup)) return `is required where ${conditionText(spec.requiredWhen)}, and left out`;
+    if (spec.required === true) return { why: "is required, and left out", condition: null };
+    if (spec.requiredWhen && holds(spec.requiredWhen, lookup)) {
+      return { why: `is required where ${conditionText(spec.requiredWhen)}, and left out`, condition: spec.requiredWhen };
+    }
     return null;
   }
   if (spec.forbiddenWhen && holds(spec.forbiddenWhen, lookup)) {
-    return `is left out where ${conditionText(spec.forbiddenWhen)}, and it is ${shown(value)}`;
+    return { why: `is left out where ${conditionText(spec.forbiddenWhen)}, and it is ${shown(value)}`,
+      condition: spec.forbiddenWhen };
   }
   const why = typeProblem(value, effective(spec, lookup), where);
-  return why ? `does not fit: ${why}` : null;
+  return why ? { why: `does not fit: ${why}`, condition: null } : null;
+}
+
+// valueProblem(value, spec, lookup, where) -> why a value does not fit its value specification, as valueCheck says it, or
+// null.
+export function valueProblem(value, spec, lookup, where) {
+  return valueCheck(value, spec, lookup, where)?.why ?? null;
+}
+
+// ---------------------------------------------------------------- documentFindings
+
+// The rule of a condition that holds: of combined conditions, the first part that holds and names one — a part combined in
+// turn searched the same way —, before the combination's own.
+function conditionRule(condition, lookup) {
+  for (const part of condition.all ?? condition.any ?? []) {
+    const rule = holds(part, lookup) ? conditionRule(part, lookup) : undefined;
+    if (rule) return rule;
+  }
+  return condition.rule;
+}
+
+// The rules of the parts of the schema closest to a value that does not fit, closest first: the condition that requires or
+// forbids it, the variant that holds for it, its value specification.
+const valueRules = (check, spec, lookup) => [check.condition && conditionRule(check.condition, lookup),
+  (spec.variants ?? []).find((variant) => holds(variant.when, lookup))?.rule, spec.rule];
+
+// What a finding on a value asks for — the value left out, given where it is forbidden, or not fitting —, where it stands:
+// under a key of the front matter, or in a column of a row.
+const FIX = {
+  key: { missing: (key) => `give the key ${key} a value`, forbidden: (key) => `remove the key ${key}`,
+    misfit: (key) => `correct the value of the key ${key}` },
+  cell: { missing: (column) => `fill in the column ${column} of this row`,
+    forbidden: (column) => `leave the column ${column} of this row empty`,
+    misfit: (column) => `correct the column ${column} of this row` },
+};
+const fixOf = (words, name, value, check) => (leftOut(value) ? words.missing(name)
+  : check.condition ? words.forbidden(name) : words.misfit(name));
+
+// The line of each front matter key that stands, counted as the front matter is written: the line --- first, then each key
+// on a line of its own, and each item of a list on one more. A Document keeps no line of a key; a line its reader passed
+// over among the keys is not counted.
+function keyLines(fields, keys) {
+  const lines = {};
+  let line = 2;
+  for (const key of keys) {
+    lines[key] = line;
+    line += 1 + (Array.isArray(fields[key]) ? fields[key].length : 0);
+  }
+  return lines;
+}
+
+const levelOf = (heading) => /^#*/.exec(heading)[0].length;
+
+/**
+ * documentFindings(schema: Schema, document: Document) -> Finding[] — the findings the schema decides on a document read by
+ * it (see the head of this file), in the order of their lines; on one line, in the order they are found: the keys of the
+ * front matter, then their values, then the sections, each row's cells in the order of its columns. Each is an
+ * error naming the document's identifier, or its path when it has none, the line it concerns and the rule of the part of the
+ * schema closest to it: a condition's — of combined conditions, the first part that holds and names one, before the
+ * combination's own —, the variant's that holds, the value specification's, the section's, and last the schema's own,
+ * which alone a key the schema does not list, keys out of order and a section the schema forbids name. Throws TypeError when
+ * `schema` is not a loaded schema, and, through MOD-text-tools' finding, for a finding no part of the schema names a rule
+ * for.
+ */
+export function documentFindings(schema, document) {
+  const compiled = compiledOf(schema);
+  const artifact = document.id ?? document.path;
+  const found = [];
+  const add = (line, rules, what, fix) => found.push(finding({ artifact, line, kind: "error",
+    rule: [...rules, schema.rule].find(Boolean), what, fix }));
+  const fields = document.fields;
+  const frontLookup = (name) => textOf(fields[name]);
+
+  if (schema.shape === "document") {
+    const specs = schema.frontMatter ?? {};
+    const keys = Object.keys(specs);
+    const standing = Object.keys(fields).filter((key) => fields[key] !== undefined);
+    const lineOf = keyLines(fields, standing);
+    let lastKey = null; // the listed key that stands furthest along the format's order so far
+    for (const key of standing) {
+      if (!Object.hasOwn(specs, key)) {
+        add(lineOf[key], [], `the key ${key} is not a key of the format ${schema.schema}`,
+          `remove the key ${key}, or use one the format lists: ${keys.join(", ")}`);
+      } else if (lastKey !== null && keys.indexOf(key) < keys.indexOf(lastKey)) {
+        add(lineOf[key], [], `the key ${key} stands after the key ${lastKey}, which the format ${schema.schema} puts after it`,
+          `put the keys in the order of the format: ${keys.join(", ")}`);
+      } else {
+        lastKey = key;
+      }
+    }
+    for (const [key, spec] of Object.entries(specs)) {
+      const check = valueCheck(fields[key], spec, frontLookup, "front matter");
+      if (check) {
+        add(lineOf[key] ?? 1, valueRules(check, spec, frontLookup), `the key ${key} ${check.why}`,
+          fixOf(FIX.key, key, fields[key], check));
+      }
+    }
+  }
+
+  const headings = (schema.sections ?? []).map((section) => section.heading);
+  let lastSection = null; // the named section that stands furthest along the format's order so far
+  for (const section of document.sections) {
+    const named = compiled.sections.get(section.heading);
+    if (!named) {
+      if (schema.otherSections === "forbidden" && levelOf(section.heading) === compiled.level) {
+        add(section.line, [], `the section ${section.heading} is not a section of the format ${schema.schema}, which allows no other`,
+          `remove the section ${section.heading}, or move its text into a section the format names: ${headings.join(", ")}`);
+      }
+      continue;
+    }
+    if (lastSection !== null && named.index < lastSection.index) {
+      const what = `the section ${section.heading} stands after the section ${lastSection.spec.heading}, which the format `
+        + `${schema.schema} puts after it`;
+      add(section.line, [named.spec.rule], what, `put the sections in the order of the format: ${headings.join(", ")}`);
+    } else {
+      lastSection = named;
+    }
+    const table = named.spec.table;
+    for (const row of table ? section.rows ?? [] : []) {
+      const names = table.columns.map((column) => column.name);
+      const lookup = (name) => (names.includes(name) ? textOf(row.cells[name]) : frontLookup(name));
+      for (const column of table.columns) {
+        const check = valueCheck(row.cells[column.name], column.value, lookup, "cell");
+        if (check) {
+          add(row.line, [...valueRules(check, column.value, lookup), named.spec.rule], `the column ${column.name} ${check.why}`,
+            fixOf(FIX.cell, column.name, row.cells[column.name], check));
+        }
+      }
+    }
+  }
+  for (const spec of schema.sections ?? []) {
+    if (spec.required && !document.sections.some((section) => section.heading === spec.heading)) {
+      add(1, [spec.rule], `the section ${spec.heading} is required, and missing`, `add the section ${spec.heading}`);
+    }
+  }
+  return found.sort((a, b) => a.line - b.line);
 }
