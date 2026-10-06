@@ -9,8 +9,8 @@ the specification as usability feature in general." On a phone, a form that open
 person to find the field, often a screen away, while the keyboard stays closed.
 
 **Impact list.** One requirement added; no existing requirement changes and none names it yet. What follows for the code:
-- the settings page's token form: its paste field takes the focus when the form opens, so it is enabled then. *Store
-  token* stays disabled until the notice is ticked, so nothing is stored before it (`THE SHARED PAGES ORIGIN IS
-  DISCLOSED`). `tests/test_settings_disclosure.py`, which requires the paste field to start disabled, then requires it of
-  *Store token*;
+- the settings page's token form: *Store a token* and *Change* move the focus to the notice's box *I have read this*
+  while it is not ticked — PO, 2026-10-06: "In this case, the focus has to jump to „I have read this"" — and to the
+  paste field once it is. The paste field stays disabled until the box is ticked (`THE SHARED PAGES ORIGIN IS
+  DISCLOSED`, `tests/test_settings_disclosure.py`);
 - the form to change a GitLab project token, and the add-product panel's address field.

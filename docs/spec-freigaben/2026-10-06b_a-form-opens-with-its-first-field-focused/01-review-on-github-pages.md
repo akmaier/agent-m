@@ -168,10 +168,11 @@ for someone new to GitHub.
 
 **A FORM OPENS WITH ITS FIRST FIELD FOCUSED** *(PO A. Maier)*
 When a person's action opens or shows a form on the dashboard, the input focus moves to the first field of that form that
-the person types into.
+is open for the person's input — a box to tick or a field to fill in.
 *Check:* `tests/dashboard-review-flows.test.mjs` — after each control that opens a form — *Store a token* and *Change* on
-the settings page, *Change* of a GitLab project token, *+ Add product* — the focus is in that form's first field; counter-proof:
-with the focus left on the control that opened it, the case fails.
+the settings page, *Change* of a GitLab project token, *+ Add product* — the focus is in that form's first open field: on the
+token form the notice's box *I have read this* while it is not ticked, the paste field once it is; counter-proof: with the
+focus left on the control that opened it, the case fails.
 
 **A PRODUCT IS NAMED BY ITS ADDRESS** *(PO A. Maier)*
 A product is identified by the web address of its repository, on `github.com` or on a GitLab server.
