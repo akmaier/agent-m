@@ -488,15 +488,15 @@ const PRODUCT = "alice/thesis", PRODUCT_ADDR = `https://github.com/${PRODUCT}`;
 const stored = (key) => globalThis.localStorage.getItem(key);
 
 // The product's repository, a second server behind the instance's: GitHub's API under /repos/alice/thesis goes to it.
-// refuse: its server refuses a write (403); missing: it does not exist (404 to everything).
-async function withProduct(files, { refuse = false, missing = false } = {}) {
+// refuse: its server refuses a write (403); missing: it does not exist (404 to everything); empty: it has no commit yet.
+async function withProduct(files, { refuse = false, missing = false, empty = false } = {}) {
   let ps = null;
   const tree = (url, init) => (init.method === "GET" && url.pathname === `/repos/${PRODUCT}/git/trees/main`
     ? ps.fetch(`${API}/repos/${PRODUCT}/git/trees/${ps.head}?recursive=1`, init) : undefined);
   const refused = (url, init) => (refuse && init.method === "POST" && url.pathname === `/repos/${PRODUCT}/git/trees`
     ? json({ message: "Resource not accessible by personal access token" }, 403) : undefined);
   const gone = () => (missing ? json({ message: "Not Found" }, 404) : undefined);
-  ps = await repoServer({ repo: PRODUCT, files, handlers: [gone, refused, tree] });
+  ps = await repoServer({ repo: PRODUCT, files, handlers: [gone, refused, tree], empty });
   const srv = await instance({ files: await instanceFiles(),
     handlers: [(url, init) => (url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`) ? ps.fetch(url.href, init) : undefined)] });
   return { srv, ps };
@@ -590,6 +590,25 @@ test("UC-001 Step A: the product's key is the product's alone — no other produ
   assert.ok(srv.seen.some((s) => s.url === `${API}/repos/${PRODUCT}` && s.auth === `Bearer ${key}`), "the product is read with it");
   assert.equal(dom.byId("add-check").innerHTML, "✓ alice/thesis reachable — public, so write access is confirmed only by the first write", "Step B, without a click");
   assert.equal(dom.byId("add-go").disabled, false, "Add product can be clicked");
+});
+
+// UC-001 step 5 on a new, empty product repository — Expected: one click on Add product writes the whole review layout into it:
+// the first file through GitHub's contents API, the repository's first commit, and the others in one commit on it; the address
+// is kept in this browser and the result links the commit. Before: Step C said "GitHub answered 409", and nothing was written.
+test("UC-001 step 5 on an empty product repository — Add product writes the whole layout: its first commit through GitHub's contents API, the others in one commit on it; the address is kept", async () => {
+  const { srv, ps } = await withProduct({}, { empty: true });
+  const page = await openDashboard({ server: srv, hash: "" });
+  const dom = richDocument();
+  await page.go(addHash(PRODUCT_ADDR));
+  await press(srv, dom.byId("add-go"));
+  const out = dom.byId("add-result"), result = out.innerHTML, said = `${out.textContent ?? ""} ${result}`;
+  assert.doesNotMatch(said, /409/, said);
+  assert.deepEqual(Object.keys(ps.files).sort(), [...await layoutParts()].sort(), "the whole layout, in the empty repository");
+  assert.equal(ps.writes.length, 2, "two commits: the first file, then the others");
+  assert.equal(Object.keys(ps.writes[0].files).length, 1, "the first commit holds one file");
+  assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]), "the address, in this browser");
+  assert.ok(result.includes(`<a href="https://github.com/${PRODUCT}/commit/${ps.head}" target="_blank" rel="noopener">layout in alice/thesis</a>`),
+    "the commit as a link");
 });
 
 test("UC-001 counter-proof: a click a script makes on Add product writes nothing, stores nothing and reads nothing", async () => {
