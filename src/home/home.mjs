@@ -37,8 +37,9 @@ const stageHref = (product) => (stage) => {
   return view ? docsHref(view, product) : null;
 };
 
-// The token that reads a product: the GitHub token, or a GitLab product's own project token — never the other one.
-const tokenFor = (p) => (isGitLab(p) ? store.getGitLabToken(p.address)?.token || null : store.getToken());
+// The token that reads a product (settings-store tokenFor): a GitLab product's own project token, never the GitHub token; a
+// GitHub product's own token, or the instance's while it has none (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
+const tokenFor = (p) => store.tokenFor(p);
 
 async function read(card) {
   const product = parseProductAddress(card.address), token = tokenFor(product);
@@ -63,7 +64,7 @@ function whyNot(e, product) {
   }
   if (tokenRefusal(e, isGitLab(product) ? product : null)) return `${server} refused the stored token. Renew it in Settings.`;
   if (e?.status === 404) {
-    return tokenFor(product) ? "The stored token does not reach this repository. Extend it in Settings."
+    return tokenFor(product) ? "No key in this browser reaches this repository. Give it a key of its own with + Add product."
       : "This repository could not be found — a private one is read with a token, stored in Settings.";
   }
   return `It could not be read: ${e?.message ?? e}`;
