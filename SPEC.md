@@ -963,11 +963,6 @@ under `products/`, which git ignores except for `products/README.md`.
 *Check:* `tests/test_products_folder.py` — `products/README.md` is tracked; a folder created under
 `products/` is ignored by git.
 
-**ONE CLICK PER DECISION** *(PO A. Maier)*
-A decision a person makes on the dashboard — accept, save, add a product, release — takes one click
-once its inputs are complete, and everything that follows from it is done by Agent M.
-*Check:* no automatic check; at review of each use case.
-
 **SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier)*
 A reviewer who has been shown several reviewed files — opened one by one, or together on one review page
 — may accept all of them with one click, in one commit that holds one approval record per file, each
@@ -2091,3 +2086,17 @@ An instance names the resources its own jobs use — clusters, runners, endpoint
 A product's resource list neither inherits from nor is inherited by the instance's; an entry in one
 list has no effect on the other.
 *Check:* `tests/test_resources.py`
+## 16. Usability
+
+**ONE CLICK PER DECISION** *(PO A. Maier)*
+A decision a person makes on the dashboard — accept, save, add a product, release — takes one click
+once its inputs are complete, and everything that follows from it is done by Agent M.
+*Check:* no automatic check; at review of each use case.
+
+**A FORM OPENS WITH ITS FIRST FIELD FOCUSED** *(PO A. Maier)*
+When a person's action opens or shows a form on the dashboard, the input focus moves to the first field of that form that
+is open for the person's input — a box to tick or a field to fill in.
+*Check:* `tests/dashboard-review-flows.test.mjs` — after each control that opens a form — *Store a token* and *Change* on
+the settings page, *Change* of a GitLab project token, *+ Add product* — the focus is in that form's first open field: on the
+token form the notice's box *I have read this* while it is not ticked, the paste field once it is; counter-proof: with the
+focus left on the control that opened it, the case fails.
