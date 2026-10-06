@@ -18,6 +18,13 @@ stakeholders, who provide domain expectations and feedback, hold no role of the 
 the generated result should be accepted", and the retrospective comes "before the next cycle begins". A sprint has a fixed
 duration, "often one week in small examples and at most one month in the standard guidance": the time box is one week.
 
+## About
+
+manages: silent divergence — daily Scrum meetings let "generated output, blocked tasks, and hidden misunderstandings" surface "before they accumulate", and the backlogs "prevent duplicated work and conflicting assumptions"
+accepts: the book names it for agile work in general, not for Scrum alone — no "exact long-term predictions" early: contracts are often "written around a number of prototypes or iterations rather than around a frozen feature list, because the point is to learn before pretending certainty"
+example: a browser-based match-three game "with a storyline spanning three chapters, where each sprint delivers one playable chapter with its own level progression, visual theme, and end-of-chapter boss mechanic"
+chapter: 7, Scrum as Structured Flexibility
+
 ## Phases
 
 | Name | Role | Produces |

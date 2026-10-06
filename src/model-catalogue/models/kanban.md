@@ -15,6 +15,13 @@ sprints. The board of Figure 7.2 holds three cards in progress — one in Doing,
 chapter names no role for a column: the roles are those of the Geek Box *Artifacts, roles, and traceability* of chapter 6
 — product owner, developer and reviewer —, the product owner placing the work in the backlog and accepting it as done.
 
+## About
+
+manages: tasks that pile up — value keeps moving "without unnecessary waiting, overproduction, or hidden bottlenecks", and the pull rule "prevents the whole process from drowning in half-finished tasks"
+accepts: the book names it for agile work in general, not for Kanban alone — no "exact long-term predictions" early: contracts are often "written around a number of prototypes or iterations rather than around a frozen feature list, because the point is to learn before pretending certainty"
+example: an everyday replenishment scenario — "coffee-bean replenishment for a shared office setup with explicit reorder thresholds, supplier lead-time assumptions, and fallback actions"
+chapter: 7, Kanban as Flow-Oriented Synchronization
+
 ## Phases
 
 | Name | Role | Produces |

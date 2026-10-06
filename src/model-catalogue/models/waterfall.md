@@ -15,6 +15,13 @@ loops, one between each phase and the next. The chapter names no role for a phas
 the chapter's Geek Box *Artifacts, roles, and traceability* — product owner, developer, tester and reviewer. The
 waterfall model pairs no phases for verification; the pairs are what the V-model adds.
 
+## About
+
+manages: unplanned budgets and interruptions — "Budgets, milestones, and responsibilities can be defined early. Interruptions are minimized because the team is not supposed to revisit fundamental decisions all the time."
+accepts: the early commitment — "new requirements are hard to integrate cleanly", and "errors discovered late are expensive to repair"
+example: the DVD database of chapter 1, built with a single prompt — "Waterfall worked because requirements were complete from the start, scope was small, and no mid-process feedback was needed."
+chapter: 6, The Waterfall Model
+
 ## Phases
 
 | Name | Role | Produces |
