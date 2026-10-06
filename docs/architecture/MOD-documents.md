@@ -60,7 +60,7 @@ It keeps nothing. It owns the schema language, and four schemas written in it.
 | `schema` | the format's name, for example `use-case` |
 | `shape` | `document` — front matter, a title line, sections —, or `lines` — the whole file is `key: value` lines, as an approval record is |
 | `rule` | the requirement the format applies, by its name exactly as the SPEC writes it, for example `ONE USE CASE, ONE FILE`; every schema names one, and a finding names it when no part of the schema closer to the finding names its own |
-| `path` | the file's path pattern, or a list of them, with the placeholders `{id}`, `{nnn}` (three or more digits), `{slug}` (lowercase words joined by `-`), `{blob12}` (twelve hexadecimal digits) and `{any}` (one path segment) |
+| `path` | the file's path pattern, or a list of them, with the placeholders `{id}`, `{nnn}` (three or more digits), `{slug}` (lowercase words joined by `-`), `{blob12}` (twelve hexadecimal digits) and `{any}` (one path segment); a pattern may be written `{ "pattern": "…", "rule": "…" }`, and a document at that path then names its rule in place of the schema's own |
 | `identifier` | where a document's identifier stands — `{ "field": "id", "kind": "UC" }` — and that it must match the identifier in its path |
 | `frontMatter` | for a document: its keys in their order, each with a value specification; a key not listed is an error |
 | `lines` | for the `lines` shape: its keys in their order, each with a value specification |
@@ -106,9 +106,11 @@ same row of a table:
   type and constraints, for example another type of pin for another kind of resource.
 
 A condition names a front matter key, a key of a `lines` record, or a column of the same row, with the values for which
-it holds — `{ "field": "Type", "in": ["person"] }` or `{ "field": "Type", "notIn": ["person"] }` —, and conditions combine
-as `{ "all": [ … ] }` and `{ "any": [ … ] }`. A condition, a combination of conditions and a variant may each name in
-`rule` the requirement they apply. In a table, an empty cell or `—` is a value left out.
+it holds — `{ "field": "Type", "in": ["person"] }` or `{ "field": "Type", "notIn": ["person"] }` —, or patterns of the
+schema's own `path`, and holds for a document whose path matches one of them — `{ "path": ["docs/backlog/ITM-{nnn}-{slug}.md"] }`
+—; conditions combine as `{ "all": [ … ] }` and `{ "any": [ … ] }`. A condition, a combination of conditions and a
+variant may each name in `rule` the requirement they apply; a variant may change nothing but the rule. In a table, an
+empty cell or `—` is a value left out.
 
 ```json
 { "name": "Model", "value": { "type": "text",
@@ -123,14 +125,15 @@ for it below, where it names one. Every other finding names the `rule` of the pa
 concerns, among the parts that name one:
 
 - a value that a condition requires or forbids: that condition — of combined conditions, the first part that holds and
-  names a rule, before the combination —, then the value's specification;
-- a value that does not fit the variant that holds: that variant, then the value's specification;
-- any other finding on a value — missing, of the wrong type, empty where `nonEmpty`, not described where `describedIn`
-  asks, an identifier that is not the one its path gives —: the value's specification;
+  names a rule, before the combination —, then as every finding on a value;
+- every finding on a value — missing, required or forbidden by a condition, not of its type or of the variant that holds,
+  empty where `nonEmpty`, not described where `describedIn` asks, an identifier that is not the one its path gives —: the
+  variant that holds for it, then its value specification;
 - for a value of a section's fields or of its table, after the value's own parts, and for a section that is missing, out
   of order, or whose table's header or rows do not fit it: the section, or the appended section;
-- last, the schema's own `rule`: for the path, a key the schema does not list, keys out of order, the title, a section
-  the schema forbids, and every finding that no closer part names a rule for.
+- last, the rule of the path pattern the document's path matches, where that pattern names one, and else the schema's
+  own `rule`: for the path, a key the schema does not list, keys out of order, the title, a section the schema forbids,
+  and every finding that no closer part names a rule for.
 
 `loadSchema` refuses a `rule` that is not a requirement's name in capitals; whether that requirement stands in the SPEC is
 not decided here.
@@ -201,15 +204,17 @@ title `# {id} {title}`; the sections `## Actors`, `## Precondition`, `## Main fl
 sections allowed; diagrams `required`; `noHistory`; key `title`.
 
 The item schema, for a plan step and a backlog item alike: rule `THE BACKLOG LIVES IN THE PRODUCT REPOSITORY`; paths
-`docs/plan/ITM-{nnn}-{slug}.md` and `docs/backlog/ITM-{nnn}-{slug}.md`; front matter `id` (identifier `ITM`, under
-`EVERY ARTIFACT HAS AN IDENTIFIER`), `title`, `level` (enum `module`, `subsystem`, `system`, under
-`A PLAN STEP NAMES THE TESTS OF ITS LEVEL`), `realises` (list of a requirement's name or a use case's identifier, not
-empty, under `A BACKLOG ITEM NAMES WHAT IT REALISES`), `modules` (list of `MOD` identifiers, not empty, under
-`A BACKLOG ITEM NAMES THE MODULES IT CHANGES`), `integrates` (identifier `ARC`, the subsystem's decision, for a step of
-level `subsystem`), `builds_on` (list of `ITM` identifiers), `tests` (list of enum `unit`, `component`, `system`,
-`release`, under `A PLAN STEP NAMES THE TESTS OF ITS LEVEL`), `origin` (list of text: an issue's address, a requirement's
-name, a use case's identifier); title `# {id} {title}`; sections `## Outcome` and `## Acceptance` required;
-`noHistory`; key `title`.
+`docs/plan/ITM-{nnn}-{slug}.md`, under `THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY`, and
+`docs/backlog/ITM-{nnn}-{slug}.md`, under `THE BACKLOG LIVES IN THE PRODUCT REPOSITORY`; front matter `id` (identifier
+`ITM`, under `EVERY ARTIFACT HAS AN IDENTIFIER`), `title`, `level` (enum `module`, `subsystem`, `system`), `realises`
+(list of a requirement's name or a use case's identifier, not empty), `modules` (list of `MOD` identifiers, not empty),
+`integrates` (identifier `ARC`, the subsystem's decision, for a step of level `subsystem`), `builds_on` (list of `ITM`
+identifiers), `tests` (list of enum `unit`, `component`, `system`, `release`), `origin` (list of text: an issue's address,
+a requirement's name, a use case's identifier); title `# {id} {title}`; sections `## Outcome` and `## Acceptance`
+required; `noHistory`; key `title`. A requirement the SPEC states for one kind of item only is named through a variant
+whose condition is that kind's path: `realises` under `A BACKLOG ITEM NAMES WHAT IT REALISES` and `modules` under
+`A BACKLOG ITEM NAMES THE MODULES IT CHANGES` for a file under `docs/backlog/`, `level` and `tests` under
+`A PLAN STEP NAMES THE TESTS OF ITS LEVEL` for a file under `docs/plan/`; for the other kind they name its path's rule.
 
 **A document** as this module reads it: `{ kind, path, id, title, fields, sections, appended, body }` — `fields` by key,
 each value as text, list or number; `sections` in order, each `{ heading, line, text, fields?, rows? }`; `appended`, for a
