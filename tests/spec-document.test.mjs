@@ -94,9 +94,11 @@ test("specSkeleton — reads as a SPEC without a requirement", () => {
 
 // given: two products, alice/thesis-tool and fau-ai-taskforce/tools/thesis-tool
 // input: specSkeleton of each, with the product's path replaced by one placeholder
-// expect: the two skeletons differ, and are the same text once the product is taken out — only the product is put in
+// expect: the two skeletons differ, and are the same text once the product is taken out — only the product is put in —,
+//         and neither holds a placeholder `<…>` left unfilled
 test("specSkeleton — only the product is put in; the rest is the same for every product", () => {
   const a = specSkeleton(GITHUB), b = specSkeleton(GITLAB);
   assert.notEqual(a, b);
   assert.equal(a.split(GITHUB).join("<the product>"), b.split(GITLAB).join("<the product>"));
+  for (const text of [a, b]) assert.doesNotMatch(text, /<[^<>\n]*>/, "no placeholder left unfilled");
 });
