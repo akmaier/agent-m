@@ -68,7 +68,9 @@ uses:
   - MOD-test-schedule.scheduleStrategies
   - MOD-result-records.resultStrategies
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
+  - MOD-source-register.sourceSchemas
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
   - MOD-job-runner.writeResult
@@ -122,8 +124,11 @@ Its formats are those of the modules it uses.
     whether a person, an agent or either may hold them and the capabilities each needs, the participants offered for a
     role — only those with every capability, each with where it processes data —, phases, transitions, verification
     pairs and gates with their deciders, a branch for a phase or sprint, practices, what the product's process
-    requirements add, the Definition of Done, in a form from the declaration's schema; *Save* writes the declaration with
-    `saveFile`, naming the declared model's version by the commit of the instance its catalogue was read at. When the
+    requirements add, the Definition of Done, in a form from the declaration's schema; the findings of
+    `declarationFindings`, given the entries of the instance's source register that the product's `docs/sources.md`
+    links; *Save* writes the declaration with `saveFile`, naming the declared model's version by the commit of the
+    instance its catalogue was read at. When the author selects another model than the declared one, the route lists the
+    kinds of artifact the declared model's phases produce and the selected one's do not, and deletes none. When the
     catalogue as it stands holds another version of the declared model than the commit the declaration names — their
     `version`s differ —, the route shows what the new version changes for the product before *Save* names it (UC-031
     6a):
@@ -170,7 +175,8 @@ It writes, only on a person's click and as that person's commit: the product's `
 functions, or, for a drafted plan or drafted items, through the writer of their kind; a job's start record, and the end of a cancelled job, through
 MOD-runtimes; merges of pull requests, and the pull
 request of a sprint branch. It reads the product's snapshot, its pull requests and CI runs, and the instance's
-participants, process models and `SPEC.md`, whose requirements are the process requirements.
+participants, process models, source register and `SPEC.md`, whose requirements are the process requirements, and the
+product's `docs/sources.md`.
 
 ## Uses
 
@@ -205,7 +211,10 @@ participants, process models and `SPEC.md`, whose requirements are the process r
   limits a person raises to continue it.
 - MOD-progress-measures.productFacts, MOD-progress-measures.progressIn, MOD-progress-measures.gateOverview,
   MOD-progress-measures.blocked, MOD-progress-measures.whoWorksOnWhat — the product's facts and its progress.
-- MOD-participant-list.participantSchema, MOD-participant-list.eligible — the participants a role or a job may have.
+- MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
+  participants a role or a job may have.
+- MOD-source-register.sourceSchemas — the product's links to its sources and the linked entries of the instance's
+  register, which `declarationFindings` judges the holders' places against.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob — the
   run panels; MOD-job-runner.writeResult — a drafted plan or drafted items written on the person's click.
 - MOD-job-ledger.newJobId, MOD-job-ledger.listJobs, MOD-job-ledger.jobState — the jobs a page starts and follows;

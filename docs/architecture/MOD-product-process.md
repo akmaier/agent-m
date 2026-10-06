@@ -9,6 +9,7 @@ uses:
   - MOD-model-catalogue.Model
   - MOD-model-catalogue.Catalogue
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
   - MOD-source-register.sourceSchemas
   - MOD-source-register.permittedPlaces
@@ -175,7 +176,7 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 
 - MOD-model-catalogue.Model, Catalogue — the declared model, and the catalogue at the commit the declaration names, with
   each model's findings and each practice's `fits`.
-- MOD-participant-list.participantSchema, eligible — the holders' capabilities and processing places.
+- MOD-participant-list.participantSchema, participantsOf, eligible — the holders' capabilities and processing places.
 - MOD-source-register.sourceSchemas, permittedPlaces — where the content of a linked source may go.
 - MOD-spec-document.parseSpec — the process requirements, which the instance's SPEC holds, and their sources.
 - MOD-test-document.testDeclarations — whether new tests name a requirement and a module, and whether a refactoring
