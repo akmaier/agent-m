@@ -19,7 +19,7 @@ Definition of Done and who closes a sprint.
 |---|---|
 | Product Owner | po-opus |
 | Scrum Master | scrum-master-session |
-| Developers | developer-opus-a, developer-opus-b, developer-opus-c, developer-opus-d |
+| Developers | developer-sonnet-a, developer-sonnet-b, developer-sonnet-c, developer-sonnet-d |
 | Release tester | tester-opus |
 
 ## Practices
