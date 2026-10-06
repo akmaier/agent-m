@@ -910,6 +910,21 @@ test("UC-042 step 2: Change stores a new token with its expiry date, after the n
   assert.equal(dom.byId("token-msg").textContent, "Stored. Press Test to check it; reload to read with it.");
 });
 
+test("UC-042 step 2 on a phone: the token form carries the notice and its own I have read this beside the paste field; ticked there, the field and Store token open, and the notice at the top is ticked with it", async () => {
+  const { srv, box, dom } = await settingsPage();
+  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
+  assert.match(dom.byId("token-change").innerHTML, /every other GitHub Pages site of akmaier is served from the same address/i, "the notice, at the form");
+  assert.equal(dom.byId("token-input").disabled, true, "the paste field waits for the notice");
+  await tick(srv, dom.byId("token-ack"));
+  assert.equal(dom.byId("token-input").disabled, false, "ticked at the form, the paste field opens");
+  assert.equal(dom.byId("token-save").disabled, false, "and Store token");
+  assert.equal(dom.byId("ack").checked, true, "one decision: the notice at the top is ticked with it");
+  const key = "github_pat_PHONE0123456789abcdefghijk";
+  dom.byId("token-input").value = key;
+  await press(srv, dom.byId("token-save"));
+  assert.equal(stored("agent-m.github-token"), key);
+});
+
 test("UC-042 1a: a token that expires within fourteen days is named on every page, with Renew; one that expires later is not", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc" });
