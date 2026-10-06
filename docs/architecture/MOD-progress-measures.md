@@ -25,6 +25,7 @@ uses:
   - MOD-test-schedule.defaultSchedule
   - MOD-test-schedule.configurationDrift
   - MOD-result-records.resultsAt
+  - MOD-release-evidence.reportsAwaitingAcceptance
   - MOD-test-document.TestDeclaration
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.Graph
@@ -65,6 +66,7 @@ provides:
   - whoWorksOnWhat
   - buildInProgress
   - waitingForAPerson
+  - waitingForAcceptance
 ---
 # MOD-progress-measures A product's facts gathered once, and its progress in every measure
 
@@ -75,15 +77,16 @@ progress depends on, and derives from them — never from a stored status (`PROG
 STORED`) — the product's progress in the measure its model names (`PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE`), the
 state of every gate, what is blocked and who works on what (UC-035), and, for the main page, the bar of six stages, the
 stage the product is in, the build in progress and what waits for a person (`THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS
-BY STAGE`, `WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS`, `THE BUILD IS SHOWN AS IT HAPPENS`). It runs in
-the browser and in Node.
+BY STAGE`, `WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS`, `THE BUILD IS SHOWN AS IT HAPPENS`). From a
+repository's snapshot and tags alone it derives what waits there for the person's acceptance, for the Site's
+notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in the browser and in Node.
 
 ## Parts
 
 - `index.mjs` — the interface.
 - `facts.mjs` — gathering a product's facts.
 - `measures.mjs` — progress in the model's measure.
-- `stages.mjs` — the six stages, the current stage, the build, what waits.
+- `stages.mjs` — the six stages, the current stage, the build, what waits for a person, what waits for acceptance.
 - `overviews.mjs` — gates, blocked items, who works on what.
 
 ## Data
@@ -173,6 +176,22 @@ The six stages of the main page, each a share between 0 and 1:
   string }>` — what waits for a person in the product: open use cases, open SPEC change entries, gates whose decider is a
   person and that are pending, failed jobs; `path` is the file or record it concerns, from which the page links to where
   it is decided.
+- `waitingForAcceptance(host: Host, snapshot: Snapshot) -> Promise<Array<{ kind: "SPEC change" | "use case" |
+  "architecture decision" | "module" | "release test report", id: string, path: string, blob: string }>>` — what waits
+  for the person's acceptance in one repository, the instance's or a product's, the snapshot being its default branch
+  through `host`, derived from its files, records and tags alone, as `waitingForAPerson` derives open use cases and SPEC
+  changes (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`, `STATUS IS DERIVED FROM THE RECORDS`): every entry of a
+  change queue in the state `open`, `stale` or `waiting for its anchor` (MOD-spec-changes); every use case, architecture
+  decision and module file whose status is `open` or `changed` (MOD-approvals); and the release test report that waits
+  for *Accept and release*, if one does (MOD-release-evidence' `reportsAwaitingAcceptance`). `id` is the identifier an
+  approval record names it by — `UC-<nnn>`, `ARC-<nnn>`, `MOD-<slug>`, `spec-<queue>-<NN>` for an entry,
+  `release-v<version>` for a report —; `path` is its file — for an entry its proposal, for a report the record of its
+  candidate's complete run —; `blob` is that file's blob. Considers: it reads the snapshot and the tags, not the
+  product's facts, so that a caller that asks every few minutes reads no pull requests, CI runs or test results, and job
+  records only while a release candidate is pending, newest first and no further back than the first run of a candidate.
+  Crosses the network through the host and the snapshot, for the texts it has not read yet; fails with their errors —
+  `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable` —, and with `NotSupported` through a host that does
+  no server operations.
 
 `Workflow` is MOD-product-process'; `Model` MOD-model-catalogue's; `ItemState` MOD-work-plans'; `Queue`
 MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-graph's; `JobRow` MOD-job-ledger's;
@@ -186,6 +205,9 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   `docs/gates/`, `docs/jobs/`, `docs/tests/schedule.md`, the generated configurations, the test files, `docs/resources.md`
   and the branch `test-results`; its pull requests, CI runs and tags; of the instance, `docs/participants.md`, the process models and `SPEC.md`, whose requirements are the process
   requirements.
+- Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
+  `docs/use-cases/` and `docs/architecture/`; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
+  only while a release candidate is pending, `docs/jobs/` back to the first run of a candidate.
 - Writes nothing.
 
 ## Uses
@@ -194,12 +216,13 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates — the declared process, its gates
   and their states. The workflow is read with the instance's SPEC, where the process requirements stand.
 - MOD-model-catalogue.Model, catalogue, planGrid — the model and its plan of requirements times phases.
-- MOD-approvals.statuses — accepted, open and changed files.
-- MOD-spec-changes.Queue, queues — decided and open SPEC changes.
+- MOD-approvals.statuses — accepted, open and changed files, for the stages and for what waits.
+- MOD-spec-changes.Queue, queues — decided and open SPEC changes, for the stages and for what waits.
 - MOD-spec-document.parseSpec — the requirements.
 - MOD-test-schedule.scheduleSchema, defaultSchedule, configurationDrift — the schedule, or its default, and whether the
   CI configuration is generated from it.
 - MOD-result-records.resultsAt — the outcomes recorded for the default branch.
+- MOD-release-evidence.reportsAwaitingAcceptance — the release test report that waits for acceptance, if one does.
 - MOD-test-document.TestDeclaration, testDeclarations, MOD-trace-graph.Graph, traceGraph, tracesTo — which tests guard
   which requirement, and the traces behind a cell of the grid.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.

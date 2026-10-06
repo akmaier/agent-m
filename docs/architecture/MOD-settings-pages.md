@@ -76,6 +76,11 @@ uses:
   - MOD-runtimes.routesFor
   - MOD-runtimes.queueJob
   - MOD-runtimes.jobWorkflowFiles
+  - MOD-notifications.NotificationState
+  - MOD-notifications.notificationState
+  - MOD-notifications.switchOn
+  - MOD-notifications.testNotification
+  - MOD-notifications.switchOff
 provides:
   - view
 ---
@@ -90,7 +95,7 @@ finishing its setup, adding a product, model endpoints, participants, the source
 resources, the mailbox, and the Agent M Bridge with the jump host and remote sessions. Every register is edited in a
 form built from its owner's schema; every notice a setting needs stands before the setting is stored.
 
-It serves UC-001, UC-003, UC-004, UC-011, UC-014, UC-015, UC-016, UC-017, UC-037, UC-040, UC-042 and UC-044.
+It serves UC-001, UC-003, UC-004, UC-011, UC-014, UC-015, UC-016, UC-017, UC-037, UC-040, UC-042, UC-044 and UC-047.
 
 It runs in a browser, loaded by `docs/index.html` through MOD-site-frame. The one job it starts is the check of a
 resource on its runner, queued to that runner's route; for its run panel it hands the frame `resourceStrategies`.
@@ -112,14 +117,22 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
 - `view: View` — its routes, and the strategies of `resourceStrategies`:
   - `settings` — three sections — this browser, the instance, each product —, one line per setting with its state:
     works, with the date of the last successful test; expires on, from fourteen days before a token's recorded expiry;
-    refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*; a repository
-    setting has a summary and *Edit*, opening its form here or the page where it is kept — the product's process on the
-    implementation pages, its schedule on the test pages. A product's section holds its pseudonymisation — switching it
-    off states first what follows —, its collaborators who agreed to be named, and whether Agent M's job workflow is
-    installed, with *Install*. At the bottom *Export settings*, after the statement of every secret it holds and what each
-    grants, optionally locked with a passphrase; *Import settings*, which keeps what this browser has and adds the rest,
-    listing both; *Clear everything in this browser*. Each section and line has its folded explanation, among them that
-    every Pages site of the same owner can read this browser's store.
+    refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*. The line
+    *Notifications* of this browser's section (UC-047) shows the state `notificationState` gives: *off*, or switched on
+    without this browser's permission yet, with *Switch on*, whose click asks the browser's permission; *on*, with how
+    many files were notified, *Test* and *Switch off*, which is its clear; *blocked*, when the person or the browser
+    refused, with where the browser's own site settings allow notifications for this site; on an iPhone or iPad not
+    opened from the Home Screen, that Safari shows notifications only for a site added to the Home Screen, and how to add
+    it; after *Switch off*, that the browser keeps its permission until the person takes it back in its settings. A
+    repository setting has a summary and *Edit*, opening its form here or the page where it is kept — the product's
+    process on the implementation pages, its schedule on the test pages. A product's section holds its pseudonymisation —
+    switching it off states first what follows —, its collaborators who agreed to be named, and whether Agent M's job
+    workflow is installed, with *Install*. At the bottom *Export settings*, after the statement of every secret it holds
+    and what each grants, optionally locked with a passphrase; *Import settings*, which keeps what this browser has and
+    adds the rest, listing both; *Clear everything in this browser*. Each section and line has its folded explanation,
+    among them that every Pages site of the same owner can read this browser's store, and, for *Notifications*, what is
+    checked and how often, that the checks go to the repository servers with this browser's tokens and nowhere else, and
+    that nothing is checked while no page of the dashboard is open.
   - `get-your-own`, `setup` — the fork, Pages and Actions steps with their direct links once the owner is known; then
     *Finish setting up*: the prefilled token page, *Only select repositories* and the instance named, the shared-origin
     notice with its tick, the token and its expiry, *Store and check*, and *Import settings* beside it.
@@ -160,8 +173,9 @@ It writes, on a person's click and as that person's commit: the instance's `docs
 `docs/collaborators.md`, with `saveFile`; the source register's entries and content under `docs/sources/` of the instance,
 and restricted content in the repository the person names, as the commit plans of MOD-source-register say; a product's
 review layout when it is added; Agent M's job workflow files of a product; a resource's check job's start record through
-MOD-runtimes. It writes this browser's settings through MOD-browser-store. It reads the instance's and the products'
-snapshots, the Bridge's releases, and what each test reaches.
+MOD-runtimes. It writes this browser's settings through MOD-browser-store, the switch of the notifications through
+MOD-notifications. It reads the instance's and the products' snapshots, the Bridge's releases, and what each test
+reaches.
 
 ## Uses
 
@@ -202,3 +216,6 @@ snapshots, the Bridge's releases, and what each test reaches.
   product's pseudonymisation and collaborators, and the files that still name a collaborator who withdrew.
 - MOD-job-runner.prepareJob, MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob — a resource's check
   job on its runner; MOD-runtimes.jobWorkflowFiles — the job workflow a product needs.
+- MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
+  MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
+  the person's click, *Test* and *Switch off*.

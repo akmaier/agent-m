@@ -32,6 +32,7 @@ provides:
   - takeJob
   - jobState
   - listJobs
+  - recordsNewestFirst
   - jobCost
 ---
 # MOD-job-ledger The record, state and cost of every job
@@ -171,6 +172,11 @@ by: tab
 - `listJobs(products: { address: string, snapshot: Snapshot }[], live: Map<string, LiveState>) -> JobRow[]` — every job of
   every product given, newest first, waiting at a gate first among those that have not ended. A record that cannot be read
   is listed with what could be read and the reason.
+- `recordsNewestFirst(snapshot: Snapshot) -> AsyncIterable<JobRecord>` — the job records of a snapshot, newest first by
+  the start their paths name, each read only when its caller asks for the next one, so that a caller that looks for a
+  recent job stops reading where it has found it. Crosses the network through the snapshot, for the records it has not
+  read yet; the iteration fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
+  `Unreachable`.
 - `jobCost(usage: Usage | null, participant: Participant) -> Cost` — the cost the runtime reported; otherwise the
   reported tokens at the participant's declared price; otherwise unknown, with the usage — never zero, never an estimate.
 

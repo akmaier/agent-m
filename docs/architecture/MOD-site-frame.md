@@ -23,6 +23,7 @@ uses:
   - MOD-documents.documentFindings
   - MOD-text-tools.Finding
   - MOD-identifiers.instanceOfPagesAddress
+  - MOD-notifications.watchForAcceptance
 provides:
   - View
   - Route
@@ -46,8 +47,9 @@ provides:
 It belongs to the Site (ARC-038). Its one responsibility is what every page of the instance's site has in common: the
 header with the lab's logo and the menu in the order of the process, the look of the Pattern Recognition Lab, the
 product selector, the notices, the routing of views by the address's fragment, the instance derived from the Pages
-address, the folded explanations, the run panel, the dialog of a decision, and the form built from a schema. It is the
-plug-in manager of the Site's views: an entry page names the view modules it carries, and the frame loads them through
+address, the folded explanations, the run panel, the dialog of a decision, the form built from a schema, and the start of
+the checks of what waits for the person's acceptance, which MOD-notifications runs on the main and the review pages. It is
+the plug-in manager of the Site's views: an entry page names the view modules it carries, and the frame loads them through
 the `View` interface it defines, registers the strategies they hand it with the job runner, and routes to them. It never
 names a view itself.
 
@@ -60,7 +62,7 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   view modules from their folders, registers their strategies and calls `startPage`. This is where the entry pages
   register strategies (ARC-038).
 - `menu.mjs` — the eight entries of the menu and the links they lead to.
-- `routing.mjs` — views by the address's fragment.
+- `routing.mjs` — views by the address's fragment, and the address of a route for a repository.
 - `notices.mjs`, `run-panel.mjs`, `decision.mjs`, `forms.mjs` — notices, the run panel, the dialog of a decision, the
   form built from a schema.
 - `look.css` — colours, fonts and the header, footer and menu of the lab's look: FAU blue `#04316a`, dark blue `#041e42`,
@@ -105,7 +107,10 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
   notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
   change of the fragment. A fragment that names no loaded route shows the first route of its menu entry, or says that
-  the entry is not built yet. Called by `start.mjs`, and by the Bridge's window with its own routes.
+  the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
+  `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of the address of a
+  route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
+  `chosenProduct` read back. Called by `start.mjs`, and by the Bridge's window with its own routes.
 - `embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void>` — renders a route of
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
   without using it. Error: `RouteNotLoaded` — the route is not on this page; the frame then puts a link to it in
@@ -119,9 +124,10 @@ It keeps nothing but what is on the screen. It owns these formats:
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.
 - `chosenProduct(context: { store: Store, fragment: string }) -> Promise<ProductContext | null>` — the product the
   address's fragment or the selector names, among the products this browser keeps, connected with its own token to its
-  own server only; `null` when the browser keeps no product — the pages then show the instance itself. Errors:
-  `UnknownProduct` — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A
-  refused token or a used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
+  own server only; `null` when the fragment or the selector names the instance itself, which the selector offers beside
+  the products, or when the browser keeps no product — the pages then show the instance itself. Errors: `UnknownProduct`
+  — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
+  used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
 - `explain(topic: string) -> Element` — the folded *What is this?* of a topic, from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
   topic the file does not hold it returns an empty element, and the frame's own check reports the missing topic.
@@ -167,3 +173,5 @@ It writes nothing.
 - MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema.
 - MOD-text-tools.Finding — the findings shown beside a form's fields.
 - MOD-identifiers.instanceOfPagesAddress — the instance that the Pages address names.
+- MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, started on the main and the review
+  pages.

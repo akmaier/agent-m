@@ -62,6 +62,7 @@ forced_by:
   - TEST GENERATION SEES THE EXISTING TESTS
   - RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
   - A REWRITTEN TEXT IS CHECKED BY THREE LLMS
+  - A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
   - UC-003
   - UC-005
   - UC-007
@@ -73,6 +74,7 @@ forced_by:
   - UC-026
   - UC-036
   - UC-038
+  - UC-047
 designs:
   - MOD-participant-list
   - MOD-endpoint-calls
@@ -139,7 +141,7 @@ job has, across every product.
 | MOD-agent-processes | `Agent`, `installedAgents`, `agentDriver`, `testAgent` |
 | MOD-job-runner | `Strategies`, `JobContext`, `Part`, `Prepared`, `JobResult`, `registerStrategies`, `prepareJob`, `runJob`, `writeResult`, `provenanceLines` |
 | MOD-job-catalogue | `kindOf` |
-| MOD-job-ledger | `RecordPart`, `JobRecord`, `JobRow`, `newJobId`, `startRecord`, `appendToRecord`, `takeJob`, `jobState`, `listJobs`, `jobCost` |
+| MOD-job-ledger | `RecordPart`, `JobRecord`, `JobRow`, `newJobId`, `startRecord`, `appendToRecord`, `takeJob`, `jobState`, `listJobs`, `recordsNewestFirst`, `jobCost` |
 | MOD-runtimes | `ResourceNeed`, `routesFor`, `queueJob`, `runOnTab`, `liveState`, `jobLog`, `cancelJob`, `retryJob`, `jobWorkflowFiles`, `routeStrategies` |
 
 ### Its modules
@@ -151,7 +153,7 @@ job has, across every product.
 | MOD-agent-processes | `src/agent-processes/` | in Node only: the coding-agent CLIs installed on the machine, and the driver that runs one with a task in a working folder — with the machine's own login, or in CI with its key from a secret — streaming its output and stopping it on cancel |
 | MOD-job-runner | `src/job-runner/` | the interpreter of a job's definition: preconditions, recipes, fitting the parts to the participant's context, every destination and what goes there, the correction loop with checks and reviewing participants, the gates, the writer; the registry of strategies; the provenance lines of its commits |
 | MOD-job-catalogue | `src/job-catalogue/` | every job kind as data, one folder each, with its definition, prompt and output schema; the schema of a definition |
-| MOD-job-ledger | `src/job-ledger/` | the job record under `docs/jobs/`: identifiers never reused, a start, then appended parts — taken, gate reached, resumed, end —, never rewritten; taking a job; the seven states; the list across products; the cost, never guessed |
+| MOD-job-ledger | `src/job-ledger/` | the job record under `docs/jobs/`: identifiers never reused, a start, then appended parts — taken, gate reached, resumed, end —, never rewritten; taking a job; the seven states; the list across products; the records newest first, read only as far as a caller needs; the cost, never guessed |
 | MOD-runtimes | `src/runtimes/` | the three routes — this tab, CI, a Bridge — behind one interface: which routes a participant has, queueing, running on the tab with the driver of an endpoint or of an agent on a Bridge, resuming, live state, log, cancel, retry; the job workflow a product needs on GitHub or GitLab; the writer that checks and records a coding participant's branch and pull request |
 
 ```mermaid
