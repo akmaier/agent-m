@@ -911,9 +911,11 @@ test("UC-042 step 2: Change stores a new token with its expiry date, after the n
 });
 
 test("UC-042 step 2 on a phone: the token form carries the notice and its own I have read this beside the paste field; ticked there, the field and Store token open, and the notice at the top is ticked with it", async () => {
-  const { srv, box, dom } = await settingsPage();
+  const { srv, page, box, dom } = await settingsPage();
   await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  assert.match(dom.byId("token-change").innerHTML, /every other GitHub Pages site of akmaier is served from the same address/i, "the notice, at the form");
+  const main = page.main(), form = main.slice(main.indexOf('id="token-change"'), main.indexOf('id="token-input"'));
+  assert.match(form, /every other GitHub Pages site of akmaier is served from the same address/i, "the notice, at the form, before the paste field");
+  assert.ok(form.includes('id="token-ack"'), "its own I have read this, before the paste field");
   assert.equal(dom.byId("token-input").disabled, true, "the paste field waits for the notice");
   await tick(srv, dom.byId("token-ack"));
   assert.equal(dom.byId("token-input").disabled, false, "ticked at the form, the paste field opens");
