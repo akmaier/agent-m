@@ -644,7 +644,8 @@ test("UC-001 5 — GitLab: a commit that lands while the change's files are read
 // THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE · THE REPOSITORY CHOICE IS SPELLED OUT · A GITLAB PRODUCT
 // USES A PROJECT ACCESS TOKEN · UC-001 2a, 3, 3b, 3c — Expected, with no request made: on GitHub, `tokens` is the list of the
 // person's fine-grained tokens, https://github.com/settings/personal-access-tokens (Step A opens it); newToken(name, description,
-// days) is GitHub's page for a new fine-grained token with name, description and expiry filled in and exactly the permissions
+// days) is GitHub's page for a new fine-grained token with name, description and expiry filled in, the repository's owner as
+// the token's owner — GitHub limits a token to the repositories of one owner (target_name) —, and exactly the permissions
 // Contents, Issues, Pull requests, Actions and Workflows write and Metadata read — no repository and no other field, for the
 // repositories are named beside the link, not in it; `projectTokens` is null; `newRepository` is https://github.com/new. On a
 // GitLab server, `projectTokens`, `tokens` and newToken(…) are the project's Access tokens page, where the project access token
@@ -659,7 +660,7 @@ test("UC-001 — the token pages: GitHub's prefilled token page and the list of 
     const u = new URL(gh.newToken("Agent M · alice/agent-m", "Agent M dashboard of alice/agent-m", 90));
     assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
     assert.deepEqual(Object.fromEntries(u.searchParams), { name: "Agent M · alice/agent-m",
-      description: "Agent M dashboard of alice/agent-m", expires_in: "90",
+      description: "Agent M dashboard of alice/agent-m", target_name: "alice", expires_in: "90",
       contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" },
       "exactly these fields and permissions, no repository");
     const gl = connect(GITLAB, { token: GL_TOKEN }).webLinks();

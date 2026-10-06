@@ -1,5 +1,5 @@
-// Add a product — on GitHub a new key that reaches it replaces the instance's key, on a GitLab server the product gets a project
-// token of its own; then its review layout is written into it (UC-001).
+// Add a product — the product gets a key of its own, on GitHub a fine-grained token for it alone, on a GitLab server a project
+// token; then its review layout is written into it (UC-001). The instance's key stays as it is.
 //
 // Module: MOD-dashboard-app
 //
@@ -16,10 +16,10 @@ import { addProduct, clickAuthority } from "./writes.mjs";
 import { parseProductAddress, isGitLab, requiredPermissions } from "../git-host.mjs";
 import { parseAddress, connect } from "../../../src/repository-hosts/index.mjs";
 import {
-  h, sharedOriginNotice, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, checkGitLab, reachLine,
-  gitlabTokenProblem, today,
+  h, sharedOriginNotice, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkGitLab, reachLine, reachProduct, repositoryChoiceSteps,
+  productTokenName, productTokenDescription, gitlabTokenProblem, today,
 } from "./settings-view.mjs";
-import { createKeyStep, storeKeyStep, wireStoreKey } from "./setup-view.mjs";
+import { storeKeyStep, wireStoreKey } from "./setup-view.mjs";
 
 // UC-001 2a · the product repository does not exist yet: GitHub answered 404 for it. GitHub answers a private repository the
 // key does not reach with the same 404, so both ways on are named — create it, or let the key reach it (Step A). With a folded
@@ -28,8 +28,8 @@ import { createKeyStep, storeKeyStep, wireStoreKey } from "./setup-view.mjs";
 export function missingRepositoryHtml(repo, newRepository) {
   const [owner, name] = String(repo).split("/");
   return `<p>GitHub has no repository ${h(repo)} that your key can see. If it does not exist yet, create it on
-    <a href="${h(newRepository)}" target="_blank" rel="noopener">GitHub's page for a new repository ↗</a>, add it to your key
-    (Step A) and press Check again. If it exists and is private, your key does not reach it yet — do Step A.</p>
+    <a href="${h(newRepository)}" target="_blank" rel="noopener">GitHub's page for a new repository ↗</a>, give it its key
+    (Step A) and press Check again. If it exists and is private, no key in this browser reaches it yet — do Step A.</p>
     <details class="explain"><summary>What is this?</summary><div>${EXPLAIN.newRepository(owner, name)}</div></details>`;
 }
 
@@ -82,11 +82,11 @@ const EXPLAIN = {
     that says what a requirement is and holds none yet, and a <code>CHANGELOG.md</code> with its title — only what does not
     exist yet. It is an ordinary commit you can see and revert on GitLab; if nothing is missing, nothing is committed. The
     project's address is kept in this browser's list only; nothing is written into your instance.`,
-  extend: `Your key was created for this instance only, on purpose: it can write nowhere else. A new product needs a key
-    that reaches it too. GitHub cannot add a repository to a key through a link, but it opens the page for a new key with
-    its name, permissions and expiry filled in; you pick the repositories there — the instance, your other GitHub products
-    and this one — and the new key replaces the old one in this browser. The old key keeps working on GitHub until it
-    expires; delete it there once you no longer need it.`,
+  productKey: `The product gets a key of its own: a key that reaches only the product can write nowhere else, and GitHub limits
+    a key to the repositories of one owner. Your instance's key stays as it is. GitHub cannot select a repository through a
+    link, but it opens the page for a new key with its name, description, owner, permissions and expiry filled in; you pick
+    the product's repository there. The key is kept in this browser for this product only and sent only to GitHub's API, in
+    the requests for this product; Settings shows it, tests it and clears it.`,
   newRepository: (owner, name) => `GitHub's page for a new repository asks a few things. The <em>owner</em> is the account
     or organisation the repository belongs to — for this address, <code>${h(owner)}</code>. The <em>repository name</em> is
     the last part of the address — <code>${h(name)}</code>. <em>Public</em> means anyone can read it and only the people you
@@ -167,16 +167,30 @@ function wireGitLabSteps(app, parsed) {
   });
 }
 
+// UC-001 Step A on GitHub · A GITHUB PRODUCT USES A TOKEN OF ITS OWN · A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT: one click to
+// GitHub's page for the product's own key, prefilled for it — its name and description built from the product repository's name;
+// the page itself is MOD-repository-hosts' (webLinks), with the product's owner as the token's owner and every permission —, and
+// the product alone to pick there.
+function productKeyStep(app, parsed) {
+  const { stepHtml } = app;
+  const page = connect(parseAddress(parsed.address)).webLinks()
+    .newToken(productTokenName(parsed.repo), productTokenDescription(parsed.repo), TOKEN_DAYS);
+  return stepHtml({ title: "Step A · A key for the product",
+    body: `<p><a class="btn primary" href="${h(page)}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
+      <p>On that page:</p>
+      <ol class="choices">${repositoryChoiceSteps(parsed.repo).map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
+    explain: EXPLAIN.productKey });
+}
+
 // UC-001 · Add a product
 async function viewAddProduct(app, preset = "") {
-  const { T, main, stepHtml } = app;
-  const ghToken = app.ghToken;
+  const { T, main, stepHtml, store } = app;
   const owner = T.instance.split("/")[0];
   main().innerHTML = `
     <p class="crumbs"><a href="#uc">← back</a></p>
     <section class="head"><h2>Add a product</h2>
-      <p class="muted">On GitHub, your instance's key is extended to reach the product; on a GitLab server, the product gets a key
-      of its own.</p></section>
+      <p class="muted">The product gets a key of its own — on GitHub a fine-grained token for it alone, on a GitLab server a project
+      access token. Your instance's key stays as it is.</p></section>
     <section class="panel">
       <label>Product repository address <input id="add-repo" value="${h(preset)}" placeholder="https://github.com/${h(owner)}/my-project" spellcheck="false" autocomplete="off"></label>
       <details class="explain"><summary>What is this?</summary><div>${EXPLAIN.repo}</div></details>
@@ -195,94 +209,92 @@ async function viewAddProduct(app, preset = "") {
       return;
     }
     const valid = !parsed.error, repo = parsed.repo;
-    const product = valid ? repo : "<your product>";
-    // The server's pages for the product's repository, as MOD-repository-hosts names them — the list of the person's tokens on
-    // GitHub, where the instance's token is extended, and the page for a new repository; none before an address is read.
+    // A key in this browser reaches the product: its own, or the instance's while it has none (UC-001 3a; tokenFor).
+    const reaches = () => valid && Boolean(store.tokenFor(parsed));
+    // The page for a new repository on the product's server, as MOD-repository-hosts names it; none before an address is read.
     const links = valid ? connect(parseAddress(parsed.address)).webLinks() : null;
+    const b = stepHtml({ title: "Step B · Check",
+      body: `<p><button class="btn" id="add-check-btn" ${valid ? "" : "disabled"}>Check</button></p><p id="add-check" class="muted"></p>`,
+      explain: EXPLAIN.check });
     const c = stepHtml({ title: "Step C · Add the product",
-      body: `<p><button class="btn primary" id="add-go" ${valid && ghToken() ? "" : "disabled"}>Add product</button></p>
-        <p id="add-result" class="muted">${!valid ? h(input.value.trim() ? parsed.error : "Paste the product repository's address above.") : !ghToken() ? "Store your key in Step B first." : ""}</p>`,
+      body: `<p><button class="btn primary" id="add-go" ${reaches() ? "" : "disabled"}>Add product</button></p>
+        <p id="add-result" class="muted">${!valid ? h(input.value.trim() ? parsed.error : "Paste the product repository's address above.") : !reaches() ? "Store the product's key in Step A first." : ""}</p>`,
       explain: EXPLAIN.add });
-    if (ghToken()) {
-      // UC-001 Step A: one click to GitHub's page for a new key, prefilled as in UC-014 and dated; the repositories to pick are
-      // the instance, every GitHub product this browser lists, and the product typed above. Stored, the new key replaces the
-      // old one and is checked against each of them; Step B then shows the product's line without another click.
-      const others = app.store.getProducts().map(parseProductAddress)
-        .filter((p) => !p.error && !isGitLab(p) && p.repo !== T.instance && p.repo !== repo).map((p) => p.repo);
-      const a = createKeyStep(app, [T.instance, ...others, product], "Step A · Let your key reach the product",
-        { dated: today(), explain: EXPLAIN.extend }) + storeKeyStep(app, "Step A · Give the new key to Agent M");
-      const b = stepHtml({ title: "Step B · Check",
-        body: `<p><button class="btn" id="add-check-btn" ${valid ? "" : "disabled"}>Check</button></p><p id="add-check" class="muted"></p>`,
-        explain: EXPLAIN.check });
+    if (!valid) {
+      // No product yet, so no page to prefill: Step A says what it will do once the address is read.
+      const a = stepHtml({ title: "Step A · A key for the product",
+        body: `<p class="muted">Paste the product repository's address above — Step A then opens GitHub's token page, prefilled for it.</p>`,
+        explain: EXPLAIN.productKey });
       steps.innerHTML = `<div id="add-step-a">${a}</div>` + b + c;
-      wireStoreKey(app, () => [T.instance, ...others, ...(valid ? [repo] : [])], async (res) => {
-        const mine = res.find(([r]) => r === repo);
-        if (mine) {
-          // UC-001 step 4 after Store and check, without another click. A product the read did not reach is read once more
-          // for the status of the refusal, so that a missing repository is named with GitHub's page for a new one, as Check
-          // does (2a).
-          const x = mine[1].ok ? mine[1] : await checkProduct(app, repo);
-          document.getElementById("add-check").innerHTML = reachLine([repo, x]) + (x.status === 404 ? missingRepositoryHtml(repo, links.newRepository) : "");
-        }
-        document.getElementById("add-go").disabled = !valid;
-      });
-      document.getElementById("add-check-btn").addEventListener("click", async () => {
-        const x = await checkProduct(app, repo);
-        document.getElementById("add-check").innerHTML = reachLine([repo, x]) + (x.status === 404 ? missingRepositoryHtml(repo, links.newRepository) : "");
-        // UC-001 3a: only a read of a private repository proves that the key reaches it — a public one is read by any key
-        // (step 4) — so only then is Step A shown as done; after any other answer Step A keeps its instructions and its
-        // paste field as they are.
-        if (x.ok && x.priv) document.getElementById("add-step-a").innerHTML = stepHtml({
-          title: "Step A · Let your key reach the product — done",
-          body: `<p>✓ Your key already reaches ${h(repo)} — nothing to do on GitHub. It read this private repository, which only
-            a key that reaches it can. Go on with Step C.</p>`,
-          explain: EXPLAIN.extend });
-      });
-    } else {
-      steps.innerHTML = createKeyStep(app, [T.instance, product]) + storeKeyStep(app) + c;
-      wireStoreKey(app, () => [T.instance, ...(valid ? [repo] : [])], () => {
-        document.getElementById("add-go").disabled = !valid;
-        document.getElementById("add-result").textContent = valid ? "" : "Paste the product repository's address above.";
-      });
+      wireAddGo(app, parsed);
+      return;
     }
+    // UC-001 Step A: the product's own key, created on the prefilled page and stored for this product only — the instance's key
+    // stays as it is (UC-001 3b: with or without one). Store and check reads the product with it; Step B then shows the product's
+    // line without another click.
+    const a = productKeyStep(app, parsed) + storeKeyStep(app, "Step A · Give the product's key to Agent M");
+    steps.innerHTML = `<div id="add-step-a">${a}</div>` + b + c;
+    const line = (x) => reachLine([repo, x]) + (x.status === 404 ? missingRepositoryHtml(repo, links.newRepository) : "");
+    wireStoreKey(app, () => [repo], async (res) => {
+      // UC-001 step 4 after Store and check, without another click. A product the read did not reach is read once more for the
+      // status of the refusal, so that a missing repository is named with GitHub's page for a new one, as Check does (2a).
+      const [, read] = res[0];
+      const x = read.ok ? read : await checkProduct(app, parsed);
+      if (x.ok) store.setGitHubProductTokenTest(parsed.address, { ok: today() });
+      document.getElementById("add-check").innerHTML = line(x);
+      document.getElementById("add-go").disabled = !reaches();
+      document.getElementById("add-result").textContent = "";
+    }, { save: (v, exp) => store.setGitHubProductToken(parsed.address, v, exp), read: () => reachProduct(app, parsed) });
+    document.getElementById("add-check-btn").addEventListener("click", async () => {
+      const x = await checkProduct(app, parsed);
+      document.getElementById("add-check").innerHTML = line(x);
+      // UC-001 3a: only a read of a private repository proves that the key reaches it — a public one is read by any key
+      // (step 4) — so only then is Step A shown as done, naming the key that read it; after any other answer Step A keeps its
+      // instructions and its paste field as they are.
+      if (x.ok && x.priv) document.getElementById("add-step-a").innerHTML = stepHtml({
+        title: "Step A · A key for the product — done",
+        body: `<p>✓ ${store.getGitHubProductToken(parsed.address) ? "The product's key" : "Your instance's key"} already reaches ${h(repo)} — nothing to do on GitHub.
+          It read this private repository, which only a key that reaches it can. Go on with Step C.</p>`,
+        explain: EXPLAIN.productKey });
+    });
     wireAddGo(app, parsed);
   };
   input.addEventListener("input", render);
   render();
 }
 
-// UC-001 Step B on GitHub: the read of checkReach (settings-view.mjs), with the status of a refused read kept beside its text —
-// a 404 is UC-001 2a. -> checkReach's answer, and `status` when the read was refused.
-async function checkProduct(app, repo) {
+// UC-001 Step B on GitHub: the product read with the key that reaches it (reachProduct, settings-view.mjs), with the status of a
+// refused read kept beside its text — a 404 is UC-001 2a. -> reachProduct's answer, and `status` when the read was refused.
+async function checkProduct(app, parsed) {
   let status = null;
-  const x = await checkReach({ ...app, errorText: (e, p) => { status = e?.status ?? null; return app.errorText(e, p); } }, repo);
+  const x = await reachProduct({ ...app, errorText: (e, p) => { status = e?.status ?? null; return app.errorText(e, p); } }, parsed);
   return x.ok ? x : { ...x, status };
 }
 
-// UC-001 Step C: the layout goes into the product repository; the address into this browser's list only. A GitLab
-// product is written with its own project token, a GitHub one with the instance's key. MOD-artifact-edits answers with the
-// commit and its address, which the result links (UC-001 step 5). A refusal is the failure MOD-repository-hosts names
-// (HostError), told here in UC-001's words as before: NotFound on GitHub — the repository is missing, with GitHub's page for a
-// new one (2a); PermissionMissing — the key cannot write there yet, back to Step A (5a), or GitLab's refused write;
-// TokenRefused — the line at the top with its renewal (noteRefusal) and the token named (errorText); RateLimited — the limit
-// (rateLimitText); any other in its own words (errorText).
+// UC-001 Step C: the layout goes into the product repository; the address into this browser's list only. A product is written
+// with its own key — a GitLab product's project token, a GitHub product's token, or the instance's key while the GitHub product
+// has none (tokenFor). MOD-artifact-edits answers with the commit and its address, which the result links (UC-001 step 5). A
+// refusal is the failure MOD-repository-hosts names (HostError), told here in UC-001's words as before: NotFound on GitHub — the
+// repository is missing, with GitHub's page for a new one (2a); PermissionMissing — the key cannot write there yet, back to
+// Step A (5a), or GitLab's refused write; TokenRefused — the line at the top with its renewal (noteRefusal) and the token named
+// (errorText); RateLimited — the limit (rateLimitText); any other in its own words (errorText).
 function wireAddGo(app, parsed) {
   const { store, noteRefusal, errorText, gitlabWriteRefusal, loadProducts, renderProductSelector, productHref } = app;
-  const ghToken = app.ghToken;
   document.getElementById("add-go").addEventListener("click", async (ev) => {
     const out = document.getElementById("add-result"), b = ev.currentTarget, repo = parsed.repo, gl = isGitLab(parsed);
+    // The product whose own key writes, for the name of a refusal: a GitLab product, or a GitHub product with a key of its own.
+    const own = gl || store.getGitHubProductToken(parsed.address) ? parsed : null;
     b.disabled = true;
     try {
       out.textContent = `Reading ${repo} and writing what is missing…`;
-      const r = await addProduct({ address: parsed.address, token: gl ? store.getGitLabToken(parsed.address)?.token : ghToken(),
-        authority: clickAuthority(ev), store });
+      const r = await addProduct({ address: parsed.address, token: store.tokenFor(parsed), authority: clickAuthority(ev), store });
       loadProducts();
       renderProductSelector();
       out.innerHTML = `Done — ${r.complete ? "nothing was missing in the product"
         : `<a href="${h(r.commit.url)}" target="_blank" rel="noopener">layout in ${h(repo)}</a>`}; ${h(parsed.address)} is now in this browser's product list.
         <a class="btn primary" href="${h(productHref(parsed))}">Open ${h(repo)} →</a>`;
     } catch (e) {
-      noteRefusal(e, gl ? parsed : null);
+      noteRefusal(e, own);
       const limit = app.rateLimitText(e, gl ? parsed : null);
       // UC-001 2a: the repository is not found — it does not exist yet, or the key does not see it; nothing was written.
       if (!limit && !gl && e.name === "NotFound") {
@@ -293,7 +305,7 @@ function wireAddGo(app, parsed) {
       out.textContent = limit || (gl ? gitlabWriteRefusal(e, parsed) || errorText(e, parsed)
         : e.name === "PermissionMissing"
           ? `Your key cannot write to ${repo} yet (${e.message}). Do Step A — give Agent M a key that reaches the product — and click again.`
-          : errorText(e, null));
+          : errorText(e, own));
       b.disabled = false;
     }
   });

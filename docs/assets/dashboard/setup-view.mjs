@@ -1,5 +1,5 @@
-// Setup — finish setting up an instance in this browser: create the GitHub token and give it to the dashboard (UC-014). The two
-// steps are shown again when a product is added without a token (UC-001).
+// Setup — finish setting up an instance in this browser: create the GitHub token and give it to the dashboard (UC-014). A product
+// gets a key of its own, with steps of its own (add-product-view.mjs, UC-001), whose storing is wired here too (wireStoreKey).
 //
 // Module: MOD-dashboard-app
 //
@@ -8,7 +8,7 @@
 import { canStore } from "../review-core.mjs";
 import {
   h, sharedOriginNotice, tokenLinkUrl, repositoryChoiceSteps, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, reachLine,
-  GITHUB_PERMISSIONS,
+  GITHUB_PERMISSIONS, githubTokenProblem,
 } from "./settings-view.mjs";
 
 const EXPLAIN = {
@@ -17,17 +17,17 @@ const EXPLAIN = {
     choose. You can delete it on GitHub at any time; it then stops working immediately.<br><br>
     <strong>Why these permissions?</strong> ${GITHUB_PERMISSIONS.map((p) =>
       `<em>${h(p.permission)}</em> (${p.access === "read" ? "read" : "read and write"}): ${h(p.why)}`).join("; ")}.
-    One key covers all of them, so you create only one.<br><br>
+    One key covers all of them. Each product you add later gets a key of its own.<br><br>
     <strong>Why “Only select repositories”?</strong> GitHub preselects “All repositories”. That would let this page write
-    to every repository you own. Choosing the two repositories named above limits it to what Agent M actually needs.`,
+    to every repository you own. Choosing only the repository named above limits it to what Agent M actually needs.`,
   store: `The token is saved in this browser only (its <code>localStorage</code>), never in a cookie, never in an
     address, never in any repository. It is sent only to GitHub's API, as a header. Another computer or browser
     does not have it — <em>Export settings</em> in Settings moves it there. Settings shows it, tests it and clears it.`,
 };
 
-// Step A of UC-014: create the key (for the instance, or — without a key in this browser — for both).
+// Step A of UC-014: create the instance's key.
 // createKeyStep(app, repos, title?, { dated, explain }?) — the prefilled token page and the repositories to pick on it; `dated`
-// dates the token's name (a key that replaces another one), `explain` replaces the step's explanation.
+// dates the token's name, `explain` replaces the step's explanation.
 export function createKeyStep(app, repos, title = "Step A · Create your key on GitHub", { dated = null, explain = EXPLAIN.token } = {}) {
   const { T, stepHtml } = app;
   return stepHtml({ title,
@@ -52,8 +52,10 @@ export function storeKeyStep(app, title = "Step B · Give the key to Agent M") {
     explain: EXPLAIN.store });
 }
 
-export function wireStoreKey(app, reposToCheck, onStored) {
-  const { store, showBanner } = app;
+// wireStoreKey(app, reposToCheck, onStored, { save, read }?) — Store and check: `save(token, expires)` keeps the key — by default
+// as the instance's —, `read(repository)` checks one repository with it — by default with the instance's.
+export function wireStoreKey(app, reposToCheck, onStored, { save = (v, exp) => app.store.setToken(v, exp), read = (r) => checkReach(app, r) } = {}) {
+  const { showBanner } = app;
   const ack = document.getElementById("key-ack"), tok = document.getElementById("key-token");
   const btn = document.getElementById("key-store"), out = document.getElementById("key-check");
   const expires = document.getElementById("key-expires");
@@ -61,13 +63,13 @@ export function wireStoreKey(app, reposToCheck, onStored) {
   btn.addEventListener("click", async () => {
     const v = tok.value.trim(), exp = expires.value;
     if (!canStore(ack.checked)) return;
-    if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { out.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) { out.textContent = "Enter the date the token expires — GitHub showed it when you created the token."; return; }
+    const bad = githubTokenProblem(v, exp);
+    if (bad) { out.textContent = bad; return; }
     // A new token starts untested: storing it forgets the last test of the one before (MOD-settings-store setToken).
-    store.setToken(v, exp);
+    save(v, exp);
     showBanner();
     tok.value = "";
-    const res = await Promise.all(reposToCheck().map(async (r) => [r, await checkReach(app, r)]));
+    const res = await Promise.all(reposToCheck().map(async (r) => [r, await read(r)]));
     out.innerHTML = res.map(reachLine).join("<br>");
     onStored?.(res);
   });
@@ -80,7 +82,7 @@ function viewSetup(app) {
     <p class="crumbs"><a href="#uc">← back</a></p>
     <section class="head"><h2>Finish setting up your instance</h2>
       <p class="muted">Two steps, once per browser. They give this dashboard a key that can write to
-      <strong>${h(T.instance)}</strong> — and nothing else. Products are added to the same key later.</p></section>
+      <strong>${h(T.instance)}</strong> — and nothing else. Each product gets a key of its own when you add it.</p></section>
     ${createKeyStep(app, [T.instance])}
     ${storeKeyStep(app)}
     <p id="setup-done"></p>`;

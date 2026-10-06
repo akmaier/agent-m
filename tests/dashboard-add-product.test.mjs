@@ -22,7 +22,7 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), { status, head
 const stored = (key) => globalThis.localStorage.getItem(key);
 const addHash = (address) => `#add/${encodeURIComponent(address)}`;
 const hrefs = (html) => [...String(html).matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
-const STEP_A_DONE = /<h3>Step A · Let your key reach the product — done<\/h3>/;
+const STEP_A_DONE = /<h3>Step A · A key for the product — done<\/h3>/;
 // Step A's instructions since the change of UC-001 (5260a64): the button to GitHub's prefilled page for a new key, no longer the
 // first step of editing the old one.
 const STEP_A_INSTRUCTIONS = "Open GitHub's token page (prefilled) ↗";
@@ -140,7 +140,8 @@ test("UC-001 3a: a token that reaches the private product — after Check, Step 
   assert.ok(w.seen.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${TOKEN}`), "read with the stored token");
   const a = stepA(page);
   assert.match(a, STEP_A_DONE);
-  assert.match(a, /✓ Your key already reaches alice\/thesis — nothing to do on GitHub\./);
+  // UC-001 3a: the key that already reaches the product is named — here the instance's, read with it above.
+  assert.match(a, /✓ Your instance's key already reaches alice\/thesis — nothing to do on GitHub\./);
   assert.ok(!a.includes(STEP_A_INSTRUCTIONS), "no instructions for a step that is done");
   assert.match(a, /<details class="explain"><summary>What is this\?<\/summary>/, "the step still explains itself");
   nothingWritten(w);

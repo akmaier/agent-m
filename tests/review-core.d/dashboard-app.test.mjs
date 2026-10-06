@@ -15,7 +15,9 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { parseFrontMatter, headerModules } from "../../docs/assets/artifacts.mjs";
 import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitlabAuth, gitlabApiBase } from "../../docs/assets/git-host.mjs";
-import { tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab } from "../../docs/assets/dashboard/settings-view.mjs";
+import {
+  tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab, productTokenName, productTokenDescription,
+} from "../../docs/assets/dashboard/settings-view.mjs";
 import { createKeyStep } from "../../docs/assets/dashboard/setup-view.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
 import { gitlabTokenSteps, gitlabNoProjectTokens } from "../../docs/assets/dashboard/add-product-view.mjs";
@@ -268,6 +270,28 @@ test("UC-014: setup names only the instance", () => {
 
 test("the list of the person's tokens is GitHub's page of fine-grained tokens, where a token is renewed", () => {
   assert.equal(tokenListUrl(), "https://github.com/settings/personal-access-tokens");
+});
+
+// A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT (queue 2026-10-06c). GitHub takes a name of at most 40 characters and a
+// description of at most 1024 ("Pre-filling fine-grained personal access token details using URL parameters", table
+// "Supported query parameters", read 2026-10-06). Expected: the name is Agent M and the product repository with its owner;
+// where that is longer than 40, the repository without its owner; where that is too, the repository's name cut at the end with
+// "…", 40 characters in all. The description names the product repository in full.
+test("A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT — Agent M · owner/repository, within GitHub's 40 characters", () => {
+  assert.equal(productTokenName("alice/thesis"), "Agent M · alice/thesis");
+  assert.equal(productTokenName("a-long-owner-name/a-repository-name"), "Agent M · a-repository-name", "45 characters with the owner");
+  const cut = productTokenName("alice/an-exceptionally-long-repository-name-for-a-thesis");
+  assert.equal(cut, "Agent M · an-exceptionally-long-reposit…");
+  assert.equal(cut.length, 40);
+  for (const r of ["akmaier/agent-m-test", `${"o".repeat(39)}/${"r".repeat(100)}`]) assert.ok(productTokenName(r).length <= 40, r);
+  assert.notEqual(productTokenName("alice/thesis"), "Agent M · akmaier/agent-m", "counter-proof: not the instance's name");
+});
+
+test("A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT — the description names the product repository, within GitHub's 1024 characters", () => {
+  assert.equal(productTokenDescription("alice/thesis"),
+    "Agent M for the product alice/thesis: reviews, commits, issues, pull requests and runs of the work you start in it.");
+  assert.ok(productTokenDescription(`${"o".repeat(39)}/${"r".repeat(100)}`).length <= 1024);
+  assert.doesNotMatch(productTokenDescription("alice/thesis"), /dashboard of/, "counter-proof: not the instance's description");
 });
 
 // ---------------------------------------------------------------- settings in one place (UC-042)

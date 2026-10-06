@@ -1,7 +1,9 @@
 // System test of UC-001 "Add a managed product" (ITM-208): its main flow and each alternative flow, walked through the dashboard's
 // add-product page as a person walks them, as the page calls the modules of ITM-205, ITM-206 and ITM-211 since the change between
 // jobs #105. Written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of it — neither
-// ITM-205, ITM-206, ITM-211 nor #105 —, from UC-001 as accepted; started on sprint/04 at 4e7b614, 2026-10-06.
+// ITM-205, ITM-206, ITM-211 nor #105 —, from UC-001 as accepted; started on sprint/04 at 4e7b614, 2026-10-06. Changed by tester-opus
+// (claude-opus-5-5), the Release tester, who implemented none of it, for UC-001 as drafted in 2deaa7f — Step A asks for a key of the
+// product's own, the instance's key unchanged —, on fix/product-token-prefill at ea87df2, 2026-10-06: the main flow, 1a, 3a, 3b and 4a.
 //
 // Module: MOD-repository-hosts
 // Guards: UC-001
@@ -191,10 +193,14 @@ const storage = () => Object.fromEntries(Array.from({ length: globalThis.localSt
 // The GitHub token `t` went nowhere but to GitHub's API, as its authorisation header — never in an address or a body.
 const tokenOnlyToGitHubApi = (w, t = TOKEN) => w.log.filter((r) => r.authorization?.includes(t) || r.url.includes(t) || r.body.includes(t))
   .every((r) => r.origin === API && r.authorization === `Bearer ${t}` && !r.url.includes(t) && !r.body.includes(t));
-// UC-001 step 3: the key that GitHub generates on its prefilled page, pasted into the panel to replace the instance's key.
+// UC-001 step 3: the product's own key, which GitHub generates on its prefilled page, pasted into the panel and stored for the product.
 const NEW_KEY = "github_pat_NEWKEY208x0123456789abcdefghij";
-// Today's date as YYYY-MM-DD, by the clock of the world or of this computer — UC-001 step 3: "the name carries today's date".
-const todays = () => [new Date().toISOString().slice(0, 10), new Date().toLocaleDateString("sv-SE")];
+// The date 90 days from today as YYYY-MM-DD, by the clock of the world or of this computer — UC-001 step 3: the author "confirms its
+// expiry date", preset to "the 90 days of the prefilled link" (UC-014 step 8).
+const in90Days = () => [Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()),
+  Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())].map((t) => new Date(t + 90 * 864e5).toISOString().slice(0, 10));
+// The keys this browser keeps for GitHub products, by the product's address — as it keeps the GitLab project tokens (3c).
+const productKeys = () => JSON.parse(globalThis.localStorage.getItem("agent-m.github-product-tokens") ?? "{}");
 // GitHub's page for a new fine-grained token, as a step links it: its query, or null.
 const tokenPage = (html) => {
   const x = hrefs(html).find((u) => u.startsWith("https://github.com/settings/personal-access-tokens/new?"));
@@ -218,28 +224,31 @@ async function storeNewKey(d, key = NEW_KEY) {
 
 // ------------------------------------------------------------------------------------------------ the main flow
 
-// UC-001 main flow, on GitHub, as UC-001 reads since 5260a64. Input: the address https://github.com/alice/thesis-tool. Precondition:
-// the instance's token is stored in this browser (UC-014), and the browser already lists a GitHub product, alice/other-tool, and a
-// GitLab project; the product repository exists, is public and holds only a README.md.
+// UC-001 main flow, on GitHub, as UC-001 reads as drafted in 2deaa7f. Input: the address https://github.com/alice/thesis-tool.
+// Precondition: the instance's token is stored in this browser (UC-014), and the browser already lists a GitHub product,
+// alice/other-tool, and a GitLab project; the product repository exists, is public and holds only a README.md.
 // Expected, step by step:
 // 1. the product selector offers + Add product; choosing it opens the panel on the same page;
-// 2. the pasted address is recognised as GitHub's, and GitHub's route is shown — Step A "Let your key reach the product", not
-//    GitLab's "Create a key for this project";
-// 3. Step A shows a button "Open GitHub's token page (prefilled)": GitHub's page for a new token, with its name — carrying today's
-//    date —, its description, 90 days and every permission filled in, as in UC-014; underneath, Only select repositories and the
-//    repositories to select — akmaier/agent-m, the GitHub product listed, alice/other-tool, and alice/thesis-tool, nothing else, not
-//    the GitLab project —, then Generate token and copy it; then UC-014's notice, the paste field and Store and check, which stores
-//    the pasted key in place of the old one and checks each of these repositories with it; its explanation says that the old key
-//    stays on GitHub until it expires and can be deleted there;
+// 2. the pasted address is recognised as GitHub's, and GitHub's route is shown — Step A "A key for the product", not GitLab's
+//    "Create a key for this project";
+// 3. Step A shows a button "Open GitHub's token page (prefilled)": GitHub's page for a new token with every permission filled in as
+//    in UC-014, 90 days, the product's owner, alice, as the token's owner, the name "Agent M · alice/thesis-tool" and the description
+//    "Agent M for the product alice/thesis-tool: reviews, commits, issues, pull requests and runs of the work you start in it.";
+//    underneath, Only select repositories and alice/thesis-tool alone — not the instance, not the GitHub product listed, not the
+//    GitLab project —, then Generate token and copy it; then UC-014's notice, the paste field, its expiry date and Store and check,
+//    which stores the pasted key for this product only, with the expiry date confirmed — preset to the 90 days of the link —, leaves
+//    the instance's key as it is, and checks with the product's key that it reaches the product repository, nothing else; its
+//    explanation says why the product gets a key of its own;
 // 4. Step B shows the product's line without another click: ✓, for this public repository with the word that write access is
 //    confirmed at the next step;
 // 5. Add product, one click: one commit into the product's default branch holding the missing review layout — docs/use-cases/,
 //    docs/architecture/, docs/approvals/, docs/spec-freigaben/, SPEC.md, CHANGELOG.md —, not the README.md that was there, made with
-//    the new key; the address in this browser's product list; nothing written into the instance; the commit shown as a link to its
-//    page; an offer to switch to the product.
-// Every step carries a folded "What is this?". Postcondition: the product holds the layout; this browser lists it and holds the new
-// key; the instance names no product; the new key went only to GitHub's API.
-test("UC-001 main flow — a GitHub product is added: Step A opens GitHub's prefilled token page, Store and check replaces the key, Add product writes its layout", async () => {
+//    the product's key; the address in this browser's product list; nothing written into the instance; the commit shown as a link to
+//    its page; an offer to switch to the product.
+// Every step carries a folded "What is this?". Postcondition: the product holds the layout; this browser lists it and keeps the
+// product's key for it; the instance's key is unchanged; the instance names no product; the product's key went only to GitHub's API,
+// in requests for the product.
+test("UC-001 main flow — a GitHub product is added: Step A opens GitHub's token page prefilled for the product, Store and check keeps the product's own key, Add product writes its layout", async () => {
   const product = await githubProduct();
   const other = { repo: "alice/other-tool", server: await repoServer({ repo: "alice/other-tool", files: { "README.md": "# Other tool\n" } }) };
   const w = await servers({ product, also: [other] });
@@ -258,37 +267,41 @@ test("UC-001 main flow — a GitHub product is added: Step A opens GitHub's pref
   assert.ok(explained(d.page.main().slice(d.page.main().indexOf('id="add-repo"'))), "the address field explains itself");
 
   d.type("add-repo", PRODUCT_WEB);
-  assert.match(d.steps(), /<h3>Step A · Let your key reach the product<\/h3>/, "2. GitHub's route");
+  assert.match(d.steps(), /<h3>Step A · A key for the product<\/h3>/, "2. GitHub's route");
   assert.doesNotMatch(d.steps(), /Create a key for this project/);
 
   const a = stepAOf(d);
   assert.match(a, />Open GitHub's token page \(prefilled\)/, "3. the button");
   const page = tokenPage(a);
   assert.ok(page, "3. to GitHub's page for a new token");
-  const { name, description, expires_in: days, ...permissions } = page;
-  assert.ok(name?.includes("Agent M") && todays().some((t) => name.includes(t)), `3. its name carries today's date: ${name}`);
-  assert.ok(description?.trim(), "3. its description");
+  const { name, description, target_name: owner, expires_in: days, ...permissions } = page;
+  assert.equal(name, "Agent M · alice/thesis-tool", "3. its name, built from the product repository's name");
+  assert.equal(description, "Agent M for the product alice/thesis-tool: reviews, commits, issues, pull requests and runs of the work you start in it.",
+    "3. its description, built from the product repository's name");
+  assert.equal(owner, "alice", "3. the product's owner as the token's owner");
   assert.equal(days, "90", "3. 90 days");
   assert.deepEqual(permissions, EVERY_PERMISSION, "3. every permission, as in UC-014");
   assert.match(textOf(a), /choose “Only select repositories”/, "3.1 Only select repositories");
-  assert.deepEqual(picked(a)?.sort(), [INSTANCE, other.repo, PRODUCT].sort(), "3.1 the instance, the GitHub product listed and the new one, nothing else");
+  assert.deepEqual(picked(a), [PRODUCT], "3.1 the product repository alone — not the instance, not the GitHub product listed");
   assert.ok(!textOf(a).includes(GL_PROJECT), "3.1 not the GitLab project");
   assert.match(textOf(a), /press “Generate token”/, "3.2 Generate token");
   assert.match(textOf(a), /Copy the token/, "3.2 and copy it");
   const notice = a.indexOf("github.io");
   assert.ok(notice > 0 && notice < a.indexOf('id="key-token"'), "UC-014's notice, before the paste field");
+  assert.ok(a.indexOf('id="key-expires"') > a.indexOf('id="key-token"'), "its expiry date, to confirm");
   assert.ok(a.includes("Store and check"), "and Store and check");
-  assert.match(explanationOf(a), /keeps working on GitHub until it expires/, "the old key stays on GitHub until it expires");
-  assert.match(explanationOf(a), /delete it there/, "and can be deleted there");
+  assert.match(explanationOf(a), /product gets a key of its own/i, "why the product gets a key of its own");
 
   const from = w.log.length;
   await storeNewKey(d);
-  assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), NEW_KEY, "3. stored in place of the old one");
+  assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "3. the instance's key stays as it is");
+  assert.deepEqual(Object.keys(productKeys()), [PRODUCT_WEB], "3. stored for this product only");
+  assert.equal(productKeys()[PRODUCT_WEB].token, NEW_KEY, "3. the pasted key");
+  assert.ok(in90Days().includes(productKeys()[PRODUCT_WEB].expires), `3. with its expiry date, preset to the 90 days of the link: ${productKeys()[PRODUCT_WEB].expires}`);
   const checked = textOf(d.el("key-check").innerHTML);
-  for (const r of [INSTANCE, other.repo, PRODUCT]) {
-    assert.ok(checked.includes(`✓ ${r} reachable`), `3. ${r} checked`);
-    assert.ok(w.log.slice(from).some((x) => x.url === `${API}/repos/${r}` && x.authorization === `Bearer ${NEW_KEY}`), `3. ${r} read with the new key`);
-  }
+  assert.ok(checked.includes(`✓ ${PRODUCT} reachable`), "3. it reaches the product repository");
+  assert.ok(![INSTANCE, other.repo].some((r) => checked.includes(r)), "3. nothing else is checked with it");
+  assert.ok(w.log.slice(from).some((x) => x.url === `${API}/repos/${PRODUCT}` && x.authorization === `Bearer ${NEW_KEY}`), "3. read with the product's key");
   assert.equal(textOf(d.el("add-check").innerHTML), "✓ alice/thesis-tool reachable — public, so write access is confirmed only by the first write",
     "4. Step B, without another click");
 
@@ -300,7 +313,7 @@ test("UC-001 main flow — a GitHub product is added: Step A opens GitHub's pref
   assert.ok(!written.includes("README.md"), "5. what already exists is skipped");
   const moved = w.log.find((r) => r.method === "PATCH" && r.url === `${API}/repos/${PRODUCT}/git/refs/heads/main`);
   assert.ok(moved, "5. on the default branch");
-  assert.ok(writes(w).every((r) => r.authorization === `Bearer ${NEW_KEY}`), "5. made with the new key");
+  assert.ok(writes(w).every((r) => r.authorization === `Bearer ${NEW_KEY}`), "5. made with the product's key");
   assert.ok(!w.log.slice(from).some((x) => x.origin === GL_ORIGIN), "3. the GitLab project is not checked with the GitHub key");
   assert.deepEqual(productList(), [...listed, PRODUCT_WEB], "5. the address in this browser's list");
   assert.deepEqual(w.instance.writes, [], "5. nothing written into the instance");
@@ -311,15 +324,17 @@ test("UC-001 main flow — a GitHub product is added: Step A opens GitHub's pref
     "5. an offer to switch to the new product, on this dashboard");
   assert.match(d.el("product").innerHTML, /<option value="https:\/\/github\.com\/alice\/thesis-tool"/, "the selector lists it");
   for (const s of d.steps().split('<section class="step">').slice(1)) assert.ok(explained(s), `${textOf(s).slice(0, 40)} explains itself`);
-  assert.ok(tokenOnlyToGitHubApi(w, NEW_KEY), "the new key went only to GitHub's API");
+  assert.ok(tokenOnlyToGitHubApi(w, NEW_KEY), "the product's key went only to GitHub's API");
+  assert.ok(w.log.filter((r) => r.authorization === `Bearer ${NEW_KEY}`).every((r) => r.url.startsWith(`${API}/repos/${PRODUCT}/`) || r.url === `${API}/repos/${PRODUCT}`),
+    "in requests for the product");
 });
 
 // ------------------------------------------------------------------------------------------------ the alternative flows
 
 // UC-001 1a — another browser. Input: a browser with neither a token nor a product list; the product already has its whole
 // layout. Expected: the product list is empty — the selector offers the instance and + Add product, nothing else; the product is
-// added again with + Add product, which here first asks for the key (3b), then Add product: nothing is committed, only the address
-// is listed (5b).
+// added again with + Add product, whose steps are those of the main flow (3b: its key does not depend on the instance's) — first
+// Step A, the product's own key —, then Add product: nothing is committed, only the address is listed (5b).
 test("UC-001 1a — another browser starts with an empty list; a product with its layout is added again without a commit", async () => {
   const product = await githubProduct({ files: COMPLETE_LAYOUT });
   const w = await servers({ product });
@@ -328,7 +343,7 @@ test("UC-001 1a — another browser starts with an empty list; a product with it
   assert.deepEqual(options, [`https://github.com/${INSTANCE}`, "__add"], "the instance and + Add product, nothing else");
   assert.deepEqual(productList(), []);
   await d.open(`#add/${encodeURIComponent(PRODUCT_WEB)}`);
-  assert.match(d.steps(), /Create your key on GitHub/, "no token here: the key setup first (3b)");
+  assert.match(d.steps(), /<h3>Step A · A key for the product<\/h3>/, "no key here: the product's own key first, as in the main flow (3b)");
   d.tick("key-ack");
   d.el("key-token").value = TOKEN;
   await d.click("key-store");
@@ -385,49 +400,77 @@ test("UC-001 2a after Store and check — Step B says that the repository is not
   assert.ok(explained(b), "with a folded explanation of the choices there");
 });
 
-// UC-001 3a — the token already reaches the product. Input: a private product the stored token reads. Expected: after Check, Step A
-// is shown as done; adding the product took + Add product, Check and Add product — the layout is written and the product listed,
-// with no other click.
-test("UC-001 3a — a token that already reaches the product: Step A done after Check; + Add product, Check, Add product", async () => {
-  const product = await githubProduct({ visibility: "private" });
-  const w = await servers({ product });
-  const d = await dashboard(w);
-  const sel = d.el("product");
-  sel.value = "__add";
-  sel.onchange();                                                       // + Add product
-  await d.open(globalThis.location.hash);
-  d.type("add-repo", PRODUCT_WEB);
-  await d.click("add-check-btn");                                       // Check
-  assert.match(d.stepA(), /Step A · Let your key reach the product — done/);
-  assert.doesNotMatch(d.stepA(), /Open your tokens on GitHub/, "nothing to do on GitHub");
-  await d.click("add-go");                                              // Add product
-  assert.equal(product.writes.length, 1);
-  assert.deepEqual(productList(), [PRODUCT_WEB]);
+// UC-001 3a — a key stored in this browser already reaches the product: its own, or the instance's because the author selected the
+// product in UC-014. Input: a private product, read by the instance's key; and, in another browser, by the product's own key, stored
+// there in Step A before — the author left the panel then —, beside the instance's. Expected, for each: after Check, Step A is shown
+// as done, with nothing to do on GitHub — no button to GitHub's token page —; adding the product took + Add product, Check and Add
+// product — the layout is written and the product listed, with no other click —; and Agent M read and wrote the product with that
+// key: the instance's in the first browser, the product's own in the second.
+test("UC-001 3a — a key that already reaches the product, the instance's or its own: Step A done after Check; + Add product, Check, Add product", async () => {
+  for (const own of [null, NEW_KEY]) {
+    const key = own ?? TOKEN, whose = own ? "its own key" : "the instance's key";
+    const product = await githubProduct({ visibility: "private" });
+    const w = await servers({ product });
+    const d = await dashboard(w);
+    if (own) {                                                          // its own key, stored in Step A before (UC-001 step 3)
+      await d.open();
+      d.type("add-repo", PRODUCT_WEB);
+      await storeNewKey(d, own);
+      await d.page.go("#uc");
+    }
+    const sel = d.el("product");
+    sel.value = "__add";
+    sel.onchange();                                                     // + Add product
+    await d.open(globalThis.location.hash);
+    d.type("add-repo", PRODUCT_WEB);
+    const from = w.log.length;
+    await d.click("add-check-btn");                                     // Check
+    assert.match(d.stepA(), /Step A · A key for the product — done/, `${whose}: Step A done`);
+    assert.doesNotMatch(d.stepA(), /Open GitHub's token page \(prefilled\)/, `${whose}: nothing to do on GitHub`);
+    assert.ok(w.log.slice(from).some((r) => r.url === `${API}/repos/${PRODUCT}` && r.authorization === `Bearer ${key}`), `${whose}: read with it`);
+    await d.click("add-go");                                            // Add product
+    assert.equal(product.writes.length, 1, whose);
+    assert.ok(writes(w).length > 0 && writes(w).every((r) => r.authorization === `Bearer ${key}`), `${whose}: written with it`);
+    assert.deepEqual(productList(), [PRODUCT_WEB], whose);
+  }
 });
 
-// UC-001 3b — no token is stored in this browser. Expected: the panel first shows UC-014's key setup with both repositories named —
-// GitHub's prefilled token page, Only select repositories with akmaier/agent-m and alice/thesis-tool —; once the key is stored, it
-// continues at step 4: both repositories are checked with it; then Add product writes the layout.
-test("UC-001 3b — without a token, the key setup for both repositories comes first, then the check and Add product", async () => {
+// UC-001 3b — no key is stored in this browser for the instance. Expected: the product's steps are the same as with the instance's
+// key — its key does not depend on the instance's: Step A "A key for the product", with the same button to GitHub's token page
+// prefilled for the product and alice/thesis-tool alone to select, not the instance —; Store and check stores the pasted key for this
+// product — no key for the instance appears — and checks the product repository with it, not the instance, and Step B shows the
+// product's line without another click; Add product then writes the layout with that key, and the key goes only to GitHub's API.
+test("UC-001 3b — without the instance's key, the product's steps are the same: its own key, the check and Add product", async () => {
   const product = await githubProduct();
   const w = await servers({ product });
+  const withKey = await dashboard(w);                                   // Step A in a browser with the instance's key, to compare
+  await withKey.open();
+  withKey.type("add-repo", PRODUCT_WEB);
+  const same = stepAOf(withKey);
   const d = await dashboard(w, { token: null });
   await d.open();
   d.type("add-repo", PRODUCT_WEB);
-  const setup = textOf(d.steps());
-  assert.ok(hrefs(d.steps()).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens/new?")), "the prefilled token page");
-  assert.match(setup, /Only select repositories/);
-  assert.match(setup, /“akmaier\/agent-m” and “alice\/thesis-tool”/, "both repositories named");
+  const a = stepAOf(d);
+  assert.match(a, /<h3>Step A · A key for the product<\/h3>/, "Step A, the product's own key");
+  assert.ok(tokenPage(a), "the prefilled token page");
+  assert.deepEqual(tokenPage(a), tokenPage(same), "prefilled as with the instance's key");
+  assert.match(textOf(a), /Only select repositories/);
+  assert.deepEqual(picked(a), [PRODUCT], "the product alone, not the instance");
+  assert.deepEqual(picked(a), picked(same), "as with the instance's key");
   d.tick("key-ack");
-  d.el("key-token").value = TOKEN;
+  d.el("key-token").value = NEW_KEY;
   await d.click("key-store");
+  assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), null, "no key for the instance");
+  assert.equal(productKeys()[PRODUCT_WEB]?.token, NEW_KEY, "the key, kept for this product");
   const checked = textOf(d.el("key-check").innerHTML);
-  assert.match(checked, /✓ akmaier\/agent-m reachable/);
-  assert.match(checked, /✓ alice\/thesis-tool reachable/, "continued at step 4: the product is checked");
+  assert.match(checked, /✓ alice\/thesis-tool reachable/, "the product is checked with it");
+  assert.doesNotMatch(checked, /akmaier\/agent-m/, "the instance is not");
+  assert.match(textOf(d.el("add-check").innerHTML), /^✓ alice\/thesis-tool reachable/, "Step B, without another click");
   await d.click("add-go");
   assert.equal(product.writes.length, 1);
+  assert.ok(writes(w).length > 0 && writes(w).every((r) => r.authorization === `Bearer ${NEW_KEY}`), "written with the product's key");
   assert.deepEqual(productList(), [PRODUCT_WEB]);
-  assert.ok(tokenOnlyToGitHubApi(w));
+  assert.ok(tokenOnlyToGitHubApi(w, NEW_KEY));
 });
 
 // UC-001 3c — the product is on a GitLab server. Input: the address https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool.
@@ -501,9 +544,9 @@ test("UC-001 3d — no project access tokens, or not Maintainer: the panel says 
 });
 
 // UC-001 4a — the check fails. Input: a private product that GitHub answers 404 for — it does not exist, or the key does not reach
-// it; the author follows Step A, pastes a new key and presses Store and check, then presses Check once more. Expected: each time
-// Agent M names the repository it cannot reach — in the check of Store and check, in Step B's line without another click, and at
-// Check —, and Step A is shown again: its button to GitHub's prefilled token page, alice/thesis-tool among the repositories to
+// it; the author follows Step A, pastes the product's key and presses Store and check, then presses Check once more. Expected: each
+// time Agent M names the repository it cannot reach — in the check of Store and check, in Step B's line without another click, and at
+// Check —, and Step A, a key for the product, is shown again: its button to GitHub's prefilled token page, alice/thesis-tool alone to
 // select, and its paste field; nothing is written.
 test("UC-001 4a — a failed check names the repository and shows Step A again", async () => {
   const product = await githubProduct({ missing: true });
@@ -517,9 +560,9 @@ test("UC-001 4a — a failed check names the repository and shows Step A again",
   await d.click("add-check-btn");
   assert.match(textOf(d.el("add-check").innerHTML), /^✗ alice\/thesis-tool/, "and Check");
   const a = stepAOf(d);
-  assert.match(a, /<h3>Step A · Let your key reach the product<\/h3>/, "Step A again");
+  assert.match(a, /<h3>Step A · A key for the product<\/h3>/, "Step A again");
   assert.match(a, />Open GitHub's token page \(prefilled\)/, "with its button");
-  assert.ok(picked(a)?.includes(PRODUCT), "alice/thesis-tool among the repositories to select");
+  assert.deepEqual(picked(a), [PRODUCT], "alice/thesis-tool alone to select");
   assert.match(a, /id="key-token"/, "and its paste field");
   assert.deepEqual([...product.writes, ...w.instance.writes], []);
 });
