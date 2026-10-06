@@ -8,6 +8,7 @@ follows:
 uses:
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
+  - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.commitFiles
@@ -101,10 +102,12 @@ The review layout it writes into a product, skipping whatever exists:
   only and the text goes to the clipboard, never into the link (`NO TEXT TRAVELS IN A URL`, `WITHOUT A TOKEN, GITHUB'S
   WEB INTERFACE IS THE FALLBACK`). `differs` says that the file on the default branch is no longer what the edit started
   from. A GitLab product has no fallback (`A GITLAB PRODUCT IS WRITTEN WITH A TOKEN`).
-- `reviewLayoutCommit(host: Host, person: string) -> Promise<{ commit: string, written: string[] } | { complete: true }>`
-  — writes the missing parts of the review layout into the product's default branch in one commit, under the person's
-  account, without a pull request; nothing when the layout is complete. Crosses the network. Errors: `Moved`,
-  `TokenRefused`, `PermissionMissing` (a public repository the token does not reach yet: nothing was written), `NotFound`,
+- `reviewLayoutCommit(host: Host) -> Promise<{ commit: { sha: string, url: string }, written: string[] } | { complete:
+  true }>` — writes the missing parts of the review layout into the product's default branch, which `repositoryInfo`
+  names, in one commit without a pull request, and returns the commit as `commitFiles` returns it, with the address the
+  page links it by; nothing when the layout is complete. The commit is made with the token the host was connected with,
+  so it is under the person's account; its message names no one. Crosses the network. Errors: `Moved`, `TokenRefused`,
+  `PermissionMissing` (a public repository the token does not reach yet: nothing was written), `NotFound`,
   `RateLimited`, `Unreachable`.
 - `editStrategies: Strategies` — the strategies this module offers the job runner (ARC-046):
   - recipe `items-of-kind` — the title and identifier of every item of the kind the job's parameters name, with the
