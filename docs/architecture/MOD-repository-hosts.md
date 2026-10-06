@@ -100,8 +100,8 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `Snapshot` — `{ repository: RepositoryAddress, ref: string, commit: string | null, paths: string[], read(path: string) ->
   Promise<string | null>, blob(path: string) -> string | null }`: one repository at one commit; `read` fetches a file's
   text once and returns `null` for a path the commit does not hold; `blob` gives its blob SHA from the tree, without a
-  request. A repository without any commit yet — an empty one — is a snapshot whose `commit` is `null` and which holds no
-  path.
+  request. On GitHub, a repository without any commit yet — an empty one — is a snapshot whose `commit` is `null` and
+  which holds no path.
 - `HistoryEntry` — `{ commit: string, parents: string[], author: { account: string | null, name: string }, date: string,
   message: string, changes: { path: string, change: "added" | "modified" | "deleted" | "renamed", from?: string }[] }`.
 - `FileWrite` — `{ path: string, text?: string, bytes?: Uint8Array, delete?: true }`: one file of a commit.
