@@ -349,6 +349,8 @@ function viewSettings(app) {
         <p><a class="btn" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
         <ol class="choices">${repositoryChoiceSteps(T.instance, null).map((x) => `<li>${h(x)}</li>`).join("")}</ol>
         <details class="explain"><summary>What is this?</summary><pre class="guidance">${h(TOKEN_GUIDANCE)}</pre></details>
+        <p class="notice">${h(sharedOriginNotice(owner))}</p>
+        <p><label><input type="checkbox" id="token-ack"> I have read this.</label></p>
         <p><input type="password" id="token-input" autocomplete="off" spellcheck="false" disabled
           placeholder="github_pat_…" aria-label="GitHub token"></p>
         <p><label>Expires on <input type="date" id="token-expires" value="${h(defaultExpiry())}" disabled></label>
@@ -423,7 +425,7 @@ export function renderBrowserSettings(app) {
   }));
   box.querySelectorAll('[data-change="agent-m.github-token"]').forEach((b) => b.addEventListener("click", () => {
     document.getElementById("token-change").hidden = false;
-    document.getElementById("ack").focus();
+    document.getElementById("token-ack").focus();
   }));
   box.querySelector(`[data-test="agent-m.github-token"]`)?.addEventListener("click", async () => {
     say("agent-m.github-token", `Reading ${T.instance}…`);
@@ -646,9 +648,15 @@ function wireSettings(app) {
   const ack = document.getElementById("ack"), input = document.getElementById("token-input");
   const expires = document.getElementById("token-expires"), save = document.getElementById("token-save");
   const msg = document.getElementById("token-msg"), importGo = document.getElementById("import-go");
-  ack.addEventListener("change", () => {
+  // One decision, shown twice: the notice at the top of the page, and the same notice at the token form, where a phone
+  // shows it beside the paste field. Ticking either ticks both.
+  const tokenAck = document.getElementById("token-ack");
+  const onAck = (from) => {
+    ack.checked = tokenAck.checked = from.checked;
     input.disabled = expires.disabled = save.disabled = importGo.disabled = !canStore(ack.checked);
-  });
+  };
+  ack.addEventListener("change", () => onAck(ack));
+  tokenAck.addEventListener("change", () => onAck(tokenAck));
   save.addEventListener("click", () => {
     const v = input.value.trim(), exp = expires.value;
     if (!canStore(ack.checked) || !v) return;
