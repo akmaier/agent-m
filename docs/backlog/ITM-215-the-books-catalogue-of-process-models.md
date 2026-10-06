@@ -39,6 +39,9 @@ The item builds the module's file as it is accepted when the item starts. UC-002
 risk it manages well, the risk it accepts and an example project it suits. Those are not part of this item, whatever
 the module's file says of them by then; an item of their own brings them.
 
+The item starts once MOD-documents' `documentFindings` is built. That item follows akmaier's decision on MOD-documents'
+two changes (ITM-213), and `modelFindings` takes the checks a schema expresses from it.
+
 ## Acceptance
 
 - Unit tests that name MOD-model-catalogue state, before the code exists:

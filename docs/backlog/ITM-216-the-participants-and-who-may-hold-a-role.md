@@ -29,6 +29,9 @@ MOD-participant-list's interface, as its file states it, for UC-002: `Participan
 `Eligibility`, `participantSchema` and `eligible`, in `src/participant-list/`, read from the instance's register
 `docs/participants.md`. `differs` is not part of this item.
 
+The item starts once MOD-documents' `documentFindings` is built. That item follows akmaier's decision on MOD-documents'
+two changes (ITM-213), and the register's entries are named as errors through it.
+
 ## Acceptance
 
 - Unit tests that name MOD-participant-list state, before the code exists, the instance's register read into participants with their type, capabilities, processing place and model; an
