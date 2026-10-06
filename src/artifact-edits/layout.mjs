@@ -1,8 +1,8 @@
 // The review layout of a new product — ADDING A PRODUCT CREATES ITS LAYOUT · ONE REVIEW LAYOUT FOR EVERY PRODUCT (UC-001 step 5,
 // 5a, 5b). Part of MOD-artifact-edits (docs/architecture/MOD-artifact-edits.md): the parts of the layout that the product's
 // default branch lacks, written in one commit through the host the caller connected with the person's token, on the head
-// that was read, without a pull request; nothing when the layout is complete. A refused read or write is the host's failure,
-// passed on as the host names it; nothing is written then.
+// that was read, without a pull request, and the commit returned with its address; nothing when the layout is complete. A
+// refused read or write is the host's failure, passed on as the host names it; nothing is written then.
 //
 // Module: MOD-artifact-edits
 //
@@ -41,18 +41,21 @@ function missingParts(paths, product) {
   ];
 }
 
-// reviewLayoutCommit(host: Host, person: string) -> Promise<{ commit: string, written: string[] } | { complete: true }> —
-// reads the default branch the host names, and commits the parts it lacks there in one commit on the head it read; the
-// product is named in the texts by its repository's path. Crosses the network, through the host. Fails with the host's
-// failures, unchanged: Moved (the branch moved after it was read), TokenRefused, PermissionMissing (a public repository the
-// token does not reach yet), NotFound, RateLimited, Unreachable — nothing is written then.
-export async function reviewLayoutCommit(host, person) {
+// reviewLayoutCommit(host: Host) -> Promise<{ commit: { sha: string, url: string }, written: string[] } | { complete: true }>
+// — reads the default branch that the host's repositoryInfo names, and commits the parts it lacks there in one commit on the
+// head it read, and returns that commit as the host's commitFiles returns it — its sha and the address of its page, which
+// UC-001 step 5 links — with the parts written. The commit is made with the token the host was connected with, so it is
+// under the person's account; its message names no one. The product is named in the texts by its repository's path.
+// Crosses the network, through the host. Fails with the host's failures, unchanged: Moved (the branch moved after it was
+// read), TokenRefused, PermissionMissing (a public repository the token does not reach yet), NotFound, RateLimited,
+// Unreachable — nothing is written then.
+export async function reviewLayoutCommit(host) {
   const { defaultBranch } = await host.repositoryInfo();
   const head = await host.readSnapshot(defaultBranch);
   const files = missingParts(head.paths, head.repository.path);
   if (!files.length) return { complete: true };
   const written = files.map((f) => f.path);
-  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head.commit, files,
-    message: `Add the Agent M review layout\n\nAdded by ${person}: ${written.join(", ")}.` });
-  return { commit, written };
+  const { commit, url } = await host.commitFiles({ branch: defaultBranch, expectedHead: head.commit, files,
+    message: `Add the Agent M review layout\n\nThe parts the default branch lacked: ${written.join(", ")}.` });
+  return { commit: { sha: commit, url }, written };
 }
