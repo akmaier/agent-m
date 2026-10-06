@@ -19,6 +19,8 @@ import {
 import { gitBlobSha, recordText, useCaseRecord, approvalPath, specRecord } from "../docs/assets/review-core.mjs";
 import { exportSettings } from "../docs/assets/settings-store.mjs";
 import { B_SPEC, B_P05, B_P06, B_INDEX, QD, GL, GL_ADDR, GL_TOKEN, fakeGitLab } from "./review-core.d/helpers.mjs";
+import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
+import { reviewLayoutCommit } from "../src/artifact-edits/index.mjs";
 
 const TRUSTED = { isTrusted: true }, SCRIPTED = { isTrusted: false };
 const API = "https://api.github.com";
@@ -501,6 +503,19 @@ async function withProduct(files, { refuse = false, missing = false } = {}) {
 }
 const addHash = (address) => `#add/${encodeURIComponent(address)}`;
 
+// The whole review layout, as MOD-artifact-edits knows it: the parts reviewLayoutCommit writes into a product that has none of
+// it — an empty product behind this file's GitHub fake, reached through MOD-repository-hosts.
+async function layoutParts() {
+  const empty = await repoServer({ repo: PRODUCT, files: { "README.md": "# Thesis\n" } });
+  const real = globalThis.fetch;
+  globalThis.fetch = empty.fetch;
+  try {
+    return (await reviewLayoutCommit(connect(parseAddress(PRODUCT_ADDR), { token: TOKEN }))).written;
+  } finally {
+    globalThis.fetch = real;
+  }
+}
+
 test("UC-001 main flow: Step A names the token, the product and the instance; Check reads the product; one trusted click on Add product writes only the missing layout into the product and keeps its address in this browser", async () => {
   const { srv, ps } = await withProduct({ "README.md": "# Thesis\n", "SPEC.md": "# Thesis — its own SPEC\n", "docs/use-cases/UC-001-x.md": "x\n" });
   const page = await openDashboard({ server: srv, hash: "" });
@@ -542,9 +557,19 @@ test("UC-001 counter-proof: a click a script makes on Add product writes nothing
   assert.equal(stored("agent-m.products"), null);
 });
 
-// UC-001 5b, a product that already has the whole layout, was a case here on the old layout's list of files; it went with that
-// list between the jobs of sprint 04. The layout is MOD-artifact-edits' now: tests/artifact-edits.test.mjs ("a product with the
-// complete layout gets no commit") and tests/release-sprint-01-dashboard-app.test.mjs ("release · UC-001 5b").
+test("UC-001 5b: a product that already has the whole layout gets no commit — only its address is kept in this browser", async () => {
+  // The whole layout is MOD-artifact-edits' since the jobs of sprint 04 (layoutParts), no longer the old layout's list.
+  const files = Object.fromEntries((await layoutParts()).map((p) => [p, `# ${p}\n`]));
+  const { srv, ps } = await withProduct(files);
+  const page = await openDashboard({ server: srv, hash: "" });
+  const dom = richDocument();
+  await page.go(addHash(PRODUCT_ADDR));
+  const made = await press(srv, dom.byId("add-go"));
+  assert.deepEqual(writesOf(made), []);
+  assert.deepEqual(ps.writes, []);
+  assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]));
+  assert.match(dom.byId("add-result").innerHTML, /^Done — nothing was missing in the product; https:\/\/github\.com\/alice\/thesis is now in this browser's product list\./);
+});
 
 test("UC-001 a product without any layout gets all of it in one commit", async () => {
   const { srv, ps } = await withProduct({ "README.md": "# Thesis\n" });
