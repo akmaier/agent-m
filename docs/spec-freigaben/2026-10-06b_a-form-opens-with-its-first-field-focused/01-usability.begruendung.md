@@ -1,6 +1,7 @@
 # 16. Usability: a form opens with its first field focused
 
-**The change.** A new section `16. Usability` follows §15 and holds `A FORM OPENS WITH ITS FIRST FIELD FOCUSED`. §15 is
+**The change.** A new section `16. Usability` follows §15 and holds `ONE CLICK PER DECISION`, moved from §10 by entry 02, and `A FORM OPENS WITH ITS FIRST FIELD
+FOCUSED`, new. §15 is
 carried over byte for byte; the entry is anchored on it because §16 does not exist yet. PO, 2026-10-06: "The spec
 location „review on github pages" is not correct. This is a general usability feature."
 

@@ -106,6 +106,11 @@ list has no effect on the other.
 *Check:* `tests/test_resources.py`
 ## 16. Usability
 
+**ONE CLICK PER DECISION** *(PO A. Maier)*
+A decision a person makes on the dashboard — accept, save, add a product, release — takes one click
+once its inputs are complete, and everything that follows from it is done by Agent M.
+*Check:* no automatic check; at review of each use case.
+
 **A FORM OPENS WITH ITS FIRST FIELD FOCUSED** *(PO A. Maier)*
 When a person's action opens or shows a form on the dashboard, the input focus moves to the first field of that form that
 is open for the person's input — a box to tick or a field to fill in.
