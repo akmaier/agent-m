@@ -12,10 +12,8 @@
 // single document. Nothing else is read here, and nothing is written. It uses MOD-documents only through its index.mjs.
 // Every other file of this folder is private to the module.
 
+// Schema and Document, in the types below, are MOD-documents' types of those names.
 import { loadSchema } from "../documents/index.mjs";
-
-/** @typedef {import("../documents/index.mjs").Schema} Schema */
-/** @typedef {import("../documents/index.mjs").Document} Document */
 
 const OWNER = "MOD-source-register";
 const ENTRY_FILE = new URL("./source.schema.md", import.meta.url);
