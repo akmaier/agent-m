@@ -6,7 +6,6 @@ realises:
   - UC-002
   - A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
   - A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
-  - AN EDITED FILE KEEPS ITS IDENTIFIER
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 modules:
   - MOD-artifact-edits
@@ -24,13 +23,16 @@ origin:
 ## Outcome
 
 MOD-artifact-edits' `saveFile`, as its file states it, in `src/artifact-edits/` beside `reviewLayoutCommit`: one
-file a person edited, saved in one commit on the default branch only on the blob it was opened on, with the refusals the
-file names. `docs/assets/dashboard/writes.mjs` is the model where it does the same.
+file a person edited, saved in one commit on the default branch only on the blob it was opened on, refused with the newer
+text when the file changed meanwhile. `docs/assets/dashboard/writes.mjs` is the model where it does the same.
+
+The refusal of a file whose identifier changed is not part of this item: UC-002 saves `docs/process.md`, which has no
+identifier, and the check needs MOD-identifiers' `kindOfIdentifier`, which no item builds.
 
 ## Acceptance
 
-- Unit tests that name MOD-artifact-edits state, before the code exists, with a repository server replaced by a fixture: a save on the blob that was opened, in one commit; a refusal,
-with nothing written, when the file changed meanwhile, with the current text; and a refusal when the identifier changed.
+- Unit tests that name MOD-artifact-edits state, before the code exists, with a repository server replaced by a fixture: a save on the blob that was opened, in one commit; and a
+refusal, with nothing written, when the file changed meanwhile, with the current text.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests stay green, with no expected result changed.

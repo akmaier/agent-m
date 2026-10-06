@@ -30,6 +30,10 @@ of UC-002 in `explanations.md`, in `src/site-frame/`, with `stepHtml` of `docs/a
 an explanation. The header, the menu, the product selector and the other functions of the frame are not part of this
 item.
 
+`explain` reads `explanations.md` once, through the one `ownFile` fetch that `tests/test_no_backend.py` allows in
+`src/site-frame/` once a change between jobs lists the folder: MOD-site-frame's file states that it reads its own file. A
+section of a form is edited in MOD-markdown-render's `openEditor` (ITM-220).
+
 ## Acceptance
 
 - Unit tests that name MOD-site-frame state, before the code exists, a form built from a fixture schema with a field for each part of a document; a finding shown beside its field;
