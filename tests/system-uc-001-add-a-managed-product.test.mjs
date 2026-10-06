@@ -371,10 +371,7 @@ test("UC-001 2a — a repository that does not exist is named, GitHub's page for
 // address of a repository GitHub answers 404 for; the author follows Step A, pastes a new key and presses Store and check. Expected:
 // Step B, without another click, names the repository, says that it is not there, and links GitHub's page for a new repository with
 // a folded explanation of the choices there — as 2a says, and as Check answers.
-// FINDING U1: after Store and check Step B shows only "✗ alice/thesis-tool: 404 — https://api.github.com/repos/alice/thesis-tool";
-// 2a's answer comes only with Check or Add product.
-test("UC-001 2a after Store and check — Step B says that the repository is not there and links GitHub's page for a new one, without another click",
-  { todo: "FINDING U1 — after Store and check, Step B shows only “✗ <repository>: 404 — <API address>”: it does not say that the repository is not there, nor link GitHub's page for a new repository; only Check and Add product do (backlog item to be added by the Product Owner)" }, async () => {
+test("UC-001 2a after Store and check — Step B says that the repository is not there and links GitHub's page for a new one, without another click", async () => {
   const product = await githubProduct({ missing: true });
   const w = await servers({ product });
   const d = await dashboard(w);
