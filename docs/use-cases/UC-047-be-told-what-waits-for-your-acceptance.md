@@ -42,7 +42,7 @@ acceptance as soon as it does, without looking for it — and one click takes th
    minutes what waits for the person's acceptance in the instance and in each product this browser keeps: open SPEC change
    entries, open use cases, open architecture files — decisions and modules —, and every release test report that waits for
    **Accept and release** because its release candidate's complete run has ended (UC-013). It derives them as the main page
-   derives what waits (UC-046, step 5), from the files and the records, and with the token of each.
+   derives what waits (UC-046, step 5), from the files, the records and the tags, and with the token of each.
 3. For each of them that has come to wait since the last check, the browser shows a notification that names it and where it
    is — *UC-047 waits for your acceptance · akmaier/agent-m* —; a click on it opens the page where it is accepted: its review
    page, for the product it is in or for the instance itself, which the product selector offers beside the products; for a
