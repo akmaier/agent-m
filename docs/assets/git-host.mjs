@@ -518,8 +518,10 @@ const resetDate = (v) => (Number(v) > 0 ? new Date(Number(v) * 1000) : null);
 // and exposes no rate-limit header to pages (measured 2026-10-01), so a GitLab product's limit comes back without a time —
 // with one only where its server lets the page read RateLimit-Remaining and RateLimit-Reset. Whose limit it is, where no
 // header says: the account's when the request carried a token, else the network's.
-// product: the GitLab product the request went to; none for GitHub.
+// product: the GitLab product the request went to; none for GitHub. A failure of MOD-repository-hosts carries no status: it
+// names a used-up limit RateLimited, with the limit and when it resets.
 export function usedUpLimit(e, product = null) {
+  if (e?.name === "RateLimited") return { limit: e.limit, resetsAt: e.resetsAt ?? null };
   const status = e?.status;
   if (status !== 403 && status !== 429) return null;
   const whose = e.authenticated === false ? "network" : "account";
@@ -538,9 +540,10 @@ export function usedUpLimit(e, product = null) {
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: GitHub and GitLab answer 401 to a token they no longer accept
 // (expired, regenerated, rotated, revoked or deleted). 403 and 404 are a missing permission or repository, not this — nor is a
 // used-up rate limit (403 or 429, usedUpLimit), which a caller names before it asks this.
-// product: the GitLab product whose token was used; none for the GitHub token.
+// product: the GitLab product whose token was used; none for the GitHub token. A failure of MOD-repository-hosts carries no
+// status: it names a refused token TokenRefused.
 export function tokenRefusal(e, product = null) {
-  const status = e?.status ?? Number((/(?:^|: )(\d{3})\b/.exec(e?.message || "") || [])[1]);
+  const status = e?.name === "TokenRefused" ? 401 : e?.status ?? Number((/(?:^|: )(\d{3})\b/.exec(e?.message || "") || [])[1]);
   if (status !== 401) return null;
   const id = tokenIdentity(product);
   return { token: id.token, renewUrl: id.renewUrl, renew: id.renew,

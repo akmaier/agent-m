@@ -4,7 +4,7 @@
 // (GitHub or a GitLab server), that adds an approval record; the record names the exact text by its git
 // blob SHA; status is derived from the records, never stored. This module never reads and never writes (ARC-003 decisions
 // 1 and 2): what it reads is handed to it as a port (lastAccepted's committedAt and read, readByBlob's read, planAcceptance's
-// read), and it returns the files of a commit (planAcceptance, missingLayout), which the dashboard commits on a person's click
+// read), and it returns the files of a commit (planAcceptance), which the dashboard commits on a person's click
 // (docs/assets/dashboard/writes.mjs). The requests themselves are made in git-host.mjs, whose reads the dashboard hands in
 // (docs/assets/dashboard/reads.mjs). The SPEC-section logic mirrors tools/apply_approvals.py (the workflow side);
 // tests/review-core.test.mjs checks that both hash the same bytes.
@@ -533,6 +533,8 @@ export async function planAcceptance({ items, read, now = new Date() }) {
 
 // ---------------------------------------------------------------- adding a product (UC-001)
 
+// The layout *Add product* wrote before MOD-artifact-edits did (reviewLayoutCommit, docs/assets/dashboard/writes.mjs addProduct).
+// The dashboard calls it no more; tests/test_self_sufficient.py makes its fixture product with it.
 export function missingLayout(existingPaths, product) {
   const have = new Set(existingPaths);
   const hasPrefix = (p) => existingPaths.some((x) => x.startsWith(p));

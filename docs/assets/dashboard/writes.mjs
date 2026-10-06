@@ -1,20 +1,22 @@
 // Writes — the dashboard's five commits: saving an edit, accepting, adding a product, the pseudonymisation setting and the
 // collaborators (SPEC §9, §10, §14; UC-001, UC-006, UC-008, UC-042). Each is the direct result of a person's click on the
-// button that names it, and goes through the git host's one write path with that person's token (ARC-003 decision 3). The
-// kernel computes what they write (review-core.mjs planAcceptance, missingNeeds, missingLayout; pseudonymiser.mjs
-// setProductSetting, formatCollaborators); this file commits it.
+// button that names it, made with that person's token. Four go through the git host's one write path (ARC-003 decision 3), and
+// the kernel computes what they write (review-core.mjs planAcceptance, missingNeeds; pseudonymiser.mjs setProductSetting,
+// formatCollaborators); this file commits it. Adding a product is MOD-artifact-edits' reviewLayoutCommit, through
+// MOD-repository-hosts' host (addProduct).
 //
 // Module: MOD-dashboard-app
 //
 // Moved out of docs/assets/review-core.mjs (ITM-124). Since ITM-008 the click handler of the button that names a write makes
-// the authority (clickAuthority), and each write hands it to the write path, which refuses a write without one.
+// the authority (clickAuthority), and each write hands it to the write path, which refuses a write without one; addProduct,
+// whose host takes no authority, checks it itself with the write path's check (requireAuthority).
 
-import {
-  parseProductAddress, isGitLab, commitFiles, repositoryInfo, readSnapshot, commitFilesGitLab, writeFiles,
-} from "../git-host.mjs";
+import { writeFiles, requireAuthority } from "../git-host.mjs";
 import { identifierKept, parseFrontMatter } from "../artifacts.mjs";
-import { missingNeeds, planAcceptance, missingLayout } from "../review-core.mjs";
+import { missingNeeds, planAcceptance } from "../review-core.mjs";
 import { PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH, setProductSetting, formatCollaborators } from "../pseudonymiser.mjs";
+import { parseAddress, connect } from "../../../src/repository-hosts/index.mjs";
+import { reviewLayoutCommit } from "../../../src/artifact-edits/index.mjs";
 
 // THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: the one place in the browser where a person's click becomes the authority to
 // write (ARC-003 decision 3), and only from an event the browser marks as trusted — `isTrusted` is set by the browser for real
@@ -85,39 +87,29 @@ export async function acceptItems({ repo, product = null, branch, token, authori
 
 // ---------------------------------------------------------------- adding a product (UC-001)
 
-// UC-001 Step C, one click: read the product repository, write only its missing layout into its default
-// branch, then add its address to the list in this browser. Nothing is written into the instance
-// repository (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY). A refused write adds nothing to the list.
-// store: the browser store of settings-store.mjs. -> { commit: { sha, url } | null, product }
-// For a GitLab product, `token` is its project token, and the product's server is the only one contacted. authority: the one
-// the click on *Add product* made; without it the write path refuses the layout's commit, and the address is not stored.
+// UC-001 Step C, one click: MOD-artifact-edits' reviewLayoutCommit writes the missing review layout into the product's default
+// branch, in one commit without a pull request — nothing when the layout is complete —, through the host MOD-repository-hosts
+// connects to the product's address with `token`; then the address is added to the list in this browser. Nothing is written
+// into the instance repository (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY). A refused read or write is the host's failure
+// (MOD-repository-hosts' HostError), passed on, and adds nothing to the list. token: on GitHub the instance's token, on a
+// GitLab server the product's own project token; the host sends each only to the server that issued it. A GitLab product
+// without its token, or without a branch yet, is refused before anything is written, as before. authority: the one the click
+// on *Add product* made — the host takes none, so it is checked here, before anything is read; without it nothing is read,
+// written or stored. store: the browser store of settings-store.mjs.
+// -> { commit: { sha, url }, written, product } | { complete: true, product }: what reviewLayoutCommit answers, and the
+// product's address.
 export async function addProduct({ address, token, authority, store }) {
-  const product = parseProductAddress(address);
-  if (product.error) throw new Error(product.error);
-  if (isGitLab(product)) {
-    if (!token) throw new Error("A GitLab product is written with its project token — store it in Step B first.");
-    const info = await repositoryInfo({ product, token });
-    if (!info.defaultBranch) throw new Error(`${product.address} has no branch yet — push a first commit to it, then add it here.`);
-    const snap = await readSnapshot({ product, ref: info.defaultBranch, token });
-    const files = missingLayout(snap.tree.map((e) => e.path), product.repo);
-    const commit = files.length
-      ? await commitFilesGitLab({ product, branch: info.defaultBranch, token, authority, files,
-        message: "Add the Agent M review layout (Agent M dashboard)" })
-      : null;
-    store.addProduct(product.address);
-    return { commit, product };
+  requireAuthority(authority);
+  const product = parseAddress(address);
+  const gitlab = product.server === "gitlab";
+  if (gitlab && !token) throw new Error("A GitLab product is written with its project token — store it in Step B first.");
+  const host = connect(product, { token });
+  if (gitlab && !(await host.repositoryInfo()).defaultBranch) {
+    throw new Error(`${product.web} has no branch yet — push a first commit to it, then add it here.`);
   }
-  const info = await repositoryInfo({ product, token });
-  // The paths of the default branch, through the read MOD-git-host provides: the branch resolved to one commit, then that
-  // commit's tree — one request more than the tree by the branch's name, on the one click of UC-001 step 5 (ITM-130).
-  const snap = await readSnapshot({ product, ref: info.defaultBranch, token });
-  const files = missingLayout(snap.tree.map((e) => e.path), product.repo);
-  const commit = files.length
-    ? await commitFiles({ repo: product.repo, branch: info.defaultBranch, token, authority, files,
-      message: "Add the Agent M review layout (Agent M dashboard)" })
-    : null;
-  store.addProduct(product.address);
-  return { commit, product };
+  const layout = await reviewLayoutCommit(host);
+  store.addProduct(product.web);
+  return { ...layout, product };
 }
 
 // ---------------------------------------------------------------- product settings (UC-042 4–5, SPEC §14)
