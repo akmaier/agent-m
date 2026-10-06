@@ -616,6 +616,29 @@ test("UC-001 5 — all files of a change in one commit on the head that was read
   assert.equal(racing.made(), 0, "nothing was written");
 });
 
+// UC-001 5 · GITLAB PRODUCTS ARE SUPPORTED — Expected: when a commit that touches none of the change's files lands on the branch
+// while commitFiles reads those files — after it checked the head, before it writes —, commitFiles fails with Moved, naming the
+// newer head; no write is sent, and the branch keeps that head. GitLab itself would write the change on top of that commit, for
+// none of the change's files changed: only reading the head again just before the write finds it.
+test("UC-001 5 — GitLab: a commit that lands while the change's files are read, touching none of them, is Moved, and nothing is written", async () => {
+  let armed = false, checked = false, late = null;
+  const gl = fakeGitLab({ before: (q, s) => {
+    if (!armed || late) return;
+    if (q.method === "GET" && q.path.endsWith("/repository/branches/main")) checked = true;
+    else if (checked && q.path.includes("/repository/files/")) late = s.push({ "README.md": "changed while the files were read\n" });
+  } });
+  const host = connect(GITLAB, { token: GL_TOKEN });
+  const snap = await using(gl.fetch, () => host.readSnapshot("main"));
+  armed = true;
+  const e = await using(gl.fetch, () => failure(host.commitFiles({ branch: "main", expectedHead: snap.commit, files: CHANGE, message: MESSAGE })));
+  assert.ok(late, "known positive: a commit landed after the head was checked, while the change's files were read");
+  assert.ok(!CHANGE.some((f) => f.path === "README.md"), "the commit that landed touches none of the change's files");
+  assert.deepEqual([e instanceof HostError, e?.name, e?.head], [true, "Moved", late]);
+  assert.deepEqual(gl.requests.filter((q) => q.method === "POST").map((q) => q.path), [], "no write is sent");
+  assert.equal(gl.made(), 0, "nothing was written");
+  assert.equal(gl.head(), late, "the branch keeps the newer head");
+});
+
 // ---------------------------------------------------------------- the token pages UC-001 opens
 
 // THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE · THE REPOSITORY CHOICE IS SPELLED OUT · A GITLAB PRODUCT
