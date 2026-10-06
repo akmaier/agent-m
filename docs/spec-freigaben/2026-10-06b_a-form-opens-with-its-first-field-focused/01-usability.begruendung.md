@@ -1,7 +1,9 @@
-# 10. Review on GitHub Pages: a form opens with its first field focused
+# 16. Usability: a form opens with its first field focused
 
-**The change.** `A FORM OPENS WITH ITS FIRST FIELD FOCUSED` is added after `EVERY STEP EXPLAINS ITSELF`. Every other
-requirement of the section is carried over byte for byte.
+**The change.** A new section `16. Usability` follows §15 and holds `A FORM OPENS WITH ITS FIRST FIELD FOCUSED`. §15 is
+carried over byte for byte; the entry is anchored on it because §16 does not exist yet. PO, 2026-10-06: "The spec
+location „review on github pages" is not correct. This is a general usability feature."
+
 
 **Why.** PO decision, 2026-10-06, after storing a token on the settings page on a phone: "When I click „store a token"
 I want the focusing to jump to the first input field where I can enter this information. I think this should be part of
