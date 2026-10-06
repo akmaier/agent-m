@@ -50,9 +50,9 @@ const REPUBLISHABLE = /^may be republished(?![\p{L}\p{N}_])/u;
  * permittedPlaces(entry: Document) -> string[] | "any" — the places a source's content may be given to: "any" for content
  * that may be republished, whose licence's class is `may be republished`, whatever places its entry names; otherwise its
  * declared places, the items of its front matter list `places` in their order; none, an empty list, when it declares none.
- * A licence of class `unknown`, or of no class the module file names, counts as restricted, and so does content whose
- * `places` is written as one line instead of a list: that declares no place. Whether a participant's place is among them is
- * not decided here, but by MOD-participant-list's eligible and MOD-product-process' declarationFindings.
+ * A licence of class `unknown`, or of no class the module file names, counts as restricted. A `places` written as one line
+ * instead of a list declares no place. Whether a participant's place is among them is not decided here, but by
+ * MOD-participant-list's eligible and MOD-product-process' declarationFindings.
  * @param {Document} entry — a register entry, as readDocument returns it with the schema sourceSchemas gives
  * @returns {string[] | "any"}
  */
