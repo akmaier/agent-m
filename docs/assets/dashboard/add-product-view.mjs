@@ -183,6 +183,8 @@ async function viewAddProduct(app, preset = "") {
     </section>
     <div id="add-steps"></div>`;
   const input = document.getElementById("add-repo");
+  // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: the product repository's address.
+  input.focus();
   const steps = document.getElementById("add-steps");
   const render = () => {
     const parsed = parseProductAddress(input.value);
