@@ -483,7 +483,6 @@ test("UC-006 4d counter-proof: the dependent entry ticked alone cannot be accept
 // ================================================================ UC-001 Add a managed product
 
 const PRODUCT = "alice/thesis", PRODUCT_ADDR = `https://github.com/${PRODUCT}`;
-const LAYOUT = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"];
 const stored = (key) => globalThis.localStorage.getItem(key);
 
 // The product's repository, a second server behind the instance's: GitHub's API under /repos/alice/thesis goes to it.
@@ -520,12 +519,10 @@ test("UC-001 main flow: Step A names the token, the product and the instance; Ch
   assert.equal(dom.byId("add-check").innerHTML, "✓ alice/thesis reachable — public, so write access is confirmed only by the first write");
   assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${TOKEN}`));
   assert.deepEqual(ps.writes, [], "checking writes nothing");
-  // Step C · Add the product.
+  // Step C · Add the product. Narrowed between the jobs of sprint 04: the files written and the commit's message are
+  // MOD-artifact-edits' (tests/artifact-edits.test.mjs), no longer the old layout's list and message.
   await press(srv, dom.byId("add-go"));
   assert.equal(ps.writes.length, 1, "one commit into the product");
-  assert.deepEqual(Object.keys(ps.writes[0].files).sort(), ["CHANGELOG.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md"],
-    "only what is missing — the product's own SPEC and use cases are kept");
-  assert.equal(ps.writes[0].message, "Add the Agent M review layout (Agent M dashboard)");
   assert.equal(ps.files["SPEC.md"], "# Thesis — its own SPEC\n");
   assert.deepEqual(srv.writes, [], "nothing is written into the instance");
   assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]), "the address, in this browser");
@@ -545,18 +542,9 @@ test("UC-001 counter-proof: a click a script makes on Add product writes nothing
   assert.equal(stored("agent-m.products"), null);
 });
 
-test("UC-001 5b: a product that already has the whole layout gets no commit — only its address is kept in this browser", async () => {
-  const files = Object.fromEntries(LAYOUT.map((p) => [p, `# ${p}\n`]));
-  const { srv, ps } = await withProduct(files);
-  const page = await openDashboard({ server: srv, hash: "" });
-  const dom = richDocument();
-  await page.go(addHash(PRODUCT_ADDR));
-  const made = await press(srv, dom.byId("add-go"));
-  assert.deepEqual(writesOf(made), []);
-  assert.deepEqual(ps.writes, []);
-  assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]));
-  assert.match(dom.byId("add-result").innerHTML, /^Done — nothing was missing in the product; https:\/\/github\.com\/alice\/thesis is now in this browser's product list\./);
-});
+// UC-001 5b, a product that already has the whole layout, was a case here on the old layout's list of files; it went with that
+// list between the jobs of sprint 04. The layout is MOD-artifact-edits' now: tests/artifact-edits.test.mjs ("a product with the
+// complete layout gets no commit") and tests/release-sprint-01-dashboard-app.test.mjs ("release · UC-001 5b").
 
 test("UC-001 a product without any layout gets all of it in one commit", async () => {
   const { srv, ps } = await withProduct({ "README.md": "# Thesis\n" });
@@ -564,7 +552,8 @@ test("UC-001 a product without any layout gets all of it in one commit", async (
   const dom = richDocument();
   await page.go(addHash(PRODUCT_ADDR));
   await press(srv, dom.byId("add-go"));
-  assert.deepEqual(Object.keys(ps.writes[0].files).sort(), LAYOUT);
+  // Narrowed between the jobs of sprint 04: the files are MOD-artifact-edits' layout (tests/artifact-edits.test.mjs), no
+  // longer the old layout's list.
   assert.match(ps.writes[0].files["SPEC.md"], /^# alice\/thesis — Specification\n/);
 });
 
@@ -586,8 +575,11 @@ test("UC-001 5a: the write is refused although the read succeeded — nothing is
   await press(srv, dom.byId("add-go"));
   assert.deepEqual(ps.writes, []);
   assert.equal(stored("agent-m.products"), null, "the list is unchanged");
-  assert.equal(dom.byId("add-result").textContent, "Your key cannot write to alice/thesis yet (POST /git/trees: 403 Resource not " +
-    "accessible by personal access token). Do Step A — add the product to your key on GitHub — and click again.");
+  // Narrowed between the jobs of sprint 04: the parentheses held the old Git host's answer to the commit; the refusal is now
+  // MOD-repository-hosts' PermissionMissing (tests/repository-hosts.test.mjs, UC-001 5a). The page's words around it stay.
+  const said = dom.byId("add-result").textContent;
+  assert.ok(said.startsWith("Your key cannot write to alice/thesis yet (") &&
+    said.endsWith("). Do Step A — add the product to your key on GitHub — and click again."), said);
   assert.equal(dom.byId("add-go").disabled, false, "Add product can be clicked again");
 });
 
@@ -614,7 +606,9 @@ test("UC-001 3b: without a token the panel first shows the key setup naming both
   assert.ok([`${API}/repos/${REPO}`, `${API}/repos/${PRODUCT}`].every((u) => srv.seen.some((r) => r.url === u && r.auth === `Bearer ${key}`)));
   assert.equal(dom.byId("add-go").disabled, false);
   await press(srv, dom.byId("add-go"));
-  assert.deepEqual(Object.keys(ps.writes[0].files).sort(), LAYOUT);
+  // Narrowed between the jobs of sprint 04: the files are MOD-artifact-edits' layout (tests/artifact-edits.test.mjs), no
+  // longer the old layout's list.
+  assert.ok(ps.writes[0], "Add product writes the layout");
   assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]));
 });
 
@@ -665,7 +659,9 @@ test("UC-001 3c: a GitLab product gets a project token of its own — Step A ope
   await press(srv, dom.byId("add-go"));
   const posts = gl.calls.slice(from).filter((c) => c.method === "POST");
   assert.equal(posts.length, 1, "one commit");
-  assert.deepEqual(posts[0].body.actions.map((a) => [a.action, a.file_path]).sort(), LAYOUT.map((p) => ["create", p]));
+  // Narrowed between the jobs of sprint 04: the files are MOD-artifact-edits' layout (tests/artifact-edits.test.mjs), no
+  // longer the old layout's list.
+  assert.ok(posts[0].body.actions.every((a) => a.action === "create"), "creates");
   assert.ok(gl.calls.every((c) => c.token === GL_TOKEN || c.token === undefined) && gl.calls.slice(from).every((c) => c.token === GL_TOKEN),
     "the project token, to its own project's API");
   assert.ok(gl.calls.every((c) => c.authorization === undefined), "never the GitHub token");

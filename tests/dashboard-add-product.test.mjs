@@ -116,8 +116,11 @@ test("UC-001 2a counter-proof: a write refused with 403 on an existing repositor
   const w = await world({ refuse: true });
   const { dom } = await addPanel(w);
   await press(w.srv, dom.byId("add-go"));
-  assert.equal(dom.byId("add-result").textContent, "Your key cannot write to alice/thesis yet (POST /git/trees: 403 Resource not " +
-    "accessible by personal access token). Do Step A — add the product to your key on GitHub — and click again.");
+  // Narrowed between the jobs of sprint 04: the parentheses held the old Git host's answer to the commit; the refusal is now
+  // MOD-repository-hosts' PermissionMissing (tests/repository-hosts.test.mjs, UC-001 5a). The page's words around it stay.
+  const said = dom.byId("add-result").textContent;
+  assert.ok(said.startsWith("Your key cannot write to alice/thesis yet (") &&
+    said.endsWith("). Do Step A — add the product to your key on GitHub — and click again."), said);
   assert.ok(!hrefs(dom.byId("add-result").innerHTML).includes(NEW_REPO));
 });
 
