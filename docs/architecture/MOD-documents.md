@@ -59,19 +59,21 @@ It keeps nothing. It owns the schema language, and four schemas written in it.
 |---|---|
 | `schema` | the format's name, for example `use-case` |
 | `shape` | `document` — front matter, a title line, sections —, or `lines` — the whole file is `key: value` lines, as an approval record is |
+| `rule` | the requirement the format applies, by its name exactly as the SPEC writes it, for example `ONE USE CASE, ONE FILE`; every schema names one, and a finding names it when no part of the schema closer to the finding names its own |
 | `path` | the file's path pattern, or a list of them, with the placeholders `{id}`, `{nnn}` (three or more digits), `{slug}` (lowercase words joined by `-`), `{blob12}` (twelve hexadecimal digits) and `{any}` (one path segment) |
 | `identifier` | where a document's identifier stands — `{ "field": "id", "kind": "UC" }` — and that it must match the identifier in its path |
 | `frontMatter` | for a document: its keys in their order, each with a value specification; a key not listed is an error |
 | `lines` | for the `lines` shape: its keys in their order, each with a value specification |
 | `title` | the pattern of the document's first heading, for example `# {id} {title}` |
-| `sections` | the sections, in order: each `{ "heading": "## Context", "required": true }`, optionally with `fields` (`key: value` lines inside the section, each with a value specification) or `table` — `{ "columns": [{ "name", "value" }], "header": true \| false, "appendOnly": true \| false }`, its columns in order, whether it has a header row (by default it has), and whether it only grows |
+| `sections` | the sections, in order: each `{ "heading": "## Context", "required": true }`, optionally with `rule` — the requirement the section applies — and with `fields` (`key: value` lines inside the section, each with a value specification) or `table` — `{ "columns": [{ "name", "value" }], "header": true \| false, "appendOnly": true \| false }`, its columns in order, whether it has a header row (by default it has), and whether it only grows |
 | `otherSections` | `allowed` or `forbidden`: whether a heading of the same level that the list does not name may stand in the document |
-| `appended` | for a record: the sections that may be appended after it was written — each `{ "heading", "fields", "repeat": true \| false }` |
+| `appended` | for a record: the sections that may be appended after it was written — each `{ "heading", "fields", "repeat": true \| false }`, optionally with `rule` as a section has it |
 | `diagrams` | `required`, `allowed` or `none`: whether the body must hold a Mermaid block; an image is never allowed (`DIAGRAMS ARE MERMAID IN MARKDOWN`) |
 | `noHistory` | `true` for a document that must hold no history (`A DOCUMENT HOLDS NO HISTORY`); records and measurements leave it out |
 | `key` | the fields whose values, normalised, are the format's key for finding exact duplicates among candidates |
 
-A **value specification** is `{ "type": …, "required": true | false, "nonEmpty": true | false, … }`, with these types:
+A **value specification** is `{ "type": …, "required": true | false, "nonEmpty": true | false, "rule": …, … }`, with these
+types:
 
 | Type | A value of it |
 |---|---|
@@ -91,7 +93,9 @@ A **value specification** is `{ "type": …, "required": true | false, "nonEmpty
 | `list` | a list of values of the type `item` gives; in front matter one per line, in a table cell separated by commas |
 
 A value specification may add `describedIn`: each value must stand in the named section as a bullet that begins with
-the value in backticks — the rule by which a module's provided interfaces are described.
+the value in backticks — the rule by which a module's provided interfaces are described. It may name in `rule` the
+requirement that its key, field or column applies, for example `A PARTICIPANT HAS ONE OF FIVE TYPES` for a participant's
+`Type`.
 
 **Values that depend on other values.** A value specification may depend on other values of the same document, or of the
 same row of a table:
@@ -103,14 +107,33 @@ same row of a table:
 
 A condition names a front matter key, a key of a `lines` record, or a column of the same row, with the values for which
 it holds — `{ "field": "Type", "in": ["person"] }` or `{ "field": "Type", "notIn": ["person"] }` —, and conditions combine
-as `{ "all": [ … ] }` and `{ "any": [ … ] }`. In a table, an empty cell or `—` is a value left out.
+as `{ "all": [ … ] }` and `{ "any": [ … ] }`. A condition, a combination of conditions and a variant may each name in
+`rule` the requirement they apply. In a table, an empty cell or `—` is a value left out.
 
 ```json
-{ "name": "Model", "value": { "type": "text", "requiredWhen": { "field": "Type", "notIn": ["person"] } } }
-{ "name": "Pin", "value": { "type": "text",
+{ "name": "Model", "value": { "type": "text",
+    "requiredWhen": { "field": "Type", "notIn": ["person"], "rule": "A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL" } } }
+{ "name": "Pin", "value": { "type": "text", "rule": "A RESOURCE IS PINNED TO AN EXACT STATE",
     "requiredWhen": { "field": "Kind", "in": ["repository", "data", "model", "endpoint", "agent"] },
     "variants": [ { "when": { "field": "Kind", "in": ["repository"] }, "type": "sha", "digits": 40 } ] } }
 ```
+
+**The requirement a finding names.** A finding of `documentFindings` names the requirement that `documentFindings` names
+for it below, where it names one. Every other finding names the `rule` of the part of the schema closest to what it
+concerns, among the parts that name one:
+
+- a value that a condition requires or forbids: that condition — of combined conditions, the first part that holds and
+  names a rule, before the combination —, then the value's specification;
+- a value that does not fit the variant that holds: that variant, then the value's specification;
+- any other finding on a value — missing, of the wrong type, empty where `nonEmpty`, not described where `describedIn`
+  asks, an identifier that is not the one its path gives —: the value's specification;
+- for a value of a section's fields or of its table, after the value's own parts, and for a section that is missing, out
+  of order, or whose table's header or rows do not fit it: the section, or the appended section;
+- last, the schema's own `rule`: for the path, a key the schema does not list, keys out of order, the title, a section
+  the schema forbids, and every finding that no closer part names a rule for.
+
+`loadSchema` refuses a `rule` that is not a requirement's name in capitals; whether that requirement stands in the SPEC is
+not decided here.
 
 **A table without a header row.** A table whose specification says `"header": false` has neither a header line nor a
 separator line: the cells of each row are read by position into the columns in their order. The decisions file of a
@@ -127,54 +150,64 @@ its bytes, and no row is changed or removed.
 in:
 
 ```json
-{ "schema": "decision", "shape": "document",
+{ "schema": "decision", "shape": "document", "rule": "ONE ARCHITECTURE DECISION, ONE FILE",
   "path": "docs/architecture/ARC-{nnn}-{slug}.md",
   "identifier": { "field": "id", "kind": "ARC" },
   "frontMatter": {
-    "id": { "type": "identifier", "of": ["ARC"], "required": true },
+    "id": { "type": "identifier", "of": ["ARC"], "required": true, "rule": "EVERY ARTIFACT HAS AN IDENTIFIER" },
     "title": { "type": "text", "required": true },
     "refines": { "type": "identifier", "of": ["ARC"], "required": false },
-    "forced_by": { "type": "list", "item": { "type": "either", "of": ["requirement", { "type": "identifier", "of": ["UC"] }] }, "required": true, "nonEmpty": true },
-    "designs": { "type": "list", "item": { "type": "identifier", "of": ["MOD"] }, "required": false } },
+    "forced_by": { "type": "list", "item": { "type": "either", "of": ["requirement", { "type": "identifier", "of": ["UC"] }] }, "required": true, "nonEmpty": true, "rule": "EVERY ARTIFACT NAMES ITS ORIGIN" },
+    "designs": { "type": "list", "item": { "type": "identifier", "of": ["MOD"] }, "required": false, "rule": "EVERY ARTIFACT NAMES ITS ORIGIN" } },
   "title": "# {id} {title}",
-  "sections": [ { "heading": "## Context", "required": true }, { "heading": "## Decision", "required": true },
-    { "heading": "## Alternatives", "required": true }, { "heading": "## Due diligence", "required": false },
-    { "heading": "## Consequences", "required": true } ],
+  "sections": [
+    { "heading": "## Context", "required": true, "rule": "AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES" },
+    { "heading": "## Decision", "required": true, "rule": "AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES" },
+    { "heading": "## Alternatives", "required": true, "rule": "AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES" },
+    { "heading": "## Due diligence", "required": false, "rule": "A REUSE DECISION RECORDS ITS DUE DILIGENCE" },
+    { "heading": "## Consequences", "required": true, "rule": "AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES" } ],
   "otherSections": "forbidden", "diagrams": "allowed", "noHistory": true, "key": ["title"] }
 ```
 
 ```json
-{ "schema": "module", "shape": "document",
+{ "schema": "module", "shape": "document", "rule": "ONE MODULE, ONE FILE",
   "path": "docs/architecture/MOD-{slug}.md",
   "identifier": { "field": "id", "kind": "MOD" },
   "frontMatter": {
-    "id": { "type": "identifier", "of": ["MOD"], "required": true },
+    "id": { "type": "identifier", "of": ["MOD"], "required": true, "rule": "EVERY ARTIFACT HAS AN IDENTIFIER" },
     "title": { "type": "text", "required": true },
-    "folder": { "type": "path", "required": true },
-    "realises": { "type": "list", "item": { "type": "either", "of": ["requirement", { "type": "identifier", "of": ["UC"] }] }, "required": true },
-    "follows": { "type": "list", "item": { "type": "identifier", "of": ["ARC"] }, "required": true, "nonEmpty": true },
-    "uses": { "type": "list", "item": { "type": "interface" }, "required": true },
-    "provides": { "type": "list", "item": { "type": "name" }, "required": true, "describedIn": "## Interfaces" } },
+    "folder": { "type": "path", "required": true, "rule": "A MODULE IS A FOLDER" },
+    "realises": { "type": "list", "item": { "type": "either", "of": ["requirement", { "type": "identifier", "of": ["UC"] }] }, "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    "follows": { "type": "list", "item": { "type": "identifier", "of": ["ARC"] }, "required": true, "nonEmpty": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    "uses": { "type": "list", "item": { "type": "interface" }, "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    "provides": { "type": "list", "item": { "type": "name" }, "required": true, "describedIn": "## Interfaces", "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" } },
   "title": "# {id} {title}",
-  "sections": [ { "heading": "## Responsibility", "required": true }, { "heading": "## Parts", "required": true },
-    { "heading": "## Data", "required": true }, { "heading": "## Interfaces", "required": true },
-    { "heading": "## Files", "required": true }, { "heading": "## Uses", "required": true } ],
+  "sections": [
+    { "heading": "## Responsibility", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    { "heading": "## Parts", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    { "heading": "## Data", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    { "heading": "## Interfaces", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    { "heading": "## Files", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
+    { "heading": "## Uses", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" } ],
   "otherSections": "forbidden", "diagrams": "allowed", "noHistory": true, "key": ["id"] }
 ```
 
-The use-case schema: path `docs/use-cases/UC-{nnn}-{slug}.md`; front matter `id` (identifier `UC`), `title`, `area`
-(text), `actors` (list of text, not empty), `realises` (list of requirement names, possibly empty, since
-`UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN`); title `# {id} {title}`; the sections `## Actors`,
-`## Precondition`, `## Main flow`, `## Alternative flows` and `## Postcondition`, each required, other sections allowed;
-diagrams `required`; `noHistory`; key `title`.
+The use-case schema: rule `ONE USE CASE, ONE FILE`; path `docs/use-cases/UC-{nnn}-{slug}.md`; front matter `id`
+(identifier `UC`, under `EVERY ARTIFACT HAS AN IDENTIFIER`), `title`, `area` (text), `actors` (list of text, not empty,
+under `A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION`), `realises` (list of requirement names, possibly
+empty, since `UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN`, under `A USE CASE REALISES NAMED REQUIREMENTS`);
+title `# {id} {title}`; the sections `## Actors`, `## Precondition`, `## Main flow`, `## Alternative flows` and
+`## Postcondition`, each required and each under `A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION`, other
+sections allowed; diagrams `required`; `noHistory`; key `title`.
 
-The item schema, for a plan step and a backlog item alike: paths `docs/plan/ITM-{nnn}-{slug}.md` and
-`docs/backlog/ITM-{nnn}-{slug}.md`; front matter `id` (identifier `ITM`), `title`, `level` (enum `module`, `subsystem`,
-`system`), `realises` (list of a requirement's name or a use case's identifier, not empty —
-`A BACKLOG ITEM NAMES WHAT IT REALISES`), `modules` (list of `MOD` identifiers, not empty —
+The item schema, for a plan step and a backlog item alike: rule `THE BACKLOG LIVES IN THE PRODUCT REPOSITORY`; paths
+`docs/plan/ITM-{nnn}-{slug}.md` and `docs/backlog/ITM-{nnn}-{slug}.md`; front matter `id` (identifier `ITM`, under
+`EVERY ARTIFACT HAS AN IDENTIFIER`), `title`, `level` (enum `module`, `subsystem`, `system`, under
+`A PLAN STEP NAMES THE TESTS OF ITS LEVEL`), `realises` (list of a requirement's name or a use case's identifier, not
+empty, under `A BACKLOG ITEM NAMES WHAT IT REALISES`), `modules` (list of `MOD` identifiers, not empty, under
 `A BACKLOG ITEM NAMES THE MODULES IT CHANGES`), `integrates` (identifier `ARC`, the subsystem's decision, for a step of
 level `subsystem`), `builds_on` (list of `ITM` identifiers), `tests` (list of enum `unit`, `component`, `system`,
-`release` — `A PLAN STEP NAMES THE TESTS OF ITS LEVEL`), `origin` (list of text: an issue's address, a requirement's
+`release`, under `A PLAN STEP NAMES THE TESTS OF ITS LEVEL`), `origin` (list of text: an issue's address, a requirement's
 name, a use case's identifier); title `# {id} {title}`; sections `## Outcome` and `## Acceptance` required;
 `noHistory`; key `title`.
 
@@ -209,9 +242,10 @@ record, the appended sections in order. **A row** of a table: `{ line, cells }`,
   holds —, unknown, out of order, or present where a `forbiddenWhen` condition holds; values that do not fit their type or
   the variant that holds, empty where `nonEmpty`; each row of a table, cell by cell, in the same way; the title; required sections missing, sections out of order, sections the
   schema forbids; values that `describedIn` requires and the section does not describe; a diagram missing where
-  `required`; any image (`DIAGRAMS ARE MERMAID IN MARKDOWN`); and, for a `noHistory` schema, each mark of history
-  (`A DOCUMENT HOLDS NO HISTORY`). Each finding is an error, names its line and the requirement it applies. What needs
-  other artifacts — whether a named requirement exists, whether a used interface is provided — is not decided here but on
+  `required`, and any image (`DIAGRAMS ARE MERMAID IN MARKDOWN`); and, for a `noHistory` schema, each mark of history
+  (`A DOCUMENT HOLDS NO HISTORY`). Each finding is an error and names its line and the requirement it applies: the one
+  named here in brackets, else the `rule` of the part of the schema closest to it (Data, *The requirement a finding
+  names*). What needs other artifacts — whether a named requirement exists, whether a used interface is provided — is not decided here but on
   the trace graph (MOD-trace-graph).
 - `readRegister(schema: Schema, path: string, text: string) -> { document: Document, rows: Row[] }` — reads a register:
   the document, and the rows of the one table its schema names. A register is written with `writeDocument`, its rows in
