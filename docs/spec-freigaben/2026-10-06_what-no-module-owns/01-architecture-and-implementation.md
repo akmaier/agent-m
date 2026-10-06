@@ -300,8 +300,8 @@ given and tests that name one of those modules.
 **WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS** *(PO A. Maier)*
 A file that no module of the accepted architecture owns — code outside every module's folder, a test or test helper
 whose header names no module of the architecture — is changed by no implementation job. It is changed between jobs, by a
-pull request of its own that only makes old code call a module in place of its own code, removes what a module now
-provides together with the tests of what it removes, names in a test's header the module that now holds what the test
+pull request of its own that only makes old code call a module in place of its own code and its texts describe what the
+module does, removes what a module now provides together with the tests of what it removes, names in a test's header the module that now holds what the test
 tests, lets a check of the whole repository allow a module what the module's file states that it uses, or lets a test
 helper reach the modules' files.
 *Check:* `tests/test_implementation_job.py` — an implementation job's pull request that changes such a file is refused,

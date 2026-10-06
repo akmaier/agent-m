@@ -26,7 +26,9 @@ architecture page's component diagram.
 - The requirement keeps the job rule as it is and adds the rule `SCRUM.md` of the process repository already follows for
   shared files: they are written between the jobs, never by a job. What may change in them is listed, so that the old
   code gives way to the accepted modules and to nothing else — no code of its own is added outside the modules, and a
-  test's expected result changes only by a job of the module the test is given to.
+  test's expected result changes only by a job of the module the test is given to. A page that now calls a module also
+  says what the module does: the explanation under the component diagram still describes one labelled arrow per
+  interface.
 
 **Alternatives.** Extending the job rule so that a job may also re-point the old code to its own modules: two parallel
 jobs would then write the same old file, and the tests of purged modules would still belong to no job. Moving all of
