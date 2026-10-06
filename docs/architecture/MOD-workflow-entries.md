@@ -94,10 +94,12 @@ It runs in Node, in GitHub Actions or GitLab CI, on hosted or self-hosted runner
 - `compose.mjs` — connects the repository twice — through Access's local clone for its files and records, and through
   the server's API with the same token for pull requests, issues and checks —, reads the participants and the
   declaration, and registers the strategies.
-  - In a product's job workflow it also connects the instance repository through its server's API without a token.
-    That host is `productFacts`' `instanceAt`: the instance at the commit a product's declaration names, which is another
-    commit than the one the checkout of the instance holds.
-  - The instance is public (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`), and no product's token goes to it.
+  - In a product's job workflow it also connects the checkout of the instance as a host, through Access's local clone.
+    That host is `productFacts`' `instanceAt`: the instance at the commit a product's declaration names, which is
+    another commit than the one the checkout holds.
+  - The clone fetches that commit from its origin with its own credentials (MOD-repository-hosts' `readSnapshot`), the
+    access the job workflow checked the instance out with. No further token is used, and the generated files are
+    unchanged.
 - `product.mjs` — the entries of a product's job workflow.
 - `instance.mjs` — the entries of the instance's workflows.
 
@@ -183,7 +185,8 @@ process requirements, through the instance's checkout, the product's
 jobs through Access's local clone; reads pull requests and closes issues through the server's API, since the local clone
 does no server operation; appends result records to the branch `test-results`; on GitLab, sets the project's pipeline
 schedule. It also reads the instance's process models at the commit the product's declaration names, through the
-instance's server's API without a token. In the instance: reads approval records, change queues, `SPEC.md` and `docs/sources/`; writes `SPEC.md`
+checkout of the instance, which fetches that commit. In the instance: reads approval records, change queues, `SPEC.md`
+and `docs/sources/`; writes `SPEC.md`
 sections with their decisions and the fetched texts of sources. Reads secrets only from the environment.
 
 ## Uses
@@ -191,7 +194,7 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-repository-hosts.connect`, `readSnapshot`, `commitFiles` — the repository the entry runs in, through the local
   clone with the token from the secret; `pullRequestFacts` — the facts the Definition-of-Done check weighs, through the
   server's API with the same token. In a product's job workflow, also the instance at the commit a declaration names,
-  through its server's API without a token.
+  through the checkout of the instance, which fetches it with its own credentials.
 - `MOD-documents.readDocument`, `readRegister`, `writeDocument` and `MOD-participant-list.participantSchema` — the
   declaration, the participants; the error of a failed fetch in its register entry.
 - `MOD-text-tools.Finding` — the findings an entry reports.

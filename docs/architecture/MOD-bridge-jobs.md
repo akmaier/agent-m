@@ -108,24 +108,25 @@ On a Bridge, `productFacts` runs with the local clone, so the facts that need th
 their results — are `unknown`, and `nextActions` starts nothing that depends on them: merges and CI results are advanced
 by CI's entries and by the page.
 
-Its `instance` is the instance as the Bridge's clone of it holds it. Its `instanceAt` reads the instance at the commit a
-served product's declaration names, through the instance's server's API without a token. The instance is public
-(`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`), so the clone need not hold that commit, and the computer's git
-login is not needed for it.
+Its `instance` is the instance as the Bridge's clone of it holds it: the commits that clone last fetched. Its `instanceAt`
+reads the instance at the commit a served product's declaration names, through that same clone connected as a host. A
+commit the clone does not hold is fetched from its origin with the computer's own git login, the clone's own
+credentials (MOD-repository-hosts' `readSnapshot`).
 
 ## Files
 
 In each served product, through Access's local clone: reads `docs/process.md`, the plan or backlog, `docs/jobs/` and
 `docs/gates/`, and the instance's `docs/participants.md`; appends to job records; the agent's own commits and pull
-request come from the working clone. Through the instance's server's API without a token: the instance's process models
-at the commit a served product's declaration names. In the Bridge's per-user data folder: the clones. Nothing else.
+request come from the working clone. Through its clone of the instance, which fetches that commit: the instance's
+process models at the commit a served product's declaration names. In the Bridge's per-user data folder: the clones.
+Nothing else.
 
 ## Uses
 
 - `MOD-bridge-http.bridgeApi`, `MOD-bridge-http.BridgeHandlers` — the routes it answers.
 - `MOD-repository-hosts.connect`, `MOD-repository-hosts.readSnapshot` — the served products, through the local clone with
-  the computer's own git login; and the instance at the commit a declaration names, through its server's API without a
-  token.
+  the computer's own git login; and the instance at the commit a declaration names, through its clone, which fetches the
+  commit with that login.
 - `MOD-documents.readDocument`, `MOD-documents.readRegister`, `MOD-participant-list.participantSchema`,
   `MOD-product-process.declarationSchema` — the participants of this Bridge and the product's declaration.
 - `MOD-agent-processes.installedAgents`, `agentDriver`, `testAgent` — the agents of this computer and their driver.

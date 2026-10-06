@@ -108,7 +108,8 @@ The six stages of the main page, each a share between 0 and 1:
 
 - `Facts` — one product's facts: `{ address: string, info: RepositoryInfo | "unknown", snapshot: Snapshot, graph: Graph,
   requirements: string[], statuses: Map<string, { id: string, kind: string, status: string }>, queues: Queue[],
-  declaration: Document | null, workflow: Workflow | null, model: Model | null, modelSince: string | null, participants:
+  declaration: Document | null, workflow: Workflow | null | "unknown", model: Model | null | "unknown", modelUnread: {
+  commit: string, error: string } | null, modelSince: string | null, participants:
   Participant[], plan: { order: Document | null, items: Document[], states: ItemState[] }, sprint: Document | null,
   sprints: Document[], gates: Document[], gateStates: Array<{ gate: string, state: string, record: string | null, needs:
   string | null, difference: string | null }>, jobs: JobRow[], pullRequests: PullRequest[] | "unknown", schedule:
@@ -116,7 +117,9 @@ The six stages of the main page, each a share between 0 and 1:
   jobWorkflow: boolean }, tags: Array<{ name: string, commit: string }> | "unknown", results: Snapshot | null, tests:
   TestDeclaration[], resourceNeeds: ResourceNeed[] }`: `requirements` the accepted ones; `model` the declared model as the
   instance's catalogue held it at the commit the declaration's `model_version` names — the version the product declared
-  and keeps (UC-031 6a) —, and `workflow` derived from it; `modelSince` the date the declared model was declared; `plan`
+  and keeps (UC-031 6a) —, and `workflow` derived from it. Both are `"unknown"` when that commit cannot be read, and
+  `modelUnread` then names the commit and the error it was read with. `modelSince` is the date the declared model was
+  declared; `plan`
   the steps of the implementation plan or the backlog items, in their order, with their states; `sprint` the running or
   the last sprint; `jobs` every job of the product with the live state of those that have not ended — a row whose source
   cannot be read says so —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
@@ -142,16 +145,22 @@ The six stages of the main page, each a share between 0 and 1:
   - `instanceAt` reads the instance at any commit, for the commit a declaration names. That is another commit than the
     one a CI job checks out, and the two are not related.
     - On a page, `instanceAt` reads through the frame's host of the instance.
-    - In CI and on a Bridge, it reads through the instance's server's API without a token: the instance is public
-      (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`), and no product's token goes to it. Read so, it counts
-      against the network's rate limit, which `RateLimited` names.
+    - In CI and on a Bridge, it reads through the instance's checkout or clone, connected as a host. A commit the clone
+      does not hold is fetched from its origin with the clone's own credentials (MOD-repository-hosts' `readSnapshot`).
+      So it reaches the commit exactly as far as the checkout or clone reached the instance, through no API and with no
+      further token.
+  - When `instanceAt` cannot read the commit, `productFacts` does not fail. `model` and `workflow` are `"unknown"`, as a
+    fact a host cannot give is, and whatever depends on them is derived as unknown, never guessed. `modelUnread` keeps
+    the error, which tells the causes apart:
+    - `NotFound`: the instance does not hold the commit the declaration names;
+    - `TokenRefused`, `PermissionMissing` or `Unreachable`: the instance cannot be read from there.
   - It also accepts a host that does no server operations, such as a Bridge's local clone, whose functions for the pull
     requests, the CI runs, the tags and the repository's information refuse with `NotSupported`: those facts are then
     `"unknown"`, and merges and CI results are advanced by the Workflows' entries and the page.
   - A source of live states that cannot be read — a Bridge that does not answer — leaves its jobs as their records say,
     marked as not reachable (UC-035 1b), and progress is still computed from the repository.
-  - Crosses the network. Errors: `NotFound` (a private repository without a token that reaches it, or a declaration
-    naming a commit the instance does not hold), `TokenRefused`, `RateLimited`, `Unreachable`.
+  - Crosses the network. Errors, all of the product's host: `NotFound` (a private repository without a token that
+    reaches it), `TokenRefused`, `RateLimited`, `Unreachable`.
 - `progressIn(facts: Facts, now: Date) -> { measure: string, planned: { grid: { entries: Array<{ requirement: string,
   phase: string, state: "open" | "in progress" | "done" }>, count: string }, timeline: Array<{ phase: string, from: string
   | null, to: string | null, gate: string | null, passed: string | null }>, steps: ItemState[] } | null, sprint: { items:

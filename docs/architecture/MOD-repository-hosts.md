@@ -155,8 +155,10 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   every other function uses the REST adapter where a token is given, or throws `NotSupported`. No request is made yet.
 - `readSnapshot(ref: string) -> Promise<Snapshot>` — the repository at a branch, tag or commit: the commit and its whole
   tree in a fixed number of requests, however many folders it has — two on GitHub, the commit and then its tree —, then
-  one per file read. Crosses the network; fails with `NotFound`, `TokenRefused`,
-  `PermissionMissing`, `RateLimited`, `Unreachable`.
+  one per file read. Through a clone, a commit the clone does not hold is first fetched from the clone's origin by its
+  identifier, with the clone's own credentials: the access the clone was made with. `NotFound` then means that the origin
+  does not hold it either. Crosses the network; fails with `NotFound`, `TokenRefused`, `PermissionMissing`,
+  `RateLimited`, `Unreachable`.
 - `readHistory(path: string | null, options: { ref?: string, limit?: number }) -> Promise<HistoryEntry[]>` — the commits
   that changed a path, or the repository, newest first. Crosses the network; fails as `readSnapshot`.
 - `listTags(pattern?: string) -> Promise<{ name: string, commit: string }[]>` — the tags, optionally only those matching
