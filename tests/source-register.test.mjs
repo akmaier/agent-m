@@ -33,6 +33,7 @@ import { sourceSchemas, permittedPlaces } from "../src/source-register/index.mjs
 
 const MODULE = new URL("../src/source-register/index.mjs", import.meta.url);
 const SCHEMA_FILE = new URL("../src/source-register/source.schema.md", import.meta.url);
+const LINKS_FILE = new URL("../src/source-register/links.schema.md", import.meta.url);
 const VIBE_CODING = new URL("../docs/sources/SRC-vibe-coding.md", import.meta.url);
 
 // The schema of a register entry, as the module gives it.
@@ -190,7 +191,7 @@ const realDisk = (reads) => ({
 //        without a disk, whose fetch answers the module's own address with the text of the real source.schema.md; (c) as in
 //        a browser whose fetch answers 404 Not Found
 // input: (a), (b): sourceSchemas().entry, and readDocument with it of the entry IEC
-// expect: (a) one read, of src/source-register/source.schema.md from the disk; (b) one read, of the same address with
+// expect: (a) two reads from the disk, of src/source-register/source.schema.md, then links.schema.md; (b) both with
 //         fetch; each gives a schema deep-equal to the one of the module as this file loaded it, and reads IEC as the
 //         entry SRC-iec-62304 of the format `source`. (c) one read, of the same address; the module does not load — a schema
 //         that cannot be read stops its module (MOD-documents, loadSchema) — and the error names source.schema.md and 404
@@ -200,7 +201,7 @@ test("sourceSchemas — the entry's schema is read from the module's own source.
   const atAddress = await load({ disk: undefined, fetch: async () => new Response(text, { status: 200 }) });
   for (const [where, loaded, read] of [["disk", onDisk, "disk"], ["address", atAddress, "fetch"]]) {
     assert.equal(loaded.error, null, `${where}: the module loads: ${loaded.error?.message}`);
-    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`], where);
+    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`, `${read} ${LINKS_FILE.href}`], where);
     const { entry } = loaded.module.sourceSchemas();
     assert.deepEqual(entry, entrySchema(), where);
     const iec = readDocument(entry, IEC_PATH, IEC);
