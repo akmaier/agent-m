@@ -103,11 +103,15 @@ the SPEC writes it; `what` says what is wrong; `fix` says the correction expecte
   Every module that reports a finding makes it with this function.
 - `formatFinding(finding: Finding) -> string` — the finding as its one line of text, as defined under Data.
 - `parseFinding(line: string) -> Finding | null` — a line of that form read back; `null` for any other line.
-- `historyMarks(text: string) -> HistoryMark[]` — the places of a document that record its history: a note that
-  something was withdrawn, a stamp of who edited what or when, and a date given as the date of a change. A date that is
-  part of what the document states — a version's retrieval date, a dated measurement it names — is a mark too; whether
-  a mark is a finding is decided by the caller for its kind of document, since records and measurements are dated by
-  nature.
+- `historyMarks(text: string) -> HistoryMark[]` — the places of a document that record its history, each told by its
+  words: a note that something was withdrawn (`withdrawal`); a stamp of who edited what or when, such as
+  `Last edited by …` or `reworded <date>` (`edit-stamp`); and a date given as the date of a change (`dated-change`) —
+  after a word of decision or acceptance, `PO decision <date>`, or set off by a comma as the date of an attribution,
+  `(PO A. Maier, <date>)` or `PO, <date>: …`. Any other date is no mark: a document states the dates its content needs —
+  the date a fact was read (`DUE DILIGENCE IS FETCHED, NOT RECALLED`), a version, a release, a measurement it names —,
+  with the words that say what they are or in a table's cells. So every mark is history: a caller whose kind of document
+  must hold none reports each one, without telling dates apart itself; records and measurements are dated by nature, and
+  their callers do not ask.
 
 ## Files
 
