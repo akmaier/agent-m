@@ -1,7 +1,8 @@
 // MOD-documents — documents, records and registers from their schemas (docs/architecture/MOD-documents.md): its interface. Of
 // it, ITM-213 builds what UC-002's modules need: the schema language with Schema, Document and Row, loadSchema, readDocument,
-// writeDocument and readRegister. documentFindings, appendSection, classifyCandidates, artifactSchemas and the schemas this
-// module owns are not built yet.
+// writeDocument and readRegister. ITM-227 adds the `rule` of the schema language and documentFindings, for the front matter,
+// the values, the rows of a table and the sections (checks.mjs). appendSection, classifyCandidates, artifactSchemas and the
+// schemas this module owns are not built yet.
 //
 // Module: MOD-documents
 //
@@ -16,8 +17,8 @@
 
 /**
  * A schema as loadSchema returns it: the JSON object of a schema data file, in the language of the module file's Data —
- * `schema`, `shape`, `path`, `identifier`, `frontMatter` or `lines`, `title`, `sections`, `otherSections`, `appended`,
- * `diagrams`, `noHistory`, `key` —, frozen.
+ * `schema`, `shape`, `rule`, `path`, `identifier`, `frontMatter` or `lines`, `title`, `sections`, `otherSections`,
+ * `appended`, `diagrams`, `noHistory`, `key` —, frozen.
  * @typedef {Readonly<Record<string, unknown>>} Schema
  */
 
@@ -43,3 +44,4 @@
 
 export { loadSchema } from "./schema-language.mjs";
 export { readDocument, writeDocument, readRegister } from "./read-write.mjs";
+export { documentFindings } from "./checks.mjs";

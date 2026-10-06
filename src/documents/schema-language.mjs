@@ -12,6 +12,11 @@
 // A schema loadSchema returns is frozen, and only such a schema is read or written with: the reader and the writer find
 // what loadSchema compiled for it — its path patterns, the heading level of its sections, its sections by heading — and
 // refuse every other object with a TypeError.
+//
+// The rules (ITM-227): the schema, a section, a value specification, a condition — a combination of conditions among them —
+// and a variant may each name in `rule` the requirement they apply, a requirement's name in capitals; whether the SPEC holds
+// it is not decided here. The rule of a path pattern and of an appended section are not read yet, and a schema that names
+// no rule is not refused yet.
 
 // The identifier scheme of EVERY ARTIFACT HAS AN IDENTIFIER, each kind with the form of what follows its prefix: three or
 // more digits for numbered kinds, a slug of lower-case words for named ones, and a job's identifier. MOD-identifiers owns
@@ -23,18 +28,23 @@ export const KIND_FORMS = {
 };
 const KINDS = Object.keys(KIND_FORMS);
 
-const TOP_KEYS = ["schema", "shape", "path", "identifier", "frontMatter", "lines", "title", "sections", "otherSections",
-  "appended", "diagrams", "noHistory", "key"];
+// A requirement's name in capitals, as the SPEC writes it: capital letters, digits, blanks, apostrophes, commas and hyphens,
+// at least one capital letter, none of them at either end but an apostrophe at its end, and none of the identifiers'
+// prefixes. MOD-text-tools checks a finding's rule by the same form in a file of its own that is not its interface.
+export const REQUIREMENT_NAME = /^(?!(?:SRC|UC|ARC|MOD|TST|ITM|RES|JOB)-)(?=[A-Z0-9 ',-]*[A-Z])[A-Z0-9](?:[A-Z0-9 ',-]*[A-Z0-9'])?$/;
+
+const TOP_KEYS = ["schema", "shape", "rule", "path", "identifier", "frontMatter", "lines", "title", "sections",
+  "otherSections", "appended", "diagrams", "noHistory", "key"];
 const DOCUMENT_ONLY = ["frontMatter", "title", "sections", "otherSections", "appended", "diagrams"];
 export const TYPES = ["text", "enum", "number", "date", "time", "sha", "path", "url", "identifier", "requirement",
   "interface", "name", "either", "list"];
 // The types that need no parameter, and so may be named alone among the types an `either` value may be of.
 const PLAIN_TYPES = ["text", "number", "date", "time", "path", "url", "requirement", "interface", "name"];
-const SPEC_KEYS = ["type", "required", "nonEmpty", "values", "digits", "of", "item", "describedIn", "requiredWhen",
+const SPEC_KEYS = ["type", "required", "nonEmpty", "rule", "values", "digits", "of", "item", "describedIn", "requiredWhen",
   "forbiddenWhen", "variants"];
-const VARIANT_KEYS = ["when", "type", "nonEmpty", "values", "digits", "of", "item"];
+const VARIANT_KEYS = ["when", "rule", "type", "nonEmpty", "values", "digits", "of", "item"];
 const ITEM_KEYS = ["type", "values", "digits", "of", "item"];
-const SECTION_KEYS = ["heading", "required", "fields", "table"];
+const SECTION_KEYS = ["heading", "required", "rule", "fields", "table"];
 const APPENDED_KEYS = ["heading", "fields", "repeat"];
 const TABLE_KEYS = ["columns", "header", "appendOnly"];
 const PLACEHOLDERS = ["id", "nnn", "slug", "blob12", "any"];
@@ -135,6 +145,12 @@ function checker(owner) {
   const isBoolean = (value, key) => {
     if (value !== undefined && typeof value !== "boolean") fail(key, "true or false");
   };
+  // The rule a part names, where it names one.
+  const requirementName = (value, key) => {
+    if (value !== undefined && (typeof value !== "string" || !REQUIREMENT_NAME.test(value))) {
+      fail(key, "a rule is a requirement's name in capitals, exactly as the SPEC writes it");
+    }
+  };
 
   // A path pattern, or a list of them.
   function path(value) {
@@ -153,18 +169,23 @@ function checker(owner) {
     }
   }
 
-  // A condition — { field, in } or { field, notIn }, or { all } or { any } of conditions —, `fields` the names it may name.
+  // A condition — { field, in } or { field, notIn }, or { all } or { any } of conditions, each with its rule if it names
+  // one —, `fields` the names it may name.
   function condition(value, at, fields) {
     if (!isObject(value)) fail(at, "a condition is { field, in }, { field, notIn }, { all: [ … ] } or { any: [ … ] }");
     const combined = ["all", "any"].filter((key) => key in value);
     if (combined.length) {
-      if (Object.keys(value).length !== 1) fail(at, "a combination of conditions is { all: [ … ] } or { any: [ … ] } alone");
+      if (Object.keys(value).filter((key) => key !== "rule").length !== 1) {
+        fail(at, "a combination of conditions is { all: [ … ] } or { any: [ … ] }, and its rule if it names one");
+      }
       const parts = value[combined[0]];
       if (!Array.isArray(parts) || !parts.length) fail(`${at}.${combined[0]}`, "a list of conditions");
       parts.forEach((part, i) => condition(part, `${at}.${combined[0]}[${i}]`, fields));
+      requirementName(value.rule, `${at}.rule`);
       return;
     }
-    onlyKeys(value, ["field", "in", "notIn"], at, "a condition");
+    onlyKeys(value, ["field", "in", "notIn", "rule"], at, "a condition");
+    requirementName(value.rule, `${at}.rule`);
     if (("in" in value) === ("notIn" in value)) {
       fail(at, "a condition names the values for which it holds in `in`, or those for which it does not in `notIn` — one of the two");
     }
@@ -227,6 +248,7 @@ function checker(owner) {
     type(spec, at);
     isBoolean(spec.required, `${at}.required`);
     isBoolean(spec.nonEmpty, `${at}.nonEmpty`);
+    requirementName(spec.rule, `${at}.rule`);
     if ("describedIn" in spec && !context.headings.includes(spec.describedIn)) {
       fail(`${at}.describedIn`, `the heading of a section of the schema: one of ${context.headings.join(", ") || "none"}`);
     }
@@ -241,6 +263,7 @@ function checker(owner) {
         if (!("when" in variant)) fail(`${vat}.when`, "a variant names in `when` the condition under which it holds");
         condition(variant.when, `${vat}.when`, context.fields);
         isBoolean(variant.nonEmpty, `${vat}.nonEmpty`);
+        requirementName(variant.rule, `${vat}.rule`);
         type(merged(spec, variant), vat);
       });
     }
@@ -290,6 +313,7 @@ function checker(owner) {
       fail("schema", "the format's name, in lower-case words joined by -, such as use-case");
     }
     if (s.shape !== "document" && s.shape !== "lines") fail("shape", "document or lines");
+    requirementName(s.rule, "rule");
     const document = s.shape === "document";
     if (!document) for (const key of DOCUMENT_ONLY) if (key in s) fail(key, `${key} belongs to the shape document, not to lines`);
     if (document && "lines" in s) fail("lines", "lines belong to the shape lines, not to document");
@@ -333,6 +357,7 @@ function checker(owner) {
       const at = `sections[${i}]`;
       onlyKeys(section, SECTION_KEYS, at, "a section");
       isBoolean(section.required, `${at}.required`);
+      requirementName(section.rule, `${at}.rule`);
       if ("fields" in section && "table" in section) fail(at, "a section holds fields or a table, not both");
       if ("fields" in section) {
         keyedSpecs(section.fields, `${at}.fields`,
