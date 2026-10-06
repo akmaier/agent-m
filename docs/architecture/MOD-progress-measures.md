@@ -114,7 +114,9 @@ The six stages of the main page, each a share between 0 and 1:
   string | null, difference: string | null }>, jobs: JobRow[], pullRequests: PullRequest[] | "unknown", schedule:
   Document, ci: { runs: CiRun[] | "unknown", configured: boolean, drift: Array<{ path: string, difference: string }>,
   jobWorkflow: boolean }, tags: Array<{ name: string, commit: string }> | "unknown", results: Snapshot | null, tests:
-  TestDeclaration[], resourceNeeds: ResourceNeed[] }`: `requirements` the accepted ones; `modelSince` the date the declared model was declared; `plan`
+  TestDeclaration[], resourceNeeds: ResourceNeed[] }`: `requirements` the accepted ones; `model` the declared model as the
+  instance's catalogue held it at the commit the declaration's `model_version` names — the version the product declared
+  and keeps (UC-031 6a) —, and `workflow` derived from it; `modelSince` the date the declared model was declared; `plan`
   the steps of the implementation plan or the backlog items, in their order, with their states; `sprint` the running or
   the last sprint; `jobs` every job of the product with the live state of those that have not ended — a row whose source
   cannot be read says so —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
@@ -125,19 +127,25 @@ The six stages of the main page, each a share between 0 and 1:
   MOD-runtimes' `routesFor` for a job whose kind needs the product's resources. A fact only the server gives — `info`,
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
-- `productFacts(host: Host, instance: Snapshot, now: Date, bridges: Record<string, Bridge>) -> Promise<Facts>` — reads
+- `productFacts(host: Host, instance: Host, now: Date, bridges: Record<string, Bridge>) -> Promise<Facts>` — reads
   everything once: the default branch of the product — through a local clone, the branch it has checked out — and what
   the repository says about it, the trace graph, the approval records, the change queues, the declaration with its model
-  from the instance's catalogue and the history of the declaration, the instance's participants, the plan or the backlog
+  and practices as the instance's catalogue held them at the commit the declaration's `model_version` names, and the
+  history of the declaration, the instance's participants, the plan or the backlog
   and the sprints, the gate records, the job records and the live state of every job that has not ended — from the CI
   service, from the Bridges given in `bridges` and from this tab, through MOD-runtimes' `liveState` —, the pull
-  requests, the CI runs of the head, the tags, the branch `test-results`, the test declarations and the resource list. Considers: it also
+  requests, the CI runs of the head, the tags, the branch `test-results`, the test declarations and the resource list.
+  Considers: `instance` is the instance's host, read at its default branch for its participants, process models and
+  `SPEC.md`, and at the commit a declaration names for the declared model. On a page it is the frame's host of the
+  instance; in CI and on a Bridge it is the instance's checkout or clone, connected as a host, which must hold that
+  commit. It also
   accepts a host that does no server operations, such as a Bridge's local clone, whose functions for the pull requests,
   the CI runs, the tags and the repository's information refuse with `NotSupported`: those facts are then `"unknown"`,
   and merges and CI results are advanced by the Workflows' entries and the page. A source of live states that cannot be
   read — a Bridge that does not answer — leaves its jobs as their records say, marked as not reachable (UC-035 1b), and
   progress is still computed from the repository. Crosses the network. Errors: `NotFound` (a private repository without
-  a token that reaches it), `TokenRefused`, `RateLimited`, `Unreachable`.
+  a token that reaches it, or an instance's checkout without the commit a declaration names), `TokenRefused`,
+  `RateLimited`, `Unreachable`.
 - `progressIn(facts: Facts, now: Date) -> { measure: string, planned: { grid: { entries: Array<{ requirement: string,
   phase: string, state: "open" | "in progress" | "done" }>, count: string }, timeline: Array<{ phase: string, from: string
   | null, to: string | null, gate: string | null, passed: string | null }>, steps: ItemState[] } | null, sprint: { items:
@@ -204,7 +212,7 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   `docs/architecture/`, `docs/process.md` and its history, `docs/plan/` or `docs/backlog/` with `docs/backlog/sprints/`,
   `docs/gates/`, `docs/jobs/`, `docs/tests/schedule.md`, the generated configurations, the test files, `docs/resources.md`
   and the branch `test-results`; its pull requests, CI runs and tags; of the instance, `docs/participants.md`, the process models and `SPEC.md`, whose requirements are the process
-  requirements.
+  requirements, and the process models at the commit the product's declaration names.
 - Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
   `docs/use-cases/` and `docs/architecture/`; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
   only while a release candidate is pending, `docs/jobs/` back to the first run of a candidate.
@@ -215,7 +223,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-work-plans.ItemState, itemStates, planSchemas — the steps and items, their order, the sprints, and each one's state.
 - MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates — the declared process, its gates
   and their states. The workflow is read with the instance's SPEC, where the process requirements stand.
-- MOD-model-catalogue.Model, catalogue, planGrid — the model and its plan of requirements times phases.
+- MOD-model-catalogue.Model, catalogue, planGrid — the declared model, from the catalogue at the commit the declaration
+  names (UC-031 6a; ARC-042: earlier work keeps the model it was done under), and its plan of requirements times phases.
 - MOD-approvals.statuses — accepted, open and changed files, for the stages and for what waits.
 - MOD-spec-changes.Queue, queues — decided and open SPEC changes, for the stages and for what waits.
 - MOD-spec-document.parseSpec — the requirements.
@@ -233,4 +242,5 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-participant-list.Participant, participantSchema — the participants and their roles.
 - MOD-documents.Document, readDocument, readRegister — the files by their schemas.
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,
-  listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it.
+  listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it, and the instance at its
+  default branch and at the commit a declaration names.
