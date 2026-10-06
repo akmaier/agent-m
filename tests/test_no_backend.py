@@ -22,7 +22,10 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    product's own GitLab project (`prepare` in git-host.mjs, tested in tests/review-core.d/git-host.test.mjs, and its
    successor in MOD-repository-hosts, src/repository-hosts/failures.mjs); the bridge probe on localhost; the dashboard's
    own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
-   from. Every other fetch, XMLHttpRequest,
+   from; and the own data files — schemas, models, practices — of the modules whose files state that they read them when
+   they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register and MOD-product-process,
+   each once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
+   file builds resolved from a path beginning with `./` against the module's own address. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
    unless it is listed below with the reason it calls no other origin — each listed one exactly as often as listed.
 3. No Markdown file the site serves loads anything from an address of a host outside the list of check 1 — the
@@ -87,12 +90,31 @@ def _own_origin(text: str, at: int) -> bool:
     return "new URL(`dashboard/" in window and "import.meta.url" in window
 
 
-# (file, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None)
+def _own_data_file(text: str, at: int) -> bool:
+    """A module's own data file, read as MOD-spec-document reads its skeleton: the fetch is fetch(url) in ownFile(url), and
+    every address the file builds is resolved from a path beginning with ./ against the module's own address — so what
+    ownFile is given lies beside the module, on the origin it was loaded from."""
+    if not text[at:].startswith("fetch(url)") or "async function ownFile(url)" not in text:
+        return False
+    own = re.findall(r"new URL\(([\"'`])\./[^\"'`]*\1, import\.meta\.url\)", text)
+    return bool(own) and len(own) == len(re.findall(r"new URL\(", text))
+
+
+OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
+
+# (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
+# An entry for a folder counts the channel over every file in it.
 PERMITTED_CHANNELS = {
     ("docs/assets/git-host.mjs", "fetch"): (2, "the request helper and fetchText send only what the origin gate prepare() let through", _prepared),
     ("src/repository-hosts/failures.mjs", "fetch"): (1, "the repository hosts' request helper sends only what its origin gate prepare() let through", _prepared),
     ("src/spec-document/index.mjs", "fetch"): (1, "its own skeleton.md, from the address the module itself was loaded from",
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
+    # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
+    ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/participant-list/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/source-register/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/product-process/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("docs/assets/bridge-tunnel.mjs", "fetch"): (1, "the probe of a remote session's forward, on localhost",
                                                   lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("docs/assets/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
@@ -120,6 +142,17 @@ def foreign_hosts(text: str) -> set[str]:
     return {h.lower() for h in ADDRESS.findall(text)} - PERMITTED_HOSTS
 
 
+def _entry(path: str, name: str, permitted) -> tuple[str, str]:
+    """The entry a channel of a file falls under: the file's own, or that of the module folder the file lies in."""
+    if (path, name) in permitted:
+        return (path, name)
+    return next(((p, n) for p, n in permitted if n == name and p.endswith("/") and path.startswith(p)), (path, name))
+
+
+def _present(entry: str, files) -> bool:
+    return entry in files or (entry.endswith("/") and any(f.startswith(entry) for f in files))
+
+
 def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> list[str]:
     """Every request channel of the given site files that is not a permitted one, and every permitted one whose count or
     evidence does not hold. files: { path: text }."""
@@ -127,7 +160,7 @@ def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> lis
     for path, text in sorted(files.items()):
         for name, rx in CHANNELS:
             for m in rx.finditer(text):
-                key = (path, name)
+                key = _entry(path, name, permitted)
                 seen[key] = seen.get(key, 0) + 1
                 line = text.count("\n", 0, m.start()) + 1
                 if key not in permitted:
@@ -137,7 +170,7 @@ def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> lis
                 if evidence and not evidence(text, m.start()):
                     found.append(f"{path}:{line}: {name}: not {permitted[key][1]}")
     for key, (count, why, _) in permitted.items():
-        if key[0] in files and seen.get(key, 0) != count:
+        if _present(key[0], files) and seen.get(key, 0) != count:
             found.append(f"{key[0]}: {key[1]} found {seen.get(key, 0)} times, permitted {count} ({why})")
     return found
 
@@ -231,6 +264,26 @@ class NoServer(unittest.TestCase):
     def test_counter_proof_a_method_named_fetch_or_a_comment_is_no_call(self):
         self.assertEqual(channel_findings({"docs/assets/x.mjs": "class P { fetch(){ return this.t } }\nthis.parser.fetch().text;\n"
                                                                 "// the settings by name, export and import (UC-042)\nfetchText(u);\n"}), [])
+
+    def test_counter_proof_a_modules_own_data_files(self):
+        # The form MOD-spec-document reads its skeleton in, in a module whose file states that it reads its own data files.
+        own = ('const SCHEMAS = ["use-case", "module"].map((n) => new URL(`./schemas/${n}.schema.md`, import.meta.url));\n'
+               "async function ownFile(url) {\n  const answer = await fetch(url);\n  return answer.text();\n}\n")
+        self.assertEqual(channel_findings({"src/documents/index.mjs": own}), [])
+        # An address the file builds that is not its own module's: ownFile could be given it.
+        elsewhere = own + "const OTHER = new URL(name, location.href);\n"
+        self.assertEqual(channel_findings({"src/documents/index.mjs": elsewhere}),
+                         [f"src/documents/index.mjs:3: fetch: not {OWN_DATA_FILES}"])
+        # A second fetch in the module's folder, in another file: found as a fetch without the evidence, and as a count.
+        twice = {"src/model-catalogue/index.mjs": own, "src/model-catalogue/read.mjs": "export const read = (url) => fetch(url);\n"}
+        self.assertEqual(channel_findings(twice),
+                         [f"src/model-catalogue/read.mjs:1: fetch: not {OWN_DATA_FILES}",
+                          f"src/model-catalogue/: fetch found 2 times, permitted 1 ({OWN_DATA_FILES})"])
+        # A module that reads no data file of its own gets no entry: the same code there is a finding.
+        self.assertEqual(channel_findings({"src/text-tools/index.mjs": own}), ["src/text-tools/index.mjs:3: fetch: fetch(url);"])
+        # A listed module that does not read its data files in this form at all: its folder's count is not met.
+        self.assertEqual(channel_findings({"src/participant-list/index.mjs": "export const x = 1;\n"}),
+                         [f"src/participant-list/: fetch found 0 times, permitted 1 ({OWN_DATA_FILES})"])
 
     def test_counter_proof_a_markdown_file_that_loads_from_another_host(self):
         text = ("![flow](https://tracker.example/p.png)\n<img src='//cdn.example/x.svg'>\n<iframe src=\"https://embed.example/\"></iframe>\n"
