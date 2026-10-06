@@ -127,25 +127,31 @@ The six stages of the main page, each a share between 0 and 1:
   MOD-runtimes' `routesFor` for a job whose kind needs the product's resources. A fact only the server gives — `info`,
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
-- `productFacts(host: Host, instance: Host, now: Date, bridges: Record<string, Bridge>) -> Promise<Facts>` — reads
-  everything once: the default branch of the product — through a local clone, the branch it has checked out — and what
-  the repository says about it, the trace graph, the approval records, the change queues, the declaration with its model
-  and practices as the instance's catalogue held them at the commit the declaration's `model_version` names, and the
-  history of the declaration, the instance's participants, the plan or the backlog
+- `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date, bridges:
+  Record<string, Bridge>) -> Promise<Facts>` — reads everything once: the default branch of the product — through a
+  local clone, the branch it has checked out — and what the repository says about it, the trace graph, the approval
+  records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
+  commit the declaration's `model_version` names, read with `instanceAt`, and the history of the declaration, the
+  instance's participants, the plan or the backlog
   and the sprints, the gate records, the job records and the live state of every job that has not ended — from the CI
   service, from the Bridges given in `bridges` and from this tab, through MOD-runtimes' `liveState` —, the pull
   requests, the CI runs of the head, the tags, the branch `test-results`, the test declarations and the resource list.
-  Considers: `instance` is the instance's host, read at its default branch for its participants, process models and
-  `SPEC.md`, and at the commit a declaration names for the declared model. On a page it is the frame's host of the
-  instance; in CI and on a Bridge it is the instance's checkout or clone, connected as a host, which must hold that
-  commit. It also
-  accepts a host that does no server operations, such as a Bridge's local clone, whose functions for the pull requests,
-  the CI runs, the tags and the repository's information refuse with `NotSupported`: those facts are then `"unknown"`,
-  and merges and CI results are advanced by the Workflows' entries and the page. A source of live states that cannot be
-  read — a Bridge that does not answer — leaves its jobs as their records say, marked as not reachable (UC-035 1b), and
-  progress is still computed from the repository. Crosses the network. Errors: `NotFound` (a private repository without
-  a token that reaches it, or an instance's checkout without the commit a declaration names), `TokenRefused`,
-  `RateLimited`, `Unreachable`.
+  Considers:
+  - `instance` is the instance as the caller reads it, for its participants, process models and `SPEC.md`: on a page
+    its default branch; in CI the checkout of the instance at the commit of Agent M that runs (MOD-workflow-entries).
+  - `instanceAt` reads the instance at any commit, for the commit a declaration names. That is another commit than the
+    one a CI job checks out, and the two are not related.
+    - On a page, `instanceAt` reads through the frame's host of the instance.
+    - In CI and on a Bridge, it reads through the instance's server's API without a token: the instance is public
+      (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`), and no product's token goes to it. Read so, it counts
+      against the network's rate limit, which `RateLimited` names.
+  - It also accepts a host that does no server operations, such as a Bridge's local clone, whose functions for the pull
+    requests, the CI runs, the tags and the repository's information refuse with `NotSupported`: those facts are then
+    `"unknown"`, and merges and CI results are advanced by the Workflows' entries and the page.
+  - A source of live states that cannot be read — a Bridge that does not answer — leaves its jobs as their records say,
+    marked as not reachable (UC-035 1b), and progress is still computed from the repository.
+  - Crosses the network. Errors: `NotFound` (a private repository without a token that reaches it, or a declaration
+    naming a commit the instance does not hold), `TokenRefused`, `RateLimited`, `Unreachable`.
 - `progressIn(facts: Facts, now: Date) -> { measure: string, planned: { grid: { entries: Array<{ requirement: string,
   phase: string, state: "open" | "in progress" | "done" }>, count: string }, timeline: Array<{ phase: string, from: string
   | null, to: string | null, gate: string | null, passed: string | null }>, steps: ItemState[] } | null, sprint: { items:
@@ -242,5 +248,5 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-participant-list.Participant, participantSchema — the participants and their roles.
 - MOD-documents.Document, readDocument, readRegister — the files by their schemas.
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,
-  listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it, and the instance at its
-  default branch and at the commit a declaration names.
+  listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it; the snapshots
+  `instanceAt` gives of the instance at the commit a declaration names.
