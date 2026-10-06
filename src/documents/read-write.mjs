@@ -6,18 +6,22 @@
 // Sections by their heading lines (ITM-213): a section runs from its heading line to the next heading of the same or a
 // higher level, so a lower heading, with its table, stays inside it, and a line in a fenced block is no heading. The level
 // is that of the headings the schema names, ## when it names none; a schema names a section by its heading line exactly as
-// written, of any level — a register whose table stands under its title names the title line. The document's first heading,
-// when it is of level one, is its title, and stays before the first section unless the schema's sections are of level one.
-// A section's table is the first table in it: the first run of lines, outside fenced blocks, that begin with |. Its cells are
-// split at every | not escaped as \|, an escaped one is a | of the cell, and a cell that is empty or — is a value left out.
-// The parsing of front matter is MOD-text-tools'; reading a table's lines follows parseModel of docs/assets/process-model.mjs.
+// written, of any level. The document's first heading, when it is of level one, is its title, and stays before the first
+// section unless the schema's sections are of level one, or the schema names the section under the title (ITM-226): that
+// section is then read with the title line as its heading, from the line after it up to the first heading that begins a
+// section, and it is the document's first section.
+// A section's table (ITM-226) is the first table in it whose header row names exactly the table's columns, in their order;
+// a table without a header row is the section's first table. A table is a run of lines, outside fenced blocks, that begin
+// with |. Its cells are split at every | not escaped as \|, an escaped one is a | of the cell, and a cell that is empty or —
+// is a value left out. The parsing of front matter is MOD-text-tools'; reading a table's lines follows parseModel of
+// docs/assets/process-model.mjs.
 //
 // Writing keeps what it does not form: the bytes before the first section, the text of every section, and every row of a
 // table that stands as it was read; it forms the front matter, the order of the sections, and each row that is new or
 // changed. The text a document was read from is its `body`: the rows that stand are found there, by their cells.
 
 import { formatFrontMatter, parseFrontMatter } from "../text-tools/index.mjs";
-import { compiledOf, effective, fences, textLines } from "./schema-language.mjs";
+import { compiledOf, effective, fences, sectionOf, textLines } from "./schema-language.mjs";
 import { leftOut, textOf, valueProblem } from "./checks.mjs";
 
 const HEADING = /^(#{1,6})[ \t]+\S/;
@@ -97,21 +101,28 @@ function cellsOf(line) {
 }
 const isSeparator = (line) => cellsOf(line).every((cell) => /^:?-+:?$/.test(cell));
 
-// The first table of a text's lines: { from, to }, to exclusive, or null.
-function firstTable(lines) {
+// The section's table among a text's lines: { from, to }, to exclusive, or null — the first table whose header row names
+// exactly the table's columns, in their order; for a table without a header row, the first table.
+function sectionTable(table, lines) {
   const { inBlock } = fences(lines);
   const isRow = (i) => !inBlock[i] && /^[ \t]*\|/.test(lines[i]);
-  const from = lines.findIndex((_, i) => isRow(i));
-  if (from < 0) return null;
-  let to = from;
-  while (to < lines.length && isRow(to)) to += 1;
-  return { from, to };
+  const names = table.columns.map((column) => column.name);
+  const named = (header) => header.length === names.length && header.every((cell, i) => cell === names[i]);
+  let from = 0;
+  while (from < lines.length) {
+    if (!isRow(from)) { from += 1; continue; }
+    let to = from;
+    while (to < lines.length && isRow(to)) to += 1;
+    if (table.header === false || named(cellsOf(lines[from]))) return { from, to };
+    from = to;
+  }
+  return null;
 }
 
 // The rows of a table: where its rows begin — after its header and separator lines when it has a header row —, and each row's
 // index among the text's lines and its cells.
 function tableRows(table, lines, frontLookup) {
-  const at = firstTable(lines);
+  const at = sectionTable(table, lines);
   if (!at) return { at: null, rowsFrom: 0, rows: [] };
   let rowsFrom = at.from;
   if (table.header !== false) {
@@ -159,6 +170,8 @@ function sectionFields(fields, text, frontLookup) {
 
 // The title of a body, the bytes before its first section, and its sections: { heading, index, text } — the heading line as
 // written, its index among the body's lines, and every byte after the heading line up to the next section's heading line.
+// The title line begins a section when the schema's sections are of level one, or when the schema names the section under
+// the title.
 function layout(compiled, body) {
   const raw = body.split("\n");
   const lines = raw.map(bare);
@@ -167,7 +180,8 @@ function layout(compiled, body) {
   const level = (i) => HEADING.exec(lines[i])[1].length;
   const first = headings[0];
   const title = first !== undefined && level(first) === 1 ? lines[first].replace(/^#[ \t]+/, "").trim() : null;
-  const starts = headings.filter((i) => level(i) <= compiled.level && !(i === first && title !== null && compiled.level > 1));
+  const starts = headings.filter((i) => level(i) <= compiled.level
+    && !(i === first && title !== null && compiled.level > 1 && !compiled.underTitle));
   const offsets = [];
   let offset = 0;
   for (const line of raw) {
@@ -218,10 +232,10 @@ export function readDocument(schema, path, text) {
   const frontLookup = (name) => textOf(fields[name]);
   const { title, chunks } = layout(compiled, front.body);
   const sections = [], appended = [];
-  for (const chunk of chunks) {
+  for (const [place, chunk] of chunks.entries()) {
     const section = { heading: chunk.heading, line: front.bodyLine + chunk.index, text: chunk.text };
     const appendedSpec = compiled.appended.get(chunk.heading);
-    const spec = appendedSpec ?? compiled.sections.get(chunk.heading)?.spec;
+    const spec = appendedSpec ?? sectionOf(compiled, chunk, place, title)?.spec;
     if (spec?.table) {
       section.rows = tableRows(spec.table, textLines(chunk.text), frontLookup).rows
         .map((row) => ({ line: section.line + 1 + row.index, cells: row.cells }));
@@ -245,7 +259,8 @@ export function readRegister(schema, path, text) {
       + "by the one table its schema names");
   }
   const document = readDocument(schema, path, text);
-  const section = document.sections.find((s) => s.heading === compiled.tables[0]);
+  const section = document.sections
+    .find((s, place) => sectionOf(compiled, s, place, document.title)?.spec === compiled.tables[0]);
   return { document, rows: section ? section.rows : [] };
 }
 
@@ -269,7 +284,8 @@ function checkValues(schema, compiled, document) {
     if (why) throw fieldError(key, null, why);
   }
   const parts = [
-    ...(Array.isArray(document.sections) ? document.sections : []).map((s) => [s, compiled.sections.get(s?.heading)?.spec]),
+    ...(Array.isArray(document.sections) ? document.sections : [])
+      .map((s, place) => [s, sectionOf(compiled, s, place, document.title)?.spec]),
     ...(Array.isArray(document.appended) ? document.appended : []).map((s) => [s, compiled.appended.get(s?.heading)]),
   ];
   for (const [section, spec] of parts) {
@@ -390,9 +406,9 @@ function withFields(fields, section) {
 }
 
 // The sections in canonical order: those the schema names in the schema's order, in the places named sections stand; every
-// other section in its place.
-function canonicalOrder(compiled, sections) {
-  const named = sections.map((section, place) => ({ section, place, rank: compiled.sections.get(section?.heading)?.index }))
+// other section in its place. The section under the title, the schema's first, stays the first.
+function canonicalOrder(compiled, sections, title) {
+  const named = sections.map((section, place) => ({ section, place, rank: sectionOf(compiled, section, place, title)?.index }))
     .filter((entry) => entry.rank !== undefined);
   const sorted = [...named].sort((a, b) => a.rank - b.rank || a.place - b.place);
   const out = sections.slice();
@@ -430,8 +446,9 @@ export function writeDocument(schema, document) {
     return `${section.heading}\n${text}`;
   };
   let out = lead;
-  for (const section of canonicalOrder(compiled, Array.isArray(document.sections) ? document.sections : [])) {
-    out += part(section, compiled.sections.get(section?.heading)?.spec);
+  const sections = canonicalOrder(compiled, Array.isArray(document.sections) ? document.sections : [], document.title);
+  for (const [place, section] of sections.entries()) {
+    out += part(section, sectionOf(compiled, section, place, document.title)?.spec);
   }
   for (const section of Array.isArray(document.appended) ? document.appended : []) {
     out += part(section, compiled.appended.get(section?.heading));

@@ -15,10 +15,11 @@
 // record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with
 // MOD-text-tools' finding, and names the rule of the part of the schema closest to it (Data, The requirement a finding
 // names). A key or a section that is missing stands on no line: its finding names line 1, as the dashboard's checks of
-// today do (docs/assets/artifacts/use-cases.mjs).
+// today do (docs/assets/artifacts/use-cases.mjs). The section under the title (ITM-226) is the first section of a document
+// with a title, and is missing from a document without one.
 
 import { finding } from "../text-tools/index.mjs";
-import { KIND_FORMS, REQUIREMENT_NAME, compiledOf, effective, holds } from "./schema-language.mjs";
+import { KIND_FORMS, REQUIREMENT_NAME, compiledOf, effective, holds, sectionOf } from "./schema-language.mjs";
 
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -183,6 +184,9 @@ function keyLines(fields, keys) {
 
 const levelOf = (heading) => /^#*/.exec(heading)[0].length;
 
+// The section under the title, as findings name it: it has no heading of its own in the schema.
+const UNDER_TITLE = "the section under the title";
+
 /**
  * documentFindings(schema: Schema, document: Document) -> Finding[] — the findings the schema decides on a document read by
  * it (see the head of this file), in the order of their lines; on one line, in the order they are found: the keys of the
@@ -229,10 +233,10 @@ export function documentFindings(schema, document) {
     }
   }
 
-  const headings = (schema.sections ?? []).map((section) => section.heading);
+  const headings = (schema.sections ?? []).map((spec) => (spec.underTitle ? UNDER_TITLE : spec.heading));
   let lastSection = null; // the named section that stands furthest along the format's order so far
-  for (const section of document.sections) {
-    const named = compiled.sections.get(section.heading);
+  for (const [place, section] of document.sections.entries()) {
+    const named = sectionOf(compiled, section, place, document.title);
     if (!named) {
       if (schema.otherSections === "forbidden" && levelOf(section.heading) === compiled.level) {
         add(section.line, [], `the section ${section.heading} is not a section of the format ${schema.schema}, which allows no other`,
@@ -261,7 +265,11 @@ export function documentFindings(schema, document) {
     }
   }
   for (const spec of schema.sections ?? []) {
-    if (spec.required && !document.sections.some((section) => section.heading === spec.heading)) {
+    const stands = document.sections.some((section, place) => sectionOf(compiled, section, place, document.title)?.spec === spec);
+    if (!spec.required || stands) continue;
+    if (spec.underTitle) {
+      add(1, [spec.rule], `${UNDER_TITLE} is required, and missing`, "add the document's title, and the section under it");
+    } else {
       add(1, [spec.rule], `the section ${spec.heading} is required, and missing`, `add the section ${spec.heading}`);
     }
   }
