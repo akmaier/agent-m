@@ -65,7 +65,7 @@ It keeps nothing. It owns the schema language, and four schemas written in it.
 | `frontMatter` | for a document: its keys in their order, each with a value specification; a key not listed is an error |
 | `lines` | for the `lines` shape: its keys in their order, each with a value specification |
 | `title` | the pattern of the document's first heading, for example `# {id} {title}` |
-| `sections` | the sections, in order: each `{ "heading": "## Context", "required": true }`, optionally with `rule` — the requirement the section applies — and with `fields` (`key: value` lines inside the section, each with a value specification) or `table` — `{ "columns": [{ "name", "value" }], "header": true \| false, "appendOnly": true \| false }`, its columns in order, whether it has a header row (by default it has), and whether it only grows |
+| `sections` | the sections, in order: each `{ "heading": "## Context", "required": true }`, or `{ "underTitle": true, "required": true }` for the text under the document's title (*Sections and their tables*, below), optionally with `rule` — the requirement the section applies — and with `fields` (`key: value` lines inside the section, each with a value specification) or `table` — `{ "columns": [{ "name", "value" }], "header": true \| false, "appendOnly": true \| false }`, its columns in order, whether it has a header row (by default it has), and whether it only grows |
 | `otherSections` | `allowed` or `forbidden`: whether a heading of the same level that the list does not name may stand in the document |
 | `appended` | for a record: the sections that may be appended after it was written — each `{ "heading", "fields", "repeat": true \| false }`, optionally with `rule` as a section has it |
 | `diagrams` | `required`, `allowed` or `none`: whether the body must hold a Mermaid block; an image is never allowed (`DIAGRAMS ARE MERMAID IN MARKDOWN`) |
@@ -137,6 +137,28 @@ concerns, among the parts that name one:
 
 `loadSchema` refuses a `rule` that is not a requirement's name in capitals; whether that requirement stands in the SPEC is
 not decided here.
+
+**Sections and their tables.** A section runs from its heading line to the next heading of the same or a higher level: a
+lower heading, with its table, stays inside it, and a line in a fenced block is no heading. A schema names a section by
+its heading line exactly as written, of any level, so the heading it names is the same in every file of the format. The
+level of a schema's sections is that of the headings it names, `##` when it names none, and the document's title is its
+first heading when that is of level one.
+
+A format whose table stands under its title, with no heading of its own, and whose title changes from file to file — a
+product's `docs/sources.md`, a change queue's `index.md` and `entscheidungen.md` — names that section
+`{ "underTitle": true }` in place of a heading: the text under the document's title, from the line after the title line up
+to the first heading that begins a section.
+Read, its heading is the title line as written. A schema names at most one section under the title, as its first section,
+and then no section of level one; a document without a title has no such section.
+
+```json
+{ "underTitle": true, "required": true,
+  "table": { "header": false, "appendOnly": true, "columns": [ { "name": "When", "value": { "type": "time", "required": true } }, … ] } }
+```
+
+A section's table is the first table in it whose header row names exactly the table's columns, in their order; a table
+without a header row is the section's first table. So the entry table of a queue's `index.md` is found after the tables of
+its impact analysis.
 
 **A table without a header row.** A table whose specification says `"header": false` has neither a header line nor a
 separator line: the cells of each row are read by position into the columns in their order. The decisions file of a
@@ -217,7 +239,8 @@ whose condition is that kind's path: `realises` under `A BACKLOG ITEM NAMES WHAT
 `A PLAN STEP NAMES THE TESTS OF ITS LEVEL` for a file under `docs/plan/`; for the other kind they name its path's rule.
 
 **A document** as this module reads it: `{ kind, path, id, title, fields, sections, appended, body }` — `fields` by key,
-each value as text, list or number; `sections` in order, each `{ heading, line, text, fields?, rows? }`; `appended`, for a
+each value as text, list or number; `sections` in order, each `{ heading, line, text, fields?, rows? }` — a section under
+the title with the title line as its heading —; `appended`, for a
 record, the appended sections in order. **A row** of a table: `{ line, cells }`, its cells by column name.
 
 ## Interfaces
