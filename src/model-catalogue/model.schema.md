@@ -37,6 +37,12 @@ state over time` pulled work —, as the variants of `measure` say.
       ] }
   },
   "sections": [
+    { "heading": "## About", "required": false, "fields": {
+      "manages": { "type": "text" },
+      "accepts": { "type": "text" },
+      "example": { "type": "text" },
+      "chapter": { "type": "text" }
+    } },
     { "heading": "## Phases", "required": true, "rule": "THE MODEL DETERMINES THE PHASES AND THE GATES", "table": { "columns": [
       { "name": "Name", "value": { "type": "text", "required": true } },
       { "name": "Role", "value": { "type": "text", "required": true, "rule": "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS" } },
