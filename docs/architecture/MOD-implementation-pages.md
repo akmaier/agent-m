@@ -117,12 +117,20 @@ Its formats are those of the modules it uses.
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `workStrategies`, `runStrategies`,
   `processStrategies`, `scheduleStrategies`, `resultStrategies`, `routeStrategies`, `approvalStrategies`:
-  - `process` — *How this product is developed*: the five models in their two groups with their risks, the roles with
+  - `process` — *How this product is developed*: the five models in their two groups, each with what its `about` holds —
+    the risk it manages well, the risk it accepts, an example project it suits, its chapter —, the roles with
     whether a person, an agent or either may hold them and the capabilities each needs, the participants offered for a
     role — only those with every capability, each with where it processes data —, phases, transitions, verification
     pairs and gates with their deciders, a branch for a phase or sprint, practices, what the product's process
     requirements add, the Definition of Done, in a form from the declaration's schema; *Save* writes the declaration with
-    `saveFile`.
+    `saveFile`, naming the declared model's version by the commit of the instance its catalogue was read at. When the
+    catalogue as it stands holds another version of the declared model than the commit the declaration names — their
+    `version`s differ —, the route shows what the new version changes for the product before *Save* names it (UC-031
+    6a):
+    - the phases, gates and roles of `workflowOf` under each version, side by side;
+    - the difference of the two model files, with `showDifference`;
+    - the assignments that become invalid: what `declarationFindings` finds for the declaration as it would be saved,
+      naming the current commit, against the catalogue as it stands.
   - `models`, `models/<name>` — the instance's process models: the catalogue, *Adapt* and *+ New model* with a form from
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
     every phase, *Save* only without errors, with `saveFile`.
@@ -182,11 +190,13 @@ participants, process models and `SPEC.md`, whose requirements are the process r
   the item schema of a form, documents of the common shape, the text of a declaration or model to save, the participant
   list; MOD-artifact-edits.saveFile — the declaration and a model, only on the blob they were opened on.
 - MOD-model-catalogue.catalogue, MOD-model-catalogue.modelSchema, MOD-model-catalogue.modelFindings,
-  MOD-model-catalogue.planGrid, MOD-model-catalogue.modelDiagram — models.
+  MOD-model-catalogue.planGrid, MOD-model-catalogue.modelDiagram — models: the catalogue as it stands, and as it stood at
+  the commit a declaration names.
 - MOD-product-process.declarationSchema, MOD-product-process.declarationFindings, MOD-product-process.workflowOf,
   MOD-product-process.holdsRole, MOD-product-process.doneCheck — the declaration, its workflow and gates, and the
   Definition of Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
-  where the process requirements stand.
+  where the process requirements stand, and with the catalogue at the commit the declaration names, read with
+  MOD-repository-hosts' `readSnapshot`.
 - MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.planFindings,
   MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts — plans, backlogs, sprints and their states;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.saveOrder, MOD-work-plans.startSprint,

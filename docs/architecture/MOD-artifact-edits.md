@@ -71,13 +71,14 @@ The review layout it writes into a product, skipping whatever exists:
 
 ## Interfaces
 
-- `saveFile(host: Host, edit: { path: string, text: string, openedBlob: string | null, openedId: string | null,
-  person: string }) -> Promise<{ commit: string, blob: string } | { refused: "changed meanwhile", current: string | null,
-  currentBlob: string | null } | { refused: "identifier changed", openedId: string, nowId: string | null } | { refused:
-  "not one place", items: string[] }>` — saves one file a person edited on a page, in one commit on the default branch of
-  the repository that holds it, under the person's account, only if the file's blob there is still `openedBlob`; `null`
-  stands for a file that did not exist when it was opened, which is created only while it still does not exist (`A SAVE
-  IS REFUSED WHEN THE TEXT CHANGED MEANWHILE`). It serves every such file: a reviewed file — a use case, an architecture
+- `saveFile(host: Host, edit: { path: string, text: string, openedBlob: string | null, openedId: string | null }) ->
+  Promise<{ commit: string, blob: string } | { refused: "changed meanwhile", current: string | null, currentBlob: string |
+  null } | { refused: "identifier changed", openedId: string, nowId: string | null } | { refused: "not one place", items:
+  string[] }>` — saves one file a person edited on a page, in one commit on the default branch of the repository that
+  holds it, only if the file's blob there is still `openedBlob`; `null` stands for a file that did not exist when it was
+  opened, which is created only while it still does not exist (`A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE`). The
+  commit is made with the token the host was connected with, so it is under the person's account; its message names no
+  one. It serves every such file: a reviewed file — a use case, an architecture
   decision, a module file, a test file —; a group file; the instance's `docs/participants.md`, `docs/resources.md` and
   process models under `docs/process-models/`; a product's `docs/sources.md`, `docs/resources.md`, `docs/settings.md`,
   `docs/collaborators.md` and `docs/process.md`; and the audit export under `docs/audits/`. On refusal it writes nothing
@@ -91,7 +92,7 @@ The review layout it writes into a product, skipping whatever exists:
   is written), `TokenRefused`, `PermissionMissing` (the caller offers the GitHub route, where the commit becomes a pull
   request), `RateLimited`, `Unreachable`, `TokenRequired` for a GitLab product without a token.
 - `saveGroupFile(host: Host, edit: { kind: "requirements" | "use-cases" | "architecture" | "modules" | "tests",
-  text: string, openedBlob: string | null, person: string }) -> Promise<{ commit: string, blob: string } | { refused:
+  text: string, openedBlob: string | null }) -> Promise<{ commit: string, blob: string } | { refused:
   "changed meanwhile", current: string | null, currentBlob: string | null } | { refused: "not one place", items:
   string[] }>` — `saveFile` for the group file `docs/groups/<kind>.md`, named by its kind: that file and nothing else,
   committed directly to the default branch (`A REGROUPING IS COMMITTED DIRECTLY`, `REGROUPING LEAVES THE GROUPED FILE
