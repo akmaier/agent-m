@@ -15,6 +15,8 @@ uses:
   - MOD-approvals.statusOf
   - MOD-runtimes.queueJob
   - MOD-job-ledger.listJobs
+  - MOD-job-ledger.recordsNewestFirst
+  - MOD-job-ledger.JobRecord
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.readSnapshot
@@ -117,16 +119,20 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   recorded reason, while the report is incomplete, and when the tag exists — an existing tag is never moved. Crosses the
   network. Errors: `LimitationMissing` (naming the tests and rates), `Incomplete`, `TagExists`, `Moved`, `TokenRefused`,
   `PermissionMissing`, `RateLimited`, `Unreachable`.
-- `reportsAwaitingAcceptance(snapshot: Snapshot) -> Promise<Array<{ version: string, candidate: string, record: string,
-  blob: string }>>` — the release test reports that wait for a person's acceptance in one repository, from its files
-  alone: for each version, its newest release candidate whose complete run — the job of kind `run-tests` that
-  `startReleaseCandidate` queued — has ended as done, while the snapshot holds no report `docs/tests/releases/v<version>.md`,
-  which `acceptAndRelease` writes only together with the report's approval record. `candidate` is the candidate's tag,
-  `record` the path of that job's record and `blob` its blob, which no longer changes once the job has ended. Considers: the
-  report itself is composed on the release panel by `releaseReport`; a candidate whose user-level tests are still being
-  entered waits all the same, and the panel names what is missing. Crosses the network through the snapshot, for the job
-  records it has not read yet; fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
-  `Unreachable`.
+- `reportsAwaitingAcceptance(host: Host, snapshot: Snapshot) -> Promise<{ version: string, candidate: string, record:
+  string, blob: string } | null>` — the release test report that waits for a person's acceptance in one repository, if
+  one does: that of the newest release candidate — the newest tag `v<version>-rc.<N>` — whose version has neither its
+  release tag `v<version>` nor its report `docs/tests/releases/v<version>.md`, which `acceptAndRelease` writes only
+  together with the report's approval record, once that candidate's complete run — the job of kind `run-tests` that
+  `startReleaseCandidate` queued — has ended as done. It reads the tags once. Only while such a candidate is pending
+  does it read job records: newest first, through MOD-job-ledger's `recordsNewestFirst`, and only up to the first run of
+  a release candidate it meets: that candidate's run or, when that run was never recorded, an earlier candidate's — only
+  for a first candidate whose run was never recorded does it read every record. `candidate` is the candidate's tag,
+  `record` the path of its run's record and `blob` its blob, which no longer changes once the job has ended. Considers:
+  the report itself is composed on the release panel by `releaseReport`; a candidate whose user-level tests are still
+  being entered waits all the same, and the panel names what is missing. Crosses the network: the tags through the host,
+  the records through the snapshot; fails with their errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
+  `Unreachable` —, and with `NotSupported` through a host that does no server operations, such as a local clone.
 - `auditRows(at: Snapshot, results: Snapshot, release: { tag: string, commit: string }, gates: Array<{ requirement: string,
   gate: string, record: string }>, instanceSpec: string) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
   worse: number, byImplementer: number, accepted: boolean, limitations: string[] }, rows: Array<{ requirement: string,
@@ -149,7 +155,8 @@ branch `test-results`.
 - Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests, the report, the approval records —,
   the branch `test-results`, the schedule, and the instance's source register and `SPEC.md`, whose requirements are the
   process requirements.
-- Reads, for `reportsAwaitingAcceptance`, the default branch's `docs/jobs/` and `docs/tests/releases/`.
+- Reads, for `reportsAwaitingAcceptance`, the tags, the default branch's `docs/tests/releases/`, and, only while a release
+  candidate is pending, its `docs/jobs/` newest first back to the first run of a candidate.
 - Writes `docs/tests/releases/v<version>.md`, `docs/approvals/release-v<version>-<blob12>.md`, `CHANGELOG.md`, the tags
   `v<version>-rc.<N>` and `v<version>`, and, on a person's click, `docs/audits/<tag>.md`.
 
@@ -159,10 +166,11 @@ branch `test-results`.
 - MOD-test-schedule.scheduleSchema — the commands and runners with which the complete run runs each level.
 - MOD-approvals.approvalSchema, statusOf — the report's record and whether the report is accepted.
 - MOD-runtimes.queueJob — the complete run, queued as a job.
-- MOD-job-ledger.listJobs — who implemented the behaviour a release test guards, against who wrote the test; and the
-  complete runs of release candidates that have ended, for the reports that wait.
+- MOD-job-ledger.listJobs — who implemented the behaviour a release test guards, against who wrote the test;
+  MOD-job-ledger.recordsNewestFirst, MOD-job-ledger.JobRecord — the run of a pending release candidate, read newest first
+  and no further back than the first run of a candidate.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, listTags, commitFiles, createTag — the product at a commit, its
-  tags, the release commit and the tags.
+  tags — also the candidates and releases a waiting report is found among —, the release commit and the tags.
 - MOD-documents.Document, loadSchema, readDocument, writeDocument — the report and the records by their schemas.
 - MOD-spec-document.parseSpec — the product's requirements valid at the release, and the process requirements of the
   instance's SPEC.

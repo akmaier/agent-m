@@ -122,11 +122,12 @@ formats are those of the modules it uses.
     beside the existing tests of the same identifier, removed, edited or reclassified; *Write tests*, which queues a job
     of the kind `write-tests` with the cases as the person left them, the selection and the levels, on the participant's
     route — the participant writes the tests and their counter-proofs on a branch and opens a pull request.
-  - `release` — the next version of the product's own line, preset to a minor step, and the changelog entry, both
-    editable; *Start release candidate*; the run on the job list; when it ends, every level with its result, every
-    model-dependent check as a rate against the running version, every requirement with its evidence — the audit of the
-    candidate, drawn by the trace pages' route inside this panel —, and the release test report with *Accept and
-    release*, which asks first for the reason of every failing test and every worse rate.
+  - `release` — the release panel, also the address by which the browser's notifications lead to a release test report
+    that waits for acceptance (MOD-notifications): the next version of the product's own line, preset to a minor step,
+    and the changelog entry, both editable; *Start release candidate*; the run on the job list; when it ends, every
+    level with its result, every model-dependent check as a rate against the running version, every requirement with its
+    evidence — the audit of the candidate, drawn by the trace pages' route inside this panel —, and the release test
+    report with *Accept and release*, which asks first for the reason of every failing test and every worse rate.
 
 ## Files
 

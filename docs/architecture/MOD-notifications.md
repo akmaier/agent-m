@@ -92,19 +92,20 @@ notification's text — what waits and where — is what leads the person on.
   last check five minutes old or older —, so that the pages open in this browser together check every five minutes, and
   a page opened after a pause checks at once (UC-047 2a). A check reads the snapshot of the default branch of the
   instance and of each product the store keeps — each connected with its own token, which goes only to its own server —,
-  takes from each what waits for acceptance with `waitingForAcceptance`, and compares it with `notified`: what waits on
-  a blob `notified` does not hold for its path has come to wait — a file changed again among it. Of one kind in one
-  repository, up to three are notified one by one and more than three by one notification of their number; then the
-  check records its time, and `notified` holds, for every repository it read, what waits there now, so that an entry
-  whose file no longer waits is dropped. The first check after notifications are switched on — `checked` still `null` —
-  shows nothing and only records what waits then: a notification tells what comes to wait while notifications are on (`A
-  PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). Considers: it crosses the network to the repository servers; a
-  repository it cannot read — `NotFound`, `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable` — is skipped
-  until the next check, keeps its entries in `notified`, and nothing is notified for it in between (UC-047 2c); a check
-  costs a repository the requests of one snapshot and of the blobs not read before on this page. A browser that pauses a
-  page in the background holds its checks until it runs the page again (UC-047 2b). Where the browser has dropped the
-  worker's registration, the check registers it again. It throws nothing: a store the browser refuses holds no switch,
-  and no check runs.
+  takes from each, with its host, what waits for acceptance with `waitingForAcceptance`, and compares it with
+  `notified`: what waits on a blob `notified` does not hold for its path has come to wait — a file changed again among
+  it. Of one kind in one repository, up to three are notified one by one and more than three by one notification of
+  their number; then the check records its time, and `notified` holds, for every repository it read, what waits there
+  now, so that an entry whose file no longer waits is dropped. The first check after notifications are switched on —
+  `checked` still `null` — shows nothing and only records what waits then: a notification tells what comes to wait while
+  notifications are on (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). Considers: it crosses the network to the
+  repository servers; a repository it cannot read — `NotFound`, `TokenRefused`, `PermissionMissing`, `RateLimited`,
+  `Unreachable` — is skipped until the next check, keeps its entries in `notified`, and nothing is notified for it in
+  between (UC-047 2c); a check costs a repository the requests of one snapshot, of its tags and of the blobs not read
+  before on this page, job records among them only while a release candidate is pending (MOD-release-evidence). A
+  browser that pauses a page in the background holds its checks until it runs the page again (UC-047 2b). Where the
+  browser has dropped the worker's registration, the check registers it again. It throws nothing: a store the browser
+  refuses holds no switch, and no check runs.
 - `notificationState(store: Store) -> NotificationState` — the state of this browser, for the settings page; it asks
   nothing and makes no request.
 - `switchOn(store: Store) -> Promise<NotificationState>` — the person's **Switch on**: asks the browser's permission to

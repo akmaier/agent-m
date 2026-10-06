@@ -258,8 +258,8 @@ frame's alone (`A DATA FORMAT IS DEFINED ONCE`).
 - A view never computes a status of its own; anything it shows can be recomputed by the service that owns it.
 - The site can be opened from any fork's Pages address and shows that fork's instance.
 - Notifications arrive only while a page of the dashboard is open in that browser, and at most every five minutes; each
-  check reads the snapshot of every repository the browser keeps, which counts against the servers' rate limits, and a
-  page reads each blob once.
+  check reads the snapshot and the tags of every repository the browser keeps, which count against the servers' rate
+  limits, and a page reads each blob once.
 - A click on a notification opens a new window or tab: the worker controls no page, so it cannot navigate an open one.
 - The browser behaviour the notifications depend on is measured on current browsers before the release that carries
   them, and recorded under `docs/measurements/` (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`), in this order. First,
