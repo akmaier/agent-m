@@ -82,12 +82,13 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     },
 
     // One commit of all the files, through "Create a commit with multiple files and actions". GitLab has no write that holds
-    // only if the branch still stands at a commit, so: the branch is checked to stand at expectedHead; each file is created
-    // where expectedHead does not hold it — GitLab refuses that if the file exists by then —, and updated or deleted with
-    // `last_commit_id`, the commit that last changed it as of expectedHead — GitLab refuses that if the file changed on the
-    // branch since (validate_file_status!). Either refusal is Moved, and nothing is written. What GitLab cannot refuse: a commit
-    // that lands between the check and this one and touches none of these files; this one is then written on top of it,
-    // without losing any change.
+    // only if the branch still stands at a commit, so: the branch is checked to stand at expectedHead before the files are
+    // read, and again just before the write; each file is created where expectedHead does not hold it — GitLab refuses that
+    // if the file exists by then —, and updated or deleted with `last_commit_id`, the commit that last changed it as of
+    // expectedHead — GitLab refuses that if the file changed on the branch since (validate_file_status!). Each refusal is
+    // Moved, and nothing is written. What remains, and what no write of GitLab's API can close: a commit that lands after the
+    // last check of the head and before GitLab's own write, and touches none of these files; this one is then written on top
+    // of it, without losing any change.
     async commitFiles({ branch, expectedHead, files, message }) {
       const now = await branchHead(branch);
       if (now !== expectedHead) throw moved(branch, now);
@@ -100,7 +101,11 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         } else if (meta) actions.push({ action: "update", file_path: f.path, ...content, last_commit_id: meta.last_commit_id });
         else actions.push({ action: "create", file_path: f.path, ...content });
       }
-      const refused = /changed since you started editing|already exists|doesn't exist|does not exist/i;
+      // The head again, just before the write: a commit that landed while the files were read is found here, whether or not
+      // it touches them.
+      const last = await branchHead(branch);
+      if (last !== expectedHead) throw moved(branch, last);
+      const refused =/changed since you started editing|already exists|doesn't exist|does not exist/i;
       const answer = await call("POST", `${api}/repository/commits`, { body: { branch, commit_message: message, actions },
         on: { 400: async (a) => {
           const said = await a.clone().json().then((j) => String(j.message ?? j.error ?? ""), () => "");
