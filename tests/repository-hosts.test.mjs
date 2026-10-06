@@ -732,6 +732,17 @@ test("UC-001 5 — an empty repository: no commit and no path; its first commit 
   });
 });
 
+// Expected: a GitLab project is not given a first commit — commitFiles with expectedHead null is refused NotFound with the advice
+// to push a first commit to it, and no request is made (MOD-repository-hosts as drafted in 617d061).
+test("UC-001 5 — on a GitLab server, a first commit is refused with the advice to push one, and nothing is requested", async () => {
+  const gl = fakeGitLab();
+  await using(gl.fetch, async () => {
+    await assert.rejects(connect(GITLAB, { token: GL_TOKEN }).commitFiles({ branch: "main", expectedHead: null, message: "m",
+      files: [{ path: "SPEC.md", text: "x\n" }] }), (e) => e.name === "NotFound" && /has no commit yet — push a first commit to it/.test(e.message));
+  });
+  assert.deepEqual(gl.requests, [], "no request");
+});
+
 // ---------------------------------------------------------------- what UC-001 reads
 
 // UC-001 4 · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — Expected, in one request each: the repository's default branch, the

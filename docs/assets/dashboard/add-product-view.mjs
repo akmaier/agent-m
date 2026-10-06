@@ -90,10 +90,9 @@ const EXPLAIN = {
   newRepository: (owner, name) => `GitHub's page for a new repository asks a few things. The <em>owner</em> is the account
     or organisation the repository belongs to — for this address, <code>${h(owner)}</code>. The <em>repository name</em> is
     the last part of the address — <code>${h(name)}</code>. <em>Public</em> means anyone can read it and only the people you
-    allow can change it; <em>private</em> means only you and the people you add can see it — both work with Agent M. Choose
-    to add a README: a repository without any file has no branch yet, and Agent M writes its layout onto the default
-    branch. A <em>.gitignore</em> and a licence are optional here; a product states its licence in a <code>LICENSE</code>
-    file, which you can add now or later. Then create the repository, come back to this page, add it to your key in
+    allow can change it; <em>private</em> means only you and the people you add can see it — both work with Agent M. A
+    README is up to you: Agent M writes its layout into an empty repository too, as its first commits. A <em>.gitignore</em> and a licence are optional here; a product states its licence in a <code>LICENSE</code>
+    file, which you can add now or later. Then create the repository, come back to this page, give it its key in
     Step A and press Check.`,
   check: `Agent M reads the product repository with your key. For a private repository, success proves the key
     reaches it. A public repository can be read by anyone, so there the proof comes with the first write in Step C —

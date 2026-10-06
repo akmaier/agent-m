@@ -90,6 +90,10 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     // last check of the head and before GitLab's own write, and touches none of these files; this one is then written on top
     // of it, without losing any change.
     async commitFiles({ branch, expectedHead, files, message }) {
+      // A project without a commit is refused, with the advice to push a first commit to it (MOD-repository-hosts commitFiles).
+      if (expectedHead === null) {
+        throw new HostError("NotFound", { what: address.web }, `${address.web} has no commit yet — push a first commit to it, then add it here.`);
+      }
       const now = await branchHead(branch);
       if (now !== expectedHead) throw moved(branch, now);
       const actions = [];

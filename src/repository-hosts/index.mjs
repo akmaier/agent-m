@@ -75,7 +75,8 @@ function checkedAddress(address) {
 function checkedChange(change) {
   const { branch, expectedHead, files, message } = change ?? {};
   if (typeof branch !== "string" || !branch.trim()) throw new TypeError("a change names its branch");
-  if (!HEAD.test(String(expectedHead))) throw new TypeError(`a change names the commit it is made on: ${expectedHead}`);
+  // null: the repository's first commit — it has none yet (an empty repository).
+  if (expectedHead !== null && !HEAD.test(String(expectedHead))) throw new TypeError(`a change names the commit it is made on: ${expectedHead}`);
   if (!Array.isArray(files) || !files.length) throw new TypeError("a change holds at least one file");
   if (typeof message !== "string" || !message.trim()) throw new TypeError("a change has a message");
   const paths = new Set();
@@ -156,7 +157,8 @@ export function connect(address, credentials = {}) {
     },
 
     // commitFiles({ branch, expectedHead, files, message }) -> { commit, url } — one commit of all the files, made only if the
-    // branch still stands at expectedHead; the message is written as given. Crosses the network; fails with Moved,
+    // branch still stands at expectedHead; expectedHead null makes an empty repository's first commit — on GitHub two, the first
+    // file and then the others —; the message is written as given. Crosses the network; fails with Moved,
     // SecretRefused, TokenRefused, PermissionMissing, RateLimited, Unreachable. Nothing is written on any failure.
     async commitFiles(change) {
       const c = checkedChange(change);
