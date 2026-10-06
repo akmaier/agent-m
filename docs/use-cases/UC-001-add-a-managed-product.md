@@ -52,17 +52,22 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
    example `https://github.com/alice/thesis-tool` or
    `https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool`. Agent M recognises the server and
    whether it is GitHub or GitLab, and shows which of the two routes below applies.
-3. **Step A · Let your key reach the product.** The key from UC-014 covers only the instance. The
-   panel shows a button **Open your tokens on GitHub** and, underneath, exactly what to do there,
-   with the names filled in:
-   1. click the token **`Agent M · <instance>`**, then **Edit**;
-   2. under *Repository access* → *Select repositories*, add **`<product repository>`** — keep
-      `<instance>` selected;
-   3. press **Update** at the bottom.
+3. **Step A · Let your key reach the product.** The key from UC-014 covers only the instance. From the
+   address typed in step 2, the panel shows a button **Open GitHub's token page (prefilled)** — the page
+   for a new token, with its name, description, 90 days and every permission filled in, as in UC-014;
+   the name carries today's date, so that it differs from the token it replaces — and, underneath,
+   exactly what to do there, with the names filled in:
+   1. under *Repository access* choose *Only select repositories* and select **`<instance>`**, every
+      GitHub product this browser already lists, and **`<product repository>`** — nothing else;
+   2. press **Generate token** and copy the token.
 
-   The token itself does not change — nothing to copy, nothing to paste in Agent M.
-4. **Step B · Check.** The author presses **Check**; Agent M reads the product repository with the
-   stored token and shows ✓, or names what is missing. For a *public* repository a read succeeds
+   Back in the panel, after the notice of UC-014, the author pastes the token and presses **Store and
+   check**: Agent M stores it in place of the old one and checks that it reaches each of these
+   repositories. The old token stays on GitHub until it expires; the explanation says that it can be
+   deleted there.
+4. **Step B · Check.** Agent M reads the product repository with the stored token and shows ✓, or
+   names what is missing — after *Store and check* without another click, otherwise when the author
+   presses **Check**. For a *public* repository a read succeeds
    even without the token's permission, so the panel says that write access is confirmed at the
    next step.
 5. **Step C · Add the product** — one click. Agent M:
@@ -73,21 +78,21 @@ repository; they are reviewed on the instance's dashboard. The product gets no P
      the instance repository;
    - shows the commit as a link, and offers to switch to the new product.
 
-Every step carries a folded **What is this?** explanation for newcomers: what a repository is, why
-the key has to be extended, what the commit contains, how to undo it, and why the product list lives
-in this browser only.
+Every step carries a folded **What is this?** explanation for newcomers: what a repository is, why a
+new key replaces the old one, what the commit contains, how to undo it, and why the product list
+lives in this browser only.
 
 ```mermaid
 sequenceDiagram
     actor A as Author
     participant D as Dashboard (instance Pages)
-    participant G as GitHub token list
+    participant G as GitHub token page
     participant P as Product repository
-    A->>D: + Add product, type owner/name
-    D-->>A: Step A, which token, what to add
-    A->>G: Edit token, add product repository, Update
-    A->>D: Step B, Check
-    D->>P: read (token)
+    A->>D: + Add product, paste the address
+    D-->>A: Step A, prefilled token page, which repositories
+    A->>G: select the repositories, Generate token, copy
+    A->>D: paste, Store and check
+    D->>P: read (new token)
     D-->>A: reachable
     A->>D: Step C, Add product
     D->>P: commit missing layout
@@ -126,6 +131,9 @@ sequenceDiagram
 
 - The product repository contains the review layout; it has no Pages site.
 - This browser lists the product; the instance repository names no product.
-- The one token from UC-014 now reaches the instance and this product, and nothing else.
-- Clicks: *+ Add product*, *Open your tokens on GitHub*, on GitHub *Edit* and *Update*, *Check*,
-  *Add product*. If the token already reaches the product: *+ Add product*, *Check*, *Add product*.
+- The token stored in this browser reaches the instance, every GitHub product this browser lists and
+  this product, and nothing else; the token it replaced stays on GitHub until it expires or the author
+  deletes it.
+- Clicks: *+ Add product*, *Open GitHub's token page (prefilled)*, on GitHub the repositories and
+  *Generate token*, *Store and check*, *Add product*. If the token already reaches the product:
+  *+ Add product*, *Check*, *Add product*.
