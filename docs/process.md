@@ -51,6 +51,9 @@ The job rules hold for every pull request; no condition is added.
 - A sprint has no fixed length. It ends when every selected item is done or the Product Owner ends it; then the
   review of its increment and the retrospective are recorded, and then the Product Owner decides the merge of
   `sprint/<nn>` into `main`.
+- The Product Owner decides every merge into `sprint/<nn>` and of `sprint/<nn>` into `main`, after a review it records
+  on the pull request. scrum-master-session carries out each merge on that decision, on the head commit the decision
+  names: the session's permission system refuses a merge by an agent, and `akmaier` assigned the merge to it.
 - Closing a sprint — its review, its retrospective and the decisions on its unfinished items — is assigned to
   scrum-master-session (`CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT`), not to po-opus: the merge of
   `sprint/<nn>` into `main` checks the review and the retrospective, and the Product Owner who decides it must
@@ -64,5 +67,14 @@ Until Agent M's own features carry them, SPEC changes and the acceptance of use 
 and modules stay with the person `akmaier`: a SPEC change is agreed with `akmaier` and accepted by an approval
 record committed under that account, and so is every use case, decision and module
 (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`, `A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN`).
-No other participant — the Product Owner po-opus included — changes SPEC.md, a use case or an architecture
-file, or accepts one; a gap found during a sprint becomes a change request to `akmaier`, and the item waits.
+No other participant — the Product Owner po-opus included — accepts a SPEC change, a use case or an architecture
+file, or writes into SPEC.md.
+
+A gap found during a sprint becomes a change request to `akmaier`, and the item waits. The participant that finds it
+drafts the change at once, as a proposal `akmaier` accepts in the dashboard, and says where it stands:
+- a SPEC change as a queue under `docs/spec-freigaben/<date>_<slug>/` — the proposed section, its reasoning, the index
+  and the decisions file —; SPEC.md itself is written only by the acceptance;
+- a change to a use case or an architecture file in the file itself, on `main`: the file is then open, changed since its
+  last approval record, and binds nothing until `akmaier` accepts it.
+
+A drafted change is no decision; only the approval record is.
