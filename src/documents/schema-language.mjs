@@ -145,7 +145,9 @@ function checker(owner) {
         fail(at, "a path relative to the repository's root, with no blank");
       }
       for (const [, name] of pattern.matchAll(/\{([^{}]*)\}/g)) {
-        if (!PLACEHOLDERS.includes(name)) fail(at, `{${name}} is no placeholder; the placeholders are ${PLACEHOLDERS.map((p) => `{${p}}`).join(", ")}`);
+        if (!PLACEHOLDERS.includes(name)) {
+          fail(at, `{${name}} is no placeholder; the placeholders are ${PLACEHOLDERS.map((p) => `{${p}}`).join(", ")}`);
+        }
       }
       if (/[{}]/.test(pattern.replace(/\{[^{}]*\}/g, ""))) fail(at, "a { or } that opens or closes no placeholder");
     }
