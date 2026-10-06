@@ -41,14 +41,16 @@ Nor are a holder lacking a capability its role needs and the warning about a hol
 permit. Both go through MOD-participant-list's `eligible`, which takes `Participant`s, and no module turns a row of the
 register into one.
 
+`workflowOf` adds no practice's additions: a shipped practice states its `## Adds` in words only (ITM-215).
+
 ## Acceptance
 
 - Unit tests that name MOD-product-process state, before the code exists, for a fixture product: a declaration read by its schema, and each finding `declarationFindings` names against the `Catalogue` at the commit
 the declaration's `model_version` names — a model that catalogue does not hold at `model_file`, or whose findings in it
 hold an error, a role that needs a person and has none, a practice the catalogue does not hold or whose `fits` does not
 name the model, a branch for a phase the model lacks, a gate whose requirement the SPEC does not hold —; `workflowOf`
-giving the model's phases, transitions, pairs and gates, the practices' additions and the gates the process requirements
-add, each with its requirement and source, and nothing else; and the job rules as the Definition of Done when the
+giving the model's phases, transitions, pairs and gates and the gates the process requirements add, each with its
+requirement and source, and nothing else; and the job rules as the Definition of Done when the
 declaration adds none.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
