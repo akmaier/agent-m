@@ -485,17 +485,25 @@ export function writeRoute(product, token) {
 
 export const RENEW_TEXT = "On GitHub's list of your tokens, open this one and press “Regenerate token”: the new value keeps the " +
   "token's permissions and repositories. Then paste it under Settings → GitHub token → Change.";
+// A GitHub product's own token is renewed the same way, and pasted on its own line (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
+export const GITHUB_PRODUCT_RENEW_TEXT = "On GitHub's list of your tokens, open this one and press “Regenerate token”: the new value " +
+  "keeps the token's permissions and repositories. Then paste it under Settings → GitHub product tokens → Change.";
 
 // A GitLab project token is renewed on its project's Access tokens page: "Rotate a token to create a new token with
 // the same permissions and scope as the original" (doc/user/project/settings/project_access_tokens.md).
 export const GITLAB_RENEW_TEXT = "On the project's Access tokens page, press “Rotate” next to the token Agent M: the new value keeps " +
   "its role and scope. Then paste it, with the expiry date GitLab shows, under Settings → GitLab project tokens → Change.";
 
-// Which token, and where it is renewed: the GitHub token, or the GitLab project token of a GitLab product.
+// Which token, and where it is renewed: the GitHub token; the GitLab project token of a GitLab product; or — given a GitHub
+// product, whose own token was used — that product's GitHub token (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
 export function tokenIdentity(product) {
-  return isGitLab(product)
-    ? { token: `GitLab project token for ${product.address}`, renewUrl: gitlabTokenPageUrl(product), renew: GITLAB_RENEW_TEXT, server: product.host }
-    : { token: "GitHub token", renewUrl: tokenListUrl(), renew: RENEW_TEXT, server: "GitHub" };
+  if (isGitLab(product)) {
+    return { token: `GitLab project token for ${product.address}`, renewUrl: gitlabTokenPageUrl(product), renew: GITLAB_RENEW_TEXT, server: product.host };
+  }
+  if (product?.address && !product.error) {
+    return { token: `GitHub token for ${product.address}`, renewUrl: tokenListUrl(), renew: GITHUB_PRODUCT_RENEW_TEXT, server: "GitHub" };
+  }
+  return { token: "GitHub token", renewUrl: tokenListUrl(), renew: RENEW_TEXT, server: "GitHub" };
 }
 
 // ---------------------------------------------------------------- a used-up rate limit, named (queue 2026-10-01b)
@@ -540,8 +548,9 @@ export function usedUpLimit(e, product = null) {
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: GitHub and GitLab answer 401 to a token they no longer accept
 // (expired, regenerated, rotated, revoked or deleted). 403 and 404 are a missing permission or repository, not this — nor is a
 // used-up rate limit (403 or 429, usedUpLimit), which a caller names before it asks this.
-// product: the GitLab product whose token was used; none for the GitHub token. A failure of MOD-repository-hosts carries no
-// status: it names a refused token TokenRefused.
+// product: the product whose own token was used — a GitLab product's, or a GitHub product's (A GITHUB PRODUCT USES A TOKEN OF ITS
+// OWN); none for the instance's GitHub token. A failure of MOD-repository-hosts carries no status: it names a refused token
+// TokenRefused.
 export function tokenRefusal(e, product = null) {
   const status = e?.name === "TokenRefused" ? 401 : e?.status ?? Number((/(?:^|: )(\d{3})\b/.exec(e?.message || "") || [])[1]);
   if (status !== 401) return null;
@@ -549,5 +558,5 @@ export function tokenRefusal(e, product = null) {
   return { token: id.token, renewUrl: id.renewUrl, renew: id.renew,
     text: isGitLab(product)
       ? `${id.server} refused your ${id.token} — it has expired, or was rotated or revoked on GitLab.`
-      : "GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub." };
+      : `GitHub refused your ${id.token} — it has expired, or was regenerated or deleted on GitHub.` };
 }

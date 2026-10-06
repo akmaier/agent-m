@@ -152,12 +152,13 @@ export function writeRefusalText(e, product, now = new Date(), { githubPage = nu
 
 // The page shown when the product's commit cannot be read: the server's answer, and what it means here. A used-up rate limit
 // is named instead (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN); a refused token is named with its renewal (AN
-// EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED). hasToken: whether a token for this product is stored.
-export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date() }) {
+// EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED). hasToken: whether a token for this product is stored; own: the GitHub product
+// whose own token was used, so that a refusal names it (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
+export function loadErrorHtml({ error: e, product, ref, hasToken, own = null, now = new Date() }) {
   const gl = isGitLab(product), name = gl ? product.address : product.repo;
   const limit = rateLimitText(e, product, now);
   if (limit) return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(limit)}</p>`;
-  const refused = tokenRefusal(e, gl ? product : null);
+  const refused = tokenRefusal(e, gl ? product : own);
   const msg = e?.message || "";
   const limited = !gl && !hasToken && /403|429/.test(msg), forbidden = !gl && hasToken && /403/.test(msg), missing = !gl && /404/.test(msg);
   return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(msg)}</p>
@@ -197,9 +198,13 @@ export function deriveTarget({ hostname, pathname, search }) {
 let T, GITLAB, SERVER, store, kept, REPO_KEY;
 // The GitHub token (the instance's key, UC-014).
 const ghToken = () => store.getToken();
-// The token that writes to the product shown: the GitHub token, or — for a GitLab product — its own project token
-// (A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN). Never the other one.
-const token = () => (GITLAB ? store.getGitLabToken(T.product.address)?.token || null : store.getToken());
+// The token that writes to the product shown (settings-store tokenFor): a GitLab product's own project token (A GITLAB PRODUCT
+// USES A PROJECT ACCESS TOKEN), never the GitHub token; a GitHub product's own token, or the instance's while it has none (A
+// GITHUB PRODUCT USES A TOKEN OF ITS OWN).
+const token = () => store.tokenFor(T.product);
+// The product whose own token a request to `p` carries — a GitLab product, or a GitHub product with a token of its own —, so that
+// a refusal names that token; null where the instance's token was used.
+const ownTokenOf = (p) => (isGitLab(p) || (p?.address && !p.error && store.getGitHubProductToken(p.address)) ? p : null);
 // The pinned commit and its tree (every file with its blob SHA). Everything else is read by the view that shows it (`once`).
 const state = { commit: null, tree: [], byPath: new Map(), records: null, archCtx: { spec: "", useCases: [] }, products: [] };
 // What this page has shown the reviewer and what they ticked (SEVERAL FILES ARE ACCEPTED IN ONE CLICK).
@@ -339,6 +344,7 @@ const shownSecrets = new Set(); // keys revealed by Show on this page; any other
 function noteRefusal(e, product = T.product) {
   if (tokenRefusal(e)) {
     if (isGitLab(product)) store.setGitLabTokenTest(product.address, { refused: true });
+    else if (ownTokenOf(product)) store.setGitHubProductTokenTest(product.address, { refused: true });
     else store.setTokenTest({ refused: true });
     showBanner();
     if (document.getElementById("browser-settings")) renderBrowserSettings(app);
@@ -349,16 +355,19 @@ function noteRefusal(e, product = T.product) {
 const errorText = (e, product = T.product) => {
   const limit = rateLimitText(e, product);
   if (limit) return limit;
-  const r = tokenRefusal(e, isGitLab(product) ? product : null);
+  const r = tokenRefusal(e, ownTokenOf(product));
   return r ? `${r.text} Renew it with the link at the top of the page.` : e.message;
 };
 const gitlabShown = () => (GITLAB ? store.getGitLabToken(T.product.address) : null);
-// The line at the top of every view: the GitHub token, and the shown GitLab product's project token, each expiring or refused at
-// its last use (its kept last test).
+// The shown product's own token: a GitLab product's project token, or a GitHub product's own token; none on the instance's pages,
+// nor for a GitHub product read with the instance's.
+const ownShown = () => (GITLAB ? gitlabShown() : store.getGitHubProductToken(T.product.address));
+// The line at the top of every view: the GitHub token, and the shown product's own token, each expiring or refused at its last use
+// (its kept last test).
 function showBanner() {
-  const el = document.getElementById("token-banner"), gl = gitlabShown();
+  const el = document.getElementById("token-banner"), own = ownShown();
   if (el) el.innerHTML = (ghToken() ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
-    + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(gl.tested?.refused), product: T.product }) : "");
+    + (own ? tokenBannerHtml({ expires: own.expires, refused: Boolean(own.tested?.refused), product: T.product }) : "");
 }
 
 // ---------------------------------------------------------------- the product selector
@@ -441,10 +450,10 @@ async function route() {
       await uc.routes.uc(app);
     }
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
-    const gl = gitlabShown();
+    const own = ownShown();
     document.getElementById("token-banner").innerHTML = (ghToken()
       ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
-      + (gl ? tokenBannerHtml({ expires: gl.expires, refused: Boolean(gl.tested?.refused), product: T.product }) : "");
+      + (own ? tokenBannerHtml({ expires: own.expires, refused: Boolean(own.tested?.refused), product: T.product }) : "");
     if (flash) {
       main().insertAdjacentHTML("afterbegin", `<section class="panel notice flash"><p>${flash}</p></section>`);
       flash = null;
@@ -482,7 +491,7 @@ async function start() {
     noteRefusal(e);
     state.loadError = e;
     if (early) { loadProductSettings(app); return; }
-    main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()) });
+    main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()), own: ownTokenOf(T.product) });
     addEventListener("hashchange", route);
     return;
   }

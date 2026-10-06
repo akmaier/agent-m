@@ -925,7 +925,7 @@ test("UC-042 step 1: one page — each browser setting is a line with its state,
   assert.match(html, /<h2>Settings<\/h2>/);
   assert.match(html, /<h3>Before you store anything<\/h3>[^]*every other GitHub Pages site of akmaier is served from the same address/i);
   assert.deepEqual([...browser.matchAll(/data-setting-row="([^"]+)"/g)].map((m) => m[1]),
-    ["github-token", "products", "gitlab-tokens", "jump-host", "remote-sessions"]);
+    ["github-token", "products", "github-product-tokens", "gitlab-tokens", "jump-host", "remote-sessions"]);
   assert.match(browser, /<p class="state">stored — not tested on this page yet<\/p>/);
   assert.match(browser, /<input class="secret" type="password" readonly value="github_pat_HARNESS0123456789abcdefghij"/);
   assert.match(browser, /data-show="agent-m\.github-token">Show</);
@@ -933,7 +933,7 @@ test("UC-042 step 1: one page — each browser setting is a line with its state,
   assert.match(html, /<h3>Export and import<\/h3>/);
   assert.match(html, /<h3>Clear everything in this browser<\/h3>/);
   assert.match(dom.byId("product-settings").innerHTML, /<h3>Product · https:\/\/github\.com\/akmaier\/agent-m<\/h3>[^]*Pseudonymisation — <span class="state">on \(the default\)<\/span>[^]*Collaborators — none named/);
-  assert.equal((browser.match(/<summary>What is this\?<\/summary>/g) || []).length, 5, "every line explains itself");
+  assert.equal((browser.match(/<summary>What is this\?<\/summary>/g) || []).length, 6, "every line explains itself");
 });
 
 test("UC-042 step 1: a stored secret is hidden until Show, which reveals it in full; Hide hides it again", async () => {

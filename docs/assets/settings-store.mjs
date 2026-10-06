@@ -22,6 +22,10 @@
 // address of the product it was stored for; review-core.mjs sends it only to that project's API
 // (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT). Removing the product removes its token.
 //
+// SPEC §7 A GITHUB PRODUCT USES A TOKEN OF ITS OWN: a GitHub product's own token is kept the same way, in a map of its own
+// beside the instance's token. A request to a product carries the token tokenFor chooses: a GitLab product's project token; a
+// GitHub product's own token, or the instance's while it has none (UC-001 3a).
+//
 // SPEC §7 THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS: the jump host { host, user, portFrom, portTo, reverseKey,
 // forwardKey } — key file NAMES only, never key contents — and the remote sessions [{ name, port, bridgePort, token }], each as
 // one JSON entry. Their rules (a port from the range, the tunnel commands) live in bridge-tunnel.mjs.
@@ -41,9 +45,11 @@ export const TOKEN_EXPIRY_KEY = PREFIX + "github-token-expires";
 export const TOKEN_TEST_KEY = PREFIX + "github-token-tested";
 export const PRODUCTS_KEY = PREFIX + "products";
 export const GITLAB_TOKENS_KEY = PREFIX + "gitlab-tokens";
+export const GITHUB_PRODUCT_TOKENS_KEY = PREFIX + "github-product-tokens";
 export const JUMP_HOST_KEY = PREFIX + "jump-host";
 export const REMOTE_SESSIONS_KEY = PREFIX + "remote-sessions";
-export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, TOKEN_TEST_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY, JUMP_HOST_KEY, REMOTE_SESSIONS_KEY];
+export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, TOKEN_TEST_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY, GITHUB_PRODUCT_TOKENS_KEY, JUMP_HOST_KEY,
+  REMOTE_SESSIONS_KEY];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // A token's last test: { ok: "YYYY-MM-DD" } — the server accepted it that day —, { refused: true } — the server refused it at the
@@ -97,13 +103,15 @@ export function createStore(storage) {
     removeProduct(address) {
       storage.setItem(PRODUCTS_KEY, JSON.stringify(this.getProducts().filter((a) => a !== address)));
       this.clearGitLabToken(address);
+      this.clearGitHubProductToken(address);
     },
     clearProducts() {
       storage.removeItem(PRODUCTS_KEY);
       storage.removeItem(GITLAB_TOKENS_KEY);
+      storage.removeItem(GITHUB_PRODUCT_TOKENS_KEY);
     },
     // { address: { token, expires[, tested] } } — every GitLab project token of this browser, with its last test if it has one.
-    gitLabTokens() { return gitlabTokenMap(safe(() => storage.getItem(GITLAB_TOKENS_KEY), null)); },
+    gitLabTokens() { return productTokenMap(safe(() => storage.getItem(GITLAB_TOKENS_KEY), null)); },
     getGitLabToken(address) { return this.gitLabTokens()[address] || null; },
     // A new token comes with its own expiry date, or none, and untested (as setToken).
     setGitLabToken(address, token, expires = null) {
@@ -127,6 +135,35 @@ export function createStore(storage) {
       delete map[address];
       if (Object.keys(map).length) storage.setItem(GITLAB_TOKENS_KEY, JSON.stringify(map));
       else storage.removeItem(GITLAB_TOKENS_KEY);
+    },
+    // The GitHub products' own tokens, kept as the GitLab project tokens are (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
+    gitHubProductTokens() { return productTokenMap(safe(() => storage.getItem(GITHUB_PRODUCT_TOKENS_KEY), null)); },
+    getGitHubProductToken(address) { return this.gitHubProductTokens()[address] || null; },
+    setGitHubProductToken(address, token, expires = null) {
+      const map = this.gitHubProductTokens();
+      map[address] = { token: String(token).trim(), expires: expires ? String(expires) : null };
+      storage.setItem(GITHUB_PRODUCT_TOKENS_KEY, JSON.stringify(map));
+    },
+    setGitHubProductTokenTest(address, result) {
+      const map = this.gitHubProductTokens();
+      if (!map[address]) return;
+      const t = tokenTest(result);
+      if (t) map[address].tested = t;
+      else delete map[address].tested;
+      storage.setItem(GITHUB_PRODUCT_TOKENS_KEY, JSON.stringify(map));
+    },
+    clearGitHubProductToken(address) {
+      const map = this.gitHubProductTokens();
+      if (!(address in map)) return;
+      delete map[address];
+      if (Object.keys(map).length) storage.setItem(GITHUB_PRODUCT_TOKENS_KEY, JSON.stringify(map));
+      else storage.removeItem(GITHUB_PRODUCT_TOKENS_KEY);
+    },
+    // The token a request to a product carries: a GitLab product's project token, never a GitHub one; a GitHub product's own
+    // token, or the instance's while it has none (UC-001 3a). product: as git-host.mjs parseProductAddress reads it.
+    tokenFor(product) {
+      if (product?.kind === "gitlab") return this.getGitLabToken(product.address)?.token || null;
+      return (product?.address && this.getGitHubProductToken(product.address)?.token) || this.getToken();
     },
     getJumpHost() {
       const j = safe(() => JSON.parse(storage.getItem(JUMP_HOST_KEY) || "null"), null);
@@ -249,6 +286,8 @@ export const settingKeys = [
   { key: PRODUCTS_KEY, label: "Products", secret: false },
   { key: GITLAB_TOKENS_KEY, label: "GitLab project tokens", secret: true,
     grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
+  { key: GITHUB_PRODUCT_TOKENS_KEY, label: "GitHub product tokens", secret: true,
+    grants: "write — commits, issues, pull requests and workflow runs — to the one GitHub product each was created for, under your account" },
   { key: JUMP_HOST_KEY, label: "Jump host", secret: false },
   { key: REMOTE_SESSIONS_KEY, label: "remote sessions' bridge tokens", secret: true,
     grants: "hand jobs to the CLI session behind each tunnel, which works there with that machine's own credentials" },
@@ -257,9 +296,9 @@ export const settingKeys = [
 export const parseJson = (raw, fallback) => { try { return JSON.parse(raw || "null") ?? fallback; } catch { return fallback; } };
 export const sessionList = (raw) => { const l = parseJson(raw, []); return Array.isArray(l) ? l.filter((x) => x && typeof x.name === "string") : []; };
 
-// The GitLab project tokens of a raw store value: { address: { token, expires[, tested] } } — `tested` only where a last test is
-// kept (tokenTest); anything malformed is left out.
-export function gitlabTokenMap(raw) {
+// The products' own tokens of a raw store value — the GitLab project tokens, the GitHub products' tokens: { address: { token,
+// expires[, tested] } } — `tested` only where a last test is kept (tokenTest); anything malformed is left out.
+export function productTokenMap(raw) {
   let m;
   try { m = JSON.parse(raw || "{}"); } catch { return {}; }
   if (!m || typeof m !== "object" || Array.isArray(m)) return {};
@@ -269,6 +308,8 @@ export function gitlabTokenMap(raw) {
       return [a, { token: v.token, expires: typeof v.expires === "string" && v.expires ? v.expires : null, ...(t ? { tested: t } : {}) }];
     }));
 }
+// Its first name, still read by the settings page and the tests of the GitLab project tokens.
+export const gitlabTokenMap = productTokenMap;
 const settingLabel = (k) => settingKeys.find((s) => s.key === k)?.label ?? k;
 
 export const SETTINGS_FORMAT = "agent-m-settings";
@@ -327,10 +368,10 @@ export function mergeSettings(current, incoming) {
   for (const [k, v] of Object.entries(incoming)) {
     if (!known.has(k)) { ignored.push(k); continue; }
     if (k === TOKEN_EXPIRY_KEY || k === TOKEN_TEST_KEY) continue; // follow their token, below
-    if (k === GITLAB_TOKENS_KEY) {
-      const have = gitlabTokenMap(current[k]), inc = gitlabTokenMap(v), out = { ...have };
+    if (k === GITLAB_TOKENS_KEY || k === GITHUB_PRODUCT_TOKENS_KEY) {
+      const have = productTokenMap(current[k]), inc = productTokenMap(v), out = { ...have };
       for (const [a, t] of Object.entries(inc)) {
-        const name = `GitLab project token for ${a}`;
+        const name = `${k === GITLAB_TOKENS_KEY ? "GitLab project token" : "GitHub token"} for ${a}`;
         if (have[a]) { kept.push(name); continue; }
         out[a] = t;
         added.push(name);

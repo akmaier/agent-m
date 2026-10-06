@@ -59,7 +59,7 @@ class EverySettingOnOnePage(unittest.TestCase):
         # A key built any other way (a template, a variable) would escape the check above.
         src = STORE.read_text(encoding="utf-8")
         for call in re.findall(r"setItem\(([^,]+),", src):
-            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|TOKEN_TEST_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|JUMP_HOST_KEY|REMOTE_SESSIONS_KEY|k)$", call)
+            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|TOKEN_TEST_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|GITHUB_PRODUCT_TOKENS_KEY|JUMP_HOST_KEY|REMOTE_SESSIONS_KEY|k)$", call)
         self.assertIn("KEYS.includes(k)", src, "putEntries writes only the named keys")
 
     def test_counter_proof_a_key_without_a_place_fails(self):
@@ -71,7 +71,7 @@ class TestedAndCleared(unittest.TestCase):
     def test_each_browser_setting_has_test_and_clear(self):
         html = page(full_entries())
         rows = re.findall(r'<div class="setting" data-setting-row="([^"]+)">(.*?)</div><!--/setting-->', html, re.S)
-        self.assertEqual(sorted(r for r, _ in rows), ["github-token", "gitlab-tokens", "jump-host", "products", "remote-sessions"])
+        self.assertEqual(sorted(r for r, _ in rows), ["github-product-tokens", "github-token", "gitlab-tokens", "jump-host", "products", "remote-sessions"])
         for name, body in rows:
             self.assertIn("data-test=", body, name)
             self.assertIn("data-clear=", body, name)

@@ -14,7 +14,7 @@ import {
   settingKeys, parseJson, sessionList, gitlabTokenMap, tokenTest, sessionTest, exportSettings, readSettingsFile, mergeSettings,
 } from "../settings-store.mjs";
 import {
-  parseProductAddress, isGitLab, repositoryInfo, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions,
+  parseProductAddress, isGitLab, repositoryInfo, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions, tokenListUrl,
 } from "../git-host.mjs";
 import { jumpHostProblem, tunnelCommands, addRemoteSession, nextFreePort, probeLocalPort } from "../bridge-tunnel.mjs";
 import {
@@ -42,12 +42,13 @@ const permissionLabels = () => GITHUB_PERMISSIONS.map(permissionLabel).join(", "
 
 export const TOKEN_GUIDANCE = `A fine-grained personal access token is a key you create on GitHub. It lets this page act for you
 in exactly the repositories you choose, and nowhere else.
-— Repository access: Only select repositories — this instance and the products it manages, nothing else.
-— Permissions (one token serves every feature, so you create only one):
+— Repository access: Only select repositories — this instance, nothing else. Each product gets a token of its own when you
+add it.
+— Permissions (one token serves every feature):
 ${GITHUB_PERMISSIONS.map((p) => `  ${permissionLabel(p)} — ${p.why}.`).join("\n")}
 — Expiration: 90 days is preset; GitHub mails you before it expires, and you can renew it.
 Why this scope: these permissions are what Agent M's features need, and nothing more is asked for; the repository
-choice keeps them to this instance and the products you add.
+choice keeps them to this instance.
 Where the token goes: only to https://api.github.com, as an Authorization header. Never to the model endpoint,
 never into a URL, never into a repository.`;
 
@@ -69,6 +70,20 @@ export function tokenLinkUrl(instance, dated = null) {
   });
   return `https://github.com/settings/personal-access-tokens/new?${q}`;
 }
+
+// A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT (UC-001 Step A): the name and the description of a GitHub product's own token,
+// built from the product repository's name `owner/name`. GitHub takes a name of at most 40 characters and a description of at
+// most 1024 ("Pre-filling fine-grained personal access token details using URL parameters", read 2026-10-06): a name that would
+// be longer drops the owner, and then the end of the repository's name, marked "…".
+const NAME_MAX = 40;
+export function productTokenName(repo) {
+  const full = `Agent M · ${repo}`;
+  if (full.length <= NAME_MAX) return full;
+  const short = `Agent M · ${String(repo).split("/").pop()}`;
+  return short.length <= NAME_MAX ? short : `${short.slice(0, NAME_MAX - 1)}…`;
+}
+export const productTokenDescription = (repo) =>
+  `Agent M for the product ${repo}: reviews, commits, issues, pull requests and runs of the work you start in it.`;
 
 // repositoryChoiceSteps(...repositories) — what to do on the prefilled page: pick exactly these repositories, the instance
 // first; two are joined with "and", more with commas and a last "and".
@@ -92,7 +107,7 @@ export function repositoryChoiceSteps(...names) {
 
 const K_TOKEN = "agent-m.github-token", K_EXPIRES = "agent-m.github-token-expires", K_PRODUCTS = "agent-m.products";
 const K_TESTED = "agent-m.github-token-tested";
-const K_GITLAB = "agent-m.gitlab-tokens";
+const K_GITLAB = "agent-m.gitlab-tokens", K_GH_PRODUCTS = "agent-m.github-product-tokens";
 const K_JUMP = "agent-m.jump-host", K_SESSIONS = "agent-m.remote-sessions";
 
 export const EXPIRY_WARN_DAYS = 14;
@@ -179,9 +194,45 @@ export function browserSettingsHtml({ entries = {}, shown = [], now = new Date()
       <button class="btn" data-clear="${K_PRODUCTS}" ${products.length ? "" : "disabled"}>Clear</button></p>
     <p class="result muted" data-result="${K_PRODUCTS}"></p>
     <details class="explain"><summary>What is this?</summary><div>The addresses of the products this dashboard manages, kept
-      in this browser only — the instance repository names none. <em>Test</em> checks that your token reaches each;
-      <em>Remove</em> and <em>Clear</em> take them off this browser's list and change nothing in their repositories. A GitLab
-      product's project token goes with it.</div></details>
+      in this browser only — the instance repository names none. <em>Test</em> checks that each is reached with its token — its
+      own, or a GitHub product without one with your instance's; <em>Remove</em> and <em>Clear</em> take them off this browser's
+      list and change nothing in their repositories. A product's own token goes with it.</div></details>
+  </div><!--/setting-->`;
+  // A GITHUB PRODUCT USES A TOKEN OF ITS OWN: one line per GitHub product's token, as the GitLab project tokens' below — hidden with
+  // Show, Test, Change, Clear —, renewed in GitHub's list of the person's tokens (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED).
+  const ghp = gitlabTokenMap(entries[K_GH_PRODUCTS]);
+  const ghLines = Object.entries(ghp).map(([a, t]) => {
+    const p = parseProductAddress(a), ok = !p.error && !isGitLab(p), showKey = `${K_GH_PRODUCTS} ${a}`;
+    const st = t.tested;
+    const w = ok ? expiryWarning(t.expires, now, p) : null;
+    const state = st?.refused ? "✗ refused — GitHub did not accept it at the last use"
+      : w ? `⚠ ${w.expired ? "expired on" : "expires on"} ${esc(t.expires)}` : st?.ok ? `✓ works — tested ${esc(st.ok)}` : "stored — not tested on this page yet";
+    return `<div class="github-product-token">
+      <p><strong>${esc(a)}</strong> — <span class="state">${state}</span></p>
+      <p>${secretFieldHtml({ key: showKey, value: t.token, shown: shown.includes(showKey), label: `Stored GitHub token for ${a}` })}</p>
+      <p>Expires on: <strong>${t.expires ? esc(t.expires) : "—"}</strong></p>
+      <p><button class="btn" data-test-github-product="${esc(a)}">Test</button>
+        <button class="btn" data-change-github-product="${esc(a)}">Change</button>
+        <button class="btn" data-clear-github-product="${esc(a)}">Clear</button>
+        <a class="btn small" href="${esc(tokenListUrl())}" target="_blank" rel="noopener">Your tokens on GitHub ↗</a></p>
+      <div class="github-product-change" data-change-form-github="${esc(a)}"></div>
+      <p class="result muted" data-result-github-product="${esc(a)}"></p>
+    </div>`;
+  }).join("");
+  const nGh = Object.keys(ghp).length;
+  const githubProductRow = `<div class="setting" data-setting-row="github-product-tokens">
+    <h4 data-setting-key="${K_GH_PRODUCTS}">GitHub product tokens</h4>
+    <p class="state">${nGh ? `${nGh} in this browser — one per GitHub product that has its own` : "— not set"}</p>
+    ${ghLines}
+    <p><button class="btn" data-test="${K_GH_PRODUCTS}" ${nGh ? "" : "disabled"}>Test all</button>
+      <button class="btn" data-clear="${K_GH_PRODUCTS}" ${nGh ? "" : "disabled"}>Clear all</button></p>
+    <p class="result muted" data-result="${K_GH_PRODUCTS}"></p>
+    <details class="explain"><summary>What is this?</summary><div>A GitHub product gets a fine-grained token of its own, created on
+      GitHub's token page with the product alone selected (<em>+ Add product</em> guides you); your instance's token stays limited to
+      the instance. Kept in this browser's <code>localStorage</code> under the product's address and sent only to
+      https://api.github.com, as a header, in the requests for that product. <em>Test</em> reads the product with it; <em>Clear</em>
+      removes it from this browser — the product is then read and written with your instance's token, which reaches it only if
+      you selected it there. A token is renewed with <em>Regenerate token</em> in GitHub's list of your tokens.</div></details>
   </div><!--/setting-->`;
   // A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: one line per token, hidden with Show, Test, Change, Clear, and the
   // project's Access tokens page, where it is renewed (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED).
@@ -277,7 +328,7 @@ export function browserSettingsHtml({ entries = {}, shown = [], now = new Date()
       <code>localStorage</code>, hidden until <em>Show</em>, and is in no command. <em>Test</em> asks whether anything answers at the
       session's local port; <em>Clear</em> removes the session and its token from this browser.</div></details>
   </div><!--/setting-->`;
-  return tokenRow + productRow + gitlabRow + jumpRow + sessionsRow;
+  return tokenRow + productRow + githubProductRow + gitlabRow + jumpRow + sessionsRow;
 }
 
 // ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
@@ -448,6 +499,65 @@ export function renderBrowserSettings(app) {
     const res = await Promise.all(state.products.map(async (p) => [p.address, await reachOf(app, p)]));
     box.querySelector(`[data-result="agent-m.products"]`).innerHTML = res.map(reachLine).join("<br>");
   });
+  // GitHub products' own tokens (UC-042, A GITHUB PRODUCT USES A TOKEN OF ITS OWN), as the GitLab project tokens' below: Test reads
+  // the product with its own token; Change stores a new value with its expiry date, after the notice at the top; Clear removes it
+  // from this browser.
+  const ghSay = (a, text) => { const el = [...box.querySelectorAll("[data-result-github-product]")].find((x) => x.dataset.resultGithubProduct === a); if (el) el.textContent = text; };
+  const testGitHubProduct = async (a) => {
+    const p = parseProductAddress(a);
+    if (p.error || isGitLab(p)) return `${a}: ${p.error || "not a GitHub address"}`;
+    const x = await checkReach(app, p.repo, { token: store.getGitHubProductToken(a)?.token, product: p });
+    if (x.ok) store.setGitHubProductTokenTest(a, { ok: today() });
+    return reachLine([p.repo, x]).replace(/<[^>]+>/g, "");
+  };
+  box.querySelectorAll("[data-test-github-product]").forEach((b) => b.addEventListener("click", async () => {
+    const a = b.dataset.testGithubProduct;
+    ghSay(a, `Reading ${a}…`);
+    const line = await testGitHubProduct(a);
+    showBanner();
+    renderBrowserSettings(app);
+    ghSay(a, line);
+  }));
+  box.querySelector(`[data-test="${K_GH_PRODUCTS}"]`)?.addEventListener("click", async () => {
+    say(K_GH_PRODUCTS, "Checking each GitHub product's token…");
+    const lines = await Promise.all(Object.keys(store.gitHubProductTokens()).map(testGitHubProduct));
+    showBanner();
+    renderBrowserSettings(app);
+    say(K_GH_PRODUCTS, lines.join(" · "));
+  });
+  box.querySelectorAll("[data-change-github-product]").forEach((b) => b.addEventListener("click", () => {
+    const a = b.dataset.changeGithubProduct, form = [...box.querySelectorAll("[data-change-form-github]")].find((x) => x.dataset.changeFormGithub === a);
+    if (!document.getElementById("ack").checked) { ghSay(a, "Tick “I have read this” at the top of the page first."); document.getElementById("ack").focus(); return; }
+    form.innerHTML = `<p><input type="password" data-gh-token autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label="New GitHub token for ${h(a)}">
+      <label>Expires on <input type="date" data-gh-expires value="${h(defaultExpiry())}"></label>
+      <button class="btn primary" data-gh-store>Store</button></p>
+      <p class="muted small">The expiry date GitHub showed for the token. The dashboard warns ${EXPIRY_WARN_DAYS} days before.</p>`;
+    // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: the field for the new token.
+    form.querySelector("[data-gh-token]").focus();
+    form.querySelector("[data-gh-store]").addEventListener("click", () => {
+      const v = form.querySelector("[data-gh-token]").value.trim(), exp = form.querySelector("[data-gh-expires]").value;
+      const bad = githubTokenProblem(v, exp);
+      if (bad) { ghSay(a, bad); return; }
+      store.setGitHubProductToken(a, v, exp);
+      showBanner();
+      renderBrowserSettings(app);
+      ghSay(a, "Stored. Press Test to check it.");
+    });
+  }));
+  box.querySelectorAll("[data-clear-github-product]").forEach((b) => b.addEventListener("click", () => {
+    const a = b.dataset.clearGithubProduct;
+    if (!confirm(`Clear the GitHub token for ${a} from this browser? The product is then read and written with your instance's token, which reaches it only if you selected it there.`)) return;
+    store.clearGitHubProductToken(a);
+    shownSecrets.delete(`${K_GH_PRODUCTS} ${a}`);
+    showBanner();
+    renderBrowserSettings(app);
+  }));
+  box.querySelector(`[data-clear="${K_GH_PRODUCTS}"]`)?.addEventListener("click", () => {
+    if (!confirm("Clear every GitHub product's own token from this browser? The products are then read and written with your instance's token, which reaches only those you selected there.")) return;
+    for (const a of Object.keys(store.gitHubProductTokens())) store.clearGitHubProductToken(a);
+    showBanner();
+    renderBrowserSettings(app);
+  });
   // GitLab project tokens (UC-042): Test reads the project with its own token; Change stores a new value with its
   // expiry date, after the notice at the top; Clear removes it from this browser.
   const glSay = (a, text) => { const el = [...box.querySelectorAll("[data-result-gitlab]")].find((x) => x.dataset.resultGitlab === a); if (el) el.textContent = text; };
@@ -516,14 +626,15 @@ export function renderBrowserSettings(app) {
     document.getElementById("token-msg").textContent = ghToken() ? "Clearing failed — the token is still stored." : "The token is gone from this browser.";
   });
   box.querySelector(`[data-clear="agent-m.products"]`)?.addEventListener("click", () => {
-    if (!confirm("Clear the product list of this browser, with the GitLab products' project tokens? The products' repositories do not change; add them again to see them here.")) return;
+    if (!confirm("Clear the product list of this browser, with the products' own tokens? The products' repositories do not change; add them again to see them here.")) return;
     store.clearProducts();
     loadProducts();
     renderProductSelector();
     renderBrowserSettings(app);
   });
   box.querySelectorAll("[data-remove-product]").forEach((b) => b.addEventListener("click", () => {
-    if (!confirm(`Remove ${b.dataset.removeProduct} from this browser's list${store.getGitLabToken(b.dataset.removeProduct) ? ", with its project token" : ""}? Its repository does not change.`)) return;
+    const a = b.dataset.removeProduct, own = store.getGitLabToken(a) || store.getGitHubProductToken(a);
+    if (!confirm(`Remove ${a} from this browser's list${own ? ", with its own token" : ""}? Its repository does not change.`)) return;
     store.removeProduct(b.dataset.removeProduct);
     loadProducts();
     renderProductSelector();
@@ -664,8 +775,8 @@ function wireSettings(app) {
   save.addEventListener("click", () => {
     const v = input.value.trim(), exp = expires.value;
     if (!canStore(ack.checked) || !v) return;
-    if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { msg.textContent = "That is not a GitHub token — it starts with github_pat_ and is long."; return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) { msg.textContent = "Enter the date the token expires — GitHub showed it when you created the token."; return; }
+    const bad = githubTokenProblem(v, exp);
+    if (bad) { msg.textContent = bad; return; }
     store.setToken(v, exp);
     input.value = "";
     showBanner();
@@ -832,13 +943,25 @@ export async function loadProductSettings(app) {
 // A repository on github.com, as the git host's reads take it: by its owner/name.
 const githubRepository = (repo) => ({ repo });
 
-export async function checkReach(app, repo) {
+// token: the token to read with — the instance's unless another is given; product: the GitHub product whose own token it is, so
+// that a refusal names that token (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
+export async function checkReach(app, repo, { token = app.ghToken(), product = null } = {}) {
   const { noteRefusal, errorText } = app;
-  const ghToken = app.ghToken;
   try {
-    const r = await repositoryInfo({ product: githubRepository(repo), token: ghToken() });
+    const r = await repositoryInfo({ product: githubRepository(repo), token });
     return { ok: true, priv: r.visibility !== "public", branch: r.defaultBranch };
-  } catch (e) { noteRefusal(e, null); return { ok: false, error: errorText(e, null) }; }
+  } catch (e) { noteRefusal(e, product); return { ok: false, error: errorText(e, product) }; }
+}
+
+// A GitHub product read with the token tokenFor chooses: its own, or the instance's while it has none (UC-001 3a).
+export const reachProduct = (app, p) =>
+  checkReach(app, p.repo, { token: app.store.tokenFor(p), product: app.store.getGitHubProductToken(p.address) ? p : null });
+
+// A GitHub token as GitHub shows it, and the date it expires: what is wrong with it, or null.
+export function githubTokenProblem(v, exp) {
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) return "That is not a GitHub token — it starts with github_pat_ and is long.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(exp)) return "Enter the date the token expires — GitHub showed it when you created the token.";
+  return null;
 }
 
 // A GitLab project read with its own project token (or none), through what MOD-git-host's repositoryInfo reports: reachable,
@@ -863,7 +986,7 @@ export async function checkGitLab(app, p, tok) {
   }
 }
 
-const reachOf = (app, p) => (isGitLab(p) ? checkGitLab(app, p, app.store.getGitLabToken(p.address)?.token) : checkReach(app, p.repo));
+const reachOf = (app, p) => (isGitLab(p) ? checkGitLab(app, p, app.store.getGitLabToken(p.address)?.token) : reachProduct(app, p));
 
 export const reachLine = ([r, x]) => !x.ok ? `✗ ${h(r)}: ${h(x.error)}`
   : "role" in x ? `✓ ${h(r)} reachable${x.tokenUsed ? (x.role ? ` — the token acts as ${h(x.role)}` : "") +
