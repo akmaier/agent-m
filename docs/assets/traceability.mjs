@@ -1,7 +1,7 @@
 // Traceability — what is derived from the artifacts of one commit: the link graph and the views over it (traceability/graph.mjs,
 // re-exported here), the code files and tests that name a module, the impact list of an architecture change, and the component
-// diagram (src/trace-pages/diagram.mjs, re-exported here). Kernel (ARC-003): pure functions over what the caller read; it reads
-// nothing itself and stores nothing (THE TRACEABILITY MATRIX IS DERIVED).
+// diagram. Kernel (ARC-003): pure functions over what the caller read; it reads nothing itself and stores nothing
+// (THE TRACEABILITY MATRIX IS DERIVED).
 //
 // Module: MOD-traceability
 
@@ -69,8 +69,33 @@ export function architectureImpact({ before, after, graph }) {
   };
 }
 
-// ---------------------------------------------------------------- the component diagram (UC-025 step 5)
-//
-// Moved to the modules view's own module, MOD-trace-pages (ITM-203); re-exported here for the architecture page, which imports it
-// from this file until the page itself moves.
-export { componentDiagram } from "../../src/trace-pages/diagram.mjs";
+// ---------------------------------------------------------------- the component diagram (UC-022 step 8, UC-025 step 5)
+
+const mermaidId = (id) => id.replace(/[^A-Za-z0-9]/g, "_");
+const mermaidText = (s) => String(s ?? "").replace(/[\r\n]+/g, " ").replace(/"/g, "#quot;").replace(/</g, "#lt;").replace(/>/g, "#gt;");
+
+// A Mermaid flowchart computed from the modules' `uses` and `provides`: one edge per used interface, from the user to the
+// provider; an interface that no module provides is drawn as a node of its own, marked missing.
+export function componentDiagram(modules) {
+  const mods = modules.filter((m) => m.kind === "module");
+  const byId = new Map(mods.map((m) => [m.id, m]));
+  const lines = ["flowchart LR"], missing = [];
+  for (const m of mods) lines.push(`  ${mermaidId(m.id)}["${mermaidText(m.id)}<br/>${mermaidText(m.title)}"]`);
+  for (const m of mods) {
+    for (const u of m.uses) {
+      const p = byId.get(u.module);
+      if (p && p.provides.includes(u.iface)) {
+        lines.push(`  ${mermaidId(m.id)} -->|"${mermaidText(u.iface)}"| ${mermaidId(p.id)}`);
+      } else {
+        const node = `missing_${mermaidId(u.module)}_${mermaidId(u.iface)}`;
+        if (!missing.includes(node)) missing.push(node);
+        lines.push(`  ${mermaidId(m.id)} -.->|"${mermaidText(u.iface)}"| ${node}["${mermaidText(`${u.module}.${u.iface}`)} — missing"]`);
+      }
+    }
+  }
+  if (missing.length) {
+    lines.push("  classDef missing stroke-dasharray: 4 3,stroke:#b42318,color:#b42318");
+    for (const n of missing) lines.push(`  class ${n} missing`);
+  }
+  return lines.join("\n") + "\n";
+}

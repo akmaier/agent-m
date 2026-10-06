@@ -7,16 +7,16 @@
 //
 // UC-025 step 5: Agent M draws the component diagram from the modules' declared uses as Mermaid — one box per module inside
 // the box of its subsystem, one arrow per used module —; 5a: a used module that has no file is drawn as a box marked missing.
-// The modules are given as the dashboard's architecture page hands them over: each module file as parseArchitecture
-// (docs/assets/artifacts.mjs) reads it. The diagram is read back line by line (`drawn`, below), every line accounted for, so
-// that each expectation is stated in modules, subsystems and arrows. The size case: 52 modules — as many as Agent M has —
-// with 400 uses stay below Mermaid's limit of 50,000 characters (maxTextSize of the vendored mermaid 12.0.0), above which the
-// page shows "Maximum text size in diagram exceeded" instead of the diagram. Counter-proofs: the pull request of ITM-203.
+// The modules are given as parseArchitecture (docs/assets/artifacts.mjs) reads their files, as for the model of this
+// diagram, componentDiagram in docs/assets/traceability.mjs. The diagram is read back line by line (`drawn`, below), every
+// line accounted for, so that each expectation is stated in modules, subsystems and arrows. The size case: 52 modules — as
+// many as Agent M has — with 400 uses stay below Mermaid's limit of 50,000 characters (maxTextSize of the vendored mermaid
+// 12.0.0), above which Mermaid draws "Maximum text size in diagram exceeded" instead of the diagram. Counter-proofs: the pull
+// request of ITM-203.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { componentDiagram } from "../src/trace-pages/diagram.mjs";
-import { componentDiagram as theDashboardsDiagram } from "../docs/assets/traceability.mjs";
 
 // A module file as parseArchitecture reads it: the decisions it follows, the interfaces of other modules it uses
 // (`MOD-<slug>.<interface>`) and those it provides.
@@ -148,8 +148,4 @@ test("UC-025 step 5 — the text for 52 modules with 400 uses stays below Mermai
   assert.equal(d3, d1, "the text does not grow with the interfaces a use names");
   const d = drawn(d1);
   assert.deepEqual([Object.keys(d.boxes).length, Object.keys(d.subsystems).length, d.arrows.length, d.other.length], [52, 11, 400, 0]);
-});
-
-test("the dashboard's architecture page draws this diagram: docs/assets/traceability.mjs, from which the page imports componentDiagram, re-exports it", () => {
-  assert.equal(theDashboardsDiagram, componentDiagram);
 });
