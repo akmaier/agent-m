@@ -1,5 +1,5 @@
-// The impact list of an architecture change and the component diagram — docs/assets/traceability.mjs. Deterministic, no
-// network. Run: node --test tests/*.test.mjs
+// The impact list of an architecture change — docs/assets/traceability.mjs. Deterministic, no network.
+// Run: node --test tests/*.test.mjs
 //
 // Module: MOD-traceability
 // Guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
@@ -7,7 +7,9 @@
 //
 // SPEC §11 AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST (UC-023 steps 4–5, 4a–4c). Moved out of
 // tests/architecture.test.mjs, unchanged, when it was split by module. ITM-018: impactList became architectureImpact over the
-// link graph of the commit (linkGraph); the import and the call changed, no expected result.
+// link graph of the commit (linkGraph); the import and the call changed, no expected result. Between the jobs of sprint 04 the
+// case of the component diagram was removed with the old componentDiagram: the dashboard draws it with MOD-trace-pages
+// (src/trace-pages/diagram.mjs), whose cases are in tests/trace-pages-diagram.test.mjs.
 //
 // The product is the fixture under tests/fixtures/architecture/. Counter-proofs are listed in
 // docs/measurements/2026-09-30_review-dashboard-mutations.md §8.
@@ -18,7 +20,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArchitecture } from "../docs/assets/artifacts.mjs";
-import { moduleHeaders, architectureImpact, linkGraph, componentDiagram } from "../docs/assets/traceability.mjs";
+import { moduleHeaders, architectureImpact, linkGraph } from "../docs/assets/traceability.mjs";
 import { impactHtml } from "../docs/assets/dashboard/review-views.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
@@ -37,7 +39,6 @@ const archPaths = [ARC, READER, REVIEW, PAGE];
 // ---------------------------------------------------------------- the impact list
 
 const headersOf = () => moduleHeaders({ paths: Object.keys(files), read: async (p) => files[p] });
-const modulesOf = (repo) => archPaths.map((p) => parseArchitecture(p, repo[p]));
 // The graph the dashboard builds for an impact list: the architecture files at the commit shown and the code's headers.
 const graphOf = (repo, headers) => linkGraph({ files: Object.fromEntries(archPaths.map((p) => [p, repo[p]])), headers });
 test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — a decision: the modules that follow it, their code and tests, names before and after", async () => {
@@ -89,30 +90,4 @@ test("AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST — counter-
   const none = architectureImpact({ before, after: parseArchitecture(READER, text), graph: graphOf(files, []) });
   assert.deepEqual(none.affected[0].code, []);
   assert.match(impactHtml(none), /no code yet/);
-});
-
-// ---------------------------------------------------------------- the component diagram
-
-test("the component diagram — computed from uses and provides; an interface nobody provides is drawn as missing", () => {
-  const d = componentDiagram(modulesOf(files));
-  assert.match(d, /^flowchart LR\n/);
-  assert.match(d, /MOD_review -->\|"readFile"\| MOD_reader/);
-  assert.match(d, /MOD_review -->\|"listTree"\| MOD_reader/);
-  assert.match(d, /MOD_page -->\|"status"\| MOD_review/);
-  assert.match(d, /MOD_review -.->\|"load"\| missing_\w+\["MOD-store\.load — missing"\]/);
-  assert.match(d, /class missing_\w+ missing/);
-  // Counter-proof: provided, it is not missing; an interface a module exists for but does not provide is.
-  const store = parseArchitecture("docs/architecture/MOD-store.md", files[READER].replace(/MOD-reader/g, "MOD-store")
-    .replace("  - readFile\n  - listTree\n", "  - load\n").replace(/- `readFile[^\n]*\n- `listTree[^\n]*\n/, "- `load()` — loads.\n"));
-  assert.deepEqual(store.problems, []);
-  const d2 = componentDiagram([...modulesOf(files), store]);
-  assert.doesNotMatch(d2, /missing/);
-  assert.match(d2, /MOD_review -->\|"load"\| MOD_store/);
-  const d3 = componentDiagram(modulesOf({ ...files, [REVIEW]: files[REVIEW].replace("MOD-reader.listTree", "MOD-reader.listFiles") }));
-  assert.match(d3, /MOD-reader\.listFiles — missing/);
-  // A node shows its identifier and title; a title cannot break out of its label into a directive of its own.
-  assert.match(d, /MOD_reader\["MOD-reader<br\/>Reads files at a pinned commit"\]/);
-  const evil = componentDiagram([{ ...store, title: 'x"]\nclick MOD_store "javascript:alert(1)" <b>' }]);
-  assert.doesNotMatch(evil, /x"|\nclick|<b>/);
-  assert.match(evil, /x#quot;\] click MOD_store #quot;javascript:alert\(1\)#quot; #lt;b#gt;/);
 });

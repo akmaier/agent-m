@@ -91,9 +91,10 @@ export function diffHtml(a, b) {
 // default protection lets Maintainers push ("Fully protected - Default value. Developers cannot push new commits, but
 // maintainers can." — doc/user/project/repository/branches/default.md), but a project may allow no one —, and a token without
 // the scope the request needs (Gitlab::Auth::InsufficientScopeError → Bearer::Forbidden, lib/api/api_guard.rb). An expired or
-// revoked token is answered with 401 instead, and named by tokenRefusal.
+// revoked token is answered with 401 instead, and named by tokenRefusal. MOD-repository-hosts, which carries no status, names
+// this refusal PermissionMissing.
 export function gitlabWriteRefusal(e, product) {
-  if (e?.status !== 403) return null;
+  if (e?.status !== 403 && e?.name !== "PermissionMissing") return null;
   return `GitLab refused the write (403). With a project token of role Maintainer and scope api this means that the branch is ` +
     `protected even against Maintainers on ${product.address} — Settings → Repository → Protected branches → “Allowed to push and merge” — or ` +
     "that the token lacks scope api or was created with a lower role. Check the setting, and the token's role and scopes on the " +

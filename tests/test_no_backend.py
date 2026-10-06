@@ -19,8 +19,10 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    the notice that names it before it is called.
 2. A request leaves the page only through a known channel, in the own code and in the vendored libraries alike: the git
    host's request helper, whose origin gate admits only the instance's own origin, GitHub's API and raw hosts and the
-   product's own GitLab project (`prepare` in git-host.mjs, tested in tests/review-core.d/git-host.test.mjs); the
-   bridge probe on localhost; the dashboard's own view files and style sheets. Every other fetch, XMLHttpRequest,
+   product's own GitLab project (`prepare` in git-host.mjs, tested in tests/review-core.d/git-host.test.mjs, and its
+   successor in MOD-repository-hosts, src/repository-hosts/failures.mjs); the bridge probe on localhost; the dashboard's
+   own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
+   from. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
    unless it is listed below with the reason it calls no other origin — each listed one exactly as often as listed.
 3. No Markdown file the site serves loads anything from an address of a host outside the list of check 1 — the
@@ -88,6 +90,9 @@ def _own_origin(text: str, at: int) -> bool:
 # (file, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None)
 PERMITTED_CHANNELS = {
     ("docs/assets/git-host.mjs", "fetch"): (2, "the request helper and fetchText send only what the origin gate prepare() let through", _prepared),
+    ("src/repository-hosts/failures.mjs", "fetch"): (1, "the repository hosts' request helper sends only what its origin gate prepare() let through", _prepared),
+    ("src/spec-document/index.mjs", "fetch"): (1, "its own skeleton.md, from the address the module itself was loaded from",
+                                               lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
     ("docs/assets/bridge-tunnel.mjs", "fetch"): (1, "the probe of a remote session's forward, on localhost",
                                                   lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("docs/assets/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),

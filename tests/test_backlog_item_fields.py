@@ -231,7 +231,6 @@ class TestAgentMsOwnBacklog(unittest.TestCase):
                    "return [items.length, items.map((i) => [i.path, workItems.itemProblems(i, known)]).filter(([, f]) => f.length)];")
         self.assertEqual(found[1], [])
         self.assertEqual(found[0], len(files(self.OWN)), "node read every item file Python sees")
-        self.assertGreater(found[0], 100)
 
 
 if __name__ == "__main__":

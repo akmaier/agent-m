@@ -27,7 +27,7 @@ import {
 import * as writes from "../../docs/assets/dashboard/writes.mjs";
 import { reviewedId, parseArchitecture } from "../../docs/assets/artifacts.mjs";
 import { parseProductAddress } from "../../docs/assets/git-host.mjs";
-import { createStore, PREFIX } from "../../docs/assets/settings-store.mjs";
+import { createStore } from "../../docs/assets/settings-store.mjs";
 import { pseudonymisationOn, parseCollaborators } from "../../docs/assets/pseudonymiser.mjs";
 import {
   click, fakeGitHub, withFetch, fakeStorage, QD, WHEN, B_SPEC, B_P05, B_P06, B_INDEX, B_UC1, B_UC2, SETTINGS_OFF, PEOPLE,
@@ -86,37 +86,20 @@ const ucItem = async (id, path, text) => ({ kind: "use-case", id, path, blob: aw
 // ---------------------------------------------------------------- products in the browser (UC-001)
 // THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER · ADDING A PRODUCT CREATES ITS LAYOUT (and writes nothing into the
 // instance repository)
+//
+// Between the jobs of sprint 04, Add product came to call MOD-repository-hosts and MOD-artifact-edits, and the cases of its
+// old code went with that code: the old layout's files and the old Git host's reads and commit through this file's GitHub
+// fake — "THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the address and commits nothing to the instance",
+// "UC-001 5: Add product reads a GitHub product through readSnapshot …", "UC-001 5a: a refused write adds nothing to the
+// list", and the 5b part of the case below. The layout is checked in tests/artifact-edits.test.mjs, the reads and the commit
+// in tests/repository-hosts.test.mjs; the address kept and nothing written into the instance in the GitLab case below and in
+// tests/dashboard-review-flows.test.mjs (UC-001 main flow, 5a); a clear emptying the list in tests/test_clear_removes_storage.py.
 
-test("THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER — adding stores the address and commits nothing to the instance", async () => {
-  const st = fakeStorage(), store = createStore(st);
-  store.setToken("github_pat_t");
-  const { calls, fetchMock } = productGitHub([]);
-  const r = await withFetch(fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", authority: clickAuthority(click), store }));
-  assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
-  assert.equal(JSON.parse(st.getItem(PREFIX + "products"))[0], "https://github.com/reader/thesis");
-  assert.equal(r.commit.sha, "c1", "the layout is committed into the product");
-  assert.ok(calls.length && calls.every(([, p]) => p.startsWith("/repos/reader/thesis")),
-    "every request goes to the product repository — none to the instance");
-  assert.deepEqual(Object.keys(treeOf(calls)).sort(),
-    ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/README.md"]);
-  // Counter-proof: after a clear, the list is empty.
-  store.clear();
-  assert.deepEqual(store.getProducts(), []);
-  assert.equal(st.mem.size, 0);
-});
-
-test("UC-001 5b: a product with the complete layout is only added to the list; no click, nothing at all", async () => {
-  const store = createStore(fakeStorage());
-  const full = ["CHANGELOG.md", "SPEC.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "docs/use-cases/UC-001-x.md"];
-  const g = productGitHub(full);
-  const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", authority: clickAuthority(click), store }));
-  assert.equal(r.commit, null);
-  assert.ok(!g.calls.some(([m]) => m === "POST" || m === "PATCH"), "nothing written");
-  assert.deepEqual(store.getProducts(), ["https://github.com/reader/thesis"]);
+test("UC-001: no click, nothing at all — Add product without a click's authority writes nothing and stores nothing", async () => {
   // A click a script makes becomes no authority, so the view starts no write and sends nothing (authority.test.mjs).
   assert.throws(() => clickAuthority({ isTrusted: false }), /click/);
-  // addProduct has no click check of its own any more (ITM-008): without an authority the write path refuses the layout's
-  // commit — nothing is written, and the address is not stored. The product is read before that, to find what is missing.
+  // addProduct checks the authority itself (MOD-repository-hosts' host takes none), before anything is read: without it
+  // nothing is written, and the address is not stored.
   const s2 = createStore(fakeStorage()), g2 = productGitHub([]);
   await withFetch(g2.fetchMock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t",
     store: s2 }), /authority/));
@@ -160,30 +143,6 @@ test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — each of the five writes 
     await withFetch(mock, () => call({ authority: clickAuthority(click) }));
     assert.equal(g.calls.filter(([m]) => m === "PATCH").length + gl.calls.filter((c) => c.method === "POST").length, 1, `${name}: one commit`);
   }
-});
-
-// Guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
-test("UC-001 5: Add product reads a GitHub product through readSnapshot — the branch resolved to one commit, then that commit's tree", async () => {
-  // ITM-130, back from Release testing (A1): the read MOD-git-host provides, one request more than the tree by the branch's
-  // name; the layout is computed from the tree of that commit, and the commit is written on the branch as before.
-  const store = createStore(fakeStorage()), g = productGitHub([]);
-  const r = await withFetch(g.fetchMock, () => addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t",
-    authority: clickAuthority(click), store }));
-  assert.equal(r.commit.sha, "c1");
-  assert.deepEqual(g.calls.filter(([m]) => m === "GET").map(([, p]) => p), ["/repos/reader/thesis", "/repos/reader/thesis/commits/main",
-    "/repos/reader/thesis/git/trees/c0", "/repos/reader/thesis/git/ref/heads/main", "/repos/reader/thesis/git/commits/c0"]);
-  assert.ok(g.calls.every(([, , auth]) => auth === "Bearer github_pat_t"), "every request with the token, to GitHub");
-  // counter-proof: the tree is never read by the branch's name
-  assert.ok(!g.calls.some(([, p]) => p.endsWith("/git/trees/main")));
-});
-
-test("UC-001 5a: a refused write adds nothing to the list", async () => {
-  const store = createStore(fakeStorage());
-  const g = productGitHub([]);
-  const inner = g.fetchMock;
-  const mock = async (u, init) => (init.method === "POST" ? new Response(JSON.stringify({ message: "Resource not accessible" }), { status: 403 }) : inner(u, init));
-  await withFetch(mock, () => assert.rejects(addProduct({ address: "https://github.com/reader/thesis", token: "github_pat_t", authority: clickAuthority(click), store }), /403/));
-  assert.deepEqual(store.getProducts(), []);
 });
 
 // ---------------------------------------------------------------- one commit per decision (queue 2026-09-24g, entry 05)
@@ -407,14 +366,16 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — on GitLab, one commit of creates; 
   assert.equal(r.commit.sha, NEWC);
   const posts = g.calls.filter((c) => c.method === "POST");
   assert.equal(posts.length, 1);
-  assert.deepEqual(posts[0].body.actions.map((a) => [a.action, a.file_path]).sort(), [["create", "CHANGELOG.md"], ["create", "docs/approvals/README.md"],
-    ["create", "docs/spec-freigaben/README.md"], ["create", "docs/use-cases/README.md"]]);
+  // Narrowed between the jobs of sprint 04: the files are MOD-artifact-edits' layout (tests/artifact-edits.test.mjs), no
+  // longer the old layout's list; the refusal is MOD-repository-hosts' (tests/repository-hosts.test.mjs), no longer the old
+  // Git host's text.
+  assert.ok(posts[0].body.actions.every((a) => a.action === "create"), "creates");
   assert.deepEqual(store.getProducts(), [GL_ADDR]);
   assert.ok(g.calls.every((c) => c.origin === GL && c.token === GL_TOKEN), "only the product's server, only its token");
   // Counter-proof: a refused write adds nothing to the list.
   const s2 = createStore(fakeStorage());
   const bad = await fakeGitLab({ files: {}, postStatus: 403, postBody: { message: "403 Forbidden" } });
-  await withFetch(bad.fetchMock, () => assert.rejects(addProduct({ address: GL_ADDR, token: GL_TOKEN, authority: clickAuthority(click), store: s2 }), /403/));
+  await withFetch(bad.fetchMock, () => assert.rejects(addProduct({ address: GL_ADDR, token: GL_TOKEN, authority: clickAuthority(click), store: s2 })));
   assert.deepEqual(s2.getProducts(), []);
 });
 }
