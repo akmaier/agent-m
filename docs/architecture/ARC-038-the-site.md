@@ -114,9 +114,12 @@ process models, the product's declaration, the schedule, settings — is a form 
 
 A notification needs more than a page: the page's own `Notification` constructor "throws a TypeError when called in nearly
 all mobile browsers", and a service worker's registration shows it instead (MDN, `Notification()` constructor, read
-2026-10-06). A service worker is a script of the site, so it lies under `src/` (`AGENT M'S SOURCE CODE LIVES IN SRC`), and
-its scope cannot reach above its own folder unless the server sends a `Service-Worker-Allowed` header (the Service Workers
-specification, "Path restriction"), which GitHub Pages does not let a site set.
+2026-10-06). The registration's `showNotification()` asks only that its worker is active — "If this's active worker is
+null, then reject promise with a TypeError" is its one condition on the worker —, not that the worker controls the page
+that calls it (the Notifications API standard, the steps of `showNotification()`, read 2026-10-06). A service worker is a
+script of the site, so it lies under `src/` (`AGENT M'S SOURCE CODE LIVES IN SRC`), and its scope cannot reach above its
+own folder unless the server sends a `Service-Worker-Allowed` header (the Service Workers specification, "Path
+restriction"), which GitHub Pages does not let a site set.
 
 ## Decision
 
@@ -137,8 +140,8 @@ plain ECMAScript modules, with the repeated page shapes written once as template
 - **Notifications through a worker in their own folder.** MOD-notifications, which the frame starts on the main and the
   review pages, checks what waits for acceptance and has the browser show what has come to wait through a service worker
   in the module's folder. The worker's scope is that folder, so it controls no page of the dashboard: a page shows a
-  notification through the worker's registration, and on a click the worker opens the page where the file is accepted in
-  a new window or tab.
+  notification through the worker's registration, and on a click the worker opens the page where what it names is
+  accepted in a new window or tab.
 
 The views compose the services, Participants and jobs, Access and the artifact model; they keep no state of their own
 beyond what is on the screen. The entry pages register the strategies of the modules the views include with the job
@@ -156,8 +159,8 @@ what has come to wait for their acceptance while a page is open.
 To people: the main page `index.html` at the root of the instance's Pages address, and the review pages
 `docs/index.html`, whose views are addressed by the fragment of the address — each view for the product chosen, or for
 the instance itself —; and, where the person switched them on, the browser's notifications, each opening the page where
-its file is accepted. To other subsystems: the frame and the renderer, which the Bridge's window uses. Within the Site,
-MOD-notifications offers the frame its checks and the settings page its switch.
+what it names is accepted. To other subsystems: the frame and the renderer, which the Bridge's window uses. Within the
+Site, MOD-notifications offers the frame its checks and the settings page its switch.
 
 | Module | Functions other modules use |
 |---|---|
@@ -259,8 +262,12 @@ frame's alone (`A DATA FORMAT IS DEFINED ONCE`).
   page reads each blob once.
 - A click on a notification opens a new window or tab: the worker controls no page, so it cannot navigate an open one.
 - The browser behaviour the notifications depend on is measured on current browsers before the release that carries
-  them, and recorded under `docs/measurements/` (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`): a notification shown
-  through the registration of a worker that controls no page, and the page a click on it opens, in the current desktop
-  browsers and in Chrome on Android; and, on an iPhone and an iPad, the dashboard in Safari and opened from the Home
-  Screen — whether *Switch on* asks there, whether a notification is shown without Web Push, and whether a click on it
-  opens the page.
+  them, and recorded under `docs/measurements/` (`BROWSER REACHABILITY IS MEASURED, NOT ASSUMED`), in this order. First,
+  the premise of the design: a notification shown through the registration of a worker that controls no page, in the
+  current desktop browsers, in Chrome on Android, and on an iPhone and an iPad from the Home Screen, where it is shown
+  without Web Push. Second, what a click does: whether it reaches the worker and opens the address the notification
+  carries. On an iPhone and an iPad the sources disagree — MDN's compatibility data lists `notificationclick` as not
+  supported by Safari there, while WebKit handles it for Home Screen web apps (WebKit pull request 11848), both read
+  2026-10-06 —, so the measurement decides, and where the click is not passed on, UC-047 3a says what the person meets.
+  Third, on an iPhone and an iPad, that *Switch on* asks from the dashboard opened from the Home Screen and that Safari
+  offers no notification to the dashboard opened in Safari itself (UC-047 1b).

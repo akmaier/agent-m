@@ -116,7 +116,10 @@ earlier entry of the queue creates it.
   record: string | null, decision: string | null, state: "open" | "approved" | "in SPEC" | "stale" |
   "waiting for its anchor", createdBy: number | null }> }`, where `createdBy` is the number of the entry whose proposal
   creates the anchor.
-- `queues(snapshot: Snapshot) -> Queue[]` — every queue of a snapshot with every entry and its state, newest first.
+- `queues(snapshot: Snapshot) -> Promise<Queue[]>` — every queue of a snapshot with every entry and its state, newest
+  first: the entries with their anchors from each queue's `index.md`, its decisions from `entscheidungen.md`, the records
+  from `docs/approvals/`. Crosses the network through the snapshot, for the files it has not read yet; fails with the
+  snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`.
 - `openQueueOf(person: string, date: string, host: Host) -> Promise<string | null>` — the folder of the person's newest
   queue of that day that has no entry in SPEC yet, or `null` (`A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE`). The person
   of a queue is the author of the commit that created its index. Crosses the network; fails with the host's errors.

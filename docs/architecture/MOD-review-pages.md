@@ -135,13 +135,18 @@ ReviewKind = {
 ## Interfaces
 
 - `view: View` — the routes of the review flow, and the strategies its kinds use in the tab — `specStrategies`,
-  `approvalStrategies`, `editStrategies`, `sourceStrategies`, `reuseStrategies`. Its routes, for each kind `<k>`:
+  `approvalStrategies`, `editStrategies`, `sourceStrategies`, `reuseStrategies`. Its routes, for each kind `<k>`, the key
+  of its descriptor, are also the addresses by which other pages and the browser's notifications lead to a kind's list
+  and to a file (MOD-main-page, MOD-notifications):
   - `<k>` — the files of the kind with their status — open, accepted, changed since acceptance —, each with a tick.
-  - `<k>/<id>` — one file rendered, with its diagram; changed since acceptance, its difference to the text the most
-    recent approval record of its identifier names (`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT`); its extra
-    sections; *Accept*, *Edit*, *Change by prompt*. Without a token for GitHub, *Accept* and *Edit* open GitHub's
-    prefilled pages, the text never in the address (`NO TEXT TRAVELS IN A URL`); for a GitLab product without a token,
-    neither is offered, and the token's step is linked.
+  - `<k>/<id>` — one file, `<id>` the identifier an approval record names it by (MOD-approvals): `UC-<nnn>`,
+    `ARC-<nnn>`, `MOD-<slug>`, `spec-<queue>-<NN>` for an entry of a change queue, `release-v<version>` for a release
+    test report — one part of the address's fragment, since none of them holds a `/`. The file rendered, with its
+    diagram; changed since acceptance, its difference to the text the most recent approval record of its identifier
+    names (`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT`); its extra sections; *Accept*, *Edit*, *Change by
+    prompt*. Without a token for GitHub, *Accept* and *Edit* open GitHub's prefilled pages, the text never in the
+    address (`NO TEXT TRAVELS IN A URL`); for a GitLab product without a token, neither is offered, and the token's step
+    is linked.
   - `<k>/all` — *Review all*: every open or changed file of the kind in sequence, a changed one as its difference, a new
     one in full, and *Accept all N shown*: one commit with one record per file shown; a file that changed after it was
     shown, or that names a requirement or use case not yet accepted, is left out and named (`SEVERAL FILES ARE ACCEPTED IN

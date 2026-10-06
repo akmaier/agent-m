@@ -58,18 +58,23 @@ formats MOD-browser-store's catalogue defines. It owns the notification it shows
 
 | Notification | Title and text | Tag | Address it opens |
 |---|---|---|---|
-| one file that has come to wait | `<identifier> waits for your acceptance`, and the repository's path — `owner/name`, or a GitLab project's path | the repository, the file and its blob | the route `<k>/<identifier>` of the review pages for that repository, `<k>` the key of MOD-review-pages' kind: `spec-entry`, `use-case`, `decision`, `module` or `release-report` |
-| more than three that have come to wait in one check | `<n> wait for your acceptance`, and the repositories they wait in | the instance and `waiting` | the main page's `home` with `params.at` set to `waits`, its list of what waits (MOD-main-page) |
+| one file that has come to wait, where no more than three of its kind came in its repository in one check | `<identifier> waits for your acceptance`, and the repository's path — `owner/name`, or a GitLab project's path | the repository, the file and its blob | its review page, MOD-review-pages' route `<k>/<id>` for that repository — `<k>` `spec-entry`, `use-case`, `decision` or `module` by its kind, `<id>` its identifier —; for a release test report, MOD-test-pages' release panel, the route `release`, for that repository |
+| more than three of one kind that have come to wait in one repository in one check | `<n>` and the kind, `wait for your acceptance`, and the repository's path | the repository and the kind | the list of that kind, MOD-review-pages' route `<k>`, for that repository; for release test reports, the release panel |
 | the test | `Notifications of Agent M are on` | the instance and `test` | none; a click only closes it |
 
-A notification with the tag of one that is still shown replaces it instead of standing beside it, so two open pages that
-notify the same text at the same moment show it once.
+Every notification leads to where what it names is accepted (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`): one file
+to its review page; several of one kind to that kind's list, where they are accepted one by one or together (`SEVERAL
+FILES ARE ACCEPTED IN ONE CLICK`); a release test report to the release panel, where *Accept and release* accepts it
+(UC-013). A notification with the tag of one that is still shown replaces it instead of standing beside it, so two open
+pages that notify the same text at the same moment show it once.
 
 The service worker lives in this module's folder (`AGENT M'S SOURCE CODE LIVES IN SRC`), and GitHub Pages sets no
-`Service-Worker-Allowed` header, so its scope is that folder: it controls no page of the dashboard. A page therefore shows
-a notification through the registration it gets from registering the worker — not through `navigator.serviceWorker.ready`,
-which waits for a worker of the page's own scope —, once that registration's worker is active; a click reaches the
-worker, which opens the address in a new window or tab, since a worker can navigate only a page it controls.
+`Service-Worker-Allowed` header, so its scope is that folder: it controls no page of the dashboard. A page therefore
+shows a notification through the registration it gets from registering the worker — not through
+`navigator.serviceWorker.ready`, which waits for a worker of the page's own scope —, once that registration's worker is
+active; a click reaches the worker, which opens the address in a new window or tab, since a worker can navigate only a
+page it controls. Where a browser opens the dashboard without passing the click on to the worker (UC-047 3a), the
+notification's text — what waits and where — is what leads the person on.
 
 ## Interfaces
 
@@ -79,25 +84,27 @@ worker, which opens the address in a new window or tab, since a worker can navig
   for the dashboard as it is opened — `from the Home Screen` on an iPhone or iPad, whose Safari shows them only for a
   site opened from the Home Screen (UC-047 1b), `no` where the browser offers a page no notifications or no service
   worker, as in a private window of some browsers.
-- `watchForAcceptance(page: { store: Store, instance: { repository: string, host: Host }, addressOf: (page: "main" |
-  "review", route: string, params: Record<string, string>, repository: string | null) -> string }) -> void` — the checks
-  of one page, started by the frame on the main and the review pages with this page's store, the instance as the frame
-  connected it, and the frame's writing of a route's address for a repository — the instance's or a product's address —,
-  or for none. Every minute the page looks whether a check is due — the switch on, the browser's permission granted, and
-  this browser's last check five minutes old or older —, so that the pages open in this browser together check every
-  five minutes, and a page opened after a pause checks at once (UC-047 2a). A check reads the snapshot of the default
-  branch of the instance and of each product the store keeps — each connected with its own token, which goes only to its
-  own server —, takes from each what waits for acceptance with `waitingForAcceptance`, and compares it with `notified`:
-  what waits on a blob `notified` does not hold for its path has come to wait — a file changed again among it. Up to
-  three are notified one by one, more than three by one notification of their number; then the check records its time,
-  and `notified` holds, for every repository it read, what waits there now, so that an entry whose file no longer waits
-  is dropped. The first check after notifications are switched on finds `notified` empty and notifies what waits then.
-  Considers: it crosses the network to the repository servers; a repository it cannot read — `NotFound`, `TokenRefused`,
-  `PermissionMissing`, `RateLimited`, `Unreachable` — is skipped until the next check, keeps its entries in `notified`,
-  and nothing is notified for it in between (UC-047 2c); a check costs a repository the requests of one snapshot and of
-  the blobs not read before on this page. A browser that pauses a page in the background holds its checks until it runs
-  the page again (UC-047 2b). Where the browser has dropped the worker's registration, the check registers it again. It
-  throws nothing: a store the browser refuses holds no switch, and no check runs.
+- `watchForAcceptance(page: { store: Store, instance: { repository: string, host: Host }, addressOf: (route: string,
+  params: Record<string, string>, repository: string) -> string }) -> void` — the checks of one page, started by the
+  frame on the main and the review pages with this page's store, the instance as the frame connected it, and the frame's
+  writing of the address of a route of the review pages for a repository — the instance's or a product's address. Every
+  minute the page looks whether a check is due — the switch on, the browser's permission granted, and this browser's
+  last check five minutes old or older —, so that the pages open in this browser together check every five minutes, and
+  a page opened after a pause checks at once (UC-047 2a). A check reads the snapshot of the default branch of the
+  instance and of each product the store keeps — each connected with its own token, which goes only to its own server —,
+  takes from each what waits for acceptance with `waitingForAcceptance`, and compares it with `notified`: what waits on
+  a blob `notified` does not hold for its path has come to wait — a file changed again among it. Of one kind in one
+  repository, up to three are notified one by one and more than three by one notification of their number; then the
+  check records its time, and `notified` holds, for every repository it read, what waits there now, so that an entry
+  whose file no longer waits is dropped. The first check after notifications are switched on — `checked` still `null` —
+  shows nothing and only records what waits then: a notification tells what comes to wait while notifications are on (`A
+  PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). Considers: it crosses the network to the repository servers; a
+  repository it cannot read — `NotFound`, `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable` — is skipped
+  until the next check, keeps its entries in `notified`, and nothing is notified for it in between (UC-047 2c); a check
+  costs a repository the requests of one snapshot and of the blobs not read before on this page. A browser that pauses a
+  page in the background holds its checks until it runs the page again (UC-047 2b). Where the browser has dropped the
+  worker's registration, the check registers it again. It throws nothing: a store the browser refuses holds no switch,
+  and no check runs.
 - `notificationState(store: Store) -> NotificationState` — the state of this browser, for the settings page; it asks
   nothing and makes no request.
 - `switchOn(store: Store) -> Promise<NotificationState>` — the person's **Switch on**: asks the browser's permission to

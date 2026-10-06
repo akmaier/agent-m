@@ -25,6 +25,7 @@ uses:
   - MOD-test-schedule.defaultSchedule
   - MOD-test-schedule.configurationDrift
   - MOD-result-records.resultsAt
+  - MOD-release-evidence.reportsAwaitingAcceptance
   - MOD-test-document.TestDeclaration
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.Graph
@@ -175,18 +176,19 @@ The six stages of the main page, each a share between 0 and 1:
   string }>` — what waits for a person in the product: open use cases, open SPEC change entries, gates whose decider is a
   person and that are pending, failed jobs; `path` is the file or record it concerns, from which the page links to where
   it is decided.
-- `waitingForAcceptance(snapshot: Snapshot) -> Promise<Array<{ kind: "SPEC change" | "use case" | "architecture decision"
-  | "module" | "release test report", id: string, path: string, blob: string }>>` — what waits for the person's acceptance
-  in one repository, the instance's or a product's, derived from its files and approval records alone, as
+- `waitingForAcceptance(snapshot: Snapshot) -> Promise<Array<{ kind: "SPEC change" | "use case" | "architecture
+  decision" | "module" | "release test report", id: string, path: string, blob: string }>>` — what waits for the
+  person's acceptance in one repository, the instance's or a product's, derived from its files and records alone, as
   `waitingForAPerson` derives open use cases and SPEC changes (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`,
   `STATUS IS DERIVED FROM THE RECORDS`): every entry of a change queue in the state `open`, `stale` or `waiting for its
-  anchor` (MOD-spec-changes), and every use case, architecture decision, module file and release test report whose status
-  is `open` or `changed` (MOD-approvals). `id` is the identifier an approval record names it by — `UC-<nnn>`, `ARC-<nnn>`,
-  `MOD-<slug>`, `release-v<version>`, and `spec-<queue>-<NN>` for an entry —; `path` is its file, for an entry its
-  proposal; `blob` is the blob of its current text. Considers: it reads the snapshot alone, not the product's facts, so
-  that a caller that asks every few minutes reads no pull requests, CI runs, tags, job records or test results. Crosses
-  the network through the snapshot, for the texts it has not read yet; fails with the snapshot's errors — `TokenRefused`,
-  `PermissionMissing`, `RateLimited`, `Unreachable`.
+  anchor` (MOD-spec-changes); every use case, architecture decision and module file whose status is `open` or `changed`
+  (MOD-approvals); and every release test report that waits for *Accept and release* (MOD-release-evidence'
+  `reportsAwaitingAcceptance`). `id` is the identifier an approval record names it by — `UC-<nnn>`, `ARC-<nnn>`,
+  `MOD-<slug>`, `spec-<queue>-<NN>` for an entry, `release-v<version>` for a report —; `path` is its file — for an entry
+  its proposal, for a report the record of its candidate's complete run —; `blob` is that file's blob. Considers: it
+  reads the snapshot alone, not the product's facts, so that a caller that asks every few minutes reads no pull
+  requests, CI runs, tags or test results. Crosses the network through the snapshot, for the texts it has not read yet;
+  fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`.
 
 `Workflow` is MOD-product-process'; `Model` MOD-model-catalogue's; `ItemState` MOD-work-plans'; `Queue`
 MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-graph's; `JobRow` MOD-job-ledger's;
@@ -201,7 +203,7 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   and the branch `test-results`; its pull requests, CI runs and tags; of the instance, `docs/participants.md`, the process models and `SPEC.md`, whose requirements are the process
   requirements.
 - Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
-  `docs/use-cases/`, `docs/architecture/` and `docs/tests/releases/`.
+  `docs/use-cases/` and `docs/architecture/`, and, through MOD-release-evidence, `docs/jobs/` and `docs/tests/releases/`.
 - Writes nothing.
 
 ## Uses
@@ -216,6 +218,7 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-test-schedule.scheduleSchema, defaultSchedule, configurationDrift — the schedule, or its default, and whether the
   CI configuration is generated from it.
 - MOD-result-records.resultsAt — the outcomes recorded for the default branch.
+- MOD-release-evidence.reportsAwaitingAcceptance — the release test reports that wait for acceptance.
 - MOD-test-document.TestDeclaration, testDeclarations, MOD-trace-graph.Graph, traceGraph, tracesTo — which tests guard
   which requirement, and the traces behind a cell of the grid.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.

@@ -37,6 +37,7 @@ provides:
   - startReleaseCandidate
   - releaseReport
   - acceptAndRelease
+  - reportsAwaitingAcceptance
   - auditRows
   - auditDocument
 ---
@@ -46,10 +47,11 @@ provides:
 
 It belongs to Tests and releases (ARC-043). It gives each product its own calendar version line (`CALENDAR VERSIONS`,
 `EVERY PRODUCT HAS ITS OWN VERSION LINE`), marks a release candidate and starts the complete run on it (`A RELEASE RUNS
-EVERY TEST AT EVERY LEVEL`), composes the release test report from the result records, and releases when a person accepts
-the report: the report, its approval record with every known limitation and the changelog entry in one commit, then the
-tag on the tested commit (`THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON`, `ACCEPTING THE RELEASE TEST REPORT RELEASES`,
-`A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED`, `A RELEASE IS TAGGED AND LOGGED`). It derives the audit of a
+EVERY TEST AT EVERY LEVEL`), composes the release test report from the result records, tells which reports wait for that
+acceptance (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`), and releases when a person accepts the report: the
+report, its approval record with every known limitation and the changelog entry in one commit, then the tag on the
+tested commit (`THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON`, `ACCEPTING THE RELEASE TEST REPORT RELEASES`, `A RED
+RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED`, `A RELEASE IS TAGGED AND LOGGED`). It derives the audit of a
 release and its export (`THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE`). A released version is never re-tagged
 (`A VERSION IS NOT REWRITTEN`). It runs in the browser and in Node.
 
@@ -58,7 +60,7 @@ release and its export (`THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE`)
 - `index.mjs` — the interface.
 - `version.mjs` — the next version and the tags of a product's line.
 - `candidate.mjs` — the release candidate and its complete run.
-- `report.mjs` — the release test report and releasing on its acceptance.
+- `report.mjs` — the release test report, the reports that wait for acceptance, and releasing on its acceptance.
 - `audit.mjs` — the audit rows, their summary and the export.
 
 ## Data
@@ -97,11 +99,12 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
 - `startReleaseCandidate(host: Host, version: string, commit: string, changelog: string, person: string) -> Promise<{
   candidate: string, run: string }>` — tags the commit `v<version>-rc.<N>`, the next free `N`, and queues the complete
   run on it — every test at every level, model-dependent tests their fixed number of times, user-level tests as a
-  checklist for the people assigned to them — as a job of kind `run-tests` through MOD-runtimes, whose parameters keep
-  the changelog entry the person chose, so that the candidate carries it to its report. Considers: release tests are run
-  by a participant other than the one that implemented what they test; if only the implementer can run them, it says so
-  (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). Crosses the network. Errors: `TagExists`, `NoRunner` (no
-  participant can run a level, named), `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`.
+  checklist for the people assigned to them — as a job of kind `run-tests` through MOD-runtimes, whose parameters name
+  the candidate — its version and tag — and keep the changelog entry the person chose, so that the candidate carries it
+  to its report. Considers: release tests are run by a participant other than the one that implemented what they test;
+  if only the implementer can run them, it says so (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). Crosses the
+  network. Errors: `TagExists`, `NoRunner` (no participant can run a level, named), `TokenRefused`, `PermissionMissing`,
+  `RateLimited`, `Unreachable`.
 - `releaseReport(at: Snapshot, results: Snapshot, candidate: { version: string, tag: string, commit: string, changelog:
   string }) -> { text: string, complete: boolean, failing: string[], worse: string[] }` — the release test report of a
   finished complete run, its `## Changelog entry` the one the candidate's run keeps among its parameters; `complete` is
@@ -114,6 +117,16 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   recorded reason, while the report is incomplete, and when the tag exists — an existing tag is never moved. Crosses the
   network. Errors: `LimitationMissing` (naming the tests and rates), `Incomplete`, `TagExists`, `Moved`, `TokenRefused`,
   `PermissionMissing`, `RateLimited`, `Unreachable`.
+- `reportsAwaitingAcceptance(snapshot: Snapshot) -> Promise<Array<{ version: string, candidate: string, record: string,
+  blob: string }>>` — the release test reports that wait for a person's acceptance in one repository, from its files
+  alone: for each version, its newest release candidate whose complete run — the job of kind `run-tests` that
+  `startReleaseCandidate` queued — has ended as done, while the snapshot holds no report `docs/tests/releases/v<version>.md`,
+  which `acceptAndRelease` writes only together with the report's approval record. `candidate` is the candidate's tag,
+  `record` the path of that job's record and `blob` its blob, which no longer changes once the job has ended. Considers: the
+  report itself is composed on the release panel by `releaseReport`; a candidate whose user-level tests are still being
+  entered waits all the same, and the panel names what is missing. Crosses the network through the snapshot, for the job
+  records it has not read yet; fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
+  `Unreachable`.
 - `auditRows(at: Snapshot, results: Snapshot, release: { tag: string, commit: string }, gates: Array<{ requirement: string,
   gate: string, record: string }>, instanceSpec: string) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
   worse: number, byImplementer: number, accepted: boolean, limitations: string[] }, rows: Array<{ requirement: string,
@@ -136,6 +149,7 @@ branch `test-results`.
 - Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests, the report, the approval records —,
   the branch `test-results`, the schedule, and the instance's source register and `SPEC.md`, whose requirements are the
   process requirements.
+- Reads, for `reportsAwaitingAcceptance`, the default branch's `docs/jobs/` and `docs/tests/releases/`.
 - Writes `docs/tests/releases/v<version>.md`, `docs/approvals/release-v<version>-<blob12>.md`, `CHANGELOG.md`, the tags
   `v<version>-rc.<N>` and `v<version>`, and, on a person's click, `docs/audits/<tag>.md`.
 
@@ -145,7 +159,8 @@ branch `test-results`.
 - MOD-test-schedule.scheduleSchema — the commands and runners with which the complete run runs each level.
 - MOD-approvals.approvalSchema, statusOf — the report's record and whether the report is accepted.
 - MOD-runtimes.queueJob — the complete run, queued as a job.
-- MOD-job-ledger.listJobs — who implemented the behaviour a release test guards, against who wrote the test.
+- MOD-job-ledger.listJobs — who implemented the behaviour a release test guards, against who wrote the test; and the
+  complete runs of release candidates that have ended, for the reports that wait.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, listTags, commitFiles, createTag — the product at a commit, its
   tags, the release commit and the tags.
 - MOD-documents.Document, loadSchema, readDocument, writeDocument — the report and the records by their schemas.

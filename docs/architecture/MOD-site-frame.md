@@ -108,9 +108,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
   change of the fragment. A fragment that names no loaded route shows the first route of its menu entry, or says that
   the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
-  `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of a route's address —
-  on the main or the review pages, for the instance itself, a product this browser keeps, or none —, in the form its
-  routing and `chosenProduct` read back. Called by `start.mjs`, and by the Bridge's window with its own routes.
+  `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of the address of a
+  route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
+  `chosenProduct` read back. Called by `start.mjs`, and by the Bridge's window with its own routes.
 - `embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void>` — renders a route of
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
   without using it. Error: `RouteNotLoaded` — the route is not on this page; the frame then puts a link to it in
@@ -124,10 +124,10 @@ It keeps nothing but what is on the screen. It owns these formats:
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.
 - `chosenProduct(context: { store: Store, fragment: string }) -> Promise<ProductContext | null>` — the product the
   address's fragment or the selector names, among the products this browser keeps, connected with its own token to its
-  own server only; `null` when the fragment names the instance itself, or when the browser keeps no product — the pages
-  then show the instance itself. Errors: `UnknownProduct` — the fragment names a product this browser does not keep; the
-  selector offers *+ Add product*. A refused token or a used-up rate limit is shown as a notice, with what
-  MOD-repository-hosts names.
+  own server only; `null` when the fragment or the selector names the instance itself, which the selector offers beside
+  the products, or when the browser keeps no product — the pages then show the instance itself. Errors: `UnknownProduct`
+  — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
+  used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
 - `explain(topic: string) -> Element` — the folded *What is this?* of a topic, from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
   topic the file does not hold it returns an empty element, and the frame's own check reports the missing topic.
