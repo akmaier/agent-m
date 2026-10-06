@@ -3,7 +3,9 @@
 // product kept in this browser's list, nothing in the instance. Written by tester-opus (claude-opus-5-5), the Release tester of
 // docs/process.md, who implemented none of it — neither ITM-205, ITM-206, ITM-211 nor the change between jobs #105 that made the
 // page call their modules —, from UC-001 as accepted and the requirements it realises; started on sprint/04 at 4e7b614,
-// 2026-10-06.
+// 2026-10-06. Changed by tester-opus (claude-opus-5-5), the Release tester, who implemented none of it, for UC-001 as drafted in
+// 2deaa7f — Step A asks for a key of the product's own, the instance's key unchanged —, on fix/product-token-prefill at ea87df2,
+// 2026-10-06: what the explanations of EVERY STEP EXPLAINS ITSELF say about the key.
 //
 // Module: MOD-artifact-edits
 // Guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; A MANAGED PRODUCT NEEDS NO PAGES SITE; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; EVERY PRODUCT HAS ITS OWN VERSION LINE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; THE PAGE STATES WHAT IT SENDS WHERE; UC-001
@@ -439,11 +441,11 @@ test("ONE CLICK PER DECISION — one click on Add product does everything that f
 // ------------------------------------------------------------------------------------------------ what the page says
 
 // EVERY STEP EXPLAINS ITSELF — every step that asks something of the person carries an explanation that can be expanded, written for
-// someone new to GitHub; UC-001, as it reads since 5260a64: "what a repository is, why a new key replaces the old one, what the
-// commit contains, how to undo it, and why the product list lives in this browser only". Input: the add-product page on GitHub with
-// a token, without one (3b), on a GitLab project (3c), and after a Check on a repository that does not exist (2a). Expected: the
-// address field and every step, in each of these states, carries a folded "What is this?" with text; together they say the five
-// things; and Step C's names every part the commit then writes into an empty product.
+// someone new to GitHub; UC-001, as drafted in 2deaa7f, names what they say: what a repository is, why the product gets a key of its
+// own, what the commit contains, how to undo it, and why the product list lives in this browser only. Input: the add-product page on
+// GitHub with the instance's key, without it (3b), on a GitLab project (3c), and after a Check on a repository that does not exist
+// (2a). Expected: the address field and every step, in each of these states, carries a folded "What is this?" with text; together
+// they say the five things; and Step C's names every part the commit then writes into an empty product.
 test("EVERY STEP EXPLAINS ITSELF — every step of Add product explains itself, and Step C names what its commit holds", async () => {
   const product = await githubProduct({ missing: true });
   const w = await servers({ product, gitlab: gitlabProject() });
@@ -475,13 +477,13 @@ test("EVERY STEP EXPLAINS ITSELF — every step of Add product explains itself, 
     assert.ok(c.includes(where) && c.includes(p.split("/").pop()), `Step C names ${p}, which the commit holds`);
   }
 
-  // Another browser, without a token (3b) — opened last: a page load replaces the browser this case worked in.
+  // Another browser, without the instance's key (3b) — opened last: a page load replaces the browser this case worked in.
   const bare = await dashboard(w, { token: null });
   await bare.open();
   bare.type("add-repo", PRODUCT_WEB);
-  await all(bare, "without a token");
+  await all(bare, "without the instance's key");
   const told = said.join(" ");
-  for (const [what, words] of [["what a repository is", /A repository is/i], ["why a new key replaces the old one", /needs a key that reaches it[\s\S]*new key replaces the old one/i],
+  for (const [what, words] of [["what a repository is", /A repository is/i], ["why the product gets a key of its own", /product gets a key of its own/i],
     ["what the commit contains", /One click writes one commit/i], ["how to undo it", /revert/i],
     ["why the product list lives in this browser only", /product list lives in this browser only/i]]) assert.match(told, words, what);
 });

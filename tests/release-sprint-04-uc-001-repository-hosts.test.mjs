@@ -3,7 +3,9 @@
 // are made, what the page asks for and tells before one is stored, and where each goes. Written by tester-opus (claude-opus-5-5), the
 // Release tester of docs/process.md, who implemented none of it — neither ITM-205, ITM-206, ITM-211 nor the change between jobs #105
 // that made the page call their modules —, from UC-001 as accepted and the requirements it realises; started on sprint/04 at
-// 4e7b614, 2026-10-06.
+// 4e7b614, 2026-10-06. Changed by tester-opus (claude-opus-5-5), the Release tester, who implemented none of it, for UC-001 as drafted
+// in 2deaa7f — Step A asks for a key of the product's own, the instance's key unchanged —, on fix/product-token-prefill at ea87df2,
+// 2026-10-06: the seven cases of the GitHub token, from THE TOKEN LINK IS PREFILLED to THE PAGE STATES WHAT IT SENDS WHERE.
 //
 // Module: MOD-repository-hosts
 // Guards: A PRODUCT IS NAMED BY ITS ADDRESS; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A TOKEN IS SCOPED TO WHAT IT WRITES; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN; CONFIGURATION LIVES IN THE BROWSER; THE SHARED PAGES ORIGIN IS DISCLOSED; THE PAGE STATES WHAT IT SENDS WHERE; UC-001
@@ -205,6 +207,11 @@ const LISTED = "alice/other-tool";
 const listed = () => globalThis.localStorage.setItem("agent-m.products", JSON.stringify([`https://github.com/${LISTED}`, GL_WEB]));
 // Step A up to Step B: its two parts, the token page and the new key's paste field.
 const stepA = (d) => d.steps().slice(0, d.steps().indexOf("<h3>Step B"));
+// The step that takes a key: the one holding the paste field with this id — on GitHub a part of Step A (UC-001 step 3), on a GitLab
+// server Step B (3c).
+const takes = (d, field) => d.steps().split('<section class="step">').find((s) => s.includes(`id="${field}"`)) ?? "";
+// The keys this browser keeps for GitHub products, by the product's address — as it keeps the GitLab project tokens (3c).
+const productKeys = () => JSON.parse(globalThis.localStorage.getItem("agent-m.github-product-tokens") ?? "{}");
 
 // ------------------------------------------------------------------------------------------------ the product, by its address
 
@@ -321,10 +328,11 @@ test("A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — the GitHub token to Git
 
 // THE TOKEN LINK IS PREFILLED — Agent M links to GitHub's page for new fine-grained tokens with name, description, expiry and the
 // required permissions already filled in; the required permissions are those of ONE GITHUB TOKEN SERVES EVERY FEATURE: Contents, Issues
-// and Pull requests read and write, Actions and Workflows read and write, Metadata read. Input: the add-product page without a token —
-// UC-001 3b, where the key is made. Expected: the link to github.com/settings/personal-access-tokens/new fills in a name, a description
-// and an expiry in days, and exactly those permissions in GitHub's parameters: contents, issues, pull_requests, actions and workflows
-// `write`, metadata `read`.
+// and Pull requests read and write, Actions and Workflows read and write, Metadata read. Input: the add-product page without the
+// instance's key — UC-001 3b, where the product's steps are the same as with it. Expected: the link to
+// github.com/settings/personal-access-tokens/new fills in a name, a description and an expiry in days, the product's owner, alice, as
+// the token's owner (UC-001 step 3), and exactly those permissions in GitHub's parameters: contents, issues, pull_requests, actions and
+// workflows `write`, metadata `read`.
 test("THE TOKEN LINK IS PREFILLED — GitHub's new-token page with name, description, expiry and exactly the permissions needed", async () => {
   const w = await servers({ product: await githubProduct() });
   const d = await dashboard(w, { token: null });
@@ -332,19 +340,19 @@ test("THE TOKEN LINK IS PREFILLED — GitHub's new-token page with name, descrip
   d.type("add-repo", PRODUCT_WEB);
   const link = tokenLink(d.steps());
   assert.ok(link, "the link to GitHub's page for a new fine-grained token");
-  const { name, description, expires_in: days, ...permissions } = query(link);
+  const { name, description, target_name: owner, expires_in: days, ...permissions } = query(link);
   assert.ok(name?.trim() && description?.trim(), "a name and a description");
+  assert.equal(owner, "alice", "the product's owner as the token's owner");
   assert.match(days ?? "", /^[1-9]\d*$/, "an expiry, in days");
   assert.deepEqual(permissions, { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" },
     "exactly the permissions every feature needs");
 });
 
 // THE REPOSITORY CHOICE IS SPELLED OUT — Agent M tells the person to choose Only select repositories on GitHub's token page and names
-// each repository to select; UC-001 step 3: <instance>, every GitHub product this browser already lists, and <product repository> —
-// nothing else. Input: the add-product page without a token — UC-014's key setup, 3b, both repositories named —, and with one in a
-// browser that already lists a GitHub product, alice/other-tool, and a GitLab project. Expected: without a token, “Only select
-// repositories”, then akmaier/agent-m and alice/thesis-tool, nothing else; with one, “Only select repositories”, then akmaier/agent-m,
-// alice/other-tool and alice/thesis-tool, nothing else — the GitLab project, whose token is its own, not among them.
+// each repository to select; UC-001 step 3, as drafted in 2deaa7f: <product repository> — nothing else. Input: the add-product page
+// without the instance's key — 3b, the product's steps the same —, and with it in a browser that already lists a GitHub product,
+// alice/other-tool, and a GitLab project. Expected: in each, “Only select repositories”, then alice/thesis-tool, nothing else — not the
+// instance, not the GitHub product listed, and not the GitLab project, whose token is its own.
 test("THE REPOSITORY CHOICE IS SPELLED OUT — Only select repositories, and each repository to select by name", async () => {
   const w = await servers({ product: await githubProduct() });
   const bare = await dashboard(w, { token: null });
@@ -352,43 +360,42 @@ test("THE REPOSITORY CHOICE IS SPELLED OUT — Only select repositories, and eac
   bare.type("add-repo", PRODUCT_WEB);
   const made = bare.step("Step A");
   assert.match(textOf(made), /choose “Only select repositories”/);
-  assert.deepEqual(picked(made), [INSTANCE, PRODUCT].sort(), "without a token: both repositories, nothing else");
+  assert.deepEqual(picked(made), [PRODUCT], "without the instance's key: the product repository, nothing else");
   const d = await dashboard(w);
   listed();
   await d.open();
   d.type("add-repo", PRODUCT_WEB);
   const a = stepA(d);
   assert.match(textOf(a), /choose “Only select repositories”/);
-  assert.deepEqual(picked(a), [INSTANCE, LISTED, PRODUCT].sort(), "with a token: the instance, the GitHub product listed and the new one, nothing else");
+  assert.deepEqual(picked(a), [PRODUCT], "with it: the product repository, nothing else — not the instance, not the GitHub product listed");
   assert.ok(!textOf(a).includes(GL_PROJECT), "not the GitLab project");
 });
 
 // A TOKEN IS SCOPED TO WHAT IT WRITES — every repository token Agent M asks for carries write access only to the repositories of the
 // instance and the products it manages; its check: the configuration screen states the minimum scope and why each part is needed.
-// Input: the add-product page without a token — a first key, UC-014's setup —, with one in a browser that already lists a GitHub
-// product and a GitLab project — UC-001 step 3, a new key —, and for a GitLab project. Expected: each GitHub key is asked for the
-// repositories of the instance and its products alone — the first for akmaier/agent-m and alice/thesis-tool, the new one also for
-// the listed alice/other-tool, never for the GitLab project —, each time with GitHub's preset “All repositories” named as what not to
-// keep, and why; the first key's step names each permission with why it is needed; the GitLab token is one for this project, and the
-// page says that a personal token would reach every project.
+// Input: the add-product page without the instance's key (3b) and with it in a browser that already lists a GitHub product and a
+// GitLab project — each time the product's own key, UC-001 step 3 as drafted in 2deaa7f —, and for a GitLab project. Expected: the
+// product's GitHub key is asked for alice/thesis-tool alone, with or without the instance's key — never for the instance, the listed
+// alice/other-tool or the GitLab project —, each time with GitHub's preset “All repositories” named as what not to keep, and why, and
+// with the explanation of why the product gets a key of its own; the GitLab token is one for this project, and the page says that a
+// personal token would reach every project. The instance's own key, whose step names each permission with why it is needed, is
+// asked for in UC-014 and no longer on this page; its release tests are those of UC-014 7 and of this requirement in
+// tests/release-sprint-01-dashboard-app.test.mjs.
 test("A TOKEN IS SCOPED TO WHAT IT WRITES — only the instance and its products, each part with its reason", async () => {
   const w = await servers({ product: await githubProduct() });
   const bare = await dashboard(w, { token: null });
   await bare.open();
   bare.type("add-repo", PRODUCT_WEB);
   const first = bare.step("Step A"), said = textOf(first);
-  assert.deepEqual(picked(first), [INSTANCE, PRODUCT].sort(), "the first key: the instance and the product alone");
+  assert.deepEqual(picked(first), [PRODUCT], "without the instance's key: the product alone");
   assert.match(said, /GitHub preselects “All repositories”, which would give Agent M write access to everything you own/, "and why not all");
-  const why = explanationOf(first);
-  for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
-    assert.match(why, new RegExp(`${p} \\((read and write|read)\\): \\S`), `${p}, with why it is needed`);
-  }
+  assert.match(explanationOf(first), /product gets a key of its own/i, "and why a key of its own");
   const d = await dashboard(w);
   listed();
   await d.open();
   d.type("add-repo", PRODUCT_WEB);
   const a = stepA(d);
-  assert.deepEqual(picked(a), [INSTANCE, LISTED, PRODUCT].sort(), "the new key: the instance and the GitHub products, nothing else");
+  assert.deepEqual(picked(a), [PRODUCT], "with it: the product alone, nothing else");
   assert.ok(!textOf(a).includes(GL_PROJECT), "never the GitLab project");
   assert.match(textOf(a), /GitHub preselects “All repositories”, which would give Agent M write access to everything you own/, "and why not all");
   d.type("add-repo", GL_WEB);
@@ -398,34 +405,37 @@ test("A TOKEN IS SCOPED TO WHAT IT WRITES — only the instance and its products
 });
 
 // THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN — Agent M uses a fine-grained personal access token that the person creates on
-// github.com and pastes into Agent M. Input: the add-product page without a token (3b); a text that is no GitHub token, then the token,
-// pasted and stored. Expected: the page links GitHub's page for new fine-grained tokens and gives a paste field for one; a text that is
-// no GitHub token is refused and nothing stored; the token is stored as pasted; no link and no request leads to a sign-in with GitHub.
+// github.com and pastes into Agent M. Input: the add-product page without the instance's key (3b); a text that is no GitHub token, then
+// the token, pasted and stored. Expected: the page links GitHub's page for new fine-grained tokens and gives a paste field for one in
+// Step A — UC-001 step 3: back in the panel, the author pastes the token —; a text that is no GitHub token is refused and nothing
+// stored; the token is stored as pasted, for the product (UC-001 step 3); no link and no request leads to a sign-in with GitHub.
 test("THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN — created on GitHub's page, pasted, stored as pasted; no sign-in", async () => {
   const w = await servers({ product: await githubProduct() });
   const d = await dashboard(w, { token: null });
   await d.open();
   d.type("add-repo", PRODUCT_WEB);
   assert.ok(tokenLink(d.steps()), "GitHub's page for a new fine-grained token");
-  assert.match(d.step("Step B"), /<input type="password" id="key-token" placeholder="github_pat_…"/, "a field to paste it into");
+  assert.match(stepA(d), /<input type="password" id="key-token" placeholder="github_pat_…"/, "a field to paste it into, in Step A");
   d.tick("key-ack");
+  const before = storage();
   d.el("key-token").value = "my GitHub password";
   await d.click("key-store");
   assert.match(d.el("key-check").textContent, /not a GitHub token/, "a text that is no token is refused");
-  assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), null, "and nothing stored");
+  assert.deepEqual(storage(), before, "and nothing stored");
   d.el("key-token").value = TOKEN;
   await d.click("key-store");
-  assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "the token, as pasted");
+  assert.equal(productKeys()[PRODUCT_WEB]?.token, TOKEN, "the token, as pasted, kept for the product");
   const signIn = /github\.com\/login|\/login\/oauth|\/login\/device|oauth/i;
   assert.deepEqual(hrefs(d.page.main()).filter((x) => signIn.test(x)), [], "no link to a sign-in");
   assert.deepEqual(w.log.filter((r) => signIn.test(r.url)), [], "no request for a sign-in");
 });
 
 // CONFIGURATION LIVES IN THE BROWSER — the repository tokens and the list of products, among the rest, are stored in the browser of the
-// person using the site; Agent M has no other store for them. Input: one browser, without a token at first, stores the GitHub token
-// (3b) and adds a GitHub product, then stores a GitLab project's token and adds it (3c). Expected: the GitHub token, the project token
-// and both addresses are in this browser's localStorage; no request carries a token in its address or body, so that none is written
-// into a repository, and the instance gets no write; no cookie is set.
+// person using the site; Agent M has no other store for them. Input: one browser, without the instance's key, stores the product's own
+// GitHub key in Step A (3b) and adds the GitHub product, then stores a GitLab project's token and adds it (3c). Expected: the
+// product's GitHub key, kept for alice/thesis-tool, the project token and both addresses are in this browser's localStorage; no
+// request carries a token in its address or body, so that none is written into a repository, and the instance gets no write; no
+// cookie is set.
 test("CONFIGURATION LIVES IN THE BROWSER — the tokens and the product list in localStorage, and nowhere else", async () => {
   const w = await servers({ product: await githubProduct(), gitlab: gitlabProject() });
   const d = await dashboard(w, { token: null });
@@ -437,7 +447,7 @@ test("CONFIGURATION LIVES IN THE BROWSER — the tokens and the product list in 
   await d.click("add-go");
   await d.add(GL_WEB);
   const kept = storage();
-  assert.equal(kept["agent-m.github-token"], TOKEN, "the GitHub token");
+  assert.equal(JSON.parse(kept["agent-m.github-product-tokens"] ?? "{}")[PRODUCT_WEB]?.token, TOKEN, "the product's GitHub key, kept for it");
   assert.equal(JSON.parse(kept["agent-m.gitlab-tokens"] ?? "{}")[GL_WEB]?.token, GL_TOKEN, "the project token");
   assert.deepEqual(JSON.parse(kept["agent-m.products"] ?? "null"), [PRODUCT_WEB, GL_WEB], "the product list");
   assert.ok(writes(w).length > 0, "the products were written");
@@ -447,40 +457,42 @@ test("CONFIGURATION LIVES IN THE BROWSER — the tokens and the product list in 
 });
 
 // THE SHARED PAGES ORIGIN IS DISCLOSED — before a token or key is stored, the page states that every GitHub Pages site under the same
-// <owner>.github.io domain can read what Agent M stores in the browser. Input: the key setup without a token (3b) and a GitLab project's
-// Step B (3c). Expected: in each, the notice names https://akmaier.github.io and every other Pages site of akmaier, before the paste
-// field; the field and Store and check stay disabled until “I have read this” is ticked; a Store before the tick stores nothing.
+// <owner>.github.io domain can read what Agent M stores in the browser. Input: the step that takes the product's own GitHub key, without
+// the instance's key — a part of Step A, UC-001 step 3 and 3b —, and a GitLab project's Step B (3c). Expected: in each, the notice names
+// https://akmaier.github.io and every other Pages site of akmaier, before the paste field; the field and Store and check stay disabled
+// until “I have read this” is ticked; a Store before the tick stores nothing.
 test("THE SHARED PAGES ORIGIN IS DISCLOSED — before a token is stored, the shared origin is named, and the tick comes first", async () => {
   const w = await servers({ product: await githubProduct(), gitlab: gitlabProject() });
   const d = await dashboard(w, { token: null });
   await d.open();
-  for (const [address, field, store, ack, key] of [[PRODUCT_WEB, "key-token", "key-store", "key-ack", "agent-m.github-token"],
-    [GL_WEB, "gl-token", "gl-store", "gl-ack", "agent-m.gitlab-tokens"]]) {
+  for (const [address, field, store, ack] of [[PRODUCT_WEB, "key-token", "key-store", "key-ack"], [GL_WEB, "gl-token", "gl-store", "gl-ack"]]) {
     d.type("add-repo", address);
-    const b = d.step("Step B"), notice = b.indexOf("github.io");
+    const b = takes(d, field), notice = b.indexOf("github.io");
     assert.ok(notice > 0 && notice < b.indexOf(`id="${field}"`), `${address}: the notice stands before the paste field`);
     assert.match(textOf(b), /stored for the address https:\/\/akmaier\.github\.io — not only for this instance\. Every other GitHub Pages site of akmaier/);
     assert.equal(d.el(field).disabled, true, `${address}: the field waits for the tick`);
     assert.equal(d.el(store).disabled, true, `${address}: Store and check waits for the tick`);
+    const before = storage();
     d.el(field).value = address === PRODUCT_WEB ? TOKEN : GL_TOKEN;
     d.el(store).fire("click", { isTrusted: true });
     await new Promise((r) => setTimeout(r, 0));
-    assert.equal(globalThis.localStorage.getItem(key), null, `${address}: nothing stored before the tick`);
+    assert.deepEqual(storage(), before, `${address}: nothing stored before the tick`);
     d.tick(ack);
     assert.equal(d.el(field).disabled, false, `${address}: ticked, the field opens`);
   }
 });
 
 // THE PAGE STATES WHAT IT SENDS WHERE — before Agent M acts, it names every destination it will contact and what it will send there.
-// Input: the step that stores a token — the GitHub key without a token (3b), a GitLab project's token (3c) —, read before Store and
-// check is pressed. Expected: it says that the token is kept in this browser and sent only to GitHub's API — or only to this project's
-// API on its own server, never to GitHub or another server —, as a header; after Store and check, the token went exactly there.
+// Input: the step that stores a token — the product's own GitHub key without the instance's key (3b), a GitLab project's token (3c) —,
+// read before Store and check is pressed. Expected: it says that the token is kept in this browser and sent only to GitHub's API — or
+// only to this project's API on its own server, never to GitHub or another server —, as a header; after Store and check, the token
+// went exactly there — the GitHub key to GitHub's API, in requests for alice/thesis-tool, the product it is stored for (UC-001 step 3).
 test("THE PAGE STATES WHAT IT SENDS WHERE — before a token is stored, the page says where it will be sent, and it goes there", async () => {
   const w = await servers({ product: await githubProduct(), gitlab: gitlabProject() });
   const d = await dashboard(w, { token: null });
   await d.open();
   d.type("add-repo", PRODUCT_WEB);
-  const gh = explanationOf(d.step("Step B"));
+  const gh = explanationOf(takes(d, "key-token"));
   assert.match(gh, /saved in this browser only/, "GitHub: kept here");
   assert.match(gh, /sent only to GitHub's API, as a header/, "GitHub: where it goes");
   d.tick("key-ack");
@@ -488,6 +500,7 @@ test("THE PAGE STATES WHAT IT SENDS WHERE — before a token is stored, the page
   await d.click("key-store");
   const ghSent = w.log.filter((r) => r.authorization === `Bearer ${TOKEN}`);
   assert.ok(ghSent.length > 0 && ghSent.every((r) => r.origin === API), "GitHub: it went to GitHub's API");
+  assert.ok(ghSent.every((r) => r.url === `${API}/repos/${PRODUCT}` || r.url.startsWith(`${API}/repos/${PRODUCT}/`)), "GitHub: for the product");
 
   d.type("add-repo", GL_WEB);
   const gl = explanationOf(d.step("Step B"));
