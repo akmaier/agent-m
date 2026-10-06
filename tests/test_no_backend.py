@@ -23,14 +23,19 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    successor in MOD-repository-hosts, src/repository-hosts/failures.mjs); the bridge probe on localhost; the dashboard's
    own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
    from; and the own data files — schemas, models, practices — of the modules whose files state that they read them when
-   they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register and MOD-product-process,
+   they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process
+   and MOD-site-frame (its explanations.md),
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
    file builds resolved from a path beginning with `./` against the module's own address. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
-   unless it is listed below with the reason it calls no other origin — each listed one exactly as often as listed.
+   unless it is listed below with the reason it calls no other origin — a file's entry exactly as often as listed, a
+   module folder's at most as often.
 3. No Markdown file the site serves loads anything from an address of a host outside the list of check 1 — the
    dashboard renders these files, and an image or frame in them would be fetched from its host. Code spans and fenced
    blocks are rendered as text and are not read.
+
+The vendored libraries are docs/assets/vendor/ and MOD-markdown-render's src/markdown-render/vendor/, whose module file
+states that it reads them; check 1 does not count them as the site's own code.
 
 The check of the own code's addresses moved here from tests/test_pages_layout.py (ITM-050). Only tracked files are
 read, so a scratch file in a working tree changes nothing. Counter-proofs:
@@ -43,7 +48,7 @@ from pathlib import Path
 from test_artifact_format import outside_code
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR = "docs/assets/vendor/"
+VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/")
 CODE = (".html", ".css", ".mjs", ".js")
 
 PERMITTED_HOSTS = {
@@ -116,6 +121,7 @@ PERMITTED_CHANNELS = {
     ("src/participant-list/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/source-register/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/product-process/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/site-frame/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("docs/assets/bridge-tunnel.mjs", "fetch"): (1, "the probe of a remote session's forward, on localhost",
                                                   lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("docs/assets/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
@@ -285,6 +291,14 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings({"src/text-tools/index.mjs": own}), ["src/text-tools/index.mjs:3: fetch: fetch(url);"])
         # A listed module whose code reads no data file of its own yet: the entry allows the read and requires none.
         self.assertEqual(channel_findings({"src/participant-list/index.mjs": "export const x = 1;\n"}), [])
+
+    def test_counter_proof_a_vendored_librarys_addresses_are_not_the_own_codes(self):
+        # MOD-markdown-render's vendored folder is skipped by check 1, as docs/assets/vendor/ is; its own code is not.
+        text = 'const ns = "http://www.w3.org/2000/svg";\n'
+        own = {f: sorted(foreign_hosts(t)) for f, t in {"src/markdown-render/vendor/purify.min.js": text,
+                                                        "src/markdown-render/index.mjs": text}.items()
+               if not f.startswith(VENDOR) and foreign_hosts(t)}
+        self.assertEqual(own, {"src/markdown-render/index.mjs": ["www.w3.org"]})
 
     def test_counter_proof_a_markdown_file_that_loads_from_another_host(self):
         text = ("![flow](https://tracker.example/p.png)\n<img src='//cdn.example/x.svg'>\n<iframe src=\"https://embed.example/\"></iframe>\n"
