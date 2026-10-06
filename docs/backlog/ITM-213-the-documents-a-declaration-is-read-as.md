@@ -30,13 +30,21 @@ MOD-source-register and MOD-product-process keep theirs as `*.schema.md`, and no
 the schema's JSON object. This item's tests state the form `loadSchema` reads; ITM-215 to ITM-218 write their schema files
 in that form, so none of them changes MOD-documents.
 
+The findings `documentFindings` makes of the marks of history, for a schema with `noHistory`, are not part of this item:
+- As MOD-documents' file stands, each mark `historyMarks` finds would be an error, every date included.
+- The SPEC forbids only a withdrawal note, an edit stamp and the date of a change (`A DOCUMENT HOLDS NO HISTORY`), and it
+  requires dates elsewhere (`DUE DILIGENCE IS FETCHED, NOT RECALLED`).
+- That gap is a change request to akmaier; an item of its own brings these findings as akmaier decides them.
+
+A schema's `noHistory` is read and kept, so the schemas that carry it load.
+
 ## Acceptance
 
 - Unit tests that name MOD-documents state, before the code exists:
   - a schema read from the text of a `*.schema.md` file, in the form this item settles, and checked;
   - a document read by its schema — front matter, tables, lists, free sections — and written back byte for byte;
-  - the findings a schema decides, each in the one text form of a finding, the marks of history of a schema with
-    `noHistory` among them;
+  - the findings a schema decides, each in the one text form of a finding — the marks of history aside, as above —, and a
+    schema with `noHistory` read and kept;
   - the values that depend on other values — `requiredWhen`, `forbiddenWhen` and `variants` — in a row of a table, for
     example a register row whose `Model` is required for every `Type` but `person`, as MOD-participant-list's register
     has it;
