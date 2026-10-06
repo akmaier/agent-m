@@ -18,12 +18,15 @@ origin:
 ---
 # ITM-205 The repository hosts for adding a product
 
+**REGISTER**
+
 ## Outcome
 
 MOD-repository-hosts' interface, as its file states it, for what UC-001 needs on GitHub and on a GitLab server:
 `parseAddress`, `connect`, and the host's `repositoryInfo`, `readSnapshot`, `commitFiles` and `webLinks`, with the errors
-the file names for them. The code that does this now, in `docs/assets/git-host.mjs`, moves into `src/repository-hosts/`;
-the old file re-exports what the dashboard imports from it, so that the dashboard keeps working until its pages move.
+the file names for them, in `src/repository-hosts/`, with `docs/assets/git-host.mjs` as its model. `webLinks` gives the
+pages UC-001 opens: `newToken`, `tokens`, `projectTokens` and `newRepository`. A local clone is not part of this item;
+`connect` refuses one with `NotSupported`.
 
 ## Acceptance
 
@@ -35,5 +38,4 @@ the old file re-exports what the dashboard imports from it, so that the dashboar
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests of the Git host stay green, with no expected result changed.
-- Only `src/repository-hosts/`, the tests that name MOD-repository-hosts and the re-exports in `docs/assets/git-host.mjs`
-  change.
+- Only `src/repository-hosts/` and the tests that name MOD-repository-hosts change.
