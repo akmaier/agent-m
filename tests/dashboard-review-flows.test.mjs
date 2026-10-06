@@ -523,12 +523,20 @@ test("UC-001 main flow: Step A names the token, the product and the instance; Ch
   await page.go(addHash(PRODUCT_ADDR));
   const html = page.el("add-steps");
   assert.match(html, /<h3>Step A · Let your key reach the product<\/h3>/);
-  assert.ok(html.includes('href="https://github.com/settings/personal-access-tokens"'), "Open your tokens on GitHub");
-  assert.match(html, /Open your tokens on GitHub ↗/);
-  assert.ok(html.includes("Click the token “Agent M · akmaier/agent-m”, then “Edit”."));
-  assert.ok(html.includes("add “alice/thesis” — keep “akmaier/agent-m” selected."));
-  assert.ok(html.includes("Press “Update” at the bottom. The token itself stays the same — nothing to copy, nothing to paste here."));
-  assert.equal((html.match(/<summary>What is this\?<\/summary>/g) || []).length, 3, "every step explains itself");
+  // UC-001 Step A: one click to GitHub's page for a new token, prefilled as in UC-014 — its name carrying today's date, so
+  // that it differs from the token it replaces —, the repositories to select named underneath, then the notice, the paste
+  // field and Store and check. Nothing is edited on GitHub any more.
+  const today = new Date().toISOString().slice(0, 10);
+  const link = html.match(/href="(https:\/\/github\.com\/settings\/personal-access-tokens\/new\?[^"]+)"/)?.[1];
+  assert.ok(link, "the prefilled token page");
+  const q = new URLSearchParams(link.replace(/&amp;/g, "&").split("?")[1]);
+  assert.equal(q.get("name"), `Agent M · akmaier/agent-m · ${today}`);
+  assert.equal(q.get("expires_in"), "90");
+  assert.match(html, /Open GitHub's token page \(prefilled\) ↗/);
+  assert.ok(html.includes("Open “Select repositories” and pick “akmaier/agent-m” and “alice/thesis” — nothing else."));
+  assert.ok(html.includes('id="key-token"') && html.includes('id="key-store"'), "the paste field and Store and check");
+  assert.doesNotMatch(html, /Open your tokens on GitHub|then “Edit”|Press “Update”/, "nothing to edit on GitHub");
+  assert.equal((html.match(/<summary>What is this\?<\/summary>/g) || []).length, 4, "every step explains itself");
   // Step B · Check: the product is read with the stored token.
   await press(srv, dom.byId("add-check-btn"));
   assert.equal(dom.byId("add-check").innerHTML, "✓ alice/thesis reachable — public, so write access is confirmed only by the first write");
@@ -545,6 +553,28 @@ test("UC-001 main flow: Step A names the token, the product and the instance; Ch
   assert.ok(done.includes(`<a href="https://github.com/${PRODUCT}/commit/${ps.head}" target="_blank" rel="noopener">layout in alice/thesis</a>`), "the commit as a link");
   assert.ok(done.includes(`<a class="btn primary" href="?repo=alice%2Fthesis">Open alice/thesis →</a>`), "the switch to the new product");
   assert.match(page.el("product"), /<option value="https:\/\/github\.com\/alice\/thesis" >https:\/\/github\.com\/alice\/thesis<\/option>/);
+});
+
+test("UC-001 Step A: the key's repositories are the instance, every GitHub product of this browser and the product; Store and check puts the new key in place of the old one, checks each, and Step B shows the product without another click", async () => {
+  const { srv } = await withProduct({ "README.md": "# Thesis\n" });
+  const page = await openDashboard({ server: srv, hash: "" });
+  const dom = richDocument();
+  // A GitHub product and a GitLab product added before: the new key must reach the GitHub one too; the GitLab one has its own.
+  globalThis.localStorage.setItem("agent-m.products", JSON.stringify(["https://github.com/bob/other", "https://gitlab.example.org/team/tool"]));
+  await page.go(addHash(PRODUCT_ADDR));
+  const html = page.el("add-steps");
+  assert.ok(html.includes("Open “Select repositories” and pick “akmaier/agent-m”, “bob/other” and “alice/thesis” — nothing else."), "all three, the GitLab product not among them");
+  assert.equal(dom.byId("key-store").disabled, true, "storing waits for the notice to be read");
+  await tick(srv, dom.byId("key-ack"));
+  const key = "github_pat_NEWKEY0123456789abcdefghij";
+  dom.byId("key-token").value = key;
+  await press(srv, dom.byId("key-store"));
+  assert.equal(stored("agent-m.github-token"), key, "the new key in place of the old one");
+  for (const r of [REPO, "bob/other", PRODUCT]) {
+    assert.ok(srv.seen.some((s) => s.url === `${API}/repos/${r}` && s.auth === `Bearer ${key}`), `${r} checked with the new key`);
+  }
+  assert.equal(dom.byId("add-check").innerHTML, "✓ alice/thesis reachable — public, so write access is confirmed only by the first write", "Step B, without a click");
+  assert.equal(dom.byId("add-go").disabled, false, "Add product can be clicked");
 });
 
 test("UC-001 counter-proof: a click a script makes on Add product writes nothing, stores nothing and reads nothing", async () => {
@@ -604,7 +634,7 @@ test("UC-001 5a: the write is refused although the read succeeded — nothing is
   // MOD-repository-hosts' PermissionMissing (tests/repository-hosts.test.mjs, UC-001 5a). The page's words around it stay.
   const said = dom.byId("add-result").textContent;
   assert.ok(said.startsWith("Your key cannot write to alice/thesis yet (") &&
-    said.endsWith("). Do Step A — add the product to your key on GitHub — and click again."), said);
+    said.endsWith("). Do Step A — give Agent M a key that reaches the product — and click again."), said);
   assert.equal(dom.byId("add-go").disabled, false, "Add product can be clicked again");
 });
 

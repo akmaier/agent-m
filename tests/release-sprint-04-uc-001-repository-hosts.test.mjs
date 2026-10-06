@@ -123,9 +123,10 @@ function gitlabProject({ origin = GL_ORIGIN, project = GL_PROJECT, token = GL_TO
   return s;
 }
 
-// The instance's server, with the product's servers behind it — the GitHub product, and any GitLab projects, each on its server.
-// Every request the page makes is logged with the credentials it carries and its body.
-async function servers({ product = null, gitlab = [] } = {}) {
+// The instance's server, with the product's servers behind it — the GitHub product, any other GitHub repositories (`also`:
+// { repo, server }), and any GitLab projects, each on its server. Every request the page makes is logged with the credentials it
+// carries and its body.
+async function servers({ product = null, gitlab = [], also = [] } = {}) {
   const projects = [gitlab].flat().filter(Boolean), log = [];
   const instance = await repoServer({ files: INSTANCE_FILES, handlers: [
     (u, init) => {
@@ -135,6 +136,8 @@ async function servers({ product = null, gitlab = [] } = {}) {
     },
     (u, init) => (product && ((u.origin === API && u.pathname.startsWith(`/repos/${PRODUCT}`)) || (u.origin === RAW && u.pathname.startsWith(`/${PRODUCT}/`)))
       ? product.fetch(u.href, init) : undefined),
+    (u, init) => also.find((o) => u.origin === API && (u.pathname === `/repos/${o.repo}` || u.pathname.startsWith(`/repos/${o.repo}/`)))
+      ?.server.fetch(u.href, init),
     (u, init) => projects.find((g) => g.origin === u.origin)?.fetch(u, init),
   ] });
   return { instance, product, gitlab: projects[0] ?? null, projects, log };
@@ -191,6 +194,17 @@ const OTHER_WEB = `${OTHER.origin}/${OTHER.project}`;
 // The query of a link, as a map.
 const query = (url) => Object.fromEntries(new URL(url).searchParams);
 const tokenLink = (html) => hrefs(html).find((x) => x.startsWith("https://github.com/settings/personal-access-tokens/new?"));
+// The repositories a step tells the person to pick on GitHub's page — those of its sentence ending in "— nothing else" —, sorted.
+const picked = (html) => {
+  const m = /pick ((?:“[^”]+”(?:, | and )?)+) — nothing else/.exec(textOf(html));
+  return m ? [...m[1].matchAll(/“([^”]+)”/g)].map((x) => x[1]).sort() : null;
+};
+// A GitHub product this browser already lists, beside the one being added (UC-001 step 3: "every GitHub product this browser already
+// lists"), and the browser's list holding it and a GitLab project — THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER: in localStorage.
+const LISTED = "alice/other-tool";
+const listed = () => globalThis.localStorage.setItem("agent-m.products", JSON.stringify([`https://github.com/${LISTED}`, GL_WEB]));
+// Step A up to Step B: its two parts, the token page and the new key's paste field.
+const stepA = (d) => d.steps().slice(0, d.steps().indexOf("<h3>Step B"));
 
 // ------------------------------------------------------------------------------------------------ the product, by its address
 
@@ -326,45 +340,57 @@ test("THE TOKEN LINK IS PREFILLED — GitHub's new-token page with name, descrip
 });
 
 // THE REPOSITORY CHOICE IS SPELLED OUT — Agent M tells the person to choose Only select repositories on GitHub's token page and names
-// each repository to select. Input: the add-product page without a token — a new token, UC-001 3b — and with one — the token extended,
-// Step A. Expected: without a token, the steps say to choose “Only select repositories” and to pick akmaier/agent-m and
-// alice/thesis-tool, nothing else; with one, Step A says to add alice/thesis-tool under Select repositories and to keep akmaier/agent-m.
+// each repository to select; UC-001 step 3: <instance>, every GitHub product this browser already lists, and <product repository> —
+// nothing else. Input: the add-product page without a token — UC-014's key setup, 3b, both repositories named —, and with one in a
+// browser that already lists a GitHub product, alice/other-tool, and a GitLab project. Expected: without a token, “Only select
+// repositories”, then akmaier/agent-m and alice/thesis-tool, nothing else; with one, “Only select repositories”, then akmaier/agent-m,
+// alice/other-tool and alice/thesis-tool, nothing else — the GitLab project, whose token is its own, not among them.
 test("THE REPOSITORY CHOICE IS SPELLED OUT — Only select repositories, and each repository to select by name", async () => {
   const w = await servers({ product: await githubProduct() });
   const bare = await dashboard(w, { token: null });
   await bare.open();
   bare.type("add-repo", PRODUCT_WEB);
-  const made = textOf(bare.step("Step A"));
-  assert.match(made, /choose “Only select repositories”/);
-  assert.match(made, /pick “akmaier\/agent-m” and “alice\/thesis-tool” — nothing else/);
+  const made = bare.step("Step A");
+  assert.match(textOf(made), /choose “Only select repositories”/);
+  assert.deepEqual(picked(made), [INSTANCE, PRODUCT].sort(), "without a token: both repositories, nothing else");
   const d = await dashboard(w);
+  listed();
   await d.open();
   d.type("add-repo", PRODUCT_WEB);
-  assert.match(textOf(d.stepA()), /Under “Repository access” → “Select repositories”, add “alice\/thesis-tool” — keep “akmaier\/agent-m” selected/);
+  const a = stepA(d);
+  assert.match(textOf(a), /choose “Only select repositories”/);
+  assert.deepEqual(picked(a), [INSTANCE, LISTED, PRODUCT].sort(), "with a token: the instance, the GitHub product listed and the new one, nothing else");
+  assert.ok(!textOf(a).includes(GL_PROJECT), "not the GitLab project");
 });
 
 // A TOKEN IS SCOPED TO WHAT IT WRITES — every repository token Agent M asks for carries write access only to the repositories of the
 // instance and the products it manages; its check: the configuration screen states the minimum scope and why each part is needed.
-// Input: the add-product page without a token — a new GitHub token —, with one — the token extended —, and for a GitLab project.
-// Expected: the new token is asked for the instance and the product alone, GitHub's preset “All repositories” named as what not to
-// keep, and why; each permission it asks for is named with why it is needed; the extended token gets the product and keeps the
-// instance, nothing else; the GitLab token is one for this project, and the page says that a personal token would reach every project.
-test("A TOKEN IS SCOPED TO WHAT IT WRITES — only the instance and the product, each permission with its reason", async () => {
+// Input: the add-product page without a token — a first key, UC-014's setup —, with one in a browser that already lists a GitHub
+// product and a GitLab project — UC-001 step 3, a new key —, and for a GitLab project. Expected: each GitHub key is asked for the
+// repositories of the instance and its products alone — the first for akmaier/agent-m and alice/thesis-tool, the new one also for
+// the listed alice/other-tool, never for the GitLab project —, each time with GitHub's preset “All repositories” named as what not to
+// keep, and why; the first key's step names each permission with why it is needed; the GitLab token is one for this project, and the
+// page says that a personal token would reach every project.
+test("A TOKEN IS SCOPED TO WHAT IT WRITES — only the instance and its products, each part with its reason", async () => {
   const w = await servers({ product: await githubProduct() });
   const bare = await dashboard(w, { token: null });
   await bare.open();
   bare.type("add-repo", PRODUCT_WEB);
-  const a = bare.step("Step A"), said = textOf(a);
-  assert.match(said, /pick “akmaier\/agent-m” and “alice\/thesis-tool” — nothing else/, "the new token: the instance and the product alone");
+  const first = bare.step("Step A"), said = textOf(first);
+  assert.deepEqual(picked(first), [INSTANCE, PRODUCT].sort(), "the first key: the instance and the product alone");
   assert.match(said, /GitHub preselects “All repositories”, which would give Agent M write access to everything you own/, "and why not all");
-  const why = explanationOf(a);
+  const why = explanationOf(first);
   for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
     assert.match(why, new RegExp(`${p} \\((read and write|read)\\): \\S`), `${p}, with why it is needed`);
   }
   const d = await dashboard(w);
+  listed();
   await d.open();
   d.type("add-repo", PRODUCT_WEB);
-  assert.match(textOf(d.stepA()), /add “alice\/thesis-tool” — keep “akmaier\/agent-m” selected/, "the extended token: the product, the instance kept");
+  const a = stepA(d);
+  assert.deepEqual(picked(a), [INSTANCE, LISTED, PRODUCT].sort(), "the new key: the instance and the GitHub products, nothing else");
+  assert.ok(!textOf(a).includes(GL_PROJECT), "never the GitLab project");
+  assert.match(textOf(a), /GitHub preselects “All repositories”, which would give Agent M write access to everything you own/, "and why not all");
   d.type("add-repo", GL_WEB);
   const gl = textOf(d.step("Step A"));
   assert.match(gl, /Settings → Access tokens of fau-ai-taskforce\/tools\/thesis-tool/, "the GitLab token: for this project");

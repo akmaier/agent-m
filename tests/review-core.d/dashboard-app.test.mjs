@@ -18,7 +18,7 @@ import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitla
 import { tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab } from "../../docs/assets/dashboard/settings-view.mjs";
 import { createKeyStep } from "../../docs/assets/dashboard/setup-view.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
-import { extendTokenSteps, gitlabTokenSteps, gitlabNoProjectTokens } from "../../docs/assets/dashboard/add-product-view.mjs";
+import { gitlabTokenSteps, gitlabNoProjectTokens } from "../../docs/assets/dashboard/add-product-view.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
 import * as shell from "../../docs/assets/dashboard-app.mjs";
 import { ASSETS, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
@@ -266,22 +266,8 @@ test("UC-014: setup names only the instance", () => {
   assert.ok(!s.some((x) => /null|undefined/.test(x)));
 });
 
-test("UC-001: extending the token names the token, adds the product, keeps the instance, copies nothing", () => {
+test("the list of the person's tokens is GitHub's page of fine-grained tokens, where a token is renewed", () => {
   assert.equal(tokenListUrl(), "https://github.com/settings/personal-access-tokens");
-  const s = extendTokenSteps("reader/agent-m", "reader/thesis").join("\n");
-  assert.match(s, /Agent M · reader\/agent-m/);      // the name tokenLinkUrl gave it
-  assert.match(s, /add “reader\/thesis”/);
-  assert.match(s, /keep “reader\/agent-m”/);
-  assert.match(s, /Update/);
-  assert.match(s, /nothing to copy/i);
-  const name = new URL(tokenLinkUrl("reader/agent-m")).searchParams.get("name");
-  assert.ok(s.includes(name), "the steps must name the token exactly as the setup link created it");
-});
-
-test("UC-001: extending the token makes sure it carries every permission — a token from before carries no Pull requests or Workflows", () => {
-  const s = extendTokenSteps("reader/agent-m", "reader/thesis").join("\n");
-  for (const p of NAMED) assert.ok(s.includes(p), `the steps name ${p}`);
-  assert.match(s, /Permissions/);
 });
 
 // ---------------------------------------------------------------- settings in one place (UC-042)

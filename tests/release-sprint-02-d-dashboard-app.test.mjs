@@ -233,22 +233,23 @@ test("ITM-132 · Add product on a repository that does not exist writes nothing 
 });
 
 // UC-001 3a and step 4: when the stored key already reaches the product, Step A is shown as done. Expected after Check on a
-// private repository the key reads: Step A says it is done and no longer asks for the edit on GitHub (no "Open your tokens on
-// GitHub" button in it). Counters: before Check, and after a Check that GitHub answers 404, Step A keeps its instructions; a public
-// repository's read proves nothing about the key (step 4) — Step A is not called done, and the panel says that write access is
-// confirmed at the first write.
+// private repository the key reads: Step A says it is done and no longer asks for a new key on GitHub (no "Open GitHub's token page
+// (prefilled)" button in it — UC-001 step 3 as it reads since 5260a64). Counters: before Check, and after a Check that GitHub
+// answers 404, Step A keeps its instructions; a public repository's read proves nothing about the key (step 4) — Step A is not
+// called done, and the panel says that write access is confirmed at the first write. Changed by its author, tester-opus
+// (claude-opus-5-5), on fix/uc-001-step-a-one-click at e3b7b1d, 2026-10-06: the marker of Step A's instructions is its new button.
 test("ITM-132 · Step A shows as done when the key already reaches the product, and only then", async () => {
   const a = await addPanel("private");
-  assert.match(a.stepA(), /Open your tokens on GitHub/, "before Check: the instructions");
+  assert.match(a.stepA(), /Open GitHub's token page \(prefilled\)/, "before Check: the instructions");
   await press(a.server, a.rich.byId("add-check-btn"));
   const done = a.stepA();
   assert.match(done, /done/i, "Step A is shown as done");
-  assert.doesNotMatch(done, /Open your tokens on GitHub/, "and asks for nothing on GitHub");
+  assert.doesNotMatch(done, /Open GitHub's token page/, "and asks for nothing on GitHub");
 
   const m = await addPanel("missing");
   await press(m.server, m.rich.byId("add-check-btn"));
   assert.doesNotMatch(m.stepA(), /\bdone\b/i);
-  assert.match(m.stepA(), /Open your tokens on GitHub/, "a 404 keeps Step A's instructions");
+  assert.match(m.stepA(), /Open GitHub's token page \(prefilled\)/, "a 404 keeps Step A's instructions");
 
   const p = await addPanel("public");
   await press(p.server, p.rich.byId("add-check-btn"));

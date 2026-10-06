@@ -23,7 +23,9 @@ const stored = (key) => globalThis.localStorage.getItem(key);
 const addHash = (address) => `#add/${encodeURIComponent(address)}`;
 const hrefs = (html) => [...String(html).matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
 const STEP_A_DONE = /<h3>Step A · Let your key reach the product — done<\/h3>/;
-const STEP_A_INSTRUCTIONS = "Click the token “Agent M · akmaier/agent-m”, then “Edit”.";
+// Step A's instructions since the change of UC-001 (5260a64): the button to GitHub's prefilled page for a new key, no longer the
+// first step of editing the old one.
+const STEP_A_INSTRUCTIONS = "Open GitHub's token page (prefilled) ↗";
 // Step A as the person sees it: the part the view writes into #add-step-a after a Check, else Step A as the panel first showed it
 // (the harness's document keeps each element's HTML apart, where a browser shows the inner one inside the outer).
 const stepA = (page) => page.el("add-step-a") || page.el("add-steps").split('<section class="step">')[1] || "";
@@ -120,7 +122,7 @@ test("UC-001 2a counter-proof: a write refused with 403 on an existing repositor
   // MOD-repository-hosts' PermissionMissing (tests/repository-hosts.test.mjs, UC-001 5a). The page's words around it stay.
   const said = dom.byId("add-result").textContent;
   assert.ok(said.startsWith("Your key cannot write to alice/thesis yet (") &&
-    said.endsWith("). Do Step A — add the product to your key on GitHub — and click again."), said);
+    said.endsWith("). Do Step A — give Agent M a key that reaches the product — and click again."), said);
   assert.ok(!hrefs(dom.byId("add-result").innerHTML).includes(NEW_REPO));
 });
 
