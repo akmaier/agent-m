@@ -199,7 +199,8 @@ let loads = 0;
 // such as `?product=<address>` for a GitLab product (empty: the instance).
 // -> { main() -> the HTML of <main>, el(id) -> the HTML of another element, requests since the load began,
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
-export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "",
+// entries: further settings in this browser when the page opens, { key: raw value } — a product's own token, for one.
+export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "", entries = {},
   assets = new URL("../docs/assets/", import.meta.url) }) {
   const purify = (await import(new URL("vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
@@ -213,7 +214,8 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const g = globalThis;
   Object.defineProperty(g, "location", { value: loc, configurable: true, writable: true });
   Object.defineProperty(g, "document", { value: doc, configurable: true, writable: true });
-  Object.defineProperty(g, "localStorage", { value: localStorageWith(token ? { "agent-m.github-token": token } : {}), configurable: true, writable: true });
+  Object.defineProperty(g, "localStorage", { value: localStorageWith({ ...(token ? { "agent-m.github-token": token } : {}), ...entries }),
+    configurable: true, writable: true });
   Object.defineProperty(g, "caches", { value: caches ?? undefined, configurable: true, writable: true });
   g.window = g;
   g.fetch = server.fetch;

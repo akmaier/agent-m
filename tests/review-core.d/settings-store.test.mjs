@@ -13,7 +13,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createStore, PREFIX, TOKEN_KEY, TOKEN_EXPIRY_KEY, PRODUCTS_KEY, exportSettings, readSettingsFile, mergeSettings, PBKDF2_ITERATIONS,
-  GITLAB_TOKENS_KEY, JUMP_HOST_KEY, REMOTE_SESSIONS_KEY, KEYS,
+  GITLAB_TOKENS_KEY, GITHUB_PRODUCT_TOKENS_KEY, JUMP_HOST_KEY, REMOTE_SESSIONS_KEY, KEYS,
 } from "../../docs/assets/settings-store.mjs";
 import { addRemoteSession } from "../../docs/assets/bridge-tunnel.mjs";
 import { exportNotice } from "../../docs/assets/dashboard/settings-view.mjs";
@@ -134,6 +134,71 @@ test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens in
   u.putEntries(m2.put);
   assert.deepEqual(u.getGitLabToken(GL_ADDR), { token: GL_TOKEN, expires: "2026-12-29" });
   assert.ok(m2.added.includes(`GitLab project token for ${GL_ADDR}`));
+});
+
+// ---------------------------------------------------------------- GitHub products' own tokens (queue 2026-10-06c)
+// A GITHUB PRODUCT USES A TOKEN OF ITS OWN: each GitHub product's token in the browser store, beside the instance's (UC-001 Step A,
+// UC-042). A request to a product carries its own token — a GitHub product's, or the instance's while it has none; a GitLab
+// product's project token, never a GitHub one (tokenFor).
+
+const GH_PRODUCT = "https://github.com/alice/thesis", GH_PRODUCT_TOKEN = "github_pat_PRODUCT0123456789abcdefghij";
+
+test("A GITHUB PRODUCT USES A TOKEN OF ITS OWN — in the browser store: one per GitHub product, beside the instance's; removed with the product and by a clear", () => {
+  const st = fakeStorage(), s = createStore(st);
+  s.setToken("github_pat_t");
+  s.addProduct(GH_PRODUCT);
+  s.setGitHubProductToken(GH_PRODUCT, ` ${GH_PRODUCT_TOKEN} `, "2026-12-29");
+  assert.deepEqual(s.getGitHubProductToken(GH_PRODUCT), { token: GH_PRODUCT_TOKEN, expires: "2026-12-29" });
+  assert.equal(s.getGitHubProductToken("https://github.com/alice/other"), null, "a product without a token of its own has none");
+  assert.equal(s.getToken(), "github_pat_t", "the instance's token is a separate entry, unchanged");
+  assert.equal(s.getGitLabToken(GH_PRODUCT), null, "nor is it a GitLab project token");
+  s.setGitHubProductTokenTest(GH_PRODUCT, { ok: "2026-10-06" });
+  assert.deepEqual(s.getGitHubProductToken(GH_PRODUCT).tested, { ok: "2026-10-06" }, "its last test is kept beside it");
+  s.removeProduct(GH_PRODUCT);
+  assert.equal(s.getGitHubProductToken(GH_PRODUCT), null, "removing the product removes its token");
+  assert.equal(st.getItem(GITHUB_PRODUCT_TOKENS_KEY), null, "the last token cleared leaves no entry");
+  s.setGitHubProductToken(GH_PRODUCT, GH_PRODUCT_TOKEN, null);
+  s.clearProducts();
+  assert.equal(s.getGitHubProductToken(GH_PRODUCT), null, "clearing the product list clears the products' tokens");
+  s.setGitHubProductToken(GH_PRODUCT, GH_PRODUCT_TOKEN, null);
+  s.clear();
+  assert.equal(st.mem.size, 0);
+});
+
+test("A GITHUB PRODUCT USES A TOKEN OF ITS OWN — tokenFor: a GitHub product's own token, or the instance's while it has none; a GitLab product's project token, never a GitHub one", () => {
+  const s = createStore(fakeStorage());
+  s.setToken("github_pat_instance");
+  const gh = { address: GH_PRODUCT, host: "github.com", repo: "alice/thesis" };
+  assert.equal(s.tokenFor(gh), "github_pat_instance", "without a token of its own, the instance's");
+  s.setGitHubProductToken(GH_PRODUCT, GH_PRODUCT_TOKEN, null);
+  assert.equal(s.tokenFor(gh), GH_PRODUCT_TOKEN, "its own, once stored");
+  assert.equal(s.tokenFor({ address: "https://github.com/alice/other", host: "github.com", repo: "alice/other" }), "github_pat_instance",
+    "counter-proof: another product is not given this product's token");
+  const gl = { address: GL_ADDR, host: "gitlab.example.org", repo: "grp/sub/proj", kind: "gitlab" };
+  assert.equal(s.tokenFor(gl), null, "a GitLab product without its project token gets none — never a GitHub token");
+  s.setGitLabToken(GL_ADDR, GL_TOKEN, null);
+  assert.equal(s.tokenFor(gl), GL_TOKEN);
+});
+
+test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitHub product tokens included, merged per product", async () => {
+  const s = createStore(fakeStorage());
+  s.setGitHubProductToken(GH_PRODUCT, GH_PRODUCT_TOKEN, "2026-12-29");
+  s.addProduct(GH_PRODUCT);
+  const file = await exportSettings(s.entries(), { now: WHEN });
+  assert.ok(file.includes(GH_PRODUCT_TOKEN));
+  assert.match(exportNotice(s.entries()), /GitHub product tokens/);
+  const newer = "github_pat_NEWER0123456789abcdefghij";
+  const t = createStore(fakeStorage());
+  t.setGitHubProductToken(GH_PRODUCT, newer, "2027-01-01");
+  const m = mergeSettings(t.entries(), await readSettingsFile(file));
+  t.putEntries(m.put);
+  assert.deepEqual(t.getGitHubProductToken(GH_PRODUCT), { token: newer, expires: "2027-01-01" }, "what this browser has is kept");
+  assert.ok(m.kept.includes(`GitHub token for ${GH_PRODUCT}`));
+  const u = createStore(fakeStorage());
+  const m2 = mergeSettings(u.entries(), await readSettingsFile(file));
+  u.putEntries(m2.put);
+  assert.deepEqual(u.getGitHubProductToken(GH_PRODUCT), { token: GH_PRODUCT_TOKEN, expires: "2026-12-29" });
+  assert.ok(m2.added.includes(`GitHub token for ${GH_PRODUCT}`));
 });
 
 // ---------------------------------------------------------------- jump host and remote sessions (queue 2026-09-30, entries 01, 02)

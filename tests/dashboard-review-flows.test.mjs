@@ -516,36 +516,48 @@ async function layoutParts() {
   }
 }
 
-test("UC-001 main flow: Step A names the token, the product and the instance; Check reads the product; one trusted click on Add product writes only the missing layout into the product and keeps its address in this browser", async () => {
+test("UC-001 main flow: Step A asks for a key of the product's own — named and described after the product, the product's owner as the token's owner, the product alone to select; Store and check keeps it for the product; one trusted click on Add product writes only the missing layout with it and keeps the address in this browser", async () => {
   const { srv, ps } = await withProduct({ "README.md": "# Thesis\n", "SPEC.md": "# Thesis — its own SPEC\n", "docs/use-cases/UC-001-x.md": "x\n" });
   const page = await openDashboard({ server: srv, hash: "" });
   const dom = richDocument();
   await page.go(addHash(PRODUCT_ADDR));
   const html = page.el("add-steps");
-  assert.match(html, /<h3>Step A · Let your key reach the product<\/h3>/);
-  // UC-001 Step A: one click to GitHub's page for a new token, prefilled as in UC-014 — its name carrying today's date, so
-  // that it differs from the token it replaces —, the repositories to select named underneath, then the notice, the paste
-  // field and Store and check. Nothing is edited on GitHub any more.
-  const today = new Date().toISOString().slice(0, 10);
+  assert.match(html, /<h3>Step A · A key for the product<\/h3>/);
+  // UC-001 Step A · A GITHUB PRODUCT USES A TOKEN OF ITS OWN · A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT: one click to GitHub's
+  // page for a new token, prefilled for the product — its name and description built from the product repository's name, its
+  // owner the product's — with every permission as in UC-014 and 90 days; the product alone to select underneath.
   const link = html.match(/href="(https:\/\/github\.com\/settings\/personal-access-tokens\/new\?[^"]+)"/)?.[1];
   assert.ok(link, "the prefilled token page");
   const q = new URLSearchParams(link.replace(/&amp;/g, "&").split("?")[1]);
-  assert.equal(q.get("name"), `Agent M · akmaier/agent-m · ${today}`);
+  assert.equal(q.get("name"), "Agent M · alice/thesis");
+  assert.equal(q.get("description"), "Agent M for the product alice/thesis: reviews, commits, issues, pull requests and runs of the work you start in it.");
+  assert.equal(q.get("target_name"), "alice", "the product's owner owns the token");
   assert.equal(q.get("expires_in"), "90");
+  assert.deepEqual(Object.fromEntries([...q].filter(([k]) => !["name", "description", "target_name", "expires_in"].includes(k))),
+    { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" }, "every permission, as in UC-014");
+  assert.doesNotMatch(decodeURIComponent(link), /agent-m/, "counter-proof: nothing of the instance's token");
   assert.match(html, /Open GitHub's token page \(prefilled\) ↗/);
-  assert.ok(html.includes("Open “Select repositories” and pick “akmaier/agent-m” and “alice/thesis” — nothing else."));
+  assert.ok(html.includes("Open “Select repositories” and pick “alice/thesis” — nothing else."), "the product alone");
   assert.ok(html.includes('id="key-token"') && html.includes('id="key-store"'), "the paste field and Store and check");
-  assert.doesNotMatch(html, /Open your tokens on GitHub|then “Edit”|Press “Update”/, "nothing to edit on GitHub");
   assert.equal((html.match(/<summary>What is this\?<\/summary>/g) || []).length, 4, "every step explains itself");
-  // Step B · Check: the product is read with the stored token.
-  await press(srv, dom.byId("add-check-btn"));
+  // Back in the panel: the notice ticked, the key pasted, Store and check — kept for this product, the instance's key as it was.
+  await tick(srv, dom.byId("key-ack"));
+  const key = "github_pat_PRODUCT0123456789abcdefghij";
+  dom.byId("key-token").value = key;
+  await press(srv, dom.byId("key-store"));
+  assert.equal(stored("agent-m.github-token"), TOKEN, "the instance's key is unchanged");
+  assert.equal(JSON.parse(stored("agent-m.github-product-tokens"))[PRODUCT_ADDR].token, key, "the key, kept for this product");
+  // Step B, without a click: the product read with its own key, the instance not.
   assert.equal(dom.byId("add-check").innerHTML, "✓ alice/thesis reachable — public, so write access is confirmed only by the first write");
-  assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${TOKEN}`));
+  assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${key}`), "the product read with its key");
+  assert.ok(!srv.seen.some((r) => r.url.startsWith(`${API}/repos/${REPO}`) && r.auth === `Bearer ${key}`), "counter-proof: the instance is not read with it");
   assert.deepEqual(ps.writes, [], "checking writes nothing");
-  // Step C · Add the product. Narrowed between the jobs of sprint 04: the files written and the commit's message are
-  // MOD-artifact-edits' (tests/artifact-edits.test.mjs), no longer the old layout's list and message.
+  // Step C · Add the product, written with the product's key. Narrowed between the jobs of sprint 04: the files written and the
+  // commit's message are MOD-artifact-edits' (tests/artifact-edits.test.mjs), no longer the old layout's list and message.
   await press(srv, dom.byId("add-go"));
   assert.equal(ps.writes.length, 1, "one commit into the product");
+  const posts = srv.seen.filter((r) => r.method === "POST" && r.url.startsWith(`${API}/repos/${PRODUCT}/`));
+  assert.ok(posts.length && posts.every((r) => r.auth === `Bearer ${key}`), "written with the product's key");
   assert.equal(ps.files["SPEC.md"], "# Thesis — its own SPEC\n");
   assert.deepEqual(srv.writes, [], "nothing is written into the instance");
   assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]), "the address, in this browser");
@@ -555,24 +567,27 @@ test("UC-001 main flow: Step A names the token, the product and the instance; Ch
   assert.match(page.el("product"), /<option value="https:\/\/github\.com\/alice\/thesis" >https:\/\/github\.com\/alice\/thesis<\/option>/);
 });
 
-test("UC-001 Step A: the key's repositories are the instance, every GitHub product of this browser and the product; Store and check puts the new key in place of the old one, checks each, and Step B shows the product without another click", async () => {
+test("UC-001 Step A: the product's key is the product's alone — no other product of this browser is named; Store and check keeps it for this product, leaves the instance's key, reads only the product with it, and Step B shows the product without another click", async () => {
   const { srv } = await withProduct({ "README.md": "# Thesis\n" });
   const page = await openDashboard({ server: srv, hash: "" });
   const dom = richDocument();
-  // A GitHub product and a GitLab product added before: the new key must reach the GitHub one too; the GitLab one has its own.
+  // A GitHub product and a GitLab product added before: neither is named for the new key.
   globalThis.localStorage.setItem("agent-m.products", JSON.stringify(["https://github.com/bob/other", "https://gitlab.example.org/team/tool"]));
   await page.go(addHash(PRODUCT_ADDR));
   const html = page.el("add-steps");
-  assert.ok(html.includes("Open “Select repositories” and pick “akmaier/agent-m”, “bob/other” and “alice/thesis” — nothing else."), "all three, the GitLab product not among them");
+  assert.ok(html.includes("Open “Select repositories” and pick “alice/thesis” — nothing else."), "the product alone");
+  assert.doesNotMatch(html, /“akmaier\/agent-m”|“bob\/other”/, "counter-proof: neither the instance nor another product");
   assert.equal(dom.byId("key-store").disabled, true, "storing waits for the notice to be read");
   await tick(srv, dom.byId("key-ack"));
   const key = "github_pat_NEWKEY0123456789abcdefghij";
   dom.byId("key-token").value = key;
   await press(srv, dom.byId("key-store"));
-  assert.equal(stored("agent-m.github-token"), key, "the new key in place of the old one");
-  for (const r of [REPO, "bob/other", PRODUCT]) {
-    assert.ok(srv.seen.some((s) => s.url === `${API}/repos/${r}` && s.auth === `Bearer ${key}`), `${r} checked with the new key`);
+  assert.equal(stored("agent-m.github-token"), TOKEN, "the instance's key stays");
+  assert.deepEqual(Object.keys(JSON.parse(stored("agent-m.github-product-tokens"))), [PRODUCT_ADDR], "kept for this product alone");
+  for (const r of [REPO, "bob/other"]) {
+    assert.ok(!srv.seen.some((s) => s.url === `${API}/repos/${r}` && s.auth === `Bearer ${key}`), `${r} is not read with the product's key`);
   }
+  assert.ok(srv.seen.some((s) => s.url === `${API}/repos/${PRODUCT}` && s.auth === `Bearer ${key}`), "the product is read with it");
   assert.equal(dom.byId("add-check").innerHTML, "✓ alice/thesis reachable — public, so write access is confirmed only by the first write", "Step B, without a click");
   assert.equal(dom.byId("add-go").disabled, false, "Add product can be clicked");
 });
@@ -619,7 +634,7 @@ test("UC-001 4a: the check fails — the page names the repository it cannot rea
   await page.go(addHash(PRODUCT_ADDR));
   await press(srv, dom.byId("add-check-btn"));
   assert.match(dom.byId("add-check").innerHTML, /^✗ alice\/thesis: 404/);
-  assert.match(page.el("add-steps"), /Step A · Let your key reach the product/, "Step A is on the page");
+  assert.match(page.el("add-steps"), /Step A · A key for the product/, "Step A is on the page");
 });
 
 test("UC-001 5a: the write is refused although the read succeeded — nothing is written, nothing kept, and the page sends the author back to Step A", async () => {
@@ -638,15 +653,14 @@ test("UC-001 5a: the write is refused although the read succeeded — nothing is
   assert.equal(dom.byId("add-go").disabled, false, "Add product can be clicked again");
 });
 
-test("UC-001 3b: without a token the panel first shows the key setup naming both repositories; storing the key checks both, and then Add product writes the layout", async () => {
+test("UC-001 3b: without the instance's key the product's steps are the same — the product's key is stored for the product, and Add product writes the layout with it", async () => {
   const { srv, ps } = await withProduct({ "README.md": "# Thesis\n" });
   const page = await openDashboard({ server: srv, hash: "", token: null });
   const dom = richDocument();
   await page.go(addHash(PRODUCT_ADDR));
   const html = page.el("add-steps");
-  assert.match(html, /<h3>Step A · Create your key on GitHub<\/h3>/);
-  assert.ok(html.includes("Open “Select repositories” and pick “akmaier/agent-m” and “alice/thesis” — nothing else."));
-  assert.match(html, /<h3>Step B · Give the key to Agent M<\/h3>/);
+  assert.match(html, /<h3>Step A · A key for the product<\/h3>/);
+  assert.ok(html.includes("Open “Select repositories” and pick “alice/thesis” — nothing else."), "the product alone, not the instance");
   assert.match(html, /every other GitHub Pages site of akmaier is served from the same address/i);
   assert.equal(dom.byId("add-go").disabled, true, "Add product waits for the key");
   assert.equal(dom.byId("key-store").disabled, true, "storing waits for the notice to be read");
@@ -654,11 +668,10 @@ test("UC-001 3b: without a token the panel first shows the key setup naming both
   const key = "github_pat_NEWKEY0123456789abcdefghij";
   dom.byId("key-token").value = key;
   await press(srv, dom.byId("key-store"));
-  assert.equal(stored("agent-m.github-token"), key);
-  assert.match(stored("agent-m.github-token-expires"), /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(dom.byId("key-check").innerHTML, "✓ akmaier/agent-m reachable — public, so write access is confirmed only by the first write<br>" +
-    "✓ alice/thesis reachable — public, so write access is confirmed only by the first write");
-  assert.ok([`${API}/repos/${REPO}`, `${API}/repos/${PRODUCT}`].every((u) => srv.seen.some((r) => r.url === u && r.auth === `Bearer ${key}`)));
+  assert.equal(stored("agent-m.github-token"), null, "the product's key is not the instance's");
+  assert.match(JSON.parse(stored("agent-m.github-product-tokens"))[PRODUCT_ADDR].expires, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(dom.byId("key-check").innerHTML, "✓ alice/thesis reachable — public, so write access is confirmed only by the first write");
+  assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${key}`));
   assert.equal(dom.byId("add-go").disabled, false);
   await press(srv, dom.byId("add-go"));
   // Narrowed between the jobs of sprint 04: the files are MOD-artifact-edits' layout (tests/artifact-edits.test.mjs), no
@@ -676,12 +689,77 @@ test("UC-001 3b counter-proof: a click on Store and check without the notice tic
   dom.byId("key-store").fire("click", TRUSTED);   // as if the disabled button were pressed anyway
   await settle(srv);
   assert.equal(stored("agent-m.github-token"), null);
+  assert.equal(stored("agent-m.github-product-tokens"), null, "nor a key for the product");
 });
 
 test("UC-001 1a: in another browser the product list is empty — the selector offers the instance and + Add product only", async () => {
   const page = await openDashboard({ server: await ucServer(), hash: "#uc" });
   assert.equal(page.el("product"), `<option value="https://github.com/${REPO}" selected>${REPO} — this instance</option>` +
     `<option value="__add">+ Add product…</option>`);
+});
+
+// A GITHUB PRODUCT USES A TOKEN OF ITS OWN: a product's key, in this browser when the page opens.
+const ownKey = (key, expires = null) => ({ "agent-m.products": JSON.stringify([PRODUCT_ADDR]),
+  "agent-m.github-product-tokens": JSON.stringify({ [PRODUCT_ADDR]: { token: key, expires } }) });
+
+test("A GITHUB PRODUCT USES A TOKEN OF ITS OWN — a product's pages are read with its own key, the instance with the instance's; counter-proof: a product without a key of its own is read with the instance's", async () => {
+  const key = "github_pat_PRODUCT0123456789abcdefghij";
+  const own = await withProduct({ "README.md": "# Thesis\n", "SPEC.md": "# Thesis\n" });
+  await openDashboard({ server: own.srv, search: `?repo=${encodeURIComponent(PRODUCT)}`, hash: "#uc", entries: ownKey(key) });
+  const read = own.srv.seen.filter((r) => r.url.startsWith(`${API}/repos/${PRODUCT}`));
+  assert.ok(read.length && read.every((r) => r.auth === `Bearer ${key}`), "the product, with its own key");
+  assert.ok(own.srv.seen.filter((r) => r.url.startsWith(`${API}/repos/${REPO}`)).every((r) => r.auth === `Bearer ${TOKEN}`),
+    "the instance, with the instance's");
+  const none = await withProduct({ "README.md": "# Thesis\n", "SPEC.md": "# Thesis\n" });
+  await openDashboard({ server: none.srv, search: `?repo=${encodeURIComponent(PRODUCT)}`, hash: "#uc",
+    entries: { "agent-m.products": JSON.stringify([PRODUCT_ADDR]) } });
+  const read2 = none.srv.seen.filter((r) => r.url.startsWith(`${API}/repos/${PRODUCT}`));
+  assert.ok(read2.length && read2.every((r) => r.auth === `Bearer ${TOKEN}`), "without a key of its own, the instance's");
+});
+
+test("A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a product's own key that expires within fourteen days is named on the product's pages, with Renew at GitHub's list of tokens and where to paste the new value; counter-proof: the instance's pages do not name it", async () => {
+  const soon = new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 10);
+  const own = await withProduct({ "README.md": "# Thesis\n" });
+  const page = await openDashboard({ server: own.srv, search: `?repo=${encodeURIComponent(PRODUCT)}`, hash: "#uc",
+    entries: ownKey("github_pat_PRODUCT0123456789abcdefghij", soon) });
+  const banner = page.el("token-banner");
+  assert.ok(banner.includes(`Your GitHub token for ${PRODUCT_ADDR} expires on ${soon}`), banner);
+  assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "Renew at GitHub's list of tokens");
+  assert.ok(banner.includes("Settings → GitHub product tokens → Change"), "where the new value is pasted");
+  const other = await withProduct({ "README.md": "# Thesis\n" });
+  const inst = await openDashboard({ server: other.srv, hash: "#uc", entries: ownKey("github_pat_PRODUCT0123456789abcdefghij", soon) });
+  assert.doesNotMatch(inst.el("token-banner"), /GitHub token for/, "counter-proof: the instance's pages do not name the product's key");
+});
+
+test("UC-042 · A GITHUB PRODUCT USES A TOKEN OF ITS OWN — Settings lists each GitHub product's own key: hidden until shown, its expiry, Test reads the product with it, Change opens with its field focused and stores a new value, Clear removes it after a confirmation; Remove takes it with the product", async () => {
+  const key = "github_pat_PRODUCT0123456789abcdefghij";
+  const own = await withProduct({ "README.md": "# Thesis\n" });
+  const { srv, page, box, dom } = await settingsPage({ server: own.srv, entries: ownKey(key, "2026-12-29") });
+  let html = box().innerHTML;
+  assert.ok(html.includes('data-setting-key="agent-m.github-product-tokens"'), "its place on the page");
+  assert.ok(html.includes(`<strong>${PRODUCT_ADDR}</strong>`) && html.includes("Expires on: <strong>2026-12-29</strong>"), "the product and its key's expiry");
+  assert.ok(html.includes(`type="password" readonly value="${key}"`), "hidden until shown");
+  await press(srv, among(box(), "data-test-github-product", PRODUCT_ADDR));
+  assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${key}`), "Test reads the product with its own key");
+  assert.equal(JSON.parse(stored("agent-m.github-product-tokens"))[PRODUCT_ADDR].tested?.ok?.length, 10, "its last test, kept beside it");
+  await tick(srv, dom.byId("ack"));
+  await press(srv, among(box(), "data-change-github-product", PRODUCT_ADDR));
+  const field = dom.focused();
+  assert.ok(field && /data-gh-token/.test(field.tag ?? ""), "A FORM OPENS WITH ITS FIRST FIELD FOCUSED: the new key's field");
+  const newer = "github_pat_NEWER0123456789abcdefghij";
+  field.value = newer;
+  await press(srv, inBox(among(box(), "data-change-form-github", PRODUCT_ADDR), "[data-gh-store]"));
+  assert.equal(JSON.parse(stored("agent-m.github-product-tokens"))[PRODUCT_ADDR].token, newer, "the new value, for the product");
+  assert.equal(stored("agent-m.github-token"), TOKEN, "the instance's key is untouched");
+  await press(srv, among(box(), "data-clear-github-product", PRODUCT_ADDR));
+  assert.ok(confirms.length >= 1, "Clear asks first");
+  assert.equal(stored("agent-m.github-product-tokens"), null, "the key is gone from this browser");
+  // Remove: the product leaves the list with its key.
+  globalThis.localStorage.setItem("agent-m.github-product-tokens", JSON.stringify({ [PRODUCT_ADDR]: { token: key, expires: null } }));
+  await page.go("#settings");
+  await press(srv, among(box(), "data-remove-product", PRODUCT_ADDR));
+  assert.equal(stored("agent-m.github-product-tokens"), null, "removed with the product");
+  assert.equal(stored("agent-m.products"), JSON.stringify([]));
 });
 
 // A GitLab server behind the instance's: requests to its origin go to it.
