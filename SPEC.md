@@ -963,11 +963,6 @@ under `products/`, which git ignores except for `products/README.md`.
 *Check:* `tests/test_products_folder.py` — `products/README.md` is tracked; a folder created under
 `products/` is ignored by git.
 
-**ONE CLICK PER DECISION** *(PO A. Maier)*
-A decision a person makes on the dashboard — accept, save, add a product, release — takes one click
-once its inputs are complete, and everything that follows from it is done by Agent M.
-*Check:* no automatic check; at review of each use case.
-
 **SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier)*
 A reviewer who has been shown several reviewed files — opened one by one, or together on one review page
 — may accept all of them with one click, in one commit that holds one approval record per file, each
