@@ -12,6 +12,7 @@ modules:
 builds_on:
   - ITM-213
   - ITM-220
+  - ITM-227
 tests:
   - unit
 origin:

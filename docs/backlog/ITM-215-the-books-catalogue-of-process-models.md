@@ -16,6 +16,7 @@ modules:
   - MOD-model-catalogue
 builds_on:
   - ITM-213
+  - ITM-227
 tests:
   - unit
 origin:
@@ -27,20 +28,19 @@ origin:
 
 ## Outcome
 
-MOD-model-catalogue's interface, as its file states it, for UC-002: `Model`, `catalogue`, `modelSchema` and
-`modelFindings`, and the shipped catalogue as data — the models `waterfall`, `v-model`, `reuse-oriented`, `scrum` and
+MOD-model-catalogue's interface, as its file states it, for UC-002: `Model`, `Catalogue`, `catalogue`, `modelSchema`
+and `modelFindings`, and the shipped catalogue as data — the models `waterfall`, `v-model`, `reuse-oriented`, `scrum` and
 `kanban`, the practices `devops`, `prototyping`, `incremental-delivery` and `scaling-layers` — in `src/model-catalogue/`.
 Their phases, transitions, verification pairs, gates, roles and flow control are taken from the book, as the instance's
 source register holds it (`docs/sources/SRC-vibe-coding/2026-10-05/`, chapters 6, 7 and 14), never from memory; each file
 names the chapter it follows. `docs/assets/process-model.mjs` is the model for reading and validating a definition.
 `planGrid` and `modelDiagram` are not part of this item.
 
-The item builds the module's file as it is accepted when the item starts. UC-002 step 2 also shows, for each model, the
-risk it manages well, the risk it accepts and an example project it suits. Those are not part of this item, whatever
-the module's file says of them by then; an item of their own brings them.
+The item builds the module's file as it is accepted when the item starts. UC-002 step 2 also shows, for each model, what
+its `## About` holds: the risk it manages well, the risk it accepts, an example project it suits and its chapter.
+`## About` and `Model.about` are not part of this item; an item of their own brings them before ITM-222.
 
-The item starts once MOD-documents' `documentFindings` is built. That item follows akmaier's decision on MOD-documents'
-two changes (ITM-213), and `modelFindings` takes the checks a schema expresses from it.
+`modelFindings` takes the checks a schema expresses from MOD-documents' `documentFindings`, which ITM-227 builds.
 
 ## Acceptance
 

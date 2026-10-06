@@ -14,6 +14,7 @@ modules:
   - MOD-participant-list
 builds_on:
   - ITM-213
+  - ITM-227
 tests:
   - unit
 origin:
@@ -29,8 +30,7 @@ MOD-participant-list's interface, as its file states it, for UC-002: `Participan
 `Eligibility`, `participantSchema` and `eligible`, in `src/participant-list/`, read from the instance's register
 `docs/participants.md`. `differs` is not part of this item.
 
-The item starts once MOD-documents' `documentFindings` is built. That item follows akmaier's decision on MOD-documents'
-two changes (ITM-213), and the register's entries are named as errors through it.
+The register's entries are named as errors through MOD-documents' `documentFindings`, which ITM-227 builds.
 
 ## Acceptance
 
