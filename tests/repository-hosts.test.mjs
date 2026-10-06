@@ -69,7 +69,10 @@ const GH_TOKENS = "https://github.com/settings/personal-access-tokens";
 // token reaches the repository — a fine-grained token reads every public repository, and writes only to those selected for it.
 // before(request, server): called as each request arrives, before it is answered. answer(request): an answer of its own, or
 // nothing for the usual one.
-function fakeGitHub({ visibility = "private", files = FILES, reaches = true, before = null, answer = null } = {}) {
+// empty: the repository has no commit yet — GitHub's Git database answers 409 "Git Repository is empty." until a file is created
+// through the contents API, which makes the first commit (measured 2026-10-06; "Using the REST API to interact with your Git
+// database").
+function fakeGitHub({ visibility = "private", files = FILES, reaches = true, before = null, answer = null, empty = false } = {}) {
   const requests = [], blobs = new Map(), trees = new Map(), commits = new Map();
   let made = 0;
   const store = (buf) => { const s = blobSha(buf); blobs.set(s, buf); return s; };
@@ -79,7 +82,7 @@ function fakeGitHub({ visibility = "private", files = FILES, reaches = true, bef
     commits.set(sha, { parent, tree, message });
     return sha;
   };
-  let head = addCommit(null, Object.fromEntries(Object.entries(files).map(([p, t]) => [p, store(utf8(t))])), "initial");
+  let head = empty ? null : addCommit(null, Object.fromEntries(Object.entries(files).map(([p, t]) => [p, store(utf8(t))])), "initial");
   const filesAt = (sha) => Object.fromEntries(Object.entries(trees.get(commits.get(sha).tree)).map(([p, b]) => [p, blobs.get(b)]));
   const server = {
     requests, head: () => head, filesAt, parentOf: (sha) => commits.get(sha)?.parent ?? null,
@@ -117,6 +120,17 @@ function fakeGitHub({ visibility = "private", files = FILES, reaches = true, bef
       return isPublic ? json(403, { message: "Resource not accessible by personal access token", status: "403" }) : notFound();
     }
     let m;
+    if (head === null && (rest === "/commits" || rest.startsWith("/commits/") || rest.startsWith("/git/"))) {
+      return json(409, { message: "Git Repository is empty.", documentation_url: "https://docs.github.com/rest", status: "409" });
+    }
+    if (r.method === "PUT" && (m = /^\/contents\/(.+)$/.exec(rest))) {
+      const path = m[1].split("/").map(decodeURIComponent).join("/");
+      if (head !== null) return json(422, { message: "Invalid request. \"sha\" wasn't supplied.", status: "422" });
+      head = addCommit(null, { [path]: store(Buffer.from(r.body.content, "base64")) }, r.body.message);
+      made += 1;
+      return json(201, { content: { path, sha: trees.get(commits.get(head).tree)[path] },
+        commit: { sha: head, html_url: `${GH_WEB}/commit/${head}`, message: r.body.message } });
+    }
     if (r.method === "GET" && rest === "") {
       return json(200, { id: 1296269, name: "thesis-tool", full_name: "alice/thesis-tool", private: !isPublic, visibility,
         html_url: GH_WEB, description: "A tool for theses", archived: false, default_branch: "main",
@@ -673,6 +687,60 @@ test("UC-001 — the token pages: GitHub's prefilled token page and the list of 
     }
   });
   assert.deepEqual(sent, [], "no request is made");
+});
+
+// ---------------------------------------------------------------- an empty repository (MOD-repository-hosts as drafted in 617d061)
+
+// UC-001 5 · Expected: a repository without a commit — GitHub answers its Git database with 409 "Git Repository is empty." —
+// is read as a snapshot without a commit and without a path; commitFiles with expectedHead null writes the first file through
+// the contents API on the branch, with the message — the repository's first commit —, and the other files in one commit on it,
+// and returns that second commit. Counter-proofs: a 409 with another message (a repository GitHub is still creating) is a
+// failure, Unreachable; expectedHead null on a repository that has a commit is Moved, and nothing is written.
+test("UC-001 5 — an empty repository: no commit and no path; its first commit through the contents API, the others in one commit on it", async () => {
+  const gh = fakeGitHub({ empty: true });
+  await using(gh.fetch, async () => {
+    const host = connect(GITHUB, { token: GH_TOKEN });
+    const snap = await host.readSnapshot("main");
+    assert.equal(snap.commit, null, "no commit");
+    assert.deepEqual(snap.paths, [], "no path");
+    const done = await host.commitFiles({ branch: "main", expectedHead: null, message: "Add the Agent M review layout",
+      files: [{ path: "SPEC.md", text: "# s\n" }, { path: "docs/use-cases/README.md", text: "u\n" }, { path: "CHANGELOG.md", text: "c\n" }] });
+    assert.equal(done.commit, gh.head(), "the second commit is returned, and main stands at it");
+    assert.deepEqual(Object.fromEntries(Object.entries(gh.filesAt(gh.head())).map(([p, b]) => [p, b.toString()])),
+      { "SPEC.md": "# s\n", "docs/use-cases/README.md": "u\n", "CHANGELOG.md": "c\n" }, "every file");
+    const first = gh.parentOf(gh.head());
+    assert.ok(first && gh.parentOf(first) === null, "two commits, the first without a parent");
+    assert.deepEqual(Object.keys(gh.filesAt(first)), ["SPEC.md"], "the first commit holds the first file");
+    const puts = gh.requests.filter((r) => r.method === "PUT");
+    assert.equal(puts.length, 1, "one file through the contents API");
+    assert.equal(puts[0].path, "/repos/alice/thesis-tool/contents/SPEC.md");
+    assert.deepEqual({ branch: puts[0].body.branch, message: puts[0].body.message, text: Buffer.from(puts[0].body.content, "base64").toString() },
+      { branch: "main", message: "Add the Agent M review layout", text: "# s\n" });
+  });
+  const creating = fakeGitHub({ empty: true,
+    answer: (r) => (r.path.endsWith("/commits/main") ? json(409, { message: "Repository is being created", status: "409" }) : null) });
+  await using(creating.fetch, async () => {
+    await assert.rejects(connect(GITHUB, { token: GH_TOKEN }).readSnapshot("main"), (e) => e.name === "Unreachable",
+      "counter-proof: another 409 is a failure");
+  });
+  const full = fakeGitHub();
+  await using(full.fetch, async () => {
+    await assert.rejects(connect(GITHUB, { token: GH_TOKEN }).commitFiles({ branch: "main", expectedHead: null, message: "m",
+      files: [{ path: "SPEC.md", text: "x\n" }] }), (e) => e.name === "Moved", "counter-proof: a repository with a commit is not empty");
+    assert.equal(full.made(), 0, "nothing written");
+    assert.ok(!full.requests.some((r) => r.method === "PUT"), "no file through the contents API");
+  });
+});
+
+// Expected: a GitLab project is not given a first commit — commitFiles with expectedHead null is refused NotFound with the advice
+// to push a first commit to it, and no request is made (MOD-repository-hosts as drafted in 617d061).
+test("UC-001 5 — on a GitLab server, a first commit is refused with the advice to push one, and nothing is requested", async () => {
+  const gl = fakeGitLab();
+  await using(gl.fetch, async () => {
+    await assert.rejects(connect(GITLAB, { token: GL_TOKEN }).commitFiles({ branch: "main", expectedHead: null, message: "m",
+      files: [{ path: "SPEC.md", text: "x\n" }] }), (e) => e.name === "NotFound" && /has no commit yet — push a first commit to it/.test(e.message));
+  });
+  assert.deepEqual(gl.requests, [], "no request");
 });
 
 // ---------------------------------------------------------------- what UC-001 reads

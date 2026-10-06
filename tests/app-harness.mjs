@@ -18,13 +18,15 @@ export const TOKEN = "github_pat_HARNESS0123456789abcdefghij";
 // dates: { path: ISO date } — when a record was committed. handlers: a test's own fakes, asked first and in order —
 // (url: URL, init) -> Response, or nothing for a request the handler does not answer; each request it answers is counted as
 // `handler <METHOD> <url>`. So a view's tests bring the servers that view talks to.
-export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [] }) {
+// empty: the repository has no commit yet — GitHub's Git database answers 409 "Git Repository is empty." until a file is created
+// through the contents API (PUT …/contents/<path>), which makes the first commit.
+export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [], empty = false }) {
   const files = { ...given };
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
   const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
   for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
   const requests = [], writes = [];
-  let pending = 0, head = HEAD, seq = 0;
+  let pending = 0, head = empty ? null : HEAD, seq = 0;
   const trees = new Map(), commits = new Map();
   const next = (c) => `${c}${String(++seq).padStart(6, "0")}`.padEnd(40, "0");
   const put = async (path, text) => { files[path] = text; shas[path] = await gitBlobSha(text); bySha[shas[path]] = text; };
@@ -49,6 +51,20 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
         return path in files ? new Response(files[path], { status: 200 }) : new Response("404: Not Found", { status: 404 });
       }
       if (url.origin !== "https://api.github.com") return new Response("{}", { status: 500 });
+      if (head === null && (p === `${api}/commits` || p.startsWith(`${api}/commits/`) || p.startsWith(`${api}/git/`))) {
+        what = `empty ${method} ${p}`;
+        return json({ message: "Git Repository is empty.", documentation_url: "https://docs.github.com/rest", status: "409" }, 409);
+      }
+      if (method === "PUT" && p.startsWith(`${api}/contents/`)) {
+        const path = p.slice(`${api}/contents/`.length).split("/").map(decodeURIComponent).join("/"), body = JSON.parse(init.body);
+        what = `write file ${path}`;
+        if (head !== null) return json({ message: 'Invalid request. "sha" wasn\'t supplied.' }, 422);
+        const text = Buffer.from(body.content, "base64").toString("utf8");
+        await put(path, text);
+        head = next("c");
+        writes.push({ message: body.message, files: { [path]: text } });
+        return json({ content: { path, sha: shas[path] }, commit: { sha: head, html_url: `https://github.com/${repo}/commit/${head}` } }, 201);
+      }
       if (method === "POST" && p === `${api}/git/trees`) {
         what = "write tree";
         const sha = next("7");

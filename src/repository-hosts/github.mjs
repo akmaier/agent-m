@@ -43,10 +43,23 @@ export function githubAdapter(address, { token, tokenName }, links) {
     return answer instanceof Response ? json(answer, API) : answer;
   };
 
+  // An empty repository: GitHub's Git database answers 409 "Git Repository is empty." while a repository has no commit ("Using
+  // the REST API to interact with your Git database", read 2026-10-06). Any other 409 — a repository GitHub is still creating —
+  // stays the failure it is.
+  const EMPTY = Symbol("an empty repository");
+  const emptyOr = (more = {}) => async (answer) => {
+    const said = await answer.clone().json().catch(() => null);
+    if (said?.message === "Git Repository is empty.") return EMPTY;
+    throw await refusal(answer, { ...context, write: false, ...more });
+  };
+
   // A branch's reference: read at git/ref/heads/…, moved at git/refs/heads/… ("Get a reference", "Update a reference").
   const heads = (branch) => `heads/${encodeURIComponent(branch).replace(/%2F/g, "/")}`;
-  // The commit the branch stands at now, or null when there is no such branch.
-  const branchHead = async (branch) => (await read(`${repo}/git/ref/${heads(branch)}`, { on: { 404: () => null } }))?.object?.sha ?? null;
+  // The commit the branch stands at now, or null when there is no such branch — in an empty repository there is none.
+  const branchHead = async (branch) => {
+    const r = await read(`${repo}/git/ref/${heads(branch)}`, { on: { 404: () => null, 409: emptyOr() } });
+    return r === EMPTY ? null : r?.object?.sha ?? null;
+  };
   const moved = (branch, head) => new HostError("Moved", { head },
     `${branch} has moved on${head ? ` to ${head.slice(0, 12)}` : ""} since it was read — nothing was written; read it again.`);
 
@@ -61,7 +74,9 @@ export function githubAdapter(address, { token, tokenName }, links) {
     async snapshot(name) {
       const what = `${address.web} at ${name}`;
       const notFound = () => { throw new HostError("NotFound", { what }, `${what} was not found.`); };
-      const c = await read(`${repo}/commits/${encodeURIComponent(name)}`, { what, on: { 422: notFound } });
+      const c = await read(`${repo}/commits/${encodeURIComponent(name)}`, { what, on: { 422: notFound, 409: emptyOr({ what }) } });
+      // An empty repository is a snapshot without a commit and without a file (MOD-repository-hosts Snapshot).
+      if (c === EMPTY) return { commit: null, blobs: new Map() };
       const t = await read(`${repo}/git/trees/${c.sha}?recursive=1`, { what });
       return { commit: c.sha, blobs: new Map(t.tree.filter((e) => e.type === "blob").map((e) => [e.path, e.sha])) };
     },
@@ -77,9 +92,22 @@ export function githubAdapter(address, { token, tokenName }, links) {
     // One commit of all the files on the head that was read: the branch is checked to stand at expectedHead, the tree is built
     // on that commit's tree, the commit's only parent is expectedHead, and the branch is moved to it only as a fast-forward —
     // GitHub refuses that with 422 when the branch moved meanwhile, and nothing is written.
+    // expectedHead null: the repository's first commit, only while it has none. GitHub's Git database answers 409 until a
+    // repository holds a commit, so the first file is written through the contents API, which makes that commit; the others
+    // follow in one commit on it, on the same condition, and that second commit is returned (MOD-repository-hosts commitFiles).
     async commitFiles({ branch, expectedHead, files, message }) {
       const now = await branchHead(branch);
       if (now !== expectedHead) throw moved(branch, now);
+      if (expectedHead === null) {
+        const [first, ...others] = files.filter((f) => !f.delete);
+        if (!first) throw new TypeError("a repository's first commit writes a file");
+        const content = base64(first.bytes ?? new TextEncoder().encode(first.text));
+        const made = await json(await call("PUT", `${repo}/contents/${encPath(first.path)}`, { body: { message, content, branch },
+          on: { 422: async () => { throw moved(branch, await branchHead(branch).catch(() => null)); } } }), API);
+        const head = made.commit.sha;
+        if (!others.length) return { commit: head, url: made.commit.html_url ?? `${address.web}/commit/${head}` };
+        return this.commitFiles({ branch, expectedHead: head, files: others, message });
+      }
       const base = (await read(`${repo}/git/commits/${expectedHead}`)).tree.sha;
       const tree = [];
       for (const f of files) {
