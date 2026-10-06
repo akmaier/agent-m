@@ -7,8 +7,7 @@ follows:
   - ARC-042
 uses:
   - MOD-model-catalogue.Model
-  - MOD-model-catalogue.catalogue
-  - MOD-model-catalogue.modelFindings
+  - MOD-model-catalogue.Catalogue
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-source-register.sourceSchemas
@@ -77,7 +76,7 @@ It keeps nothing. It owns two formats.
 
 | Part of the schema | Value |
 |---|---|
-| front matter | `model` (its name), `model_file` (its path in the instance or in the shipped catalogue), `model_version` (the commit of the instance that holds the declared file), `sprint_close` (the participant who closes a sprint; the Product Owner when empty) |
+| front matter | `model` (its name), `model_file` (its path in the instance or in the shipped catalogue), `model_version` (the commit of the instance that holds the declared file: the version the product keeps until its declaration is saved again, UC-031 6a), `sprint_close` (the participant who closes a sprint; the Product Owner when empty) |
 | `## Roles` | a table: `Role`, `Participants` — participants by name from the instance's list, several where the role allows it |
 | `## Practices` | a list of practice names, or `none` |
 | `## Branches` | a table: `Phase or time box`, `Branch`; without a row, work merges into the default branch (`WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET`) |
@@ -106,19 +105,27 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   addedBy: { requirement: string, source: string } | null, practice: string | null }>, roles: Array<{ name: string,
   filledBy: string, capabilities: string[], holders: string[] }>, branches: Record<string, string>, done: string[] }`.
 - `declarationSchema: Schema` — the declaration's schema, for MOD-documents and for the form of UC-002.
-- `declarationFindings(declaration: Document, catalogue: Model[], participants: Document, sources: Document[],
-  instanceSpec: string) -> Finding[]` — a model that is not in the catalogue, has error findings or lacks the named
-  version; a role that needs a person and has none; a holder that lacks a capability its role needs, naming it (`A ROLE
-  NAMES THE CAPABILITIES IT NEEDS`); a practice that does not fit the model; a branch for a phase the model lacks; a gate
-  under `## Gates added by requirements` whose requirement the instance's SPEC, `instanceSpec`, does not hold — each an
-  error; a holder at a
-  processing place a linked source does not permit — a warning naming the source and the role, whose content that holder
-  is then never given (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
+- `declarationFindings(declaration: Document, catalogue: Catalogue, participants: Document, sources: Document[],
+  instanceSpec: string) -> Finding[]` — the findings of a declaration against the version it declared.
+  - `catalogue` is MOD-model-catalogue's `catalogue` over the instance's snapshot at the commit the declaration's
+    `model_version` names, read by the caller with MOD-repository-hosts' `readSnapshot`. It holds the instance's models
+    as they stood then: the version the product declared and keeps (UC-031 6a).
+  - Each an error:
+    - a model that this catalogue does not hold at `model_file` — the named version lacks it —, or whose findings in
+      it hold an error;
+    - a role that needs a person and has none;
+    - a holder that lacks a capability its role needs, naming it (`A ROLE NAMES THE CAPABILITIES IT NEEDS`);
+    - a practice the catalogue does not hold, or whose `fits` does not name the model;
+    - a branch for a phase the model lacks;
+    - a gate under `## Gates added by requirements` whose requirement the instance's SPEC, `instanceSpec`, does not hold.
+  - A warning: a holder at a processing place a linked source does not permit, naming the source and the role. That
+    source's content is then never given to that holder (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
 - `workflowOf(declaration: Document, model: Model, practices: Document[], instanceSpec: string) -> Workflow` — the model's
   phases, transitions, pairs and gates, the practices' additions, and the gates and artifacts the process requirements
   add, as the declaration's `## Gates added by requirements` names them, each marked with its requirement and the source
-  that requirement names in the instance's SPEC, `instanceSpec`; nothing else enters the workflow. A gate whose
-  requirement that SPEC does not hold stays in the workflow with `addedBy.source` null; `declarationFindings` names it.
+  that requirement names in the instance's SPEC, `instanceSpec`; nothing else enters the workflow. `model` is the
+  declared version, as the catalogue at the commit `model_version` names holds it. A gate whose requirement that SPEC
+  does not hold stays in the workflow with `addedBy.source` null; `declarationFindings` names it.
 - `holdsRole(declaration: Document, participant: string, role: string) -> boolean` — whether the declaration assigns the
   participant to the role (`A JOB GOES ONLY TO A HOLDER OF ITS ROLE`).
 - `gateSchema: Schema` — the gate record's schema.
@@ -154,8 +161,8 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   - writer `gate-record` — writes the decision of an agent through `recordGateDecision`, with the job's provenance
     lines; refused, and nothing written, when the agent did the work the gate checks.
 
-`Model` is MOD-model-catalogue's; `Schema` and `Document` are MOD-documents'; `Host`, `Snapshot` and `PullRequestFacts`
-MOD-repository-hosts'.
+`Model` and `Catalogue` are MOD-model-catalogue's; `Schema` and `Document` are MOD-documents'; `Host`, `Snapshot` and
+`PullRequestFacts` MOD-repository-hosts'.
 
 ## Files
 
@@ -167,7 +174,8 @@ MOD-repository-hosts'.
 
 ## Uses
 
-- MOD-model-catalogue.Model, catalogue, modelFindings — the declared model, its version and its validity.
+- MOD-model-catalogue.Model, Catalogue — the declared model, and the catalogue at the commit the declaration names, with
+  each model's findings and each practice's `fits`.
 - MOD-participant-list.participantSchema, eligible — the holders' capabilities and processing places.
 - MOD-source-register.sourceSchemas, permittedPlaces — where the content of a linked source may go.
 - MOD-spec-document.parseSpec — the process requirements, which the instance's SPEC holds, and their sources.
