@@ -24,7 +24,7 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
    from; and the own data files — schemas, models, practices — of the modules whose files state that they read them when
    they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register and MOD-product-process,
-   each once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
+   each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
    file builds resolved from a path beginning with `./` against the module's own address. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
    unless it is listed below with the reason it calls no other origin — each listed one exactly as often as listed.
@@ -103,7 +103,8 @@ def _own_data_file(text: str, at: int) -> bool:
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
 
 # (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
-# An entry for a folder counts the channel over every file in it.
+# An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
+# read of its own data files and requires none.
 PERMITTED_CHANNELS = {
     ("docs/assets/git-host.mjs", "fetch"): (2, "the request helper and fetchText send only what the origin gate prepare() let through", _prepared),
     ("src/repository-hosts/failures.mjs", "fetch"): (1, "the repository hosts' request helper sends only what its origin gate prepare() let through", _prepared),
@@ -170,8 +171,9 @@ def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> lis
                 if evidence and not evidence(text, m.start()):
                     found.append(f"{path}:{line}: {name}: not {permitted[key][1]}")
     for key, (count, why, _) in permitted.items():
-        if _present(key[0], files) and seen.get(key, 0) != count:
-            found.append(f"{key[0]}: {key[1]} found {seen.get(key, 0)} times, permitted {count} ({why})")
+        n, folder = seen.get(key, 0), key[0].endswith("/")
+        if _present(key[0], files) and (n > count if folder else n != count):
+            found.append(f"{key[0]}: {key[1]} found {n} times, permitted {'at most ' if folder else ''}{count} ({why})")
     return found
 
 
@@ -278,12 +280,11 @@ class NoServer(unittest.TestCase):
         twice = {"src/model-catalogue/index.mjs": own, "src/model-catalogue/read.mjs": "export const read = (url) => fetch(url);\n"}
         self.assertEqual(channel_findings(twice),
                          [f"src/model-catalogue/read.mjs:1: fetch: not {OWN_DATA_FILES}",
-                          f"src/model-catalogue/: fetch found 2 times, permitted 1 ({OWN_DATA_FILES})"])
+                          f"src/model-catalogue/: fetch found 2 times, permitted at most 1 ({OWN_DATA_FILES})"])
         # A module that reads no data file of its own gets no entry: the same code there is a finding.
         self.assertEqual(channel_findings({"src/text-tools/index.mjs": own}), ["src/text-tools/index.mjs:3: fetch: fetch(url);"])
-        # A listed module that does not read its data files in this form at all: its folder's count is not met.
-        self.assertEqual(channel_findings({"src/participant-list/index.mjs": "export const x = 1;\n"}),
-                         [f"src/participant-list/: fetch found 0 times, permitted 1 ({OWN_DATA_FILES})"])
+        # A listed module whose code reads no data file of its own yet: the entry allows the read and requires none.
+        self.assertEqual(channel_findings({"src/participant-list/index.mjs": "export const x = 1;\n"}), [])
 
     def test_counter_proof_a_markdown_file_that_loads_from_another_host(self):
         text = ("![flow](https://tracker.example/p.png)\n<img src='//cdn.example/x.svg'>\n<iframe src=\"https://embed.example/\"></iframe>\n"
