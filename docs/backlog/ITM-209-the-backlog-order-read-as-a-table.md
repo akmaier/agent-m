@@ -10,6 +10,8 @@ modules:
   - MOD-documents
   - MOD-text-tools
 builds_on:
+  - ITM-212
+  - ITM-213
 tests:
   - unit
 origin:

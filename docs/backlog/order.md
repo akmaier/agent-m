@@ -17,6 +17,7 @@ the modules whose interfaces it uses, then the tests of the system.
 | ITM-212 |
 | ITM-213 |
 | ITM-214 |
+| ITM-224 |
 | ITM-220 |
 | ITM-215 |
 | ITM-216 |
