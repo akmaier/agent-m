@@ -26,19 +26,21 @@ const EXPLAIN = {
 };
 
 // Step A of UC-014: create the key (for the instance, or — without a key in this browser — for both).
-export function createKeyStep(app, repos, title = "Step A · Create your key on GitHub") {
+// createKeyStep(app, repos, title?, { dated, explain }?) — the prefilled token page and the repositories to pick on it; `dated`
+// dates the token's name (a key that replaces another one), `explain` replaces the step's explanation.
+export function createKeyStep(app, repos, title = "Step A · Create your key on GitHub", { dated = null, explain = EXPLAIN.token } = {}) {
   const { T, stepHtml } = app;
   return stepHtml({ title,
-    body: `<p><a class="btn primary" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
+    body: `<p><a class="btn primary" href="${h(tokenLinkUrl(T.instance, dated))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
       <p>On that page:</p>
-      <ol class="choices">${repositoryChoiceSteps(repos[0], repos[1] || null).map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
-    explain: EXPLAIN.token });
+      <ol class="choices">${repositoryChoiceSteps(...repos).map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
+    explain });
 }
 
 // Step B of UC-014: notice, paste, store, check the given repositories.
-export function storeKeyStep(app) {
+export function storeKeyStep(app, title = "Step B · Give the key to Agent M") {
   const { T, stepHtml } = app;
-  return stepHtml({ title: "Step B · Give the key to Agent M",
+  return stepHtml({ title,
     body: `<p class="notice">${h(sharedOriginNotice(T.instance.split("/")[0]))}</p>
       <p><label><input type="checkbox" id="key-ack"> I have read this.</label></p>
       <p><input type="password" id="key-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" disabled aria-label="GitHub token"></p>

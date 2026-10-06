@@ -57,9 +57,11 @@ never into a URL, never into a repository.`;
 // IN ADVANCE).
 export const TOKEN_DAYS = 90;
 
-export function tokenLinkUrl(instance) {
+// tokenLinkUrl(instance, dated?) — GitHub's page for a new token, prefilled. `dated`, a date YYYY-MM-DD, is added to the
+// name, so that a key that replaces another one (UC-001 Step A) does not carry the same name.
+export function tokenLinkUrl(instance, dated = null) {
   const q = new URLSearchParams({
-    name: `Agent M · ${instance}`,
+    name: dated ? `Agent M · ${instance} · ${dated}` : `Agent M · ${instance}`,
     description: `Agent M dashboard of ${instance}: commits, issues, pull requests and runs of the work you start.`,
     expires_in: String(TOKEN_DAYS),
     // ONE GITHUB TOKEN SERVES EVERY FEATURE: the parameters of the one list (requiredPermissions, git-host.mjs).
@@ -68,12 +70,15 @@ export function tokenLinkUrl(instance) {
   return `https://github.com/settings/personal-access-tokens/new?${q}`;
 }
 
-export function repositoryChoiceSteps(instance, product) {
-  const repos = [...new Set([instance, product].filter(Boolean))];
+// repositoryChoiceSteps(...repositories) — what to do on the prefilled page: pick exactly these repositories, the instance
+// first; two are joined with "and", more with commas and a last "and".
+export function repositoryChoiceSteps(...names) {
+  const repos = [...new Set(names.flat().filter(Boolean))].map((r) => `“${r}”`);
+  const list = repos.length > 1 ? `${repos.slice(0, -1).join(", ")} and ${repos[repos.length - 1]}` : repos.join("");
   return [
     "Under “Repository access”, choose “Only select repositories”. GitHub preselects “All repositories”, " +
       "which would give Agent M write access to everything you own.",
-    `Open “Select repositories” and pick ${repos.map((r) => `“${r}”`).join(" and ")} — nothing else.`,
+    `Open “Select repositories” and pick ${list} — nothing else.`,
     `Leave the permissions as they are (${permissionLabels()}), scroll down and press “Generate token”.`,
     "Copy the token GitHub now shows — it starts with github_pat_ and is shown only once.",
   ];
