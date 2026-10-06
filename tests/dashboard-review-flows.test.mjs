@@ -927,6 +927,38 @@ test("UC-042 step 2 on a phone: the token form carries the notice and its own I 
   assert.equal(stored("agent-m.github-token"), key);
 });
 
+// A FORM OPENS WITH ITS FIRST FIELD FOCUSED: after each control that opens a form, the focus is in its first field open for
+// the person's input — on the token form the notice's box while it is not ticked, the paste field once it is.
+test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Store a token: the notice's box I have read this, while it is not ticked", async () => {
+  const { srv, box, dom } = await settingsPage({ token: null });
+  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
+  assert.equal(dom.focused(), dom.byId("token-ack"), "the box beside the paste field, not the control that opened the form");
+});
+
+test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of the token: the paste field, once the notice is ticked", async () => {
+  const { srv, box, dom } = await settingsPage();
+  await tick(srv, dom.byId("ack"));
+  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
+  assert.equal(dom.focused(), dom.byId("token-input"), "the paste field, open since the notice is ticked");
+});
+
+test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of a GitLab project token: the field for the new token", async () => {
+  const gitlab = JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } });
+  const { srv, box, dom } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([GL_ADDR]), "agent-m.gitlab-tokens": gitlab } });
+  await tick(srv, dom.byId("ack"));
+  await press(srv, among(box(), "data-change-gitlab", GL_ADDR));
+  const field = dom.focused();
+  assert.ok(field && /data-gl-token/.test(field.tag ?? ""), `the new token's field, not ${field?.tag ?? field?.id ?? field}`);
+});
+
+test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — + Add product: the address field", async () => {
+  const { srv } = await withProduct({ "README.md": "# Thesis\n" });
+  const page = await openDashboard({ server: srv, hash: "" });
+  const dom = richDocument();
+  await page.go(addHash(""));
+  assert.equal(dom.focused(), dom.byId("add-repo"), "the product repository's address");
+});
+
 test("UC-042 1a: a token that expires within fourteen days is named on every page, with Renew; one that expires later is not", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc" });

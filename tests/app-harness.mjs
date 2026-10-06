@@ -126,6 +126,10 @@ export function fakeCaches() {
 // the app adds, and the test fires them. Any other selector finds nothing, as before.
 const ATTR_SELECTOR = /^\[([\w-]+)(?:="([^"]*)")?\]$/;
 export const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// The element a view last called focus() on, as a browser keeps document.activeElement (A FORM OPENS WITH ITS FIRST FIELD
+// FOCUSED); read through richDocument().focused().
+let focusedOne = null;
+
 function control(tag) {
   const listeners = [], sink = { textContent: "", innerHTML: "", hidden: false, disabled: false };
   const dataset = {};
@@ -136,7 +140,7 @@ function control(tag) {
     value: "", hidden: false,
     addEventListener(type, f) { listeners.push([type, f]); },
     fire(type, ev) { for (const [t, f] of listeners) if (t === type) f({ ...ev, currentTarget: c, target: c }); },
-    closest() { return c; }, querySelector: () => sink, querySelectorAll: () => [], focus() {},
+    closest() { return c; }, querySelector: () => sink, querySelectorAll: () => [], focus() { focusedOne = c; },
     // An attribute of its tag, as a browser's element answers it (the settings page finds a remote session's line this way).
     getAttribute: (name) => attrOf(tag, name) };
   return c;
@@ -168,7 +172,7 @@ function element(id) {
     querySelector(sel) { return find(html, sel, found)[0] ?? null; },
     closest() { return this; },
     insertAdjacentHTML(where, x) { html = where === "afterbegin" ? x + html : html + x; },
-    focus() {}, replaceWith() {}, click() {}, getAttribute: () => null,
+    focus() { focusedOne = this; }, replaceWith() {}, click() {}, getAttribute: () => null,
   };
 }
 
@@ -280,7 +284,7 @@ function ownControl(tag) {
     textContent: "", innerHTML: "", hidden: false,
     addEventListener(type, f) { listeners.push([type, f]); },
     fire(type, ev) { for (const [t, f] of [...listeners]) if (t === type) f({ ...ev, currentTarget: c, target: c }); },
-    getAttribute: (n) => attrOf(tag, n), closest() { return c; }, focus() {} };
+    getAttribute: (n) => attrOf(tag, n), closest() { return c; }, focus() { focusedOne = c; } };
   return withInner(c);
 }
 // A control's querySelector searches the HTML a view set into it; an attribute selector it does not find, and any other
@@ -364,7 +368,7 @@ export function richDocument() {
       addEventListener(type, f) { listeners.push([type, f]); },
       fire(type, ev = {}) { for (const [t, f] of [...listeners]) if (t === type) f({ ...ev, currentTarget: n, target: n }); },
       querySelector: (sel) => inside(sel)[0] ?? null, querySelectorAll: (sel) => (ATTR.test(sel) || /^[\w.-]+$/.test(sel) ? inside(sel) : []),
-      closest() { return n; }, focus() {} };
+      closest() { return n; }, focus() { focusedOne = n; } };
     return n;
   };
   const nodeAt = (owner, t, sel) => {
@@ -398,8 +402,10 @@ export function richDocument() {
     return augment(el);
   };
   for (const id of ["main", "product", "token-banner", "tabs", "repo-line"]) doc.getElementById(id);
+  focusedOne = null;
   return {
     byId: (id) => doc.getElementById(id),
+    focused: () => focusedOne,
     edit: () => doc.getElementById("main").querySelector(".panel.edit"),
   };
 }
