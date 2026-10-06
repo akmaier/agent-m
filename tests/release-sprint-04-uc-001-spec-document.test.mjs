@@ -119,9 +119,10 @@ function gitlabProject({ origin = GL_ORIGIN, project = GL_PROJECT, token = GL_TO
   return s;
 }
 
-// The instance's server, with the product's servers behind it — the GitHub product, and any GitLab projects, each on its server.
-// Every request the page makes is logged with the credentials it carries and its body.
-async function servers({ product = null, gitlab = [] } = {}) {
+// The instance's server, with the product's servers behind it — the GitHub product, any other GitHub repositories (`also`:
+// { repo, server }), and any GitLab projects, each on its server. Every request the page makes is logged with the credentials it
+// carries and its body.
+async function servers({ product = null, gitlab = [], also = [] } = {}) {
   const projects = [gitlab].flat().filter(Boolean), log = [];
   const instance = await repoServer({ files: INSTANCE_FILES, handlers: [
     (u, init) => {
@@ -131,6 +132,8 @@ async function servers({ product = null, gitlab = [] } = {}) {
     },
     (u, init) => (product && ((u.origin === API && u.pathname.startsWith(`/repos/${PRODUCT}`)) || (u.origin === RAW && u.pathname.startsWith(`/${PRODUCT}/`)))
       ? product.fetch(u.href, init) : undefined),
+    (u, init) => also.find((o) => u.origin === API && (u.pathname === `/repos/${o.repo}` || u.pathname.startsWith(`/repos/${o.repo}/`)))
+      ?.server.fetch(u.href, init),
     (u, init) => projects.find((g) => g.origin === u.origin)?.fetch(u, init),
   ] });
   return { instance, product, gitlab: projects[0] ?? null, projects, log };

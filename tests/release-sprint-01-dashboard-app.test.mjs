@@ -345,34 +345,52 @@ test("release · UC-001 1: the product selector's + Add product opens the panel 
   assert.match(page.main(), /id="add-repo"/);
 });
 
-// UC-001 steps 2–5, on GitHub — the main flow with the stored token. Expected: the pasted address is recognised as GitHub's
-// route; Step A shows "Open your tokens on GitHub" and names the token "Agent M · <instance>", Edit, the product repository to
-// add with the instance kept, and Update; Step B's Check reads the product with the stored token and shows ✓, saying for a
-// public repository that write access is confirmed at the next step; Step C is one click that commits the missing review layout
-// — docs/use-cases/, docs/architecture/, docs/approvals/, docs/spec-freigaben/, a SPEC.md skeleton, a CHANGELOG.md — into the
-// product's default branch, adds the address to this browser's list, commits nothing to the instance, and shows the commit as a
-// link with an offer to switch to the product. Every step carries a folded "What is this?".
-test("release · UC-001 2–5: a GitHub product is added — Step A names the token, Check reads it, Add product writes its layout", async () => {
+// UC-001 steps 2–5, on GitHub — the main flow with the stored token, as UC-001 reads since 5260a64. Expected: the pasted address
+// is recognised as GitHub's route; Step A shows "Open GitHub's token page (prefilled)" — GitHub's page for a new token, with its
+// name, carrying today's date, its description, 90 days and every permission filled in, as in UC-014 — and, underneath, Only select
+// repositories with akmaier/agent-m and alice/thesis-tool, nothing else, then Generate token; after UC-014's notice the new key is
+// pasted, and Store and check stores it in place of the old one and checks each repository with it; Step B then shows the product's
+// line without another click, saying for a public repository that write access is confirmed at the next step; Step C is one click
+// that commits the missing review layout — docs/use-cases/, docs/architecture/, docs/approvals/, docs/spec-freigaben/, a SPEC.md
+// skeleton, a CHANGELOG.md — into the product's default branch, adds the address to this browser's list, commits nothing to the
+// instance, and shows the commit as a link with an offer to switch to the product. Every step carries a folded "What is this?".
+// Changed by its author, tester-opus (claude-opus-5-5), on fix/uc-001-step-a-one-click at e3b7b1d, 2026-10-06: Step A as UC-001 now
+// reads it, where the token is no longer edited on GitHub; Step B without the click on Check.
+test("release · UC-001 2–5: a GitHub product is added — Step A opens GitHub's prefilled token page, Store and check replaces the key, Add product writes its layout", async () => {
   const product = await productServer();
   const w = await world({ product });
   const page = await open(w, { hash: "#add" });
   await page.type("add-repo", `https://github.com/${PRODUCT}`);
   const steps = page.html("add-steps");
   assert.match(steps, /Step A · Let your key reach the product/);
-  assert.match(steps, /Open your tokens on GitHub/);
-  assert.ok(hrefs(steps).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "a button to the person's tokens");
-  const a = stripTags(sections(steps)[0]);
-  assert.match(a, /Agent M · akmaier\/agent-m/);
-  assert.match(a, /Edit/);
-  assert.match(a, new RegExp(`${PRODUCT}.*keep.*${INSTANCE}.*selected`));
-  assert.match(a, /Update/);
+  assert.match(steps, /Open GitHub's token page \(prefilled\)/);
+  const link = hrefs(steps).find((x) => x.startsWith("https://github.com/settings/personal-access-tokens/new?"));
+  assert.ok(link, "a button to GitHub's page for a new token");
+  const q = new URL(link).searchParams;
+  const today = [new Date().toISOString().slice(0, 10), new Date().toLocaleDateString("sv-SE")];
+  assert.ok(q.get("name")?.includes("Agent M") && today.some((t) => q.get("name").includes(t)), `its name carries today's date: ${q.get("name")}`);
+  assert.ok(q.get("description")?.trim(), "its description");
+  assert.equal(q.get("expires_in"), "90", "90 days");
+  for (const [k, v] of [["contents", "write"], ["issues", "write"], ["pull_requests", "write"], ["actions", "write"], ["workflows", "write"], ["metadata", "read"]]) {
+    assert.equal(q.get(k), v, `every permission, as in UC-014: ${k}`);
+  }
+  const a = stripTags(steps.slice(0, steps.indexOf("Step B · Check")));
+  assert.match(a, /Only select repositories/);
+  assert.match(a, new RegExp(`pick “${INSTANCE}” and “${PRODUCT}” — nothing else`), "the instance and the product, nothing else");
+  assert.match(a, /Generate token/);
   for (const s of sections(steps)) assert.match(s, /<details[^>]*>\s*<summary>What is this\?<\/summary>/, "every step explains itself");
 
-  await page.fire("add-check-btn");
+  await page.tick("key-ack");
+  page.byId("key-token").value = NEW_TOKEN;
+  await page.fire("key-store");
+  assert.equal(page.storage()["agent-m.github-token"], NEW_TOKEN, "the new key stored in place of the old one");
+  const checked = stripTags(page.html("key-check"));
+  assert.match(checked, new RegExp(`✓ ${INSTANCE}`), "the instance checked with it");
+  assert.match(checked, new RegExp(`✓ ${PRODUCT}`), "the product checked with it");
+  assert.ok(w.log.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${NEW_TOKEN}`), "read with the new key");
   const check = stripTags(page.html("add-check"));
-  assert.match(check, new RegExp(`✓ ${PRODUCT}`));
+  assert.match(check, new RegExp(`✓ ${PRODUCT}`), "Step B, without another click");
   assert.match(check, /write access/i, "public: write access is confirmed at the next step");
-  assert.ok(w.log.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${TOKEN}`), "read with the stored token");
 
   await page.fire("add-go");
   assert.equal(product.writes.length, 1, "one commit in the product");

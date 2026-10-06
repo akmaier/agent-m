@@ -121,9 +121,10 @@ function gitlabProject({ origin = GL_ORIGIN, project = GL_PROJECT, token = GL_TO
   return s;
 }
 
-// The instance's server, with the product's servers behind it — the GitHub product, and any GitLab projects, each on its server.
-// Every request the page makes is logged with the credentials it carries and its body.
-async function servers({ product = null, gitlab = [] } = {}) {
+// The instance's server, with the product's servers behind it — the GitHub product, any other GitHub repositories (`also`:
+// { repo, server }), and any GitLab projects, each on its server. Every request the page makes is logged with the credentials it
+// carries and its body.
+async function servers({ product = null, gitlab = [], also = [] } = {}) {
   const projects = [gitlab].flat().filter(Boolean), log = [];
   const instance = await repoServer({ files: INSTANCE_FILES, handlers: [
     (u, init) => {
@@ -133,6 +134,8 @@ async function servers({ product = null, gitlab = [] } = {}) {
     },
     (u, init) => (product && ((u.origin === API && u.pathname.startsWith(`/repos/${PRODUCT}`)) || (u.origin === RAW && u.pathname.startsWith(`/${PRODUCT}/`)))
       ? product.fetch(u.href, init) : undefined),
+    (u, init) => also.find((o) => u.origin === API && (u.pathname === `/repos/${o.repo}` || u.pathname.startsWith(`/repos/${o.repo}/`)))
+      ?.server.fetch(u.href, init),
     (u, init) => projects.find((g) => g.origin === u.origin)?.fetch(u, init),
   ] });
   return { instance, product, gitlab: projects[0] ?? null, projects, log };
@@ -436,11 +439,11 @@ test("ONE CLICK PER DECISION — one click on Add product does everything that f
 // ------------------------------------------------------------------------------------------------ what the page says
 
 // EVERY STEP EXPLAINS ITSELF — every step that asks something of the person carries an explanation that can be expanded, written for
-// someone new to GitHub; UC-001: "what a repository is, why the key has to be extended, what the commit contains, how to undo it,
-// and why the product list lives in this browser only". Input: the add-product page on GitHub with a token, without one (3b), on a
-// GitLab project (3c), and after a Check on a repository that does not exist (2a). Expected: the address field and every step, in
-// each of these states, carries a folded "What is this?" with text; together they say the five things; and Step C's names every
-// part the commit then writes into an empty product.
+// someone new to GitHub; UC-001, as it reads since 5260a64: "what a repository is, why a new key replaces the old one, what the
+// commit contains, how to undo it, and why the product list lives in this browser only". Input: the add-product page on GitHub with
+// a token, without one (3b), on a GitLab project (3c), and after a Check on a repository that does not exist (2a). Expected: the
+// address field and every step, in each of these states, carries a folded "What is this?" with text; together they say the five
+// things; and Step C's names every part the commit then writes into an empty product.
 test("EVERY STEP EXPLAINS ITSELF — every step of Add product explains itself, and Step C names what its commit holds", async () => {
   const product = await githubProduct({ missing: true });
   const w = await servers({ product, gitlab: gitlabProject() });
@@ -478,7 +481,7 @@ test("EVERY STEP EXPLAINS ITSELF — every step of Add product explains itself, 
   bare.type("add-repo", PRODUCT_WEB);
   await all(bare, "without a token");
   const told = said.join(" ");
-  for (const [what, words] of [["what a repository is", /A repository is/i], ["why the key has to be extended", /has to be added to it/i],
+  for (const [what, words] of [["what a repository is", /A repository is/i], ["why a new key replaces the old one", /needs a key that reaches it[\s\S]*new key replaces the old one/i],
     ["what the commit contains", /One click writes one commit/i], ["how to undo it", /revert/i],
     ["why the product list lives in this browser only", /product list lives in this browser only/i]]) assert.match(told, words, what);
 });
