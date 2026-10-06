@@ -5,10 +5,15 @@
 //
 // Route #add and #add/<address>. Every view function gets `app`, the page's context (dashboard-app.mjs); the step texts above
 // them are plain functions.
+//
+// The token pages are MOD-repository-hosts' (webLinks); Step C is MOD-artifact-edits' review layout (writes.mjs addProduct).
+// The address is read with the git host's parseProductAddress still: its product is what the settings' Check, the shell's
+// texts of a refusal, its link to a product and the GitLab steps below are given.
 
 import { canStore } from "../review-core.mjs";
 import { addProduct, clickAuthority } from "./writes.mjs";
-import { parseProductAddress, isGitLab, gitlabTokenPageUrl, tokenListUrl, requiredPermissions } from "../git-host.mjs";
+import { parseProductAddress, isGitLab, requiredPermissions } from "../git-host.mjs";
+import { parseAddress, connect } from "../../../src/repository-hosts/index.mjs";
 import {
   h, sharedOriginNotice, tokenLinkUrl, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, checkGitLab, reachLine,
   gitlabTokenProblem, today, GITHUB_PERMISSIONS, permissionLabel,
@@ -42,7 +47,8 @@ export function missingRepositoryHtml(repo) {
     <details class="explain"><summary>What is this?</summary><div>${EXPLAIN.newRepository(owner, name)}</div></details>`;
 }
 
-// UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the steps on the page gitlabTokenPageUrl (git-host.mjs) opens.
+// UC-001 3c · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the steps on the project's Access tokens page, which Step A opens
+// (MOD-repository-hosts webLinks, projectTokens).
 export function gitlabTokenSteps(product) {
   const GL = requiredPermissions(product).gitlab;
   return [
@@ -84,11 +90,12 @@ const EXPLAIN = {
   gitlabStore: `The token is saved in this browser only (its <code>localStorage</code>), under this product's address — never in
     a cookie, an address or a repository. It is sent only to this project's API on its own server, as a header: never to
     GitHub, another GitLab or the model endpoint. Settings shows it, tests it and clears it; <em>Export settings</em> moves it.`,
-  gitlabAdd: `One click writes one commit under the token's account into the GitLab project: the folders Agent M uses
-    (<code>docs/use-cases/</code>, <code>docs/approvals/</code>, <code>docs/spec-freigaben/</code>), an empty
-    <code>SPEC.md</code> and a <code>CHANGELOG.md</code> — only those that do not exist yet. It is an ordinary commit you
-    can see and revert on GitLab; if nothing is missing, nothing is committed. The project's address is kept in this
-    browser's list only; nothing is written into your instance.`,
+  gitlabAdd: `One click writes one commit under the token's account into the GitLab project's default branch: a short
+    <code>README.md</code> in each folder Agent M uses that holds no file yet (<code>docs/use-cases/</code>,
+    <code>docs/architecture/</code>, <code>docs/approvals/</code>, <code>docs/spec-freigaben/</code>), a <code>SPEC.md</code>
+    that says what a requirement is and holds none yet, and a <code>CHANGELOG.md</code> with its title — only what does not
+    exist yet. It is an ordinary commit you can see and revert on GitLab; if nothing is missing, nothing is committed. The
+    project's address is kept in this browser's list only; nothing is written into your instance.`,
   extend: `Your key was created for this instance only, on purpose: it can write nowhere else. A new product has to
     be added to it once. GitHub lets you change which repositories an existing key reaches; the key's text stays
     the same, so there is nothing to copy into Agent M. You can remove the product from the key again the same way.`,
@@ -103,10 +110,11 @@ const EXPLAIN = {
   check: `Agent M reads the product repository with your key. For a private repository, success proves the key
     reaches it. A public repository can be read by anyone, so there the proof comes with the first write in Step C —
     if the key does not reach it yet, Step C says so and nothing is written.`,
-  add: `One click writes one commit under your account into the product repository: the folders Agent M uses
-    (<code>docs/use-cases/</code>, <code>docs/approvals/</code>, <code>docs/spec-freigaben/</code>), an empty
-    <code>SPEC.md</code> and a <code>CHANGELOG.md</code> — only those that do not exist yet. It is an ordinary commit you
-    can see and revert on GitHub; if nothing is missing, nothing is committed.<br><br>
+  add: `One click writes one commit under your account into the product repository's default branch: a short
+    <code>README.md</code> in each folder Agent M uses that holds no file yet (<code>docs/use-cases/</code>,
+    <code>docs/architecture/</code>, <code>docs/approvals/</code>, <code>docs/spec-freigaben/</code>), a <code>SPEC.md</code>
+    that says what a requirement is and holds none yet, and a <code>CHANGELOG.md</code> with its title — only what does not
+    exist yet. It is an ordinary commit you can see and revert on GitHub; if nothing is missing, nothing is committed.<br><br>
     <strong>Why the product list lives in this browser only:</strong> the product's address is kept in this browser's
     storage, beside your key — nothing is written into your instance. So your fork never shows which products you
     work on, and it can be synced with Agent M without conflict. Another browser starts with an empty list; add the
@@ -117,8 +125,10 @@ const EXPLAIN = {
 function gitlabSteps(app, parsed) {
   const { T, store, stepHtml } = app;
   const stored = store.getGitLabToken(parsed.address);
+  // The project's Access tokens page, as MOD-repository-hosts names it for this project's address.
+  const tokens = connect(parseAddress(parsed.address)).webLinks().projectTokens;
   const a = stepHtml({ title: "Step A · Create a key for this project",
-    body: `<p><a class="btn primary" href="${h(gitlabTokenPageUrl(parsed))}" target="_blank" rel="noopener">Open Access tokens on ${h(parsed.host)} ↗</a></p>
+    body: `<p><a class="btn primary" href="${h(tokens)}" target="_blank" rel="noopener">Open Access tokens on ${h(parsed.host)} ↗</a></p>
       <p>On that page:</p>
       <ol class="choices">${gitlabTokenSteps(parsed).map((x) => `<li>${h(x)}</li>`).join("")}</ol>
       <details><summary>The page offers no project access tokens, or you are not Maintainer</summary><p>${h(gitlabNoProjectTokens(parsed))}</p></details>`,
@@ -201,8 +211,11 @@ async function viewAddProduct(app, preset = "") {
         <p id="add-result" class="muted">${!valid ? h(input.value.trim() ? parsed.error : "Paste the product repository's address above.") : !ghToken() ? "Store your key in Step B first." : ""}</p>`,
       explain: EXPLAIN.add });
     if (ghToken()) {
+      // The list of the person's tokens on GitHub, where the instance's token is extended: MOD-repository-hosts names it for any
+      // GitHub repository, so the instance's address gives it whatever the field holds.
+      const tokens = connect(parseAddress(`https://github.com/${T.instance}`)).webLinks().tokens;
       const a = stepHtml({ title: "Step A · Let your key reach the product",
-        body: `<p><a class="btn" href="${h(tokenListUrl())}" target="_blank" rel="noopener">Open your tokens on GitHub ↗</a></p>
+        body: `<p><a class="btn" href="${h(tokens)}" target="_blank" rel="noopener">Open your tokens on GitHub ↗</a></p>
           <p>On that page:</p>
           <ol class="choices">${extendTokenSteps(T.instance, product).map((s) => `<li>${h(s)}</li>`).join("")}</ol>`,
         explain: EXPLAIN.extend });
@@ -243,9 +256,10 @@ async function checkProduct(app, repo) {
 }
 
 // UC-001 Step C: the layout goes into the product repository; the address into this browser's list only. A GitLab
-// product is written with its own project token, a GitHub one with the instance's key.
+// product is written with its own project token, a GitHub one with the instance's key. The layout's commit names the
+// instance's owner as the person who added it; MOD-artifact-edits answers with the commit's SHA, not its address.
 function wireAddGo(app, parsed) {
-  const { store, noteRefusal, errorText, gitlabWriteRefusal, loadProducts, renderProductSelector, productHref } = app;
+  const { T, store, noteRefusal, errorText, gitlabWriteRefusal, loadProducts, renderProductSelector, productHref } = app;
   const ghToken = app.ghToken;
   document.getElementById("add-go").addEventListener("click", async (ev) => {
     const out = document.getElementById("add-result"), b = ev.currentTarget, repo = parsed.repo, gl = isGitLab(parsed);
@@ -253,12 +267,11 @@ function wireAddGo(app, parsed) {
     try {
       out.textContent = `Reading ${repo} and writing what is missing…`;
       const r = await addProduct({ address: parsed.address, token: gl ? store.getGitLabToken(parsed.address)?.token : ghToken(),
-        authority: clickAuthority(ev), store });
+        authority: clickAuthority(ev), store, person: T.instance.split("/")[0] });
       loadProducts();
       renderProductSelector();
-      out.innerHTML = `Done — ${r.commit
-        ? `<a href="${h(r.commit.url)}" target="_blank" rel="noopener">layout in ${h(repo)}</a>`
-        : "nothing was missing in the product"}; ${h(parsed.address)} is now in this browser's product list.
+      out.innerHTML = `Done — ${r.complete ? "nothing was missing in the product"
+        : `layout in ${h(repo)}, commit <code>${h(r.commit.slice(0, 7))}</code>`}; ${h(parsed.address)} is now in this browser's product list.
         <a class="btn primary" href="${h(productHref(parsed))}">Open ${h(repo)} →</a>`;
     } catch (e) {
       noteRefusal(e, gl ? parsed : null);
