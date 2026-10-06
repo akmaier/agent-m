@@ -691,11 +691,25 @@ that one project, with role *Maintainer* and scope `api`, and to paste it into A
 *Check:* `tests/review-core.test.mjs`
 
 **ONE GITHUB TOKEN SERVES EVERY FEATURE** *(PO A. Maier)*
-On GitHub, Agent M asks a person for one fine-grained token that carries every permission its
-features need on the repositories the person selects — *Contents*, *Issues* and *Pull requests* read
-and write, *Actions* and *Workflows* read and write, *Metadata* read.
+On GitHub, each token Agent M asks a person for — the instance's and each product's — is one fine-grained token that
+carries every permission its features need on its repositories — *Contents*, *Issues* and *Pull requests* read and write,
+*Actions* and *Workflows* read and write, *Metadata* read.
 *Check:* `tests/test_token_scope_documented.py` — the prefilled link asks for exactly these
-permissions.
+permissions; `tests/dashboard-review-flows.test.mjs` — so does the link for a product's token.
+
+**A GITHUB PRODUCT USES A TOKEN OF ITS OWN** *(PO A. Maier)*
+For a product on GitHub, Agent M guides the person to create a fine-grained token whose only repository is the product's,
+and to paste it into Agent M.
+*Check:* `tests/dashboard-review-flows.test.mjs` — Step A of *+ Add product* names the product repository as the only one to
+select, and after *Store and check* the product is read with that token while the instance's token is unchanged;
+counter-proof: a Step A that also names the instance fails.
+
+**A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT** *(PO A. Maier)*
+The token page Agent M opens for a product on GitHub is prefilled with a name and a description built from the product
+repository's name.
+*Check:* `tests/dashboard-review-flows.test.mjs` — the link of Step A carries the product repository's name in the token's
+name and description, within GitHub's limits of 40 and 1024 characters; counter-proof: the instance's name and description
+fail.
 
 **THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS** *(PO A. Maier)*
 The jump host's name, SSH user, port range, HTTPS address and web-server login, and for each remote
