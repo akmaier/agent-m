@@ -78,7 +78,8 @@ It keeps, for as long as a host it returned is used, the texts of the blobs it h
 page reads each blob once. It keeps nothing beyond that, and nothing in any store.
 
 The **token page** it links for GitHub is the page for a new fine-grained token, prefilled with name, description and
-expiry, and with exactly the permissions of `ONE GITHUB TOKEN SERVES EVERY FEATURE` — *Contents*, *Issues* and *Pull
+expiry, with the repository's owner as the token's owner — GitHub limits a token to the repositories of one owner —, and
+with exactly the permissions of `ONE GITHUB TOKEN SERVES EVERY FEATURE` — *Contents*, *Issues* and *Pull
 requests* read and write, *Actions* and *Workflows* read and write, *Metadata* read (`THE TOKEN LINK IS PREFILLED`); the
 repositories to select are named beside the link, not in it (`THE REPOSITORY CHOICE IS SPELLED OUT`). For a product on a
 GitLab server it links the project's *Access tokens* page, where the person creates a project access token with role

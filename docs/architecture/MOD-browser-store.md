@@ -53,7 +53,8 @@ instances in one browser never share an entry. Each value is JSON. The settings 
 
 | Key after the prefix | Holds | Secret |
 |---|---|---|
-| `github-token` | `{ value, name, expires, stored }` — the one GitHub token and the expiry the person confirmed | yes |
+| `github-token` | `{ value, name, expires, stored }` — the instance's GitHub token and the expiry the person confirmed | yes |
+| `github-token:<owner>/<repository>` | `{ value, name, expires, stored }` — the fine-grained token of one GitHub product (`A GITHUB PRODUCT USES A TOKEN OF ITS OWN`) | yes |
 | `gitlab-token:<server>/<project>` | `{ value, name, expires, stored }` — the project access token of one GitLab product | yes |
 | `products` | the addresses of the products this browser manages (`THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER`) | no |
 | `endpoint:<name>` | `{ url, kind, model, key?, throughBridge }` — a model endpoint | the key |

@@ -70,10 +70,11 @@ leaves the licence of every product to the person.
 7. **Step A · Create your key on GitHub.** A button opens GitHub's token page with name, description,
    expiry and the permissions every feature of Agent M needs prefilled — *Contents*, *Issues* and *Pull
    requests* read and write, *Actions* and *Workflows* read and write, *Metadata* read — so that one key
-   is all the person ever creates. A folded **Why these?** says what each is for: Contents to save and
+   serves every feature of the instance. A folded **Why these?** says what each is for: Contents to save and
    accept, Issues for reports that become issues, Pull requests for the jobs' changes, Actions to start a
    run, Workflows for a generated CI configuration. Underneath, what to do there: choose **Only
-   select repositories**, pick **`<owner>/agent-m`** — only the instance, products come later —,
+   select repositories**, pick **`<owner>/agent-m`** — only the instance; each product gets a key of its own when it is added
+   (UC-001) —,
    press *Generate token*, copy it.
 8. **Step B · Give the key to Agent M.** The dashboard states that everything stored in this browser
    can be read by every other Pages site of the same owner; the person ticks *I have read this*,
@@ -132,7 +133,7 @@ sequenceDiagram
 
 - The person has a dashboard at their own address, served from the root of their fork's default branch; no
   server was set up.
-- One token, limited to the instance repository, is stored in this browser. Adding a product later
-  extends this token; it never needs a second one.
+- One token, limited to the instance repository, is stored in this browser. Each product added later
+  gets a token of its own (UC-001); this one stays limited to the instance.
 - The fork also carries Agent M's own specification and use cases; the person does not have to
   review them.

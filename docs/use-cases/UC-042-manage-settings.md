@@ -38,7 +38,7 @@ changes it, or removes it, without hunting through the use cases in which it was
 
 | Kept in | Settings | First set up in |
 |---|---|---|
-| **this browser** | GitHub token; GitLab project token per product; model endpoints with their keys; bridge address and token; mailbox connection — route, app client ID and sign-in token, or servers and password — with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the jump host — hostname, SSH user, port range, HTTPS address and web-server login — and each remote session's name, port and bridge token; the paired Agent M Bridge (UC-044); list of products | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038 |
+| **this browser** | the instance's GitHub token; a token per product — a fine-grained token on GitHub, a project access token on GitLab; model endpoints with their keys; bridge address and token; mailbox connection — route, app client ID and sign-in token, or servers and password — with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the jump host — hostname, SSH user, port range, HTTPS address and web-server login — and each remote session's name, port and bridge token; the paired Agent M Bridge (UC-044); list of products | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038 |
 | **the instance repository** | participants; source library; process models; the instance's resources | UC-017, UC-004, UC-031, UC-040 |
 | **each product's repository** | process model and roles; Definition of Done; test schedule; linked sources; resources; **pseudonymisation**; **collaborators** who agreed to be named | UC-002, UC-027, UC-015, UC-040, this use case |
 
@@ -120,7 +120,8 @@ sequenceDiagram
 ## Alternative flows
 
 - **1a. A token expires within fourteen days.** Every dashboard page shows a line *Your GitHub token
-  expires on …* with **Renew**; it opens GitHub's page of that token, where *Regenerate token* keeps its
+  expires on …* with **Renew** — a product's pages the same line for the product's own token —; it opens
+  GitHub's page of that token, where *Regenerate token* keeps its
   permissions and repositories, and the paste field for the new value.
 - **1b. A server refused a token.** The line says which token, and **Renew** as in 1a; for a GitLab
   project token, the project's *Access tokens* page.
