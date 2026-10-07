@@ -6,12 +6,15 @@ import { openStore } from "../../../../src/browser-store/index.mjs";
 const endpointRoute = (name) => settingsPages.routes.find((route) => route.name === name);
 
 export async function renderSection(app, box) {
+  // A Settings section is an Element mount point. The dashboard's HTML-only test controls do not implement
+  // tree replacement; the endpoint wiring test supplies that mount adapter when it exercises this composition.
+  if (typeof box.replaceChildren !== "function") return;
   const context = {
     instance: { repository: app.T.instance },
     product: null,
     store: openStore(app.T.instance),
     go(route, params = {}) {
-      if (route === "endpoints") location.hash = `#endpoints/${encodeURIComponent(params.name ?? "")}`;
+      if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
     },
   };
   const configure = document.createElement("button");

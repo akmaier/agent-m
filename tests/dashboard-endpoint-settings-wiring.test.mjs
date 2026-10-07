@@ -30,11 +30,16 @@ const ENDPOINT = {
 // Precondition: this dashboard browser already stores one direct endpoint under MOD-browser-store's instance key.
 // Input: the author opens the dashboard's public Settings entry.
 // Expected: the Settings page retains the legacy browser and notification areas and renders the endpoint slice in its own
-//           endpoints container, where the stored endpoint is reachable for UC-003.
+//           endpoints container, where the creation and named-edit controls reach the public UC-003 route.
 test("TST-290: Settings composes the stored endpoint slice beside legacy browser settings", async () => {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries: { [ENDPOINT_KEY]: JSON.stringify(ENDPOINT) } });
   const dom = richDocument();
+  const main = dom.byId("main"), findSection = main.querySelector.bind(main);
+  let endpoints = [];
+  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]'
+    ? { replaceChildren(...children) { endpoints = children; } }
+    : findSection(selector);
 
   await page.go("#settings");
 
@@ -42,9 +47,13 @@ test("TST-290: Settings composes the stored endpoint slice beside legacy browser
   assert.match(html, /<div id="browser-settings"><\/div>/, "UC-001 browser settings remain on Settings");
   assert.match(html, /<div class="panel" id="notifications-settings"><\/div>/, "UC-047 notifications remain on Settings");
   assert.match(html, /<section class="panel" data-settings-section="endpoints">/, "the endpoint slice has its dedicated Settings container");
-  const endpoints = dom.byId("main").querySelector('[data-settings-section="endpoints"]');
-  assert.match(endpoints.innerHTML, /Endpoint: campus/, "the public endpoint settings route reaches the stored endpoint");
-  assert.match(endpoints.innerHTML, /tiny-model/, "the endpoint slice reads the canonical browser-store record");
+  assert.equal(endpoints.length, 2, "the adapter received the section's creation control and public route target");
+  assert.match(endpoints[1].textContent, /Endpoint: campus/, "the public endpoint settings route reaches the stored endpoint");
+  assert.match(endpoints[1].textContent, /tiny-model/, "the endpoint slice reads the canonical browser-store record");
+  await endpoints[0].fire("click");
+  assert.equal(globalThis.location.hash, "#endpoints", "creation delegates to the public endpoint route without parameters");
+  await endpoints[1].querySelector("button.settings-endpoint-change").fire("click");
+  assert.equal(globalThis.location.hash, "#endpoints/campus", "named editing delegates with the endpoint name only");
 });
 
 // TST-291

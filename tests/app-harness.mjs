@@ -148,23 +148,17 @@ let focusedOne = null;
 
 function control(tag) {
   const listeners = [], sink = { textContent: "", innerHTML: "", hidden: false, disabled: false };
-  let children = null, html = "";
   const dataset = {};
   for (const m of tag.matchAll(/\sdata-([\w-]+)(?:="([^"]*)")?/g)) {
     dataset[m[1].replace(/-(\w)/g, (_, c) => c.toUpperCase())] = (m[2] ?? "").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
   }
-  const c = { tag, dataset, disabled: /\sdisabled\b/.test(tag), checked: /\schecked\b/.test(tag), textContent: "",
+  const c = { tag, dataset, disabled: /\sdisabled\b/.test(tag), checked: /\schecked\b/.test(tag), textContent: "", innerHTML: "",
     value: "", hidden: false,
     addEventListener(type, f) { listeners.push([type, f]); },
     fire(type, ev) { for (const [t, f] of listeners) if (t === type) f({ ...ev, currentTarget: c, target: c }); },
-    replaceChildren(...items) { children = items; },
     closest() { return c; }, querySelector: () => sink, querySelectorAll: () => [], focus() { focusedOne = c; },
     // An attribute of its tag, as a browser's element answers it (the settings page finds a remote session's line this way).
     getAttribute: (name) => attrOf(tag, name) };
-  Object.defineProperty(c, "innerHTML", {
-    get() { return children ? children.map(domHtml).join("") : html; },
-    set(value) { children = null; html = String(value); },
-  });
   return c;
 }
 function find(html, sel, found) {
