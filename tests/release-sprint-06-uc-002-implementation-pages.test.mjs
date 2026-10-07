@@ -2,7 +2,8 @@
 // realises, through the route How this product is developed as the dashboard reaches it — docs/assets/dashboard/
 // process-view.mjs's routes.process(app) —, over two fixture repositories behind MOD-repository-hosts' real connect(): an
 // instance and a product. Every expected result is the requirement's own; where the page disagrees, the test follows the
-// requirement and is marked todo with its FINDING.
+// requirement and is marked todo with its FINDING. ITM-223's findings F2 and F3, which ITM-240 settles, and F8, which the
+// SPEC settles as accepted in 617988d, are no longer marked (ITM-242).
 //
 // Written by tester-opus (claude-opus-5-5), the release tester, who implemented none of the behaviour tested here.
 //
@@ -583,18 +584,14 @@ function rowsOf(text, heading) {
 const valueOf = (text, key) => new RegExp(`^${key}: (.*)$`, "m").exec(text)?.[1];
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// ---------------------------------------------------------------- the findings: where the page does not do what a requirement says
-
-const F2 = "FINDING ITM-223-F2 — the page lists the phases and the gates, but neither the transitions between the phases nor which phases pair for verification (backlog item to be added by the Product Owner)";
-const F3 = "FINDING ITM-223-F3 — a branch the sprint is given is listed as \"Sprint: sprint/<nn>\" only; no gate at its end — merging it into the default branch, decided by the Product Owner after the review of the increment — is shown (backlog item to be added by the Product Owner)";
-const F8 = "FINDING ITM-223-F8 — the preset Definition of Done holds a fifth condition beyond the job rules, \"every new test names a requirement and a module\" (backlog item to be added by the Product Owner)";
-
-// The job rules, as THE DEFAULT DEFINITION OF DONE IS THE JOB RULES states them, each by the words any wording of it holds.
+// The job rules, as THE DEFAULT DEFINITION OF DONE IS THE JOB RULES states them as accepted in 617988d — five conditions,
+// the second with its alternative for a refactoring job —, each by the words any wording of it holds.
 const JOB_RULES = {
   "its CI run is green": [/\bCI( run)? is green/],
-  "the job's first commit held only failing tests": [/first commit/, /tests/, /fail|red/],
-  "for a refactoring job, CI was green on every commit and no expected result changed": [/refactoring/, /green on every commit/, /expected result/],
+  "the job's first commit held only failing tests — or, for a refactoring job, CI was green on every commit and no expected result changed":
+    [/first commit/, /tests/, /fail|red/, /refactoring/, /green on every commit/, /expected result/],
   "it changes only the job's modules": [/job['’]s modules/],
+  "every new test names the requirement it guards and the module it exercises": [/new test/, /requirement/, /module/],
   "every gate the workflow places before the merge is recorded": [/gate/, /merge/, /recorded/],
 };
 // The conditions the page shows as the Definition of Done: the entries below its heading.
@@ -708,7 +705,7 @@ test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the mode
 //        Assemble; its first and its last phase paired for verification, Outline checked by Handover
 // input: routes.process(app)
 // expect: the workflow shows the transitions between the phases and which phases pair for verification
-test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the model's transitions and its verification pairs", { todo: F2 }, async (t) => {
+test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the model's transitions and its verification pairs", async (t) => {
   const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW },
     product: { "docs/process.md": labFlowDeclaration({ roles: [["Steward", "alice"]] }) } });
 
@@ -908,7 +905,8 @@ test("A PRODUCT DECLARES ITS DEFINITION OF DONE: a condition the author adds is 
 // input: the author chooses Kanban
 // expect: the Definition of Done shown is the job rules: CI green; the job's first commit held only failing tests — for a
 //         refactoring job, CI green on every commit and no expected result changed —; only the job's modules changed;
-//         every gate before the merge recorded
+//         every new test names the requirement it guards and the module it exercises; every gate before the merge
+//         recorded
 test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, the Definition of Done shown is the job rules", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "kanban");
@@ -920,8 +918,11 @@ test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, th
 // Guards: THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
 // given: a product without a declaration
 // input: the author chooses Kanban
-// expect: every condition the Definition of Done shows is one of the job rules
-test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, no condition beyond the job rules", { todo: F8 }, async (t) => {
+// expect: every condition the Definition of Done shows is one of the five job rules: CI green; the job's first commit held
+//         only failing tests — for a refactoring job, CI green on every commit and no expected result changed —; only the
+//         job's modules changed; every new test names the requirement it guards and the module it exercises; every gate
+//         before the merge recorded
+test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, no condition beyond the job rules", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "kanban");
 
@@ -952,7 +953,7 @@ test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: the sprint is given a 
 // input: routes.process(app)
 // expect: merging the sprint's branch into the default branch is shown as the gate at the sprint's end, decided by the
 //         role Scrum names for it, the Product Owner, after the review of the increment
-test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: merging the branch into the default branch is the gate at its end, decided by the Product Owner after the review", { todo: F3 }, async (t) => {
+test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: merging the branch into the default branch is the gate at its end, decided by the Product Owner after the review", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({
     roles: [["Product Owner", "alice"]], branches: [["Sprint", "sprint/<nn>"]] }) } });
 
