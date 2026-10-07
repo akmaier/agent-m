@@ -312,3 +312,75 @@ test("TST-265013: Settings explains its browser section and each stored endpoint
   assert.match(browserExplanation[0].textContent, /Bridge/);
   assert.match(lineExplanation[0].textContent, /short test request/);
 });
+
+// TST-265014
+// Module: MOD-settings-pages
+// Level: unit
+// guards: THE PAGE STATES WHAT IT SENDS WHERE; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: a stored direct endpoint in the public Settings Route
+// input: the person reads its line before pressing Test
+// expect: the line discloses the stored destination and what the request sends before its Test control
+test("TST-265014: Settings discloses an endpoint Test destination before its control", async () => {
+  const store = freshStore();
+  writeSetting(store, "endpoint:campus", ENDPOINT);
+  const target = await renderSettings(store);
+  const line = byClass(target, "settings-endpoint")[0];
+  const disclosure = byClass(line, "settings-endpoint-disclosure")[0];
+  const action = byClass(line, "settings-endpoint-test")[0];
+  const ordered = descendants(line, (node) => node === disclosure || node === action);
+  assert.match(disclosure.textContent, new RegExp(ENDPOINT.url));
+  assert.match(disclosure.textContent, /short test request/);
+  assert.match(disclosure.textContent, /authorisation header/);
+  assert.ok(ordered.indexOf(disclosure) >= 0 && ordered.indexOf(disclosure) < ordered.indexOf(action), "the disclosure precedes Test");
+});
+
+// TST-265015
+// Module: MOD-settings-pages
+// Level: unit
+// guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CLEAR IS A REAL CLEAR
+// given: a stored direct endpoint and another endpoint with independent test metadata
+// input: the person tests campus successfully, reloads Settings, then clears campus
+// expect: the successful result and date persist on campus, then Clear removes campus and its metadata only
+test("TST-265015: Settings persists a successful endpoint test and clears its metadata", async () => {
+  const store = freshStore(), oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:campus", ENDPOINT);
+  writeSetting(store, "endpoint:local", BRIDGED);
+  writeSetting(store, "last-test:endpoint:local", { at: "2026-10-07T10:00:00.000Z", outcome: "working" });
+  globalThis.fetch = scripted([{ status: 200, body: { choices: [] } }], []);
+  try {
+    let target = await renderSettings(store);
+    await click(byClass(target, "settings-endpoint-test")[0]);
+    const recorded = readSetting(store, "last-test:endpoint:campus");
+    assert.equal(recorded.outcome, "working");
+    assert.ok(Number.isFinite(Date.parse(recorded.at)), "the successful test keeps an ISO date");
+    target = await renderSettings(store);
+    assert.match(target.textContent, /works/i);
+    assert.match(target.textContent, new RegExp(recorded.at));
+    const campus = byClass(target, "settings-endpoint").find((line) => /Endpoint: campus/.test(line.textContent));
+    await click(byClass(campus, "settings-endpoint-clear")[0]);
+    assert.equal(readSetting(store, "endpoint:campus"), null);
+    assert.equal(readSetting(store, "last-test:endpoint:campus"), null);
+    assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED);
+    assert.deepEqual(readSetting(store, "last-test:endpoint:local"), { at: "2026-10-07T10:00:00.000Z", outcome: "working" });
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-265016
+// Module: MOD-settings-pages
+// Level: unit
+// guards: EVERY SETTING IS REACHED FROM ONE PAGE
+// given: one endpoint that has never been tested and one whose test was refused
+// input: the person opens the public Settings Route
+// expect: the lines state the accepted not-set and refused outcomes without exposing either key
+test("TST-265016: Settings identifies untested and refused endpoint states", async () => {
+  const store = freshStore();
+  writeSetting(store, "endpoint:new", ENDPOINT);
+  writeSetting(store, "endpoint:refused", { ...ENDPOINT, key: "other-secret" });
+  writeSetting(store, "last-test:endpoint:refused", { at: "2026-10-07T10:00:00.000Z", outcome: "refused" });
+  const target = await renderSettings(store);
+  const pending = byClass(target, "settings-endpoint").find((line) => /Endpoint: new/.test(line.textContent));
+  const refused = byClass(target, "settings-endpoint").find((line) => /Endpoint: refused/.test(line.textContent));
+  assert.match(pending.textContent, /not set/i);
+  assert.match(refused.textContent, /refused/i);
+  assert.equal(target.textContent.includes("other-secret"), false);
+});
