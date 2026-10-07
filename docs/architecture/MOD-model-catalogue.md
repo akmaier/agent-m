@@ -57,12 +57,12 @@ It keeps nothing beyond its shipped data files. It owns two formats.
 |---|---|
 | front matter | `name`; `kind` (`planned` or `pulled`); `adapted_from` (the model it was adapted from, if any); `measure` (`plan entries per phase`, `remaining items per time box` or `items per state over time`) |
 | `## About` | optional, before `## Phases`: the lines `manages:` — the risk the model manages well —, `accepts:` — the risk it accepts —, `example:` — an example project it suits — and `chapter:` — the chapter of the book that explains it |
-| `## Phases` | a table: `Name`, `Role`, `Produces` (the kinds of artifact, among requirements, `UC`, `ARC`, `MOD`, `TST`, `ITM`, sprint record) |
+| `## Phases` | a table: `Name`, `Role`, `Produces` (the kinds of artifact, among requirements, `UC`, `ARC`, `MOD`, `TST`, `ITM`, sprint record; a kind may be followed by an explanation in parentheses, which no check reads) |
 | `## Transitions` | a table: `From`, `To`, `Kind` (`sequence`, `alternative`, `back`) |
 | `## Verification pairs` | a table: `Phase`, `Checked by` |
 | `## Gates` | a table: `Between` (`<phase> → <phase>`), `Artifacts`, `Condition`, `Decider` (a role of the model, or `check: <CI check name>`) |
 | `## Roles` | a table: `Name`, `Filled by` (`person`, `agent` or `either`), `Capabilities` |
-| `## Flow control` | for `pulled` only, a table `Kind`, `Value` with the rows `WIP limit`, `Time box`, `Sprints` |
+| `## Flow control` | for `pulled` only, a table `Kind`, `Value` with the rows `WIP limit`, `Time box`, `Sprints`; the value `none` of `WIP limit` or `Time box` means the model sets none |
 
 Free text may stand between the title and the first section. A shipped model's file is in exactly this format; an
 instance's model adapted from another names it in `adapted_from`. Every shipped model has `## About`, taken from the
