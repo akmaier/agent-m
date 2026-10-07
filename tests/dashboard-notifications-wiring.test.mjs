@@ -22,10 +22,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repoServer, openDashboard, richDocument, press, settle, REPO } from "./app-harness.mjs";
+import { repoServer, openDashboard, richDocument, press, settle, REPO, TOKEN } from "./app-harness.mjs";
 
 const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the instance (store.mjs prefixOf)
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
+const API = "https://api.github.com"; // GitHub's REST API host (src/repository-hosts/github.mjs) — ITM-238 F2's tests below
 
 // Notification "granted", a worker that registers, setInterval/clearInterval that only record their calls — never a
 // real timer. restore() puts back exactly what was there before (notifications.test.mjs's own installBrowser, trimmed
@@ -174,6 +175,108 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
     const after = JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notifications`));
     assert.notEqual(after.checked, stale,
       "a real check ran through MOD-browser-store's store of the instance, and recorded its own time");
+  } finally {
+    browser.restore();
+    if (hadDocument) globalThis.document = priorDocument; else delete globalThis.document;
+    if (hadLocation) globalThis.location = priorLocation; else delete globalThis.location;
+    globalThis.localStorage = priorLocalStorage;
+    globalThis.fetch = priorFetch;
+  }
+});
+
+// ---------------------------------------------------------------- ITM-238 F1 and F2 fixed (UC-047)
+//
+// A further change between jobs, sprint 08 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS; docs/backlog/
+// sprints/08.md, "now, before ITM-243"): two findings against the wiring above are fixed — settings-view.mjs showed
+// *Notifications* as its own section beside "This browser", not inside it (F1); and dashboard-app.mjs and home.mjs
+// connected the instance's host, for the checks, with MOD-browser-store's own "github-token" setting, which nothing
+// in the repository ever writes, in place of the dashboard's real, stored GitHub token — settings-store.mjs's
+// store.getToken(), used everywhere else, as docs/assets/dashboard/process-view.mjs's own connect() already does
+// (F2). These three tests are this change's own proof, reached the same way the tests above reach these pages.
+// ITM-238's own system test (tests/system-uc-047-be-told-what-waits-for-your-acceptance.test.mjs) still marks F1 and
+// F2 todo; ITM-243 removes those marks, not this change.
+
+// given: a fresh browser (nothing stored)
+// input: opening #settings
+// expect (F1 fixed): the Notifications box sits inside the section "This browser", beside #browser-settings — the
+//         box of that section's other lines — not as a section of its own, beside "This browser"
+test("ITM-238 F1 fixed: the Notifications box sits inside the section This browser, beside #browser-settings", async () => {
+  const server = await repoServer({ files: {} });
+  const browser = installBrowser();
+  try {
+    const page = await openDashboard({ server, hash: "#settings" });
+    const html = page.main();
+    const h3At = html.indexOf("<h3>This browser</h3>");
+    assert.ok(h3At >= 0, "the section This browser is on the page");
+    const sectionCloseAt = html.indexOf("</section>", h3At);
+    const browserSettingsAt = html.indexOf('id="browser-settings"', h3At);
+    const notificationsAt = html.indexOf('id="notifications-settings"');
+    assert.ok(browserSettingsAt >= 0 && browserSettingsAt < sectionCloseAt, "#browser-settings is in that same section");
+    assert.ok(notificationsAt >= 0 && notificationsAt < sectionCloseAt,
+      "the Notifications box is inside the section This browser, before its own closing tag — beside #browser-settings");
+
+    const box = richDocument().byId("notifications-settings");
+    assert.match(box.innerHTML, /<h3>Notifications<\/h3>/, "the box is the live Notifications panel, not an empty placeholder");
+  } finally { browser.restore(); }
+});
+
+// given: the dashboard's own stored GitHub token (openDashboard's default), notifications on and due
+// input: opening a review page (#uc)
+// expect (F2 fixed): every request the page makes to the instance's API — the content it shows and the check alike
+//         — carries the dashboard's own stored token (settings-store.mjs's store.getToken(), this page's ghToken()),
+//         never MOD-browser-store's separate, never-written "github-token" setting
+test("ITM-238 F2 fixed: the review pages' check connects the instance with the dashboard's own stored token", async () => {
+  const seenAuth = [];
+  const browser = installBrowser();
+  const server = await repoServer({ files: {}, handlers: [
+    (url, init) => { if (url.origin === API) seenAuth.push(init.headers?.Authorization ?? null); return undefined; },
+  ] });
+  try {
+    await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: minutesAgo(6) }) } });
+    assert.ok(seenAuth.length > 0, "the page made at least one request to the instance's API");
+    assert.ok(seenAuth.every((a) => a === `Bearer ${TOKEN}`),
+      "every request — the page's own content and the check alike — carried the dashboard's stored token; none was unauthenticated");
+  } finally { browser.restore(); }
+});
+
+// given: the same main-page environment as "the main page starts…" above, with the dashboard's own stored GitHub
+//        token and notifications due
+// input: importing src/home/home.mjs fresh
+// expect (F2 fixed): every request the main page makes to the instance's API carries the dashboard's own stored
+//         token — the same fix as the review pages' above, at home.mjs's own call site
+test("ITM-238 F2 fixed: the main page's check also connects the instance with the dashboard's own stored token", async () => {
+  const seenAuth = [];
+  const server = await repoServer({ files: {}, handlers: [
+    (url, init) => { if (url.origin === API) seenAuth.push(init.headers?.Authorization ?? null); return undefined; },
+  ] });
+  const browser = installBrowser();
+  const stale = minutesAgo(6);
+  const priorDocument = "document" in globalThis ? globalThis.document : undefined, hadDocument = "document" in globalThis;
+  const priorLocation = "location" in globalThis ? globalThis.location : undefined, hadLocation = "location" in globalThis;
+  const priorLocalStorage = globalThis.localStorage, priorFetch = globalThis.fetch;
+  Object.defineProperty(globalThis, "document", { value: fakeMainPageDom(), configurable: true, writable: true });
+  Object.defineProperty(globalThis, "location", {
+    value: { hostname: "akmaier.github.io", pathname: "/agent-m/", href: "https://akmaier.github.io/agent-m/" },
+    configurable: true, writable: true,
+  });
+  const mem = new Map([
+    [`${PREFIX}notifications`, JSON.stringify({ checked: stale })],
+    ["agent-m.github-token", TOKEN],
+  ]);
+  Object.defineProperty(globalThis, "localStorage", {
+    value: {
+      getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => { mem.set(k, String(v)); }, removeItem: (k) => { mem.delete(k); },
+      get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null,
+    },
+    configurable: true, writable: true,
+  });
+  globalThis.fetch = server.fetch;
+  try {
+    await import(new URL(`../src/home/home.mjs?load=${Date.now()}`, import.meta.url));
+    await settle(server);
+    assert.ok(seenAuth.length > 0, "the main page made at least one request to the instance's API");
+    assert.ok(seenAuth.every((a) => a === `Bearer ${TOKEN}`),
+      "every request the main page made carried the dashboard's stored token; none was unauthenticated");
   } finally {
     browser.restore();
     if (hadDocument) globalThis.document = priorDocument; else delete globalThis.document;
