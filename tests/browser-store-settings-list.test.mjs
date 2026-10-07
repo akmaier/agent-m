@@ -138,3 +138,39 @@ test("TST-274 listSettings isolates an instance and only reads its known storage
   assert.equal(cookies.value, "", "listing writes no cookie");
   assert.equal(requestCount, 0, "listing makes no network request");
 });
+
+// TST-275 · level: unit · module: MOD-browser-store
+// guards: UC-003; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
+// given: two instance stores, a secret endpoint and the first instance's stored last-test record
+// input: listSettings(first), then clearSetting(first, endpoint) and listSettings(first) again
+// expect: the stored last-test setting has exactly SettingInfo's seven fields without either stored value or the endpoint secret, stays isolated, and remains listed after the endpoint is cleared
+test("TST-275 listSettings lists a stored last-test setting without exposing values and preserves it after endpoint clear", () => {
+  install(memoryStorage());
+  const first = openStore(INSTANCE);
+  const second = openStore("other/instance");
+  const endpoint = "endpoint:campus";
+  const lastTest = `last-test:${endpoint}`;
+  const endpointSecret = "endpoint-secret-that-must-not-be-listed";
+  const recordedAt = "2026-10-07T12:00:00.000Z";
+  const recordedOutcome = "working";
+
+  writeSetting(first, endpoint, { url: "https://models.example.test/v1", kind: "openai-compatible", model: "campus-1", key: endpointSecret, throughBridge: false });
+  writeSetting(first, lastTest, { at: recordedAt, outcome: recordedOutcome });
+  writeSetting(second, "last-test:endpoint:other", { at: "2026-10-07T13:00:00.000Z", outcome: "refused" });
+
+  const beforeClear = byKey(listSettings(first));
+  assert.ok(beforeClear.has(lastTest), "the implemented last-test family is listed");
+  assertSettingInfo(beforeClear.get(lastTest), lastTest);
+  assert.equal(beforeClear.get(lastTest).secret, false);
+  assert.equal(beforeClear.get(lastTest).expires, null);
+  assert.equal(beforeClear.get(lastTest).lastTest, null, "the listing returns no raw last-test record");
+  assert.equal(JSON.stringify([...beforeClear.values()]).includes(endpointSecret), false, "the endpoint credential is not returned in list metadata");
+  assert.equal(JSON.stringify([...beforeClear.values()]).includes(recordedAt), false, "the last-test timestamp is not returned in list metadata");
+  assert.equal(JSON.stringify([...beforeClear.values()]).includes(recordedOutcome), false, "the last-test outcome is not returned in list metadata");
+  assert.equal(beforeClear.has("last-test:endpoint:other"), false, "another instance's last-test setting is not listed");
+
+  clearSetting(first, endpoint);
+  const afterClear = byKey(listSettings(first));
+  assert.ok(afterClear.has(lastTest), "clearing an endpoint preserves and continues to list its last-test setting");
+  assertSettingInfo(afterClear.get(lastTest), lastTest);
+});
