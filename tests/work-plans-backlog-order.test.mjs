@@ -20,14 +20,22 @@
 // (tests/documents-findings.test.mjs, the participants fixture) — the same mechanism this schema uses, only its own
 // shape and rule.
 //
-// The third test reads this repository's own docs/backlog/order.md as it stands. Its gate in sprint 07
-// (docs/gates/20261007-0820-development-release-testing-80de.md) rejected an earlier attempt whose expected result was a
-// fixed list of the rows the order held that day: it broke as soon as the order gained one. Here the expected result is
-// derived from the same file's table, read a second, independent way — never a list of today's rows — so that a row
-// added to the order keeps this test green.
+// The third test reads this repository's own docs/backlog/order.md as it stands, and was rejected twice before this
+// read it right:
+// - first (docs/gates/20261007-0820-development-release-testing-80de.md), for comparing the reading with a fixed list
+//   of the rows the order held that day: it broke as soon as the order gained one;
+// - then (docs/gates/20261007-1930-development-release-testing-2d95.md), after that list was replaced by a second,
+//   independent reading of the same table, for a known positive that named a row of today's order, ITM-209, which
+//   failed the test on an order without that row even though the order was still read right.
+// Here the comparison against the live file carries no assumption beyond the equality itself — not a list of today's
+// rows, and not that a particular row stands among them, or that any stand at all — so it holds whatever rows the
+// order holds; the known positive instead runs the independent reading on a synthetic table, the same orderOf(...)
+// every test above reads, which proves that reading is not itself vacuously broken without depending on the live
+// file's content.
 //
 // Each test states its input and its expected result before it runs (given / input / expect); where a test asserts that
-// something is found, the same call is first shown to find nothing on a known positive. Nothing reaches the network. The
+// something is found, the same call is first shown to find nothing, or the independent reading below to find something,
+// on a known positive that does not depend on this repository's own backlog. Nothing reaches the network. The
 // counter-proofs are recorded in the pull request.
 
 import test from "node:test";
@@ -105,16 +113,17 @@ test("planSchemas.backlogOrder — a row whose cell is no item's identifier is n
 // ---------------------------------------------------------------- planSchemas.backlogOrder: this repository's own backlog
 
 // guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; UC-032
-// given: this repository's own docs/backlog/order.md, as it stands on disk; known positive first — the independent
-//        pattern above finds this item's own row, ITM-209, so neither side of the comparison below can pass by both
-//        coming back empty
-// input: readRegister(planSchemas.backlogOrder, "docs/backlog/order.md", its text).rows, each row's cell Item; the same
-//        text read by rowsOfTheRealTable
-// expect: the same items, in the same order — whatever rows the file holds today, since both sides read the live file
+// given: known positive first — a synthetic order of three items, the same form every test above reads, so the
+//        independent reading is shown correct before it is trusted on the live file; then this repository's own
+//        docs/backlog/order.md, as it stands on disk, whatever rows it holds
+// input: rowsOfTheRealTable on the synthetic order; readRegister(planSchemas.backlogOrder, "docs/backlog/order.md", its
+//        text).rows, each row's cell Item, and the same text read by rowsOfTheRealTable
+// expect: the synthetic order's three items, in their order; then the same items from both readings of the live file,
+//         in the same order — whatever rows it holds today, since neither assertion assumes a row, or any row, stands
 test("planSchemas.backlogOrder — the order of this repository's own backlog is read as the items of its table, in their order", () => {
+  assert.deepEqual(rowsOfTheRealTable(orderOf("ITM-203", "ITM-204", "ITM-205")), ["ITM-203", "ITM-204", "ITM-205"],
+    "known positive — the independent reading finds a synthetic table's rows");
   const text = readFileSync(REAL_ORDER, "utf8");
-  const wanted = rowsOfTheRealTable(text);
-  assert.ok(wanted.includes("ITM-209"), "known positive — the independent pattern finds this item's own row");
   const { rows } = readRegister(planSchemas.backlogOrder, ORDER_PATH, text);
-  assert.deepEqual(rows.map((row) => row.cells.Item), wanted);
+  assert.deepEqual(rows.map((row) => row.cells.Item), rowsOfTheRealTable(text));
 });
