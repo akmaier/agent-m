@@ -57,12 +57,12 @@ It keeps nothing beyond its shipped data files. It owns two formats.
 |---|---|
 | front matter | `name`; `kind` (`planned` or `pulled`); `adapted_from` (the model it was adapted from, if any); `measure` (`plan entries per phase`, `remaining items per time box` or `items per state over time`) |
 | `## About` | optional, before `## Phases`: the lines `manages:` — the risk the model manages well —, `accepts:` — the risk it accepts —, `example:` — an example project it suits — and `chapter:` — the chapter of the book that explains it |
-| `## Phases` | a table: `Name`, `Role`, `Produces` (the kinds of artifact, among requirements, `UC`, `ARC`, `MOD`, `TST`, `ITM`, sprint record) |
+| `## Phases` | a table: `Name`, `Role`, `Produces` (the kinds of artifact, among requirements, `UC`, `ARC`, `MOD`, `TST`, `ITM`, sprint record; a kind may be followed by an explanation in parentheses: the kind is what stands before it, and no check reads the explanation) |
 | `## Transitions` | a table: `From`, `To`, `Kind` (`sequence`, `alternative`, `back`) |
 | `## Verification pairs` | a table: `Phase`, `Checked by` |
 | `## Gates` | a table: `Between` (`<phase> → <phase>`), `Artifacts`, `Condition`, `Decider` (a role of the model, or `check: <CI check name>`) |
 | `## Roles` | a table: `Name`, `Filled by` (`person`, `agent` or `either`), `Capabilities` |
-| `## Flow control` | for `pulled` only, a table `Kind`, `Value` with the rows `WIP limit`, `Time box`, `Sprints` |
+| `## Flow control` | for `pulled` only, a table `Kind`, `Value` with the rows `WIP limit`, `Time box` (its length, or `none` for no time box), `Sprints` |
 
 Free text may stand between the title and the first section. A shipped model's file is in exactly this format; an
 instance's model adapted from another names it in `adapted_from`. Every shipped model has `## About`, taken from the
@@ -81,6 +81,7 @@ is` — its explanation for someone new to it, with the book chapter.
   condition: string, decider: string }>, roles: Array<{ name: string, filledBy: string, capabilities: string[] }>, flow:
   { wip: number | null, timeBox: string | null, sprints: boolean } | null, version: string, path: string }`.
   - `about` is what the model's `## About` says, and `null` for a model without one.
+  - `produces` holds each phase's kinds without their explanations, and `flow.timeBox` is `null` for `none`.
   - `version` is the blob of the file the model was read from. A product names the version it declared by the commit of
     the instance that holds it (MOD-product-process). The model read at that commit and the model read now differ
     exactly when their `version`s do (UC-031 6a).
