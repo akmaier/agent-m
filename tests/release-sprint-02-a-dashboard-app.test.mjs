@@ -343,6 +343,28 @@ async function open(w, { hash = "", token = TOKEN, search = "", entries = null, 
 // The same browser, the page loaded again: localStorage as the last page left it, nothing else.
 const reload = (w, page, opts = {}) => open(w, { ...opts, entries: page.storage() });
 
+// The selected migration replaces the former dashboard-owned Add form with MOD-settings-pages' public add-product route.
+// Drive its real controls: address, acknowledgement, project token and Store and check — no compatibility ids.
+async function storeGitLabProductToken(w, page, address = GL_ADDRESS, { add = false } = {}) {
+  const main = page.byId("main"), addressInput = main.querySelector("input.address");
+  assert.ok(addressInput, "the public add-product route exposes its address field");
+  addressInput.value = address;
+  await addressInput.fire("input");
+  const ack = main.querySelector("input.ack"), token = main.querySelector("input.token"), store = main.querySelector("button.store");
+  assert.ok(ack && token && store, "the public GitLab route exposes acknowledgement, token and Store and check");
+  ack.checked = true;
+  await ack.fire("change");
+  token.value = GL_TOKEN;
+  await store.fire("click", { isTrusted: true });
+  await settle(w.server);
+  if (add) {
+    const addProduct = main.querySelector("button.add");
+    assert.ok(addProduct && !addProduct.disabled, "the stored project token enables the public Add product decision");
+    await addProduct.fire("click", { isTrusted: true });
+    await settle(w.server);
+  }
+}
+
 // Elements reached by id keep their listeners, and are new elements once their container is written again; their value,
 // checked, disabled and hidden start as their tag says. The <main> element reaches its editor panel, as in a browser.
 function live(shown) {
@@ -465,7 +487,7 @@ test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a decision and a m
 
 const { DASHBOARD } = await import("../docs/assets/dashboard-app.mjs");
 const { MENU } = await import("../src/site/menu.mjs");
-const builtOnDisk = (file) => fs.existsSync(path.join(ROOT, "docs/assets/dashboard", file));
+const builtOnDisk = (file) => typeof file === "string" && fs.existsSync(path.join(ROOT, "docs/assets/dashboard", file));
 const VIEWS = DASHBOARD.filter((v) => v.view);
 const ADDRESSES = ["", ...VIEWS.map((v) => `#${v.view}`),
   "#uc/UC-001", "#uc/UC-003", "#arc/ARC-001", "#arc/MOD-reader", "#review/uc", "#review/arc", "#spec/2026-01-01a_wording/01"];
@@ -502,6 +524,12 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fallback = page.main();
   assert.match(fallback, /#uc\/UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
+    if (v.builtIn) {
+      assert.equal(v.view, "add", "only the public settings-pages Add route has no dashboard file");
+      assert.match(fs.readFileSync(path.join(ROOT, "docs/assets/dashboard-app.mjs"), "utf8"),
+        /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
+      continue;
+    }
     const there = builtOnDisk(v.file);
     const p = await open(w, { hash: `#${v.view}`, direct: true });
     if (there) {
@@ -694,10 +722,7 @@ test("release · ITM-133 UC-008 4a: a GitLab product's refused Accept offers no 
   const gitlab = gitlabServer({ refuseWrite: true });
   const w = await world({ gitlab });
   const setup = await open(w, { hash: "#add" });
-  await setup.type("add-repo", GL_ADDRESS);
-  await setup.tick("gl-ack");
-  setup.byId("gl-token").value = GL_TOKEN;
-  await setup.fire("gl-store");
+  await storeGitLabProductToken(w, setup, GL_ADDRESS, { add: true });
   assert.ok(Object.values(setup.storage()).some((v) => v.includes(GL_TOKEN)), "the project token is stored");
   const page = await reload(w, setup, { search: `?product=${encodeURIComponent(GL_ADDRESS)}`, hash: "#uc/UC-001" });
   assert.match(page.main(), /The reader opens the report\./);
@@ -795,10 +820,7 @@ test("release · ITM-136 UC-042 1: a GitLab project token's last test — works,
   const gitlab = gitlabServer();
   const w = await world({ gitlab });
   const setup = await open(w, { hash: "#add" });
-  await setup.type("add-repo", GL_ADDRESS);
-  await setup.tick("gl-ack");
-  setup.byId("gl-token").value = GL_TOKEN;
-  await setup.fire("gl-store");
+  await storeGitLabProductToken(w, setup, GL_ADDRESS, { add: true });
   let page = await reload(w, setup, { hash: "#settings" });
   await page.press("browser-settings", "[data-test-gitlab]");
   assert.match(gitlabLine(page), new RegExp(`✓ works.*${today()}`));
@@ -873,10 +895,7 @@ test("release · ITM-136 EVERY SETTING IS REACHED FROM ONE PAGE: every key kept 
   const gitlab = gitlabServer();
   const w = await world({ gitlab });
   const setup = await open(w, { hash: "#add" });
-  await setup.type("add-repo", GL_ADDRESS);
-  await setup.tick("gl-ack");
-  setup.byId("gl-token").value = GL_TOKEN;
-  await setup.fire("gl-store");
+  await storeGitLabProductToken(w, setup, GL_ADDRESS, { add: true });
   let page = await reload(w, setup, { hash: "#settings" });
   await page.press("browser-settings", tokenLine("test"));
   await page.press("browser-settings", "[data-test-gitlab]");

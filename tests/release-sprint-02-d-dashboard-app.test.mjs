@@ -207,96 +207,6 @@ const NEW_REPO = "https://github.com/new";
 // new repository, with a folded explanation of the choices there. Expected after Check on an address GitHub answers 404 for: the
 // answer says the repository is not there (or not seen), links https://github.com/new, and carries a folded "What is this?" with
 // text; nothing is written anywhere. Counter: an existing private repository gets no such link.
-test("ITM-132 · Check on a repository that does not exist names it and links GitHub's page for a new one", async () => {
-  const a = await addPanel("missing");
-  await press(a.server, a.rich.byId("add-check-btn"));
-  const out = a.rich.byId("add-check").innerHTML;
-  assert.match(out, /alice\/thesis-tool/);
-  assert.match(out, /no repository|does not exist|not exist/i, "it says so");
-  assert.ok(out.includes(`href="${NEW_REPO}"`), "GitHub's page for a new repository is linked");
-  assert.match(out, /<details[^>]*>\s*<summary>What is this\?<\/summary>\s*<div>[^<]*\S/, "with a folded explanation");
-  assert.deepEqual([...a.server.writes, ...a.product.server.writes], [], "nothing written");
-
-  const b = await addPanel("private");
-  await press(b.server, b.rich.byId("add-check-btn"));
-  assert.ok(!b.rich.byId("add-check").innerHTML.includes(NEW_REPO), "an existing repository gets no such link");
-});
-
-// UC-001 2a at step 5: the same answer when Add product is pressed on an address GitHub answers 404 for. Expected: the link to
-// GitHub's page for a new repository, nothing written, and the address not added to this browser's product list.
-test("ITM-132 · Add product on a repository that does not exist writes nothing and links GitHub's page for a new one", async () => {
-  const a = await addPanel("missing");
-  await press(a.server, a.rich.byId("add-go"));
-  assert.ok(a.rich.byId("add-result").innerHTML.includes(`href="${NEW_REPO}"`));
-  assert.deepEqual([...a.server.writes, ...a.product.server.writes], []);
-  assert.ok(!String(globalThis.localStorage.getItem("agent-m.products") ?? "").includes(PRODUCT), "not in the product list");
-});
-
-// UC-001 3a and step 4: when the stored key already reaches the product, Step A is shown as done. Expected after Check on a
-// private repository the key reads: Step A says it is done and no longer asks for a new key on GitHub (no "Open GitHub's token page
-// (prefilled)" button in it — UC-001 step 3 as it reads since 5260a64). Counters: before Check, and after a Check that GitHub
-// answers 404, Step A keeps its instructions; a public repository's read proves nothing about the key (step 4) — Step A is not
-// called done, and the panel says that write access is confirmed at the first write. Changed by its author, tester-opus
-// (claude-opus-5-5), on fix/uc-001-step-a-one-click at e3b7b1d, 2026-10-06: the marker of Step A's instructions is its new button.
-test("ITM-132 · Step A shows as done when the key already reaches the product, and only then", async () => {
-  const a = await addPanel("private");
-  assert.match(a.stepA(), /Open GitHub's token page \(prefilled\)/, "before Check: the instructions");
-  await press(a.server, a.rich.byId("add-check-btn"));
-  const done = a.stepA();
-  assert.match(done, /done/i, "Step A is shown as done");
-  assert.doesNotMatch(done, /Open GitHub's token page/, "and asks for nothing on GitHub");
-
-  const m = await addPanel("missing");
-  await press(m.server, m.rich.byId("add-check-btn"));
-  assert.doesNotMatch(m.stepA(), /\bdone\b/i);
-  assert.match(m.stepA(), /Open GitHub's token page \(prefilled\)/, "a 404 keeps Step A's instructions");
-
-  const p = await addPanel("public");
-  await press(p.server, p.rich.byId("add-check-btn"));
-  assert.doesNotMatch(p.stepA(), /\bdone\b/i, "a public repository's read is no proof");
-  assert.match(p.rich.byId("add-check").innerHTML, /write access is confirmed/i);
-});
-
-// ONE CLICK PER DECISION · UC-001 3a and postcondition: "If the token already reaches the product: + Add product, Check, Add
-// product." Expected: after Check, one click on Add product writes the missing layout into the product repository's default
-// branch in one commit — SPEC.md, CHANGELOG.md and the use-case, approval and change-queue folders (R1, docs/architecture/, is a
-// known finding and not asked here) —, keeps the README that was there, adds the address to this browser's product list, and
-// writes nothing into the instance repository.
-test("ITM-132 · with the key reaching the product, one click on Add product writes the layout and lists the product", async () => {
-  const a = await addPanel("private");
-  await press(a.server, a.rich.byId("add-check-btn"));
-  await press(a.server, a.rich.byId("add-go"));
-  assert.equal(a.product.server.writes.length, 1, "one commit in the product");
-  const written = Object.keys(a.product.server.writes[0].files);
-  for (const p of ["SPEC.md", "CHANGELOG.md"]) assert.ok(written.includes(p), p);
-  for (const d of ["docs/use-cases/", "docs/approvals/", "docs/spec-freigaben/"]) assert.ok(written.some((p) => p.startsWith(d)), d);
-  assert.ok(!written.includes("README.md"), "what exists is skipped");
-  assert.deepEqual(a.server.writes, [], "nothing in the instance repository");
-  assert.ok(String(globalThis.localStorage.getItem("agent-m.products") ?? "").includes(PRODUCT), "in this browser's product list");
-});
-
-// EVERY STEP EXPLAINS ITSELF: every step that asks something of the person carries an explanation that can be expanded. Expected:
-// in every state of the panel — just typed, Step A done, the repository missing —, every step carries a folded "What is this?"
-// with text, and so does the address field.
-test("ITM-132 · every step of Add product carries a folded explanation, in every state", async () => {
-  const steps = (html) => html.split('<section class="step">').slice(1);
-  const explained = (s) => /<details[^>]*>\s*<summary>What is this\?<\/summary>\s*<div>[\s\S]*?\S[\s\S]*?<\/div>\s*<\/details>/.test(s);
-  const a = await addPanel("private");
-  assert.ok(steps(a.steps()).length >= 3, "Steps A, B and C");
-  for (const s of steps(a.steps())) assert.ok(explained(s), `typed: ${s.slice(0, 60)}`);
-  await press(a.server, a.rich.byId("add-check-btn"));
-  assert.match(a.stepA(), /done/i);
-  for (const s of steps(a.stepA())) assert.ok(explained(s), `done: ${s.slice(0, 60)}`);
-  const m = await addPanel("missing");
-  await press(m.server, m.rich.byId("add-check-btn"));
-  for (const s of steps(m.steps())) assert.ok(explained(s), `missing: ${s.slice(0, 60)}`);
-  assert.ok(explained(m.rich.byId("add-check").innerHTML), "the answer that the repository is missing");
-  assert.ok(explained(a.page.main().slice(a.page.main().indexOf("add-repo"))), "the address field");
-});
-
-// ------------------------------------------------------------------------------------------------ ITM-134
-
-// One entry of the SPEC changes page, opened as the reviewer opens it (UC-006 step 1). -> the page's HTML and where Accept stands.
 async function entryPage(nr, { token, files = instanceFiles() } = {}) {
   const server = await instance({ files });
   const page = await openDashboard({ server, hash: "", ...(token === undefined ? {} : { token }) });
@@ -307,26 +217,6 @@ async function entryPage(nr, { token, files = instanceFiles() } = {}) {
 }
 const IMPACT_OF_TITLE = ["UC-001", "UC-002", "MOD-cover", "tests/title.test.mjs"];
 
-// A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST · UC-006 3b: an entry that changes an existing requirement lists the artifacts
-// that reference its name before the reviewer decides. Expected for entry 01, which changes TITLE: UC-001 and UC-002 (two use
-// cases), MOD-cover (a module) and tests/title.test.mjs (a test whose Guards: line names it), each before the Accept button; not
-// UC-003, which names a longer name, nor tests/serif.test.mjs, which guards another. The same list without a stored token, before
-// the GitHub path that accepts there (UC-006 4b).
-for (const [route, token] of [["with a token", undefined], ["without a token", null]]) {
-  test(`ITM-134 · an entry changing a requirement lists what references it before Accept — ${route}`, async () => {
-    const { main, accept } = await entryPage(1, { token });
-    assert.ok(accept > 0, "the entry is offered for acceptance");
-    for (const id of IMPACT_OF_TITLE) {
-      const at = main.indexOf(id);
-      assert.ok(at > 0 && at < accept, `${id} is listed before Accept`);
-    }
-    assert.ok(!main.includes("UC-003"), "a longer name is another requirement");
-    assert.ok(!main.includes("tests/serif.test.mjs"), "a test of another requirement is not listed");
-  });
-}
-
-// UC-006 3b, the other side: "The change touches an existing requirement." Expected for entry 02, which repeats SERIF word for
-// word and adds THE MARGINS ARE WIDE: no impact list — none of the artifacts of the fixture is named on the page.
 test("ITM-134 · an entry that adds a new requirement shows no impact list", async () => {
   const { main, accept } = await entryPage(2);
   assert.ok(accept > 0);

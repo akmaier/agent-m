@@ -275,6 +275,38 @@ async function open(w, { hash = "", token = TOKEN, search = "" } = {}) {
   });
 }
 
+// The selected migration replaces the dashboard-owned Add form with MOD-settings-pages' public add-product route.
+async function storeGitLabProductToken(w, page, address = GL_ADDRESS, { add = false } = {}) {
+  const main = page.byId("main"), addressInput = main.querySelector("input.address");
+  assert.ok(addressInput, "the public add-product route exposes its address field");
+  addressInput.value = address;
+  await addressInput.fire("input");
+  const ack = main.querySelector("input.ack"), token = main.querySelector("input.token"), store = main.querySelector("button.store");
+  assert.ok(ack && token && store, "the public GitLab route exposes acknowledgement, token and Store and check");
+  ack.checked = true;
+  await ack.fire("change");
+  token.value = GL_TOKEN;
+  await store.fire("click", { isTrusted: true });
+  await settle(w.server);
+  if (add) {
+    const addProduct = main.querySelector("button.add");
+    assert.ok(addProduct && !addProduct.disabled, "the stored project token enables the public Add product decision");
+    await addProduct.fire("click", { isTrusted: true });
+    await settle(w.server);
+  }
+}
+
+async function addGitHubProduct(w, page, address) {
+  const main = page.byId("main"), addressInput = main.querySelector("input.address");
+  assert.ok(addressInput, "the public add-product route exposes its address field");
+  addressInput.value = address;
+  await addressInput.fire("input");
+  const addProduct = main.querySelector("button.add");
+  assert.ok(addProduct && !addProduct.disabled, "the instance token enables the public Add product decision");
+  await addProduct.fire("click", { isTrusted: true });
+  await settle(w.server);
+}
+
 // Elements reached by id keep their listeners, and are new elements once their container is written again; their value,
 // checked, disabled and hidden start as their tag says. The <main> element reaches its editor panel, as in a browser.
 function live(asked) {
@@ -332,278 +364,9 @@ const gitlabTokenSentOnlyToItsProject = (w) => w.log.filter((r) => r.privateToke
 //
 // 2a and 3a are not carried out (ITM-132): no release test for them.
 
-// UC-001 step 1 — the product selector offers + Add product, and choosing it opens the panel on the same page.
-// Expected: the selector lists "+ Add product"; choosing it shows the panel "Add a product" with the address field.
-test("release · UC-001 1: the product selector's + Add product opens the panel on the same page", async () => {
-  const w = await world();
-  const page = await open(w);
-  const sel = page.byId("product");
-  assert.match(sel.innerHTML, /\+ Add product/);
-  const add = /<option value="([^"]*)">\+ Add product/.exec(sel.innerHTML)[1];
-  sel.value = add;
-  sel.onchange();
-  await page.go(globalThis.location.hash);
-  assert.match(page.main(), /Add a product/);
-  assert.match(page.main(), /id="add-repo"/);
-});
-
-// UC-001 steps 2–5, on GitHub — the main flow with the instance's token stored, as UC-001 reads as drafted in 2deaa7f. Expected: the
-// pasted address is recognised as GitHub's route; Step A, a key for the product, shows "Open GitHub's token page (prefilled)" —
-// GitHub's page for a new token with every permission filled in as in UC-014, 90 days, the product's owner as the token's owner, and a
-// name and description built from the product repository's name: "Agent M · alice/thesis-tool", "Agent M for the product
-// alice/thesis-tool: reviews, commits, issues, pull requests and runs of the work you start in it." — and, underneath, Only select
-// repositories with alice/thesis-tool alone, nothing else, then Generate token; after UC-014's notice the product's key is pasted, and
-// Store and check stores it for this product only — the instance's key stays as it is — and checks with it that it reaches the
-// product repository; Step B then shows the product's line without another click, saying for a public repository that write access
-// is confirmed at the next step; Step C is one click that commits the missing review layout — docs/use-cases/, docs/architecture/,
-// docs/approvals/, docs/spec-freigaben/, a SPEC.md skeleton, a CHANGELOG.md — into the product's default branch with the product's
-// key, adds the address to this browser's list, commits nothing to the instance, and shows the commit as a link with an offer to
-// switch to the product. Every step carries a folded "What is this?".
-// Changed by its author, tester-opus (claude-opus-5-5), on fix/uc-001-step-a-one-click at e3b7b1d, 2026-10-06: Step A as UC-001 read
-// it then, where the token is no longer edited on GitHub; Step B without the click on Check. Changed again by its author on
-// fix/product-token-prefill at ea87df2, 2026-10-06: Step A as drafted in 2deaa7f, a key of the product's own.
-test("release · UC-001 2–5: a GitHub product is added — Step A opens GitHub's token page prefilled for the product, Store and check keeps the product's own key, Add product writes its layout", async () => {
-  const product = await productServer();
-  const w = await world({ product });
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", `https://github.com/${PRODUCT}`);
-  const steps = page.html("add-steps");
-  assert.match(steps, /Step A · A key for the product/);
-  assert.match(steps, /Open GitHub's token page \(prefilled\)/);
-  const link = hrefs(steps).find((x) => x.startsWith("https://github.com/settings/personal-access-tokens/new?"));
-  assert.ok(link, "a button to GitHub's page for a new token");
-  const q = new URL(link).searchParams;
-  assert.equal(q.get("name"), `Agent M · ${PRODUCT}`, "its name, built from the product repository's name");
-  assert.equal(q.get("description"), `Agent M for the product ${PRODUCT}: reviews, commits, issues, pull requests and runs of the work you start in it.`,
-    "its description, built from the product repository's name");
-  assert.equal(q.get("target_name"), "alice", "the product's owner as the token's owner");
-  assert.equal(q.get("expires_in"), "90", "90 days");
-  for (const [k, v] of [["contents", "write"], ["issues", "write"], ["pull_requests", "write"], ["actions", "write"], ["workflows", "write"], ["metadata", "read"]]) {
-    assert.equal(q.get(k), v, `every permission, as in UC-014: ${k}`);
-  }
-  const a = stripTags(steps.slice(0, steps.indexOf("Step B · Check")));
-  assert.match(a, /Only select repositories/);
-  assert.match(a, new RegExp(`pick “${PRODUCT}” — nothing else`), "the product alone, nothing else");
-  assert.match(a, /Generate token/);
-  for (const s of sections(steps)) assert.match(s, /<details[^>]*>\s*<summary>What is this\?<\/summary>/, "every step explains itself");
-
-  await page.tick("key-ack");
-  page.byId("key-token").value = NEW_TOKEN;
-  await page.fire("key-store");
-  assert.equal(page.storage()["agent-m.github-token"], TOKEN, "the instance's key stays as it is");
-  assert.ok(Object.values(page.storage()).some((v) => v.includes(NEW_TOKEN) && v.includes(`https://github.com/${PRODUCT}`)), "the product's key, kept for it");
-  const checked = stripTags(page.html("key-check"));
-  assert.match(checked, new RegExp(`✓ ${PRODUCT}`), "the product checked with it");
-  assert.doesNotMatch(checked, new RegExp(INSTANCE), "and nothing else");
-  assert.ok(w.log.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${NEW_TOKEN}`), "read with the product's key");
-  const check = stripTags(page.html("add-check"));
-  assert.match(check, new RegExp(`✓ ${PRODUCT}`), "Step B, without another click");
-  assert.match(check, /write access/i, "public: write access is confirmed at the next step");
-
-  await page.fire("add-go");
-  assert.equal(product.writes.length, 1, "one commit in the product");
-  assert.ok(writesOf(w).length > 0 && writesOf(w).every((r) => r.auth === `Bearer ${NEW_TOKEN}`), "with the product's key");
-  const written = Object.keys(product.writes[0].files);
-  for (const dir of ["docs/use-cases/", "docs/approvals/", "docs/spec-freigaben/"]) {
-    assert.ok(written.some((p) => p.startsWith(dir)), `the layout holds ${dir}`);
-  }
-  assert.ok(written.includes("SPEC.md") && written.includes("CHANGELOG.md"), "a SPEC.md skeleton and a CHANGELOG.md");
-  assert.deepEqual(w.server.writes, [], "nothing is written to the instance repository");
-  assert.ok(Object.values(page.storage()).some((v) => v.includes(`https://github.com/${PRODUCT}`)), "the address is in this browser's list");
-  const done = page.html("add-result");
-  assert.ok(hrefs(done).some((x) => x.startsWith(`https://github.com/${PRODUCT}/commit/`)), "the commit as a link");
-  assert.ok(hrefs(done).some((x) => new URLSearchParams(x.replace(/^[^?]*\?/, "")).get("repo") === PRODUCT), "an offer to switch to the product");
-  assert.ok(githubTokenSentOnlyToGitHub(w));
-});
-
-// UC-001 step 5 · ONE REVIEW LAYOUT FOR EVERY PRODUCT — the layout Add product writes holds docs/architecture/ too, where the
-// product's architecture decisions and modules are reviewed. Expected: the commit into a product without a layout writes a file
-// under docs/architecture/ — on GitHub and on a GitLab server alike.
-test("release · UC-001 5: the layout written into a new product holds docs/architecture/",
-  { todo: "FINDING R1 — the layout Add product writes has no docs/architecture/ (backlog item to be added by the Product Owner)" }, async () => {
-    const product = await productServer();
-    const w = await world({ product });
-    const page = await open(w, { hash: "#add" });
-    await page.type("add-repo", `https://github.com/${PRODUCT}`);
-    await page.fire("add-go");
-    assert.ok(Object.keys(product.writes[0]?.files ?? {}).some((p) => p.startsWith("docs/architecture/")), "GitHub: docs/architecture/");
-    const gitlab = gitlabServer();
-    const w2 = await world({ gitlab });
-    const page2 = await open(w2, { hash: "#add" });
-    await page2.type("add-repo", GL_ADDRESS);
-    await page2.tick("gl-ack");
-    page2.byId("gl-token").value = GL_TOKEN;
-    await page2.fire("gl-store");
-    await page2.fire("add-go");
-    assert.ok(Object.keys(gitlab.writes[0]?.files ?? {}).some((p) => p.startsWith("docs/architecture/")), "GitLab: docs/architecture/");
-  });
-
-// UC-001 step 5 — "skipping whatever already exists". Expected: a product that already has a SPEC.md and a docs/use-cases/
-// folder keeps them byte for byte; the commit holds neither.
-test("release · UC-001 5: the layout skips what the product already has", async () => {
-  const product = await productServer({ files: { "SPEC.md": "# Our own SPEC\n", "docs/use-cases/UC-001-own.md": "own\n" } });
-  const w = await world({ product });
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", `https://github.com/${PRODUCT}`);
-  await page.fire("add-go");
-  assert.equal(product.writes.length, 1);
-  const written = Object.keys(product.writes[0].files);
-  assert.ok(!written.includes("SPEC.md"), "the existing SPEC.md is not written");
-  assert.ok(!written.some((p) => p.startsWith("docs/use-cases/")), "the existing folder is not written");
-  assert.equal(product.files["SPEC.md"], "# Our own SPEC\n");
-});
-
-// UC-001 5b — the product already has the complete layout. Expected: nothing is committed; only the address is added to the
-// list in this browser.
-test("release · UC-001 5b: a product with the complete layout gets no commit, only its place in the list", async () => {
-  const product = await productServer({ files: { "SPEC.md": "# S\n", "CHANGELOG.md": "# C\n", "docs/use-cases/README.md": "u\n",
-    "docs/architecture/README.md": "a\n", "docs/approvals/README.md": "p\n", "docs/spec-freigaben/README.md": "q\n" } });
-  const w = await world({ product });
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", `https://github.com/${PRODUCT}`);
-  await page.fire("add-go");
-  assert.deepEqual(product.writes, [], "nothing is committed");
-  assert.ok(Object.values(page.storage()).some((v) => v.includes(`https://github.com/${PRODUCT}`)), "the address is in the list");
-});
-
-// UC-001 4a — the check fails. Expected: Agent M names the repository it cannot reach, and Step A, a key for the product, is shown
-// again — not as done —, as the person sees it: what the page wrote into it after the Check, else the steps as rendered.
-test("release · UC-001 4a: a failed check names the repository and shows Step A again", async () => {
-  const product = await productServer({ refuse: (u) => (u.pathname === `/repos/${PRODUCT}` ? new Response('{"message":"Not Found"}', { status: 404 }) : undefined) });
-  const w = await world({ product });
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", `https://github.com/${PRODUCT}`);
-  await page.fire("add-check-btn");
-  const check = stripTags(page.html("add-check"));
-  assert.match(check, new RegExp(`✗ ${PRODUCT}`));
-  assert.match(page.html("add-step-a") || page.html("add-steps"), /Step A · A key for the product<\/h3>/);
-});
-
-// UC-001 5a — the write is refused although the read succeeded. Expected: Agent M says so and shows Step A, a key for the product,
-// again; nothing is written into the product and the address does not enter the list.
-test("release · UC-001 5a: a refused write says so, shows Step A again and writes nothing", async () => {
-  const product = await productServer({ refuse: (u, init) => (init.method === "POST"
-    ? new Response('{"message":"Resource not accessible by personal access token"}', { status: 403 }) : undefined) });
-  const w = await world({ product });
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", `https://github.com/${PRODUCT}`);
-  await page.fire("add-go");
-  const out = page.text("add-result");
-  assert.match(out, new RegExp(PRODUCT));
-  assert.match(out, /Step A/);
-  assert.match(page.html("add-steps"), /Step A · A key for the product<\/h3>/);
-  assert.deepEqual(product.writes, []);
-  assert.ok(!Object.values(page.storage()).some((v) => v.includes(PRODUCT)), "the address is not added");
-});
-
-// UC-001 3b — no key is stored in this browser for the instance. Expected: the product's steps are the same as with it (2–5) — Step
-// A, a key for the product: the token page prefilled for the product and "Only select repositories" with the product alone, not the
-// instance —; after the key is stored, it is kept for the product, no key for the instance appears, and the product, not the
-// instance, is checked with it.
-test("release · UC-001 3b: without the instance's key the product's steps are the same — its own key, for the product alone", async () => {
-  const product = await productServer();
-  const w = await world({ product });
-  const page = await open(w, { hash: "#add", token: null });
-  await page.type("add-repo", `https://github.com/${PRODUCT}`);
-  const steps = page.html("add-steps");
-  assert.match(steps, /Step A · A key for the product<\/h3>/);
-  const link = hrefs(steps).find((x) => x.startsWith("https://github.com/settings/personal-access-tokens/new?"));
-  assert.ok(link, "the prefilled token page");
-  assert.equal(new URL(link).searchParams.get("name"), `Agent M · ${PRODUCT}`, "prefilled for the product, as in 2–5");
-  const text = stripTags(steps);
-  assert.match(text, /Only select repositories/);
-  assert.match(text, new RegExp(`pick “${PRODUCT}” — nothing else`), "the product alone, not the instance");
-  await page.tick("key-ack");
-  page.byId("key-token").value = TOKEN;
-  await page.fire("key-store");
-  assert.equal(page.storage()["agent-m.github-token"], undefined, "no key for the instance");
-  assert.ok(Object.values(page.storage()).some((v) => v.includes(TOKEN) && v.includes(`https://github.com/${PRODUCT}`)), "the key, kept for the product");
-  const check = stripTags(page.html("key-check"));
-  assert.match(check, new RegExp(`✓ ${PRODUCT}`));
-  assert.doesNotMatch(check, new RegExp(INSTANCE), "the instance is not checked");
-});
-
-// UC-001 1a — another browser. Expected: its product list is empty, as it has no token either: the selector offers the
-// instance and + Add product, nothing else.
-test("release · UC-001 1a: another browser starts with an empty product list", async () => {
-  const w = await world();
-  const page = await open(w, { token: null });
-  const options = [...page.byId("product").innerHTML.matchAll(/<option value="([^"]*)"/g)].map((m) => m[1]);
-  assert.equal(options.length, 2, String(options));
-  assert.equal(options[0], `https://github.com/${INSTANCE}`);
-  assert.match(page.byId("product").innerHTML, /\+ Add product/);
-});
-
-// UC-001 3c — the product is on a GitLab server. Expected: Step A is "Create a key for this project", a button to the project's
-// Settings → Access tokens page on that server, and what to set there: name Agent M, role Maintainer, scope api, an expiry date;
-// Step B is the notice, the paste field and Store and check; the token is stored for this project only and sent only to that
-// server; Step C writes the layout there with it. The GitHub token is not involved there, and the GitLab token never reaches
-// GitHub.
-test("release · UC-001 3c: a GitLab product gets its own project token, kept for it and sent only to its server", async () => {
-  const gitlab = gitlabServer();
-  const w = await world({ gitlab });
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", GL_ADDRESS);
-  const steps = page.html("add-steps");
-  assert.match(steps, /Step A · Create a key for this project/);
-  assert.ok(hrefs(steps).includes(`${GL_ADDRESS}/-/settings/access_tokens`), "a button to the project's Access tokens page");
-  const a = stripTags(sections(steps)[0]);
-  assert.match(a, /Agent M/);
-  assert.match(a, /Maintainer/);
-  assert.match(a, /\bapi\b/);
-  assert.match(a, /[Ee]xpir/);
-  assert.match(stripTags(sections(steps)[1]), /github\.io/, "Step B: the notice before anything is stored");
-  await page.tick("gl-ack");
-  page.byId("gl-token").value = GL_TOKEN;
-  await page.fire("gl-store");
-  assert.match(stripTags(page.html("gl-check-out")), /✓/);
-  await page.fire("add-go");
-  assert.equal(gitlab.writes.length, 1, "the layout is written into the GitLab project");
-  assert.deepEqual(w.server.writes, [], "nothing is written to the instance");
-  assert.ok(Object.values(page.storage()).some((v) => v.includes(GL_TOKEN) && v.includes(GL_ADDRESS)), "the token is kept for this project");
-  assert.ok(gitlab.requests.filter((r) => r.method === "POST").every((r) => r.token === GL_TOKEN), "written with the project token");
-  assert.ok(gitlab.requests.every((r) => r.auth === null), "the GitHub token is not sent to GitLab");
-  assert.ok(!w.log.some((r) => r.origin === API && (r.privateToken || String(r.auth).includes(GL_TOKEN))), "the GitLab token is not sent to GitHub");
-  assert.ok(gitlabTokenSentOnlyToItsProject(w));
-});
-
-// UC-001 3d — the GitLab server offers no project access tokens, or the author is not Maintainer. Expected: the panel says which
-// of the two it can be on this server and explains that a personal token would reach every project of the author there; the
-// author decides.
-test("release · UC-001 3d: without project access tokens or the Maintainer role, the panel explains both and the broader personal token", async () => {
-  const w = await world();
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", "https://gitlab.com/team/proj");
-  const a = stripTags(sections(page.html("add-steps"))[0]);
-  assert.match(a, /Maintainer/);
-  assert.match(a, /personal (access )?token/i);
-  assert.match(a, /every project/i);
-});
-
-// UC-001 — THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Expected: an Add product that is not a person's click — a click a
-// script makes — writes nothing.
-test("release · UC-001 5: an Add product that is no person's click writes nothing", async () => {
-  const product = await productServer();
-  const w = await world({ product });
-  const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", `https://github.com/${PRODUCT}`);
-  await page.fire("add-go", "click", { isTrusted: false });
-  assert.deepEqual(product.writes, []);
-  assert.ok(!Object.values(page.storage()).some((v) => v.includes(PRODUCT)));
-});
-
-// ================================================================ UC-008 Review and accept a use case
-//
-// 4a is not carried out (ITM-133), and 3a only in part — a refused save does not show the newer version (ITM-131): no release
-// test for those parts.
-
 const rowOf = (html, id) => String(html).split("<tr>").find((r) => r.includes(`#uc/${id}"`)) ?? "";
 const ucText = (w, path) => w.server.files[path];
 
-// UC-008 steps 1–5 — the main flow. Expected: the list shows every use case with its derived status — UC-001 open, UC-002
-// accepted, UC-003 changed since acceptance; UC-001 opened shows its text and its Mermaid diagram; Accept is one click that
-// commits docs/approvals/UC-001-<sha>.md under the reviewer's own token — three lines naming the file and the git blob SHA of
-// the text shown —; then the use case shows as accepted.
 test("release · UC-008 1–5: a use case is read with its diagram and accepted by one commit that names its exact text", async () => {
   const w = await world();
   const page = await open(w);
@@ -1165,10 +928,7 @@ test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a Git
   const w = await world({ gitlab, refuse: (u) => (refused && u.origin === API && u.pathname === `/repos/${INSTANCE}`
     ? new Response('{"message":"Bad credentials"}', { status: 401 }) : undefined) });
   const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", GL_ADDRESS);
-  await page.tick("gl-ack");
-  page.byId("gl-token").value = GL_TOKEN;
-  await page.fire("gl-store");
+  await storeGitLabProductToken(w, page, GL_ADDRESS, { add: true });
   await page.go("#settings");
   refused = true;
   gitlab.refuseToken = true;
@@ -1308,21 +1068,16 @@ test("release · UC-042 6a: an import keeps the products this browser has, adds 
   const gitlab = gitlabServer();
   const w = await world({ product, gitlab });
   const first = await open(w, { hash: "#add" });
-  await first.type("add-repo", `https://github.com/${PRODUCT}`);
-  await first.fire("add-go");
-  await first.type("add-repo", GL_ADDRESS);
-  await first.tick("gl-ack");
-  first.byId("gl-token").value = GL_TOKEN;
-  await first.fire("gl-store");
-  await first.fire("add-go");
+  await addGitHubProduct(w, first, `https://github.com/${PRODUCT}`);
+  await first.go("#add");
+  await storeGitLabProductToken(w, first, GL_ADDRESS, { add: true });
   await first.go("#settings");
   await first.fire("export-go");
   await until(() => first.asked.downloads.length === 1, "the export");
   const [file] = await downloaded(first);
 
   const second = await open(w, { hash: "#add" });
-  await second.type("add-repo", `https://github.com/${PRODUCT}`);
-  await second.fire("add-go");
+  await addGitHubProduct(w, second, `https://github.com/${PRODUCT}`);
   await second.go("#settings");
   await second.tick("ack");
   second.byId("import-file").files = [{ text: async () => file.text }];

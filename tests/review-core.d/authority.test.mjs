@@ -50,8 +50,9 @@ test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — the click authority is w
 
 // ---------------------------------------------------------------- the buttons that name a write (the views)
 
-// The five writes of dashboard/writes.mjs and every call of one in a view: the text of its argument list.
-const WRITES = ["acceptItems", "saveReviewedFile", "addProduct", "savePseudonymisation", "saveCollaborators"];
+// The dashboard writes of dashboard/writes.mjs and every call of one in a view: the text of its argument list. UC-001 now
+// reaches MOD-settings-pages through its public route and no longer calls the dashboard's removed addProduct write.
+const WRITES = ["acceptItems", "saveReviewedFile", "savePseudonymisation", "saveCollaborators"];
 function writeCalls(text) {
   const out = [];
   for (const m of text.matchAll(new RegExp(`(?<![.\\w$])(${WRITES.join("|")})\\(`, "g"))) {
@@ -70,7 +71,7 @@ const handsClickAuthority = (args) => /\bauthority:\s*clickAuthority\(\s*[\w$]+\
 test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — every write a view starts hands over the click authority made from its button's event", () => {
   const views = viewFiles().filter((u) => !u.pathname.endsWith("/writes.mjs"));
   const calls = views.flatMap((u) => writeCalls(readFileSync(u, "utf8")).map((c) => ({ ...c, file: u.pathname.split("/assets/")[1] })));
-  // Known positive: each of the five writes is started by a view, so the check below has something to check.
+  // Known positive: each dashboard write is started by a view, so the check below has something to check.
   assert.deepEqual([...new Set(calls.map((c) => c.name))].sort(), [...WRITES].sort());
   for (const c of calls) assert.ok(handsClickAuthority(c.args), `${c.file}: ${c.name}(${c.args.replace(/\s+/g, " ").slice(0, 160)}…)`);
   // Counter-proof: the event handed over as before, no authority, or an authority not made from a click is caught.
@@ -81,7 +82,10 @@ test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — every write a view start
   }
   assert.equal(handsClickAuthority("{ ...app.writeTarget(), branch: T.ref, token: token(), authority: clickAuthority(ev), list }"), true);
   assert.deepEqual(writeCalls("store.addProduct(x); await addProduct({ a: f(b) }); acceptItems({ c })").map((c) => c.name),
-    ["addProduct", "acceptItems"], "a method of another object is not one of the five");
+    ["acceptItems"], "a method of another object is not one of the dashboard writes");
+  const dashboard = readFileSync(new URL("../../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
+  assert.match(dashboard, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/,
+    "UC-001 enters through the public MOD-settings-pages route, outside the dashboard write path");
 });
 
 // ---------------------------------------------------------------- who may make an authority (ARC-003 decisions 1 and 3)

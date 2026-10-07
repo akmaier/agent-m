@@ -325,7 +325,8 @@ test("release · Backlog tab: nothing is written and no state is stored", async 
   assert.equal(server.writes.length, 0, "no commit");
   const keysAfter = [...Array(globalThis.localStorage.length).keys()].map((i) => globalThis.localStorage.key(i));
   assert.deepEqual(keysAfter, keysBefore, "localStorage unchanged");
-  assert.deepEqual(keysBefore, ["agent-m.github-token"]);
+  assert.deepEqual(keysBefore.sort(), ["agent-m.github-token", "agent-m:akmaier/agent-m:github-token"].sort(),
+    "only the legacy and canonical configuration keys exist before the read-only Backlog load");
   const served = new Set(Object.values(FILES));
   for (const [name, store] of caches.stores) {
     for (const [key, value] of store) assert.ok(served.has(value), `${name} ${key}: only the text of a repository file`);
