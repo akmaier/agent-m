@@ -1,7 +1,7 @@
 // Between sprint jobs: the legacy dashboard settings API translated to MOD-browser-store for products and tokens.
 
 import { browserStore } from "./settings-store.mjs";
-import { openStore, readSetting, writeSetting } from "../../src/browser-store/index.mjs";
+import { openStore, readSetting, writeSetting, clearSetting } from "../../src/browser-store/index.mjs";
 
 const day = () => new Date().toISOString().slice(0, 10);
 
@@ -85,6 +85,13 @@ export function productStore(instance) {
       return own?.value ?? (address && new URL(address).hostname === "github.com"
         ? readSetting(store, "github-token")?.value ?? legacy.getToken() : null);
     },
-    entries() { syncLegacy(); return legacy.entries(); },
+    clearToken() { clearSetting(store, "github-token"); legacy.clearToken(); },
+    clearProducts() {
+      for (const address of readSetting(store, "products") ?? []) clearSetting(store, tokenKey(address));
+      clearSetting(store, "products"); legacy.clearProducts();
+    },
+    clear() { this.clearToken(); this.clearProducts(); legacy.clear(); },
+    putEntries(values) { legacy.putEntries(values); migrate(); },
+    entries() { return legacy.entries(); },
   };
 }
