@@ -34,19 +34,63 @@ import { approvalSchema } from "../approvals/index.mjs";
 import { ReleaseEvidenceError } from "./errors.mjs";
 
 const OWNER = "MOD-release-evidence";
-const SCHEMA_FILE = new URL("./candidate-document.schema.md", import.meta.url);
-const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 
-async function ownFile(url) {
-  const answer = await fetch(url);
-  if (!answer.ok) throw new Error(`${OWNER}: its ${url.pathname} was not served (${answer.status})`);
-  return answer.text();
+// The release candidate's report, docs/tests/releases/v<version>.md, in MOD-documents' schema language (private: not
+// part of this module's `provides`): version, candidate (the tag v<version>-rc.<N>), commit (the tested commit) and
+// date as front matter; "## Limitations" free text, first — every failing test and every rate worse than the last
+// release's, empty when the run is green —; "## Levels" and "## Tests" and "## Requirements" each a table; "##
+// Changelog entry" free text, the entry as it will stand in CHANGELOG.md. Embedded here, not read from a data file at
+// load time (unlike scheduleSchema, approvalSchema, …): this module's own file names no committed data file for it,
+// and a browser's `fetch` of one is a request channel this repository's tests check by an allowlist (tests/
+// test_no_backend.py, PERMITTED_CHANNELS) that no item of this sprint adds this module to.
+const CANDIDATE_DOCUMENT_SCHEMA_TEXT = `
+\`\`\`json
+{
+  "schema": "release-candidate-document",
+  "shape": "document",
+  "rule": "A RELEASE IS TAGGED AND LOGGED",
+  "path": "docs/tests/releases/v{any}.md",
+  "frontMatter": {
+    "version": { "type": "text", "required": true },
+    "candidate": { "type": "text", "required": true },
+    "commit": { "type": "sha", "digits": 40, "required": true },
+    "date": { "type": "date", "required": true }
+  },
+  "sections": [
+    { "heading": "## Limitations", "required": true },
+    { "heading": "## Levels", "required": true, "table": {
+      "columns": [
+        { "name": "Level", "value": { "type": "text", "required": true } },
+        { "name": "Passed", "value": { "type": "number", "required": true } },
+        { "name": "Failed", "value": { "type": "number", "required": true } },
+        { "name": "Flaky", "value": { "type": "number", "required": true } },
+        { "name": "Not run", "value": { "type": "number", "required": true } }
+      ]
+    } },
+    { "heading": "## Tests", "required": true, "table": {
+      "columns": [
+        { "name": "Test", "value": { "type": "text", "required": true } },
+        { "name": "Level", "value": { "type": "text", "required": true } },
+        { "name": "Outcome", "value": { "type": "text", "required": true } },
+        { "name": "Guards", "value": { "type": "list", "item": { "type": "text" }, "required": false } }
+      ]
+    } },
+    { "heading": "## Requirements", "required": true, "table": {
+      "columns": [
+        { "name": "Requirement", "value": { "type": "text", "required": true } },
+        { "name": "Level", "value": { "type": "text", "required": false } },
+        { "name": "Tests", "value": { "type": "list", "item": { "type": "text" }, "required": false } },
+        { "name": "Outcome", "value": { "type": "text", "required": true } }
+      ]
+    } },
+    { "heading": "## Changelog entry", "required": true }
+  ],
+  "otherSections": "forbidden",
+  "noHistory": true
 }
-
-// The release candidate's document schema (private: not part of this module's `provides`), read once when the module
-// is loaded, as scheduleSchema is (src/test-schedule/index.mjs).
-const candidateDocumentSchema = loadSchema(
-  disk ? disk.readFileSync(SCHEMA_FILE, "utf8") : await ownFile(SCHEMA_FILE), OWNER);
+\`\`\`
+`;
+const candidateDocumentSchema = loadSchema(CANDIDATE_DOCUMENT_SCHEMA_TEXT, OWNER);
 
 // A test file, by MOD-trace-graph's own selection (src/trace-graph/build.mjs): under a folder named test, tests or
 // __tests__, or named as tests are in their language. Duplicated here, minimally, since build.mjs is private to
