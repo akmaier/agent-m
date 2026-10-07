@@ -39,7 +39,9 @@ function storage(entries = {}) {
     removeItem: (key) => values.delete(key), get length() { return values.size; }, key: (i) => [...values.keys()][i] ?? null };
 }
 
-// TST-09-MIGRATION-01
+// TST-265
+// Module: MOD-browser-store
+// Level: component
 // given: a dashboard browser containing its established token, product list and product token
 // input: open the dashboard adapter for that instance
 // expect: the same values are available through MOD-browser-store's instance-prefixed catalogue
@@ -56,7 +58,9 @@ test("the dashboard migrates its product list and tokens into MOD-browser-store"
   assert.equal(readSetting(store, "github-token:alice/tool").value, "github_pat_PRODUCT");
 });
 
-// TST-09-MIGRATION-03
+// TST-267
+// Module: MOD-browser-store
+// Level: component
 // given: a legacy GitLab project token, including its last test, without a legacy product-list entry
 // input: open the adapter, then import a second product through its established settings API
 // expect: both addresses and token metadata remain visible to the settings/export API and MOD-browser-store
@@ -78,7 +82,9 @@ test("the adapter discovers token-only GitLab products and preserves imported pu
   assert.deepEqual(readSetting(store, "gitlab-token:gitlab.example.org/team/second").tested, { refused: true });
 });
 
-// TST-09-MIGRATION-02
+// TST-266
+// Module: MOD-dashboard-app
+// Level: integration
 // given: an instance-prefixed GitHub token and the dashboard's established page harness
 // input: navigate through the public dashboard entry to #add/<address>
 // expect: MOD-settings-pages renders its actual route, prefills the address, and receives the instance token through its store
@@ -93,4 +99,22 @@ test("the dashboard #add entry renders the settings-pages route with its instanc
   assert.equal(input?.value, address, "the dashboard prefilled the actual settings-pages address field");
   assert.match(main.innerHTML, /Add a product/, "the settings-pages route rendered in the dashboard");
   assert.equal(readSetting(openStore(instance), "github-token")?.value, "github_pat_INSTANCE");
+});
+
+// TST-268
+// Module: MOD-dashboard-app
+// Level: integration
+// given: a configured instance and the public add-product route for its repository
+// input: a synthetic click on the route's Add product control
+// expect: no product commit is attempted; only a person's trusted click may write
+test("the public add-product route rejects a synthetic Add product click", async () => {
+  const { repoServer, openDashboard } = await import("./app-harness.mjs");
+  const server = await repoServer({ files: { "README.md": "# Agent M\n" } });
+  const page = await openDashboard({ server, hash: "", token: "github_pat_INSTANCE" });
+  const main = globalThis.document.getElementById("main"), address = "https://github.com/akmaier/agent-m";
+  await page.go(`#add/${encodeURIComponent(address)}`);
+  const addProduct = main.querySelector("button.add");
+  assert.ok(addProduct && !addProduct.disabled, "the public route enables Add product for the configured instance token");
+  await page.click("button.add", { isTrusted: false });
+  assert.equal(server.writes.length, 0, "a synthetic click must not commit the product layout");
 });

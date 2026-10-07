@@ -175,17 +175,67 @@ function find(html, sel, found) {
   return out;
 }
 
+function domElement(localName) {
+  const children = [], listeners = [];
+  const node = {
+    localName, children, className: "", value: "", checked: false, disabled: false, hidden: false,
+    type: "", placeholder: "", autocomplete: "", spellcheck: true, href: "", target: "", rel: "", dataset: {}, style: {},
+    append(...items) { children.push(...items); },
+    replaceChildren(...items) { children.splice(0, children.length, ...items); },
+    addEventListener(type, listener) { listeners.push([type, listener]); },
+    fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
+    dispatchEvent(ev) { return node.fire(ev.type, ev); },
+    focus() { focusedOne = node; },
+    setAttribute(name, value) { node[name] = String(value); },
+    getAttribute(name) { return node[name] ?? null; },
+    get textContent() { return children.map((child) => typeof child === "string" ? child : child.textContent).join(""); },
+    set textContent(value) { node.replaceChildren(String(value)); },
+    get innerHTML() { return children.map(domHtml).join(""); },
+    set innerHTML(value) { node.replaceChildren(String(value)); },
+    querySelector(selector) { return domFind(node, selector)[0] ?? null; },
+    querySelectorAll(selector) { return domFind(node, selector); },
+  };
+  return node;
+}
+
+function domHtml(node) {
+  if (typeof node === "string") return node;
+  const esc = (value) => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const attrs = [node.className && ` class="${esc(node.className)}"`, node.type && ` type="${esc(node.type)}"`, node.value && ` value="${esc(node.value)}"`,
+    node.href && ` href="${esc(node.href)}"`, node.disabled && " disabled", node.checked && " checked"].filter(Boolean).join("");
+  return `<${node.localName}${attrs}>${node.innerHTML}</${node.localName}>`;
+}
+
+function domFind(root, selector) {
+  const matches = (node) => {
+    if (typeof node === "string") return false;
+    const attribute = /^\[([\w-]+)(?:="([^"]*)")?\]$/.exec(selector);
+    if (attribute) return attribute[2] === undefined ? node.getAttribute(attribute[1]) !== null : node.getAttribute(attribute[1]) === attribute[2];
+    const match = /^([\w-]+)?(?:\.([\w-]+))?$/.exec(selector);
+    return Boolean(match && (!match[1] || node.localName === match[1]) && (!match[2] || node.className.split(/\s+/).includes(match[2])));
+  };
+  const found = [];
+  for (const child of root.children ?? []) {
+    if (matches(child)) found.push(child);
+    if (typeof child !== "string") found.push(...domFind(child, selector));
+  }
+  return found;
+}
+
 function element(id) {
   let html = "";
+  let children = null;
   const found = new Map(); // the controls found in the HTML now; new HTML has new ones
   return {
     id, textContent: "", hidden: false, value: "", checked: false, disabled: false, dataset: {}, style: {},
-    get innerHTML() { return html; },
-    set innerHTML(v) { html = String(v); found.clear(); },
+    get innerHTML() { return children ? children.map(domHtml).join("") : html; },
+    set innerHTML(v) { children = null; html = String(v); found.clear(); },
+    append(...items) { children = (children ?? []); children.push(...items); },
+    replaceChildren(...items) { children = [...items]; html = ""; found.clear(); },
     classList: { toggle() {}, add() {}, remove() {} },
     addEventListener() {},
-    querySelectorAll(sel) { return find(html, sel, found); },
-    querySelector(sel) { return find(html, sel, found)[0] ?? null; },
+    querySelectorAll(sel) { return children ? domFind({ children }, sel) : find(html, sel, found); },
+    querySelector(sel) { return this.querySelectorAll(sel)[0] ?? null; },
     closest() { return this; },
     insertAdjacentHTML(where, x) { html = where === "afterbegin" ? x + html : html + x; },
     focus() { focusedOne = this; }, replaceWith() {}, click() {}, getAttribute: () => null,
@@ -223,7 +273,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },
-    querySelectorAll: () => [], createElement: () => element(""), body: { contains: () => true }, head };
+    querySelectorAll: () => [], createElement: (tag) => domElement(tag), body: { contains: () => true }, head };
   const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search, hash, origin: "https://akmaier.github.io",
     get href() { return `https://akmaier.github.io/agent-m/${this.search}${this.hash}`; } };
   const listeners = [];

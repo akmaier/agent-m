@@ -24,7 +24,7 @@ export function productStore(instance) {
 
   const migrate = () => {
     if (readSetting(store, "github-token") === null && legacy.getToken()) {
-      writeSetting(store, "github-token", valueOf(legacy.getToken(), legacy.getTokenExpiry(), `Agent M · ${instance}`));
+      writeSetting(store, "github-token", valueOf(legacy.getToken(), legacy.getTokenExpiry(), `Agent M · ${instance}`, legacy.getTokenTest()));
     }
     const github = legacy.gitHubProductTokens(), gitlab = legacy.gitLabTokens();
     const products = [...new Set([...(readSetting(store, "products") ?? []), ...legacy.getProducts(), ...Object.keys(github), ...Object.keys(gitlab)])];
@@ -58,6 +58,9 @@ export function productStore(instance) {
     }
   };
   migrate();
+  // A public add-product route may have written its token without a legacy dashboard call.  Mirror it before legacy
+  // settings/export consumers render, so they enumerate the same configured product token after a reload.
+  syncLegacy();
   return {
     ...legacy,
     getToken: () => readSetting(store, "github-token")?.value ?? legacy.getToken(),

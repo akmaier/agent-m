@@ -275,6 +275,38 @@ async function open(w, { hash = "", token = TOKEN, search = "" } = {}) {
   });
 }
 
+// The selected migration replaces the dashboard-owned Add form with MOD-settings-pages' public add-product route.
+async function storeGitLabProductToken(w, page, address = GL_ADDRESS, { add = false } = {}) {
+  const main = page.byId("main"), addressInput = main.querySelector("input.address");
+  assert.ok(addressInput, "the public add-product route exposes its address field");
+  addressInput.value = address;
+  await addressInput.fire("input");
+  const ack = main.querySelector("input.ack"), token = main.querySelector("input.token"), store = main.querySelector("button.store");
+  assert.ok(ack && token && store, "the public GitLab route exposes acknowledgement, token and Store and check");
+  ack.checked = true;
+  await ack.fire("change");
+  token.value = GL_TOKEN;
+  await store.fire("click", { isTrusted: true });
+  await settle(w.server);
+  if (add) {
+    const addProduct = main.querySelector("button.add");
+    assert.ok(addProduct && !addProduct.disabled, "the stored project token enables the public Add product decision");
+    await addProduct.fire("click", { isTrusted: true });
+    await settle(w.server);
+  }
+}
+
+async function addGitHubProduct(w, page, address) {
+  const main = page.byId("main"), addressInput = main.querySelector("input.address");
+  assert.ok(addressInput, "the public add-product route exposes its address field");
+  addressInput.value = address;
+  await addressInput.fire("input");
+  const addProduct = main.querySelector("button.add");
+  assert.ok(addProduct && !addProduct.disabled, "the instance token enables the public Add product decision");
+  await addProduct.fire("click", { isTrusted: true });
+  await settle(w.server);
+}
+
 // Elements reached by id keep their listeners, and are new elements once their container is written again; their value,
 // checked, disabled and hidden start as their tag says. The <main> element reaches its editor panel, as in a browser.
 function live(asked) {
@@ -896,10 +928,7 @@ test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a Git
   const w = await world({ gitlab, refuse: (u) => (refused && u.origin === API && u.pathname === `/repos/${INSTANCE}`
     ? new Response('{"message":"Bad credentials"}', { status: 401 }) : undefined) });
   const page = await open(w, { hash: "#add" });
-  await page.type("add-repo", GL_ADDRESS);
-  await page.tick("gl-ack");
-  page.byId("gl-token").value = GL_TOKEN;
-  await page.fire("gl-store");
+  await storeGitLabProductToken(w, page, GL_ADDRESS, { add: true });
   await page.go("#settings");
   refused = true;
   gitlab.refuseToken = true;
@@ -1039,21 +1068,16 @@ test("release · UC-042 6a: an import keeps the products this browser has, adds 
   const gitlab = gitlabServer();
   const w = await world({ product, gitlab });
   const first = await open(w, { hash: "#add" });
-  await first.type("add-repo", `https://github.com/${PRODUCT}`);
-  await first.fire("add-go");
-  await first.type("add-repo", GL_ADDRESS);
-  await first.tick("gl-ack");
-  first.byId("gl-token").value = GL_TOKEN;
-  await first.fire("gl-store");
-  await first.fire("add-go");
+  await addGitHubProduct(w, first, `https://github.com/${PRODUCT}`);
+  await first.go("#add");
+  await storeGitLabProductToken(w, first, GL_ADDRESS, { add: true });
   await first.go("#settings");
   await first.fire("export-go");
   await until(() => first.asked.downloads.length === 1, "the export");
   const [file] = await downloaded(first);
 
   const second = await open(w, { hash: "#add" });
-  await second.type("add-repo", `https://github.com/${PRODUCT}`);
-  await second.fire("add-go");
+  await addGitHubProduct(w, second, `https://github.com/${PRODUCT}`);
   await second.go("#settings");
   await second.tick("ack");
   second.byId("import-file").files = [{ text: async () => file.text }];
