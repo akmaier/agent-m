@@ -44,7 +44,7 @@ export function productStore(instance) {
       const expires = sameToken ? legacy.getTokenExpiry() ?? own.expires : own.expires;
       const tested = sameToken ? legacy.getTokenTest() ?? own.tested : own.tested;
       const { tested: ignored, ...setting } = own;
-      const merged = { ...setting, ...(tested ? { tested } : {}) };
+      const merged = { ...setting, expires: expires ?? null, ...(tested ? { tested } : {}) };
       if (JSON.stringify(merged) !== JSON.stringify(own)) writeSetting(store, "github-token", merged);
       legacy.setToken(own.value, expires);
       legacy.setTokenTest(tested ?? null);

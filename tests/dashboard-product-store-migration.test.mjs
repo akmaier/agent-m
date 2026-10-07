@@ -51,9 +51,15 @@ test("the dashboard migrates its product list and tokens into MOD-browser-store"
     "agent-m.products": JSON.stringify(["https://github.com/alice/tool"]),
     "agent-m.github-product-tokens": JSON.stringify({ "https://github.com/alice/tool": { token: "github_pat_PRODUCT", expires: "2027-02-01" } }),
   }) });
-  productStore("akmaier/agent-m");
+  const dashboard = productStore("akmaier/agent-m");
   const store = openStore("akmaier/agent-m");
   assert.equal(readSetting(store, "github-token").value, "github_pat_INSTANCE");
+  // The existing settings fixture may add metadata to its legacy token after the canonical entry was created.
+  globalThis.localStorage.setItem("agent-m.github-token-expires", "2028-01-01");
+  globalThis.localStorage.setItem("agent-m.github-token-tested", JSON.stringify({ ok: "2026-10-07" }));
+  dashboard.entries();
+  assert.equal(readSetting(store, "github-token").expires, "2028-01-01", "synchronization keeps the legacy expiry in the canonical setting");
+  assert.deepEqual(readSetting(store, "github-token").tested, { ok: "2026-10-07" }, "synchronization keeps the legacy last test in the canonical setting");
   assert.deepEqual(readSetting(store, "products"), ["https://github.com/alice/tool"]);
   assert.equal(readSetting(store, "github-token:alice/tool").value, "github_pat_PRODUCT");
 });
