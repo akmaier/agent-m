@@ -7,10 +7,11 @@
 const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 // tracesTo(graph: Graph, name: string) -> Traces — for a requirement, its sources and every use case, decision, module,
-// test and item that names it (A REQUIREMENT SHOWS WHAT TRACES TO IT). `tests` names every test whose `guards` edge
-// points at `name`, by identifier, sorted. Of this item's graph, no edge but `guards` is ever built, so every other
-// list is empty; a later item that builds use-case, decision, module or item nodes and `realises` or `forced_by` edges
-// extends this function to read them too.
+// test and item that names it (A REQUIREMENT SHOWS WHAT TRACES TO IT) — a module also through the tests of it that
+// guard the requirement, as the module file states. `tests` names every test whose `guards` edge points at `name`, by
+// identifier, sorted. Of this item's graph, no edge but `guards` is ever built and no use-case, decision, module or
+// item node exists, so every other list stays empty; a later item that reads them gives each its own rule — `modules`'
+// own is more than a direct edge (the module file, above), so it is not a lookup this item's shape can be stretched to.
 export function tracesTo(graph, name) {
   const tests = graph.edges.filter((edge) => edge.via === "guards" && edge.to === name).map((edge) => edge.from).sort(byText);
   return { sources: [], useCases: [], decisions: [], modules: [], tests, items: [] };
