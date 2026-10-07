@@ -221,13 +221,3 @@ signature does not hold. Writes no repository file; the jobs it composes write t
 - `MOD-site-frame.PageSetup`, `View`, `Route`, `startPage`, `explain`, `confirmDecision`, `notice` — the window, drawn as
   the page `bridge`; its explanations; the decisions of *Pair anew*, *Quit* and *Install and restart*; its notices.
 - `MOD-markdown-render.renderArtifact` — a release's notes, rendered sanitised.
-
-## Proposed change and impact — UC-003 short test through the Bridge
-
-Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
-contract identified in Sprint 09. Accepted baseline blob: `71d36abb286361f9349b30f3fa9bb8bd2e4f4a06`.
-This file is changed since that acceptance; no new approval record or implementation permission is supplied.
-The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
-in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
-Review this change together with all six other changed architecture files and the whole architecture against the
-whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.

@@ -234,13 +234,3 @@ reaches.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
   the person's click, *Test* and *Switch off*.
-
-## Proposed change and impact — UC-003 short test through the Bridge
-
-Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
-contract identified in Sprint 09. Accepted baseline blob: `6357592c6ff7a2dd528ae959c918ad4ec1a903a4`.
-This file is changed since that acceptance; no new approval record or implementation permission is supplied.
-The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
-in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
-Review this change together with all six other changed architecture files and the whole architecture against the
-whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.

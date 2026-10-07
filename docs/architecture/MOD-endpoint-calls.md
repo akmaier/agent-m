@@ -84,13 +84,3 @@ It reads and writes no file.
 - `MOD-job-runner.Driver`, `MOD-job-runner.DriverInput`, `MOD-job-runner.Usage` — the driver type it implements, its
   input, and the usage it returns.
 - `MOD-participant-list.Participant` — the participant the driver stands for.
-
-## Proposed change and impact — UC-003 short test through the Bridge
-
-Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
-contract identified in Sprint 09. Accepted baseline blob: `93b5fa9b6dd54cc6ca10604ef2d27807dc2161d5`.
-This file is changed since that acceptance; no new approval record or implementation permission is supplied.
-The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
-in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
-Review this change together with all six other changed architecture files and the whole architecture against the
-whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.
