@@ -145,16 +145,17 @@ test("TST-292009: disclosure and key controls precede a retained Bridge configur
   const action = main.querySelector(".endpoint-test");
   assert.match(disclosure.textContent, /short test request.*authorisation header/i);
   assert.ok(main.innerHTML.indexOf("endpoint-disclosure") < main.innerHTML.indexOf("endpoint-test"), "the route renders disclosure before Save and test");
+  fill(main, BRIDGED);
   const key = main.querySelector(".endpoint-key");
   assert.equal(key.type, "password");
   await press(server, main.querySelector(".endpoint-show"));
   assert.equal(key.type, "text", "Show reveals the real password control only after the author's click");
-  fill(main, BRIDGED);
+  assert.equal(key.value, BRIDGED.key, "Show retains the stored key while changing only its visibility");
   main.querySelector(".endpoint-through-bridge").checked = true;
   await press(server, action);
   assert.match(main.querySelector(".endpoint-result").textContent, /Bridge setup/i);
   assert.equal(direct, 0, "failure node: throughBridge returns before MOD-endpoint-calls");
-  assert.match(setting(BRIDGED.name), /throughBridge/);
+  assert.deepEqual(JSON.parse(setting(BRIDGED.name)), { url: BRIDGED.url, kind: BRIDGED.kind, model: BRIDGED.model, key: BRIDGED.key, throughBridge: true }, "the retained browser-store record preserves the Bridge route");
 });
 
 // TST-292010
