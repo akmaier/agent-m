@@ -265,6 +265,7 @@ function elements(root, match) {
 }
 const byTag = (root, name) => elements(root, (e) => e.localName === name);
 const byClass = (root, name) => elements(root, (e) => e.className.split(" ").includes(name));
+const byData = (root, attr, value) => elements(root, (e) => e.getAttribute(attr) === value);
 // What a person's typing does: the field holds the new text, and an input event follows.
 const type = (field, text) => { field.value = text; field.dispatchEvent(new Event("input")); };
 // The turn of the event loop in which a form answers what was done to it.
@@ -278,7 +279,11 @@ const fieldOf = (form, name) => fieldsOf(form).find((field) => nameOf(field) ===
 const inputOf = (form, key) => byTag(fieldOf(form, key), "input")[0];
 const areaOf = (form, heading) => byTag(fieldOf(form, heading), "textarea")[0];
 const besideOf = (field) => [...byClass(field, "findings")[0].children].map((finding) => finding.textContent);
-const saveOf = (form) => byTag(form, "button").find((b) => b.textContent === "Save");
+// The form's own Save, as tests/site-frame.test.mjs finds it: each section's editor brings a Save of its own (not
+// hooked up: "the form's one Save does"), appended before the fields that follow it, so the form's own Save — which
+// schemaForm appends last, after every field — is the last button in tree order, even once this route's own panels,
+// which hold none, are appended after it.
+const saveOf = (form) => byTag(form, "button").at(-1);
 
 // A 40-hex-digit sha1, as MOD-documents' type "sha" digits 40 needs for model_version, and a 64-hex-digit one for a
 // link's Hash.
@@ -499,11 +504,13 @@ test("process route — the five catalogue models, in two groups, each with what
       assert.ok(card.textContent.includes(value), `the card of ${model.name} shows "${value}"`);
     }
   }
+  // assert.ok on a plain === , not assert.equal/notEqual: on a mismatch, these are DOM-like objects, not worth
+  // formatting a diff of.
   const groups = byClass(target, "model-group");
   const groupOf = (name) => groups.find((g) => byClass(g, "model-card").some((c) => c.getAttribute("data-model") === name));
-  assert.notEqual(groupOf("scrum"), groupOf("waterfall"), "the agile and the plan-driven models stand in different groups");
-  assert.equal(groupOf("v-model"), groupOf("waterfall"), "waterfall and v-model stand in the same, plan-driven group");
-  assert.equal(groupOf("kanban"), groupOf("scrum"), "scrum and kanban stand in the same, agile group");
+  assert.ok(groupOf("scrum") !== groupOf("waterfall"), "the agile and the plan-driven models stand in different groups");
+  assert.ok(groupOf("v-model") === groupOf("waterfall"), "waterfall and v-model stand in the same, plan-driven group");
+  assert.ok(groupOf("kanban") === groupOf("scrum"), "scrum and kanban stand in the same, agile group");
 
   target.remove();
 });
@@ -524,7 +531,10 @@ test("process route — the page of a product without a declaration", async () =
   const form = byClass(target, "schema-form")[0];
   assert.ok(form, "the page holds a form");
   assert.equal(inputOf(form, "model").value, "");
-  assert.equal(byClass(target, "model-card").length, 5, "the five shipped models are offered to choose from");
+  const offered = byClass(target, "model-card").map((card) => card.getAttribute("data-model"));
+  for (const name of ["waterfall", "v-model", "reuse-oriented", "scrum", "kanban"]) {
+    assert.ok(offered.includes(name), `${name} is offered to choose from`);
+  }
 
   target.remove();
 });
@@ -552,7 +562,8 @@ test("process route — the page of a product with a declaration, its first fiel
   assert.equal(inputOf(form, "model_file").value, FIXTURE_MODEL_PATH);
   assert.match(areaOf(form, "## Roles").value, /Owner \| alice/);
   assert.match(areaOf(form, "## Roles").value, /Developers \| bot-a/);
-  assert.equal(document.activeElement, inputOf(form, "model"), "the form's first field is focused");
+  // assert.ok, not assert.equal: on a mismatch, formatting these DOM-like objects for a diff is not worth the cost.
+  assert.ok(document.activeElement === inputOf(form, "model"), "the form's first field is focused");
 
   target.remove();
 });
@@ -574,8 +585,8 @@ test("process route — a role's offered participants are those with every capab
 
   await route.render(target, contextOf(instanceHost, productHost));
 
-  const developers = target.querySelector('[data-role="Developers"]');
-  const reviewer = target.querySelector('[data-role="Reviewer"]');
+  const developers = byData(target, "data-role", "Developers")[0];
+  const reviewer = byData(target, "data-role", "Reviewer")[0];
   assert.ok(developers && reviewer, "both roles are shown");
   assert.ok(developers.textContent.includes("alice"), "alice is offered to Developers");
   assert.ok(developers.textContent.includes("bot-a"), "bot-a is offered to Developers");
