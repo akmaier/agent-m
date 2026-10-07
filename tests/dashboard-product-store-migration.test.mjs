@@ -127,6 +127,7 @@ test("the public add-product route rejects a synthetic Add product click", async
 
 // TST-269
 // Module: MOD-browser-store
+// Guards: UC-042; A CLEAR IS A REAL CLEAR
 // Level: component
 // given: GitHub and GitLab product tokens mirrored through the dashboard adapter
 // input: the existing Settings clear-token callers clear each product token, then the adapter reloads
@@ -149,6 +150,7 @@ test("clearing product tokens clears their canonical values and cannot resurrect
 
 // TST-270
 // Module: MOD-browser-store
+// Guards: UC-042; A CLEAR IS A REAL CLEAR; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
 // Level: component
 // given: GitHub and GitLab products with their own canonical tokens
 // input: the existing Settings remove-product caller removes each product, then the adapter reloads
@@ -160,7 +162,11 @@ test("removing a product clears its canonical address and token without reload r
   dashboard.addProduct(github); dashboard.setGitHubProductToken(github, "github_pat_PRODUCT", "2027-01-01");
   dashboard.addProduct(gitlab); dashboard.setGitLabToken(gitlab, "glpat_PRODUCT012345678", "2027-01-02");
   assert.deepEqual(readSetting(store, "products"), [github, gitlab], "known positive: public product list contains both addresses");
-  dashboard.removeProduct(github); dashboard.removeProduct(gitlab);
+  dashboard.removeProduct(github);
+  assert.deepEqual(readSetting(store, "products"), [gitlab], "removing one product retains the other public address");
+  assert.equal(readSetting(store, "github-token:alice/tool"), null, "removing one product clears only its GitHub public token");
+  assert.ok(readSetting(store, "gitlab-token:gitlab.example.org/team/tool")?.value, "removing one product retains the other public token");
+  dashboard.removeProduct(gitlab);
   assert.equal(readSetting(store, "products"), null, "removal clears the public product list");
   assert.equal(readSetting(store, "github-token:alice/tool"), null, "removal clears the GitHub public token");
   assert.equal(readSetting(store, "gitlab-token:gitlab.example.org/team/tool"), null, "removal clears the GitLab public token");
