@@ -38,8 +38,11 @@ const click = async (button) => { button.dispatchEvent(new Event("click")); awai
 
 class Storage { constructor() { this.values = new Map(); } getItem(key) { return this.values.get(key) ?? null; } setItem(key, value) { this.values.set(key, String(value)); } removeItem(key) { this.values.delete(key); } }
 function freshStore() { Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() }); return openStore("fixture/instance"); }
-const contextOf = (store) => ({ page: "review", instance: { repository: "fixture/instance" }, product: null, store, go() {} });
-async function render(store, params = {}) { const target = document.createElement("div"); await endpointsRoute().render(target, contextOf(store), params); return target; }
+const contextOf = (store, { host = {}, navigations = [] } = {}) => ({
+  page: "review", instance: { repository: "fixture/instance", host }, product: null, store,
+  go(route, params) { navigations.push({ route, params }); },
+});
+async function render(store, params = {}, options = {}) { const target = document.createElement("div"); await endpointsRoute().render(target, contextOf(store, options), params); return target; }
 function scripted(responses, calls) { const remaining = [...responses]; return async (url, init = {}) => { calls.push({ url: String(url), init }); const next = remaining.shift(); if (!next) throw new Error("unexpected endpoint request"); return new Response(JSON.stringify(next.body ?? {}), { status: next.status, headers: { "content-type": "application/json" } }); }; }
 
 const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key", throughBridge: false };
@@ -53,12 +56,14 @@ function endpointsRoute() {
   return route;
 }
 
-// TST-265-001
+// TST-265001
+// Module: MOD-settings-pages
+// Level: unit
 // guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
 // given: an empty browser store and a constructed successful endpoint answer
 // input: the author fills the public endpoints Route and presses Test
 // expect: the Route stores endpoint:<name> before exactly one short request, then shows the configured model working
-test("TST-265-001: direct endpoint saves before its one short test", async () => {
+test("TST-265001: direct endpoint saves before its one short test", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: String(url), init });
@@ -77,64 +82,97 @@ test("TST-265-001: direct endpoint saves before its one short test", async () =>
   } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265-002
+// TST-265002
+// Module: MOD-settings-pages
+// Level: unit
 // guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a constructed browser refusal that names cross-origin blocking and CI/Bridge routes
 // input: the author presses Test on the public endpoints Route
 // expect: the Route shows the observed reason and both named alternatives
-test("TST-265-002: browser refusal is shown with CI and Bridge alternatives", async () => {
+test("TST-265002: browser refusal is shown with CI and Bridge alternatives", async () => {
   const store = freshStore(), oldFetch = globalThis.fetch, oldWindow = globalThis.window;
   globalThis.window = {}; globalThis.fetch = async () => { throw new TypeError("Blocked by CORS policy"); };
   try { const target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /Blocked by CORS policy/); assert.match(target.textContent, /CI/); assert.match(target.textContent, /Bridge/); } finally { globalThis.fetch = oldFetch; globalThis.window = oldWindow; }
 });
 
-// TST-265-003
+// TST-265003
+// Module: MOD-settings-pages
+// Level: unit
 // guards: UC-003 alternative 4b; CONFIGURATION LIVES IN THE BROWSER
 // given: a key that a constructed provider response refuses
 // input: save and test, then reload the public endpoints Route
 // expect: the provider message is visible and the stored key remains until the author changes or clears it
-test("TST-265-003: a refused key remains stored and reloads", async () => {
+test("TST-265003: a refused key remains stored and reloads", async () => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = scripted([{ status: 401, body: { error: { message: "Invalid API key." } } }], []);
   try { let target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); type(byClass(target, "endpoint-key")[0], ENDPOINT.key); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /Invalid API key/); assert.equal(readSetting(store, "endpoint:campus").key, ENDPOINT.key); target = await render(store, { name: "campus" }); assert.equal(byClass(target, "endpoint-key")[0].value, ENDPOINT.key); } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265-004
+// TST-265004
+// Module: MOD-settings-pages
+// Level: unit
 // guards: UC-003 alternative 2b; A CLEAR IS A REAL CLEAR
 // given: endpoint:<name> is stored in localStorage and the endpoint form is rendered
 // input: the author presses Clear in the public endpoints Route
 // expect: the form is empty and the actual endpoint:<name> browser-store entry is removed
-test("TST-265-004: Clear removes the stored endpoint and empties the form", async () => {
+test("TST-265004: Clear removes the stored endpoint and empties the form", async () => {
   const store = freshStore(); writeSetting(store, "endpoint:campus", ENDPOINT); const target = await render(store, { name: "campus" });
   await click(byClass(target, "endpoint-clear")[0]); assert.equal(readSetting(store, "endpoint:campus"), null); assert.equal(byClass(target, "endpoint-url")[0].value, "");
 });
 
-// TST-265-005
+// TST-265005
+// Module: MOD-settings-pages
+// Level: unit
 // guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a stored throughBridge endpoint for a local model server
 // input: the author opens the public endpoints Route and presses Test
 // expect: no direct request reaches its model, the setting is retained, and the missing Bridge setup is named
-test("TST-265-005: a Bridge endpoint is retained and never called directly", async () => {
+test("TST-265005: a Bridge endpoint is retained and never called directly", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch; writeSetting(store, "endpoint:local", BRIDGED); globalThis.fetch = scripted([], calls);
   try { const target = await render(store, { name: "local" }); await click(byClass(target, "endpoint-test")[0]); assert.equal(calls.length, 0); assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED); assert.match(target.textContent, /Bridge.*setup|setup.*Bridge/i); } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265-006
+// TST-265006
+// Module: MOD-settings-pages
+// Level: unit
 // guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: an endpoint form with an absent optional key
 // input: the author saves and tests it through the public endpoints Route
 // expect: the store keeps no key property and the call boundary receives EndpointConfig key null, never a URL credential
-test("TST-265-006: an absent key maps to null at the direct-call boundary", async () => {
+test("TST-265006: an absent key maps to null at the direct-call boundary", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch; globalThis.fetch = scripted([{ status: 200, body: { choices: [] } }], calls);
   try { const target = await render(store); type(byClass(target, "endpoint-name")[0], "public"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); await click(byClass(target, "endpoint-test")[0]); assert.equal(Object.hasOwn(readSetting(store, "endpoint:public"), "key"), false); assert.equal(calls[0].init.headers.Authorization, undefined); } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265-007
+// TST-265007
+// Module: MOD-settings-pages
+// Level: unit
 // guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; THE PAGE STATES WHAT IT SENDS WHERE
 // given: an endpoint key in the real password control
 // input: the public endpoints Route renders before the author saves
 // expect: destination disclosure precedes the action, the key is hidden, and neither a URL nor a repository writer receives it
-test("TST-265-007: disclosure precedes a hidden endpoint key", async () => {
-  const target = await render(freshStore()), key = byClass(target, "endpoint-key")[0], disclosure = byClass(target, "endpoint-disclosure")[0];
-  assert.equal(key.type, "password"); assert.ok(target.childNodes.indexOf(disclosure) < target.childNodes.indexOf(key)); assert.equal(target.textContent.includes(ENDPOINT.key), false); assert.equal(ENDPOINT.url.includes(ENDPOINT.key), false);
+test("TST-265007: disclosure precedes a hidden endpoint key without repository or navigation leakage", async () => {
+  const store = freshStore(), writes = [], navigations = [], oldFetch = globalThis.fetch;
+  const host = {
+    commitFiles(...args) { writes.push({ operation: "commitFiles", args }); },
+    startWorkflow(...args) { writes.push({ operation: "startWorkflow", args }); },
+  };
+  document.cookie = "";
+  globalThis.fetch = scripted([{ status: 200, body: { choices: [{ message: { content: "ok" } }] } }], []);
+  try {
+    const target = await render(store, {}, { host, navigations });
+    const key = byClass(target, "endpoint-key")[0], disclosure = byClass(target, "endpoint-disclosure")[0];
+    const action = byClass(target, "endpoint-test")[0];
+    const ordered = descendants(target, (node) => node === disclosure || node === action);
+    assert.equal(key.type, "password");
+    assert.ok(ordered.indexOf(disclosure) >= 0 && ordered.indexOf(disclosure) < ordered.indexOf(action), "the rendered disclosure precedes Test");
+    assert.ok(byTag(target, "a").every((link) => !String(link.href).includes(ENDPOINT.key)), "rendered link destinations exclude the key");
+    assert.equal(target.textContent.includes(ENDPOINT.key), false, "the rendered page does not disclose the key");
+    type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
+    type(byClass(target, "endpoint-model")[0], ENDPOINT.model); type(key, ENDPOINT.key); await click(action);
+    assert.deepEqual(readSetting(store, "endpoint:campus"), ENDPOINT, "save writes only the browser-store endpoint setting");
+    assert.deepEqual(writes, [], "render, save, and test make no repository write");
+    assert.deepEqual(navigations, [], "render, save, and test do not navigate away");
+    assert.equal(document.cookie, "", "render, save, and test set no cookie");
+  } finally { globalThis.fetch = oldFetch; }
 });
