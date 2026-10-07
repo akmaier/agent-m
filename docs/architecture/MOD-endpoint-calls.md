@@ -25,9 +25,8 @@ It belongs to Participants and jobs (ARC-046). It is the participant driver for 
 Anthropic, hosted or self-hosted — that a browser or Node calls directly: it sends a job's input as one request and
 returns the answer and the usage the endpoint reported; it sends the short test request of UC-003; and when a browser
 cannot call an endpoint, it names the reason and the routes that would work instead (`AN UNSUPPORTED ENDPOINT SAYS SO`).
-For UC-003's short test of a model server reached through a Bridge, MOD-bridge-jobs invokes this module's public
-`testEndpoint` in Node on that computer. Jobs of an agent on a Bridge remain MOD-runtimes' driver responsibility;
-this short test creates no job and no driver. It runs in a browser and in Node, and keeps nothing.
+A model server on a person's computer, reached through a Bridge, is not called here: MOD-runtimes' driver of an agent on a
+Bridge reaches it. It runs in a browser and in Node, and keeps nothing.
 
 ## Parts
 
@@ -47,10 +46,8 @@ secrets:
 ```
 
 The key is the endpoint's own, held in a browser's store or, in CI, read from the CI secret the participant names; it is
-sent to the endpoint's own address in its authorisation header. For UC-003 throughBridge, the browser first sends
-EndpointConfig, including its key, only in the paired Bridge request's JSON body; the Bridge holds it only for that
-short test and sends it to the endpoint in the same header. Neither hop puts a credential in an address
-(`A CREDENTIAL IS NEVER PLACED IN A URL`), log or repository (`NO SECRET IN THE REPOSITORY`).
+sent only to the endpoint's own address, in the request's authorisation header, never in an address
+(`A CREDENTIAL IS NEVER PLACED IN A URL`), and never written anywhere (`NO SECRET IN THE REPOSITORY`).
 
 ## Interfaces
 

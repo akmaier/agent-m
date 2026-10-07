@@ -9,7 +9,6 @@ uses:
   - MOD-bridge-http.bridgeApi
   - MOD-bridge-http.BridgeHandlers
   - MOD-endpoint-calls.EndpointConfig
-  - MOD-endpoint-calls.Diagnosis
   - MOD-endpoint-calls.testEndpoint
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.readSnapshot
@@ -85,14 +84,10 @@ when the job ends. Which products it serves, and the Bridge's name — the name 
   - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` lists the
     models an endpoint on this computer serves; `partitions` lists a cluster's partitions through its scheduler's
     command on this computer (UC-017, UC-040). Errors: `upstream-failed` with the answer.
-    `endpoint-test` (UC-003 2a) validates `body.args` against the canonical EndpointConfig and calls the public
-    MOD-endpoint-calls.testEndpoint once in Node on this Bridge computer. It returns `{ answer: result }` unchanged:
-    provider refusal, unknown model or unreachable endpoint are the test result's Diagnosis, preserving its message.
-    Invalid args answer `invalid-request`; unexpected handler failures answer `upstream-failed`; the server enforces
-    pairing token/origin/pause before calling it. The handler retains no configuration or endpoint key after the
-    request, writes no setting, repository file, clone, record or log for it, and retries nothing. The endpoint's key
-    goes only to that endpoint's authorisation header. This is a short model test, never an endpoint-models probe,
-    queued job, agent driver or correction loop.
+    `endpoint-test` (UC-003 2a) takes body.args as public EndpointConfig and invokes MOD-endpoint-calls.testEndpoint
+    once in Node on this computer, returning `{ answer: result }` unchanged. It retains neither configuration nor
+    credentials after the request. Invalid args use existing `invalid-request`; model failure is the test result's
+    Diagnosis, rather than a Bridge transport error.
 - `startWatching(config: { dataFolder: string, bridgeName: string, products: { address: string }[], every: number })
   -> void` — starts reading every served product through Access's local clone with the computer's own git login, at the
   given interval and after every hand-over: queued jobs whose participant's route is this Bridge are taken — a commit
@@ -135,8 +130,8 @@ Nothing else.
 ## Uses
 
 - `MOD-bridge-http.bridgeApi`, `MOD-bridge-http.BridgeHandlers` — the routes it answers.
-- `MOD-endpoint-calls.EndpointConfig`, `Diagnosis`, `testEndpoint` — the canonical short-test configuration, result's
-  diagnosis and one-request test invoked in Node for endpoint-test; no private endpoint-calls file is used.
+- `MOD-endpoint-calls.EndpointConfig`, `testEndpoint` — the public configuration and one-request short test for
+  endpoint-test, invoked in Node on the Bridge computer.
 - `MOD-repository-hosts.connect`, `MOD-repository-hosts.readSnapshot` — the served products, through the local clone with
   the computer's own git login; and the instance at the commit a declaration names, through its clone, which fetches the
   commit with that login.

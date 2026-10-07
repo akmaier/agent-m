@@ -55,16 +55,9 @@ TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); the Bridge does not read it. Bodies are 
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |
 
-For `endpoint-test`, `args` is the public `MOD-endpoint-calls.EndpointConfig`, defined once in that module's
-interface; `answer` is the resolved result of its public `testEndpoint`, including its public `Diagnosis` on failure.
-The concrete path is `POST /v1/probes/endpoint-test`; no new route family or server is introduced. The protocol names
-these canonical formats by reference, without importing a driver or copying its schema into this independent module.
-The jobs handler validates the configuration against that interface; an invalid body answers `invalid-request` (422).
-A valid test's provider/network failure is its `{ answer: <testEndpoint result> }` with `works: false`, not a transport
-failure. An unexpected handler failure uses existing `upstream-failed` (502). Existing token/origin refusals and `paused`
-apply before dispatch, and `endpoint-models` keeps its models-list meaning. The configuration and endpoint key exist
-only for this request, are never persisted or logged, and are released after its answer. The only retained server
-credential remains the pairing token in its existing user-only file. No credential enters a query or address.
+For `endpoint-test` (UC-003 2a), `args` is the public MOD-endpoint-calls.EndpointConfig and `answer` is the
+resolved result of its public testEndpoint, including Diagnosis on failure. These formats are defined once in
+MOD-endpoint-calls; this protocol refers to them without a runtime dependency on the endpoint driver.
 
 The mail operations are `test`, `read`, `find`, `drafts`, `sent`, `store-draft`, `update-draft`, `show-draft`,
 `confirm-send` and `send`. `confirm-send` takes `{ ref, sha256 }` and answers `{ confirmation }`: a single-use value bound
