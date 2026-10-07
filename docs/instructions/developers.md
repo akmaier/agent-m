@@ -67,6 +67,18 @@ blob (`git show <blob sha>`) and say so in your report.
    <your participant name> (<your model>)` and the lines your task names.
 8. **Do not merge.** The Product Owner decides the merge; the Scrum Master carries it out.
 
+## A change between jobs
+When the task names a change between jobs instead of an item (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`), the sprint's
+record says what it changes, and the rules above hold with these differences:
+- It changes only files that no module owns, and each change is one of the kinds that requirement names — for instance
+  old code of the dashboard calling a module in place of its own code. No module's folder changes.
+- The branch is `between/<nn>-<slug>`, the pull request's title `Sprint <nn>, between jobs: <what it changes>`, and its
+  description names the kind of change.
+- A new test shows the dashboard reaching the module through the change, names the module it reaches, and has a
+  counter-proof. Reach the page the way the existing tests of that page do; build no other way.
+- Commits end with `Item: — (between jobs) · Agent M at <the sprint commit you branched from> · <your participant name>
+  (<your model>)` and the lines your task names.
+
 ## Your report (at most 20 lines)
 The pull request's address; its commits; the CI result of the tests-only commit (red) and of the last commit (green),
 with their addresses; the counter-proofs' count; every file you changed; the gaps you noted; and anything you could not
