@@ -74,7 +74,7 @@ export const route = {
     const fields = { name, url, kind, model, key, throughBridge };
 
     name.placeholder = "Endpoint name";
-    url.placeholder = "https://endpoint.example/v1";
+    url.placeholder = "Endpoint address";
     model.placeholder = "Model name";
     key.type = "password";
     key.placeholder = "Optional API key";
