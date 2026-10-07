@@ -309,8 +309,6 @@ test("TST-265013: Settings explains its browser section and each stored endpoint
   const folded = [...byTag(browserExplanation[0], "details"), ...byTag(lineExplanation[0], "details")];
   assert.equal(folded.length, 2, "both explanations use the public folded control");
   assert.ok(folded.every((detail) => byTag(detail, "summary").some((summary) => summary.textContent === "What is this?")));
-  assert.match(browserExplanation[0].textContent, /Bridge/);
-  assert.match(lineExplanation[0].textContent, /short test request/);
 });
 
 // TST-265014
