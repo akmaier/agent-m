@@ -100,7 +100,7 @@ test("TST-281 UC-001 main flow stores a product token and adds the missing layou
   for (const path of ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"])
     assert.ok(w.product.files[path], `main flow writes layout part ${path}`);
   assert.equal(w.product.files["README.md"], "# Thesis tool\n", "main flow preserves existing product content");
-  assert.match(main.innerHTML, /Done — wrote the missing review layout in.*commit/i, "Step C presents the created commit");
+  assert.match(main.innerHTML, new RegExp(`<a href="${WEB.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/commit/${w.product.head}">the commit ↗</a>`), "Step C links to the created commit itself");
   assert.match(main.innerHTML, /Switch to the new product/, "Step C offers the product switch");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [WEB], "only this browser keeps the address");
   assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`)).value, PRODUCT_TOKEN);

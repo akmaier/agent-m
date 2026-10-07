@@ -15,6 +15,11 @@ const PREFIX = `agent-m:${REPO}:`;
 const PRODUCT_TOKEN = "github_pat_RELEASE0010123456789";
 const GL_TOKEN = "glpat_RELEASE001";
 const textOf = (html) => String(html).replace(/<[^>]*>/g, " ").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+const sectionBefore = (html, heading, nextHeading) => {
+  const start = html.indexOf(heading);
+  const end = nextHeading ? html.indexOf(nextHeading, start + heading.length) : -1;
+  return html.slice(start, end < 0 ? html.length : end);
+};
 
 async function page(address) {
   const server = await repoServer({ files: {} });
@@ -107,11 +112,19 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
   assert.match(ghText, /Everything Agent M stores in this browser is stored for the address https:\/\/akmaier\.github\.io — every GitHub Pages site under that same akmaier\.github\.io domain can read it\./);
   assert.match(ghText, /missing review layout.*default branch/i);
   assert.match(ghText, /nothing is written to the instance repository/i);
-  for (const heading of ["Step B · Check", "Step C · Add the product"])
-    assert.match(gh.innerHTML.slice(gh.innerHTML.indexOf(heading)), /<details class="explain">/, `${heading} has its own folded explanation`);
+  const ghStepB = sectionBefore(gh.innerHTML, "Step B · Check", "Step C · Add the product");
+  const ghStepC = sectionBefore(gh.innerHTML, "Step C · Add the product");
+  assert.match(ghStepB, /<details class="explain">[\s\S]*The product gets a key of its own/, "GitHub Step B itself explains why this product needs its own key");
+  assert.match(ghStepC, /<details class="explain">[\s\S]*Pressing \*Add product\* writes one commit/, "Step C explains the contents of its review-layout commit");
+  assert.match(ghStepC, /<details class="explain">[\s\S]*ordinary commit[\s\S]*revert it/, "Step C explains how its layout commit can be reverted");
+  assert.match(ghStepC, /<details class="explain">[\s\S]*kept only in this browser&#39;s own storage[\s\S]*instance repository/, "Step C explains why its product list stays in this browser");
 
   const gl = await page(GL);
   const glText = textOf(gl.innerHTML);
+  const glStepA = sectionBefore(gl.innerHTML, "Step A · Create a key for this project", "Step B · Give the key to Agent M");
+  const glStepB = sectionBefore(gl.innerHTML, "Step B · Give the key to Agent M", "Step C · Add the product");
+  assert.match(glStepA, /<details class="explain">[\s\S]*The product gets a key of its own/, "GitLab Step A itself explains why this project needs its own key");
+  assert.match(glStepB, /<details class="explain">[\s\S]*The product gets a key of its own/, "GitLab Step B itself explains why this project needs its own key");
   assert.match(glText, /Create a key for this project/);
   assert.match(glText, /Settings → Access tokens/);
   assert.match(glText, /Maintainer/);
