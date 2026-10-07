@@ -37,10 +37,11 @@ you check (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`). Rea
 description, commits, every changed file, its CI runs.
 
 For an item, check:
-1. The first commit holds only test files, and CI was red on it.
+1. The first commit holds only test files, and CI was red on it — except for an item of release or system tests, which
+   adds no behaviour.
 2. CI is green on the last commit.
 3. Only the item's scope changed: the folders `src/<slug>/` of its modules and new test files whose header names one of
-   them — for a release tester's item, only test files. List every changed file and why it is in scope.
+   them — for an item of release or system tests, only test files. List every changed file and why it is in scope.
 4. Every new test names the requirement it guards and the module it exercises, and has a recorded counter-proof.
 5. The item's Acceptance holds, as far as reading the change and its tests shows.
 For a change between jobs, instead of checks 1, 3 and 5: each change is one of the kinds

@@ -21,7 +21,7 @@ origin:
 
 ## Outcome
 
-The system and release tests of UC-047, written by tester-opus, who implemented none of it (`RELEASE TESTS ARE NOT
+The system and release tests of UC-047, written by a Developer who implemented none of it (`RELEASE TESTS ARE NOT
 WRITTEN BY THE IMPLEMENTER`), through the dashboard's settings page and pages once they call MOD-notifications.
 
 ## Acceptance

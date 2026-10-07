@@ -96,7 +96,7 @@ const BROKEN = {
   "a role without capabilities":
     { ...breakLine("| Scrum Master | either | read the repository |", "| Scrum Master | either |  |"), rule: CAPABILITIES, field: /^Roles/ },
   "a phase without a role":
-    { ...breakLine("| Release testing | Release tester | TST (release tests of the selected items) |", "| Release testing |  | TST (release tests of the selected items) |"),
+    { ...breakLine("| Release testing | Developers | TST (release tests of the selected items) |", "| Release testing |  | TST (release tests of the selected items) |"),
       rule: null, field: /^Phases/ },
   "a missing declaration of whether work is planned or pulled":
     { ...breakLine("kind: pulled", null), rule: null, field: /kind/i, anyLine: true },

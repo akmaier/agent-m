@@ -67,6 +67,20 @@ blob (`git show <blob sha>`) and say so in your report.
    <your participant name> (<your model>)` and the lines your task names.
 8. **Do not merge.** The Product Owner decides the merge; the Scrum Master carries it out.
 
+## An item of release or system tests
+When the task gives you an item of release or system tests, you implemented none of the behaviour it tests
+(`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`), and the rules above hold with these differences:
+- Read, besides your item, the use case it names in full, the requirements that use case realises, and how the
+  dashboard reaches the behaviour: the view file and the existing test that drives it. Reach it that way; build no other.
+- Write a system test that walks the use case's main flow and each alternative flow it names, and one release test for
+  each requirement the use case realises — no more. Each states its input, precondition and expected result, written
+  from the use case and the requirements, not from the code, and names in its header what it guards, the module it
+  exercises and its level (`// Level: system` or `// Level: release`).
+- Only test files change; the first commit need not be red, since the behaviour exists. Every new test has a
+  counter-proof.
+- A test that fails because the behaviour does not do what the use case says is a finding, not a test to bend: mark it
+  `{ todo: "FINDING <id> — <what the code does instead>" }` and list it in your report.
+
 ## A change between jobs
 When the task names a change between jobs instead of an item (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`), the sprint's
 record says what it changes, and the rules above hold with these differences:
