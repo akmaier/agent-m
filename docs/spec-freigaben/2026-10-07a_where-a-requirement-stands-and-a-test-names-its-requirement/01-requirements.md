@@ -32,7 +32,7 @@ the derived reference list.
 **A REQUIREMENT NAMES WHAT IT CONSTRAINS** *(PO A. Maier)*
 Where a requirement stands names what it constrains: a requirement of Agent M's SPEC constrains the development process,
 a requirement of a product's SPEC constrains the product.
-*Check:* `tests/spec-document-parse.test.mjs` — the requirements of a SPEC are read with no field for what they constrain.
+*Check:* `tests/test_products_folder.py` — no committed file of the instance repository, its SPEC included, names a product.
 
 **DERIVATION SEES THE EXISTING REQUIREMENTS** *(PO A. Maier)*
 When requirements are derived, every requirement of the product — in its SPEC and in its open change
