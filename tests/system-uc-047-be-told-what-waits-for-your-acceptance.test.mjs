@@ -10,7 +10,7 @@
 //
 // ITM-243 (sprint 08, once sprint 08's change between jobs #163 fixed F1 and F2 — docs/gates/20261007-1315-development-
 // release-testing-d362.md) removes the todo marks of the two tests that hit them, with their counter-proof recorded in
-// the pull request; the test of F3 stays todo for ITM-244, once ITM-207's move is merged (docs/backlog/sprints/08.md).
+// the pull request.
 //
 // Written by developer-sonnet-e, the release tester of docs/instructions/developers.md's "An item of release or system
 // tests", who implemented none of UC-047 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
@@ -29,19 +29,6 @@ const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the inst
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
 const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
 const PRODUCT = "alice/thesis-tool"; // a product this browser keeps, UC-047 step 2's "each product"
-
-// ---------------------------------------------------------------- findings (docs/instructions/developers.md, "An item of
-// ---------------------------------------------------------------- release or system tests"), cited by the one test below
-// ---------------------------------------------------------------- that still hits one: F1 and F2 are fixed (sprint 08's
-// ---------------------------------------------------------------- change between jobs #163; docs/gates/20261007-1315-
-// ---------------------------------------------------------------- development-release-testing-d362.md), their todo marks
-// ---------------------------------------------------------------- removed by ITM-243; F3 stays open for ITM-244.
-
-const F3 = "FINDING ITM-238-F3 — src/notifications/checks.mjs:74: readSetting(store, \"products\") reads MOD-browser-" +
-  "store's agent-m:<instance>:products, which nothing in the repository ever writes; the real \"+ Add product\" flow " +
-  "keeps this browser's product list under settings-store.mjs's own key (agent-m.products, read by store.getProducts()) " +
-  "— so \"products\" is always [], and no product this browser keeps is ever checked, however many are added (backlog " +
-  "item to be added by the Product Owner)";
 
 // ---------------------------------------------------------------- the browser: Notification, navigator.serviceWorker and
 // ---------------------------------------------------------------- setInterval/clearInterval stood in for one test, combining
@@ -90,14 +77,19 @@ function installBrowser({ permission = "granted", userAgent = "node" } = {}) {
 // reading alone (no write is tested here).
 async function withProduct(instanceFiles, productFiles) {
   const product = await repoServer({ repo: PRODUCT, files: productFiles });
+  const productAuthorizations = [];
   const instance = await repoServer({
     files: instanceFiles,
     handlers: [
-      (url, init) => ((url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`))
-        || (url.origin === RAW && url.pathname.startsWith(`/${PRODUCT}/`)) ? product.fetch(url.href, init) : undefined),
+      (url, init) => {
+        if (!((url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`))
+          || (url.origin === RAW && url.pathname.startsWith(`/${PRODUCT}/`)))) return undefined;
+        productAuthorizations.push(new Headers(init.headers).get("Authorization"));
+        return product.fetch(url.href, init);
+      },
     ],
   });
-  return { instance, product };
+  return { instance, product, productAuthorizations };
 }
 
 // A page that can show a real notification: this harness's document has no baseURI (built for views that resolve no
@@ -118,12 +110,11 @@ function captureNotifications() {
 // What a person reads: HTML entities decoded, as tests/release-sprint-04-uc-001-repository-hosts.test.mjs's own unesc does.
 const unesc = (s) => String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
-// This browser's product list and the product's own GitHub token — "+ Add product"'s real, working mechanism
-// (settings-store.mjs's agent-m.products, agent-m.github-product-tokens), given directly as a fixture entry the way
-// every test of this file gives "notifications"/"notified" directly, never driving the add-product page itself (out of
-// this item's scope: MOD-notifications reads the product, not how it was added).
+// This browser's canonical MOD-browser-store product list and the product's own GitHub token, given directly as a
+// fixture entry the way every test of this file gives "notifications"/"notified" directly, never driving the
+// add-product page itself (out of this item's scope: MOD-notifications reads the product, not how it was added).
 const PRODUCT_ENTRIES = {
-  "agent-m.products": JSON.stringify([`https://github.com/${PRODUCT}`]),
+  [`${PREFIX}products`]: JSON.stringify([`https://github.com/${PRODUCT}`]),
   [`${PREFIX}github-token:${PRODUCT}`]: JSON.stringify({ value: "github_pat_PRODUCTTOKEN0123456789abcdefg", name: PRODUCT }),
 };
 
@@ -206,8 +197,12 @@ test("step 2: the check of the instance connects with the instance's own stored 
 // input: opening a review page (#uc)
 // expect (step 2: "...and in each product this browser keeps... with the token of each"): the product's repository is
 //         reached at all, and reached with its own token
-test("step 2: the check also reaches each product this browser keeps, with that product's own token", { todo: F3 }, async () => {
-  const { instance, product } = await withProduct({}, { "docs/use-cases/UC-500-product-thing.md": "# UC-500\n" });
+// TST-279
+// Module: MOD-notifications
+// Guards: UC-047; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// Level: system
+test("TST-279 step 2: the check also reaches each product this browser keeps, with that product's own token", async () => {
+  const { instance, product, productAuthorizations } = await withProduct({}, { "docs/use-cases/UC-500-product-thing.md": "# UC-500\n" });
   const browser = installBrowser();
   try {
     await openDashboard({
@@ -216,6 +211,8 @@ test("step 2: the check also reaches each product this browser keeps, with that 
     });
     assert.ok(product.requests.length > 0,
       "UC-047 step 2: the product this browser keeps is reached by the check — none of its requests arrived");
+    assert.ok(productAuthorizations.includes("Bearer github_pat_PRODUCTTOKEN0123456789abcdefg"),
+      "UC-047 step 2: the product is reached with its own token");
   } finally { browser.restore(); }
 });
 
