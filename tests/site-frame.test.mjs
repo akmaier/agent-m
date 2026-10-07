@@ -2,10 +2,16 @@
 // states it, for UC-002: schemaForm, a form built from a schema with its findings beside the fields and Save, and explain,
 // the folded "What is this?" of a topic from the module's explanations.md, which holds UC-002's topics. The types View,
 // Route and ViewContext, which ITM-221 also builds, are types only and have no test.
+//
+// ITM-255 adds explanations.md's topics for UC-001's add-product steps and UC-013's release panel (the view add-product,
+// ITM-207, and the route release, ITM-256, name them; neither is built yet). Added to this file's "explain" tests below,
+// rather than a file of its own, since this is the one place that already renders a topic through explain() — as
+// tests/site-frame-book-pointers.test.mjs notes when it reads explanations.md's text directly instead.
 // Run: node --test tests/site-frame.test.mjs
 //
 // Module: MOD-site-frame
-// Guards: UC-002; EVERY STEP EXPLAINS ITSELF; A FORM OPENS WITH ITS FIRST FIELD FOCUSED; ONE CLICK PER DECISION
+// Guards: UC-002; UC-001; UC-013; EVERY STEP EXPLAINS ITSELF; A FORM OPENS WITH ITS FIRST FIELD FOCUSED; ONE CLICK PER
+//   DECISION
 // Level: unit
 //
 // Not part of ITM-221, and not tested here: PageSetup, startPage, embedRoute, menuOf, instanceOf, chosenProduct, runPanel,
@@ -491,4 +497,122 @@ test("explain — an empty element for a topic the file does not hold", () => {
   const nothing = explain("no-such-topic");
   assert.equal(nothing.nodeType, 1, "an element");
   assert.equal(nothing.childNodes.length, 0, "without any child");
+});
+
+// ---------------------------------------------------------------- explain — UC-001's and UC-013's topics (ITM-255)
+//
+// UC-001's own text: "Every step carries a folded What is this? explanation for newcomers: what a repository is, why the
+// product gets a key of its own, what the commit contains, how to undo it, and why the product list lives in this browser
+// only." UC-013's own text: "Folded explanations say what each level checks, why release tests run with a different
+// participant, and why a released version is never changed afterwards." ITM-255's Outcome names these eight topics; each
+// gets a slug of its own, which the add-product view (ITM-207) and the release route (ITM-256) will name once built — the
+// generic shape of explain()'s element (a folded <details>, rendered through renderArtifact) is already checked above, so
+// each test below only checks the body text these two use cases ask of its topic.
+
+// The folded body's rendered text, for a topic this block checks: the full textContent of the <div> that follows
+// <summary>, the same destructuring the test above uses.
+const bodyText = (topic) => explain(topic).children[1]?.textContent ?? "";
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (step 2: pasting the product repository's address)
+// given: the topic repository, as ITM-255 adds it to explanations.md
+// input: explain("repository")
+// expect: text saying a repository holds a project's files and history, with an example address for a GitHub and for a
+//         GitLab product, as UC-001 step 2 gives them
+test("explain — repository: what a repository is (UC-001)", () => {
+  assert.ok(topicText("repository")?.trim(), "known positive: explanations.md holds the topic repository");
+  const text = bodyText("repository");
+  assert.match(text, /folder on GitHub/);
+  assert.match(text, /github\.com\/alice\/thesis-tool/);
+  assert.match(text, /gitlab\.rrze\.fau\.de/);
+});
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (Step A: a key for the product); A GITHUB PRODUCT USES A TOKEN OF ITS OWN
+// given: the topic product-key
+// input: explain("product-key")
+// expect: text saying the product gets a key of its own, and naming the GitLab project access token as the same idea on
+//         that kind of server
+test("explain — product-key: why the product gets a key of its own (UC-001)", () => {
+  assert.ok(topicText("product-key")?.trim(), "known positive: explanations.md holds the topic product-key");
+  const text = bodyText("product-key");
+  assert.match(text, /a key of its own/);
+  assert.match(text, /project access token/);
+});
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (Step C: Add the product, one click)
+// given: the topic review-layout-commit
+// input: explain("review-layout-commit")
+// expect: text naming the folders and files UC-001 step 5 writes, and that only what is missing is written
+test("explain — review-layout-commit: what the commit contains (UC-001)", () => {
+  assert.ok(topicText("review-layout-commit")?.trim(), "known positive: explanations.md holds the topic review-layout-commit");
+  const text = bodyText("review-layout-commit");
+  assert.match(text, /docs\/use-cases\//);
+  assert.match(text, /docs\/spec-freigaben\//);
+  assert.match(text, /SPEC\.md/);
+  assert.match(text, /CHANGELOG\.md/);
+  assert.match(text, /only whatever of this is missing/);
+});
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (5b: the product already has the complete layout — nothing is committed)
+// given: the topic reverting-the-commit
+// input: explain("reverting-the-commit")
+// expect: text saying the commit is ordinary and can be reverted on GitHub, and that nothing is committed when nothing was
+//         missing
+test("explain — reverting-the-commit: how to undo it (UC-001)", () => {
+  assert.ok(topicText("reverting-the-commit")?.trim(), "known positive: explanations.md holds the topic reverting-the-commit");
+  const text = bodyText("reverting-the-commit");
+  assert.match(text, /ordinary commit/);
+  assert.match(text, /revert it/);
+  assert.match(text, /nothing is committed in the first place/);
+});
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD KEEPS ITS
+//   PRODUCTS IN THE BROWSER; 1a: another browser's list is empty)
+// given: the topic the-product-list
+// input: explain("the-product-list")
+// expect: text saying the address is kept only in this browser, nothing is written into the instance repository, and
+//         another browser starts with an empty list
+test("explain — the-product-list: why the product list lives in this browser only (UC-001)", () => {
+  assert.ok(topicText("the-product-list")?.trim(), "known positive: explanations.md holds the topic the-product-list");
+  const text = bodyText("the-product-list");
+  assert.match(text, /kept only in this browser's own storage/);
+  assert.match(text, /instance repository/);
+  assert.match(text, /empty list/);
+});
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (step 2: the complete test suite, every level, on the release candidate)
+// given: the topic release-test-levels
+// input: explain("release-test-levels")
+// expect: text naming the four levels UC-013 step 2 runs and what each checks
+test("explain — release-test-levels: what each level checks (UC-013)", () => {
+  assert.ok(topicText("release-test-levels")?.trim(), "known positive: explanations.md holds the topic release-test-levels");
+  const text = bodyText("release-test-levels");
+  assert.match(text, /paid external services mocked/);
+  assert.match(text, /walk each use case end to end/);
+  assert.match(text, /otherwise happens only nightly/);
+  assert.match(text, /other than the one who implemented the behaviour/);
+});
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; 2a: only the implementing
+//   participant is available)
+// given: the topic independent-release-tests
+// input: explain("independent-release-tests")
+// expect: text saying release tests are written by someone other than the implementer, and what 2a asks the author to do
+//         when only the implementer is available
+test("explain — independent-release-tests: why a different participant writes them (UC-013)", () => {
+  assert.ok(topicText("independent-release-tests")?.trim(), "known positive: explanations.md holds the topic independent-release-tests");
+  const text = bodyText("independent-release-tests");
+  assert.match(text, /other than the one who implemented/);
+  assert.match(text, /assign a second participant/);
+});
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (A VERSION IS NOT REWRITTEN; 4a: the tag already exists)
+// given: the topic version-not-rewritten
+// input: explain("version-not-rewritten")
+// expect: text saying a tag is never moved once set, and that a correction becomes the next version
+test("explain — version-not-rewritten: why a released version is never changed afterwards (UC-013)", () => {
+  assert.ok(topicText("version-not-rewritten")?.trim(), "known positive: explanations.md holds the topic version-not-rewritten");
+  const text = bodyText("version-not-rewritten");
+  assert.match(text, /tag is never moved/);
+  assert.match(text, /recovered, compared and relied on/);
+  assert.match(text, /correction becomes the next version/);
 });
