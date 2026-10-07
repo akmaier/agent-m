@@ -69,7 +69,11 @@ function browserStore(initial = {}) {
 // expect: the Route stores endpoint:<name> before exactly one short request, then shows the configured model working
 test("TST-265-001: direct endpoint saves before its one short test", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
-  globalThis.fetch = scripted([{ status: 200, body: { choices: [{ message: { content: "ok" } }] } }], calls);
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    assert.deepEqual(readSetting(store, "endpoint:campus"), ENDPOINT, "the configuration is stored when fetch starts");
+    return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
+  };
   try {
     const target = await render(store);
     type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
@@ -88,9 +92,9 @@ test("TST-265-001: direct endpoint saves before its one short test", async () =>
 // input: the author presses Test on the public endpoints Route
 // expect: the Route shows the observed reason and both named alternatives
 test("TST-265-002: browser refusal is shown with CI and Bridge alternatives", async () => {
-  const store = freshStore(), oldFetch = globalThis.fetch;
-  globalThis.fetch = scripted([{ status: 403, body: { error: { message: "CORS refused" } } }], []);
-  try { const target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /CORS refused/); assert.match(target.textContent, /CI/); assert.match(target.textContent, /Bridge/); } finally { globalThis.fetch = oldFetch; }
+  const store = freshStore(), oldFetch = globalThis.fetch, oldWindow = globalThis.window;
+  globalThis.window = {}; globalThis.fetch = async () => { throw new TypeError("Blocked by CORS policy"); };
+  try { const target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /Blocked by CORS policy/); assert.match(target.textContent, /CI/); assert.match(target.textContent, /Bridge/); } finally { globalThis.fetch = oldFetch; globalThis.window = oldWindow; }
 });
 
 // TST-265-003
