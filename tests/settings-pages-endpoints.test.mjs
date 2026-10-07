@@ -43,6 +43,7 @@ const contextOf = (store, { host = {}, navigations = [] } = {}) => ({
   go(route, params) { navigations.push({ route, params }); },
 });
 async function render(store, params = {}, options = {}) { const target = document.createElement("div"); await endpointsRoute().render(target, contextOf(store, options), params); return target; }
+async function renderSettings(store, options = {}) { const target = document.createElement("div"); await settingsRoute().render(target, contextOf(store, options), {}); return target; }
 function scripted(responses, calls) { const remaining = [...responses]; return async (url, init = {}) => { calls.push({ url: String(url), init }); const next = remaining.shift(); if (!next) throw new Error("unexpected endpoint request"); return new Response(JSON.stringify(next.body ?? {}), { status: next.status, headers: { "content-type": "application/json" } }); }; }
 
 const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key", throughBridge: false };
@@ -51,6 +52,14 @@ const BRIDGED = { url: "http://127.0.0.1:11434", kind: "openai-compatible", mode
 function endpointsRoute() {
   const route = view.routes.find((candidate) => candidate.name === "endpoints");
   assert.ok(route, "view exposes the public endpoints Route");
+  assert.equal(route.entry, "settings");
+  assert.equal(typeof route.render, "function");
+  return route;
+}
+
+function settingsRoute() {
+  const route = view.routes.find((candidate) => candidate.name === "settings");
+  assert.ok(route, "view exposes the public settings Route");
   assert.equal(route.entry, "settings");
   assert.equal(typeof route.render, "function");
   return route;
@@ -213,4 +222,70 @@ test("TST-265009: a stored endpoint key stays hidden until Show", async () => {
   await click(show);
   assert.equal(key.type, "text");
   assert.equal(key.value, ENDPOINT.key);
+});
+
+// TST-265010
+// Module: MOD-settings-pages
+// Level: unit
+// guards: EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// given: an instance browser store with a canonical endpoint:campus record and a second instance with another endpoint
+// input: the person opens the public settings Route and presses Show for campus
+// expect: Settings lists campus from the canonical store enumeration, hides its key first, and exposes no other-instance endpoint
+test("TST-265010: Settings lists its stored endpoint with a hidden key and Show", async () => {
+  const store = freshStore();
+  writeSetting(store, "endpoint:campus", ENDPOINT);
+  const other = openStore("other/instance");
+  writeSetting(other, "endpoint:other", { ...ENDPOINT, model: "other-model" });
+  const target = await renderSettings(store);
+  assert.match(target.textContent, /Endpoint: campus/);
+  assert.doesNotMatch(target.textContent, /other-model/);
+  const key = byClass(target, "settings-endpoint-key")[0], show = byClass(target, "settings-endpoint-show")[0];
+  assert.equal(key.type, "password");
+  assert.equal(key.value, ENDPOINT.key);
+  await click(show);
+  assert.equal(key.type, "text");
+});
+
+// TST-265011
+// Module: MOD-settings-pages
+// Level: unit
+// guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: a stored direct endpoint and a constructed successful endpoint answer
+// input: the person presses Test, then Change on the public settings Route
+// expect: Test makes one mapped direct request without changing the stored record, and Change opens its exact named endpoint route
+test("TST-265011: Settings tests a stored direct endpoint and changes its named route", async () => {
+  const store = freshStore(), calls = [], navigations = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:campus", ENDPOINT);
+  globalThis.fetch = async (url, init = {}) => { calls.push({ url: String(url), init }); assert.deepEqual(readSetting(store, "endpoint:campus"), ENDPOINT); return new Response(JSON.stringify({ choices: [] }), { status: 200 }); };
+  try {
+    const target = await renderSettings(store, { navigations });
+    await click(byClass(target, "settings-endpoint-test")[0]);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, `${ENDPOINT.url}/chat/completions`);
+    assert.equal(calls[0].init.headers.Authorization, `Bearer ${ENDPOINT.key}`);
+    assert.match(target.textContent, /working|tiny-model/i);
+    await click(byClass(target, "settings-endpoint-change")[0]);
+    assert.deepEqual(navigations, [{ route: "endpoints", params: { name: "campus" } }]);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-265012
+// Module: MOD-settings-pages
+// Level: unit
+// guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CLEAR IS A REAL CLEAR
+// given: two endpoints stored for one instance
+// input: the person presses Clear beside campus on the public settings Route
+// expect: the actual campus entry is removed, its line disappears, and local remains stored and listed
+test("TST-265012: Settings Clear removes only the selected endpoint entry", async () => {
+  const store = freshStore();
+  writeSetting(store, "endpoint:campus", ENDPOINT);
+  writeSetting(store, "endpoint:local", BRIDGED);
+  const target = await renderSettings(store);
+  const lines = byClass(target, "settings-endpoint");
+  const campus = lines.find((line) => /Endpoint: campus/.test(line.textContent));
+  await click(byClass(campus, "settings-endpoint-clear")[0]);
+  assert.equal(readSetting(store, "endpoint:campus"), null);
+  assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED);
+  assert.doesNotMatch(target.textContent, /Endpoint: campus/);
+  assert.match(target.textContent, /Endpoint: local/);
 });
