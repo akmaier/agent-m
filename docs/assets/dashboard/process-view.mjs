@@ -11,9 +11,15 @@
 // deriveTarget/start), so both hosts reach the same repository. No logic of the page is here: MOD-implementation-pages'
 // route reads and builds everything the page shows; the one line after it only shows the route's own declared title —
 // the frame that would do this on its own (MOD-site-frame embedRoute) is not built yet.
+//
+// AN INTERFACE HIDES ITS IMPLEMENTATION: MOD-implementation-pages offers only `view` (src/implementation-pages/
+// index.mjs), never process.mjs, a private file of the module — this file reads the route by its `name` in
+// `view.routes`, not by importing process.mjs directly.
 
-import { route } from "../../../src/implementation-pages/process.mjs";
+import { view } from "../../../src/implementation-pages/index.mjs";
 import { parseAddress, connect } from "../../../src/repository-hosts/index.mjs";
+
+const route = view.routes.find((r) => r.name === "process");
 
 export const routes = {
   async process(app) {
