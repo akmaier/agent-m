@@ -18,6 +18,13 @@ risk-based verification rather than improvisation at release time". The chapter 
 its roles are those of the chapter's Geek Box *Artifacts, roles, and traceability* — product owner, developer, tester and
 reviewer.
 
+## About
+
+manages: uncontrolled change — teams "are expected to change code because there is a documented requirement, a verified design impact, and a defensible reason for the change"
+accepts: late testing — "much of the actual testing activity still happens later in the timeline", without "the extremely short learning cycles associated with agile methods"
+example: medical-grade software — the V-model is "attractive for large, complex, or heavily regulated systems", as in "medical products, security-relevant software, and government systems"
+chapter: 6, The V-Model as Structured Verification Strategy
+
 ## Phases
 
 | Name | Role | Produces |

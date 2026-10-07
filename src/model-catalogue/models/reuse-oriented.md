@@ -19,6 +19,13 @@ requirements still meet the real user needs". The chapter names no role for a ph
 the chapter's Geek Box *Artifacts, roles, and traceability* — product owner, developer and reviewer —, and whoever
 discovers and evaluates software reaches the web: "let an agent help search package ecosystems".
 
+## About
+
+manages: reinventing the wheel — "If a mature library already solves eighty percent of the problem, it is usually better to integrate it than to generate a fresh eighty-percent-correct clone and spend the following months debugging the missing twenty percent."
+accepts: dependencies and changed requirements — "the requirements may have to change", and "dependencies come with their own lives: release policies change, maintainers disappear, APIs break, licenses get updated"
+example: PEAKS, a clinical software system for the automatic evaluation of pathological speech, which shows "both the power and the long-term cost of a complex reuse-oriented stack"
+chapter: 6, Reuse-Oriented Process Design
+
 ## Phases
 
 | Name | Role | Produces |

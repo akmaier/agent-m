@@ -23,7 +23,8 @@
 // - The module's code names no model and no practice: it finds the shipped ones as data, in the list of shipped files it
 //   reads when it is loaded — from the disk in Node, from its own address in a browser (THE CATALOGUE IS DATA).
 //
-// Not tested here, since ITM-215 leaves them out: planGrid, modelDiagram, a model's `## About` and Model.about.
+// Not tested here, since ITM-215 leaves them out: planGrid and modelDiagram. A model's `## About` and Model.about are
+// ITM-229's, in tests/model-catalogue-about.test.mjs; here a Model without the section carries about null.
 //
 // Each test states its input and its expected result before it runs (given / input / expect). A test that expects no
 // finding, or no name, first shows the same check finding one on a known positive. Nothing reaches the network. The
@@ -153,6 +154,7 @@ const FIXTURE_MODEL = {
   kind: "pulled",
   adaptedFrom: "fixture-base",
   measure: "items per state over time",
+  about: null,
   phases: [
     { name: "Planning", role: "Owner", produces: ["ITM"] },
     { name: "Building", role: "Builders", produces: ["MOD", "TST"] },
@@ -251,11 +253,11 @@ test("catalogue — the shipped catalogue holds exactly the book's five models i
 //        own model — and once more with FIXTURE's role Checker left without capabilities (line 49)
 // input: await catalogue(snapshot) of each
 // expect: (a) the five shipped models, then FIXTURE as the Model FIXTURE_MODEL — its name, kind, the model it was adapted
-//         from and its measure; its phases, transitions, verification pairs, gates — each gate with the phases it stands
-//         between, `check: release-tests` as the decider of the second —, roles with their capabilities; its flow control
-//         with the limit 3, no time box and sprints; as its version the blob the snapshot names for its path, and its
-//         path —, with no finding. (b) FIXTURE still listed, with its one finding: an error on line 49 naming
-//         A ROLE NAMES THE CAPABILITIES IT NEEDS
+//         from and its measure; about null, since it has no ## About; its phases, transitions, verification pairs,
+//         gates — each gate with the phases it stands between, `check: release-tests` as the decider of the second —,
+//         roles with their capabilities; its flow control with the limit 3, no time box and sprints; as its version the
+//         blob the snapshot names for its path, and its path —, with no finding. (b) FIXTURE still listed, with its one
+//         finding: an error on line 49 naming A ROLE NAMES THE CAPABILITIES IT NEEDS
 test("catalogue — an instance's own model is read as a Model, listed after the shipped ones, with its findings", async () => {
   const got = await catalogue(snapshotOf({ ...shippedFiles(), [FIXTURE_PATH]: FIXTURE }));
   assert.deepEqual(got.models.map((m) => m.name), [...MODELS, "fixture-pulled"]);

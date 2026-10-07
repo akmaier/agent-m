@@ -1,7 +1,8 @@
 // MOD-model-catalogue — process models and practices as data, and their validation (docs/architecture/MOD-model-catalogue.md):
 // its interface. Of it, ITM-215 builds what UC-002 needs: Model, Catalogue, catalogue, modelSchema and modelFindings, and the
 // shipped catalogue as data — the book's models in models/ and its practices in practices/, each file naming the chapter
-// it follows. planGrid, modelDiagram, a model's `## About` and Model.about are not built yet.
+// it follows. ITM-229 adds a model's `## About` and Model.about: what UC-002 shows beside each model. planGrid and
+// modelDiagram are not built yet.
 //
 // Module: MOD-model-catalogue
 //
@@ -21,15 +22,17 @@ import { validate } from "./validate.mjs";
 
 /**
  * A process model read by its schema: its name; its kind of work, planned or pulled; the model it was adapted from, or null;
- * the measure of its progress; its phases, each with the role that does it and the kinds of artifact it produces; the
- * transitions between them; its verification pairs; its gates, each with the two phases it stands between, the artifacts it
- * checks, the condition that must hold and its decider — a role of the model, or `check: <CI check name>`; its roles, each
- * with who may fill it — person, agent or either — and the capabilities it needs; its flow control — the work-in-progress
- * limit, the time box, whether the work runs in sprints —, or null where it has none; its version, the blob that the
- * instance's snapshot names for the path of its file, or null where the snapshot does not hold that path; and that path in
- * the instance repository. A value its file leaves out, or writes in a form the schema does not read, is "" — [] for a list,
- * null for a value of the flow control. The `about` of the module file is not built yet.
+ * the measure of its progress; what its `## About` says — the risk it manages well, the risk it accepts, an example project
+ * it suits and the chapter of the book that explains it —, or null for a model without one; its phases, each with the role
+ * that does it and the kinds of artifact it produces; the transitions between them; its verification pairs; its gates, each
+ * with the two phases it stands between, the artifacts it checks, the condition that must hold and its decider — a role of
+ * the model, or `check: <CI check name>`; its roles, each with who may fill it — person, agent or either — and the
+ * capabilities it needs; its flow control — the work-in-progress limit, the time box, whether the work runs in sprints —,
+ * or null where it has none; its version, the blob that the instance's snapshot names for the path of its file, or null
+ * where the snapshot does not hold that path; and that path in the instance repository. A value its file leaves out, or
+ * writes in a form the schema does not read, is "" — [] for a list, null for a value of the flow control.
  * @typedef {{ name: string, kind: string, adaptedFrom: string | null, measure: string,
+ *   about: { manages: string, accepts: string, example: string, chapter: string } | null,
  *   phases: Array<{ name: string, role: string, produces: string[] }>,
  *   transitions: Array<{ from: string, to: string, kind: string }>,
  *   pairs: Array<{ phase: string, checkedBy: string }>,
@@ -125,12 +128,21 @@ function partsOf(document) {
   };
 }
 
+// What a definition's `## About` says, its lines as the model's schema reads them, a line left out "" — or null without the
+// section.
+function aboutOf(document) {
+  const about = document.sections.find((section) => section.heading === "## About");
+  return about ? { manages: text(about.fields?.manages), accepts: text(about.fields?.accepts),
+    example: text(about.fields?.example), chapter: text(about.fields?.chapter) } : null;
+}
+
 // A definition as a Model, with its version.
 function modelOf(document, version) {
   const { artifact, flow, ...parts } = partsOf(document);
   const unlined = (entries) => entries.map(({ line, ...entry }) => entry);
   return {
     ...parts,
+    about: aboutOf(document),
     phases: unlined(parts.phases),
     transitions: unlined(parts.transitions),
     pairs: unlined(parts.pairs),
