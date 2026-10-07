@@ -28,8 +28,8 @@ export { RuntimeError } from "./ci.mjs";
  * starts the product's job workflow. Crosses the network through the host; fails with what the host names — the
  * branch moved, a refused token, a used-up rate limit —, and with WorkflowMissing of its own. The tab's and the
  * Bridge's routes are UC-010's and UC-011's and are not built yet.
- * @param {import("../repository-hosts/index.mjs").Host} host
- * @param {import("../job-ledger/index.mjs").JobStart} start
+ * @param {unknown} host MOD-repository-hosts' Host.
+ * @param {unknown} start MOD-job-ledger's JobStart.
  * @param {Route} route
  * @param {string} head
  * @param {unknown} [bridge]
