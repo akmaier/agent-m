@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/settings-pages/index.mjs";
-import { clearSetting, openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
 
 class Element extends EventTarget {
   constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.disabled = false; this.checked = false; this.parentNode = null; }
@@ -38,8 +38,8 @@ const click = async (button) => { button.dispatchEvent(new Event("click")); awai
 
 class Storage { constructor() { this.values = new Map(); } getItem(key) { return this.values.get(key) ?? null; } setItem(key, value) { this.values.set(key, String(value)); } removeItem(key) { this.values.delete(key); } }
 function freshStore() { Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() }); return openStore("fixture/instance"); }
-const contextOf = (store) => ({ page: "settings", instance: { repository: "fixture/instance" }, product: null, store, go() {} });
-async function render(store) { const target = document.createElement("div"); await endpointsRoute().render(target, contextOf(store), {}); return target; }
+const contextOf = (store) => ({ page: "review", instance: { repository: "fixture/instance" }, product: null, store, go() {} });
+async function render(store, params = {}) { const target = document.createElement("div"); await endpointsRoute().render(target, contextOf(store), params); return target; }
 function scripted(responses, calls) { const remaining = [...responses]; return async (url, init = {}) => { calls.push({ url: String(url), init }); const next = remaining.shift(); if (!next) throw new Error("unexpected endpoint request"); return new Response(JSON.stringify(next.body ?? {}), { status: next.status, headers: { "content-type": "application/json" } }); }; }
 
 const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key", throughBridge: false };
@@ -51,15 +51,6 @@ function endpointsRoute() {
   assert.equal(route.entry, "settings");
   assert.equal(typeof route.render, "function");
   return route;
-}
-
-function pageContext(store) {
-  return { page: "settings", instance: { repository: "fixture/instance" }, product: null, store, go() {} };
-}
-
-function browserStore(initial = {}) {
-  const values = new Map(Object.entries(initial));
-  return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: (key) => values.delete(key) };
 }
 
 // TST-265-001
@@ -105,7 +96,7 @@ test("TST-265-002: browser refusal is shown with CI and Bridge alternatives", as
 test("TST-265-003: a refused key remains stored and reloads", async () => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = scripted([{ status: 401, body: { error: { message: "Invalid API key." } } }], []);
-  try { let target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); type(byClass(target, "endpoint-key")[0], ENDPOINT.key); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /Invalid API key/); assert.equal(readSetting(store, "endpoint:campus").key, ENDPOINT.key); target = await render(store); assert.equal(byClass(target, "endpoint-key")[0].value, ENDPOINT.key); } finally { globalThis.fetch = oldFetch; }
+  try { let target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); type(byClass(target, "endpoint-key")[0], ENDPOINT.key); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /Invalid API key/); assert.equal(readSetting(store, "endpoint:campus").key, ENDPOINT.key); target = await render(store, { name: "campus" }); assert.equal(byClass(target, "endpoint-key")[0].value, ENDPOINT.key); } finally { globalThis.fetch = oldFetch; }
 });
 
 // TST-265-004
@@ -114,7 +105,7 @@ test("TST-265-003: a refused key remains stored and reloads", async () => {
 // input: the author presses Clear in the public endpoints Route
 // expect: the form is empty and the actual endpoint:<name> browser-store entry is removed
 test("TST-265-004: Clear removes the stored endpoint and empties the form", async () => {
-  const store = freshStore(); writeSetting(store, "endpoint:campus", ENDPOINT); const target = await render(store);
+  const store = freshStore(); writeSetting(store, "endpoint:campus", ENDPOINT); const target = await render(store, { name: "campus" });
   await click(byClass(target, "endpoint-clear")[0]); assert.equal(readSetting(store, "endpoint:campus"), null); assert.equal(byClass(target, "endpoint-url")[0].value, "");
 });
 
@@ -125,7 +116,7 @@ test("TST-265-004: Clear removes the stored endpoint and empties the form", asyn
 // expect: no direct request reaches its model, the setting is retained, and the missing Bridge setup is named
 test("TST-265-005: a Bridge endpoint is retained and never called directly", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch; writeSetting(store, "endpoint:local", BRIDGED); globalThis.fetch = scripted([], calls);
-  try { const target = await render(store); await click(byClass(target, "endpoint-test")[0]); assert.equal(calls.length, 0); assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED); assert.match(target.textContent, /Bridge.*setup|setup.*Bridge/i); } finally { globalThis.fetch = oldFetch; }
+  try { const target = await render(store, { name: "local" }); await click(byClass(target, "endpoint-test")[0]); assert.equal(calls.length, 0); assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED); assert.match(target.textContent, /Bridge.*setup|setup.*Bridge/i); } finally { globalThis.fetch = oldFetch; }
 });
 
 // TST-265-006
