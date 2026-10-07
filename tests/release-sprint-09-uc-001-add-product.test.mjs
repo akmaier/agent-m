@@ -76,10 +76,11 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
   assert.match(gh.querySelector("input.expires").value, /^\d{4}-\d\d-\d\d$/, "the pasted token has an expiry date to confirm");
   assert.match(ghText, /kept in this browser for this product only/i);
   assert.match(ghText, /sent only to GitHub's API/i);
-  assert.match(ghText, /akmaier\.github\.io/);
+  assert.match(ghText, /Everything Agent M stores in this browser is stored for the address https:\/\/akmaier\.github\.io — every GitHub Pages site under that same akmaier\.github\.io domain can read it\./);
   assert.match(ghText, /missing review layout.*default branch/i);
   assert.match(ghText, /nothing is written to the instance repository/i);
-  assert.ok((gh.innerHTML.match(/What is this\?/g) ?? []).length >= 5, "address, both key steps and all three product-list/commit explanations are folded");
+  for (const heading of ["Step A · A key for the product", "Step B · Check", "Step C · Add the product"])
+    assert.match(gh.innerHTML.slice(gh.innerHTML.indexOf(heading)), /<details class="explain">/, `${heading} has its own folded explanation`);
 
   const gl = await page(GL);
   const glText = textOf(gl.innerHTML);
