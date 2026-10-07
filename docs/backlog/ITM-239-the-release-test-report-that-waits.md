@@ -13,7 +13,6 @@ builds_on:
   - ITM-235
   - ITM-247
   - ITM-252
-  - ITM-254
 tests:
   - unit
 origin:
@@ -26,9 +25,12 @@ origin:
 ## Outcome
 
 MOD-release-evidence's `reportsAwaitingAcceptance`, MOD-job-ledger's `recordsNewestFirst`, and the release test report
-in MOD-progress-measures' `waitingForAcceptance`, as their files state them. A release candidate can exist once UC-013's
-release is built (ITM-247 to ITM-257); this item builds on those of its items whose interfaces it uses: the tags
-(ITM-247), the job records (ITM-252) and MOD-release-evidence (ITM-254).
+in MOD-progress-measures' `waitingForAcceptance`, as their files state them. Of UC-013's items it builds on those whose
+interfaces it uses: the tags (ITM-247) and the job records (ITM-252); it calls none of ITM-254's functions. A
+candidate's run is the record of kind `run-tests` whose parameters name the candidate — its version and tag —, as
+MOD-release-evidence's file states it; `startReleaseCandidate` (ITM-254) writes them so. A candidate can be started once
+UC-013's release panel is built (ITM-254, ITM-256), and its run ends once a route runs it (UC-010, UC-011); until then no
+report comes to wait in a repository, and the tests state it on a fixture snapshot.
 
 ## Acceptance
 

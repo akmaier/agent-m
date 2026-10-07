@@ -29,9 +29,10 @@ The local clone is not part of this item. Nothing else of the module is part of 
 ## Acceptance
 
 - Unit tests that name MOD-repository-hosts state, before the code exists, with GitHub and a GitLab server replaced by
-  fakes: the tags with their commits, and only those of a pattern; a tag created on the commit named; an existing tag
-  refused with `TagExists` naming its commit, and not moved; a refused token, a missing permission and a used-up rate
-  limit named as the module's failures; the token sent only to the server that issued it.
+  fakes that answer as the servers do: the tags with their commits, and only those of a pattern; a tag created on the
+  commit named; an existing tag — whose creation GitHub answers with 422 "Reference already exists", and a GitLab server
+  with 400 — refused with `TagExists` naming its commit, and not moved; a refused token, a missing permission and a
+  used-up rate limit named as the module's failures; the token sent only to the server that issued it.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests stay green, with no expected result changed.
