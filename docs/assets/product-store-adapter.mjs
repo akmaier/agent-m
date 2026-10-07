@@ -101,6 +101,10 @@ export function productStore(instance) {
       const token = readSetting(store, tokenKey(address)), tested = legacy.getGitHubProductToken(address)?.tested;
       if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, tokenKey(address), { ...setting, ...(tested ? { tested } : {}) }); }
     },
+    clearGitHubProductToken(address) {
+      clearSetting(store, tokenKey(address));
+      legacy.clearGitHubProductToken(address);
+    },
     getGitLabToken(address) {
       const token = readSetting(store, tokenKey(address));
       return token?.value ? { token: token.value, expires: token.expires ?? null } : legacy.getGitLabToken(address);
@@ -114,6 +118,10 @@ export function productStore(instance) {
       const token = readSetting(store, tokenKey(address)), tested = legacy.getGitLabToken(address)?.tested;
       if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, tokenKey(address), { ...setting, ...(tested ? { tested } : {}) }); }
     },
+    clearGitLabToken(address) {
+      clearSetting(store, tokenKey(address));
+      legacy.clearGitLabToken(address);
+    },
     tokenFor(product) {
       const address = product?.address;
       const own = address ? readSetting(store, tokenKey(address)) : null;
@@ -124,6 +132,13 @@ export function productStore(instance) {
     clearProducts() {
       for (const address of readSetting(store, "products") ?? []) clearSetting(store, tokenKey(address));
       clearSetting(store, "products"); legacy.clearProducts();
+    },
+    removeProduct(address) {
+      const products = (readSetting(store, "products") ?? []).filter((item) => item !== address);
+      clearSetting(store, tokenKey(address));
+      if (products.length) writeSetting(store, "products", products);
+      else clearSetting(store, "products");
+      legacy.removeProduct(address);
     },
     clear() { this.clearToken(); this.clearProducts(); legacy.clear(); },
     putEntries(values) { legacy.putEntries(values); migrate(); syncLegacy(); },
