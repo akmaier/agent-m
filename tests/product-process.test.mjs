@@ -396,7 +396,8 @@ test("declarationSchema — a declaration without its model's version is named; 
   assert.deepEqual(rowsUnder(agentM, "## Roles").map(([, cells]) => [cells.Role, cells.Participants]), [
     ["Product Owner", ["po-opus"]],
     ["Scrum Master", ["scrum-master-session"]],
-    ["Developers", ["developer-sonnet-a", "developer-sonnet-b", "developer-sonnet-c", "developer-sonnet-d"]],
+    ["Developers", ["developer-sonnet-a", "developer-sonnet-b", "developer-sonnet-c", "developer-sonnet-d",
+      "developer-deepseek-a"]],
     ["Release tester", ["tester-opus"]],
   ]);
   assert.deepEqual(rowsUnder(agentM, "## Branches").map(([, cells]) => cells), [{ "Phase or time box": "Sprint", Branch: "`sprint/<nn>`" }]);
