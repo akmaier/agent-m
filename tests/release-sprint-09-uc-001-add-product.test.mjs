@@ -81,6 +81,10 @@ async function gitlabReleaseWorld() {
 test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes", async () => {
   const gh = await page(GH);
   const ghText = textOf(gh.innerHTML);
+  const stepA = gh.innerHTML.slice(gh.innerHTML.indexOf("Step A · A key for the product"), gh.innerHTML.indexOf("Step B · Check"));
+  const repository = gh.innerHTML.slice(0, gh.innerHTML.indexOf('<div class="steps">'));
+  assert.match(stepA, /<details class="explain">/, "Step A itself has the folded product-key explanation");
+  assert.match(repository, /<details class="explain">[\s\S]*A \*repository\* is the folder on GitHub/, "the address field itself has the folded repository explanation");
   assert.match(ghText, /Open GitHub's token page \(prefilled\)/);
   assert.match(ghText, /Only select repositories/);
   assert.match(ghText, /alice\/thesis-tool.*nothing else/);
@@ -103,7 +107,7 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
   assert.match(ghText, /Everything Agent M stores in this browser is stored for the address https:\/\/akmaier\.github\.io — every GitHub Pages site under that same akmaier\.github\.io domain can read it\./);
   assert.match(ghText, /missing review layout.*default branch/i);
   assert.match(ghText, /nothing is written to the instance repository/i);
-  for (const heading of ["Step A · A key for the product", "Step B · Check", "Step C · Add the product"])
+  for (const heading of ["Step B · Check", "Step C · Add the product"])
     assert.match(gh.innerHTML.slice(gh.innerHTML.indexOf(heading)), /<details class="explain">/, `${heading} has its own folded explanation`);
 
   const gl = await page(GL);

@@ -46,7 +46,7 @@ async function world({ files = { "README.md": "# Thesis tool\n" }, writable = tr
   const log = [];
   const product = await repoServer({ repo: PRODUCT, files, handlers: [
     (url, init) => {
-      if (missing) return new Response(JSON.stringify({ message: "Not Found" }), { status: 404 });
+      if (missing?.value ?? missing) return new Response(JSON.stringify({ message: "Not Found" }), { status: 404 });
       if (!readable) return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 });
       if (url.pathname === `/repos/${PRODUCT}`) return new Response(JSON.stringify({ private: visibility === "private", visibility,
         default_branch: "main", permissions: { push: writable } }), { headers: { "Content-Type": "application/json" } });
@@ -147,14 +147,21 @@ test("TST-282 UC-001 alternatives 1a and 5b distinguish a synthetic click from a
 // input: use the actual Check or Add product control for each alternative
 // expect: refusal and missing paths write no list or repository; a private existing product can use the proven instance key; a keyless page disables Add product
 test("TST-284 UC-001 GitHub alternatives preserve the product and browser boundaries", async () => {
-  const missing = await world({ missing: true });
+  const missingState = { value: true };
+  const missing = await world({ missing: missingState });
   let main = await addPage(missing);
   await press(missing.instance, main.querySelector("button.check"));
   assert.match(main.innerHTML, /was not found.*Create it on the server's page for a new repository/i, "2a names the missing repository and gives its creation link");
   assert.match(main.innerHTML, /href="https:\/\/github\.com\/new"/, "2a links GitHub's new-repository page");
-  assert.match(main.innerHTML, /What is this\?/i, "2a retains the folded repository explanation");
+  const beforeSteps = main.innerHTML.slice(0, main.innerHTML.indexOf('<div class="steps">'));
+  assert.match(beforeSteps, /A \*repository\* is the folder on GitHub/, "2a retains the repository explanation at the address field");
   assert.equal(missing.product.writes.length, 0, "2a: a missing repository is not written");
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "2a: a missing repository is not listed");
+  missingState.value = false;
+  await press(missing.instance, main.querySelector("button.check"));
+  assert.match(main.innerHTML, /is reachable/, "2a: after creation the author returns and Check succeeds");
+  await press(missing.instance, main.querySelector("button.add"));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [WEB], "2a: the created repository completes Add product");
 
   const refusedRead = await world({ readable: false });
   main = await addPage(refusedRead);
@@ -178,6 +185,8 @@ test("TST-284 UC-001 GitHub alternatives preserve the product and browser bounda
 
   const refusedWrite = await world({ writable: false });
   main = await addPage(refusedWrite);
+  await press(refusedWrite.instance, main.querySelector("button.check"));
+  assert.match(main.innerHTML, /is reachable.*write access is confirmed only by the first write/i, "5a begins after a successful public Check");
   await press(refusedWrite.instance, main.querySelector("button.add"));
   assert.match(main.innerHTML, /cannot write/, "5a names the refused write");
   assert.match(main.innerHTML, /Step A · A key for the product(?! — done)/, "5a offers Step A again");
