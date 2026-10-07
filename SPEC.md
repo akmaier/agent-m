@@ -247,8 +247,9 @@ list is part of the proposal rather than a result reported afterwards.
 the derived reference list.
 
 **A REQUIREMENT NAMES WHAT IT CONSTRAINS** *(PO A. Maier)*
-Every requirement states whether it constrains the product or the development process.
-*Check:* `tests/test_requirement_fields.py`
+Where a requirement stands names what it constrains: a requirement of Agent M's SPEC constrains the development process,
+a requirement of a product's SPEC constrains the product.
+*Check:* `tests/test_products_folder.py` — no committed file of the instance repository, its SPEC included, names a product.
 
 **DERIVATION SEES THE EXISTING REQUIREMENTS** *(PO A. Maier)*
 When requirements are derived, every requirement of the product — in its SPEC and in its open change
@@ -1647,8 +1648,8 @@ pull request must meet before it counts as done.
 **THE DEFAULT DEFINITION OF DONE IS THE JOB RULES** *(PO A. Maier)*
 Without a declaration, a pull request is done when its CI run is green, the job's first commit held
 only failing tests — or, for a refactoring job, CI was green on every commit and no expected result
-changed —, it changes only the job's modules, and every gate the workflow places before the merge is
-recorded.
+changed —, it changes only the job's modules, every new test names the requirement it guards and the
+module it exercises, and every gate the workflow places before the merge is recorded.
 *Check:* `tests/test_definition_of_done.py`
 
 **A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS** *(PO A. Maier)*
