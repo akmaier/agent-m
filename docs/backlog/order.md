@@ -39,6 +39,8 @@ goes to the item that first needs it.
 | ITM-231 |
 | ITM-222 |
 | ITM-223 |
+| ITM-240 |
+| ITM-241 |
 | ITM-232 |
 | ITM-233 |
 | ITM-234 |
