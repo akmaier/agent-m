@@ -1,4 +1,4 @@
-# Participants of this instance
+# Participants of Team 2
 
 **REGISTER**
 
@@ -6,8 +6,8 @@ The people and agents who work on the products of this instance (UC-017, ARC-019
 name, one of the five types, the model every participant that works with a language model names, how many tokens that
 model's context holds and its price per million input and output tokens where they are declared, the capabilities it
 declares, where the data given to it is processed, and how Agent M reaches it.
-No key, token or password is ever written here (`NO SECRET IN THE REPOSITORY`). A product assigns its roles
-from this list (`docs/process.md`).
+No key, token or password is ever written here (`NO SECRET IN THE REPOSITORY`). Team 2 assigns its roles
+from this list (`docs/process_team2.md`).
 
 Capabilities are those of `A PARTICIPANT DECLARES ITS CAPABILITIES`: draft text, read the repository, write to
 the repository, run code and tests, use tools, reach the web.

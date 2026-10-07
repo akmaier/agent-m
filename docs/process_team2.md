@@ -5,12 +5,12 @@ model_version: ef33e2f501289930960f13b55936e9b557003993
 sprint_close: scrum-master-session
 ---
 
-# How Agent M is developed
+# How Team 2 develops Agent M
 
 **REGISTER**
 
 The declaration of Agent M's process (UC-002, ARC-019): the model by name and version — the commit of this instance that
-holds its file —, the role assignment by participant name (`docs/participants.md`), practices, branches, the
+holds its file —, the role assignment by participant name (`docs/participants_team2.md`), practices, branches, the
 Definition of Done and who closes a sprint.
 
 ## Roles
