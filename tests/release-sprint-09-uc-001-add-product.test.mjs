@@ -94,7 +94,9 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
     contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read",
   }, "the prefilled product token grants every and only UC-014 feature permission");
   const long = await page("https://github.com/owner-with-a-long-name/repository-name-that-is-longer-than-github-allows");
-  assert.ok(new URL(long.querySelector("a").href).searchParams.get("name").length <= 40, "the product token name stays within GitHub's 40-character bound");
+  const longParams = new URL(long.querySelector("a").href).searchParams;
+  assert.equal(longParams.get("name"), "Agent M · repository-name-that-is-longer-than-github-allows".slice(0, 40), "a long token name drops the owner then truncates only the repository end");
+  assert.equal(longParams.get("description"), "Agent M for the product owner-with-a-long-name/repository-name-that-is-longer-than-github-allows: reviews, commits, issues, pull requests and runs of the work you start in it.");
   assert.match(gh.querySelector("input.expires").value, /^\d{4}-\d\d-\d\d$/, "the pasted token has an expiry date to confirm");
   assert.match(ghText, /kept in this browser for this product only/i);
   assert.match(ghText, /sent only to GitHub's API/i);
