@@ -37,6 +37,11 @@ import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./d
 import { DASHBOARD, builtViews } from "../../src/site/views.mjs";
 import { menuHtml, entryOf } from "../../src/site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
+// The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
+// dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
+import { openStore, readSetting } from "../../src/browser-store/index.mjs";
+import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
+import { watchForAcceptance } from "../../src/notifications/index.mjs";
 
 export { DASHBOARD, UPSTREAM };
 
@@ -398,6 +403,63 @@ function renderProductSelector() {
   };
 }
 
+// ---------------------------------------------------------------- notifications (UC-047)
+//
+// Change between jobs, sprint 07 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS): ITM-236's own header named
+// making the dashboard's pages start the checks as not part of that item. This wires MOD-notifications' watchForAcceptance
+// into the review pages with MOD-browser-store's store of the instance, as sprint 07's record (docs/backlog/sprints/07.md)
+// names, and builds the one thing watchForAcceptance needs that the module does not provide itself: the address of a
+// notification's review-pages route, confirmed against the routes this file and its views already serve (the PO's gate
+// record of ITM-236 names addressOf's routes as this change's reading to confirm) — #uc(/<id>), #arc(/<id>) for both an
+// architecture decision and a module (review-views.mjs: "ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE"),
+// #spec/<queue>/<nn> for one SPEC change entry (spec-changes-view.mjs; MOD-progress-measures' id "spec-<queue>-<nn>"),
+// #release always for a release test report (release-view.mjs; not built yet — ITM-239 — so this falls back to the
+// use-case list today, as any not-yet-built route does, route()).
+let notificationsStore = null;
+
+// MOD-notifications' checks.mjs route key for one of its waiting kinds, turned into this file's own route — "uc", "arc"
+// or "spec", with the file's id where one file is named; "release" always, regardless of id (MOD-test-pages' one route,
+// no id of its own).
+function notificationView(route, id) {
+  if (route === "use-case") return id ? `uc/${id}` : "uc";
+  if (route === "decision" || route === "module") return id ? `arc/${id}` : "arc";
+  if (route === "spec-entry") {
+    const m = id && /^spec-(.+)-(\d+)$/.exec(id);
+    return m ? `spec/${m[1]}/${m[2]}` : "spec";
+  }
+  return "release";
+}
+
+// addressOf(route, params, repository) -> string (MOD-notifications, Interfaces: watchForAcceptance) — the instance's
+// own address with no query (as renderProductSelector's own instance option, and productHref, already resolve it), or a
+// kept product's by its repository path; absolute, since the worker opens it from its own scope, not this page's
+// (src/notifications/worker.mjs).
+function addressOfNotification(route, params, repository) {
+  const p = repository === T.instance ? parseProductAddress(`https://github.com/${T.instance}`)
+    : state.products.find((x) => x.repo === repository) ?? null;
+  const query = p ? productHref(p) : "";
+  return new URL(`${query}#${notificationView(route, params.id)}`, document.baseURI).href;
+}
+
+// Opens this browser's MOD-browser-store store of the instance, connects the instance's host with its token under that
+// store (github-token; A GITHUB PRODUCT USES A TOKEN OF ITS OWN names the products' own keys, read by the module itself),
+// and starts the checks — only where this browser could ever show one at all: real browsers always define Notification
+// (permission.mjs's own available() already tells "no" apart by the same check, for a browser that offers no
+// notifications); without it the checks would only run uselessly, and watchForAcceptance's own interval would never be
+// cleared (no page of this kind is ever closed from here) — exactly what every test that loads this page without faking
+// a browser's Notification must not be left running after it.
+function startNotifications() {
+  try {
+    notificationsStore = openStore(T.instance);
+  } catch {
+    return; // StorageUnavailable: a browser that refuses storage holds no switch, and no check runs
+  }
+  if (typeof globalThis.Notification === "undefined") return;
+  const token = readSetting(notificationsStore, "github-token");
+  const instanceHost = connect(parseAddress(`https://github.com/${T.instance}`), { token: token?.value ?? null, tokenName: token?.name ?? null });
+  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHost }, addressOf: addressOfNotification });
+}
+
 // ---------------------------------------------------------------- this page's context, handed to every view
 
 let app = null;
@@ -411,6 +473,9 @@ function context() {
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
     seq: () => routeSeq,
     setFlash: (text) => { flash = text; },
+    // MOD-browser-store's store of the instance (UC-047; settings-view.mjs's line *Notifications*), null while this
+    // browser refused it (StorageUnavailable).
+    notificationsStore,
   };
 }
 
@@ -474,6 +539,7 @@ async function start() {
   kept = fileTexts();
   // The product's key among the texts this browser keeps: its server and repository.
   REPO_KEY = `${T.product.host}/${T.product.repo}`;
+  startNotifications(); // UC-047: the review pages start the checks, with MOD-browser-store's store of the instance
   app = context();
   available = renderTabs();
   loadProducts();

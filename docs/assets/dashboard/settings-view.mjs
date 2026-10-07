@@ -20,6 +20,9 @@ import { jumpHostProblem, tunnelCommands, addRemoteSession, nextFreePort, probeL
 import {
   pseudonymisationOn, parseCollaborators, addCollaborator, removeCollaborator, PRODUCT_SETTINGS_PATH, COLLABORATORS_PATH,
 } from "../pseudonymiser.mjs";
+// The line *Notifications* (UC-047; sprint 07's change between jobs: the dashboard reaches MOD-notifications, as
+// ITM-236's Outcome names it) — through the module's own interface, never a private file of it.
+import { notificationState, switchOn, testNotification, switchOff } from "../../../src/notifications/index.mjs";
 
 export const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const esc = h;
@@ -331,6 +334,78 @@ export function browserSettingsHtml({ entries = {}, shown = [], now = new Date()
   return tokenRow + productRow + githubProductRow + gitlabRow + jumpRow + sessionsRow;
 }
 
+// The line *Notifications* (docs/architecture/MOD-settings-pages.md, Interfaces: "the state notificationState gives"):
+// off, or blocked when the person or the browser refused, with the Home Screen note on an iPhone or iPad not opened
+// from there (UC-047 1b); on, with Test and Switch off. A section of its own — not a row of browserSettingsHtml's own
+// box (#browser-settings) above: that box, and its closed list of rows, is exhaustively asserted by existing tests
+// (tests/dashboard-review-flows.test.mjs "UC-042 step 1: one page …", tests/test_settings_page.py
+// test_each_browser_setting_has_test_and_clear) that this change does not touch (AN IMPLEMENTATION JOB CHANGES ONLY ITS
+// MODULES held for a between-jobs change too: no existing test). *Notifications* is still shown beside "This browser" —
+// UC-047's own line, in its own panel.
+function notificationsStateLine(n) {
+  if (!n) return "— not available here";
+  if (n.permission === "denied") {
+    return "✗ blocked — notifications are refused for this site; allow them in the browser's own site settings, then reload.";
+  }
+  if (n.on) return "✓ on";
+  return n.available === "from the Home Screen"
+    ? "off — on an iPhone or iPad, Safari shows notifications only for a site added to the Home Screen; add this page to the " +
+      "Home Screen, open it from there, then press Switch on."
+    : "off";
+}
+
+// notifications: MOD-notifications' NotificationState for this browser, or null while this page has no store for it
+// (StorageUnavailable; app.notificationsStore). The inner content of #notifications-settings only (viewSettings below
+// writes the section tag itself, as main().innerHTML does for every other panel) — renderNotificationsSettings sets it
+// the way renderBrowserSettings sets #browser-settings's.
+export function notificationsSettingHtml(notifications) {
+  return `<h3>Notifications</h3>
+    <p class="state">${esc(notificationsStateLine(notifications))}</p>
+    <p>${!notifications || !notifications.on
+      ? `<button class="btn" data-notifications-switch-on ${notifications?.permission === "denied" ? "disabled" : ""}>Switch on</button>`
+      : `<button class="btn" data-notifications-test>Test</button>
+         <button class="btn" data-notifications-switch-off>Switch off</button>`}</p>
+    <p class="result muted" data-result="notifications"></p>
+    <details class="explain"><summary>What is this?</summary><div>Tells you, through this browser's own notifications, when a
+      SPEC change, a use case, an architecture file or a release test report comes to wait for your acceptance — checked every
+      five minutes while a page of this dashboard is open, against the instance's repository, with this browser's own tokens
+      and nowhere else; nothing is checked while no page is open. A click on a notification opens where it is accepted.
+      <em>Switch off</em> stops the checks and forgets what was notified; the browser keeps its permission until you take it
+      back in its own site settings.</div></details>`;
+}
+
+// Renders and wires *Notifications* (UC-047): Switch on asks the browser's permission directly in this click, before
+// any await of its own (NOTIFICATIONS ARE SWITCHED ON BY THE PERSON); Test shows the test notification; Switch off
+// clears both keys.
+export function renderNotificationsSettings(app) {
+  const { notificationsStore } = app;
+  const box = document.getElementById("notifications-settings");
+  if (!box) return;
+  const notifications = notificationsStore ? notificationState(notificationsStore) : null;
+  box.innerHTML = notificationsSettingHtml(notifications);
+  const say = (text) => { box.querySelector(`[data-result="notifications"]`).textContent = text; };
+  box.querySelector("[data-notifications-switch-on]")?.addEventListener("click", async () => {
+    try {
+      await switchOn(notificationsStore);
+    } catch (e) {
+      say(e?.message || String(e));
+    }
+    renderNotificationsSettings(app);
+  });
+  box.querySelector("[data-notifications-test]")?.addEventListener("click", async () => {
+    try {
+      await testNotification();
+      say("Test notification shown.");
+    } catch (e) {
+      say(e?.message || String(e));
+    }
+  });
+  box.querySelector("[data-notifications-switch-off]")?.addEventListener("click", async () => {
+    await switchOff(notificationsStore);
+    renderNotificationsSettings(app);
+  });
+}
+
 // ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
 
 export const PASSPHRASE_NOTICE = "A forgotten passphrase cannot be recovered: without it, nobody — you included — can read the file.";
@@ -413,7 +488,8 @@ function viewSettings(app) {
       <details class="explain"><summary>What is this?</summary><div>These settings belong to you on this computer. They are kept
         in this browser's <code>localStorage</code> only — never in a cookie, an address or a repository — and every other
         GitHub Pages site of ${h(owner)} can read them. <em>Clear</em> removes an entry from the browser's storage itself.</div></details>
-    </section>`,
+    </section>
+    <section class="panel" id="notifications-settings"></section>`,
     product: `
     <section class="panel" id="product-settings"><h3>Product · ${h(T.product.address)}</h3><p class="muted">Reading its settings…</p></section>`,
     export: `
@@ -449,6 +525,7 @@ function viewSettings(app) {
   main().innerHTML = head + sections.map((x) => (x.builtIn ? builtIn[x.section]
     : `\n    <section class="panel" data-settings-section="${h(x.section)}"></section>`)).join("");
   renderBrowserSettings(app);
+  renderNotificationsSettings(app);
   wireSettings(app);
   loadProductSettings(app);
   renderSections(app, own);
