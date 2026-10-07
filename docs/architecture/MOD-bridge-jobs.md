@@ -8,6 +8,9 @@ follows:
 uses:
   - MOD-bridge-http.bridgeApi
   - MOD-bridge-http.BridgeHandlers
+  - MOD-endpoint-calls.EndpointConfig
+  - MOD-endpoint-calls.Diagnosis
+  - MOD-endpoint-calls.testEndpoint
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.readSnapshot
   - MOD-documents.readDocument
@@ -82,6 +85,14 @@ when the job ends. Which products it serves, and the Bridge's name — the name 
   - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` lists the
     models an endpoint on this computer serves; `partitions` lists a cluster's partitions through its scheduler's
     command on this computer (UC-017, UC-040). Errors: `upstream-failed` with the answer.
+    `endpoint-test` (UC-003 2a) validates `body.args` against the canonical EndpointConfig and calls the public
+    MOD-endpoint-calls.testEndpoint once in Node on this Bridge computer. It returns `{ answer: result }` unchanged:
+    provider refusal, unknown model or unreachable endpoint are the test result's Diagnosis, preserving its message.
+    Invalid args answer `invalid-request`; unexpected handler failures answer `upstream-failed`; the server enforces
+    pairing token/origin/pause before calling it. The handler retains no configuration or endpoint key after the
+    request, writes no setting, repository file, clone, record or log for it, and retries nothing. The endpoint's key
+    goes only to that endpoint's authorisation header. This is a short model test, never an endpoint-models probe,
+    queued job, agent driver or correction loop.
 - `startWatching(config: { dataFolder: string, bridgeName: string, products: { address: string }[], every: number })
   -> void` — starts reading every served product through Access's local clone with the computer's own git login, at the
   given interval and after every hand-over: queued jobs whose participant's route is this Bridge are taken — a commit
@@ -124,6 +135,8 @@ Nothing else.
 ## Uses
 
 - `MOD-bridge-http.bridgeApi`, `MOD-bridge-http.BridgeHandlers` — the routes it answers.
+- `MOD-endpoint-calls.EndpointConfig`, `Diagnosis`, `testEndpoint` — the canonical short-test configuration, result's
+  diagnosis and one-request test invoked in Node for endpoint-test; no private endpoint-calls file is used.
 - `MOD-repository-hosts.connect`, `MOD-repository-hosts.readSnapshot` — the served products, through the local clone with
   the computer's own git login; and the instance at the commit a declaration names, through its clone, which fetches the
   commit with that login.
@@ -140,3 +153,13 @@ Nothing else.
 - `MOD-run-planner.runOf`, `MOD-run-planner.nextActions` — the runs it serves and their next actions.
 - `MOD-product-process.gateStates` — whether a waiting job's gate is decided.
 - `MOD-work-plans.sprintFacts` — whether a sprint has ended, and who closes it.
+
+## Proposed change and impact — UC-003 short test through the Bridge
+
+Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
+contract identified in Sprint 09. Accepted baseline blob: `6d2bc375f431db134f666882d06301c427adde1c`.
+This file is changed since that acceptance; no new approval record or implementation permission is supplied.
+The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
+in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
+Review this change together with all six other changed architecture files and the whole architecture against the
+whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.

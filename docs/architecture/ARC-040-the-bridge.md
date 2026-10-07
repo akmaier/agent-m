@@ -37,6 +37,7 @@ forced_by:
   - A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER
   - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
   - A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF
+  - UC-003
   - UC-011
   - UC-017
   - UC-037
@@ -88,7 +89,7 @@ agents, tunnels and updates in its window; and being released as one signed file
 
 The Bridge API, over HTTP, defined in MOD-bridge-http and described in its file: pairing test, jobs (hand over, list,
 log, cancel), mail (read folders read-only, find by identifier, read Drafts and Sent, store a draft, send with a
-single-use confirmation, test), probes (an agent's harmless request, an endpoint's served models, a cluster's
+single-use confirmation, test), probes (an agent's harmless request, an endpoint's served models, an endpoint's short test, a cluster's
 partitions), tunnels (state). Every request carries the Bridge's token in its own header; a request through the jump host
 also carries the web server's login, which the web server checks first.
 
@@ -153,3 +154,13 @@ The Bridge API (MOD-bridge-http); the Bridge's settings file, the part of the da
 - Without the Bridge, Agent M still works at level 1; with it, local agents use the person's subscription and logins.
 - Each release costs a build on three platforms and the publisher's signing certificates.
 - A Bridge that is quit ends its running jobs as cancelled; runs it served wait until it runs again or the tab is open.
+
+## Proposed change and impact — UC-003 short test through the Bridge
+
+Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
+contract identified in Sprint 09. Accepted baseline blob: `c0bef13b39c70fcd6930f894e85188296cc1a907`.
+This file is changed since that acceptance; no new approval record or implementation permission is supplied.
+The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
+in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
+Review this change together with all six other changed architecture files and the whole architecture against the
+whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.

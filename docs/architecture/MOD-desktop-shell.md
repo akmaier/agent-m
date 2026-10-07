@@ -152,6 +152,13 @@ The rest of its surface faces the person, not another module:
   the tunnels (`THE BRIDGE OPENS ITS TUNNELS ITSELF`); and, unless paused, starts watching the served products, so that
   their runs go on while no tab is open (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). A port in use is shown with
   a field for another; a data folder that cannot be written is shown with its path.
+  Its existing compose.mjs registers the endpoint-test probe from jobHandlers in that same serveBridge instance,
+  alongside the existing handlers; it neither starts a second server nor saves endpoint configurations/keys in shell
+  settings or exports. UC-003's runnable prerequisite is this actual Electron main.mjs entry and its pairing window,
+  origin/token/pause lifecycle, with UC-044's setup. The existing source start remains this same entry with command-line
+  instance/origin and no updates; it is not a reduced alternative app. The authenticated trusted HTTPS/jump-host route
+  for Safari still depends on the configured UC-044 6a5 setup and the shell's existing tunnels. This refinement does
+  not supply a runnable installation, packaging/signing, pairing or tunnel delivery by declaring the probe.
 - **Icon and window.** On macOS and Windows the icon in the menu bar or the tray opens the window, pauses or resumes, and
   quits; closing the window leaves the Bridge running. On Linux, where not every desktop shows a tray icon, the window
   stays open while the Bridge runs. The window loads only the app's own files, under a protocol of the app's own, never
@@ -214,3 +221,13 @@ signature does not hold. Writes no repository file; the jobs it composes write t
 - `MOD-site-frame.PageSetup`, `View`, `Route`, `startPage`, `explain`, `confirmDecision`, `notice` — the window, drawn as
   the page `bridge`; its explanations; the decisions of *Pair anew*, *Quit* and *Install and restart*; its notices.
 - `MOD-markdown-render.renderArtifact` — a release's notes, rendered sanitised.
+
+## Proposed change and impact — UC-003 short test through the Bridge
+
+Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
+contract identified in Sprint 09. Accepted baseline blob: `71d36abb286361f9349b30f3fa9bb8bd2e4f4a06`.
+This file is changed since that acceptance; no new approval record or implementation permission is supplied.
+The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
+in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
+Review this change together with all six other changed architecture files and the whole architecture against the
+whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.

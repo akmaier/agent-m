@@ -25,8 +25,9 @@ It belongs to Participants and jobs (ARC-046). It is the participant driver for 
 Anthropic, hosted or self-hosted — that a browser or Node calls directly: it sends a job's input as one request and
 returns the answer and the usage the endpoint reported; it sends the short test request of UC-003; and when a browser
 cannot call an endpoint, it names the reason and the routes that would work instead (`AN UNSUPPORTED ENDPOINT SAYS SO`).
-A model server on a person's computer, reached through a Bridge, is not called here: MOD-runtimes' driver of an agent on a
-Bridge reaches it. It runs in a browser and in Node, and keeps nothing.
+For UC-003's short test of a model server reached through a Bridge, MOD-bridge-jobs invokes this module's public
+`testEndpoint` in Node on that computer. Jobs of an agent on a Bridge remain MOD-runtimes' driver responsibility;
+this short test creates no job and no driver. It runs in a browser and in Node, and keeps nothing.
 
 ## Parts
 
@@ -46,8 +47,10 @@ secrets:
 ```
 
 The key is the endpoint's own, held in a browser's store or, in CI, read from the CI secret the participant names; it is
-sent only to the endpoint's own address, in the request's authorisation header, never in an address
-(`A CREDENTIAL IS NEVER PLACED IN A URL`), and never written anywhere (`NO SECRET IN THE REPOSITORY`).
+sent to the endpoint's own address in its authorisation header. For UC-003 throughBridge, the browser first sends
+EndpointConfig, including its key, only in the paired Bridge request's JSON body; the Bridge holds it only for that
+short test and sends it to the endpoint in the same header. Neither hop puts a credential in an address
+(`A CREDENTIAL IS NEVER PLACED IN A URL`), log or repository (`NO SECRET IN THE REPOSITORY`).
 
 ## Interfaces
 
@@ -81,3 +84,13 @@ It reads and writes no file.
 - `MOD-job-runner.Driver`, `MOD-job-runner.DriverInput`, `MOD-job-runner.Usage` — the driver type it implements, its
   input, and the usage it returns.
 - `MOD-participant-list.Participant` — the participant the driver stands for.
+
+## Proposed change and impact — UC-003 short test through the Bridge
+
+Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
+contract identified in Sprint 09. Accepted baseline blob: `93b5fa9b6dd54cc6ca10604ef2d27807dc2161d5`.
+This file is changed since that acceptance; no new approval record or implementation permission is supplied.
+The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
+in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
+Review this change together with all six other changed architecture files and the whole architecture against the
+whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.

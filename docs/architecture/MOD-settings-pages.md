@@ -39,6 +39,8 @@ uses:
   - MOD-bridge-client.allocatePort
   - MOD-bridge-client.tunnelCommands
   - MOD-bridge-client.proxyConfiguration
+  - MOD-endpoint-calls.EndpointConfig
+  - MOD-endpoint-calls.Diagnosis
   - MOD-endpoint-calls.testEndpoint
   - MOD-endpoint-calls.diagnoseEndpoint
   - MOD-mail-routes.routeFor
@@ -141,6 +143,18 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     address to this browser's list; each step with its explanation.
   - `endpoints` — address, model and key of a model endpoint, a local model server named as reached through a Bridge; the
     test request, and the reason and the routes that would work when a browser may not call it; *Clear*.
+    The nonsecret `params.name`, when present, selects `endpoint:<name>`; absent, the route offers a new named
+    configuration. Settings discovers stored names through listSettings, and Test/Change/Clear select that name.
+    Map the browser-store value at this boundary to public EndpointConfig: the selected name, stored kind/model,
+    `url` as `baseUrl`, and absent key as `null`; `throughBridge` selects the transport, not a field of EndpointConfig.
+    Save in this browser before the test. Direct settings call testEndpoint; throughBridge settings call
+    `probe(bridgeAt(paired BridgeSettings), "endpoint-test", config)`, including the configured jump-host HTTPS login
+    where required by UC-044. Before the action state the Bridge destination and what configuration/key travels
+    transiently there, and the model destination reached by the Bridge. The browser never calls that local model
+    directly or falls back to it. A refused key's message is shown and the key stays stored until changed or cleared;
+    Clear removes the actual endpoint setting and form. Missing pairing, runnable Bridge or configured HTTPS setup
+    preserves the endpoint setting and names the UC-044 pairing/setup handoff. Existing BridgeError/observable browser
+    diagnoses are shown with their actionable setup/HTTPS routes, never a successful test for an unavailable setup.
   - `participants` — the instance's participants in a form from the participant schema: type, model, context and price,
     capabilities, processing place, route; for a CLI or sandboxed agent, the agents the paired Bridge reports and *Test*;
     a self-hosted runner refused for a repository the server reports as public; a change to a participant that products
@@ -196,8 +210,9 @@ reaches.
 - MOD-bridge-client.bridgeAt, MOD-bridge-client.pair, MOD-bridge-client.testBridge, MOD-bridge-client.probe — pairing,
   tests, the agents a Bridge reports, a resource's check; MOD-bridge-client.allocatePort,
   MOD-bridge-client.tunnelCommands, MOD-bridge-client.proxyConfiguration — remote sessions and the jump host.
-- MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an endpoint's test and why a browser may not
-  call it.
+- MOD-endpoint-calls.EndpointConfig, MOD-endpoint-calls.Diagnosis, MOD-endpoint-calls.testEndpoint,
+  MOD-endpoint-calls.diagnoseEndpoint — canonical page-boundary configuration and result diagnosis, an endpoint's
+  direct test and why a browser may not call it. A throughBridge configuration uses the Bridge client's probe.
 - MOD-mail-routes.routeFor, MOD-mail-routes.signIn, MOD-mail-routes.mailbox, MOD-mail-routes.providerLinks — the
   mailbox's route, sign-in and test, and Microsoft's pages for the app registration and for withdrawing its access.
 - MOD-documents.readDocument, MOD-documents.readRegister, MOD-documents.writeDocument — registers of the common shape and
@@ -219,3 +234,13 @@ reaches.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
   the person's click, *Test* and *Switch off*.
+
+## Proposed change and impact — UC-003 short test through the Bridge
+
+Open proposal by po-sol (gpt-6.1-sol), 2026-10-07, originating in accepted UC-003 2a and the missing short-test
+contract identified in Sprint 09. Accepted baseline blob: `6357592c6ff7a2dd528ae959c918ad4ec1a903a4`.
+This file is changed since that acceptance; no new approval record or implementation permission is supplied.
+The complete cross-module rationale, impact list, callers, code/tests/backlog dependencies and acceptance route are
+in [Sprint 09's proposal impact record](../backlog/sprints/09.md#uc-003-bridge-refinement-proposal-and-impact-list).
+Review this change together with all six other changed architecture files and the whole architecture against the
+whole SPEC, under UC-023. Independent review is pending; no finding is asserted resolved or acceptance fabricated.
