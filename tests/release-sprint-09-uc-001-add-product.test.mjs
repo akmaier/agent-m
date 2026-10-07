@@ -26,15 +26,19 @@ async function page(address) {
 }
 
 async function releaseWorld() {
+  const requests = [];
   const product = await repoServer({ repo: PRODUCT, files: { "README.md": "# Product\n" }, handlers: [
     (url) => url.pathname === `/repos/${PRODUCT}`
       ? new Response(JSON.stringify({ visibility: "public", private: false, default_branch: "main", permissions: { push: true } }), { headers: { "Content-Type": "application/json" } })
       : undefined,
   ] });
   const instance = await repoServer({ files: {}, handlers: [
-    (url, init) => url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`) ? product.fetch(url.href, init) : undefined,
+    (url, init) => {
+      requests.push({ url: url.href, authorization: new Headers(init.headers ?? {}).get("Authorization") });
+      return url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`) ? product.fetch(url.href, init) : undefined;
+    },
   ] });
-  return { instance, product };
+  return { instance, product, requests };
 }
 
 async function addProduct(world) {
@@ -114,6 +118,9 @@ test("TST-286 UC-001 release transaction guards product writes and browser state
   assert.equal(trusted.product.files["README.md"], "# Product\n", "the existing product content is preserved");
   assert.ok(!Object.keys(trusted.product.files).some((path) => /CNAME|pages|\.github\/workflows/i.test(path)), "adding the review layout creates no product Pages-site setup");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [GH], "the dashboard keeps only the product address in this browser");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`)).value, PRODUCT_TOKEN, "the canonical browser store keeps the product key with its product address");
+  assert.ok(trusted.requests.filter((request) => request.url.includes(`/repos/${PRODUCT}`)).every((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), "the product credential is sent only on product API requests");
+  assert.ok(!trusted.requests.some((request) => request.authorization === `Bearer ${TOKEN}` && request.url.includes(`/repos/${PRODUCT}`)), "the instance key is absent from product requests");
   assert.deepEqual(trusted.instance.writes, [], "the instance repository is never named or written during Add product");
   assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "the instance credential remains distinct from the product credential");
 });

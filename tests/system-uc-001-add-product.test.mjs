@@ -91,6 +91,7 @@ test("TST-281 UC-001 main flow stores a product token and adds the missing layou
   ack.checked = true; ack.fire("change", { isTrusted: true });
   token.value = PRODUCT_TOKEN;
   await press(w.instance, store);
+  assert.match(main.innerHTML, /is reachable.*write access is confirmed only by the first write/i, "Step B reports the public product read and its write boundary");
   const add = main.querySelector("button.add");
   await press(w.instance, add);
   await settle(w.instance);
@@ -99,6 +100,8 @@ test("TST-281 UC-001 main flow stores a product token and adds the missing layou
   for (const path of ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"])
     assert.ok(w.product.files[path], `main flow writes layout part ${path}`);
   assert.equal(w.product.files["README.md"], "# Thesis tool\n", "main flow preserves existing product content");
+  assert.match(main.innerHTML, /Done — wrote the missing review layout in.*commit/i, "Step C presents the created commit");
+  assert.match(main.innerHTML, /Switch to the new product/, "Step C offers the product switch");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [WEB], "only this browser keeps the address");
   assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`)).value, PRODUCT_TOKEN);
   assert.equal(globalThis.localStorage.getItem("agent-m.products"), null, "no legacy product list is written");
@@ -148,6 +151,7 @@ test("TST-284 UC-001 GitHub alternatives preserve the product and browser bounda
   let main = await addPage(missing);
   await press(missing.instance, main.querySelector("button.check"));
   assert.match(main.innerHTML, /was not found.*Create it on the server's page for a new repository/i, "2a names the missing repository and gives its creation link");
+  assert.match(main.innerHTML, /href="https:\/\/github\.com\/new"/, "2a links GitHub's new-repository page");
   assert.match(main.innerHTML, /What is this\?/i, "2a retains the folded repository explanation");
   assert.equal(missing.product.writes.length, 0, "2a: a missing repository is not written");
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "2a: a missing repository is not listed");
@@ -163,6 +167,7 @@ test("TST-284 UC-001 GitHub alternatives preserve the product and browser bounda
   const privateProduct = await world({ visibility: "private" });
   main = await addPage(privateProduct);
   await press(privateProduct.instance, main.querySelector("button.check"));
+  assert.match(main.innerHTML, /Step A · A key for the product — done/, "3a shows that the already-reaching key completes Step A");
   await press(privateProduct.instance, main.querySelector("button.add"));
   assert.equal(privateProduct.product.writes.length, 1, "3a: a proven instance key may add a private GitHub product");
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`), null, "3a: it does not invent a product token");
