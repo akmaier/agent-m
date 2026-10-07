@@ -33,7 +33,9 @@ GitHub or GitLab; Step A with the token's names filled in, or GitLab's project a
 *Add product*, one click, which writes the missing review layout with `reviewLayoutCommit` and adds the address to this
 browser's list; UC-001's alternative flows; and each step with its folded explanation. It is built in
 `src/settings-pages/` on the modules of ITM-204 to ITM-206, with `docs/assets/dashboard/add-product-view.mjs` as its
-model.
+model. Making the dashboard's *+ Add product* show this view, and the dashboard keep its product list and the products'
+tokens through MOD-browser-store in place of `docs/assets/settings-store.mjs`'s own entries, is a change between jobs
+after this item; with it, UC-047's checks reach each product this browser keeps (ITM-238's F3).
 
 ## Acceptance
 
