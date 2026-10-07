@@ -26,7 +26,8 @@
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 import builtFiles from "./dashboard/built.json" with { type: "json" };
-import { browserStore, fileTexts } from "./settings-store.mjs";
+import { fileTexts } from "./settings-store.mjs";
+import { productStore } from "./product-store-adapter.mjs";
 import {
   REPO_RE, parseProductAddress, isGitLab, readSnapshot, readFile, repositoryInfo, tokenRefusal, usedUpLimit,
 } from "./git-host.mjs";
@@ -42,6 +43,7 @@ import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
 import { openStore } from "../../src/browser-store/index.mjs";
 import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
 import { watchForAcceptance } from "../../src/notifications/index.mjs";
+import { view as settingsPages } from "../../src/settings-pages/index.mjs";
 
 export { DASHBOARD, UPSTREAM };
 
@@ -504,6 +506,14 @@ async function route() {
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
     await available;
+    if (kind === "add") {
+      const addProduct = settingsPages.routes.find((r) => r.name === "add-product");
+      await addProduct.render(main(), {
+        instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(_route, { product }) { location.search = productHref(parseProductAddress(product)).slice(1); },
+      }, {});
+      return;
+    }
     // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
     const v = DASHBOARD.find((x) => x.view && x.view === kind);
     const views = v && built.has(v.file) ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
@@ -535,7 +545,7 @@ async function start() {
   T.product = T.product || parseProductAddress(`https://github.com/${T.repo}`);
   GITLAB = isGitLab(T.product);
   SERVER = GITLAB ? T.product.host : "GitHub";
-  store = browserStore();
+  store = productStore(T.instance);
   // The texts of files read before, by blob SHA (settings-store.mjs; cleared by "Clear everything").
   kept = fileTexts();
   // The product's key among the texts this browser keeps: its server and repository.
