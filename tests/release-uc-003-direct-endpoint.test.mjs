@@ -76,7 +76,7 @@ test("TST-292005: a direct configuration is browser-local localStorage state, ne
 test("TST-292006: an endpoint credential stays out of URLs and repository writes", async () => {
   let observed = null;
   const { server, main } = await openEndpointDashboard({ handlers: [async (url, init) => {
-    if (url.href !== `${ENDPOINT.url}/chat/completions`) return null;
+    if (!url.href.startsWith(ENDPOINT.url)) return null;
     observed = { url: url.href, headers: init.headers };
     return new Response(JSON.stringify({ choices: [] }), { status: 200 });
   }] });

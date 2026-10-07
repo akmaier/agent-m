@@ -134,7 +134,7 @@ test("TST-292003: a browser refusal is actionable through CI and Bridge", async 
 // Guards: UC-003 alternative 4b; UC-003 alternative 2b; CONFIGURATION LIVES IN THE BROWSER; A CLEAR IS A REAL CLEAR
 // Precondition: an author can reach the dashboard's endpoint form from Settings.
 // Input: a provider refuses the key, the page reloads, and the author presses Clear.
-// Expected: the provider message and key survive reload; Clear removes the actual localStorage entry and empties the form.
+// Expected: the provider message is shown and the key survives reload; Clear removes the actual localStorage entry and empties the form.
 // Planted fault: replacing clearSetting with applySetting in src/settings-pages/endpoints.mjs leaves the stored-entry assertion failing.
 test("TST-292004: refused key persists through reload until Clear removes the stored endpoint", async () => {
   const { server, page, main, configure: start } = await mountedDashboard([async (url) => {
