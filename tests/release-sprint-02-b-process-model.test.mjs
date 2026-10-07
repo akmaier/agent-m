@@ -96,7 +96,7 @@ const BROKEN = {
   "a role without capabilities":
     { ...breakLine("| Scrum Master | either | read the repository |", "| Scrum Master | either |  |"), rule: CAPABILITIES, field: /^Roles/ },
   "a phase without a role":
-    { ...breakLine("| Release testing | Release tester | TST (release tests of the selected items) |", "| Release testing |  | TST (release tests of the selected items) |"),
+    { ...breakLine("| Release testing | Release tester | TST |", "| Release testing |  | TST |"),
       rule: null, field: /^Phases/ },
   "a missing declaration of whether work is planned or pulled":
     { ...breakLine("kind: pulled", null), rule: null, field: /kind/i, anyLine: true },
@@ -111,7 +111,7 @@ const BROKEN = {
       rule: GATE_WHO, field: /^Gates/ },
   // UC-031 step 4, the rest of its list:
   "a phase no transition reaches":
-    { ...insertAfter("| Retrospective | Product Owner | sprint record (the retrospective) |", "| Refinement | Product Owner | ITM (refined items) |"),
+    { ...insertAfter("| Retrospective | Product Owner | sprint record |", "| Refinement | Product Owner | ITM (refined items) |"),
       rule: null, field: /^(Phases|Transitions)/ },
   "a gate that checks an artifact kind no earlier phase produces":
     { ...breakLine("| Development → Release testing | the item's pull request into the sprint branch, with its code and TST | CI is green on it and the Definition of Done holds | Product Owner |",
@@ -120,7 +120,7 @@ const BROKEN = {
   "pulled work with neither a time box nor a WIP limit":
     { ...breakLine("| WIP limit | 4 |", "| WIP limit | none |"), rule: null, field: /^Flow control/, anyLine: true },
   "pulled work with both a time box and a WIP limit":
-    { ...breakLine("| Time box | none |", "| Time box | 2 weeks |"), rule: null, field: /^Flow control/, anyLine: true },
+    { ...breakLine("| Time box | — |", "| Time box | 2 weeks |"), rule: null, field: /^Flow control/, anyLine: true },
   "a progress measure that does not fit the kind of work":
     { ...breakLine("measure: items per state over time", "measure: plan entries per phase"), rule: MEASURE, field: /measure/i },
   // PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE: "A definition naming an unknown measure fails validation."
