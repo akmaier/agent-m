@@ -16,6 +16,8 @@
 
 import { loadSchema, readDocument } from "../documents/index.mjs";
 
+// Schema, in the types below, is MOD-documents' type of that name.
+
 const OWNER = "MOD-result-records";
 const RUN_SCHEMA_FILE = new URL("./result-record.schema.md", import.meta.url);
 const COUNTER_PROOF_SCHEMA_FILE = new URL("./counter-proof.schema.md", import.meta.url);
@@ -32,7 +34,7 @@ async function ownFile(url) {
 /**
  * resultSchema: { run: Schema, counterProof: Schema } — the two schemas of the branch test-results, loaded from this
  * module's own result-record.schema.md and counter-proof.schema.md, for MOD-documents and for MOD-release-evidence.
- * @type {{ run: import("../documents/index.mjs").Schema, counterProof: import("../documents/index.mjs").Schema }}
+ * @type {{ run: Schema, counterProof: Schema }}
  */
 export const resultSchema = {
   run: loadSchema(disk ? disk.readFileSync(RUN_SCHEMA_FILE, "utf8") : await ownFile(RUN_SCHEMA_FILE), OWNER),
