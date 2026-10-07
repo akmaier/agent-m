@@ -36,8 +36,9 @@ const globPattern = (pattern) => new RegExp(`^${pattern.split("*").map((s) => s.
 // A fake MOD-repository-hosts' Host: one repository in memory. branchFiles seeds the default branch's one commit;
 // extraCommits seeds further commits (by label) a test can tag or read directly, as a candidate's own commit —
 // starting a candidate tags a commit that already stands, it never makes one. tags seeds existing tags (name -> a
-// label of extraCommits, or "default" for the default branch's own commit).
-function fakeHost({ defaultBranch = "main", branchFiles = {}, extraCommits = {}, tags = {} } = {}) {
+// label of extraCommits, or "default" for the default branch's own commit). branches seeds further named refs this
+// repository holds besides the default branch (MOD-result-records' own "test-results", by name).
+function fakeHost({ defaultBranch = "main", branchFiles = {}, extraCommits = {}, tags = {}, branches: extraBranches = {} } = {}) {
   const commits = new Map();
   const branches = new Map();
   const tagMap = new Map();
@@ -52,18 +53,22 @@ function fakeHost({ defaultBranch = "main", branchFiles = {}, extraCommits = {},
   const shaOf = { default: defaultCommit };
   for (const [label, files] of Object.entries(extraCommits)) shaOf[label] = makeCommit(files);
   for (const [name, label] of Object.entries(tags)) tagMap.set(name, shaOf[label]);
+  for (const [name, files] of Object.entries(extraBranches)) branches.set(name, makeCommit(files));
 
   const calls = [];
   return {
     calls,
     shaOf,
     land(files) { branches.set(defaultBranch, makeCommit({ ...Object.fromEntries(commits.get(branches.get(defaultBranch))), ...files })); },
+    // A further named branch (MOD-result-records' "test-results", by name), added once the commit a test wants to
+    // reference from it (such as a candidate's own, learned from shaOf after fakeHost built it) is known.
+    addBranch(name, files) { branches.set(name, makeCommit(files)); },
     tagOf: (name) => tagMap.get(name),
     async repositoryInfo() {
       return { defaultBranch, visibility: "public", canWrite: true, archived: false, description: "" };
     },
     async readSnapshot(ref) {
-      const sha = branches.get(ref) ?? (commits.has(ref) ? ref : null);
+      const sha = branches.get(ref) ?? tagMap.get(ref) ?? (commits.has(ref) ? ref : null);
       if (!sha) throw failure("NotFound", { what: ref });
       const tree = commits.get(sha);
       return {
@@ -341,47 +346,125 @@ test("releaseReport — incomplete while a test has not run on the candidate's c
   assert.equal(complete, false);
 });
 
-// ================================================================== acceptAndRelease
+const LAST_RELEASE_COMMIT = "e".repeat(40);
+const RATE_TEST_FILE = ["// TST-010", "// level: unit", "// guards: A SAMPLE REQUIREMENT", "// runs: 10", "// phrasings: 2", ""].join("\n");
 
-const REPORT_PATH = "docs/tests/releases/v2026.4.0.md";
-const REPORT_COMMIT = "d".repeat(40);
-
-function reportText({ limitations = [], testsRows }) {
-  const limitationLines = limitations.length ? `\n${limitations.map((l) => `- ${l}`).join("\n")}\n\n` : "\n";
-  const testsTable = ["| Test | Level | Outcome | Guards |", "|---|---|---|---|",
-    ...testsRows.map((r) => `| ${r.join(" | ")} |`)].join("\n");
-  return ["---", "version: 2026.4.0", "candidate: v2026.4.0-rc.1", `commit: ${REPORT_COMMIT}`, "date: 2026-10-07", "---",
-    "## Limitations", limitationLines, "## Levels", "",
-    "| Level | Passed | Failed | Flaky | Not run |", "|---|---|---|---|---|", "| unit | 1 | 0 | 0 | 0 |", "",
-    "## Tests", "", testsTable, "", "## Requirements", "",
-    "| Requirement | Level | Tests | Outcome |", "|---|---|---|---|", "| A SAMPLE REQUIREMENT | unit | TST-001 | passed |", "",
-    "## Changelog entry", "", "Adds the sample feature.", "",
+function lastReleaseReportText(commit) {
+  return ["---", "version: 2026.3.0", "candidate: v2026.3.0-rc.1", `commit: ${commit}`, "date: 2026-09-01", "---",
+    "## Limitations", "", "## Levels", "", "| Level | Passed | Failed | Flaky | Not run |", "|---|---|---|---|---|",
+    "| unit | 1 | 0 | 0 | 0 |", "", "## Tests", "",
+    "| Test | Level | Outcome | Guards |", "|---|---|---|---|", "| TST-010 | unit | 8 of 10 | A SAMPLE REQUIREMENT |", "",
+    "## Requirements", "", "| Requirement | Level | Tests | Outcome |", "|---|---|---|---|",
+    "| A SAMPLE REQUIREMENT | unit | TST-010 | passed |", "", "## Changelog entry", "", "Earlier release.", "",
   ].join("\n");
 }
 
-function releaseHost({ report, tags = {} }) {
-  const branchFiles = { [REPORT_PATH]: report, "CHANGELOG.md": "# Changelog\n" };
-  return fakeHost({ defaultBranch: "main", branchFiles, tags });
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// given: `at` (the candidate's own commit) already holds the last release's own report, docs/tests/releases/
+//        v2026.3.0.md, naming its tested commit LAST_RELEASE_COMMIT; the branch test-results records TST-010 at
+//        "8 of 10" on LAST_RELEASE_COMMIT and "6 of 10" on the candidate's commit
+// input: releaseReport(at, results, { version: "2026.4.0", ... })
+// expect: "## Limitations" names TST-010 rate — the last release's commit is read from the report `at` already
+//         holds, not left null
+// counter-proof: planting `const lastRelease = null;` (ignoring the report `at` holds) in report.mjs fails this
+//                test's assert.match
+test("releaseReport — a worse model-dependent rate is read against the last release's commit, found in the report `at` already holds", async () => {
+  const at = fixtureSnapshot({
+    "SPEC.md": SPEC_TEXT, "tests/rate.test.mjs": RATE_TEST_FILE,
+    "docs/tests/releases/v2026.3.0.md": lastReleaseReportText(LAST_RELEASE_COMMIT),
+  });
+  const results = fixtureSnapshot({
+    [`runs/${LAST_RELEASE_COMMIT}/20260901-1000-release-candidate-aaaa.md`]: runRecord({ commit: LAST_RELEASE_COMMIT, rows: [["TST-010", "unit", "passed", "8 of 10"]] }),
+    [`runs/${CANDIDATE_COMMIT}/20261007-1000-release-candidate-bbbb.md`]: runRecord({ commit: CANDIDATE_COMMIT, rows: [["TST-010", "unit", "failed", "6 of 10"]] }),
+  });
+  const candidate = { version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "Entry." };
+  const { text, worse } = await releaseReport(at, results, candidate);
+  assert.deepEqual(worse, ["TST-010"]);
+  const limitations = text.slice(text.indexOf("## Limitations"), text.indexOf("## Levels"));
+  assert.match(limitations, /TST-010/);
+});
+
+// ================================================================== acceptAndRelease
+//
+// acceptAndRelease recomputes the report itself (releaseReport, above) from the host alone: the candidate's own tag,
+// the branch test-results, and the run-tests job that carries the changelog entry. A fixture host therefore holds a
+// candidate commit (SPEC.md and test files), its tag, a test-results branch with its run records, and a run-tests
+// job record naming the candidate and the changelog — never a report committed ahead of time (po-opus's rejection of
+// #200, gate docs/gates/20261007-2016-development-release-testing-45b3.md). The blob a test passes in as `report.blob`
+// is always the one releaseReport's own output hashes to, computed here the same way acceptAndRelease computes it, so
+// that a test fixture is never out of step with the module's own canonical text.
+
+const ACCEPT_VERSION = "2026.4.0";
+const ACCEPT_TAG = "v2026.4.0-rc.1";
+const ACCEPT_PATH = `docs/tests/releases/v${ACCEPT_VERSION}.md`;
+const MULTI_TEST_FILE = [
+  "// TST-001", "// level: unit", "// guards: A SAMPLE REQUIREMENT", "",
+  "// TST-002", "// level: unit", "// guards: A SAMPLE REQUIREMENT", "",
+  "// TST-010", "// level: unit", "// guards: A SAMPLE REQUIREMENT", "// runs: 10", "// phrasings: 2", "",
+].join("\n");
+
+function runTestsJobText({ id, tag, version, commit, changelog }) {
+  return ["---", `id: ${id}`, "kind: run-tests", "works_on:", `  - ${commit}`, "participant:", "model:",
+    "route: ci hosted", "run:", "retries:", "started_by: akmaier", "start: 2026-10-07 20:00 UTC",
+    "agent_m: unknown, commit unknown", "limit: 1", "---", "## Destinations", "", "", "## Parameters", "",
+    "```json", JSON.stringify({ candidate: { version, tag, commit }, changelog }, null, 2), "```", "",
+  ].join("\n");
+}
+
+// A fixture host for acceptAndRelease: the candidate's own commit (SPEC.md and the given test files, plus any extra
+// files such as a last release's own report), tagged ACCEPT_TAG; the branch test-results with the candidate's own
+// run record (runsRows) and any extra records given (an earlier release's, for a rate comparison); the default
+// branch with CHANGELOG.md and the run-tests job naming the candidate and the changelog. The candidate's own commit
+// is read back from the host once fakeHost has made it (shaOf.candidate, a real git-style SHA fakeHost computes, not
+// a fixed fixture constant), since the job record and the result records must name that exact commit.
+function acceptHost({ testFiles = { "tests/sample.test.mjs": TEST_FILE }, extraAtFiles = {}, runsRows,
+  extraResultsFiles = {}, changelog = "Adds the sample feature.", tags = {} } = {}) {
+  const host = fakeHost({
+    defaultBranch: "main",
+    branchFiles: { "CHANGELOG.md": "# Changelog\n" },
+    extraCommits: { candidate: { "SPEC.md": SPEC_TEXT, ...testFiles, ...extraAtFiles } },
+    tags: { [ACCEPT_TAG]: "candidate", ...tags },
+  });
+  const commit = host.shaOf.candidate;
+  const jobId = "JOB-20261007-2000-f00d";
+  host.land({ [`docs/jobs/${jobId}.md`]: runTestsJobText({ id: jobId, tag: ACCEPT_TAG, version: ACCEPT_VERSION, commit, changelog }) });
+  host.addBranch("test-results", {
+    [`runs/${commit}/20261007-1000-release-candidate-aaaa.md`]: runRecord({ commit, rows: runsRows }),
+    ...extraResultsFiles,
+  });
+  return host;
+}
+
+// The blob acceptAndRelease would recompute for this fixture's own candidate, results and changelog — what a test
+// passes in as the report it was shown, computed the same way (releaseReport), never hand-written.
+async function acceptBlob(host, changelog) {
+  const at = await host.readSnapshot(ACCEPT_TAG);
+  const results = await host.readSnapshot("test-results");
+  const { text } = await releaseReport(at, results, { version: ACCEPT_VERSION, tag: ACCEPT_TAG, commit: at.commit, changelog });
+  return blobSha(text);
 }
 
 // guards: THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; ACCEPTING THE RELEASE TEST REPORT RELEASES;
 //         A RELEASE IS TAGGED AND LOGGED
-// given: a green, complete report already committed at REPORT_PATH; the default branch moves on (an unrelated commit
-//        lands) after the report's blob was shown and before Accept and release is clicked
+// given: a green, complete candidate (TST-001 passed); the default branch moves on (an unrelated commit lands) after
+//        the report's blob was shown and before Accept and release is clicked
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, "akmaier", "2026-10-07")
-// expect: resolves with a commit (the approval record and the changelog entry together) and tag "v2026.4.0"; the tag
-//         stands on the report's own `commit` front matter (REPORT_COMMIT), not on the just-made commit or on the
-//         moved branch's new head (4b)
-test("acceptAndRelease — one commit of the report's approval and the changelog entry, then the tag on the candidate's own commit, also when the default branch moved on (4b)", async () => {
-  const text = reportText({ testsRows: [["TST-001", "unit", "passed", "A SAMPLE REQUIREMENT"]] });
-  const host = releaseHost({ report: text });
-  const blob = (await host.readSnapshot("main")).blob(REPORT_PATH);
+// expect: resolves with a commit and tag "v2026.4.0"; the tag stands on the candidate's own tested commit, not the
+//         just-made commit or the moved branch's new head (4b); the ONE commit holds the report's own text at
+//         ACCEPT_PATH together with the approval record and the changelog entry
+// counter-proof: committing only the approval record and the changelog entry, leaving the report's own file out of
+//                `files` (the defect po-opus's rejection names), fails this test's assert.ok(after.paths.includes(...))
+test("acceptAndRelease — one commit of the report, its approval record and the changelog entry, then the tag on the candidate's own commit, also when the default branch moved on (4b)", async () => {
+  const host = acceptHost({ runsRows: [["TST-001", "unit", "passed", ""]] });
+  const blob = await acceptBlob(host, "Adds the sample feature.");
   host.land({ "README.md": "unrelated change\n" }); // the default branch moved on since the report was shown
-  const { commit, tag } = await acceptAndRelease(host, { path: REPORT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07");
+  const { commit, tag } = await acceptAndRelease(host, { path: ACCEPT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07");
   assert.equal(tag, "v2026.4.0");
   assert.ok(commit);
-  assert.equal(host.tagOf("v2026.4.0"), REPORT_COMMIT, "the tag stands on the candidate's own tested commit");
+  assert.equal(host.tagOf("v2026.4.0"), host.shaOf.candidate, "the tag stands on the candidate's own tested commit");
   const after = await host.readSnapshot("main");
+  assert.ok(after.paths.includes(ACCEPT_PATH), "the report's own text was committed, in the same commit");
+  assert.match(await after.read(ACCEPT_PATH), /commit: [0-9a-f]{40}/);
   assert.match(await after.read("CHANGELOG.md"), /## v2026\.4\.0 — 2026-10-07/);
   assert.match(await after.read("CHANGELOG.md"), /Adds the sample feature\./);
   const approvalPath = [...after.paths].find((p) => p.startsWith("docs/approvals/release-v2026.4.0-"));
@@ -390,69 +473,75 @@ test("acceptAndRelease — one commit of the report's approval and the changelog
 });
 
 // guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
-// given: a complete report whose "## Limitations" names a failing test and a worse rate, no reason given for either
+// given: a candidate with a failing test (TST-002) and a model-dependent test (TST-010) whose rate, 6 of 10, is
+//        worse than the last release's own report names (8 of 10) — that report already stands in the candidate's
+//        own commit, under docs/tests/releases/
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, "akmaier", "2026-10-07")
-// expect: rejects LimitationMissing, naming both TST-002 and "TST-010 rate" (3a, 3b)
-// counter-proof: planting `ids.filter(() => false)` in report.mjs's acceptAndRelease (nothing ever missing) fails
-//                this test's assert.rejects
+// expect: rejects LimitationMissing, naming both TST-002 and TST-010 (3a, 3b)
+// counter-proof: planting `const missing = [];` in report.mjs's acceptAndRelease (nothing ever missing) fails this
+//                test's assert.rejects
 test("acceptAndRelease — LimitationMissing naming each failing test and worse rate without its reason (3a, 3b)", async () => {
-  const text = reportText({
-    limitations: ["TST-002: A SAMPLE REQUIREMENT", "TST-010 rate: A SAMPLE REQUIREMENT"],
-    testsRows: [["TST-001", "unit", "passed", "A SAMPLE REQUIREMENT"], ["TST-002", "unit", "failed", "A SAMPLE REQUIREMENT"]],
+  const host = acceptHost({
+    testFiles: { "tests/sample.test.mjs": MULTI_TEST_FILE },
+    extraAtFiles: { "docs/tests/releases/v2026.3.0.md": lastReleaseReportText(LAST_RELEASE_COMMIT) },
+    runsRows: [["TST-001", "unit", "passed", ""], ["TST-002", "unit", "failed", ""], ["TST-010", "unit", "passed", "6 of 10"]],
+    extraResultsFiles: {
+      [`runs/${LAST_RELEASE_COMMIT}/20260901-1000-release-candidate-aaaa.md`]: runRecord({ commit: LAST_RELEASE_COMMIT, rows: [["TST-010", "unit", "passed", "8 of 10"]] }),
+    },
   });
-  const host = releaseHost({ report: text });
-  const blob = (await host.readSnapshot("main")).blob(REPORT_PATH);
+  const blob = await acceptBlob(host, "Adds the sample feature.");
   await assert.rejects(
-    () => acceptAndRelease(host, { path: REPORT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07"),
-    (error) => error.name === "LimitationMissing" && error.tests.includes("TST-002") && error.tests.includes("TST-010 rate"),
+    () => acceptAndRelease(host, { path: ACCEPT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07"),
+    (error) => error.name === "LimitationMissing" && error.tests.includes("TST-002") && error.tests.includes("TST-010"),
   );
 });
 
 // guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
-// given: the same report, now with a reason recorded for both
-// input: acceptAndRelease(host, { path, blob }, { limitations: { "TST-002": "known flaky fixture", "TST-010 rate": "model drift, accepted" } }, ...)
+// given: the same candidate, now with a reason recorded for both
+// input: acceptAndRelease(host, { path, blob }, { limitations: { "TST-002": "known flaky fixture", "TST-010": "model drift (accepted)" } }, ...)
 // expect: resolves (no LimitationMissing) — the known positive beside the rejection above
 test("acceptAndRelease — resolves once every failing test and worse rate has its reason recorded", async () => {
-  const text = reportText({
-    limitations: ["TST-002: A SAMPLE REQUIREMENT", "TST-010 rate: A SAMPLE REQUIREMENT"],
-    testsRows: [["TST-001", "unit", "passed", "A SAMPLE REQUIREMENT"], ["TST-002", "unit", "failed", "A SAMPLE REQUIREMENT"]],
+  const host = acceptHost({
+    testFiles: { "tests/sample.test.mjs": MULTI_TEST_FILE },
+    extraAtFiles: { "docs/tests/releases/v2026.3.0.md": lastReleaseReportText(LAST_RELEASE_COMMIT) },
+    runsRows: [["TST-001", "unit", "passed", ""], ["TST-002", "unit", "failed", ""], ["TST-010", "unit", "passed", "6 of 10"]],
+    extraResultsFiles: {
+      [`runs/${LAST_RELEASE_COMMIT}/20260901-1000-release-candidate-aaaa.md`]: runRecord({ commit: LAST_RELEASE_COMMIT, rows: [["TST-010", "unit", "passed", "8 of 10"]] }),
+    },
   });
-  const host = releaseHost({ report: text });
-  const blob = (await host.readSnapshot("main")).blob(REPORT_PATH);
-  const decision = { limitations: { "TST-002": "known flaky fixture", "TST-010 rate": "model drift (accepted)" } };
-  const { tag } = await acceptAndRelease(host, { path: REPORT_PATH, blob }, decision, "akmaier", "2026-10-07");
+  const blob = await acceptBlob(host, "Adds the sample feature.");
+  const decision = { limitations: { "TST-002": "known flaky fixture", "TST-010": "model drift (accepted)" } };
+  const { tag } = await acceptAndRelease(host, { path: ACCEPT_PATH, blob }, decision, "akmaier", "2026-10-07");
   assert.equal(tag, "v2026.4.0");
 });
 
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: a report whose "## Tests" still holds a "not run" test
+// given: a candidate whose test-results branch holds no record of TST-001 at all
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, ...)
 // expect: rejects Incomplete
-test("acceptAndRelease — Incomplete while the report's own tests still hold \"not run\"", async () => {
-  const text = reportText({ testsRows: [["TST-001", "unit", "not run", "A SAMPLE REQUIREMENT"]] });
-  const host = releaseHost({ report: text });
-  const blob = (await host.readSnapshot("main")).blob(REPORT_PATH);
+// counter-proof: planting `if (complete)` in place of `if (!complete)` in report.mjs's acceptAndRelease fails this
+//                test's assert.rejects
+test("acceptAndRelease — Incomplete while a test has not run on the candidate's commit", async () => {
+  const host = acceptHost({ runsRows: [] });
+  const blob = await acceptBlob(host, "Adds the sample feature.");
   await assert.rejects(
-    () => acceptAndRelease(host, { path: REPORT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07"),
+    () => acceptAndRelease(host, { path: ACCEPT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07"),
     (error) => error.name === "Incomplete",
   );
 });
 
 // guards: A VERSION IS NOT REWRITTEN
-// given: a green, complete report, but v2026.4.0 already stands as a tag (on a commit other than the report's own)
+// given: a green, complete candidate, but v2026.4.0 already stands as a tag (on a commit other than the candidate's)
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, ...)
 // expect: rejects TagExists; the existing tag still names its original commit, not moved (4a)
-// counter-proof: planting `await host.createTag(tag, doc.fields.commit);` right after reading the report, before the
-//                listTags precheck (removing the precheck) still fails via the host's own createTag below it, so the
-//                genuine counter-proof instead removes both — commenting out the precheck AND the final createTag —
-//                which fails this test's assert.rejects (nothing throws TagExists any more)
+// counter-proof: removing the listTags precheck and swallowing the final createTag's error (both — the host's own
+//                createTag would otherwise still refuse) fails this test's assert.rejects
 test("acceptAndRelease — TagExists, an existing tag not moved (4a)", async () => {
-  const text = reportText({ testsRows: [["TST-001", "unit", "passed", "A SAMPLE REQUIREMENT"]] });
-  const host = releaseHost({ report: text, tags: { "v2026.4.0": "default" } });
+  const host = acceptHost({ runsRows: [["TST-001", "unit", "passed", ""]], tags: { "v2026.4.0": "default" } });
   const originalTagCommit = host.tagOf("v2026.4.0");
-  const blob = (await host.readSnapshot("main")).blob(REPORT_PATH);
+  const blob = await acceptBlob(host, "Adds the sample feature.");
   await assert.rejects(
-    () => acceptAndRelease(host, { path: REPORT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07"),
+    () => acceptAndRelease(host, { path: ACCEPT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07"),
     (error) => error.name === "TagExists",
   );
   assert.equal(host.tagOf("v2026.4.0"), originalTagCommit, "the existing tag was not moved");

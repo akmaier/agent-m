@@ -5,25 +5,21 @@
 //
 // Module: MOD-release-evidence
 //
-// Gap, noted rather than designed around: releaseReport's signature (at, results, candidate) carries no way to name
-// the last release's commit for MOD-result-records' rateComparison(results, commit, lastRelease) — no host is given
-// either, to resolve one from tags. rateComparison is called with lastRelease null (the call below), which it
-// documents as "no comparison without a last release"; releaseReport's own `worse` is therefore always empty. No item
-// needs the signature changed now.
+// Rework (po-opus's rejection of #200, gate docs/gates/20261007-2016-development-release-testing-45b3.md): a release
+// candidate's own commit `at` holds every earlier release's report under docs/tests/releases/, each naming its own
+// tested `commit` in its front matter — so the last release's commit for MOD-result-records' rateComparison is found
+// there, not left null (lastReleaseCommit, below); and acceptAndRelease recomputes the report itself, from the host
+// alone, and commits its text together with the approval record and the changelog entry, in the one commit "commits
+// the report, its approval record ... and the changelog entry ... together" names — not treating the report as
+// already committed. report.blob is then what it was shown as: the blob of the text this function itself
+// recomputes, checked against it (MOD-text-tools' blobSha) before anything is written.
 //
 // Gap: releaseReport's signature carries no "today" for the report's `date` front matter (unlike acceptAndRelease,
 // which is given one); the call below uses the real clock. No item needs the signature changed now.
 //
-// Gap: acceptAndRelease's own prose ("commits the report, its approval record ... and the changelog entry ...
-// together") and its signature (report: { path, blob }, not the report's text) only fit together the way MOD-
-// approvals' acceptShown already fits a reviewed file's text not being given either: the report is treated as already
-// committed at report.path/report.blob before acceptAndRelease is called — by a flow this item does not build — and
-// acceptAndRelease's one commit (below) adds only the approval record and the changelog entry. No item needs the
-// signature changed now.
-//
-// resultsAt, flakyTests and rateComparison are async, typed without Promise<> by MOD-result-records.md for the same
-// reason MOD-job-ledger's listJobs is (docs/backlog/sprints/12.md, "notes of earlier gates"; src/result-records/
-// read.mjs's own header note) — awaited at every call below.
+// resultsAt, flakyTests, rateComparison and listJobs are async, typed without Promise<> by MOD-result-records.md and
+// MOD-job-ledger.md for the same reason (docs/backlog/sprints/12.md, "notes of earlier gates"; src/result-records/
+// read.mjs's and src/job-ledger/index.mjs's own header notes) — awaited at every call below.
 
 import { loadSchema, readDocument, writeDocument } from "../documents/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
@@ -31,6 +27,8 @@ import { testDeclarations } from "../test-document/index.mjs";
 import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { resultsAt, rateComparison } from "../result-records/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
+import { listJobs } from "../job-ledger/index.mjs";
+import { blobSha } from "../text-tools/index.mjs";
 import { ReleaseEvidenceError } from "./errors.mjs";
 
 const OWNER = "MOD-release-evidence";
@@ -134,6 +132,33 @@ function limitationsText(ids, declarations) {
   return `\n${lines.join("\n")}\n\n`;
 }
 
+// A release report's path and its version, docs/tests/releases/v<version>.md.
+const RELEASE_REPORT_PATH = /^docs\/tests\/releases\/v(\d{4}\.\d+\.\d+)\.md$/;
+
+// Whether version `a` is later than `b`, both YYYY.MINOR.PATCH.
+function laterVersion(a, b) {
+  const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i += 1) if (pa[i] !== pb[i]) return pa[i] > pb[i];
+  return false;
+}
+
+// The commit of the last release before `currentVersion`, read from the release reports `at` already holds under
+// docs/tests/releases/ — each one a past release's own report, naming its tested commit in its front matter — or
+// null where none stands yet. `at` is the release candidate's own commit, so every release before it is already in
+// its tree.
+async function lastReleaseCommit(at, currentVersion) {
+  let best = null;
+  for (const path of at.paths) {
+    const m = RELEASE_REPORT_PATH.exec(path);
+    if (!m || m[1] === currentVersion) continue;
+    if (!best || laterVersion(m[1], best.version)) best = { version: m[1], path };
+  }
+  if (!best) return null;
+  const text = await at.read(best.path);
+  if (text === null) return null;
+  return readDocument(candidateDocumentSchema, best.path, text).fields.commit ?? null;
+}
+
 async function requirementsRows(at, candidateCommit, declarations, testEntries) {
   const specText = await at.read("SPEC.md");
   const spec = parseSpec(specText ?? "");
@@ -171,7 +196,8 @@ export async function releaseReport(at, results, candidate) {
   const declarations = await collectDeclarations(at);
   const tests = [...declarations.values()].map((d) => ({ id: d.id, level: d.level ?? "unit" }));
   const levels = await resultsAt(results, candidate.commit, tests);
-  await rateComparison(results, candidate.commit, null); // gap above: no lastRelease to compare against here.
+  const lastRelease = await lastReleaseCommit(at, candidate.version);
+  const worseRows = await rateComparison(results, candidate.commit, lastRelease);
   const testEntries = flattenTests(levels);
 
   let complete = true;
@@ -183,13 +209,14 @@ export async function releaseReport(at, results, candidate) {
     }
   }
   failing.sort();
-  const worse = [];
+  const worse = worseRows.filter((r) => r.worse).map((r) => r.test).sort();
 
   const testsRows = [...declarations.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((d) => ({
     Test: d.id, Level: d.level ?? "unit", Outcome: outcomeCell(testEntries.get(d.id)), Guards: d.guards ?? [],
   }));
   const levelsRows = levels.map((l) => ({ Level: l.level, Passed: l.passed, Failed: l.failed, Flaky: l.flaky, "Not run": l.notRun }));
   const requirements = await requirementsRows(at, candidate.commit, declarations, testEntries);
+  const limitationIds = [...new Set([...failing, ...worse])].sort();
 
   const document = {
     kind: "release-candidate-document",
@@ -199,7 +226,7 @@ export async function releaseReport(at, results, candidate) {
     fields: { version: candidate.version, candidate: candidate.tag, commit: candidate.commit,
       date: new Date().toISOString().slice(0, 10) },
     sections: [
-      { heading: "## Limitations", text: limitationsText(failing, declarations) },
+      { heading: "## Limitations", text: limitationsText(limitationIds, declarations) },
       { heading: "## Levels", text: "\n", rows: levelsRows.map((cells) => ({ cells })) },
       { heading: "## Tests", text: "\n", rows: testsRows.map((cells) => ({ cells })) },
       { heading: "## Requirements", text: "\n", rows: requirements.map((cells) => ({ cells })) },
@@ -212,22 +239,6 @@ export async function releaseReport(at, results, candidate) {
 }
 
 // ---------------------------------------------------------------- acceptAndRelease
-
-const LIMITATION_BULLET = /^-\s*([^:]+):/;
-
-// The failing tests and worse rates a committed report names in its "## Limitations", and whether the run is
-// complete (no "not run" among its "## Tests").
-function reportState(doc) {
-  const limitations = doc.sections.find((s) => s.heading === "## Limitations");
-  const ids = [];
-  for (const line of (limitations?.text ?? "").split("\n")) {
-    const m = LIMITATION_BULLET.exec(line.trim());
-    if (m) ids.push(m[1].trim());
-  }
-  const testsRows = doc.sections.find((s) => s.heading === "## Tests")?.rows ?? [];
-  const complete = !testsRows.some((row) => row.cells.Outcome === "not run");
-  return { ids, complete };
-}
 
 // The changelog's text with a new entry added right after its title line (CHANGELOG.md, MOD-release-evidence.md,
 // Data: a heading "## v<version> — <date>", the entry's text, and, with limitations, "Known limitations:").
@@ -242,26 +253,57 @@ function withChangelogEntry(current, version, today, entryText, limitations) {
   return body.join("\n");
 }
 
+const CANDIDATE_TAG = /^v(.+)-rc\.(\d+)$/;
+
+// The newest release candidate tag of `version` — the one whose run just ended, the same "next free N" an earlier
+// one would have stood at (candidate.mjs's nextCandidateNumber) — or null where none is tagged.
+function newestCandidateTag(tags, version) {
+  let best = null, highest = -1;
+  for (const t of tags) {
+    const m = CANDIDATE_TAG.exec(t.name);
+    if (m && m[1] === version && Number(m[2]) > highest) { highest = Number(m[2]); best = t; }
+  }
+  return best;
+}
+
 /**
  * acceptAndRelease(host: Host, report: { path: string, blob: string }, decision: { limitations: Record<string, string>
  * }, person: string, today: string) -> Promise<{ commit: string, tag: string }> (MOD-release-evidence, Interfaces): on
- * the person's one click, commits the approval record (naming the report's blob and every limitation) and the
- * changelog entry the report holds, together, on the head read just before the write (so the release still goes
+ * the person's one click, recomputes the release test report (releaseReport, above) from the host alone — the
+ * candidate's own commit (its newest tag v<version>-rc.<N>), the branch test-results, and the changelog entry the
+ * run-tests job it queued carries (startReleaseCandidate) — checks its blob against the one `report` names it was
+ * shown as (MOD-text-tools' blobSha), then commits the report's text, its approval record (naming its blob and every
+ * limitation) and the changelog entry together, on the head read just before the write (so the release still goes
  * through when the default branch moved on, 4b); then sets the tag v<version> on the candidate's own commit — never a
- * later one. Errors: Incomplete, LimitationMissing (naming every failing test and worse rate without a reason),
- * TagExists (an existing tag is never moved, from the host's createTag).
+ * later one. Errors: Incomplete (the run has not finished, or no candidate of this version is tagged, or no run-tests
+ * job for it is recorded), LimitationMissing (naming every failing test and worse rate without a reason), TagExists
+ * (an existing tag is never moved, from the host's createTag), Moved (the report changed since it was shown).
  */
 export async function acceptAndRelease(host, report, decision, person, today) {
+  const versionMatch = RELEASE_REPORT_PATH.exec(report.path);
+  if (!versionMatch) throw new TypeError(`acceptAndRelease: not a release report's path: ${report.path}`);
+  const version = versionMatch[1];
+
   const info = await host.repositoryInfo();
-  const snap = await host.readSnapshot(info.defaultBranch);
-  const text = await snap.read(report.path);
-  if (text === null || snap.blob(report.path) !== report.blob) {
+  const branchSnapshot = await host.readSnapshot(info.defaultBranch);
+  const candidateTag = newestCandidateTag(await host.listTags(`v${version}-rc.*`), version);
+  if (!candidateTag) throw new ReleaseEvidenceError("Incomplete", {}, `No release candidate of v${version} is tagged yet.`);
+
+  const at = await host.readSnapshot(candidateTag.name);
+  const results = await host.readSnapshot("test-results");
+  const jobs = await listJobs([{ address: branchSnapshot.repository.path, snapshot: branchSnapshot }], new Map());
+  const job = jobs.find((row) => row.record.kind === "run-tests" && row.record.params?.candidate?.tag === candidateTag.name);
+  if (!job) throw new ReleaseEvidenceError("Incomplete", {}, `No run-tests job queued for ${candidateTag.name} is recorded.`);
+
+  const candidate = { version, tag: candidateTag.name, commit: at.commit, changelog: job.record.params.changelog };
+  const { text, complete, failing, worse } = await releaseReport(at, results, candidate);
+  const blob = await blobSha(text);
+  if (blob !== report.blob) {
     throw new ReleaseEvidenceError("Moved", { path: report.path }, "The release test report has changed since it was shown.");
   }
-  const doc = readDocument(candidateDocumentSchema, report.path, text);
-  const { ids, complete } = reportState(doc);
   if (!complete) throw new ReleaseEvidenceError("Incomplete", {}, "The release candidate's run has not finished at every level yet.");
 
+  const ids = [...new Set([...failing, ...worse])].sort();
   const limitations = decision?.limitations ?? {};
   const missing = ids.filter((id) => !String(limitations[id] ?? "").trim());
   if (missing.length) {
@@ -269,11 +311,10 @@ export async function acceptAndRelease(host, report, decision, person, today) {
       `Every failing test and worse rate needs its reason recorded before the release: ${missing.join(", ")}.`);
   }
 
-  const version = doc.fields.version;
   const tag = `v${version}`;
-  // Checked before the commit, so a release already tagged leaves no dangling commit of the approval and the
-  // changelog entry (4a: an existing tag is never moved); the rare race of two concurrent clicks is still caught by
-  // the host's own createTag below, unchanged.
+  // Checked before the commit, so a release already tagged leaves no dangling commit of the report, the approval and
+  // the changelog entry (4a: an existing tag is never moved); the rare race of two concurrent clicks is still caught
+  // by the host's own createTag below, unchanged.
   const existingTag = (await host.listTags(tag)).find((t) => t.name === tag);
   if (existingTag) throw new ReleaseEvidenceError("TagExists", { commit: existingTag.commit }, `${tag} already stands, on ${existingTag.commit}.`);
 
@@ -281,20 +322,24 @@ export async function acceptAndRelease(host, report, decision, person, today) {
   // lines <TST or rate> — <reason>, one per line", but MOD-documents' "lines" shape (src/documents/read-write.mjs,
   // typed/writeDocument) joins a list field's several items onto its one line, comma separated, and refuses an item
   // that itself holds a comma — not a file this item changes. A reason is therefore recorded without a comma.
-  const approvalPath = `docs/approvals/release-v${version}-${report.blob.slice(0, 12)}.md`;
+  const approvalPath = `docs/approvals/release-v${version}-${blob.slice(0, 12)}.md`;
   const approvalText = writeDocument(approvalSchema, {
-    fields: { kind: "release-report", file: report.path, blob: report.blob,
+    fields: { kind: "release-report", file: report.path, blob,
       limitation: ids.map((id) => `${id} — ${limitations[id]}`) },
   });
-  const changelogBefore = await snap.read("CHANGELOG.md");
-  const entryText = doc.sections.find((s) => s.heading === "## Changelog entry")?.text ?? "";
-  const changelogAfter = withChangelogEntry(changelogBefore, version, today, entryText, limitations);
+
+  // Read just before the write (not `branchSnapshot`, read earlier, for the job record): the report, the approval and
+  // the changelog entry all land in the same commit, on the head the branch stands at now, even when it moved since
+  // the report was shown (4b) — the tag below still goes on the candidate's own commit, not this one.
+  const writeSnapshot = await host.readSnapshot(info.defaultBranch);
+  const changelogBefore = await writeSnapshot.read("CHANGELOG.md");
+  const changelogAfter = withChangelogEntry(changelogBefore, version, today, candidate.changelog, limitations);
 
   const { commit } = await host.commitFiles({
-    branch: info.defaultBranch, expectedHead: snap.commit,
-    files: [{ path: approvalPath, text: approvalText }, { path: "CHANGELOG.md", text: changelogAfter }],
+    branch: info.defaultBranch, expectedHead: writeSnapshot.commit,
+    files: [{ path: report.path, text }, { path: approvalPath, text: approvalText }, { path: "CHANGELOG.md", text: changelogAfter }],
     message: `Release v${version}`,
   });
-  await host.createTag(tag, doc.fields.commit); // TagExists propagates from here, unchanged — the candidate's commit, never the one just committed.
+  await host.createTag(tag, candidate.commit); // TagExists propagates from here, unchanged — the candidate's commit, never the one just committed.
   return { commit, tag };
 }
