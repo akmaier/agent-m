@@ -98,13 +98,19 @@ export const gitlabTokenSteps = (path, host) => [
     "once.",
 ];
 
-// UC-001 3d: the server offers no project access tokens, or the author is not Maintainer — and why a personal token
-// would be broader.
-export const gitlabNoProjectTokens = (host) =>
-  `If ${host} offers no project access tokens, or you are not Maintainer there, ask a Maintainer to create one for ` +
-  "you, or to give you the role. A personal access token would also work, but it is broader: with scope api it " +
-  `reaches every project you can reach on ${host}, not only this one. Either way, Agent M stores it for this product ` +
-  "only and sends it only to this project's own API.";
+// UC-001 3d: both causes are reported by the author from GitLab's external page. repositoryInfo exposes canWrite,
+// not project-token availability, so neither cause is inferred or retained beyond this unsaved add-product screen.
+const GITLAB_ALTERNATIVE_REASONS = [
+  { id: "no-project-tokens", label: "this server offers no project access tokens",
+    action: "This server's administrator or a Maintainer can enable or create a project access token." },
+  { id: "not-maintainer", label: "I am not Maintainer",
+    action: "Ask a Maintainer to create the project access token or to give you the Maintainer role." },
+];
+
+export const gitlabNoProjectTokens = (host, reason) =>
+  `${reason.action} A personal access token with api scope reaches every project you can reach on ${host}, not only ` +
+  "this project. You decide whether to use that broader token or seek project access; Agent M does not choose, generate " +
+  "or substitute a personal token.";
 
 // The key MOD-browser-store keeps a product's own token under (A GITHUB PRODUCT USES A TOKEN OF ITS OWN, A GITLAB
 // PRODUCT USES A PROJECT ACCESS TOKEN; MOD-browser-store, Data).
@@ -259,14 +265,29 @@ function doneStepABody(web) {
 // and stores the project's own token (UC-001 3c). No "done" variant: unlike GitHub's instance-token fallback,
 // nothing here is implied by storage alone, and UC-001 names no such state for a GitLab product's Step A.
 
-function gitlabStepABody(address) {
+function gitlabStepABody(address, selectedReason, selectReason) {
   const host = new URL(address.origin).host;
   const page = connect(address, {}).webLinks().projectTokens ?? "#";
+  const alternatives = GITLAB_ALTERNATIVE_REASONS.map((reason) => {
+    const selected = selectedReason === reason.id;
+    const detail = el("details", "gitlab-alternative");
+    const select = el("button", "gitlab-alternative-select", `I saw: ${reason.label}`);
+    if (selected) detail.setAttribute("open", "");
+    detail.append(
+      el("summary", null, reason.label),
+      el("p", "result", selected ? `Selected: ${reason.label}.` :
+        "If the page offers no project access tokens, or you are not Maintainer, select the cause it shows."),
+      el("p", null, gitlabNoProjectTokens(host, reason)),
+      el("p", null, select),
+    );
+    select.addEventListener("click", () => selectReason(reason.id));
+    return detail;
+  });
   return [
     el("p", null, anchor(`Open Access tokens on ${host} ↗`, page)),
     el("ol", "choices", ...gitlabTokenSteps(address.path, host).map((s) => el("li", null, s))),
-    el("details", null, el("summary", null, "The page offers no project access tokens, or you are not Maintainer"),
-      el("p", null, gitlabNoProjectTokens(host))),
+    el("p", null, "If the external page prevents the normal project-token route, expand and select the reason it shows:"),
+    ...alternatives,
     explain("product-key"),
   ];
 }
@@ -394,7 +415,7 @@ function renderSteps(container, context, text) {
   }
 
   const gitlab = address.server === "gitlab";
-  const state = { done: false };
+  const state = { done: false, gitlabAlternative: null };
   const stepAEl = el("section", "step");
   const stepBOut = el("p", "result"); // GitHub's Step B output only; GitLab's Step B has its own.
   const stepC = stepCSection(context, address, () => { state.done = false; paintStepA(); });
@@ -402,7 +423,8 @@ function renderSteps(container, context, text) {
   function paintStepA() {
     stepAEl.replaceChildren();
     if (gitlab) {
-      stepAEl.append(el("h3", null, "Step A · Create a key for this project"), ...gitlabStepABody(address));
+      stepAEl.append(el("h3", null, "Step A · Create a key for this project"),
+        ...gitlabStepABody(address, state.gitlabAlternative, (reason) => { state.gitlabAlternative = reason; paintStepA(); }));
     } else if (state.done) {
       stepAEl.append(el("h3", null, "Step A · A key for the product — done"), ...doneStepABody(address.web));
     } else {
