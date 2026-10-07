@@ -510,8 +510,9 @@ test("explain — an empty element for a topic the file does not hold", () => {
 // each test below only checks the body text these two use cases ask of its topic.
 
 // The folded body's rendered text, for a topic this block checks: the full textContent of the <div> that follows
-// <summary>, the same destructuring the test above uses.
-const bodyText = (topic) => explain(topic).children[1]?.textContent ?? "";
+// <summary>, the same destructuring the test above uses — with runs of whitespace collapsed to one space, since
+// textContent keeps explanations.md's own line-wrap newlines, which a browser's rendering of the <p> does not show.
+const bodyText = (topic) => (explain(topic).children[1]?.textContent ?? "").replace(/\s+/g, " ");
 
 // guards: EVERY STEP EXPLAINS ITSELF; UC-001 (step 2: pasting the product repository's address)
 // given: the topic repository, as ITM-255 adds it to explanations.md
