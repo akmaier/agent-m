@@ -7,7 +7,7 @@
 // Run: node --test tests/product-process-eligibility.test.mjs
 //
 // Module: MOD-product-process
-// Guards: UC-002 (4b, 4c); A ROLE NAMES THE CAPABILITIES IT NEEDS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// Guards: UC-002; A ROLE NAMES THE CAPABILITIES IT NEEDS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // Level: unit
 //
 // The fixture product declares the same instance model as tests/product-process.test.mjs, docs/process-models/team-scrum.md
