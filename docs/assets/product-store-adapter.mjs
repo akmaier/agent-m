@@ -11,8 +11,8 @@ function tokenKey(address) {
   return url.hostname === "github.com" ? `github-token:${path}` : `gitlab-token:${url.hostname}/${path}`;
 }
 
-function valueOf(token, expires, name) {
-  return { value: token, name, expires: expires ?? null, stored: day() };
+function valueOf(token, expires, name, tested = null) {
+  return { value: token, name, expires: expires ?? null, stored: day(), ...(tested ? { tested } : {}) };
 }
 
 // productStore(instance) -> the dashboard's established settings API. Its token and product-list calls share the
@@ -26,16 +26,20 @@ export function productStore(instance) {
     if (readSetting(store, "github-token") === null && legacy.getToken()) {
       writeSetting(store, "github-token", valueOf(legacy.getToken(), legacy.getTokenExpiry(), `Agent M · ${instance}`));
     }
-    if (readSetting(store, "products") === null && legacy.getProducts().length) writeSetting(store, "products", legacy.getProducts());
-    for (const address of legacy.getProducts()) {
-      const old = new URL(address).hostname === "github.com" ? legacy.getGitHubProductToken(address) : legacy.getGitLabToken(address);
+    const github = legacy.gitHubProductTokens(), gitlab = legacy.gitLabTokens();
+    const products = [...new Set([...(readSetting(store, "products") ?? []), ...legacy.getProducts(), ...Object.keys(github), ...Object.keys(gitlab)])];
+    if (products.length && JSON.stringify(products) !== JSON.stringify(readSetting(store, "products") ?? [])) writeSetting(store, "products", products);
+    for (const [address, old] of [...Object.entries(github), ...Object.entries(gitlab)]) {
       const key = tokenKey(address);
-      if (readSetting(store, key) === null && old?.token) writeSetting(store, key, valueOf(old.token, old.expires, "Agent M"));
+      if (readSetting(store, key) === null && old?.token) writeSetting(store, key, valueOf(old.token, old.expires, "Agent M", old.tested));
     }
   };
   const syncLegacy = () => {
     const own = readSetting(store, "github-token");
-    if (own?.value) legacy.setToken(own.value, own.expires);
+    if (own?.value) {
+      legacy.setToken(own.value, own.expires);
+      legacy.setTokenTest(own.tested ?? null);
+    }
     const products = readSetting(store, "products");
     if (Array.isArray(products)) {
       legacy.clearProducts();
@@ -45,6 +49,10 @@ export function productStore(instance) {
         if (token?.value) {
           if (new URL(address).hostname === "github.com") legacy.setGitHubProductToken(address, token.value, token.expires);
           else legacy.setGitLabToken(address, token.value, token.expires);
+          if (token.tested) {
+            if (new URL(address).hostname === "github.com") legacy.setGitHubProductTokenTest(address, token.tested);
+            else legacy.setGitLabTokenTest(address, token.tested);
+          }
         }
       }
     }
@@ -56,6 +64,11 @@ export function productStore(instance) {
     setToken(token, expires = null) {
       writeSetting(store, "github-token", valueOf(String(token).trim(), expires, `Agent M · ${instance}`));
       legacy.setToken(token, expires);
+    },
+    setTokenTest(result) {
+      legacy.setTokenTest(result);
+      const token = readSetting(store, "github-token"), tested = legacy.getTokenTest();
+      if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, "github-token", { ...setting, ...(tested ? { tested } : {}) }); }
     },
     getProducts: () => readSetting(store, "products") ?? legacy.getProducts(),
     addProduct(address) {
@@ -71,6 +84,11 @@ export function productStore(instance) {
       writeSetting(store, tokenKey(address), valueOf(String(token).trim(), expires, "Agent M"));
       legacy.setGitHubProductToken(address, token, expires);
     },
+    setGitHubProductTokenTest(address, result) {
+      legacy.setGitHubProductTokenTest(address, result);
+      const token = readSetting(store, tokenKey(address)), tested = legacy.getGitHubProductToken(address)?.tested;
+      if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, tokenKey(address), { ...setting, ...(tested ? { tested } : {}) }); }
+    },
     getGitLabToken(address) {
       const token = readSetting(store, tokenKey(address));
       return token?.value ? { token: token.value, expires: token.expires ?? null } : legacy.getGitLabToken(address);
@@ -78,6 +96,11 @@ export function productStore(instance) {
     setGitLabToken(address, token, expires = null) {
       writeSetting(store, tokenKey(address), valueOf(String(token).trim(), expires, "Agent M"));
       legacy.setGitLabToken(address, token, expires);
+    },
+    setGitLabTokenTest(address, result) {
+      legacy.setGitLabTokenTest(address, result);
+      const token = readSetting(store, tokenKey(address)), tested = legacy.getGitLabToken(address)?.tested;
+      if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, tokenKey(address), { ...setting, ...(tested ? { tested } : {}) }); }
     },
     tokenFor(product) {
       const address = product?.address;
@@ -91,7 +114,7 @@ export function productStore(instance) {
       clearSetting(store, "products"); legacy.clearProducts();
     },
     clear() { this.clearToken(); this.clearProducts(); legacy.clear(); },
-    putEntries(values) { legacy.putEntries(values); migrate(); },
-    entries() { return legacy.entries(); },
+    putEntries(values) { legacy.putEntries(values); migrate(); syncLegacy(); },
+    entries() { syncLegacy(); return legacy.entries(); },
   };
 }

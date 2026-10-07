@@ -465,7 +465,7 @@ test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a decision and a m
 
 const { DASHBOARD } = await import("../docs/assets/dashboard-app.mjs");
 const { MENU } = await import("../src/site/menu.mjs");
-const builtOnDisk = (file) => fs.existsSync(path.join(ROOT, "docs/assets/dashboard", file));
+const builtOnDisk = (file) => typeof file === "string" && fs.existsSync(path.join(ROOT, "docs/assets/dashboard", file));
 const VIEWS = DASHBOARD.filter((v) => v.view);
 const ADDRESSES = ["", ...VIEWS.map((v) => `#${v.view}`),
   "#uc/UC-001", "#uc/UC-003", "#arc/ARC-001", "#arc/MOD-reader", "#review/uc", "#review/arc", "#spec/2026-01-01a_wording/01"];
@@ -502,6 +502,12 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fallback = page.main();
   assert.match(fallback, /#uc\/UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
+    if (v.builtIn) {
+      assert.equal(v.view, "add", "only the public settings-pages Add route has no dashboard file");
+      assert.match(fs.readFileSync(path.join(ROOT, "docs/assets/dashboard-app.mjs"), "utf8"),
+        /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
+      continue;
+    }
     const there = builtOnDisk(v.file);
     const p = await open(w, { hash: `#${v.view}`, direct: true });
     if (there) {

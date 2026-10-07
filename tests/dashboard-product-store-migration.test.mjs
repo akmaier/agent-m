@@ -56,6 +56,28 @@ test("the dashboard migrates its product list and tokens into MOD-browser-store"
   assert.equal(readSetting(store, "github-token:alice/tool").value, "github_pat_PRODUCT");
 });
 
+// TST-09-MIGRATION-03
+// given: a legacy GitLab project token, including its last test, without a legacy product-list entry
+// input: open the adapter, then import a second product through its established settings API
+// expect: both addresses and token metadata remain visible to the settings/export API and MOD-browser-store
+test("the adapter discovers token-only GitLab products and preserves imported public values", () => {
+  const first = "https://gitlab.example.org/team/first", second = "https://gitlab.example.org/team/second";
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage({
+    "agent-m.gitlab-tokens": JSON.stringify({ [first]: { token: "glpat_FIRST0123456789", expires: "2027-01-01", tested: { ok: "2026-10-07" } } }),
+  }) });
+  const dashboard = productStore("akmaier/agent-m"), store = openStore("akmaier/agent-m");
+  assert.deepEqual(readSetting(store, "products"), [first]);
+  assert.deepEqual(readSetting(store, "gitlab-token:gitlab.example.org/team/first").tested, { ok: "2026-10-07" });
+  dashboard.putEntries({
+    "agent-m.products": JSON.stringify([second]),
+    "agent-m.gitlab-tokens": JSON.stringify({ [second]: { token: "glpat_SECOND012345678", expires: "2027-02-01", tested: { refused: true } } }),
+  });
+  assert.deepEqual(dashboard.getProducts(), [first, second]);
+  const entries = dashboard.entries();
+  assert.deepEqual(Object.keys(JSON.parse(entries["agent-m.gitlab-tokens"])).sort(), [first, second]);
+  assert.deepEqual(readSetting(store, "gitlab-token:gitlab.example.org/team/second").tested, { refused: true });
+});
+
 // TST-09-MIGRATION-02
 // given: an instance-prefixed GitHub token and the dashboard's established page harness
 // input: navigate through the public dashboard entry to #add/<address>
