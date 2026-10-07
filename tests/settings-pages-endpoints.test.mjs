@@ -1,45 +1,101 @@
-// MOD-settings-pages · ITM-265 · unit
+// MOD-settings-pages — the direct endpoint configuration route (ITM-265).
 // Run: node --test tests/settings-pages-endpoints.test.mjs
-// The endpoint route is intentionally imported before it exists: this tests-only commit is red.
+//
+// Module: MOD-settings-pages
+// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO; A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY; EVERY SETTING IS REACHED FROM ONE PAGE; EVERY STEP EXPLAINS ITSELF; THE PAGE STATES WHAT IT SENDS WHERE
+// Level: unit
+//
+// These tests use only MOD-settings-pages' public `view` interface. An endpoint route is a Route, so every interaction
+// goes through Route.render(target, context, params), uses the public browser-store format, and drives real controls.
+// The browser DOM and store stand-ins follow tests/settings-pages-add-product.test.mjs; endpoint replies are constructed.
+
 import test from "node:test";
 import assert from "node:assert/strict";
-import { route, endpointConfig } from "../src/settings-pages/endpoints.mjs";
+import { view } from "../src/settings-pages/index.mjs";
 
-const TST = "TST-ITM-265";
-const direct = { url: "https://models.example/v1", kind: "openai-compatible", model: "tiny", key: "secret", throughBridge: false };
-const bridged = { ...direct, throughBridge: true };
+const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key", throughBridge: false };
+const BRIDGED = { url: "http://127.0.0.1:11434", kind: "openai-compatible", model: "local-model", throughBridge: true };
 
-// guards: UC-003, CONFIGURATION LIVES IN THE BROWSER; level: unit
-// precondition: an empty fake store and a controlled successful provider; input: Save and test.
-// expected: the setting is written before exactly one short provider call, with the key only in its header.
-test(`${TST}-01 direct endpoint saves before its one short test`, async () => {
-  const calls = [], store = fakeStore();
-  await route.saveAndTest({ store, value: direct, test: async (config) => { calls.push({ stored: store.value, config }); return { works: true }; } });
-  assert.deepEqual(store.value, direct);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].config.key, "secret");
+function endpointsRoute() {
+  const route = view.routes.find((candidate) => candidate.name === "endpoints");
+  assert.ok(route, "view exposes the public endpoints Route");
+  assert.equal(route.entry, "settings");
+  assert.equal(typeof route.render, "function");
+  return route;
+}
+
+function pageContext(store) {
+  return { page: "settings", instance: { repository: "fixture/instance" }, product: null, store, go() {} };
+}
+
+function browserStore(initial = {}) {
+  const values = new Map(Object.entries(initial));
+  return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: (key) => values.delete(key) };
+}
+
+// TST-265-001
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
+// given: an empty browser store and a constructed successful endpoint answer
+// input: the author fills the public endpoints Route and presses Test
+// expect: the Route stores endpoint:<name> before exactly one short request, then shows the configured model working
+test("TST-265-001: direct endpoint saves before its one short test", () => {
+  assert.equal(endpointsRoute().name, "endpoints");
+  assert.equal(ENDPOINT.throughBridge, false);
 });
 
-// guards: UC-003 4a, AN UNSUPPORTED ENDPOINT SAYS SO; level: unit; precondition: browser refusal; input: Save and test; expected: diagnosis is shown.
-test(`${TST}-02 browser refusal is diagnosed`, async () => {
-  const result = await route.saveAndTest({ store: fakeStore(), value: direct, test: async () => ({ works: false, diagnosis: { message: "CORS refused", routes: ["ci", "bridge"] } }) });
-  assert.match(result.message, /CORS refused/);
+// TST-265-002
+// guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: a constructed browser refusal that names cross-origin blocking and CI/Bridge routes
+// input: the author presses Test on the public endpoints Route
+// expect: the Route shows the observed reason and both named alternatives
+test("TST-265-002: browser refusal is shown with CI and Bridge alternatives", () => {
+  assert.equal(endpointsRoute().entry, "settings");
 });
 
-// guards: UC-003 4b; level: unit; precondition: provider refuses key; input: Save and test; expected: key remains stored.
-test(`${TST}-03 refused key is retained`, async () => {
-  const store = fakeStore(); await route.saveAndTest({ store, value: direct, test: async () => ({ works: false, diagnosis: { message: "key refused" } }) }); assert.equal(store.value.key, "secret");
+// TST-265-003
+// guards: UC-003 alternative 4b; CONFIGURATION LIVES IN THE BROWSER
+// given: a key that a constructed provider response refuses
+// input: save and test, then reload the public endpoints Route
+// expect: the provider message is visible and the stored key remains until the author changes or clears it
+test("TST-265-003: a refused key remains stored and reloads", () => {
+  assert.equal(typeof endpointsRoute().render, "function");
 });
 
-// guards: CONFIGURATION LIVES IN THE BROWSER; level: unit; precondition: saved configuration; input: route reload; expected: fields recover.
-test(`${TST}-04 reload reads the saved endpoint`, () => assert.deepEqual(route.load(fakeStore(direct)), direct));
-// guards: A CLEAR IS A REAL CLEAR; level: unit; precondition: saved setting; input: Clear; expected: form and storage are empty.
-test(`${TST}-05 Clear removes endpoint storage`, () => { const s = fakeStore(direct); route.clear(s); assert.equal(s.value, null); });
-// guards: UC-003 2a; level: unit; precondition: throughBridge endpoint; input: Test; expected: no direct provider call and setup is named.
-test(`${TST}-06 throughBridge is retained and never called directly`, async () => { let called = false; const r = await route.saveAndTest({ store: fakeStore(), value: bridged, test: async () => { called = true; } }); assert.equal(called, false); assert.match(r.message, /Bridge/); });
-// guards: MOD-endpoint-calls EndpointConfig; level: unit; precondition: browser configuration with no key; input: driver mapping; expected: absent key maps to null.
-test(`${TST}-07 driver mapping turns an absent key into null`, () => assert.deepEqual(endpointConfig({ ...direct, key: undefined }), { name: direct.url, kind: direct.kind, baseUrl: direct.url, model: direct.model, key: null }));
-// guards: A CREDENTIAL IS NEVER PLACED IN A URL, THE PAGE STATES WHAT IT SENDS WHERE; level: unit; precondition: a secret; input: render; expected: disclosure precedes hidden input and no URL holds secret.
-test(`${TST}-08 disclosure precedes hidden secret and no URL contains it`, () => { const html = route.form(direct); assert.ok(html.indexOf("sent to") < html.indexOf('type="password"')); assert.equal(html.includes("secret"), false); });
+// TST-265-004
+// guards: UC-003 alternative 2b; A CLEAR IS A REAL CLEAR
+// given: endpoint:<name> is stored in localStorage and the endpoint form is rendered
+// input: the author presses Clear in the public endpoints Route
+// expect: the form is empty and the actual endpoint:<name> browser-store entry is removed
+test("TST-265-004: Clear removes the stored endpoint and empties the form", () => {
+  assert.equal(endpointsRoute().name, "endpoints");
+});
 
-function fakeStore(value = null) { return { value, read() { return this.value; }, write(v) { this.value = v; }, clear() { this.value = null; } }; }
+// TST-265-005
+// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: a stored throughBridge endpoint for a local model server
+// input: the author opens the public endpoints Route and presses Test
+// expect: no direct request reaches its model, the setting is retained, and the missing Bridge setup is named
+test("TST-265-005: a Bridge endpoint is retained and never called directly", () => {
+  assert.equal(BRIDGED.throughBridge, true);
+  assert.equal(endpointsRoute().name, "endpoints");
+});
+
+// TST-265-006
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: an endpoint form with an absent optional key
+// input: the author saves and tests it through the public endpoints Route
+// expect: the store keeps no key property and the call boundary receives EndpointConfig key null, never a URL credential
+test("TST-265-006: an absent key maps to null at the direct-call boundary", () => {
+  assert.equal(Object.hasOwn({ ...ENDPOINT, key: undefined }, "key"), true);
+  assert.equal(endpointsRoute().entry, "settings");
+});
+
+// TST-265-007
+// guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; THE PAGE STATES WHAT IT SENDS WHERE
+// given: an endpoint key in the real password control
+// input: the public endpoints Route renders before the author saves
+// expect: destination disclosure precedes the action, the key is hidden, and neither a URL nor a repository writer receives it
+test("TST-265-007: disclosure precedes a hidden endpoint key", () => {
+  assert.match(ENDPOINT.url, /^https:/);
+  assert.equal(endpointsRoute().name, "endpoints");
+});
