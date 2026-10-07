@@ -1,0 +1,256 @@
+// report.mjs — the release test report, and releasing on its acceptance (MOD-release-evidence, Parts: "report.mjs —
+// the release test report, whether one waits for acceptance, and releasing on its acceptance"). Of it, ITM-254 builds
+// releaseReport and acceptAndRelease, as the module file states them. reportsAwaitingAcceptance is ITM-239's and not
+// built here.
+//
+// Module: MOD-release-evidence
+//
+// Gap, noted rather than designed around: releaseReport's signature (at, results, candidate) carries no way to name
+// the last release's commit for MOD-result-records' rateComparison(results, commit, lastRelease) — no host is given
+// either, to resolve one from tags. rateComparison is called with lastRelease null (the call below), which it
+// documents as "no comparison without a last release"; releaseReport's own `worse` is therefore always empty. No item
+// needs the signature changed now.
+//
+// Gap: releaseReport's signature carries no "today" for the report's `date` front matter (unlike acceptAndRelease,
+// which is given one); the call below uses the real clock. No item needs the signature changed now.
+//
+// Gap: acceptAndRelease's own prose ("commits the report, its approval record ... and the changelog entry ...
+// together") and its signature (report: { path, blob }, not the report's text) only fit together the way MOD-
+// approvals' acceptShown already fits a reviewed file's text not being given either: the report is treated as already
+// committed at report.path/report.blob before acceptAndRelease is called — by a flow this item does not build — and
+// acceptAndRelease's one commit (below) adds only the approval record and the changelog entry. No item needs the
+// signature changed now.
+//
+// resultsAt, flakyTests and rateComparison are async, typed without Promise<> by MOD-result-records.md for the same
+// reason MOD-job-ledger's listJobs is (docs/backlog/sprints/12.md, "notes of earlier gates"; src/result-records/
+// read.mjs's own header note) — awaited at every call below.
+
+import { loadSchema, readDocument, writeDocument } from "../documents/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
+import { testDeclarations } from "../test-document/index.mjs";
+import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { resultsAt, rateComparison } from "../result-records/index.mjs";
+import { approvalSchema } from "../approvals/index.mjs";
+import { ReleaseEvidenceError } from "./errors.mjs";
+
+const OWNER = "MOD-release-evidence";
+const SCHEMA_FILE = new URL("./candidate-document.schema.md", import.meta.url);
+const disk = globalThis.process?.getBuiltinModule?.("node:fs");
+
+async function ownFile(url) {
+  const answer = await fetch(url);
+  if (!answer.ok) throw new Error(`${OWNER}: its ${url.pathname} was not served (${answer.status})`);
+  return answer.text();
+}
+
+// The release candidate's document schema (private: not part of this module's `provides`), read once when the module
+// is loaded, as scheduleSchema is (src/test-schedule/index.mjs).
+const candidateDocumentSchema = loadSchema(
+  disk ? disk.readFileSync(SCHEMA_FILE, "utf8") : await ownFile(SCHEMA_FILE), OWNER);
+
+// A test file, by MOD-trace-graph's own selection (src/trace-graph/build.mjs): under a folder named test, tests or
+// __tests__, or named as tests are in their language. Duplicated here, minimally, since build.mjs is private to
+// MOD-trace-graph and only traceGraph and tracesTo are its interface.
+const TEST_FOLDERS = new Set(["test", "tests", "__tests__"]);
+const TEST_NAME = /^test_[^/]+$|_test\.[A-Za-z0-9]+$|\.(?:test|spec)\.[A-Za-z0-9]+$/;
+function isTestPath(path) {
+  const parts = String(path).split("/");
+  return parts.slice(0, -1).some((part) => TEST_FOLDERS.has(part)) || TEST_NAME.test(parts[parts.length - 1]);
+}
+
+// Every test declaration of `at`, by its identifier (the last one read wins, as a later item's graph would also see).
+async function collectDeclarations(at) {
+  const byId = new Map();
+  for (const path of at.paths) {
+    if (!isTestPath(path)) continue;
+    const text = await at.read(path);
+    if (text === null) continue;
+    for (const d of testDeclarations(path, text)) byId.set(d.id, d);
+  }
+  return byId;
+}
+
+// One test's entry from resultsAt's per-level lists, by its identifier.
+function flattenTests(levels) {
+  const byId = new Map();
+  for (const level of levels) for (const t of level.tests) byId.set(t.id, t);
+  return byId;
+}
+
+// The "## Tests" column Outcome: a model-dependent test's rate where resultsAt gave one, else its plain outcome; "not
+// run" for a test resultsAt never mentions (no record at all, at any level this report's tests span).
+function outcomeCell(entry) {
+  if (!entry) return "not run";
+  return entry.runs ?? entry.outcome;
+}
+
+function limitationsText(ids, declarations) {
+  if (!ids.length) return "\n";
+  const lines = ids.map((id) => `- ${id}: ${(declarations.get(id)?.guards ?? []).join(", ")}`);
+  return `\n${lines.join("\n")}\n\n`;
+}
+
+async function requirementsRows(at, candidateCommit, declarations, testEntries) {
+  const specText = await at.read("SPEC.md");
+  const spec = parseSpec(specText ?? "");
+  const graph = await traceGraph(at, { commit: candidateCommit });
+  const rows = [];
+  for (const name of spec.requirements.keys()) {
+    const traces = tracesTo(graph, name);
+    if (!traces.tests.length) {
+      rows.push({ Requirement: name, Level: "", Tests: [], Outcome: "not run" });
+      continue;
+    }
+    const byLevel = new Map();
+    for (const id of traces.tests) {
+      const level = declarations.get(id)?.level ?? "unit";
+      if (!byLevel.has(level)) byLevel.set(level, []);
+      byLevel.get(level).push(id);
+    }
+    for (const [level, ids] of [...byLevel.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+      const outcomes = ids.map((id) => testEntries.get(id)?.outcome ?? "not run");
+      const outcome = outcomes.every((o) => o === "not run") ? "not run"
+        : outcomes.every((o) => o === "passed") ? "passed" : "failed";
+      rows.push({ Requirement: name, Level: level, Tests: ids.slice().sort(), Outcome: outcome });
+    }
+  }
+  return rows;
+}
+
+/**
+ * releaseReport(at: Snapshot, results: Snapshot, candidate: { version: string, tag: string, commit: string, changelog:
+ * string }) -> Promise<{ text: string, complete: boolean, failing: string[], worse: string[] }> (MOD-release-evidence,
+ * Interfaces): the release test report of a release candidate's complete run so far — its parts as this module's file
+ * states them, `## Limitations` first —; `complete` false while any test has not run on the candidate's commit.
+ */
+export async function releaseReport(at, results, candidate) {
+  const declarations = await collectDeclarations(at);
+  const tests = [...declarations.values()].map((d) => ({ id: d.id, level: d.level ?? "unit" }));
+  const levels = await resultsAt(results, candidate.commit, tests);
+  await rateComparison(results, candidate.commit, null); // gap above: no lastRelease to compare against here.
+  const testEntries = flattenTests(levels);
+
+  let complete = true;
+  const failing = [];
+  for (const level of levels) {
+    for (const t of level.tests) {
+      if (t.outcome === "not run") complete = false;
+      else if (t.outcome === "failed" || t.outcome === "flaky") failing.push(t.id);
+    }
+  }
+  failing.sort();
+  const worse = [];
+
+  const testsRows = [...declarations.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((d) => ({
+    Test: d.id, Level: d.level ?? "unit", Outcome: outcomeCell(testEntries.get(d.id)), Guards: d.guards ?? [],
+  }));
+  const levelsRows = levels.map((l) => ({ Level: l.level, Passed: l.passed, Failed: l.failed, Flaky: l.flaky, "Not run": l.notRun }));
+  const requirements = await requirementsRows(at, candidate.commit, declarations, testEntries);
+
+  const document = {
+    kind: "release-candidate-document",
+    path: `docs/tests/releases/v${candidate.version}.md`,
+    id: null,
+    title: null,
+    fields: { version: candidate.version, candidate: candidate.tag, commit: candidate.commit,
+      date: new Date().toISOString().slice(0, 10) },
+    sections: [
+      { heading: "## Limitations", text: limitationsText(failing, declarations) },
+      { heading: "## Levels", text: "\n", rows: levelsRows.map((cells) => ({ cells })) },
+      { heading: "## Tests", text: "\n", rows: testsRows.map((cells) => ({ cells })) },
+      { heading: "## Requirements", text: "\n", rows: requirements.map((cells) => ({ cells })) },
+      { heading: "## Changelog entry", text: `\n${candidate.changelog}\n\n` },
+    ],
+    appended: [],
+    body: "",
+  };
+  return { text: writeDocument(candidateDocumentSchema, document), complete, failing, worse };
+}
+
+// ---------------------------------------------------------------- acceptAndRelease
+
+const LIMITATION_BULLET = /^-\s*([^:]+):/;
+
+// The failing tests and worse rates a committed report names in its "## Limitations", and whether the run is
+// complete (no "not run" among its "## Tests").
+function reportState(doc) {
+  const limitations = doc.sections.find((s) => s.heading === "## Limitations");
+  const ids = [];
+  for (const line of (limitations?.text ?? "").split("\n")) {
+    const m = LIMITATION_BULLET.exec(line.trim());
+    if (m) ids.push(m[1].trim());
+  }
+  const testsRows = doc.sections.find((s) => s.heading === "## Tests")?.rows ?? [];
+  const complete = !testsRows.some((row) => row.cells.Outcome === "not run");
+  return { ids, complete };
+}
+
+// The changelog's text with a new entry added right after its title line (CHANGELOG.md, MOD-release-evidence.md,
+// Data: a heading "## v<version> — <date>", the entry's text, and, with limitations, "Known limitations:").
+function withChangelogEntry(current, version, today, entryText, limitations) {
+  const lines = [`## v${version} — ${today}`, "", entryText.trim(), ""];
+  if (Object.keys(limitations).length) {
+    lines.push("Known limitations:", ...Object.entries(limitations).map(([id, reason]) => `- ${id}: ${reason}`), "");
+  }
+  const body = (current ?? "# Changelog\n").split("\n");
+  const insertAt = body[1] === "" ? 2 : 1;
+  body.splice(insertAt, 0, ...lines);
+  return body.join("\n");
+}
+
+/**
+ * acceptAndRelease(host: Host, report: { path: string, blob: string }, decision: { limitations: Record<string, string>
+ * }, person: string, today: string) -> Promise<{ commit: string, tag: string }> (MOD-release-evidence, Interfaces): on
+ * the person's one click, commits the approval record (naming the report's blob and every limitation) and the
+ * changelog entry the report holds, together, on the head read just before the write (so the release still goes
+ * through when the default branch moved on, 4b); then sets the tag v<version> on the candidate's own commit — never a
+ * later one. Errors: Incomplete, LimitationMissing (naming every failing test and worse rate without a reason),
+ * TagExists (an existing tag is never moved, from the host's createTag).
+ */
+export async function acceptAndRelease(host, report, decision, person, today) {
+  const info = await host.repositoryInfo();
+  const snap = await host.readSnapshot(info.defaultBranch);
+  const text = await snap.read(report.path);
+  if (text === null || snap.blob(report.path) !== report.blob) {
+    throw new ReleaseEvidenceError("Moved", { path: report.path }, "The release test report has changed since it was shown.");
+  }
+  const doc = readDocument(candidateDocumentSchema, report.path, text);
+  const { ids, complete } = reportState(doc);
+  if (!complete) throw new ReleaseEvidenceError("Incomplete", {}, "The release candidate's run has not finished at every level yet.");
+
+  const limitations = decision?.limitations ?? {};
+  const missing = ids.filter((id) => !String(limitations[id] ?? "").trim());
+  if (missing.length) {
+    throw new ReleaseEvidenceError("LimitationMissing", { tests: missing },
+      `Every failing test and worse rate needs its reason recorded before the release: ${missing.join(", ")}.`);
+  }
+
+  const version = doc.fields.version;
+  const tag = `v${version}`;
+  // Checked before the commit, so a release already tagged leaves no dangling commit of the approval and the
+  // changelog entry (4a: an existing tag is never moved); the rare race of two concurrent clicks is still caught by
+  // the host's own createTag below, unchanged.
+  const existingTag = (await host.listTags(tag)).find((t) => t.name === tag);
+  if (existingTag) throw new ReleaseEvidenceError("TagExists", { commit: existingTag.commit }, `${tag} already stands, on ${existingTag.commit}.`);
+
+  // Gap, noted rather than designed around: approval-record.schema.md's own prose reads "limitation ... zero or more
+  // lines <TST or rate> — <reason>, one per line", but MOD-documents' "lines" shape (src/documents/read-write.mjs,
+  // typed/writeDocument) joins a list field's several items onto its one line, comma separated, and refuses an item
+  // that itself holds a comma — not a file this item changes. A reason is therefore recorded without a comma.
+  const approvalPath = `docs/approvals/release-v${version}-${report.blob.slice(0, 12)}.md`;
+  const approvalText = writeDocument(approvalSchema, {
+    fields: { kind: "release-report", file: report.path, blob: report.blob,
+      limitation: ids.map((id) => `${id} — ${limitations[id]}`) },
+  });
+  const changelogBefore = await snap.read("CHANGELOG.md");
+  const entryText = doc.sections.find((s) => s.heading === "## Changelog entry")?.text ?? "";
+  const changelogAfter = withChangelogEntry(changelogBefore, version, today, entryText, limitations);
+
+  const { commit } = await host.commitFiles({
+    branch: info.defaultBranch, expectedHead: snap.commit,
+    files: [{ path: approvalPath, text: approvalText }, { path: "CHANGELOG.md", text: changelogAfter }],
+    message: `Release v${version}`,
+  });
+  await host.createTag(tag, doc.fields.commit); // TagExists propagates from here, unchanged — the candidate's commit, never the one just committed.
+  return { commit, tag };
+}
