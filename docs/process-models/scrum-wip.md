@@ -22,11 +22,11 @@ retrospective are recorded, and then the Product Owner decides the merge of the 
 
 | Name | Role | Produces |
 |---|---|---|
-| Sprint planning | Product Owner | ITM (the sprint's selection of backlog items) |
-| Development | Developers | MOD (code of the item's modules), TST |
-| Release testing | Release tester | TST (release tests of the selected items) |
-| Sprint review | Product Owner | sprint record (the review of the increment) |
-| Retrospective | Product Owner | sprint record (the retrospective) |
+| Sprint planning | Product Owner | ITM |
+| Development | Developers | MOD, TST |
+| Release testing | Release tester | TST |
+| Sprint review | Product Owner | sprint record |
+| Retrospective | Product Owner | sprint record |
 
 ## Transitions
 
@@ -68,5 +68,5 @@ retrospective are recorded, and then the Product Owner decides the merge of the 
 | Kind | Value |
 |---|---|
 | WIP limit | 4 |
-| Time box | none |
+| Time box | — |
 | Sprints | yes |
