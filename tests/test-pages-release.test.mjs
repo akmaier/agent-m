@@ -265,12 +265,20 @@ function elements(root, match) {
 const byTag = (root, name) => elements(root, (e) => e.localName === name);
 const byClass = (root, name) => elements(root, (e) => e.className.split(" ").includes(name));
 const type = (field, text) => { field.value = text; field.dispatchEvent(new Event("input")); };
-const turn = () => new Promise((resolve) => setImmediate(resolve));
+const turn = () => new Promise((resolve) => setTimeout(resolve, 0));
 // A click's handler crosses several real async boundaries (blobSha's WebCrypto digest, more than once) besides the
-// fake host's already-resolved promises, so more than a couple of event-loop turns are given before the test reads
-// the page.
-const settle = async (turns = 30) => { for (let i = 0; i < turns; i += 1) await turn(); };
-const click = async (button) => { button.dispatchEvent(new Event("click")); await settle(); };
+// fake host's already-resolved promises; under a slower machine a fixed number of turns is not always enough, so
+// this polls a growing text until it stops changing (never forever: capped, so a genuinely stuck handler still
+// fails the test instead of hanging it).
+async function settle(textOf, limit = 500) {
+  let last = textOf(), stable = 0;
+  for (let i = 0; i < limit && stable < 5; i += 1) {
+    await turn();
+    const now = textOf();
+    if (now === last) stable += 1; else { stable = 0; last = now; }
+  }
+}
+const click = async (button, textOf) => { button.dispatchEvent(new Event("click")); await settle(textOf); };
 
 function connectedTarget() {
   const target = document.createElement("div");
@@ -453,7 +461,7 @@ test("release — main flow: version and entry before Start, the candidate and i
 
   type(changelogField, "Adds the sample feature.");
   type(byClass(target, "person")[0], "akmaier");
-  await click(byClass(target, "start")[0]);
+  await click(byClass(target, "start")[0], () => target.textContent);
 
   assert.match(target.textContent, new RegExp(`Release candidate v${expectedVersion.replace(/\./g, "\\.")}-rc\\.1`));
   assert.match(target.textContent, /Queued run: JOB-/);
@@ -465,7 +473,7 @@ test("release — main flow: version and entry before Start, the candidate and i
   host.addBranch("test-results", {
     [`runs/${host.defaultCommit}/20261007-1000-release-candidate-aaaa.md`]: runRecord({ commit: host.defaultCommit, rows: [["TST-001", "unit", "passed", ""]] }),
   });
-  await click(byClass(target, "refresh")[0]);
+  await click(byClass(target, "refresh")[0], () => target.textContent);
 
   assert.match(target.textContent, /A SAMPLE REQUIREMENT/);
   assert.match(target.textContent, /TST-001/);
@@ -475,7 +483,7 @@ test("release — main flow: version and entry before Start, the candidate and i
   assert.deepEqual(elements(accept, looksExplained).map((e) => e.textContent), [explainedAs("version-not-rewritten")]);
 
   type(byClass(accept, "person")[0], "akmaier");
-  await click(byClass(accept, "accept")[0]);
+  await click(byClass(accept, "accept")[0], () => target.textContent);
   assert.match(target.textContent, new RegExp(`Released v${expectedVersion.replace(/\./g, "\\.")} \\(commit [0-9a-f]{40}\\)\\.`));
   assert.ok(host.tagOf(`v${expectedVersion}`), "the release tag now stands");
 });
@@ -506,7 +514,7 @@ test("release — 2a: only the implementing participant can run the release test
   const context = contextOf(host);
   const target = await renderPage(context);
   type(byClass(target, "person")[0], "akmaier");
-  await click(byClass(target, "start")[0]);
+  await click(byClass(target, "start")[0], () => target.textContent);
   assert.match(target.textContent, /Only the implementer/);
   assert.match(target.textContent, /2a/);
   assert.equal(byClass(target, "report").length, 0, "no candidate was started");
@@ -532,7 +540,7 @@ test("release — 3a/3b: a red level and a worse rate ask for a reason first; wi
   const expectedVersion = byClass(target, "version")[0].value;
   type(byClass(target, "changelog")[0], "Adds the sample feature.");
   type(byClass(target, "person")[0], "akmaier");
-  await click(byClass(target, "start")[0]);
+  await click(byClass(target, "start")[0], () => target.textContent);
 
   host.addBranch("test-results", {
     [`runs/${host.defaultCommit}/20261007-1000-release-candidate-bbbb.md`]: runRecord({
@@ -540,21 +548,21 @@ test("release — 3a/3b: a red level and a worse rate ask for a reason first; wi
     }),
     ["runs/" + "e".repeat(40) + "/20260901-1000-release-candidate-aaaa.md"]: runRecord({ commit: "e".repeat(40), rows: [["TST-010", "unit", "passed", "8 of 10"]] }),
   });
-  await click(byClass(target, "refresh")[0]);
+  await click(byClass(target, "refresh")[0], () => target.textContent);
 
   const accept = byClass(target, "accept")[0];
   const reasons = byClass(accept, "reason");
   assert.deepEqual(reasons.map((r) => r.dataset.id).sort(), ["TST-002", "TST-010"], "a reason is asked for the failing test and the worse rate, before any click");
 
   type(byClass(accept, "person")[0], "akmaier");
-  await click(byClass(accept, "accept")[0]);
+  await click(byClass(accept, "accept")[0], () => target.textContent);
   assert.match(target.textContent, /Enter a reason for every failing test and worse rate/);
   assert.match(target.textContent, /TST-002/);
   assert.match(target.textContent, /TST-010/);
   assert.equal(host.tagOf(`v${expectedVersion}`), undefined, "nothing is tagged while a reason is missing");
 
   for (const r of reasons) type(r, r.dataset.id === "TST-002" ? "known flaky fixture" : "model drift (accepted)");
-  await click(byClass(accept, "accept")[0]);
+  await click(byClass(accept, "accept")[0], () => target.textContent);
   assert.match(target.textContent, new RegExp(`Released v${expectedVersion.replace(/\./g, "\\.")}`));
   assert.ok(host.tagOf(`v${expectedVersion}`));
 });
@@ -572,15 +580,15 @@ test("release — 4a: a tag that already exists stops the release, naming 4a; th
   type(byClass(target, "version")[0], "2026.4.0");
   type(byClass(target, "changelog")[0], "Adds the sample feature.");
   type(byClass(target, "person")[0], "akmaier");
-  await click(byClass(target, "start")[0]);
+  await click(byClass(target, "start")[0], () => target.textContent);
 
   host.addBranch("test-results", {
     [`runs/${host.defaultCommit}/20261007-1000-release-candidate-aaaa.md`]: runRecord({ commit: host.defaultCommit, rows: [["TST-001", "unit", "passed", ""]] }),
   });
-  await click(byClass(target, "refresh")[0]);
+  await click(byClass(target, "refresh")[0], () => target.textContent);
   const accept = byClass(target, "accept")[0];
   type(byClass(accept, "person")[0], "akmaier");
-  await click(byClass(accept, "accept")[0]);
+  await click(byClass(accept, "accept")[0], () => target.textContent);
 
   assert.match(target.textContent, /already stands/);
   assert.match(target.textContent, /4a/);
@@ -600,18 +608,18 @@ test("release — 4b: a default branch that moved on while the suite ran still r
   const candidateCommit = host.defaultCommit;
   type(byClass(target, "changelog")[0], "Adds the sample feature.");
   type(byClass(target, "person")[0], "akmaier");
-  await click(byClass(target, "start")[0]);
+  await click(byClass(target, "start")[0], () => target.textContent);
 
   host.addBranch("test-results", {
     [`runs/${candidateCommit}/20261007-1000-release-candidate-aaaa.md`]: runRecord({ commit: candidateCommit, rows: [["TST-001", "unit", "passed", ""]] }),
   });
-  await click(byClass(target, "refresh")[0]);
+  await click(byClass(target, "refresh")[0], () => target.textContent);
 
   host.land({ "README.md": "unrelated change\n" }); // 4b: the default branch moves on while the suite ran
 
   const accept = byClass(target, "accept")[0];
   type(byClass(accept, "person")[0], "akmaier");
-  await click(byClass(accept, "accept")[0]);
+  await click(byClass(accept, "accept")[0], () => target.textContent);
 
   assert.match(target.textContent, new RegExp(`Released v${expectedVersion.replace(/\./g, "\\.")}`));
   assert.equal(host.tagOf(`v${expectedVersion}`), candidateCommit, "tagged on the candidate's own tested commit, not the moved branch's new head");
