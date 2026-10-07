@@ -9,7 +9,8 @@
 // file texts come from GitHub's raw host, or from this browser where it keeps them.
 
 import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
-import { browserStore, fileTexts } from "../../docs/assets/settings-store.mjs";
+import { fileTexts } from "../../docs/assets/settings-store.mjs";
+import { productStore } from "../../docs/assets/product-store-adapter.mjs";
 import { parseProductAddress, isGitLab, readSnapshot, readFile, repositoryInfo, releaseTags, usedUpLimit, tokenRefusal }
   from "../../docs/assets/git-host.mjs";
 import { pullRequests, commitCi } from "../../docs/assets/git-host/pull-requests.mjs";
@@ -133,7 +134,7 @@ function startNotifications() {
 }
 
 async function start() {
-  store = browserStore();
+  store = productStore(instanceOf(location));
   kept = fileTexts();
   instance = instanceOf(location);
   startNotifications(); // UC-047: the main page starts the checks, with MOD-browser-store's store of the instance
