@@ -13,6 +13,7 @@ const GL = "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool";
 const API = "https://api.github.com";
 const PREFIX = `agent-m:${REPO}:`;
 const PRODUCT_TOKEN = "github_pat_RELEASE0010123456789";
+const GL_TOKEN = "glpat_RELEASE001";
 const textOf = (html) => String(html).replace(/<[^>]*>/g, " ").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
 
 async function page(address) {
@@ -49,6 +50,25 @@ async function addProduct(world) {
   ack.checked = true; ack.fire("change", { isTrusted: true }); token.value = PRODUCT_TOKEN;
   await press(world.instance, main.querySelector("button.store"));
   return main;
+}
+
+async function gitlabReleaseWorld() {
+  const base = `/api/v4/projects/${encodeURIComponent("fau-ai-taskforce/tools/thesis-tool")}`;
+  const files = { "README.md": "# Product\n" }, requests = [], writes = [];
+  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  const instance = await repoServer({ files: {}, handlers: [(url, init = {}) => {
+    const token = new Headers(init.headers ?? {}).get("private-token");
+    requests.push({ url: url.href, token, authorization: new Headers(init.headers ?? {}).get("Authorization") });
+    if (url.origin !== "https://gitlab.rrze.fau.de" || !url.pathname.startsWith(base)) return undefined;
+    const rest = url.pathname.slice(base.length), method = (init.method ?? "GET").toUpperCase();
+    if (method === "GET" && !rest) return json({ id: 7, path_with_namespace: "fau-ai-taskforce/tools/thesis-tool", default_branch: "main", visibility: "private", permissions: { project_access: { access_level: 40 }, group_access: null } });
+    if (method === "GET" && rest === "/repository/branches/main") return json({ name: "main", commit: { id: "a".repeat(40) } });
+    if (method === "GET" && rest.startsWith("/repository/commits/")) return json({ id: "a".repeat(40) });
+    if (method === "GET" && rest === "/repository/tree") return json(Object.keys(files).map((path) => ({ type: "blob", path, id: "b".repeat(40) })));
+    if (method === "POST" && rest === "/repository/commits") { const body = JSON.parse(init.body); for (const action of body.actions) files[action.file_path] = action.content; writes.push(body); return json({ id: "c".repeat(40), web_url: `${GL}/-/commit/${"c".repeat(40)}` }); }
+    return json({ message: "not found" }, 404);
+  }] });
+  return { instance, files, requests, writes };
 }
 
 // TST-283
@@ -124,4 +144,32 @@ test("TST-286 UC-001 release transaction guards product writes and browser state
   assert.ok(!trusted.requests.some((request) => request.authorization === `Bearer ${TOKEN}` && request.url.includes(`/repos/${PRODUCT}`)), "the instance key is absent from product requests");
   assert.deepEqual(trusted.instance.writes, [], "the instance repository is never named or written during Add product");
   assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "the instance credential remains distinct from the product credential");
+});
+
+// TST-287
+// Module: MOD-settings-pages
+// Guards: UC-001; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// Level: release
+// given: a GitLab product and an instance whose GitHub token is present
+// input: paste its project token and expiry, Store and check, then trusted Add product
+// expect: the project token alone reads and writes GitLab, is kept under its canonical project key, and the instance token never reaches GitLab
+test("TST-287 UC-001 release GitLab transaction keeps its project token at its issuer", async () => {
+  const world = await gitlabReleaseWorld();
+  await openDashboard({ server: world.instance, hash: "#add" });
+  const main = richDocument().byId("main"), address = main.querySelector("input.address");
+  address.value = GL; address.fire("input", { isTrusted: true });
+  const ack = main.querySelector("input.ack"), token = main.querySelector("input.token");
+  ack.checked = true; ack.fire("change", { isTrusted: true }); token.value = GL_TOKEN;
+  await press(world.instance, main.querySelector("button.store"));
+  await press(world.instance, main.querySelector("button.add"));
+  assert.equal(world.writes.length, 1, "the actual GitLab product receives one layout commit");
+  assert.ok(world.files["SPEC.md"] && world.files["docs/approvals/README.md"], "the GitLab product receives the review layout");
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [GL]);
+  const storedRaw = globalThis.localStorage.getItem(`${PREFIX}gitlab-token:gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool`);
+  assert.ok(storedRaw, `canonical GitLab key exists: ${Array.from({ length: globalThis.localStorage.length }, (_, i) => globalThis.localStorage.key(i)).join(",")}`);
+  const stored = JSON.parse(storedRaw);
+  assert.equal(stored.value, GL_TOKEN); assert.match(stored.expires, /^\d{4}-\d\d-\d\d$/);
+  const gitlabRequests = world.requests.filter((request) => request.url.startsWith("https://gitlab.rrze.fau.de/api/v4/"));
+  assert.ok(gitlabRequests.length > 0 && gitlabRequests.every((request) => request.token === GL_TOKEN && request.authorization === null), "every token-bearing request stays at the issuing GitLab API");
+  assert.ok(!gitlabRequests.some((request) => request.token === TOKEN || request.authorization === `Bearer ${TOKEN}`), "the instance GitHub token never leaks to GitLab");
 });
