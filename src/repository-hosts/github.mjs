@@ -4,11 +4,12 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), commitFiles(change) — and adds what both adapters share.
+// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
 const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
+const PAGE = 100, MAX_PAGES = 1000;
 const JSON_ACCEPT = "application/vnd.github+json", RAW_ACCEPT = "application/vnd.github.raw+json";
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
 
@@ -63,6 +64,17 @@ export function githubAdapter(address, { token, tokenName }, links) {
   const moved = (branch, head) => new HostError("Moved", { head },
     `${branch} has moved on${head ? ` to ${head.slice(0, 12)}` : ""} since it was read — nothing was written; read it again.`);
 
+  // A tag's reference: read at git/ref/tags/…, created at git/refs ("Get a reference", "Create a reference").
+  const tagRef = (name) => `tags/${encodeURIComponent(name)}`;
+  // The tag's own commit, read back after its creation was refused because it stands already (A VERSION IS NOT REWRITTEN).
+  const tagExists = async (name) => {
+    const r = await read(`${repo}/git/ref/${tagRef(name)}`, { on: { 404: () => null } });
+    const commit = r?.object?.sha ?? null;
+    return new HostError("TagExists", { commit },
+      `${name} exists already, on ${commit ? commit.slice(0, 12) : "a commit this page could not read"} — a release is never ` +
+      "re-tagged (A VERSION IS NOT REWRITTEN).");
+  };
+
   return {
     async repositoryInfo() {
       const r = await read(repo, { permission: "Metadata" });
@@ -79,6 +91,20 @@ export function githubAdapter(address, { token, tokenName }, links) {
       if (c === EMPTY) return { commit: null, blobs: new Map() };
       const t = await read(`${repo}/git/trees/${c.sha}?recursive=1`, { what });
       return { commit: c.sha, blobs: new Map(t.tree.filter((e) => e.type === "blob").map((e) => [e.path, e.sha])) };
+    },
+
+    // Every tag of the repository, with the commit it points to, page by page ("List repository tags": GitHub dereferences an
+    // annotated tag to its commit already, so commit.sha is always a commit; at most 100 a page, the next page named in the
+    // Link response header, rel="next" — a repository with more is read page by page, as this module's own GitLab snapshot
+    // already reads a project's tree).
+    async listTags() {
+      const tags = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const items = await read(`${repo}/tags?per_page=${PAGE}&page=${page}`);
+        for (const t of items) tags.push({ name: t.name, commit: t.commit.sha });
+        if (items.length < PAGE) break;
+      }
+      return tags;
     },
 
     // One file's text at a commit, or null where the commit does not hold it: with a token through the API — the only place
@@ -122,6 +148,18 @@ export function githubAdapter(address, { token, tokenName }, links) {
       await call("PATCH", `${repo}/git/refs/${heads(branch)}`, { body: { sha: commit.sha, force: false },
         on: { 422: async () => { throw moved(branch, await branchHead(branch).catch(() => null)); } } });
       return { commit: commit.sha, url: commit.html_url ?? `${address.web}/commit/${commit.sha}` };
+    },
+
+    // Sets a tag on a commit ("Create a reference", ref: "refs/tags/<name>"). GitHub answers an existing reference's creation
+    // with 422 "Reference already exists", never 409 (github.com/orgs/community/discussions/72695, read 2026-10-07): that
+    // tag's current commit is then read and the call fails with TagExists, the tag never moved (A VERSION IS NOT REWRITTEN).
+    async createTag(name, commit) {
+      await call("POST", `${repo}/git/refs`, { body: { ref: `refs/${tagRef(name)}`, sha: commit },
+        on: { 422: async (a) => {
+          const said = await a.clone().json().then((j) => String(j.message ?? ""), () => "");
+          if (!/reference already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
+          throw await tagExists(name);
+        } } });
     },
   };
 }
