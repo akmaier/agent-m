@@ -336,12 +336,13 @@ export function browserSettingsHtml({ entries = {}, shown = [], now = new Date()
 
 // The line *Notifications* (docs/architecture/MOD-settings-pages.md, Interfaces: "the state notificationState gives"):
 // off, or blocked when the person or the browser refused, with the Home Screen note on an iPhone or iPad not opened
-// from there (UC-047 1b); on, with Test and Switch off. A section of its own — not a row of browserSettingsHtml's own
-// box (#browser-settings) above: that box, and its closed list of rows, is exhaustively asserted by existing tests
+// from there (UC-047 1b); on, with Test and Switch off. Its own box — not a row of browserSettingsHtml's own box
+// (#browser-settings) above: that box, and its closed list of rows, is exhaustively asserted by existing tests
 // (tests/dashboard-review-flows.test.mjs "UC-042 step 1: one page …", tests/test_settings_page.py
 // test_each_browser_setting_has_test_and_clear) that this change does not touch (AN IMPLEMENTATION JOB CHANGES ONLY ITS
-// MODULES held for a between-jobs change too: no existing test). *Notifications* is still shown beside "This browser" —
-// UC-047's own line, in its own panel.
+// MODULES held for a between-jobs change too: no existing test). Fixed here (ITM-238 F1, sprint 08's change between
+// jobs, docs/backlog/sprints/08.md): *Notifications* now sits inside the section "This browser", beside
+// #browser-settings — not, as before, in a section of its own beside "This browser" itself.
 function notificationsStateLine(n) {
   if (!n) return "— not available here";
   if (n.permission === "denied") {
@@ -470,6 +471,7 @@ function viewSettings(app) {
     <section class="panel">
       <h3>This browser</h3>
       <div id="browser-settings"></div>
+      <div class="panel" id="notifications-settings"></div>
       <div id="token-change" ${stored ? "hidden" : ""}>
         <h4>${stored ? "Change the GitHub token" : "Store a GitHub token"}</h4>
         <p><a class="btn" href="${h(tokenLinkUrl(T.instance))}" target="_blank" rel="noopener">Open GitHub's token page (prefilled) ↗</a></p>
@@ -488,8 +490,7 @@ function viewSettings(app) {
       <details class="explain"><summary>What is this?</summary><div>These settings belong to you on this computer. They are kept
         in this browser's <code>localStorage</code> only — never in a cookie, an address or a repository — and every other
         GitHub Pages site of ${h(owner)} can read them. <em>Clear</em> removes an entry from the browser's storage itself.</div></details>
-    </section>
-    <section class="panel" id="notifications-settings"></section>`,
+    </section>`,
     product: `
     <section class="panel" id="product-settings"><h3>Product · ${h(T.product.address)}</h3><p class="muted">Reading its settings…</p></section>`,
     export: `

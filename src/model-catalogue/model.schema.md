@@ -7,14 +7,16 @@ under Data. Free text may stand between the title and the first section.
 What the language cannot say is written where it applies, and `validate.mjs` decides it:
 
 - `Produces` lists the kinds of artifact a phase produces, each one of `requirements`, `UC`, `ARC`, `MOD`, `TST`, `ITM`
-  and `sprint record`. A gate checks the kinds its `Artifacts` names in these words, and each of them is produced by the
-  phase the gate follows or by one before it, along the transitions that are not `back`.
+  and `sprint record`, a kind optionally followed by an explanation in parentheses — the kind is what stands before it,
+  and no check reads the explanation. A gate checks the kinds its `Artifacts` names in these words, and each of them is
+  produced by the phase the gate follows or by one before it, along the transitions that are not `back`.
 - `From`, `To`, `Phase` and `Checked by` name phases of the model, and every phase is reached from the first one along the
   transitions. `Between` names the two phases a gate stands between, as `<phase> → <phase>`.
 - A phase's `Role` is a role of the model. A gate's `Decider` is a role of the model, or `check: <CI check name>`: a check
   whose result decides.
-- `## Flow control` is for pulled work, with the rows `WIP limit`, a number, `Time box`, its length, and `Sprints`, `yes`
-  or `no`; a value left out is `—`. Pulled work names exactly one of a time box and a work-in-progress limit.
+- `## Flow control` is for pulled work, with the rows `WIP limit`, a number, `Time box`, its length or `none` for no time
+  box, and `Sprints`, `yes` or `no`; a value left out is `—`, read the same as a `Time box` of `none`. Pulled work names
+  exactly one of a time box and a work-in-progress limit.
 
 The measure fits the kind of work — `plan entries per phase` planned work, `remaining items per time box` and `items per
 state over time` pulled work —, as the variants of `measure` say.
@@ -46,8 +48,7 @@ state over time` pulled work —, as the variants of `measure` say.
     { "heading": "## Phases", "required": true, "rule": "THE MODEL DETERMINES THE PHASES AND THE GATES", "table": { "columns": [
       { "name": "Name", "value": { "type": "text", "required": true } },
       { "name": "Role", "value": { "type": "text", "required": true, "rule": "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS" } },
-      { "name": "Produces", "value": { "type": "list", "item": { "type": "enum",
-        "values": ["requirements", "UC", "ARC", "MOD", "TST", "ITM", "sprint record"] } } }
+      { "name": "Produces", "value": { "type": "list", "item": { "type": "text" } } }
     ] } },
     { "heading": "## Transitions", "required": true, "rule": "THE MODEL DETERMINES THE PHASES AND THE GATES", "table": { "columns": [
       { "name": "From", "value": { "type": "text", "required": true } },

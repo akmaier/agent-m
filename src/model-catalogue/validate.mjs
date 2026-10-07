@@ -1,15 +1,19 @@
 // The rules of a process model definition that a schema cannot express (MOD-model-catalogue, Parts: validate.mjs;
-// Interfaces: modelFindings): those that compare one part of a definition with another — the phases its transitions,
-// verification pairs and gates name; the phases reached from the first one; the roles its phases and gates name; the kinds
-// of artifact a gate checks against those its phase and the phases before it produce — and the flow control of pulled work.
+// Interfaces: modelFindings): a phase's own produced kinds against the kinds of artifact the module knows, since a
+// phase's Produces may follow a kind with an explanation in parentheses that no type of the schema language sets apart
+// from it; those that compare one part of a definition with another — the phases its transitions, verification pairs and
+// gates name; the phases reached from the first one; the roles its phases and gates name; the kinds of artifact a gate
+// checks against those its phase and the phases before it produce —; and the flow control of pulled work, a stated Time
+// box of none read, before it reaches here, as no time box.
 //
 // Module: MOD-model-catalogue
 //
 // It compares the parts of a definition as index.mjs reads them from a document of the model's schema, each with the line
-// it stands on. What the schema decides — a value left out where it is required, a value not of its type, a measure that
-// does not fit the kind of work, a missing declaration of planned or pulled — MOD-documents' documentFindings names, and
-// nothing here names it twice: a part that is left out is compared with nothing. Every finding is an error on the line of
-// the part that causes it, made with MOD-text-tools' finding.
+// it stands on — a phase's produced kinds already read with an explanation in parentheses dropped, and a Time box of none
+// already read as null. What the schema decides — a value left out where it is required, a value not of its type, a
+// measure that does not fit the kind of work, a missing declaration of planned or pulled — MOD-documents' documentFindings
+// names, and nothing here names it twice: a part that is left out is compared with nothing. Every finding is an error on
+// the line of the part that causes it, made with MOD-text-tools' finding.
 
 import { finding } from "../text-tools/index.mjs";
 
@@ -34,6 +38,8 @@ const names = (text, kind) => new RegExp(`(?<![A-Za-z0-9])${escaped(kind)}(?![A-
  * - a verification pair naming a phase that is not defined (THE MODEL DETERMINES THE PHASES AND THE GATES);
  * - a phase naming a role the model does not define, which leaves it without a role (A PROCESS MODEL ORGANISES PEOPLE AND
  *   AGENTS);
+ * - a phase producing a word that is no kind of artifact the module knows, an explanation in parentheses after it already
+ *   dropped by index.mjs (THE MODEL DETERMINES THE PHASES AND THE GATES);
  * - a gate whose decider is neither a role of the model nor `check: <CI check name>`, which leaves it without a decider
  *   (A GATE NAMES WHO DECIDES IT);
  * - a gate that checks a kind of artifact which neither the phase it follows nor any phase before it — along the
@@ -47,8 +53,10 @@ const names = (text, kind) => new RegExp(`(?<![A-Za-z0-9])${escaped(kind)}(?![A-
  *   gates: Array<{ line: number, from: string, to: string, artifacts: string, decider: string }>,
  *   roles: Array<{ line: number, name: string }>,
  *   flow: { line: number, wip: number | string | null, timeBox: string | null } | null }} parts — a definition's parts as
- *   index.mjs reads them; a value left out is "", a list left out [], a flow value left out null
- * @param {string[]} kinds — the kinds of artifact a phase produces, as the model's schema names them
+ *   index.mjs reads them; a value left out is "", a list left out [], a flow value left out null; a phase's produces
+ *   already has a kind's explanation in parentheses dropped, and a Time box of none already read as null
+ * @param {string[]} kinds — the kinds of artifact a phase may produce, which the schema's own type of Produces cannot
+ *   name, since it allows a kind to be followed by an explanation in parentheses
  * @returns {Finding[]}
  */
 export function validate(parts, kinds) {
@@ -100,6 +108,15 @@ export function validate(parts, kinds) {
     if (given(phase.role) && !roles.has(phase.role)) {
       add(phase.line, PEOPLE_AND_AGENTS, `the phase ${phase.name} names the role ${phase.role}, which the model does not define`,
         `name a role of ## Roles, or add ${phase.role} there`);
+    }
+  }
+
+  for (const phase of parts.phases) {
+    for (const produced of phase.produces) {
+      if (!kinds.includes(produced)) {
+        add(phase.line, PHASES_AND_GATES, `the phase ${phase.name} produces ${produced}, which is no kind of artifact`,
+          `name one of ${kinds.join(", ")} before the explanation in parentheses, or correct it`);
+      }
     }
   }
 

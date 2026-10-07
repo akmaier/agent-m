@@ -22,7 +22,7 @@ import { cardsFor, productFacts } from "./progress.mjs";
 import { cardHtml, waitsHtml, waitingAcross } from "./cards.mjs";
 // The checks of what waits for acceptance, started on the main page (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
-import { openStore, readSetting } from "../browser-store/index.mjs";
+import { openStore } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 
@@ -112,11 +112,14 @@ function addressOfNotification(route, params, repository) {
   return new URL(docsHref(notificationView(route, params.id), product), document.baseURI).href;
 }
 
-// Opens this browser's MOD-browser-store store of the instance and starts the checks — only where this browser could
-// ever show one at all: real browsers always define Notification (permission.mjs's own available() already tells "no"
-// apart by the same check); without it the checks would only run uselessly, and watchForAcceptance's own interval would
-// never be cleared — exactly what every test that loads this page without faking a browser's Notification must not be
-// left running after it.
+// Opens this browser's MOD-browser-store store of the instance, connects the instance's host with the dashboard's own
+// stored GitHub token — store.getToken(), settings-store.mjs's agent-m.github-token, as process-view.mjs's own
+// connect() uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/08.md: MOD-browser-store's own
+// "github-token" setting is never written, so the instance was always checked with no token) — and starts the checks
+// — only where this browser could ever show one at all: real browsers always define Notification (permission.mjs's
+// own available() already tells "no" apart by the same check); without it the checks would only run uselessly, and
+// watchForAcceptance's own interval would never be cleared — exactly what every test that loads this page without
+// faking a browser's Notification must not be left running after it.
 function startNotifications() {
   let notificationsStore;
   try {
@@ -125,8 +128,7 @@ function startNotifications() {
     return; // StorageUnavailable: a browser that refuses storage holds no switch, and no check runs
   }
   if (typeof globalThis.Notification === "undefined") return;
-  const token = readSetting(notificationsStore, "github-token");
-  const instanceHost = connect(parseAddress(`https://github.com/${instance}`), { token: token?.value ?? null, tokenName: token?.name ?? null });
+  const instanceHost = connect(parseAddress(`https://github.com/${instance}`), { token: store.getToken() });
   watchForAcceptance({ store: notificationsStore, instance: { repository: instance, host: instanceHost }, addressOf: addressOfNotification });
 }
 

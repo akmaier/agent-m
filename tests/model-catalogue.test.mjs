@@ -17,11 +17,16 @@
 // - modelFindings(document) — for a document read with modelSchema.model — names, as an error on the line that causes it,
 //   every rule the module file names: a transition naming a phase that is not defined, or a phase no transition reaches
 //   from the first phase; a verification pair naming a missing phase; a gate without artifacts, without a condition or
-//   without a decider; a role without capabilities, or a phase without a role; a gate that checks a kind of artifact no
-//   earlier phase produces; pulled work with neither a time box nor a work-in-progress limit, or with both; a measure that
-//   does not fit the kind of work; no declaration of planned or pulled.
+//   without a decider; a role without capabilities, or a phase without a role; a phase producing a word that is no kind
+//   of artifact, an explanation in parentheses after it dropped first; a gate that checks a kind of artifact no earlier
+//   phase produces; pulled work with neither a time box nor a work-in-progress limit, or with both — a stated Time box of
+//   none read as no time box —; a measure that does not fit the kind of work; no declaration of planned or pulled.
 // - The module's code names no model and no practice: it finds the shipped ones as data, in the list of shipped files it
 //   reads when it is loaded — from the disk in Node, from its own address in a browser (THE CATALOGUE IS DATA).
+// - ITM-258: a kind in Produces may be followed by an explanation in parentheses — the kind is what stands before it,
+//   Model.produces holds the kinds without their explanations, and a word before the parenthesis that is no kind is
+//   still a finding —, and a Time box of none is no time box, flow.timeBox null; this repository's own
+//   docs/process-models/scrum-wip.md, as it stands, has no error finding.
 //
 // Not tested here, since ITM-215 leaves them out: planGrid and modelDiagram. A model's `## About` and Model.about are
 // ITM-229's, in tests/model-catalogue-about.test.mjs; here a Model without the section carries about null.
@@ -389,6 +394,27 @@ test("modelFindings — a gate that checks a kind of artifact no earlier phase p
   assert.deepEqual(findingsOf(text), [[40, "error", WHAT_IT_CHECKS]]);
 });
 
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A GATE NAMES WHAT IT CHECKS
+// given: FIXTURE with Building's Produces (line 16) "MOD (code of the item's modules), TST" — a kind of artifact
+//        followed by an explanation in parentheses, beside a bare one
+// expect: no finding — the first gate (line 40), which checks MOD and TST produced up to Building, still finds both —,
+//         and catalogue reads Building's produces as ["MOD", "TST"], its phases otherwise FIXTURE_MODEL's
+test("modelFindings and catalogue — a kind in Produces may be followed by an explanation in parentheses: the kind is what stands before it, and a gate that checks it finds it produced", async () => {
+  const text = replaced(16, "| Building | Builders | MOD, TST |", "| Building | Builders | MOD (code of the item's modules), TST |");
+  assert.deepEqual(findingsOf(text), []);
+  const got = await catalogue(snapshotOf({ ...shippedFiles(), [FIXTURE_PATH]: text }));
+  assert.deepEqual(got.models.at(-1).phases, FIXTURE_MODEL.phases);
+});
+
+// guards: THE MODEL DETERMINES THE PHASES AND THE GATES; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
+// given: FIXTURE with Planning's Produces (line 15) "Backlog (the sprint's selection of backlog items)" — a word before
+//        the parenthesis that is no kind of artifact
+// expect: one error, on line 15, naming THE MODEL DETERMINES THE PHASES AND THE GATES
+test("modelFindings — a word before the parenthesis that is no kind of artifact is still a finding", () => {
+  const text = replaced(15, "| Planning | Owner | ITM |", "| Planning | Owner | Backlog (the sprint's selection of backlog items) |");
+  assert.deepEqual(findingsOf(text), [[15, "error", PHASES_AND_GATES]]);
+});
+
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE, whose work is pulled, with its WIP limit (line 55) left out, so that it names neither a time box nor a
 //        work-in-progress limit; and once more with a time box of 2 weeks (line 56) beside its limit of 3
@@ -399,6 +425,18 @@ test("modelFindings — pulled work with neither a time box nor a work-in-progre
   assert.deepEqual(findingsOf(neither), [[51, "error", VALIDATED]]);
   const both = replaced(56, "| Time box | — |", "| Time box | 2 weeks |");
   assert.deepEqual(findingsOf(both), [[51, "error", VALIDATED]]);
+});
+
+// guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
+// given: FIXTURE, whose work is pulled with a WIP limit of 3 (line 55) unchanged, with its Time box (line 56) stated as
+//        none instead of — (left out)
+// expect: no finding — a Time box of none is no time box, the same as — —, and catalogue reads flow.timeBox null, as for
+//         FIXTURE_MODEL.flow
+test("modelFindings and catalogue — a Time box of none is no time box: pulled work with a WIP limit and a Time box of none has no finding of both", async () => {
+  const text = replaced(56, "| Time box | — |", "| Time box | none |");
+  assert.deepEqual(findingsOf(text), []);
+  const got = await catalogue(snapshotOf({ ...shippedFiles(), [FIXTURE_PATH]: text }));
+  assert.deepEqual(got.models.at(-1).flow, FIXTURE_MODEL.flow);
 });
 
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
@@ -416,6 +454,18 @@ test("modelFindings — a measure that does not fit the kind of work is an error
 test("modelFindings — no declaration of planned or pulled work is an error", () => {
   const text = removed(3, "kind: pulled");
   assert.deepEqual(findingsOf(text), [[1, "error", VALIDATED]]);
+});
+
+// ---------------------------------------------------------------- modelFindings: this repository's own model
+
+// guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; UC-002
+// given: this repository's own docs/process-models/scrum-wip.md, as it stands on origin/main — a kind in Produces
+//        followed by an explanation in parentheses on five rows, and a Time box of none beside a WIP limit of 4
+// expect: no error finding: the explanation is dropped before a kind is checked and before a gate's check of what is
+//         produced, and the stated Time box of none is no time box
+test("modelFindings — this repository's own docs/process-models/scrum-wip.md, as it stands, has no error finding", () => {
+  const path = "docs/process-models/scrum-wip.md";
+  assert.deepEqual(findingsOf(fileText(path), path), []);
 });
 
 // ---------------------------------------------------------------- THE CATALOGUE IS DATA
