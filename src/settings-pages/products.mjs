@@ -339,7 +339,8 @@ function stepCSection(context, address, onWriteRefused) {
   }
   refresh();
 
-  btn.addEventListener("click", async () => {
+  btn.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
     const credentials = credentialsFor(context.store, address) ?? {};
     btn.disabled = true;
     out.replaceChildren();
