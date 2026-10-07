@@ -112,7 +112,7 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
   assert.match(glText, /Settings → Access tokens/);
   assert.match(glText, /Maintainer/);
   assert.match(glText, /scope: api/);
-  assert.match(glText, /personal access token would also work, but it is broader/i);
+  assert.match(glText, /personal access token with api scope reaches every project you can reach/i);
   assert.match(glText, /only to this project's own API/i);
   assert.match(glText, /never to GitHub/i);
 });

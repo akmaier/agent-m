@@ -208,10 +208,19 @@ test("TST-285 UC-001 GitLab alternatives use the product project token", async (
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [GL_WEB]);
   assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}gitlab-token:gitlab.rrze.fau.de/${GL_PROJECT}`)).value, GL_TOKEN);
 
-  const noMaintainer = await world({ gitlab: gitlabProject({ accessLevel: 30 }) });
+  const noMaintainerProject = gitlabProject({ accessLevel: 30 });
+  const noMaintainer = await world({ gitlab: noMaintainerProject });
   await openDashboard({ server: noMaintainer.instance, hash: "#add" });
   main = richDocument().byId("main");
   const laterAddress = main.querySelector("input.address");
   laterAddress.value = GL_WEB; laterAddress.fire("input", { isTrusted: true });
-  assert.match(main.innerHTML, /not Maintainer.*personal access token would also work, but it is broader/i, "3d: the route names the project-token and Maintainer remedy");
+  const causes = main.querySelectorAll("button.gitlab-alternative-select");
+  const before = noMaintainerProject.requests.length;
+  causes[0].fire("click", { isTrusted: true });
+  assert.match(main.innerHTML, /Selected: this server offers no project access tokens\..*administrator or a Maintainer/i, "3d names the server project-token cause and its remedy");
+  assert.match(main.innerHTML, /You decide whether to use that broader token or seek project access; Agent M does not choose/i, "3d preserves the person's broader-token decision");
+  assert.equal(noMaintainerProject.requests.length, before, "3d selection causes no implicit repository I/O");
+  const second = main.querySelectorAll("button.gitlab-alternative-select")[1];
+  second.fire("click", { isTrusted: true });
+  assert.match(main.innerHTML, /Selected: I am not Maintainer\..*Ask a Maintainer/i, "3d names the distinct not-Maintainer cause");
 });
