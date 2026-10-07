@@ -51,13 +51,9 @@ TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); the Bridge does not read it. Bodies are 
 | `POST /v1/jobs/{id}/cancel` | — | `{ confirmed }` — `true` once the agent's process has ended | jobs |
 | `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent | `{ ask }` | jobs |
 | `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, usage, error }` | jobs |
-| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions` | `{ answer }` | jobs |
+| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models` or `partitions` | `{ answer }` | jobs |
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |
-
-For `endpoint-test` (UC-003 2a), `args` is the public MOD-endpoint-calls.EndpointConfig and `answer` is the
-resolved result of its public testEndpoint, including Diagnosis on failure. These formats are defined once in
-MOD-endpoint-calls; this protocol refers to them without a runtime dependency on the endpoint driver.
 
 The mail operations are `test`, `read`, `find`, `drafts`, `sent`, `store-draft`, `update-draft`, `show-draft`,
 `confirm-send` and `send`. `confirm-send` takes `{ ref, sha256 }` and answers `{ confirmation }`: a single-use value bound

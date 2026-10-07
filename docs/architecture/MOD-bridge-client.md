@@ -7,8 +7,6 @@ follows:
   - ARC-047
 uses:
   - MOD-bridge-http.bridgeApi
-  - MOD-endpoint-calls.EndpointConfig
-  - MOD-endpoint-calls.testEndpoint
 provides:
   - Bridge
   - BridgeSettings
@@ -136,13 +134,10 @@ uses; the key itself stays on its computer.
   defines; `confirm-send` and `send` carry the single-use confirmation as `bridgeApi` defines it. Crosses the network;
   fails with every `BridgeError` but `AskFailed`, among them `BridgeFailed` with `confirmation-refused`, `no-encryption`,
   `login-refused`, `upstream-failed` — the mail server's own message — or `paused`.
-- `probe(bridge: Bridge, kind: "agent" | "endpoint-models" | "endpoint-test" | "partitions", args: unknown) -> Promise<unknown>` —
+- `probe(bridge: Bridge, kind: "agent" | "endpoint-models" | "partitions", args: unknown) -> Promise<unknown>` —
   `POST /v1/probes/{kind}` with `{ args }`, resolving with the answer's `answer`: an agent answers a harmless request, an
   endpoint lists its served models, a cluster lists its partitions. Crosses the network; fails with every `BridgeError`
   but `AskFailed`, among them `BridgeFailed` with `upstream-failed` or `paused`.
-  For `endpoint-test` (UC-003 2a), args is MOD-endpoint-calls.EndpointConfig and the resolved result is that of
-  MOD-endpoint-calls.testEndpoint; the client returns the probe's answer unchanged. These are type references only;
-  the client does not invoke testEndpoint or contact the model.
 - `allocatePort(range: [number, number], sessions: RemoteSession[]) -> number` — the lowest port of the range that no
   session holds (`EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE`). Throws `NoFreePort` naming the range.
 - `tunnelCommands(jumpHost: JumpHost, session: RemoteSession, bridgePort: number, keyFiles: { remote: string, local:
@@ -168,5 +163,3 @@ It reads and writes no file.
 - `MOD-bridge-http.bridgeApi` — the protocol of the Bridge's API, as data: its default port, its routes with their methods,
   request and answer fields, the header that carries the token, and its error codes. This client builds every request
   from it and reads every answer by it. A remote use: the Bridge answers over HTTP.
-- `MOD-endpoint-calls.EndpointConfig`, `testEndpoint` — canonical type references for the endpoint-test probe's
-  arguments and resolved result only.

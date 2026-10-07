@@ -39,7 +39,6 @@ uses:
   - MOD-bridge-client.allocatePort
   - MOD-bridge-client.tunnelCommands
   - MOD-bridge-client.proxyConfiguration
-  - MOD-endpoint-calls.EndpointConfig
   - MOD-endpoint-calls.testEndpoint
   - MOD-endpoint-calls.diagnoseEndpoint
   - MOD-mail-routes.routeFor
@@ -142,11 +141,6 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     address to this browser's list; each step with its explanation.
   - `endpoints` — address, model and key of a model endpoint, a local model server named as reached through a Bridge; the
     test request, and the reason and the routes that would work when a browser may not call it; *Clear*.
-    Store before testing. The default test calls testEndpoint directly. Only the explicit UC-003 2a choice,
-    stored as throughBridge, calls `probe(bridgeAt(paired BridgeSettings), "endpoint-test", config)` instead.
-    Map the stored endpoint to public EndpointConfig with its name/kind/model, url as baseUrl and an absent key as
-    null. The browser never calls that local model directly or falls back to it. Missing pairing or setup preserves
-    the setting and gives an actionable UC-044 pairing/setup handoff, not a successful test.
   - `participants` — the instance's participants in a form from the participant schema: type, model, context and price,
     capabilities, processing place, route; for a CLI or sandboxed agent, the agents the paired Bridge reports and *Test*;
     a self-hosted runner refused for a repository the server reports as public; a change to a participant that products
@@ -202,9 +196,8 @@ reaches.
 - MOD-bridge-client.bridgeAt, MOD-bridge-client.pair, MOD-bridge-client.testBridge, MOD-bridge-client.probe — pairing,
   tests, the agents a Bridge reports, a resource's check; MOD-bridge-client.allocatePort,
   MOD-bridge-client.tunnelCommands, MOD-bridge-client.proxyConfiguration — remote sessions and the jump host.
-- MOD-endpoint-calls.EndpointConfig, MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an
-  endpoint's canonical test configuration, direct test and why a browser may not call it. The explicit UC-003 2a
-  choice uses the paired Bridge's endpoint-test probe.
+- MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an endpoint's test and why a browser may not
+  call it.
 - MOD-mail-routes.routeFor, MOD-mail-routes.signIn, MOD-mail-routes.mailbox, MOD-mail-routes.providerLinks — the
   mailbox's route, sign-in and test, and Microsoft's pages for the app registration and for withdrawing its access.
 - MOD-documents.readDocument, MOD-documents.readRegister, MOD-documents.writeDocument — registers of the common shape and
