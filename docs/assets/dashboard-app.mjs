@@ -39,7 +39,7 @@ import { menuHtml, entryOf } from "../../src/site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
 // The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
-import { openStore, readSetting } from "../../src/browser-store/index.mjs";
+import { openStore } from "../../src/browser-store/index.mjs";
 import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
 import { watchForAcceptance } from "../../src/notifications/index.mjs";
 
@@ -441,9 +441,11 @@ function addressOfNotification(route, params, repository) {
   return new URL(`${query}#${notificationView(route, params.id)}`, document.baseURI).href;
 }
 
-// Opens this browser's MOD-browser-store store of the instance, connects the instance's host with its token under that
-// store (github-token; A GITHUB PRODUCT USES A TOKEN OF ITS OWN names the products' own keys, read by the module itself),
-// and starts the checks — only where this browser could ever show one at all: real browsers always define Notification
+// Opens this browser's MOD-browser-store store of the instance, connects the instance's host with the dashboard's own
+// stored GitHub token — ghToken(), settings-store.mjs's agent-m.github-token, as process-view.mjs's own connect()
+// uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/08.md: MOD-browser-store's own
+// "github-token" setting is never written, so the instance was always checked with no token) — and starts the
+// checks — only where this browser could ever show one at all: real browsers always define Notification
 // (permission.mjs's own available() already tells "no" apart by the same check, for a browser that offers no
 // notifications); without it the checks would only run uselessly, and watchForAcceptance's own interval would never be
 // cleared (no page of this kind is ever closed from here) — exactly what every test that loads this page without faking
@@ -455,8 +457,7 @@ function startNotifications() {
     return; // StorageUnavailable: a browser that refuses storage holds no switch, and no check runs
   }
   if (typeof globalThis.Notification === "undefined") return;
-  const token = readSetting(notificationsStore, "github-token");
-  const instanceHost = connect(parseAddress(`https://github.com/${T.instance}`), { token: token?.value ?? null, tokenName: token?.name ?? null });
+  const instanceHost = connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() });
   watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHost }, addressOf: addressOfNotification });
 }
 
