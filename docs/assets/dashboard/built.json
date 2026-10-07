@@ -2,6 +2,7 @@
   "add-product-view.mjs",
   "backlog-view.mjs",
   "how-view.mjs",
+  "process-view.mjs",
   "review-views.mjs",
   "settings-view.mjs",
   "setup-view.mjs",
