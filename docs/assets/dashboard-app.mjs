@@ -512,6 +512,11 @@ async function route() {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
         go(_route, { product }) { location.search = productHref(parseProductAddress(product)).slice(1); },
       }, {});
+      if (a) {
+        const input = main().querySelector("input.address");
+        input.value = decodeURIComponent(a);
+        input.dispatchEvent(new Event("input"));
+      }
       return;
     }
     // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
