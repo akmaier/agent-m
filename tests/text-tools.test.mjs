@@ -1,6 +1,7 @@
-// The text tools of a declaration (ITM-212) — MOD-text-tools' interface as docs/architecture/MOD-text-tools.md states it: the
-// front matter, the finding in its one text form, git's blob SHA, the marks of history in a document, and the line
-// difference of two texts. `sha256` is not part of ITM-212 and is not tested here.
+// The text tools of a declaration (ITM-212), and a date is history only as the date of a change (ITM-225) — MOD-text-tools'
+// interface as docs/architecture/MOD-text-tools.md states it: the front matter, the finding in its one text form, git's blob
+// SHA, the marks of history in a document, and the line difference of two texts. `sha256` is not part of ITM-212 and is not
+// tested here.
 // Run: node --test tests/text-tools.test.mjs
 //
 // Module: MOD-text-tools
@@ -248,9 +249,10 @@ test("blobSha — the known blobs, and a text hashed as given, line ends include
 // ---------------------------------------------------------------- the marks of history (Interfaces: historyMarks)
 //
 // MARKED carries each kind of mark, in the forms the review layout's documents have carried them — in front matter, in a
-// requirement's source, as a note, as a section, as a stamp — and two dates: one given as the date of a change, and a
-// retrieval date, which is part of what a document states and a mark too. UNMARKED states rules about withdrawing and
-// changing, names identifiers and versions with digits, and records no history.
+// requirement's source, as a note, as a section, as a stamp — a date given as the date of a change, set off by a comma as
+// an attribution, and one after the word "decided". It also carries a retrieval date: part of what a document states, and
+// since ITM-225 no mark at all (A DOCUMENT HOLDS NO HISTORY — the forms are tested on their own below). UNMARKED states
+// rules about withdrawing and changing, names identifiers and versions with digits, and records no history.
 
 const MARKED = [
   "---",                                                                                 // 1
@@ -279,7 +281,6 @@ const MARKS = [
   { line: 12, kind: "edit-stamp", text: "Last edited by akmaier" },
   { line: 13, kind: "edit-stamp", text: "Updated: 2026-10-02" },
   { line: 14, kind: "dated-change", text: "2026-10-01" },
-  { line: 15, kind: "dated-change", text: "2026-10-03" },
 ];
 
 const UNMARKED = [
@@ -301,10 +302,11 @@ const UNMARKED = [
 // guards: A DOCUMENT HOLDS NO HISTORY
 // given: MARKED
 // input: historyMarks(MARKED)
-// expect: ten marks in the order they stand, each with its line — counted from the text's first line, front matter
+// expect: nine marks in the order they stand, each with its line — counted from the text's first line, front matter
 //         included —, its kind and its text: the withdrawal of line 3; on line 7 the date 2026-09-23, the stamp
 //         "reworded 2026-09-24" and the withdrawal "withdrawn 2026-09-25", their dates not marked again; the note of line 8;
-//         the section of line 10; the stamps of lines 12 and 13; the dates of lines 14 and 15
+//         the section of line 10; the stamps of lines 12 and 13; the date of line 14; line 15's retrieval date no mark
+//         (ITM-225)
 test("historyMarks — withdrawals, edit stamps and dates, each with its line and its kind", () => {
   assert.deepEqual(historyMarks(MARKED), MARKS);
 });
@@ -312,7 +314,7 @@ test("historyMarks — withdrawals, edit stamps and dates, each with its line an
 // guards: A DOCUMENT HOLDS NO HISTORY
 // given: MARKED with its lines ended by CR LF
 // input: historyMarks of it
-// expect: the same ten marks, no text keeping a CR
+// expect: the same nine marks, no text keeping a CR
 test("historyMarks — the same marks in a text with CR LF line ends", () => {
   assert.deepEqual(historyMarks(MARKED.replace(/\n/g, "\r\n")), MARKS);
 });
@@ -325,6 +327,59 @@ test("historyMarks — none in a text without them", () => {
   assert.ok(historyMarks(MARKED).length > 0, "known positive: MARKED has marks");
   assert.deepEqual(historyMarks(UNMARKED), []);
   assert.deepEqual(historyMarks(""), []);
+});
+
+// ---------------------------------------------------------------- a date of a change in its three forms (ITM-225)
+//
+// FORMS carries the three forms the module file names for the date of a change: after a word of decision, set off by a
+// comma as a name's attribution, and set off by a comma as the label "PO".
+
+const FORMS = [
+  "PO decision 2026-09-23: the rule holds.",          // 1 — after a word of decision
+  "A note on the budget (PO A. Maier, 2026-09-24).",  // 2 — set off by a comma, an attribution
+  "PO, 2026-09-25: the wording is fine.",              // 3 — set off by a comma, the label "PO"
+].join("\n");
+const FORMS_MARKS = [
+  { line: 1, kind: "dated-change", text: "2026-09-23" },
+  { line: 2, kind: "dated-change", text: "2026-09-24" },
+  { line: 3, kind: "dated-change", text: "2026-09-25" },
+];
+
+// guards: A DOCUMENT HOLDS NO HISTORY
+// given: FORMS, one line per form the module file names for the date of a change: `PO decision <date>`,
+//        `(PO A. Maier, <date>)` and `PO, <date>: …`
+// input: historyMarks(FORMS)
+// expect: each date marked dated-change, with its line, as the date alone
+test("historyMarks — a date of a change in its three forms, each marked dated-change", () => {
+  assert.deepEqual(historyMarks(FORMS), FORMS_MARKS);
+});
+
+// ---------------------------------------------------------------- dates that are no mark (ITM-225)
+//
+// NO_MARK carries a known positive first — a date of a change, so the check is shown to find something before it reports
+// that it finds nothing (rule 6a) — then five dates a document states as what they are, with the words that say so: a
+// retrieval date, the date of a version, of a release, of a measurement, and a date in a table's cell.
+
+const NO_MARK = [
+  "PO decision 2026-09-23: the rule holds.",            // 1 — known positive: this date is a mark
+  "The source was retrieved on 2026-09-20.",            // 2 — a retrieval date
+  "Model version 2026-09-01 is in use.",                // 3 — the date of a version
+  "Release 2026-09-15 shipped the new dashboard.",      // 4 — the date of a release
+  "Response time was measured 2026-09-24.",             // 5 — the date of a measurement
+  "| Build | Date |",                                   // 6
+  "| --- | --- |",                                      // 7
+  "| nightly | 2026-09-21 |",                            // 8 — a date in a table's cell
+].join("\n");
+
+// guards: A DOCUMENT HOLDS NO HISTORY
+// given: NO_MARK
+// input: historyMarks(NO_MARK)
+// expect: known positive — line 1's date is a mark; the other five dates (lines 2-5 and 8) are no mark, so the only mark
+//         found is line 1's
+test("historyMarks — a retrieval date, a version, a release, a measurement and a date in a table's cell are no mark", () => {
+  const marks = historyMarks(NO_MARK);
+  assert.ok(marks.length > 0, "known positive: line 1 is a mark");
+  assert.deepEqual(marks, [{ line: 1, kind: "dated-change", text: "2026-09-23" }]);
 });
 
 // ---------------------------------------------------------------- the line difference (Interfaces: lineDiff, DiffLine)
