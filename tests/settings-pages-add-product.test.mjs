@@ -251,9 +251,11 @@ globalThis.window = {
 
 // The modules, loaded once the document is there (a static import of them would run before the lines above could set
 // it up).
-const { route } = await import("../src/settings-pages/products.mjs");
+const { view } = await import("../src/settings-pages/index.mjs");
 const { explain } = await import("../src/site-frame/index.mjs");
 const { openStore, readSetting, writeSetting } = await import("../src/browser-store/index.mjs");
+const route = view.routes.find((candidate) => candidate.name === "add-product");
+assert.ok(route, "MOD-settings-pages' public view exposes the add-product route");
 
 // ---------------------------------------------------------------- DOM helpers: elements, typing, clicking
 
@@ -266,7 +268,16 @@ const byTag = (root, name) => elements(root, (e) => e.localName === name);
 const byClass = (root, name) => elements(root, (e) => e.className.split(" ").includes(name));
 const type = (field, text) => { field.value = text; field.dispatchEvent(new Event("input")); };
 const turn = () => new Promise((resolve) => setImmediate(resolve));
-const click = async (button) => { button.dispatchEvent(new Event("click")); await turn(); };
+// Existing cases model the person actions UC-001 describes. Node creates dispatched Event instances with
+// isTrusted false, so set the fixture event's own value to the trusted browser input that production receives.
+const click = async (button) => {
+  const event = new Event("click");
+  Object.defineProperty(event, "isTrusted", { value: true });
+  button.dispatchEvent(event);
+  await turn();
+};
+// New security cases retain Node's actual synthetic event: its isTrusted value is false.
+const untrustedClick = async (button) => { button.dispatchEvent(new Event("click")); await turn(); };
 
 const steps = (root) => byClass(root, "step");
 const titleOf = (step) => byTag(step, "h3")[0]?.textContent ?? "";
@@ -298,9 +309,9 @@ async function renderAddress(context, address) {
 // JSON are exercised for real; only what it is backed by is fake.
 
 class FakeStorage {
-  constructor() { this.map = new Map(); }
+  constructor() { this.map = new Map(); this.writes = 0; }
   getItem(k) { return this.map.has(k) ? this.map.get(k) : null; }
-  setItem(k, v) { this.map.set(k, String(v)); }
+  setItem(k, v) { this.writes += 1; this.map.set(k, String(v)); }
   removeItem(k) { this.map.delete(k); }
 }
 function freshStore() {
@@ -331,6 +342,15 @@ function scripted(steps) {
     if (!step) throw new Error(`unscripted request: ${method} ${url.pathname}${url.search}`);
     assert.equal(`${method} ${url.pathname}`, `${step.method} ${step.path}`, "the request does not match the script");
     return jsonAnswer(step.status ?? 200, step.body ?? {}, step.headers ?? {});
+  };
+}
+
+function countedScript(steps) {
+  const fetch = scripted(steps);
+  let requests = 0;
+  return {
+    fetch: async (...args) => { requests += 1; return fetch(...args); },
+    get requests() { return requests; },
   };
 }
 
@@ -389,6 +409,19 @@ const gitlabInfoStep = ({ level = 40, status = 200 } = {}) => ({
       permissions: { project_access: { access_level: level } } }
     : { message: "404 Project Not Found" },
 });
+
+const gitlabSnapshotSteps = (paths) => [
+  { method: "GET", path: `${GL_API_PREFIX}/repository/commits/main`, body: { id: HEAD } },
+  { method: "GET", path: `${GL_API_PREFIX}/repository/tree`, body: paths.map((path) => ({ path, type: "blob", id: "e".repeat(40) })) },
+];
+
+const gitlabCommitSteps = () => [
+  { method: "GET", path: `${GL_API_PREFIX}/repository/branches/main`, body: { commit: { id: HEAD } } },
+  ...["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"]
+    .map((path) => ({ method: "GET", path: `${GL_API_PREFIX}/repository/files/${encodeURIComponent(path)}`, status: 404 })),
+  { method: "GET", path: `${GL_API_PREFIX}/repository/branches/main`, body: { commit: { id: HEAD } } },
+  { method: "POST", path: `${GL_API_PREFIX}/repository/commits`, body: { id: NEW_COMMIT, web_url: `${GL_WEB}/-/commit/${NEW_COMMIT}` } },
+];
 
 // ---------------------------------------------------------------- explanation topics (ITM-255): the real explain(),
 // compared by its text against what the route puts where — not its own rendering, which tests/site-frame.test.mjs
@@ -626,6 +659,83 @@ test("add-product — 5b: a complete layout is left uncommitted, the address is 
   await withFetch(scripted([repoInfoStep({}), ...snapshotSteps(COMPLETE_LAYOUT)]), () => click(byTag(c, "button")[0]));
   assert.match(lastResultOf(c), /Nothing was missing/);
   assert.deepEqual(readSetting(store, "products"), [GH_WEB]);
+});
+
+// TST-276
+// guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// Module: MOD-settings-pages
+// Level: unit
+// given: a GitHub product's own stored key and a completed writable private-repository check
+// input: a synthetic (isTrusted false) click on the public Step C Add product control
+// expect: neither the repository layout commit boundary nor rememberProduct runs: no request is made and products stays empty
+test("TST-276 add-product — a synthetic GitHub Step C click writes and remembers nothing", async () => {
+  const store = freshStore();
+  seedToken(store, "github-token:alice/thesis-tool", { value: "github_pat_X" });
+  const context = contextOf(store);
+  const target = await renderAddress(context, GH_WEB);
+  const b = stepTitled(target, "Step B · Check");
+  await withFetch(scripted([repoInfoStep({ visibility: "private", canWrite: true })]), () => click(byTag(b, "button")[0]));
+  assert.ok(stepTitled(target, "Step A · A key for the product — done"), "the review precondition is complete");
+
+  const c = stepTitled(target, "Step C · Add the product");
+  const requests = countedScript([]);
+  const writesBefore = store.storage.writes;
+  await withFetch(requests.fetch, () => untrustedClick(byTag(c, "button")[0]));
+
+  assert.equal(requests.requests, 0, "reviewLayoutCommit made no repository request");
+  assert.equal(store.storage.writes, writesBefore, "rememberProduct made no browser-store write");
+  assert.equal(readSetting(store, "products"), null, "rememberProduct was not reached");
+});
+
+// TST-277
+// guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// Module: MOD-settings-pages
+// Level: unit
+// given: a GitLab product's own stored key and a completed writable project check
+// input: a synthetic (isTrusted false) click on the public Step C Add product control
+// expect: neither the repository layout commit boundary nor rememberProduct runs: no request is made and products stays empty
+test("TST-277 add-product — a synthetic GitLab Step C click writes and remembers nothing", async () => {
+  const store = freshStore();
+  seedToken(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`, { value: "glpat-X" });
+  const context = contextOf(store);
+  const target = await renderAddress(context, GL_WEB);
+  const b = stepTitled(target, "Step B · Give the key to Agent M");
+  await withFetch(scripted([gitlabInfoStep({ level: 40 })]), () => click(byTag(b, "button")[0]));
+  assert.match(lastResultOf(b), /is reachable/, "the review precondition is complete");
+
+  const c = stepTitled(target, "Step C · Add the product");
+  const requests = countedScript([]);
+  const writesBefore = store.storage.writes;
+  await withFetch(requests.fetch, () => untrustedClick(byTag(c, "button")[0]));
+
+  assert.equal(requests.requests, 0, "reviewLayoutCommit made no repository request");
+  assert.equal(store.storage.writes, writesBefore, "rememberProduct made no browser-store write");
+  assert.equal(readSetting(store, "products"), null, "rememberProduct was not reached");
+});
+
+// TST-278
+// guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// Module: MOD-settings-pages
+// Level: unit
+// given: a GitLab product's own stored key and a completed writable project check
+// input: a trusted person click on the public Step C Add product control
+// expect: the missing review layout is committed once and the exact GitLab product address is remembered
+test("TST-278 add-product — a trusted GitLab Step C click commits and remembers the product", async () => {
+  const store = freshStore();
+  seedToken(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`, { value: "glpat-X" });
+  const context = contextOf(store);
+  const target = await renderAddress(context, GL_WEB);
+  const b = stepTitled(target, "Step B · Give the key to Agent M");
+  await withFetch(scripted([gitlabInfoStep({ level: 40 })]), () => click(byTag(b, "button")[0]));
+  assert.match(lastResultOf(b), /is reachable/, "the review precondition is complete");
+
+  const c = stepTitled(target, "Step C · Add the product");
+  await withFetch(scripted([gitlabInfoStep({ level: 40 }), ...gitlabSnapshotSteps([]), ...gitlabCommitSteps()]),
+    () => click(byTag(c, "button")[0]));
+
+  assert.match(lastResultOf(c), /Done — wrote the missing review layout/);
+  assert.equal(byTag(c, "a")[0].href, `${GL_WEB}/-/commit/${NEW_COMMIT}`);
+  assert.deepEqual(readSetting(store, "products"), [GL_WEB]);
 });
 
 // guards: UC-001 3c (A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN), 3d, EVERY STEP EXPLAINS ITSELF
