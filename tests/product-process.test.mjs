@@ -382,9 +382,9 @@ test("declarationSchema — a product's declaration read by its schema: front ma
 // expect: for the declaration without its model version, one error, on line 1 — a key that is missing stands on no line —,
 //         naming THE PROCESS MODEL IS DECLARED PER PRODUCT. For this instance's declaration, no finding; its front matter as
 //         it writes it — model scrum-wip, model_file docs/process-models/scrum-wip.md, model_version
-//         4c60cfe5a8bc8c00dcf6705b5decb42823b73a63, sprint_close scrum-master-session —; its roles each with its
-//         participants: Product Owner [po-opus], Scrum Master [scrum-master-session], Developers [developer-sonnet-a to -d],
-//         Release tester [tester-opus]; and its one branch, for Sprint, as it writes it: `sprint/<nn>`, in backticks
+//         ef33e2f501289930960f13b55936e9b557003993, sprint_close scrum-master-session —; its roles each with its
+//         participants: Product Owner [po-opus], Scrum Master [scrum-master-session], Developers [developer-sonnet-a to -e,
+//         developer-deepseek-a]; and its one branch, for Sprint, as it writes it: `sprint/<nn>`, in backticks
 test("declarationSchema — a declaration without its model's version is named; this instance's own docs/process.md is read without a finding", () => {
   const unversioned = declarationOf(removed(DECLARATION, 4, `model_version: ${VERSION}`));
   assert.deepEqual(documentFindings(declarationSchema, unversioned).map((f) => [f.line, f.kind, f.rule]), [[1, "error", DECLARED]]);
@@ -392,13 +392,12 @@ test("declarationSchema — a declaration without its model's version is named; 
   const agentM = declarationOf(readFileSync(AGENT_M_DECLARATION, "utf8"));
   assert.deepEqual(documentFindings(declarationSchema, agentM), []);
   assert.deepEqual(agentM.fields, { model: "scrum-wip", model_file: "docs/process-models/scrum-wip.md",
-    model_version: "4c60cfe5a8bc8c00dcf6705b5decb42823b73a63", sprint_close: "scrum-master-session" });
+    model_version: "ef33e2f501289930960f13b55936e9b557003993", sprint_close: "scrum-master-session" });
   assert.deepEqual(rowsUnder(agentM, "## Roles").map(([, cells]) => [cells.Role, cells.Participants]), [
     ["Product Owner", ["po-opus"]],
     ["Scrum Master", ["scrum-master-session"]],
     ["Developers", ["developer-sonnet-a", "developer-sonnet-b", "developer-sonnet-c", "developer-sonnet-d",
-      "developer-deepseek-a"]],
-    ["Release tester", ["tester-opus"]],
+      "developer-sonnet-e", "developer-deepseek-a"]],
   ]);
   assert.deepEqual(rowsUnder(agentM, "## Branches").map(([, cells]) => cells), [{ "Phase or time box": "Sprint", Branch: "`sprint/<nn>`" }]);
 });

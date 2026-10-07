@@ -1,7 +1,7 @@
 ---
 model: scrum-wip
 model_file: docs/process-models/scrum-wip.md
-model_version: 4c60cfe5a8bc8c00dcf6705b5decb42823b73a63
+model_version: ef33e2f501289930960f13b55936e9b557003993
 sprint_close: scrum-master-session
 ---
 
@@ -19,8 +19,7 @@ Definition of Done and who closes a sprint.
 |---|---|
 | Product Owner | po-opus |
 | Scrum Master | scrum-master-session |
-| Developers | developer-sonnet-a, developer-sonnet-b, developer-sonnet-c, developer-sonnet-d, developer-deepseek-a |
-| Release tester | tester-opus |
+| Developers | developer-sonnet-a, developer-sonnet-b, developer-sonnet-c, developer-sonnet-d, developer-sonnet-e, developer-deepseek-a |
 
 ## Practices
 
