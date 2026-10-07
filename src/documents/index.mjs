@@ -2,8 +2,9 @@
 // it, ITM-213 builds what UC-002's modules need: the schema language with Schema, Document and Row, loadSchema, readDocument,
 // writeDocument and readRegister. ITM-227 adds the `rule` of the schema language and documentFindings, for the front matter,
 // the values, the rows of a table and the sections (checks.mjs). ITM-226 adds the section under the title, and a section's
-// table found by its header row. appendSection, classifyCandidates, artifactSchemas and the schemas this module owns are not
-// built yet.
+// table found by its header row. ITM-252 adds appendSection, and, for a section's or an appended section's fields, a key
+// that is words of a front matter key's form separated by single spaces, such as `gate record` — a front matter key itself
+// stays as MOD-text-tools states it. classifyCandidates, artifactSchemas and the schemas this module owns are not built yet.
 //
 // Module: MOD-documents
 //
@@ -46,5 +47,5 @@
  */
 
 export { loadSchema } from "./schema-language.mjs";
-export { readDocument, writeDocument, readRegister } from "./read-write.mjs";
+export { readDocument, writeDocument, readRegister, appendSection } from "./read-write.mjs";
 export { documentFindings } from "./checks.mjs";
