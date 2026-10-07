@@ -19,6 +19,12 @@
 // route calls `schemaForm` and inserts what it returns into the page in the one turn of that call, never after an
 // `await`.
 //
+// ITM-240 closes six gaps ITM-223's system and release tests of UC-002 found (F1 to F6, below), each at this route: F1
+// at the process-vs-rules table (`shownBefore`); F2 and F3 beside phases and branches (`renderPanels`'s phasesPanel,
+// `branchEndGate`); F4 beside practices (`practicesWithAdds`, read with the catalogue's own `modelSchema.practice`);
+// F5 beside a process requirement's gate (`renderPanels`'s requirementsPanel); F6 at a role's missing-capability link
+// (`roleInfo`).
+//
 // Not part of this item: the comparison of two versions of the declared model when the catalogue's version differs from
 // the one the declaration names (UC-031 6a) — this route always reads the catalogue at the instance's current commit —,
 // and how the dashboard reaches this route.
@@ -27,7 +33,7 @@
 
 import { explain, schemaForm } from "../site-frame/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
-import { catalogue } from "../model-catalogue/index.mjs";
+import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { declarationSchema, declarationFindings, workflowOf } from "../product-process/index.mjs";
@@ -37,6 +43,12 @@ const DECLARATION_PATH = "docs/process.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
 const SOURCES_PATH = "docs/sources.md";
 const SPEC_PATH = "SPEC.md";
+
+// F1 (UC-002 step 1): whether this module has already rendered the process-vs-rules table once before. A plain
+// module-level flag — in memory for this page's lifetime only, never written to the browser's storage, so it is no
+// setting: it starts false again on every fresh load of this module and nothing here ever reads or writes a store for
+// it.
+let shownBefore = false;
 
 // The book's five models in the two groups UC-002 step 2 names them in.
 const GROUPS = [
@@ -59,6 +71,16 @@ const reread = (schema, path, document) => readDocument(schema, path, writeDocum
 
 // The model of `models` whose path is `file`, or null.
 const modelAt = (models, file) => models.find((model) => model.path === file) ?? null;
+
+// F3 (UC-002 step 5): the model's own gate at the end of a branch given to `at` — a phase, or the sprint (any branch
+// key that names no phase of `workflow`): for a phase, the gate that leaves it; for the sprint, the gate back to the
+// model's first phase. "The model's own" excludes a gate added by a process requirement or by a practice, since those
+// are not what a phase's or a sprint's branch merges into. Null where the model has no such gate.
+function branchEndGate(workflow, at) {
+  const ownGates = workflow.gates.filter((gate) => !gate.addedBy && !gate.practice);
+  const isPhase = workflow.phases.some((phase) => phase.name === at);
+  return ownGates.find((gate) => (isPhase ? gate.from === at : gate.to === workflow.phases[0]?.name)) ?? null;
+}
 
 // The elements below `root`, in tree order, that `match` accepts — node has no querySelector, and nothing else here
 // needs one.
@@ -116,13 +138,32 @@ export const route = {
     const instanceSpec = instanceSpecText ?? "";
     const declaredModel = openedDeclaration ? modelAt(cat.models, String(openedDeclaration.fields.model_file ?? "")) : null;
 
+    // F4 (step 6): each catalogue practice's own "## Adds", read from its file in the instance's snapshot — the path
+    // `catalogue` names it at, shipped or the instance's own — with the catalogue's own practice schema. A practice
+    // whose file this instance's snapshot does not hold (never so for a shipped one, since the instance is the
+    // repository that ships them) adds "": nothing crashes, and nothing is shown for it.
+    const practicesWithAdds = await Promise.all(cat.practices.map(async (practice) => {
+      const text = await instanceSnapshot.read(practice.path);
+      const adds = text != null
+        ? readDocument(modelSchema.practice, practice.path, text).sections.find((section) => section.heading === "## Adds")?.text ?? ""
+        : "";
+      return { ...practice, adds };
+    }));
+
     target.replaceChildren();
     const page = el("article", "process-page");
     target.append(page);
 
+    // F1 (step 1): the process-vs-rules table (explain's own "process-model" topic) unfolded this module's first
+    // render, folded at every later one — `shownBefore`, in memory only.
+    const processVsRules = explain("process-model");
+    if (!shownBefore) processVsRules.setAttribute("open", "");
+    shownBefore = true;
+
     // Step 2/3: the catalogue's models, in their two groups, each with its About, and a card to choose it.
     const lost = el("p", "lost-artifacts");
-    const modelsSection = el("section", "models", el("h2", null, "Process model"), explain("process-model"), lost);
+    const modelsSection = el("section", "models", el("h2", null, "Process model"),
+      el("div", "process-vs-rules", processVsRules), lost);
     for (const group of GROUPS) {
       const groupModels = group.names.map((name) => cat.models.find((model) => model.name === name)).filter(Boolean);
       const groupEl = el("div", "model-group", el("h3", null, group.label),
@@ -211,21 +252,39 @@ export const route = {
         explain("phases-and-gates"), explain("branch-of-its-own"),
         el("ul", "phases", ...workflow.phases.map((phase) =>
           el("li", null, `${phase.name} (${phase.role}) → ${phase.produces.join(", ")}`))),
+        // F2: the transitions between the phases, and which phases pair for verification, beside the phases and gates.
+        el("ul", "transitions", ...workflow.transitions.map((transition) =>
+          el("li", null, `${transition.from} → ${transition.to} (${transition.kind})`))),
+        el("ul", "verification-pairs", ...workflow.pairs.map((pair) =>
+          el("li", null, `${pair.phase} checked by ${pair.checkedBy}`))),
         el("ul", "gates", ...workflow.gates.filter((gate) => !gate.addedBy).map((gate) =>
           el("li", null, `${gate.name}: ${gate.artifacts} — ${gate.condition} — decided by ${gate.decider}`))),
-        el("ul", "branches", ...Object.entries(workflow.branches).map(([at, branch]) => el("li", null, `${at}: ${branch}`))));
+        // F3: beside a branch, the gate at its end — merging it into the default branch (`WORK MERGES INTO THE
+        // DEFAULT BRANCH UNLESS A BRANCH IS SET`), decided by the model's own gate that leaves the phase, or, for the
+        // sprint, the model's own gate back to its first phase.
+        el("ul", "branches", ...Object.entries(workflow.branches).map(([at, branch]) => {
+          const gate = branchEndGate(workflow, at);
+          const end = gate
+            ? ` — merging it into the default branch is the gate at its end: ${gate.from} → ${gate.to}, ${gate.artifacts} — ${gate.condition}, decided by ${gate.decider}`
+            : "";
+          return el("li", null, `${at}: ${branch}${end}`);
+        })));
       extra.append(phasesPanel);
 
+      // F4: each practice beside what it adds, read from its file with the catalogue's practice schema.
       const practicesPanel = el("section", "practices-panel", el("h3", null, "Practices"), explain("practices"),
-        el("ul", "practices-available", ...cat.practices.map((practice) =>
-          el("li", null, `${practice.name} (fits: ${practice.fits.join(", ")})`))));
+        el("ul", "practices-available", ...practicesWithAdds.map((practice) =>
+          el("li", "practice", el("div", null, `${practice.name} (fits: ${practice.fits.join(", ")})`),
+            el("div", "practice-adds", practice.adds)))));
       extra.append(practicesPanel);
 
+      // F5: a gate a process requirement adds, with the two phases it stands between.
       const added = workflow.gates.filter((gate) => gate.addedBy);
       const requirementsPanel = el("section", "process-requirements", el("h3", null, "Process requirements"),
         explain("process-requirements"),
         added.length
-          ? el("ul", null, ...added.map((gate) => el("li", null, `${gate.name}: ${gate.artifacts} (${gate.addedBy.source ?? "no such requirement"})`)))
+          ? el("ul", null, ...added.map((gate) =>
+            el("li", null, `${gate.name}: ${gate.from} → ${gate.to} — ${gate.artifacts} (${gate.addedBy.source ?? "no such requirement"})`)))
           : el("p", null, "This product has no process requirements yet."));
       extra.append(requirementsPanel);
 
@@ -247,7 +306,9 @@ export const route = {
       } else {
         const missing = role.capabilities.filter((capability) => !allParticipants.some((p) => p.capabilities?.includes(capability)));
         const link = el("a", null, "the instance's participants");
-        link.href = "#settings/participants";
+        // F6: UC-017's own view, #participants — not #settings/participants, the settings view, which has no section
+        // for participants.
+        link.href = "#participants";
         block.append(el("p", "missing-capability", `no participant has: ${(missing.length ? missing : role.capabilities).join(", ")} — add one under `, link));
       }
       return block;
