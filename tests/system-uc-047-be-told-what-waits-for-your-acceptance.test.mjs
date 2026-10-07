@@ -8,6 +8,10 @@
 // which tests/notifications.test.mjs does not do. Every expected result is UC-047's own; where the page and UC-047 disagree,
 // the test follows UC-047 and is marked todo with its FINDING.
 //
+// ITM-243 (sprint 08, once sprint 08's change between jobs #163 fixed F1 and F2 — docs/gates/20261007-1315-development-
+// release-testing-d362.md) removes the todo marks of the two tests that hit them, with their counter-proof recorded in
+// the pull request; the test of F3 stays todo for ITM-244, once ITM-207's move is merged (docs/backlog/sprints/08.md).
+//
 // Written by developer-sonnet-e, the release tester of docs/instructions/developers.md's "An item of release or system
 // tests", who implemented none of UC-047 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
 //
@@ -27,16 +31,12 @@ const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
 const PRODUCT = "alice/thesis-tool"; // a product this browser keeps, UC-047 step 2's "each product"
 
 // ---------------------------------------------------------------- findings (docs/instructions/developers.md, "An item of
-// ---------------------------------------------------------------- release or system tests"), cited by the tests that hit them
+// ---------------------------------------------------------------- release or system tests"), cited by the one test below
+// ---------------------------------------------------------------- that still hits one: F1 and F2 are fixed (sprint 08's
+// ---------------------------------------------------------------- change between jobs #163; docs/gates/20261007-1315-
+// ---------------------------------------------------------------- development-release-testing-d362.md), their todo marks
+// ---------------------------------------------------------------- removed by ITM-243; F3 stays open for ITM-244.
 
-const F1 = "FINDING ITM-238-F1 — docs/assets/dashboard/settings-view.mjs: the line Notifications renders as its own " +
-  "<section id=\"notifications-settings\"> beside the section \"This browser\", not inside it (backlog item to be added by " +
-  "the Product Owner)";
-const F2 = "FINDING ITM-238-F2 — docs/assets/dashboard-app.mjs:458 and src/home/home.mjs:128: the instance's checks connect " +
-  "with readSetting(notificationsStore, \"github-token\") (MOD-browser-store's agent-m:<instance>:github-token), which " +
-  "nothing in the repository ever writes; the browser's real, working GitHub token lives under settings-store.mjs's own " +
-  "key (agent-m.github-token, read by store.getToken()), used everywhere else in the dashboard — so the instance is " +
-  "always checked with no token (backlog item to be added by the Product Owner)";
 const F3 = "FINDING ITM-238-F3 — src/notifications/checks.mjs:74: readSetting(store, \"products\") reads MOD-browser-" +
   "store's agent-m:<instance>:products, which nothing in the repository ever writes; the real \"+ Add product\" flow " +
   "keeps this browser's product list under settings-store.mjs's own key (agent-m.products, read by store.getProducts()) " +
@@ -135,7 +135,7 @@ const PRODUCT_ENTRIES = {
 // input: opening #settings
 // expect (step 1: "On the settings page, in the section *this browser* (UC-042), the line Notifications says off"): the
 //         Notifications heading and state sit inside the section headed "This browser", and the state reads off
-test("step 1: the line Notifications sits in the section *this browser*, and says off", { todo: F1 }, async () => {
+test("step 1: the line Notifications sits in the section *this browser*, and says off", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
   try {
@@ -184,7 +184,7 @@ test("step 1: Switch on asks the browser's permission once, directly on the clic
 // input: opening a review page (#uc)
 // expect (step 2: "It derives them... from the files, the records and the tags, and with the token of each"): the check's
 //         request for the instance's repository carries the browser's stored token as its Authorization header
-test("step 2: the check of the instance connects with the instance's own stored token", { todo: F2 }, async () => {
+test("step 2: the check of the instance connects with the instance's own stored token", async () => {
   const seenAuth = [];
   const browser = installBrowser();
   const server = await repoServer({ files: {}, handlers: [
