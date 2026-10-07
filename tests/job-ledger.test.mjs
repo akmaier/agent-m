@@ -191,19 +191,29 @@ test("listJobs — a record with each kind of part appended, read", async () => 
   assert.equal(state, "done");
   assert.deepEqual(record.taken, { at: new Date("2026-10-02T08:01:00Z"), by: "ci hosted" });
   assert.equal(record.gates.length, 1);
+  assert.equal(record.gates[0].at.getTime(), new Date("2026-10-02T08:10:00Z").getTime());
   assert.equal(record.gates[0].gate, "Release");
   assert.equal(record.gates[0].decider, "akmaier");
   assert.equal(record.gates[0].resumedBy, "docs/approvals/release-2026-10-02-abc123456789.md");
   assert.equal(record.question, null);
   assert.deepEqual(record.jobs.map((j) => j.job), ["JOB-20261002-0821-d1d1", "JOB-20261002-0822-d2d2"]);
+  assert.equal(record.jobs[0].at.getTime(), new Date("2026-10-02T08:21:00Z").getTime());
+  assert.equal(record.jobs[0].kind, "implement");
+  assert.deepEqual(record.jobs[0].worksOn, ["ITM-247"]);
+  assert.equal(record.jobs[1].kind, "implement");
   assert.deepEqual(record.jobs[1].worksOn, ["ITM-248"]);
   assert.equal(record.limitsRaised.length, 1);
+  assert.equal(record.limitsRaised[0].at.getTime(), new Date("2026-10-02T08:30:00Z").getTime());
+  assert.equal(record.limitsRaised[0].by, "akmaier");
   assert.deepEqual(record.limitsRaised[0].limits, { jobsAtOnce: 6, cost: 50, rounds: 6 });
+  assert.equal(record.end.at.getTime(), new Date("2026-10-02T09:00:00Z").getTime());
   assert.equal(record.end.state, "done");
   assert.deepEqual(record.end.results, ["docs/jobs/JOB-20261002-0821-d1d1.md", "docs/jobs/JOB-20261002-0822-d2d2.md"]);
   assert.deepEqual(record.end.usage, { inputTokens: 1000, outputTokens: 200, minutes: 12, cost: null });
   assert.deepEqual(record.end.cost, { known: true, amount: 3.4, currency: "USD", basis: "usage at the declared price" });
   assert.equal(record.end.draft, null, "no fenced json block stands in this End");
+  assert.equal(record.end.reason, null, "no reason stands in this End (not failed or cancelled)");
+  assert.equal(record.end.log, null, "no log stands in this End");
   assert.deepEqual(record.end.rounds, [], "an End is read without a round record (ITM-252's Outcome)");
 });
 
@@ -315,8 +325,12 @@ test("listJobs — an End's draft is read from its one fenced JSON block", async
   const rows = await listJobs([{ address: "org/repo", snapshot: snapshotOf({ [DRAFT_PATH]: DRAFT_RECORD }) }], new Map());
   assert.equal(rows.length, 1);
   const { record } = rows[0];
+  assert.equal(record.end.at.getTime(), new Date("2026-10-06T11:30:00Z").getTime());
+  assert.equal(record.end.state, "done");
   assert.deepEqual(record.end.results, ["waits for a person"]);
   assert.deepEqual(record.end.draft, { cases: [{ name: "a case the draft hands back" }] });
+  assert.equal(record.end.usage, null, "no usage: line stands in this End");
+  assert.equal(record.end.cost, null, "no cost: line stands in this End");
   assert.deepEqual(record.end.rounds, [], "an End is read without a round record (ITM-252's Outcome)");
 });
 

@@ -82,7 +82,7 @@ export { jobCost } from "./cost.mjs";
  *   jobs: Array<{ at: Date, job: string, kind: string, worksOn: string[] }>,
  *   limitsRaised: Array<{ at: Date, by: string, limits: { jobsAtOnce: number, cost: number | null, rounds: number } }>,
  *   end: { at: Date, state: "done" | "failed" | "cancelled", results: string[], draft: unknown | null, rounds: Round[],
- *     usage: Usage | null, cost: Cost, reason: string | null, log: string | null } | null }} JobRecord
+ *     usage: Usage | null, cost: Cost | null, reason: string | null, log: string | null } | null }} JobRecord
  */
 
 /**
