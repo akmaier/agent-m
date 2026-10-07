@@ -17,6 +17,7 @@ builds_on:
   - ITM-205
   - ITM-206
   - ITM-211
+  - ITM-255
 tests:
   - unit
 origin:
@@ -31,7 +32,8 @@ origin:
 The view `add-product` of MOD-settings-pages, as UC-001 and the module's file describe it: the address recognised as
 GitHub or GitLab; Step A with the token's names filled in, or GitLab's project access token; Step B, *Check*; Step C,
 *Add product*, one click, which writes the missing review layout with `reviewLayoutCommit` and adds the address to this
-browser's list; UC-001's alternative flows; and each step with its folded explanation. It is built in
+browser's list; UC-001's alternative flows; and each step with its folded explanation, a topic of MOD-site-frame's
+`explanations.md` (ITM-255). It is built in
 `src/settings-pages/` on the modules of ITM-204 to ITM-206, with `docs/assets/dashboard/add-product-view.mjs` as its
 model. Making the dashboard's *+ Add product* show this view, and the dashboard keep its product list and the products'
 tokens through MOD-browser-store in place of `docs/assets/settings-store.mjs`'s own entries, is a change between jobs

@@ -34,7 +34,9 @@ files state them.
 
 - Unit tests that name MOD-work-plans state, before the code exists: an order whose table `Item` names items is read as
   those items in the table's order; a row whose cell is no item's identifier is named as a finding of that row; and the
-  order of this repository's own backlog is read as the items of its table, in their order.
+  order of this repository's own backlog is read as the items of its table, in their order, whatever rows it holds: the
+  test compares the reading with the table as it finds it, never with a list of the rows the order holds today, so that a
+  row added to the order keeps it green.
 - Unit tests that name MOD-documents or MOD-text-tools state, before the code exists, what their files say of each part
   of those modules that this needs.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the

@@ -11,6 +11,9 @@ modules:
   - MOD-progress-measures
 builds_on:
   - ITM-235
+  - ITM-247
+  - ITM-252
+  - ITM-254
 tests:
   - unit
 origin:
@@ -23,8 +26,9 @@ origin:
 ## Outcome
 
 MOD-release-evidence's `reportsAwaitingAcceptance`, MOD-job-ledger's `recordsNewestFirst`, and the release test report
-in MOD-progress-measures' `waitingForAcceptance`, as their files state them. It starts only once UC-013's release is built
-and a release candidate can exist; before that it would notify nothing.
+in MOD-progress-measures' `waitingForAcceptance`, as their files state them. A release candidate can exist once UC-013's
+release is built (ITM-247 to ITM-257); this item builds on those of its items whose interfaces it uses: the tags
+(ITM-247), the job records (ITM-252) and MOD-release-evidence (ITM-254).
 
 ## Acceptance
 
