@@ -30,7 +30,9 @@ item. Nothing else of the module is part of this item.
 
 - Unit tests that name MOD-test-document state, before the code exists: a declaration in each comment marker the file
   names and one under a Markdown heading, each read with every key; a declaration missing a key, read with that key
-  `null`; a declaration ending at the first line not of its form; and a file without a declaration, which yields none.
+  `null`; a declaration ending at the first line not of its form, and not at a following line whose value holds ` · `
+  — as UC-047's notification text does —, which is one `key: value` read whole, with the lines after it; and a file
+  without a declaration, which yields none.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests stay green, with no expected result changed.

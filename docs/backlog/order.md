@@ -57,6 +57,9 @@ goes to the item that first needs it.
 | ITM-245 |
 | ITM-210 |
 | ITM-208 |
+| ITM-237 |
+| ITM-239 |
+| ITM-271 |
 | ITM-248 |
 | ITM-252 |
 | ITM-249 |
@@ -67,10 +70,7 @@ goes to the item that first needs it.
 | ITM-251 |
 | ITM-254 |
 | ITM-256 |
-| ITM-239 |
-| ITM-271 |
 | ITM-209 |
-| ITM-237 |
 | ITM-257 |
 | ITM-259 |
 | ITM-260 |
