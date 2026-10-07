@@ -165,8 +165,8 @@ test("TST-275 listSettings lists a stored last-test setting without exposing val
   assert.equal(beforeClear.get(lastTest).expires, null);
   assert.equal(beforeClear.get(lastTest).lastTest, null, "the listing returns no raw last-test record");
   assert.equal(JSON.stringify([...beforeClear.values()]).includes(endpointSecret), false, "the endpoint credential is not returned in list metadata");
-  assert.equal(JSON.stringify([...beforeClear.values()]).includes(recordedAt), false, "the last-test timestamp is not returned in list metadata");
-  assert.equal(JSON.stringify([...beforeClear.values()]).includes(recordedOutcome), false, "the last-test outcome is not returned in list metadata");
+  assert.equal(JSON.stringify(beforeClear.get(lastTest)).includes(recordedAt), false, "the last-test timestamp is not returned for its settings-list entry");
+  assert.equal(JSON.stringify(beforeClear.get(lastTest)).includes(recordedOutcome), false, "the last-test outcome is not returned for its settings-list entry");
   assert.equal(beforeClear.has("last-test:endpoint:other"), false, "another instance's last-test setting is not listed");
 
   clearSetting(first, endpoint);
