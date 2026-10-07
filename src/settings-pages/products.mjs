@@ -355,6 +355,9 @@ function stepCSection(context, address, onWriteRefused) {
         out.append("Done — wrote the missing review layout in ", anchor("the commit ↗", layout.commit.url),
           `; ${address.web} is now in this browser's product list.`);
       }
+      const switchProduct = el("button", "switch", "Switch to the new product");
+      switchProduct.addEventListener("click", () => context.go("main", { product: address.web }));
+      out.append(" ", switchProduct);
     } catch (e) {
       out.replaceChildren();
       if (e?.name === "NotFound") {

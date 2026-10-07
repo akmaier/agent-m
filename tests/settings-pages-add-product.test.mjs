@@ -498,6 +498,8 @@ test("add-product — main flow: Step A prefilled and spelled out, Store and che
 
   assert.match(lastResultOf(c), /Done — wrote the missing review layout/);
   assert.equal(byTag(c, "a")[0].href, `${GH_WEB}/commit/${NEW_COMMIT}`);
+  const switchProduct = byTag(c, "button").find((button) => button.textContent === "Switch to the new product");
+  assert.ok(switchProduct, "Step C offers the new product after the commit");
   assert.deepEqual(readSetting(store, "products"), [GH_WEB]);
   // NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY: nothing but this product's own token and the products list was
   // ever written to this browser's store.
