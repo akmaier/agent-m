@@ -53,6 +53,9 @@ const APPENDED_KEYS = ["heading", "fields", "repeat"];
 const TABLE_KEYS = ["columns", "header", "appendOnly"];
 const PLACEHOLDERS = ["id", "nnn", "slug", "blob12", "any"];
 const KEY_FORM = /^[a-z][a-z0-9_-]*$/;
+// A section's or an appended section's field key (ITM-252, MOD-job-ledger.md Data): words of a front matter key's form
+// separated by single spaces, such as `gate record`. A front matter key itself stays KEY_FORM, with no space.
+const FIELD_KEY_FORM = /^[a-z][a-z0-9_-]*(?: [a-z][a-z0-9_-]*)*$/;
 const HEADING_FORM = /^(#{1,6})[ \t]+\S/;
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -273,11 +276,15 @@ function checker(owner) {
     }
   }
 
-  // The value specifications of keys — front matter, lines, a section's fields —, each key of the form [a-z][a-z0-9_-]*.
-  function keyedSpecs(specs, at, context) {
+  // The value specifications of keys: front matter and lines keys are each of the form [a-z][a-z0-9_-]*; a section's or
+  // an appended section's fields (form === "field") may also be such words separated by single spaces (ITM-252).
+  function keyedSpecs(specs, at, context, form) {
     if (!isObject(specs)) fail(at, "an object of keys, each with its value specification");
+    const keyForm = form === "field" ? FIELD_KEY_FORM : KEY_FORM;
+    const keyFormText = form === "field" ? "a key is [a-z][a-z0-9_-]*, or such words separated by single spaces"
+      : "a key is [a-z][a-z0-9_-]*";
     for (const [key, spec] of Object.entries(specs)) {
-      if (!KEY_FORM.test(key)) fail(`${at}.${key}`, "a key is [a-z][a-z0-9_-]*");
+      if (!keyForm.test(key)) fail(`${at}.${key}`, keyFormText);
       valueSpec(spec, `${at}.${key}`, context);
     }
   }
@@ -381,7 +388,7 @@ function checker(owner) {
       if ("fields" in section && "table" in section) fail(at, "a section holds fields or a table, not both");
       if ("fields" in section) {
         keyedSpecs(section.fields, `${at}.fields`,
-          { fields: new Set([...frontKeys, ...Object.keys(section.fields ?? {})]), headings: sectionHeadings });
+          { fields: new Set([...frontKeys, ...Object.keys(section.fields ?? {})]), headings: sectionHeadings }, "field");
       }
       if ("table" in section) table(section.table, `${at}.table`, frontKeys, sectionHeadings);
     });
@@ -391,7 +398,7 @@ function checker(owner) {
       isBoolean(section.repeat, `${at}.repeat`);
       if ("fields" in section) {
         keyedSpecs(section.fields, `${at}.fields`,
-          { fields: new Set([...frontKeys, ...Object.keys(section.fields ?? {})]), headings: sectionHeadings });
+          { fields: new Set([...frontKeys, ...Object.keys(section.fields ?? {})]), headings: sectionHeadings }, "field");
       }
     });
     if ("otherSections" in s && !["allowed", "forbidden"].includes(s.otherSections)) fail("otherSections", "allowed or forbidden");
