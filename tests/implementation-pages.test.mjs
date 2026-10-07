@@ -719,16 +719,16 @@ the repository, run code and tests, use tools, reach the web.
 
 // guards: UC-002 (step 1: the page of a product with Agent M's own declaration)
 // given: Agent M's own docs/process.md and docs/participants.md, and, at the commit its model_version names,
-//        docs/process-models/scrum-wip.md
+//        docs/process-models/scrum-wip.md — five Produces cells carrying a kind's explanation in parentheses, and
+//        Flow control naming a WIP limit of 4 and a stated (not dashed) Time box of none
 // input: route.render(target, context)
 // expect: the model and model_file fields hold scrum-wip and its path; scrum-wip is offered beside the shipped five;
-//         its four roles are shown. Known positive, run directly against this same text: modelFindings names 7
-//         errors in scrum-wip.md as it stands — a Produces cell carrying a parenthetical after its kind (5 rows), the
-//         gate Retrospective → Sprint planning then checking a kind no earlier phase cleanly produces because of it,
-//         and Flow control naming both a WIP limit and a stated (not dashed) time box. declarationFindings turns
-//         this into one error beside model_file naming the count, and Save is disabled — a finding of this test for
-//         the review, not a defect of this item: scrum-wip.md itself needs those five cells and the Time box row
-//         corrected before a fresh declaration against it could be saved.
+//         its four roles are shown. Known positive, run directly against this same text: modelFindings names no
+//         error — MOD-model-catalogue, as akmaier's accepted change states it, reads a kind's explanation in
+//         parentheses as the kind alone, so the gate Retrospective → Sprint planning finds the sprint record it
+//         checks produced, and reads a stated Time box of none as no time box, so Flow control names only the WIP
+//         limit. declarationFindings therefore names no error finding beside model_file, and Save is enabled: this
+//         settles the review's point that Agent M's own Save stayed disabled (ITM-258).
 test("process route — the page of a product with Agent M's own declaration", async () => {
   const instanceHost = fakeHost({
     "docs/participants.md": AGENT_M_PARTICIPANTS,
@@ -740,7 +740,7 @@ test("process route — the page of a product with Agent M's own declaration", a
 
   const direct = modelFindings(readDocument(modelSchema.model, AGENT_M_SCRUM_WIP_PATH, AGENT_M_SCRUM_WIP))
     .filter((f) => f.kind === "error");
-  assert.equal(direct.length, 7, "known positive: scrum-wip.md has 7 error findings as it stands");
+  assert.equal(direct.length, 0, "known positive: scrum-wip.md has no error finding as it stands");
 
   await route.render(target, contextOf(instanceHost, productHost));
 
@@ -754,9 +754,8 @@ test("process route — the page of a product with Agent M's own declaration", a
   }
 
   const beside = besideOf(fieldOf(form, "model_file"));
-  assert.ok(beside.some((finding) => /7 error finding/.test(finding)),
-    "declarationFindings names scrum-wip.md's 7 error findings beside model_file");
-  assert.equal(saveOf(form).disabled, true, "Save is disabled while the declared model has error findings");
+  assert.deepEqual(beside, [], "declarationFindings names no error finding beside model_file");
+  assert.equal(saveOf(form).disabled, false, "Save is enabled now that the declared model has no error finding");
 
   target.remove();
 });

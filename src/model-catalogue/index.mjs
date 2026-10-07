@@ -1,7 +1,8 @@
 // MOD-model-catalogue — process models and practices as data, and their validation (docs/architecture/MOD-model-catalogue.md):
 // its interface. Of it, ITM-215 builds what UC-002 needs: Model, Catalogue, catalogue, modelSchema and modelFindings, and the
 // shipped catalogue as data — the book's models in models/ and its practices in practices/, each file naming the chapter
-// it follows. ITM-229 adds a model's `## About` and Model.about: what UC-002 shows beside each model. planGrid and
+// it follows. ITM-229 adds a model's `## About` and Model.about: what UC-002 shows beside each model. ITM-258 adds reading
+// a kind's explanation in parentheses in a phase's Produces, and a stated Time box of none as no time box. planGrid and
 // modelDiagram are not built yet.
 //
 // Module: MOD-model-catalogue
@@ -24,13 +25,14 @@ import { validate } from "./validate.mjs";
  * A process model read by its schema: its name; its kind of work, planned or pulled; the model it was adapted from, or null;
  * the measure of its progress; what its `## About` says — the risk it manages well, the risk it accepts, an example project
  * it suits and the chapter of the book that explains it —, or null for a model without one; its phases, each with the role
- * that does it and the kinds of artifact it produces; the transitions between them; its verification pairs; its gates, each
- * with the two phases it stands between, the artifacts it checks, the condition that must hold and its decider — a role of
- * the model, or `check: <CI check name>`; its roles, each with who may fill it — person, agent or either — and the
- * capabilities it needs; its flow control — the work-in-progress limit, the time box, whether the work runs in sprints —,
- * or null where it has none; its version, the blob that the instance's snapshot names for the path of its file, or null
- * where the snapshot does not hold that path; and that path in the instance repository. A value its file leaves out, or
- * writes in a form the schema does not read, is "" — [] for a list, null for a value of the flow control.
+ * that does it and the kinds of artifact it produces — a kind's explanation in parentheses in its file dropped —; the
+ * transitions between them; its verification pairs; its gates, each with the two phases it stands between, the artifacts
+ * it checks, the condition that must hold and its decider — a role of the model, or `check: <CI check name>`; its roles,
+ * each with who may fill it — person, agent or either — and the capabilities it needs; its flow control — the
+ * work-in-progress limit, the time box, null also for a file's stated `none`, whether the work runs in sprints —, or null
+ * where it has none; its version, the blob that the instance's snapshot names for the path of its file, or null where the
+ * snapshot does not hold that path; and that path in the instance repository. A value its file leaves out, or writes in a
+ * form the schema does not read, is "" — [] for a list, null for a value of the flow control.
  * @typedef {{ name: string, kind: string, adaptedFrom: string | null, measure: string,
  *   about: { manages: string, accepts: string, example: string, chapter: string } | null,
  *   phases: Array<{ name: string, role: string, produces: string[] }>,
@@ -87,12 +89,20 @@ async function shipped(prefix, schema) {
 const SHIPPED_MODELS = await shipped("models/", MODEL);
 const SHIPPED_PRACTICES = await shipped("practices/", PRACTICE);
 
-// The kinds of artifact a phase produces and a gate checks: the values the model's schema allows in the column Produces.
-const KINDS = MODEL.sections.find((section) => section.heading === "## Phases").table.columns
-  .find((column) => column.name === "Produces").value.item.values;
+// The kinds of artifact a phase may produce, each optionally followed in its file by an explanation in parentheses that
+// no check reads (MOD-model-catalogue.md, Data: Schema model, ## Phases). The column Produces cannot name them itself —
+// its value would then have to allow that explanation too, so it is read as text, and validate.mjs checks a phase's
+// produced kinds, their explanations already dropped, against this list.
+const KINDS = ["requirements", "UC", "ARC", "MOD", "TST", "ITM", "sprint record"];
 
 const text = (value) => (typeof value === "string" ? value : "");
 const list = (value) => (Array.isArray(value) ? [...value] : []);
+// A kind in Produces with its explanation in parentheses dropped, the kind what stood before it, trimmed; unchanged
+// where it names none (MOD-model-catalogue.md, Data: Schema model, ## Phases).
+const EXPLAINED = /[ \t]*\([^()]*\)\s*$/;
+const kindOf = (produced) => produced.replace(EXPLAINED, "").trim();
+// A Time box of none is no time box (MOD-model-catalogue.md, Data: Schema model, ## Flow control).
+const timeBoxOf = (value) => (value === "none" ? null : value);
 
 // The two phases a gate stands between, written `<phase> → <phase>`; without the arrow, the whole text as the first.
 function between(written) {
@@ -101,7 +111,9 @@ function between(written) {
 }
 
 // The parts of a definition read with the model's schema, each with the line it stands on: what a Model holds, and what
-// validate.mjs compares. The flow control keeps each value as it was read — a WIP limit that is no number included.
+// validate.mjs compares. A phase's Produces holds each kind with its explanation in parentheses dropped. The flow
+// control keeps each other value as it was read — a WIP limit that is no number included —, except a Time box of none,
+// read as null, the same as one left out.
 function partsOf(document) {
   const section = (heading) => document.sections.find((s) => s.heading === heading);
   const rows = (heading) => section(heading)?.rows ?? [];
@@ -114,7 +126,7 @@ function partsOf(document) {
     adaptedFrom: text(document.fields.adapted_from) || null,
     measure: text(document.fields.measure),
     phases: rows("## Phases").map(({ line, cells }) =>
-      ({ line, name: text(cells.Name), role: text(cells.Role), produces: list(cells.Produces) })),
+      ({ line, name: text(cells.Name), role: text(cells.Role), produces: list(cells.Produces).map(kindOf) })),
     transitions: rows("## Transitions").map(({ line, cells }) =>
       ({ line, from: text(cells.From), to: text(cells.To), kind: text(cells.Kind) })),
     pairs: rows("## Verification pairs").map(({ line, cells }) =>
@@ -123,7 +135,7 @@ function partsOf(document) {
       condition: text(cells.Condition), decider: text(cells.Decider) })),
     roles: rows("## Roles").map(({ line, cells }) =>
       ({ line, name: text(cells.Name), filledBy: text(cells["Filled by"]), capabilities: list(cells.Capabilities) })),
-    flow: flow ? { line: flow.line, wip: flowValue("WIP limit"), timeBox: flowValue("Time box"),
+    flow: flow ? { line: flow.line, wip: flowValue("WIP limit"), timeBox: timeBoxOf(flowValue("Time box")),
       sprints: flowValue("Sprints") === "yes" } : null,
   };
 }
