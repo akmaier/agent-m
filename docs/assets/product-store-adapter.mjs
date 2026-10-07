@@ -37,8 +37,17 @@ export function productStore(instance) {
   const syncLegacy = () => {
     const own = readSetting(store, "github-token");
     if (own?.value) {
-      legacy.setToken(own.value, own.expires);
-      legacy.setTokenTest(own.tested ?? null);
+      // A legacy settings page can add an expiry or last test to the same token after the public route first
+      // created its canonical entry.  Preserve that metadata in both stores; if values differ, the canonical
+      // token is the current configuration and must not be replaced by the stale legacy value.
+      const sameToken = legacy.getToken() === own.value;
+      const expires = sameToken ? legacy.getTokenExpiry() ?? own.expires : own.expires;
+      const tested = sameToken ? legacy.getTokenTest() ?? own.tested : own.tested;
+      const { tested: ignored, ...setting } = own;
+      const merged = { ...setting, ...(tested ? { tested } : {}) };
+      if (JSON.stringify(merged) !== JSON.stringify(own)) writeSetting(store, "github-token", merged);
+      legacy.setToken(own.value, expires);
+      legacy.setTokenTest(tested ?? null);
     }
     const products = readSetting(store, "products");
     if (Array.isArray(products)) {

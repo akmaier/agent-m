@@ -185,6 +185,9 @@ function domElement(localName) {
     addEventListener(type, listener) { listeners.push([type, listener]); },
     fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
     dispatchEvent(ev) { return node.fire(ev.type, ev); },
+    // Downloads are observed by the test-specific wrapper where one is installed; the shared browser fixture still
+    // performs the anchor activation for settings exports that need only the browser's normal no-return click.
+    click() {},
     focus() { focusedOne = node; },
     setAttribute(name, value) { node[name] = String(value); },
     getAttribute(name) { return node[name] ?? null; },
@@ -194,6 +197,7 @@ function domElement(localName) {
     set innerHTML(value) { node.replaceChildren(String(value)); },
     querySelector(selector) { return domFind(node, selector)[0] ?? null; },
     querySelectorAll(selector) { return domFind(node, selector); },
+    getElementsByTagName(name) { return domFind(node, name); },
   };
   return node;
 }
