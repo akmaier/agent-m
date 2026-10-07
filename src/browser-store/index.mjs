@@ -53,6 +53,7 @@ function settingDescription(key) {
   if (key.startsWith("github-token:")) return { label: `GitHub token: ${key.slice("github-token:".length)}`, secret: true, grants: "access to one GitHub product", setUpIn: "add-product" };
   if (key.startsWith("gitlab-token:")) return { label: `GitLab token: ${key.slice("gitlab-token:".length)}`, secret: true, grants: "access to one GitLab product", setUpIn: "add-product" };
   if (key.startsWith("endpoint:")) return { label: `Endpoint: ${key.slice("endpoint:".length)}`, secret: true, grants: "access to a model endpoint", setUpIn: "endpoints" };
+  if (key.startsWith("last-test:")) return { label: `Last test: ${key.slice("last-test:".length)}`, secret: false, grants: "the recorded result of a setting test", setUpIn: "settings" };
   return null;
 }
 
@@ -62,7 +63,7 @@ function storedSettingKeys(store) {
     const storageKey = store.storage.key(index);
     if (!storageKey?.startsWith(store.prefix)) continue;
     const key = storageKey.slice(store.prefix.length);
-    if (key.startsWith("last-test:") || !isKnownKey(key) || LITERAL_SETTING_KEYS.includes(key)) continue;
+    if (!isKnownKey(key) || LITERAL_SETTING_KEYS.includes(key)) continue;
     keys.push(key);
   }
   return keys.sort();
