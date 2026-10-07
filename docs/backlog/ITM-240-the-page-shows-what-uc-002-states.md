@@ -24,7 +24,9 @@ origin:
 ## Outcome
 
 MOD-implementation-pages' route `process`, as its file states it, in `src/implementation-pages/`, shows what ITM-223's
-tests find missing (F2 to F6):
+tests find missing (F1 to F6):
+- the table that keeps the process model and the rules to be met apart, unfolded at the page's first opening and folded
+  at every later one; this is kept in memory only, never in the browser's storage, so it is no setting (step 1);
 - the model's transitions and its verification pairs, beside its phases and gates (step 5);
 - beside a branch, the gate at its end: for a phase, the model's gate that leaves that phase; for the sprint, the model's
   gate back to its first phase (step 5);
@@ -35,11 +37,11 @@ tests find missing (F2 to F6):
 
 ## Acceptance
 
-- Unit tests that name MOD-implementation-pages state, before the code changes, each of the five through the route with
+- Unit tests that name MOD-implementation-pages state, before the code changes, each of the six through the route with
   fixture repositories.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
-- ITM-223's tests of F2 to F6 pass against the route; their files do not change in this item, and the release tester
+- ITM-223's tests of F1 to F6 pass against the route; their files do not change in this item, and the release tester
   removes their todo marks (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`).
 - The existing tests stay green, with no expected result changed.
 - Only `src/implementation-pages/` and the new tests that name MOD-implementation-pages change (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`).
