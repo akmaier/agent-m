@@ -82,8 +82,8 @@ test("TST-273 listSettings discovers dynamic settings and removes a cleared endp
   const firstKey = "endpoint:campus";
   const secondKey = "endpoint:local";
   const endpointSecret = "endpoint-secret-that-must-not-be-listed";
-  writeSetting(first, firstKey, { url: "https://models.example.test/v1", kind: "openai", model: "campus-1", key: endpointSecret, throughBridge: false });
-  writeSetting(first, secondKey, { url: "http://127.0.0.1:11434", kind: "ollama", model: "llama3", throughBridge: true });
+  writeSetting(first, firstKey, { url: "https://models.example.test/v1", kind: "openai-compatible", model: "campus-1", key: endpointSecret, throughBridge: false });
+  writeSetting(first, secondKey, { url: "https://models.example.test/messages", kind: "anthropic", model: "claude-campus", throughBridge: false });
   writeSetting(first, `last-test:${firstKey}`, { at: "2026-10-07T11:00:00.000Z", outcome: "refused" });
   writeSetting(first, "github-token:alice/thesis-tool", { value: "product-token-that-must-not-be-listed", name: "thesis-tool", expires: "2027-02-01", stored: "2026-10-07" });
   writeSetting(first, "gitlab-token:gitlab.example.test/group/project", { value: "gitlab-token-that-must-not-be-listed", name: "project", expires: "2027-02-02", stored: "2026-10-07" });
@@ -117,15 +117,16 @@ test("TST-274 listSettings isolates an instance and only reads its known storage
     configurable: true,
     writable: true,
   });
+  let requestCount = 0;
   Object.defineProperty(globalThis, "fetch", {
-    value: () => { throw new Error("listSettings must not make a network request"); },
+    value: () => { requestCount += 1; throw new Error("listSettings must not make a network request"); },
     configurable: true,
     writable: true,
   });
   const first = openStore(INSTANCE);
   const second = openStore("other/instance");
-  writeSetting(first, "endpoint:first", { url: "https://first.example.test/v1", kind: "openai", model: "one", throughBridge: false });
-  writeSetting(second, "endpoint:second", { url: "https://second.example.test/v1", kind: "openai", model: "two", throughBridge: false });
+  writeSetting(first, "endpoint:first", { url: "https://first.example.test/v1", kind: "openai-compatible", model: "one", throughBridge: false });
+  writeSetting(second, "endpoint:second", { url: "https://second.example.test/v1", kind: "openai-compatible", model: "two", throughBridge: false });
   const before = storage.snapshot();
 
   const settings = byKey(listSettings(first));
@@ -135,4 +136,5 @@ test("TST-274 listSettings isolates an instance and only reads its known storage
   assert.equal(settings.has("unknown"), false, "an unknown storage entry is not listed");
   assert.deepEqual(storage.snapshot(), before, "listing changes no localStorage entry");
   assert.equal(cookies.value, "", "listing writes no cookie");
+  assert.equal(requestCount, 0, "listing makes no network request");
 });
