@@ -146,17 +146,17 @@ const namedCells = (cells) => Object.fromEntries(NAMED.filter((column) => column
 // expect: among the rows, three participants, each with its type, capabilities, processing place and model as the register
 //         writes them, a value written — left out:
 //         - akmaier: Type person, Capabilities all six, no Model and no Processing place;
-//         - developer-opus-d: Type CLI agent, Model claude-opus-5-5, Capabilities all six, Processing place
-//           "Anthropic, a provider in the USA" — one place, its comma kept;
-//         - reviewer-sonnet: Type CLI agent, Model claude-sonnet-5, the same capabilities and place
+//         - developer-sol-d: Type CLI agent, Model gpt-6.1-sol, Capabilities all six, Processing place
+//           "OpenAI; the processing region of this Codex session is not declared" — one place, its punctuation kept;
+//         - reviewer-terra: Type CLI agent, Model gpt-5.6-terra, the same capabilities and place
 test("participantSchema — this instance's register read into participants, each with its type, capabilities, processing place and model", () => {
   const { rows } = readRegister(participantSchema(), REGISTER_PATH, readFileSync(INSTANCE_REGISTER, "utf8"));
   const byName = new Map(rows.map((row) => [row.cells.Name, row.cells]));
   assert.deepEqual(namedCells(byName.get("akmaier") ?? {}), { Type: "person", Capabilities: CAPABILITIES }, "akmaier");
-  assert.deepEqual(namedCells(byName.get("developer-opus-d") ?? {}), { Type: "CLI agent", Model: "claude-opus-5-5",
-    "Processing place": "Anthropic, a provider in the USA", Capabilities: CAPABILITIES }, "developer-opus-d");
-  assert.deepEqual(namedCells(byName.get("reviewer-sonnet") ?? {}), { Type: "CLI agent", Model: "claude-sonnet-5",
-    "Processing place": "Anthropic, a provider in the USA", Capabilities: CAPABILITIES }, "reviewer-sonnet");
+  assert.deepEqual(namedCells(byName.get("developer-sol-d") ?? {}), { Type: "CLI agent", Model: "gpt-6.1-sol",
+    "Processing place": "OpenAI; the processing region of this Codex session is not declared", Capabilities: CAPABILITIES }, "developer-sol-d");
+  assert.deepEqual(namedCells(byName.get("reviewer-terra") ?? {}), { Type: "CLI agent", Model: "gpt-5.6-terra",
+    "Processing place": "OpenAI; the processing region of this Codex session is not declared", Capabilities: CAPABILITIES }, "reviewer-terra");
 });
 
 // ---------------------------------------------------------------- participantSchema: the register's errors
