@@ -1,6 +1,6 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, commitFiles and webLinks. Every function of a host that reaches a server says
-// so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
+// returns, with repositoryInfo, readSnapshot, listTags, commitFiles, createTag and webLinks. Every function of a host that
+// reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
 //
 // Module: MOD-repository-hosts
 //
@@ -94,6 +94,11 @@ function checkedChange(change) {
   return { branch, expectedHead, files, message };
 }
 
+// A pattern listTags takes, with * as its only wildcard (zero or more characters, e.g. "v*") -> a RegExp matching exactly what
+// it allows; every other character is literal.
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const globPattern = (pattern) => new RegExp(`^${pattern.split("*").map(escapeRegExp).join(".*")}$`);
+
 // NO SECRET IN THE REPOSITORY: before anything is sent, a file whose text — or whose bytes, read as text — holds a configured
 // secret or the host's own token refuses the whole commit, named by its file and never by the value.
 function refuseSecrets(files, secrets) {
@@ -156,6 +161,15 @@ export function connect(address, credentials = {}) {
       });
     },
 
+    // listTags(pattern) -> { name, commit }[] — the tags of the repository, every one of them across however many pages the
+    // server answers in, optionally only those whose name matches pattern, a glob with * as its only wildcard (e.g. "v*").
+    // Crosses the network; fails as readSnapshot.
+    async listTags(pattern) {
+      if (pattern !== undefined && typeof pattern !== "string") throw new TypeError("a pattern is a text");
+      const tags = await adapter.listTags();
+      return pattern === undefined ? tags : tags.filter((t) => globPattern(pattern).test(t.name));
+    },
+
     // commitFiles({ branch, expectedHead, files, message }) -> { commit, url } — one commit of all the files, made only if the
     // branch still stands at expectedHead; expectedHead null makes an empty repository's first commit — on GitHub two, the first
     // file and then the others —; the message is written as given. Crosses the network; fails with Moved,
@@ -164,6 +178,15 @@ export function connect(address, credentials = {}) {
       const c = checkedChange(change);
       refuseSecrets(c.files, refused);
       return adapter.commitFiles(c);
+    },
+
+    // createTag(name, commit) -> void — sets a tag on a commit; an existing tag is never moved and fails with TagExists
+    // { commit }, naming the commit it already stands on (A VERSION IS NOT REWRITTEN). Crosses the network; fails also with
+    // PermissionMissing, TokenRefused, RateLimited, Unreachable.
+    async createTag(name, commit) {
+      if (typeof name !== "string" || !name.trim()) throw new TypeError("createTag names a tag");
+      if (!HEAD.test(String(commit))) throw new TypeError(`createTag names the commit to tag: ${commit}`);
+      return adapter.createTag(name, commit);
     },
 
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.
