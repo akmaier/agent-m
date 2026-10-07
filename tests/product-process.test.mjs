@@ -383,7 +383,7 @@ test("declarationSchema — a product's declaration read by its schema: front ma
 //         naming THE PROCESS MODEL IS DECLARED PER PRODUCT. For this instance's declaration, no finding; its front matter as
 //         it writes it — model scrum-wip, model_file docs/process-models/scrum-wip.md, model_version
 //         ef33e2f501289930960f13b55936e9b557003993, sprint_close scrum-master-session —; its roles each with its
-//         participants: Product Owner [po-sol], Scrum Master [scrum-master-session], Developers [developer-terra-a to -e];
+//         participants: Product Owner [po-opus], Scrum Master [scrum-master-session], Developers [developer-sonnet-a to -e];
 //         and its one branch, for Sprint, as it writes it: `sprint/<nn>`, in backticks
 test("declarationSchema — a declaration without its model's version is named; this instance's own docs/process.md is read without a finding", () => {
   const unversioned = declarationOf(removed(DECLARATION, 4, `model_version: ${VERSION}`));
@@ -394,10 +394,10 @@ test("declarationSchema — a declaration without its model's version is named; 
   assert.deepEqual(agentM.fields, { model: "scrum-wip", model_file: "docs/process-models/scrum-wip.md",
     model_version: "ef33e2f501289930960f13b55936e9b557003993", sprint_close: "scrum-master-session" });
   assert.deepEqual(rowsUnder(agentM, "## Roles").map(([, cells]) => [cells.Role, cells.Participants]), [
-    ["Product Owner", ["po-sol"]],
+    ["Product Owner", ["po-opus"]],
     ["Scrum Master", ["scrum-master-session"]],
-    ["Developers", ["developer-terra-a", "developer-terra-b", "developer-terra-c", "developer-terra-d",
-      "developer-terra-e"]],
+    ["Developers", ["developer-sonnet-a", "developer-sonnet-b", "developer-sonnet-c", "developer-sonnet-d",
+      "developer-sonnet-e"]],
   ]);
   assert.deepEqual(rowsUnder(agentM, "## Branches").map(([, cells]) => cells), [{ "Phase or time box": "Sprint", Branch: "`sprint/<nn>`" }]);
 });

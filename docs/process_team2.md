@@ -17,9 +17,9 @@ Definition of Done and who closes a sprint.
 
 | Role | Participants |
 |---|---|
-| Product Owner | po-opus |
+| Product Owner | po-sol |
 | Scrum Master | scrum-master-session |
-| Developers | developer-sonnet-a, developer-sonnet-b, developer-sonnet-c, developer-sonnet-d, developer-sonnet-e |
+| Developers | developer-terra-a, developer-terra-b, developer-terra-c, developer-terra-d, developer-terra-e |
 
 ## Practices
 
@@ -58,7 +58,7 @@ The job rules hold for every pull request; no condition is added.
   on the pull request. scrum-master-session carries out each merge on that decision, on the head commit the decision
   names: the session's permission system refuses a merge by an agent, and `akmaier` assigned the merge to it.
 - Closing a sprint — its review, its retrospective and the decisions on its unfinished items — is assigned to
-  scrum-master-session (`CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT`), not to po-opus: the merge of
+  scrum-master-session (`CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT`), not to po-sol: the merge of
   `sprint/<nn>` into `main` checks the review and the retrospective, and the Product Owner who decides it must
   not have written them (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`). A change to this
   declaration, to the model or to a participant's instructions that a retrospective recommends is proposed,
@@ -70,7 +70,7 @@ Until Agent M's own features carry them, SPEC changes and the acceptance of use 
 and modules stay with the person `akmaier`: a SPEC change is agreed with `akmaier` and accepted by an approval
 record committed under that account, and so is every use case, decision and module
 (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`, `A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN`).
-No other participant — the Product Owner po-opus included — accepts a SPEC change, a use case or an architecture
+No other participant — the Product Owner po-sol included — accepts a SPEC change, a use case or an architecture
 file, or writes into SPEC.md.
 
 A gap found during a sprint becomes a change request to `akmaier`, and the item waits. The participant that finds it
