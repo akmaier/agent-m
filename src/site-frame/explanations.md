@@ -165,3 +165,49 @@ afterwards: the tagged commit is exactly the one the complete test suite ran on,
 points to a state that can be recovered, compared and relied on later. If the tag for a version already exists, the
 release stops instead of moving it; a correction becomes the next version rather than a silent change to one already
 released.
+
+## endpoint-url
+
+The endpoint URL is the web address of the model service that will answer the short test request. Paste the address the
+service gives for its API, including its `https://` at the start when the service provides one. Agent M uses this URL only
+for the endpoint you configure here; it does not put the address or a key into a link, a browser cookie or a repository.
+
+## endpoint-kind
+
+Choose whether this endpoint speaks the OpenAI-compatible or Anthropic API. The choice tells Agent M which request shape
+the endpoint understands; it does not select a model or send a request by itself. A provider's documentation names which
+kind its endpoint accepts.
+
+## endpoint-model
+
+The model is the name the chosen endpoint expects in a request, for example the name shown in its own model list. It is
+not a download and does not make Agent M call the model until you press *Test*. If the endpoint says that name is not
+available, change it to a model the endpoint offers.
+
+## endpoint-key
+
+Some endpoints need a key and others do not, so this field is optional. When there is a key, Agent M keeps it in this
+browser's localStorage with this endpoint configuration and sends it only in the authorisation header of a request to
+that endpoint. It is never placed in a URL, a cookie or a repository. A refused key stays stored until you replace it or
+clear the configuration.
+
+## endpoint-route
+
+For an endpoint that the browser can reach, choose the direct route. For a model server on this computer, choose the
+Bridge route instead: the paired Bridge calls the local model and the browser talks only to the Bridge. The Bridge's
+pairing and HTTPS handoff are configured in UC-044; the local model does not need browser CORS permission. Until that
+Bridge setup is present, Agent M keeps this choice and names the setup that is still needed instead of testing the model
+directly.
+
+## endpoint-test
+
+Press *Test* after saving the URL, kind, model and optional key. Agent M stores that configuration in this browser first;
+one short test request is sent only to the endpoint you named, and an optional key travels only in that endpoint's
+authorisation header. The request does not go to a repository, another web page or a cookie. If the endpoint refuses a
+browser request because it lacks a cross-origin permission or opt-in header, use GitHub Actions or the local Bridge;
+Agent M shows the reason rather than treating the configuration as working.
+
+## endpoint-clear
+
+*Clear* removes this endpoint configuration and its key from localStorage, not only from the form on screen. Agent M then
+confirms that nothing is stored for the endpoint in this browser. Add the URL, kind and model again before a later test.
