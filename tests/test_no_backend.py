@@ -22,7 +22,8 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    product's own GitLab project (`prepare` in git-host.mjs, tested in tests/review-core.d/git-host.test.mjs, and its
    successor in MOD-repository-hosts, src/repository-hosts/failures.mjs); the bridge probe on localhost; the dashboard's
    own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
-   from; and the own data files — schemas, models, practices — of the modules whose files state that they read them when
+   from; MOD-endpoint-calls' one configured endpoint test transport; and the own data files — schemas, models, practices —
+   of the modules whose files state that they read them when
    they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process
    and MOD-site-frame (its explanations.md),
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
@@ -105,7 +106,19 @@ def _own_data_file(text: str, at: int) -> bool:
     return bool(own) and len(own) == len(re.findall(r"new URL\(", text))
 
 
+def _configured_endpoint_transport(text: str, at: int) -> bool:
+    """MOD-endpoint-calls sends its one test request only from the EndpointConfig-derived requestFor result."""
+    before = text[:at]
+    return (text[at:].startswith("fetch(url, init)")
+            and "function requestFor(config)" in before
+            and "url: endpointUrl(config.baseUrl," in before
+            and "if (config.key !== null)" in before
+            and "export async function testEndpoint(config)" in before
+            and "const { url, init } = requestFor(config);" in before)
+
+
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
+ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
 
 # (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
 # An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
@@ -115,6 +128,7 @@ PERMITTED_CHANNELS = {
     ("src/repository-hosts/failures.mjs", "fetch"): (1, "the repository hosts' request helper sends only what its origin gate prepare() let through", _prepared),
     ("src/spec-document/index.mjs", "fetch"): (1, "its own skeleton.md, from the address the module itself was loaded from",
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
+    ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
     # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -278,6 +292,23 @@ class NoServer(unittest.TestCase):
     def test_counter_proof_a_method_named_fetch_or_a_comment_is_no_call(self):
         self.assertEqual(channel_findings({"docs/assets/x.mjs": "class P { fetch(){ return this.t } }\nthis.parser.fetch().text;\n"
                                                                 "// the settings by name, export and import (UC-042)\nfetchText(u);\n"}), [])
+
+    def test_counter_proof_only_the_configured_endpoint_transport_is_allowed(self):
+        configured = ("function requestFor(config) {\n"
+                      "  if (config.key !== null) headers.Authorization = `Bearer ${config.key}`;\n"
+                      "  return { url: endpointUrl(config.baseUrl, \"/chat/completions\"), init };\n"
+                      "}\n"
+                      "export async function testEndpoint(config) {\n"
+                      "  const { url, init } = requestFor(config);\n"
+                      "  return fetch(url, init);\n"
+                      "}\n")
+        self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": configured}), [])
+        arbitrary = configured.replace("const { url, init } = requestFor(config);", "const url = telemetry; const init = {};")
+        self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": arbitrary}),
+                         [f"src/endpoint-calls/index.mjs:7: fetch: not {ENDPOINT_TRANSPORT}"])
+        twice = configured.replace("return fetch(url, init);", "return fetch(url, init);\n  return fetch(url, init);")
+        self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": twice}),
+                         [f"src/endpoint-calls/index.mjs: fetch found 2 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
 
     def test_counter_proof_a_modules_own_data_files(self):
         # The form MOD-spec-document reads its skeleton in, in a module whose file states that it reads its own data files.
