@@ -119,7 +119,12 @@ test("TST-282 UC-001 alternatives 1a and 5b distinguish a synthetic click from a
   const complete = { "SPEC.md": "# Product — Specification\n", "CHANGELOG.md": "# Changelog\n",
     "docs/use-cases/README.md": "x", "docs/architecture/README.md": "x", "docs/approvals/README.md": "x", "docs/spec-freigaben/README.md": "x" };
   const w = await world({ files: complete });
-  const main = await addPage(w, { [`${PREFIX}github-token:${PRODUCT}`]: JSON.stringify({ value: PRODUCT_TOKEN, name: PRODUCT }) });
+  const main = await addPage(w, {}, null);
+  assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "1a: a fresh browser starts with no product list");
+  assert.equal(main.querySelector("button.add").disabled, true, "1a/3b: no instance token still requires this product's key");
+  const ack = main.querySelector("input.ack"), token = main.querySelector("input.token");
+  ack.checked = true; ack.fire("change", { isTrusted: true }); token.value = PRODUCT_TOKEN;
+  await press(w.instance, main.querySelector("button.store"));
   const add = main.querySelector("button.add");
   add.fire("click", { isTrusted: false });
   await settle(w.instance);
@@ -128,6 +133,7 @@ test("TST-282 UC-001 alternatives 1a and 5b distinguish a synthetic click from a
   await press(w.instance, add);
   assert.equal(w.product.writes.length, 0, "the complete layout is skipped");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [WEB], "the trusted click remembers the address");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`)).value, PRODUCT_TOKEN, "3b: the new browser stores and uses its own product key");
 });
 
 // TST-284
@@ -149,6 +155,8 @@ test("TST-284 UC-001 GitHub alternatives preserve the product and browser bounda
   const refusedRead = await world({ readable: false });
   main = await addPage(refusedRead);
   await press(refusedRead.instance, main.querySelector("button.check"));
+  assert.match(main.innerHTML, /may not read https:\/\/github\.com\/alice\/thesis-tool/, "4a names the repository refusal");
+  assert.match(main.innerHTML, /Step A · A key for the product(?! — done)/, "4a offers Step A again");
   assert.equal(refusedRead.product.writes.length, 0, "4a: an unreadable repository is not written");
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "4a: an unreadable repository is not listed");
 
@@ -166,6 +174,8 @@ test("TST-284 UC-001 GitHub alternatives preserve the product and browser bounda
   const refusedWrite = await world({ writable: false });
   main = await addPage(refusedWrite);
   await press(refusedWrite.instance, main.querySelector("button.add"));
+  assert.match(main.innerHTML, /cannot write/, "5a names the refused write");
+  assert.match(main.innerHTML, /Step A · A key for the product(?! — done)/, "5a offers Step A again");
   assert.equal(refusedWrite.product.writes.length, 0, "5a: a refused write creates no commit");
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "5a: a refused write creates no browser entry");
 });
