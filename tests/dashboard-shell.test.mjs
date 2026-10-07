@@ -35,10 +35,10 @@ registerHooks({
   },
 });
 
-// Every address of today: none, each view of the table by its name — built or not —, the pages within the built views, and
-// one that no view answers.
-const ADDRESSES = ["", ...DASHBOARD.filter((x) => x.view).map((x) => `#${x.view}`), "#uc/UC-001", "#review/uc", "#review/arc",
-  "#add/https%3A%2F%2Fgitlab.com%2Fa%2Fb", "#nothing"];
+// Every string-rendered address of today: none, each view with a dashboard file — built or not —, the pages within the built
+// views, and one that no view answers. UC-001's public settings-pages route has DOM integration coverage separately.
+const ADDRESSES = ["", ...DASHBOARD.filter((x) => x.view && x.file).map((x) => `#${x.view}`), "#uc/UC-001", "#review/uc", "#review/arc",
+  "#nothing"];
 const isThere = (file) => existsSync(new URL(file, VIEWS));
 
 const UC = "docs/use-cases/UC-001-add-a-product.md";
@@ -65,7 +65,7 @@ test("with every view file of today, the menu shows the stages of the process in
   assert.deepEqual(page.el("tabs").split("\n"), MENU_OF_TODAY);
 });
 
-test("every view of today is shown — use cases, architecture, SPEC changes, how acceptance works, settings, add product, setup, review pages", async () => {
+test("every dashboard view file of today is shown — use cases, architecture, SPEC changes, how acceptance works, settings, setup, review pages", async () => {
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
   const heading = async (hash) => { await page.go(hash); return (/<h2>([^<]*)/.exec(page.main()) || [])[1]?.trim(); };
   assert.equal(await heading("#uc"), "Use cases");
@@ -74,7 +74,6 @@ test("every view of today is shown — use cases, architecture, SPEC changes, ho
   assert.equal(await heading("#spec"), "SPEC changes");
   assert.equal(await heading("#how"), "How acceptance works");
   assert.equal(await heading("#settings"), "Settings");
-  assert.equal(await heading("#add"), "Add a product");
   assert.equal(await heading("#setup"), "Finish setting up your instance");
   assert.equal(await heading("#review/uc"), "Review all — use cases");
   assert.equal(await heading("#review/arc"), "Review all — architecture");
@@ -111,7 +110,7 @@ test("a load of every address of today asks for no view or settings file that is
   assert.deepEqual(missing, [], "a page asked for files that are not there");
   // The recording sees what a page asks for: the files of the views shown are among it.
   const all = new Set([...asked.values()].flat());
-  for (const f of ["review-views.mjs", "settings-view.mjs", "how-view.mjs", "add-product-view.mjs", "setup-view.mjs"]) {
+  for (const f of ["review-views.mjs", "settings-view.mjs", "how-view.mjs", "setup-view.mjs"]) {
     assert.ok(all.has(f), `the recording saw ${f}: ${[...all].join(", ")}`);
   }
 });
