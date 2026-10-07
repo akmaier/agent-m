@@ -1,9 +1,10 @@
 // The system tests of UC-002, Choose how the product is developed (ITM-223): its main flow and every alternative flow it
 // names, walked through the route How this product is developed as the dashboard reaches it — docs/assets/dashboard/
 // process-view.mjs's routes.process(app) —, over two fixture repositories behind MOD-repository-hosts' real connect(): an
-// instance (its participants, a process model of its own, the SPEC that holds a process requirement, a restricted source)
-// and a product. Every expected result is UC-002's; where the page and UC-002 disagree, the test follows UC-002 and is
-// marked todo with its FINDING.
+// instance (its participants, a process model of its own, the SPEC that holds a process requirement, a restricted source,
+// the shipped practices' files) and a product. Every expected result is UC-002's; where the page and UC-002 disagree, the
+// test follows UC-002 and is marked todo with its FINDING. ITM-223's findings F1 to F7, which ITM-240 and ITM-241 settle,
+// are no longer marked (ITM-242).
 //
 // Written by tester-opus (claude-opus-5-5), the release tester, who implemented none of the behaviour tested here.
 //
@@ -572,6 +573,10 @@ async function pressSave(page) {
 const catalogueFile = (path) => readFileSync(new URL(`../src/model-catalogue/${path}`, import.meta.url), "utf8");
 const SHIPPED = ["waterfall", "v-model", "reuse-oriented", "scrum", "kanban"];
 const PRACTICES = ["devops", "prototyping", "incremental-delivery", "scaling-layers"];
+// The shipped practices' files as an instance holds them: a fork of Agent M (AN INSTANCE IS A FORK OF AGENT M), it holds
+// each where Agent M ships it, in src/model-catalogue/practices/.
+const PRACTICE_FILES = Object.fromEntries(PRACTICES.map((name) =>
+  [`src/model-catalogue/practices/${name}.md`, catalogueFile(`practices/${name}.md`)]));
 // The rows of the table under `heading` ("## …") in a markdown text, as [{ column: cell }].
 function rowsOf(text, heading) {
   const lines = text.split("\n");
@@ -586,16 +591,6 @@ function rowsOf(text, heading) {
 const valueOf = (text, key) => new RegExp(`^${key}: (.*)$`, "m").exec(text)?.[1];
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// ---------------------------------------------------------------- the findings: where the page does not do what UC-002 says
-
-const F1 = "FINDING ITM-223-F1 — the table of the process model and the rules to be met stands in a folded \"What is this?\" from the first opening on: it is not shown unfolded at the first reading (backlog item to be added by the Product Owner)";
-const F2 = "FINDING ITM-223-F2 — the page lists the phases and the gates, but neither the transitions between the phases nor which phases pair for verification (backlog item to be added by the Product Owner)";
-const F3 = "FINDING ITM-223-F3 — a branch the sprint is given is listed as \"Sprint: sprint/<nn>\" only; no gate at its end — merging it into the default branch, decided by the Product Owner after the review of the increment — is shown (backlog item to be added by the Product Owner)";
-const F4 = "FINDING ITM-223-F4 — each practice is listed by its name and the models it fits, not with what it adds (backlog item to be added by the Product Owner)";
-const F5 = "FINDING ITM-223-F5 — the gate a process requirement adds is listed by its requirement, its artifacts and its source, not where it is added: the two phases it stands between are not shown (backlog item to be added by the Product Owner)";
-const F6 = "FINDING ITM-223-F6 — the notice of a missing capability links to #settings/participants, the settings view, which has no section for participants (src/site/views.mjs), not to UC-017's view #participants (backlog item to be added by the Product Owner)";
-const F7 = "FINDING ITM-223-F7 — the explanation of a branch of its own carries no pointer to the book, unlike those of the model, the roles, the practices and the Definition of Done (backlog item to be added by the Product Owner)";
-
 // ---------------------------------------------------------------- the main flow
 
 // Guards: UC-002
@@ -603,7 +598,7 @@ const F7 = "FINDING ITM-223-F7 — the explanation of a branch of its own carrie
 // input: routes.process(app), twice
 // expect (step 1): the page opens with the table that keeps the process model and the rules to be met apart, not folded
 //         at the first reading; at the next opening, after the first reading, it is folded
-test("UC-002 main flow, step 1: the page opens with the table of the process model and the rules to be met, folded only after the first reading", { todo: F1 }, async (t) => {
+test("UC-002 main flow, step 1: the page opens with the table of the process model and the rules to be met, folded only after the first reading", async (t) => {
   const first = await openPage(t);
   const table = rulesTable(first.target);
   assert.ok(table, "known positive: the page holds the table");
@@ -696,7 +691,7 @@ test("UC-002 main flow, step 5: the phases, each gate with what it checks and wh
 // input: the author chooses Scrum
 // expect (step 5): the page shows the transitions between Scrum's phases and which of them pair for verification, as
 //         scrum.md states them
-test("UC-002 main flow, step 5: the transitions between the phases, and which phases pair for verification", { todo: F2 }, async (t) => {
+test("UC-002 main flow, step 5: the transitions between the phases, and which phases pair for verification", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
 
@@ -716,7 +711,7 @@ test("UC-002 main flow, step 5: the transitions between the phases, and which ph
 // input: routes.process(app)
 // expect (step 5): the page shows the sprint's branch, and that merging it into the default branch is the gate at the
 //         sprint's end, decided by the Product Owner after the review of the increment
-test("UC-002 main flow, step 5: a sprint's branch of its own, and its merge into the default branch as the gate at its end, decided by the Product Owner after the review", { todo: F3 }, async (t) => {
+test("UC-002 main flow, step 5: a sprint's branch of its own, and its merge into the default branch as the gate at its end, decided by the Product Owner after the review", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({
     roles: [["Product Owner", "alice"]], branches: [["Sprint", "sprint/<nn>"]] }) } });
 
@@ -747,11 +742,12 @@ test("UC-002 main flow, step 6: the practices, each with the models it fits; add
 });
 
 // Guards: UC-002
-// given: a product without a declaration; the shipped practices
+// given: a product without a declaration; the shipped practices, whose files the instance holds as a fork of Agent M
+//        does (PRACTICE_FILES)
 // input: the author chooses Scrum
 // expect (step 6): each practice says what it adds — the first item of its data file's ## Adds, by its name
-test("UC-002 main flow, step 6: each practice says what it adds", { todo: F4 }, async (t) => {
-  const { target } = await openPage(t);
+test("UC-002 main flow, step 6: each practice says what it adds", async (t) => {
+  const { target } = await openPage(t, { instance: PRACTICE_FILES });
   await choose(target, "scrum");
 
   const shown = shownEntries(target).join("\n");
@@ -842,11 +838,13 @@ test("UC-002 main flow, steps 3–9: the author's choices, then one click on Sav
 });
 
 // Guards: UC-002
-// given: a product without a declaration
-// input: the author chooses Scrum
+// given: a product without a declaration, its page read once before — UC-002 step 1 shows the table of the process model
+//        and the rules to be met unfolded at the first reading only
+// input: the page opened again; the author chooses Scrum
 // expect: every choice — the model, the roles' holders, a branch, the practices, the Definition of Done — carries a
 //         folded "What is this?" with a pointer to the book (Vibe Coding, a chapter)
-test("UC-002 main flow: every choice carries a folded What is this? with a pointer to the book", { todo: F7 }, async (t) => {
+test("UC-002 main flow: every choice carries a folded What is this? with a pointer to the book", async (t) => {
+  await openPage(t);
   const { target } = await openPage(t);
   await choose(target, "scrum");
 
@@ -953,7 +951,7 @@ test("UC-002 alternative flow 4b: no participant has the capabilities a role nee
 // input: the author chooses Scrum
 // expect (4b): the notice of the missing capability links to UC-017 — the view src/site/views.mjs maps UC-017 to — to add
 //         a participant that has it
-test("UC-002 alternative flow 4b: the missing capability links to UC-017, to add a participant that has it", { todo: F6 }, async (t) => {
+test("UC-002 alternative flow 4b: the missing capability links to UC-017, to add a participant that has it", async (t) => {
   const view = DASHBOARD.find((entry) => entry.view && entry.useCases.includes("UC-017"));
   assert.ok(view, "known positive: the dashboard's table names the view of UC-017");
   const { target } = await openPage(t, { participants: ONLY_AN_ENDPOINT });
@@ -1011,7 +1009,7 @@ test("UC-002 alternative flow 7a: no process requirements yet — the view says 
 // input: routes.process(app)
 // expect (7b): the page shows the gate being added, marked with its requirement, and where — between Review and Done —;
 //         the model stays Kanban, its phases and its own gate shown
-test("UC-002 alternative flow 7b: a process requirement needs a gate the model does not have — the gate is shown being added, and where; the model stays Kanban", { todo: F5 }, async (t) => {
+test("UC-002 alternative flow 7b: a process requirement needs a gate the model does not have — the gate is shown being added, and where; the model stays Kanban", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": kanbanDeclaration({ roles: [["Product owner", "alice"]],
     added: [[REQUIREMENT, "Review → Done", "the verification record of the item", "the verification is documented", "Reviewer"]] }) } });
 

@@ -11,9 +11,10 @@
 //   edit-stamp    a stamp of who edited what or when: a line that begins with `Last changed`, `Last edited`, `Last updated`,
 //                 `Last modified` or `Last revised`, or with the label `Changed:`, `Edited:`, `Updated:`, `Modified:` or
 //                 `Revised:` (also `… by:`), or a verb of change followed by a date: `reworded 2026-09-24`;
-//   dated-change  every other date, `YYYY-MM-DD`: a date given as the date of a change, and a date that is part of what the
-//                 document states, such as a version's retrieval date, too. Whether a mark is a finding is the caller's to
-//                 decide for its kind of document, since records and measurements are dated by nature.
+//   dated-change  a date given as the date of a change, `YYYY-MM-DD`: after a word of decision or acceptance, as in
+//                 `PO decision <date>`, or set off by a comma as the date of an attribution, as in `(PO A. Maier, <date>)`
+//                 or `PO, <date>: …`. Any other date is no mark: the date a fact was read, a version, a release, a
+//                 measurement a document names, stated with the words that say what they are or in a table's cells.
 //
 // The word "withdrawn" or "changed" in a sentence that states a rule is no mark. A mark's line counts from 1 in the whole
 // text, front matter included; its text is the mark as it stands, without the line ending — a label's or a heading's line
@@ -31,6 +32,11 @@ const EDIT_WORDS = ["changed", "edited", "updated", "modified", "revised"];
 const CHANGE_WORDS = [...EDIT_WORDS, "reworded", "rewritten", "amended", "corrected", "extended", "narrowed", "widened",
   "renamed", "added", "created"];
 const EDITED = `(?:${EDIT_WORDS.join("|")})`;
+// The words of a decision or an acceptance that a date given as the date of a change may follow directly.
+const DECISION_WORDS = ["decision", "decided", "accepted", "acceptance"];
+// An attribution set off by a comma: "PO", perhaps a name, then the comma its date follows — "PO A. Maier, <date>" or
+// "PO, <date>".
+const PO_ATTRIBUTION = "\\bPO(?:[ \\t]+[A-Z][\\w.]*)*,[ \\t]*";
 
 // The rules, in their precedence: a place that two rules find is the first one's.
 const RULES = [
@@ -40,7 +46,8 @@ const RULES = [
   { kind: "edit-stamp", re: new RegExp(`${LABEL}(?:last[ _-]?${EDITED}(?=[ \\t]*(?::|by\\b|on\\b|at\\b|\\d|[*_]|$))`
     + `|${EDITED}(?:[ _-]by)?[*_]{0,2}[ \\t]*:).*`, "i") },
   { kind: "edit-stamp", re: new RegExp(`\\b(?:${CHANGE_WORDS.join("|")})${ON}${DATE}`, "gi") },
-  { kind: "dated-change", re: new RegExp(`(?<!\\d)${DATE}`, "g") },
+  { kind: "dated-change", re: new RegExp(`(?<=\\b(?:${DECISION_WORDS.join("|")})${ON})${DATE}`, "gi") },
+  { kind: "dated-change", re: new RegExp(`(?<=${PO_ATTRIBUTION})${DATE}`, "g") },
 ];
 
 // Every match of a rule in one line.

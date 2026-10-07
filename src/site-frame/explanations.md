@@ -59,7 +59,8 @@ the book *Vibe Coding*: chapters 6 and 7.
 A phase, or a sprint, may have a branch of its own. The work done in it is then merged into that branch instead of the
 default branch, and merging that branch into the default branch is the gate at its end — in Scrum decided by the Product
 Owner after the review of the sprint's increment. The work of the phase or sprint reaches the default branch only through
-that gate. Preset is *none*: the work of every job is merged into the default branch.
+that gate. Preset is *none*: the work of every job is merged into the default branch. In the book *Vibe Coding*: chapter
+12, section 10, on a branch merged back through a reviewed pull request.
 
 ## practices
 
