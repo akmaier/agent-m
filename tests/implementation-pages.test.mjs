@@ -252,7 +252,7 @@ const { loadSchema, readDocument, writeDocument } = await import("../src/documen
 const { declarationSchema } = await import("../src/product-process/index.mjs");
 const { participantSchema } = await import("../src/participant-list/index.mjs");
 const { sourceSchemas } = await import("../src/source-register/index.mjs");
-const { modelSchema, catalogue } = await import("../src/model-catalogue/index.mjs");
+const { modelSchema, catalogue, modelFindings } = await import("../src/model-catalogue/index.mjs");
 
 // ---------------------------------------------------------------- helpers: the DOM of a schemaForm (as tests/site-frame
 // ---------------------------------------------------------------- .test.mjs reads it), and a fixture repository
@@ -564,6 +564,199 @@ test("process route — the page of a product with a declaration, its first fiel
   assert.match(areaOf(form, "## Roles").value, /Developers \| bot-a/);
   // assert.ok, not assert.equal: on a mismatch, formatting these DOM-like objects for a diff is not worth the cost.
   assert.ok(document.activeElement === inputOf(form, "model"), "the form's first field is focused");
+
+  target.remove();
+});
+
+// ---------------------------------------------------------------- the page of a product with Agent M's own declaration
+//
+// This repository's own files, read as they stand on origin/sprint/06: docs/process.md and docs/participants.md, and,
+// at the commit docs/process.md's model_version names (4c60cfe5a8bc8c00dcf6705b5decb42823b73a63), docs/process-models/
+// scrum-wip.md — Agent M's own live declaration, not a fixture made for this suite. The instance SPEC is fixture text
+// (SPEC_TEXT, above): no test opens SPEC.md.
+
+const AGENT_M_MODEL_VERSION = "4c60cfe5a8bc8c00dcf6705b5decb42823b73a63";
+const AGENT_M_SCRUM_WIP_PATH = "docs/process-models/scrum-wip.md";
+
+// docs/process-models/scrum-wip.md at commit 4c60cfe5a8bc8c00dcf6705b5decb42823b73a63 (git show), unchanged since.
+const AGENT_M_SCRUM_WIP = `---
+name: scrum-wip
+kind: pulled
+adapted_from: scrum
+measure: items per state over time
+---
+
+# Scrum with a work-in-progress limit
+
+**REGISTER**
+
+A process model of this instance (UC-031), adapted from the shipped Scrum model: the flow is controlled by a
+work-in-progress limit of 4 instead of a time box; sprints keep a selection the Product Owner makes and have no fixed
+length; release tests have a role of their own.
+
+An item counts as in progress from the moment its team starts it until its pull request is merged into the sprint
+branch; an item waiting for review counts. A sprint works on the selection the Product Owner made at Sprint planning.
+It ends when every selected item is done or the Product Owner ends it; then the review of its increment and the
+retrospective are recorded, and then the Product Owner decides the merge of the sprint branch into \`main\`.
+
+## Phases
+
+| Name | Role | Produces |
+|---|---|---|
+| Sprint planning | Product Owner | ITM (the sprint's selection of backlog items) |
+| Development | Developers | MOD (code of the item's modules), TST |
+| Release testing | Release tester | TST (release tests of the selected items) |
+| Sprint review | Product Owner | sprint record (the review of the increment) |
+| Retrospective | Product Owner | sprint record (the retrospective) |
+
+## Transitions
+
+| From | To | Kind |
+|---|---|---|
+| Sprint planning | Development | sequence |
+| Development | Release testing | sequence |
+| Release testing | Development | back |
+| Release testing | Sprint review | sequence |
+| Sprint review | Retrospective | sequence |
+| Retrospective | Sprint planning | sequence |
+
+## Verification pairs
+
+| Phase | Checked by |
+|---|---|
+| Development | Release testing |
+| Sprint planning | Sprint review |
+
+## Gates
+
+| Between | Artifacts | Condition | Decider |
+|---|---|---|---|
+| Development → Release testing | the item's pull request into the sprint branch, with its code and TST | CI is green on it and the Definition of Done holds | Product Owner |
+| Release testing → Sprint review | the release tests (TST) of the selected items | written by a participant other than the implementer of the behaviour they test, green on the sprint branch | Product Owner |
+| Retrospective → Sprint planning | the pull request of the sprint branch into \`main\`; the sprint record | the review and the retrospective are recorded, CI is green on the pull request | Product Owner |
+
+## Roles
+
+| Name | Filled by | Capabilities |
+|---|---|---|
+| Product Owner | either | read the repository, write to the repository |
+| Scrum Master | either | read the repository |
+| Developers | either | read the repository, write to the repository, run code and tests, use tools |
+| Release tester | either | read the repository, write to the repository, run code and tests |
+
+## Flow control
+
+| Kind | Value |
+|---|---|
+| WIP limit | 4 |
+| Time box | none |
+| Sprints | yes |
+`;
+
+// docs/process.md on origin/sprint/06 (akmaier, 2026-10-07).
+const AGENT_M_PROCESS = `---
+model: scrum-wip
+model_file: ${AGENT_M_SCRUM_WIP_PATH}
+model_version: ${AGENT_M_MODEL_VERSION}
+sprint_close: scrum-master-session
+---
+
+# How Agent M is developed
+
+**REGISTER**
+
+The declaration of Agent M's process (UC-002, ARC-019): the model by name and version — the commit of this instance that
+holds its file —, the role assignment by participant name (\`docs/participants.md\`), practices, branches, the
+Definition of Done and who closes a sprint.
+
+## Roles
+
+| Role | Participants |
+|---|---|
+| Product Owner | po-opus |
+| Scrum Master | scrum-master-session |
+| Developers | developer-sonnet-a, developer-sonnet-b, developer-sonnet-c, developer-sonnet-d |
+| Release tester | tester-opus |
+
+## Practices
+
+- none
+
+## Branches
+
+| Phase or time box | Branch |
+|---|---|
+| Sprint | \`sprint/<nn>\` |
+
+## Definition of Done
+
+The job rules hold for every pull request; no condition is added.
+
+## Model
+
+\`scrum-wip\` — Scrum with a work-in-progress limit of 4 and no time box, adapted from the shipped Scrum model.
+`;
+
+// docs/participants.md on origin/sprint/06, cut to its one table (the register's own prose above and below it is not
+// read by any schema field this test checks).
+const AGENT_M_PARTICIPANTS = `# Participants of this instance
+
+Capabilities are those of \`A PARTICIPANT DECLARES ITS CAPABILITIES\`: draft text, read the repository, write to
+the repository, run code and tests, use tools, reach the web.
+
+| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
+|---|---|---|---|---|---|---|---|
+| akmaier | person | — | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | — | the GitHub account \`akmaier\`, on the dashboard and on GitHub's own pages |
+| po-opus | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, started by \`akmaier\`; reached without the Agent M Bridge until it exists (ITM-102) |
+| scrum-master-session | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | the Claude Code session on the Mac of \`akmaier\` that \`akmaier\` talks to and that starts the other agents; reached without the Agent M Bridge until it exists (ITM-102) |
+| developer-sonnet-a | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
+| developer-sonnet-b | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
+| developer-sonnet-c | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
+| developer-sonnet-d | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
+| tester-opus | CLI agent | claude-opus-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of \`akmaier\`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
+| reviewer-sonnet | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | a Claude Code subagent that \`scrum-master-session\` starts on the Mac of \`akmaier\` to review architecture drafts, reading only; reached without the Agent M Bridge until it exists (ITM-102) |
+`;
+
+// guards: UC-002 (step 1: the page of a product with Agent M's own declaration)
+// given: Agent M's own docs/process.md and docs/participants.md, and, at the commit its model_version names,
+//        docs/process-models/scrum-wip.md
+// input: route.render(target, context)
+// expect: the model and model_file fields hold scrum-wip and its path; scrum-wip is offered beside the shipped five;
+//         its four roles are shown. Known positive, run directly against this same text: modelFindings names 7
+//         errors in scrum-wip.md as it stands — a Produces cell carrying a parenthetical after its kind (5 rows), the
+//         gate Retrospective → Sprint planning then checking a kind no earlier phase cleanly produces because of it,
+//         and Flow control naming both a WIP limit and a stated (not dashed) time box. declarationFindings turns
+//         this into one error beside model_file naming the count, and Save is disabled — a finding of this test for
+//         the review, not a defect of this item: scrum-wip.md itself needs those five cells and the Time box row
+//         corrected before a fresh declaration against it could be saved.
+test("process route — the page of a product with Agent M's own declaration", async () => {
+  const instanceHost = fakeHost({
+    "docs/participants.md": AGENT_M_PARTICIPANTS,
+    [AGENT_M_SCRUM_WIP_PATH]: AGENT_M_SCRUM_WIP,
+    "SPEC.md": SPEC_TEXT,
+  }, AGENT_M_MODEL_VERSION);
+  const productHost = fakeHost({ "docs/process.md": AGENT_M_PROCESS }, sha1("agent-m-product-head"));
+  const target = connectedTarget();
+
+  const direct = modelFindings(readDocument(modelSchema.model, AGENT_M_SCRUM_WIP_PATH, AGENT_M_SCRUM_WIP))
+    .filter((f) => f.kind === "error");
+  assert.equal(direct.length, 7, "known positive: scrum-wip.md has 7 error findings as it stands");
+
+  await route.render(target, contextOf(instanceHost, productHost));
+
+  const form = byClass(target, "schema-form")[0];
+  assert.equal(inputOf(form, "model").value, "scrum-wip");
+  assert.equal(inputOf(form, "model_file").value, AGENT_M_SCRUM_WIP_PATH);
+  assert.ok(byClass(target, "model-card").some((card) => card.getAttribute("data-model") === "scrum-wip"),
+    "scrum-wip is offered beside the shipped five");
+  for (const role of ["Product Owner", "Scrum Master", "Developers", "Release tester"]) {
+    assert.ok(byData(target, "data-role", role)[0], `the role ${role} is shown`);
+  }
+
+  const beside = besideOf(fieldOf(form, "model_file"));
+  assert.ok(beside.some((finding) => /7 error finding/.test(finding)),
+    "declarationFindings names scrum-wip.md's 7 error findings beside model_file");
+  assert.equal(saveOf(form).disabled, true, "Save is disabled while the declared model has error findings");
 
   target.remove();
 });
