@@ -24,8 +24,8 @@ origin:
 ## Outcome
 
 MOD-browser-store's interface, as its file states it, for what UC-001 keeps in the browser: `openStore`, `readSetting`,
-`writeSetting` and `clearSetting`, over the catalogue's keys for the instance's GitHub token with its expiry, the GitLab
-project tokens and the list of products — and, for UC-047, `notifications` and `notified` —, in `src/browser-store/`, with the prefix and the values the module's file
+`writeSetting` and `clearSetting`, over the catalogue's keys for the instance's GitHub token with its expiry, a GitHub
+product's own token, the GitLab project tokens and the list of products — and, for UC-047, `notifications` and `notified` —, in `src/browser-store/`, with the prefix and the values the module's file
 states.
 
 ## Acceptance
