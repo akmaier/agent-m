@@ -36,3 +36,7 @@ Independent exact-head archive /private/tmp/po-sol-208-z8fujkwz: initial seven c
 ## Disposition
 
 Keep old207 rejection and this exact head/decision unchanged. Correct the two explanation assertions at their own public DOM nodes, check their required content/topics, and walk2a return/continue plus5a successful Check→refused Add. Preserve every corrected assertion and fixture outcome. The existing recorded retry limit governs further correction; this decision does not reset it or start a job. Scrum Master records/schedules any authorized continuation. No merge, main promotion, UC-001 release completion or sprint closure follows.
+
+## Timestamp correction
+
+The decision/publication occurred at 2026-10-07 23:05 UTC, verified with the Mac UTC clock immediately before push. The front-matter23:07 and filename used an incorrectly estimated minute; they do not establish a later event. The decision/head/evidence are unchanged.
