@@ -50,8 +50,10 @@ For a change between jobs, instead of checks 1, 3 and 5: each change is one of t
 Your decision is final within the sprint, and it is no discussion:
 - **Passed:** `gh pr review <n> --repo akmaier/agent-m --comment --body "<what you checked>. Decision: merge, <your
   name> (Product Owner)"`. You do not merge: the Scrum Master merges exactly the head commit you name.
-- **Rejected:** one comment naming the condition that does not hold, in one line — no request for changes, no second
-  round. The item is not done; the review at the sprint's end decides what needs more work in the next sprint.
+- **Rejected:** one comment naming the condition that does not hold, in one line — no request for changes. Its
+  developer may rework it once within the sprint, on exactly that condition (`docs/process.md`, Sprint); you then
+  decide the reworked head as any other. A second rejection is final within the sprint: the item is not done, and the
+  review at the sprint's end decides what needs more work in the next sprint.
 Record each decision on `main` as `docs/gates/<yyyymmdd>-<hhmm>-development-release-testing-<4 hex>.md`, written once:
 front matter `gate: Development → Release testing`, `job:` (empty), `decider`, `role: Product Owner`, `decision: passed`
 or `rejected`, `on: <head commit>`, the pull request's address and `date:` (UTC); then `## Reason` in a few lines naming
