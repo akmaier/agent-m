@@ -1,11 +1,12 @@
 // A change between jobs, sprint 06 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS): docs/assets/dashboard/
 // process-view.mjs makes the dashboard's old routing call MOD-implementation-pages' route `process` (ITM-222) in place
-// of showing the use-case list for an address no view answers. This is the one test of that wiring; the route itself —
-// its models, roles, findings and Save — is tested by tests/implementation-pages.test.mjs and is not repeated here.
+// of showing the use-case list for an address no view answers — this test checks that the dashboard now reaches the
+// page "How this product is developed". The route itself — its models, roles, findings and Save — is tested by
+// tests/implementation-pages.test.mjs and is not repeated here.
 //
 // Module: MOD-dashboard-app
-// Guards: UC-002 (the dashboard reaches the page "How this product is developed"); SPEC.md WHAT NO MODULE OWNS IS
-//         CHANGED BETWEEN JOBS
+// Guards: UC-002
+// Guards: WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS
 // Level: component
 
 import test from "node:test";
