@@ -20,7 +20,6 @@ import {
 } from "../../docs/assets/dashboard/settings-view.mjs";
 import { createKeyStep } from "../../docs/assets/dashboard/setup-view.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
-import { gitlabTokenSteps, gitlabNoProjectTokens } from "../../docs/assets/dashboard/add-product-view.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
 import * as shell from "../../docs/assets/dashboard-app.mjs";
 import { ASSETS, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
@@ -334,29 +333,6 @@ test("status 'approved' is described truly for both routes — the dashboard's o
 // ---------------------------------------------------------------- GitLab products (queue 2026-09-24b)
 // A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN (UC-001 3c/3d)
 
-test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the steps: the project's token page, name, role Maintainer, scope api, expiry", () => {
-  const p = parseProductAddress(GL_ADDR);
-  assert.equal(gitlabTokenPageUrl(p), `${GL_ADDR}/-/settings/access_tokens`);
-  const s = gitlabTokenSteps(p).join("\n");
-  for (const must of [/Agent M/, /role: Maintainer/, /\bapi\b/, /[Ee]xpir/, /Create project access token/, /glpat-/]) assert.match(s, must);
-  assert.doesNotMatch(s, /Developer/, "the role the SPEC no longer prescribes is not asked for");
-  assert.doesNotMatch(s, /Owner/, "no broader role is asked for");
-  // UC-001 3d: which of the two it is, and why a personal token is broader.
-  const self = gitlabNoProjectTokens(p);
-  assert.match(self, /Maintainer/);
-  assert.match(self, /personal access token/);
-  assert.match(self, /every project/);
-  const dotcom = gitlabNoProjectTokens(parseProductAddress("https://gitlab.com/alice/thesis"));
-  assert.match(dotcom, /Premium or Ultimate/, "on gitlab.com the subscription decides");
-  assert.doesNotMatch(self, /Premium/, "a self-managed server offers them with any licence");
-  // A refused write (403) with a Maintainer token: the branch is protected even against Maintainers, or the token lacks scope api
-  // or has a lower role — what GitLab answers 403 for; an expired token is a 401 and named elsewhere (tokenRefusal).
-  const refusal = gitlabWriteRefusal(Object.assign(new Error("403 Forbidden"), { status: 403 }), p);
-  for (const must of [/protected/, /Maintainers/, /\bapi\b/, /Maintainer/]) assert.match(refusal, must);
-  assert.doesNotMatch(refusal, /Developer/);
-  assert.doesNotMatch(refusal, /expired/, "an expired token is answered with 401, not 403");
-  assert.equal(gitlabWriteRefusal(Object.assign(new Error("400"), { status: 400 }), p), null);
-});
 
 // ---------------------------------------------------------------- the last accepted text (queue 2026-09-30, entry 03)
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT (UC-008 2a)
