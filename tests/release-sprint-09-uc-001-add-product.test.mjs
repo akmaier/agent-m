@@ -26,9 +26,9 @@ async function page(address) {
   return main;
 }
 
-async function releaseWorld() {
+async function releaseWorld(files = { "README.md": "# Product\n" }) {
   const requests = [];
-  const product = await repoServer({ repo: PRODUCT, files: { "README.md": "# Product\n" }, handlers: [
+  const product = await repoServer({ repo: PRODUCT, files, handlers: [
     (url) => url.pathname === `/repos/${PRODUCT}`
       ? new Response(JSON.stringify({ visibility: "public", private: false, default_branch: "main", permissions: { push: true } }), { headers: { "Content-Type": "application/json" } })
       : undefined,
@@ -93,6 +93,8 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
   assert.deepEqual(Object.fromEntries([...prefilled].filter(([key]) => !["name", "description", "target_name", "expires_in"].includes(key))), {
     contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read",
   }, "the prefilled product token grants every and only UC-014 feature permission");
+  const long = await page("https://github.com/owner-with-a-long-name/repository-name-that-is-longer-than-github-allows");
+  assert.ok(new URL(long.querySelector("a").href).searchParams.get("name").length <= 40, "the product token name stays within GitHub's 40-character bound");
   assert.match(gh.querySelector("input.expires").value, /^\d{4}-\d\d-\d\d$/, "the pasted token has an expiry date to confirm");
   assert.match(ghText, /kept in this browser for this product only/i);
   assert.match(ghText, /sent only to GitHub's API/i);
@@ -128,19 +130,21 @@ test("TST-286 UC-001 release transaction guards product writes and browser state
   assert.equal(synthetic.product.writes.length, 0, "a synthetic event cannot write the product layout");
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "a synthetic event cannot change the product list");
 
-  const trusted = await releaseWorld();
+  const trusted = await releaseWorld({ "README.md": "# Product\n", "CHANGELOG.md": "# Changelog of alice/thesis-tool\n\n## 1.0\n" });
   main = await addProduct(trusted);
   await press(trusted.instance, main.querySelector("button.add"));
   assert.equal(trusted.product.writes.length, 1, "one trusted decision creates one layout commit");
   for (const path of ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md", "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"])
     assert.ok(trusted.product.files[path], `the product receives required review-layout part ${path}`);
   assert.match(trusted.product.files["docs/use-cases/README.md"], /status is derived from the approval records/i, "the layout is self-sufficient rather than a product-site placeholder");
-  assert.match(trusted.product.files["CHANGELOG.md"], /Changelog of alice\/thesis-tool/, "the product gets its own version line");
+  assert.equal(trusted.product.files["CHANGELOG.md"], "# Changelog of alice/thesis-tool\n\n## 1.0\n", "an existing product keeps its independent version line");
   assert.equal(trusted.product.files["README.md"], "# Product\n", "the existing product content is preserved");
   assert.ok(!Object.keys(trusted.product.files).some((path) => /CNAME|pages|\.github\/workflows/i.test(path)), "adding the review layout creates no product Pages-site setup");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}products`)), [GH], "the dashboard keeps only the product address in this browser");
   assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`)).value, PRODUCT_TOKEN, "the canonical browser store keeps the product key with its product address");
   assert.ok(trusted.requests.filter((request) => request.url.includes(`/repos/${PRODUCT}`)).every((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), "the product credential is sent only on product API requests");
+  const tokenRequests = trusted.requests.filter((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`);
+  assert.ok(tokenRequests.length > 0 && tokenRequests.every((request) => request.url.startsWith(`${API}/repos/${PRODUCT}`)), "every GitHub product-token request stays at its issuing product API");
   assert.ok(!trusted.requests.some((request) => request.authorization === `Bearer ${TOKEN}` && request.url.includes(`/repos/${PRODUCT}`)), "the instance key is absent from product requests");
   assert.deepEqual(trusted.instance.writes, [], "the instance repository is never named or written during Add product");
   assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "the instance credential remains distinct from the product credential");
