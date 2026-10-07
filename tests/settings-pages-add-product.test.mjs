@@ -795,7 +795,7 @@ test("add-product — 3c/3d: GitLab's Step A is instructions only, Step B stores
   assert.equal(byTag(c, "button")[0].disabled, false, "Step C is enabled once the GitLab project's token is stored");
 });
 
-// TST-279
+// TST-288
 // guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
 // Module: MOD-settings-pages
 // Level: unit
@@ -805,7 +805,7 @@ test("add-product — 3c/3d: GitLab's Step A is instructions only, Step B stores
 // expect: the selected cause is named, its expandable explanation states that a personal api token reaches every
 //         project the author can reach on that server before leaving the decision to them, and selection makes neither
 //         a server request nor a browser-store write
-test("TST-279 add-product — GitLab's no-project-token cause is selected locally with personal-token breadth before the decision", async () => {
+test("TST-288 add-product — GitLab's no-project-token cause is selected locally with personal-token breadth before the decision", async () => {
   const store = freshStore();
   const target = await renderAddress(contextOf(store), GL_WEB);
   const a = stepTitled(target, "Step A · Create a key for this project");
@@ -825,7 +825,7 @@ test("TST-279 add-product — GitLab's no-project-token cause is selected locall
   assert.equal(readSetting(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`), null);
 });
 
-// TST-280
+// TST-289
 // guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
 // Module: MOD-settings-pages
 // Level: unit
@@ -833,7 +833,7 @@ test("TST-279 add-product — GitLab's no-project-token cause is selected locall
 // input: the author expands and selects the public "I am not Maintainer" cause
 // expect: the selected cause is named separately, its expandable explanation states the breadth of a personal api
 //         token before leaving the decision to the author, and the normal project-token route remains available
-test("TST-280 add-product — GitLab's not-Maintainer cause is selected separately without replacing the project-token route", async () => {
+test("TST-289 add-product — GitLab's not-Maintainer cause is selected separately without replacing the project-token route", async () => {
   const store = freshStore();
   const target = await renderAddress(contextOf(store), GL_WEB);
   const a = stepTitled(target, "Step A · Create a key for this project");
