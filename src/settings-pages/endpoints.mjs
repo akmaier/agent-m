@@ -4,6 +4,7 @@
 
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { clearSetting, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { explain } from "../site-frame/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -14,6 +15,11 @@ function el(name, className, ...children) {
 
 function endpointKey(name) {
   return name ? `endpoint:${name}` : null;
+}
+
+function sharedPagesNotice(context) {
+  const owner = String(context.instance?.repository ?? "").split("/")[0];
+  return `Everything Agent M stores in this browser is stored for the address https://${owner}.github.io — every GitHub Pages site under that same ${owner}.github.io domain can read it.`;
 }
 
 function settingFrom(fields) {
@@ -67,6 +73,7 @@ export const route = {
     const model = el("input", "endpoint-model");
     const key = el("input", "endpoint-key");
     const throughBridge = el("input", "endpoint-through-bridge");
+    const show = el("button", "endpoint-show", "Show");
     const disclosure = el("p", "endpoint-disclosure", "Agent M sends one short test request to this endpoint. Its optional key is sent only in that request's authorisation header, never in a URL or repository.");
     const test = el("button", "endpoint-test", "Save and test");
     const clear = el("button", "endpoint-clear", "Clear");
@@ -80,6 +87,12 @@ export const route = {
     key.placeholder = "Optional API key";
     throughBridge.type = "checkbox";
     for (const input of [name, url, model, key]) { input.autocomplete = "off"; input.spellcheck = false; }
+
+    show.addEventListener("click", () => {
+      const hidden = key.type === "password";
+      key.type = hidden ? "text" : "password";
+      show.textContent = hidden ? "Hide" : "Show";
+    });
 
     const requestedName = typeof params.name === "string" ? params.name : "";
     applySetting(fields, requestedName, readSetting(context.store, endpointKey(requestedName)));
@@ -114,12 +127,20 @@ export const route = {
       el("p", "muted", "Store an endpoint in this browser, then make one short test request."),
       el("p", null, el("label", null, "Name ", name)),
       el("p", null, el("label", null, "Endpoint URL ", url)),
+      explain("endpoint-url"),
       el("p", null, el("label", null, "Kind ", kind)),
+      explain("endpoint-kind"),
       el("p", null, el("label", null, "Model ", model)),
-      el("p", null, el("label", null, "API key ", key)),
+      explain("endpoint-model"),
+      el("p", null, el("label", null, "API key ", key, " ", show)),
+      explain("endpoint-key"),
       el("p", null, el("label", null, throughBridge, " This local model is reached through the Bridge")),
+      explain("endpoint-route"),
+      el("p", "notice endpoint-shared-origin", sharedPagesNotice(context)),
       disclosure,
       el("p", null, test, " ", clear),
+      explain("endpoint-test"),
+      explain("endpoint-clear"),
       result,
     );
     name.focus();
