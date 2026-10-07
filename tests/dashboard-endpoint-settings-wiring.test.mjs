@@ -1,7 +1,7 @@
 // The dashboard's endpoint-settings composition (Sprint 09, between/09-endpoint-settings).
 // Run: node --test tests/dashboard-endpoint-settings-wiring.test.mjs
 //
-// Module: MOD-settings-pages · MOD-browser-store · MOD-dashboard-app
+// Module: MOD-settings-pages · MOD-browser-store · MOD-site-frame
 // Level: component
 // Guards: UC-003; UC-001; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE
 //
@@ -23,12 +23,12 @@ const ENDPOINT = {
   throughBridge: false,
 };
 
-// TST-09-ENDPOINT-WIRING-001
+// TST-290
 // Precondition: this dashboard browser already stores one direct endpoint under MOD-browser-store's instance key.
 // Input: the author opens the dashboard's public Settings entry.
 // Expected: the Settings page retains the legacy browser and notification areas and renders the endpoint slice in its own
 //           endpoints container, where the stored endpoint is reachable for UC-003.
-test("TST-09-ENDPOINT-WIRING-001: Settings composes the stored endpoint slice beside legacy browser settings", async () => {
+test("TST-290: Settings composes the stored endpoint slice beside legacy browser settings", async () => {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries: { [ENDPOINT_KEY]: JSON.stringify(ENDPOINT) } });
   richDocument();
