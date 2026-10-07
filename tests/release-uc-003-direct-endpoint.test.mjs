@@ -10,7 +10,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { openDashboard, press, repoServer, richDocument } from "./app-harness.mjs";
+import { openDashboard, press, repoServer, richDocument, settle } from "./app-harness.mjs";
 
 const INSTANCE = "akmaier/agent-m";
 const prefix = `agent-m:${INSTANCE}:`;
@@ -19,7 +19,7 @@ const BRIDGED = { name: "local", url: "http://127.0.0.1:11434", kind: "openai-co
 const type = (control, value) => { control.value = value; };
 const setting = (name) => globalThis.localStorage.getItem(`${prefix}endpoint:${name}`);
 
-async function openEndpointDashboard({ entries = {}, handlers = [] } = {}) {
+async function openEndpointDashboard({ entries = {}, handlers = [], pathname = null } = {}) {
   const server = await repoServer({ files: {}, handlers });
   const page = await openDashboard({ server, hash: "#uc", entries });
   const dom = richDocument();
@@ -28,7 +28,12 @@ async function openEndpointDashboard({ entries = {}, handlers = [] } = {}) {
   main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]'
     ? { replaceChildren(...children) { mounted = children; } }
     : base(selector);
-  await page.go("#settings");
+  if (pathname) {
+    globalThis.location.pathname = pathname;
+    globalThis.location.hash = "#settings";
+    await import(`../docs/assets/dashboard-app.mjs?itm270-instance=${encodeURIComponent(pathname)}`);
+    await settle(server);
+  } else await page.go("#settings");
   await press(server, mounted[0]);
   assert.equal(globalThis.location.hash, "#endpoints", "Configure selects the dashboard's endpoint route");
   await page.go("#endpoints");
@@ -46,10 +51,10 @@ function fill(main, endpoint = ENDPOINT) {
 // Module: MOD-settings-pages → MOD-browser-store
 // Level: release
 // Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
-// Precondition: two dashboard browsers begin with no endpoint record.
-// Input: one browser saves a successful endpoint through Settings → Configure.
-// Expected: only that browser's localStorage owns the configuration and no cookie is set.
-// Planted fault: changing openStore's prefix in src/browser-store/store.mjs to a global key makes the second-browser isolation assertion fail.
+// Precondition: two dashboard instances share one same-origin browser localStorage.
+// Input: each instance saves its own endpoint through Settings → Configure, then reloads its named route.
+// Expected: each public dashboard route reads only its own instance record, and no cookie is set.
+// Planted fault: fixing prefixOf to agent-m:akmaier/agent-m: makes akmaier/other load the first instance record.
 test("TST-292005: a direct configuration is browser-local localStorage state, never a cookie", async () => {
   const handler = async (url) => url.href === `${ENDPOINT.url}/chat/completions`
     ? new Response(JSON.stringify({ choices: [] }), { status: 200 }) : null;
@@ -59,10 +64,14 @@ test("TST-292005: a direct configuration is browser-local localStorage state, ne
   await press(first.server, first.main.querySelector(".endpoint-test"));
   assert.match(setting(ENDPOINT.name), /release-model/);
   assert.equal(globalThis.document.cookie, "", "failure node: endpoint save did not write document.cookie");
-  globalThis.localStorage.setItem("agent-m:other/instance:endpoint:release", JSON.stringify({ ...ENDPOINT, model: "other-model" }));
+  const second = await openEndpointDashboard({ pathname: "/other/instance/", handlers: [handler] });
+  fill(second.main, { ...ENDPOINT, model: "other-model" });
+  await press(second.server, second.main.querySelector(".endpoint-test"));
+  assert.match(globalThis.localStorage.getItem("agent-m:akmaier/other:endpoint:release"), /other-model/);
+  await second.page.go("#endpoints/release");
+  assert.equal(second.main.querySelector(".endpoint-model").value, "other-model", "the second instance route retains its own endpoint record");
   await first.page.go("#endpoints/release");
-  assert.equal(first.main.querySelector(".endpoint-model").value, ENDPOINT.model, "the actual route reads only this instance namespace, never other/instance");
-  assert.match(globalThis.localStorage.getItem("agent-m:other/instance:endpoint:release"), /other-model/, "the second instance record remains isolated in the same browser storage");
+  assert.equal(first.main.querySelector(".endpoint-model").value, ENDPOINT.model, "the actual route reads only this instance namespace, never akmaier/other");
 });
 
 // TST-292006
