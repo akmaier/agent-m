@@ -34,7 +34,8 @@ one `SPEC.md` names, and `SPEC.md` needs no change.
   newly open use case and a newly open SPEC change yield one notification each, naming the file and linking the page
   where it is accepted; and a file already notified, or notifications switched off, yields none.
 - It states, for `NOTIFICATIONS ARE SWITCHED ON BY THE PERSON`: no page of the dashboard asks for the permission before
-  the click that switches them on, and that click asks once.
+  the click that switches them on — the main page, `src/home/home.mjs`, as well as the review pages, each of which
+  starts MOD-notifications' checks —, and that click asks once.
 - Each test names the requirement it guards and the module it exercises; its counter-proof — a fault planted in the code
   it guards, and the test failing on it — is recorded in the pull request.
 - Where the pages and a requirement disagree, the test follows the requirement and the disagreement is named as a
