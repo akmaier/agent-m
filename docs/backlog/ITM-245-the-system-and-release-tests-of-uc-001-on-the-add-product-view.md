@@ -12,6 +12,7 @@ modules:
 builds_on:
   - ITM-207
   - ITM-273
+  - ITM-274
 tests:
   - system
   - release
