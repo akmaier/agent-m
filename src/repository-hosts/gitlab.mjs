@@ -5,7 +5,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), commitFiles(change) — and adds what both adapters share.
+// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -48,6 +48,15 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
   const moved = (branch, head) => new HostError("Moved", { head },
     `${branch} has moved on${head ? ` to ${head.slice(0, 12)}` : ""} since it was read — nothing was written; read it again.`);
 
+  // "Get a single repository tag", read after a refused creation, to name the commit the tag already stands on.
+  const tagExists = async (name) => {
+    const r = await read(`${api}/repository/tags/${encodeURIComponent(name)}`, { on: { 404: () => null } });
+    const commit = r?.commit?.id ?? null;
+    return new HostError("TagExists", { commit },
+      `${name} exists already, on ${commit ? commit.slice(0, 12) : "a commit this page could not read"} — a release is never ` +
+      "re-tagged (A VERSION IS NOT REWRITTEN).");
+  };
+
   return {
     // An answer that names neither a visibility nor a default branch did not come from a GitLab server.
     async repositoryInfo() {
@@ -72,6 +81,13 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       return { commit, blobs };
+    },
+
+    // Every tag of the project, with the commit it points to ("List project repository tags": commit.id is the commit an
+    // annotated tag is already dereferenced to).
+    async listTags() {
+      const items = await read(`${api}/repository/tags?per_page=100`);
+      return items.map((t) => ({ name: t.name, commit: t.commit.id }));
     },
 
     // One file's text at a commit, or null where the commit does not hold it.
@@ -118,6 +134,18 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         } } });
       const c = await json(answer, address.origin);
       return { commit: c.id, url: c.web_url ?? `${address.web}/-/commit/${c.id}` };
+    },
+
+    // Sets a tag on a commit ("Create a new tag", tag_name + ref). A GitLab server answers an existing tag's creation with 400
+    // "Tag <name> already exists": that tag's current commit is then read and the call fails with TagExists, the tag never
+    // moved (A VERSION IS NOT REWRITTEN).
+    async createTag(name, commit) {
+      await call("POST", `${api}/repository/tags`, { body: { tag_name: name, ref: commit },
+        on: { 400: async (a) => {
+          const said = await a.clone().json().then((j) => String(j.message ?? j.error ?? ""), () => "");
+          if (!/already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
+          throw await tagExists(name);
+        } } });
     },
   };
 }
