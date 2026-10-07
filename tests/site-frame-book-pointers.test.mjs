@@ -42,7 +42,10 @@ test("explanations.md — each of UC-002's choices points to a chapter of the bo
   for (const [choice, topic] of CHOICES) {
     const text = topicText(topic);
     assert.ok(text?.trim(), `known positive: explanations.md holds the topic ${topic}`);
-    assert.match(text, /Vibe Coding/, `${choice}: its What is this? names the book`);
-    assert.match(text, /chapter/i, `${choice}: its What is this? names a chapter`);
+    // As a person reads it, not as the source wraps its lines (renderArtifact's Markdown may carry the book's name across
+    // a line break — tests/system-uc-002-choose-a-process-model.test.mjs's textOf has the same rule for the same reason).
+    const read = text.replace(/\s+/g, " ");
+    assert.match(read, /Vibe Coding/, `${choice}: its What is this? names the book`);
+    assert.match(read, /chapter/i, `${choice}: its What is this? names a chapter`);
   }
 });
