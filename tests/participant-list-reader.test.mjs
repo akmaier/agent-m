@@ -84,9 +84,9 @@ const DEVELOPER = { name: "developer-a", type: "CLI agent", model: "example-mode
 //         them:
 //         - akmaier, a person without a model and a place: name "akmaier", type "person", model null, context null, price
 //           null, capabilities all six, place null, route the text of its row's Route;
-//         - developer-sol-d, a CLI agent with its model and its place: name "developer-sol-d", type "CLI agent", model
-//           "gpt-6.1-sol", context null, price null, capabilities all six, place "OpenAI; the processing region of this Codex session is not declared" —
-//           one place, its punctuation kept —, route the text of its row's Route
+//         - developer-opus-d, a CLI agent with its model and its place: name "developer-opus-d", type "CLI agent", model
+//           "claude-opus-5-5", context null, price null, capabilities all six, place "Anthropic, a provider in the USA" —
+//           one place, its comma kept —, route the text of its row's Route
 test("participantsOf — this instance's register read into participants: a person without a model and a place, a CLI agent with its model and its place", () => {
   const { document, rows } = readRegister(participantSchema(), REGISTER_PATH, readFileSync(INSTANCE_REGISTER, "utf8"));
   const participants = participantsOf(document);
@@ -96,9 +96,9 @@ test("participantsOf — this instance's register read into participants: a pers
   const routeOf = (name) => rows.find((row) => row.cells.Name === name)?.cells.Route;
   assert.deepEqual(named("akmaier"), { name: "akmaier", type: "person", model: null, context: null, price: null,
     capabilities: CAPABILITIES, place: null, route: routeOf("akmaier") }, "akmaier");
-  assert.deepEqual(named("developer-sol-d"), { name: "developer-sol-d", type: "CLI agent", model: "gpt-6.1-sol",
-    context: null, price: null, capabilities: CAPABILITIES, place: "OpenAI; the processing region of this Codex session is not declared",
-    route: routeOf("developer-sol-d") }, "developer-sol-d");
+  assert.deepEqual(named("developer-opus-d"), { name: "developer-opus-d", type: "CLI agent", model: "claude-opus-5-5",
+    context: null, price: null, capabilities: CAPABILITIES, place: "Anthropic, a provider in the USA",
+    route: routeOf("developer-opus-d") }, "developer-opus-d");
 });
 
 // guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; NO COST IS GUESSED
