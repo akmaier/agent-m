@@ -427,6 +427,7 @@ test("add-product — before a valid address, a placeholder with no known explan
 //         commit and remembers the address, with no further, unscripted request
 test("add-product — main flow: Step A prefilled and spelled out, Store and check flips Step A done, Add product writes and remembers", async () => {
   const store = freshStore();
+  seedToken(store, "github-token", { value: "github_pat_INSTANCE" });
   const context = contextOf(store);
   const target = await renderAddress(context, GH_WEB);
 
@@ -450,7 +451,7 @@ test("add-product — main flow: Step A prefilled and spelled out, Store and che
 
   const b = stepTitled(target, "Step B · Check");
   const c = stepTitled(target, "Step C · Add the product");
-  assert.equal(lastResultOf(c), "Store the product's key in Step A first.");
+  assert.equal(lastResultOf(c), "", "the stored instance key may be tried while Step A still asks for the product key");
 
   // UC-001 step 3 and THE SHARED PAGES ORIGIN IS DISCLOSED: the instance's Pages origin — never the product
   // owner — is stated and acknowledged before the paste field can accept a key. A click on disabled controls must
@@ -479,6 +480,7 @@ test("add-product — main flow: Step A prefilled and spelled out, Store and che
   assert.match(lastResultOf(b), /this key can write here/);
   assert.equal(readSetting(store, "github-token:alice/thesis-tool").value, "github_pat_ALICE0123456789");
   assert.equal(readSetting(store, "github-token:alice/thesis-tool").expires, expiresField.value);
+  assert.equal(readSetting(store, "github-token").value, "github_pat_INSTANCE", "the instance token is unchanged");
 
   const done = stepTitled(target, "Step A · A key for the product — done");
   assert.ok(done, "Step A is repainted as done once the check proves the key reaches the product");
@@ -500,7 +502,8 @@ test("add-product — main flow: Step A prefilled and spelled out, Store and che
   // NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY: nothing but this product's own token and the products list was
   // ever written to this browser's store.
   assert.deepEqual(new Set(store.storage.map.keys()),
-    new Set([`agent-m:fixture/instance:github-token:${GH_PATH}`, "agent-m:fixture/instance:products"]));
+    new Set(["agent-m:fixture/instance:github-token", `agent-m:fixture/instance:github-token:${GH_PATH}`,
+      "agent-m:fixture/instance:products"]));
 });
 
 // guards: UC-001 2a (Check), counter to 4a
@@ -692,7 +695,7 @@ test("add-product — GitLab: a project's own token already stored offers Check 
   const target = await renderAddress(context, GL_WEB);
   const b = stepTitled(target, "Step B · Give the key to Agent M");
   assert.match(resultsOf(b)[0], /already stored.*expires on 2027-03-01/s);
-  assert.ok(byTag(b, "input")[0], "the paste form is still there for a new token");
+  assert.ok(byTag(b, "input").some((input) => input.type === "password"), "the paste form is still there for a new token");
   const [checkBtn] = byTag(b, "button");
   await withFetch(scripted([gitlabInfoStep({ level: 40 })]), () => click(checkBtn));
   assert.match(lastResultOf(b), /is reachable/);
