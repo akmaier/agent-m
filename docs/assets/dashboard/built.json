@@ -3,6 +3,7 @@
   "how-view.mjs",
   "process-view.mjs",
   "review-views.mjs",
+  "settings/endpoints.mjs",
   "settings-view.mjs",
   "setup-view.mjs",
   "spec-changes-view.mjs"

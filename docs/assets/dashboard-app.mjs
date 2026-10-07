@@ -519,6 +519,16 @@ async function route() {
       }
       return;
     }
+    if (kind === "endpoints") {
+      const endpoints = settingsPages.routes.find((r) => r.name === "endpoints");
+      await endpoints.render(main(), {
+        instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route, params = {}) {
+          if (route === "endpoints") location.hash = `#endpoints/${encodeURIComponent(params.name ?? "")}`;
+        },
+      }, { name: a ? decodeURIComponent(a) : "" });
+      return;
+    }
     // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
     const v = DASHBOARD.find((x) => x.view && x.view === kind);
     const views = v && built.has(v.file) ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
