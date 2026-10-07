@@ -1,6 +1,6 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, commitFiles and webLinks. Every function of a host that reaches a server says
-// so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
+// returns, with repositoryInfo, readSnapshot, commitFiles, listTags, createTag and webLinks. Every function of a host that
+// reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
 //
 // Module: MOD-repository-hosts
 //
@@ -58,6 +58,12 @@ export function parseAddress(url) {
 const GITHUB_TOKEN = /^(github_pat_|gh[pousr]_)/;
 const GITLAB_TOKEN = /^gl[a-z]+-/;
 const HEAD = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
+
+// A shell-style pattern such as "v*" -> RegExp, anchored: "*" any run of characters, "?" one character.
+function globPattern(pattern) {
+  const body = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+  return new RegExp(`^${body}$`);
+}
 
 // The address connect is given is one parseAddress reads, field for field: the server a token goes to is never taken from a
 // field that disagrees with the repository's own address.
@@ -164,6 +170,25 @@ export function connect(address, credentials = {}) {
       const c = checkedChange(change);
       refuseSecrets(c.files, refused);
       return adapter.commitFiles(c);
+    },
+
+    // listTags(pattern?) -> { name, commit }[] — every tag, or only those matching a shell-style pattern such as "v*".
+    // Crosses the network; fails as readSnapshot (NotFound, TokenRefused, PermissionMissing, RateLimited, Unreachable).
+    async listTags(pattern) {
+      if (pattern !== undefined && typeof pattern !== "string") throw new TypeError('a pattern is a text, such as "v*"');
+      const tags = await adapter.listTags();
+      if (pattern === undefined) return tags;
+      const match = globPattern(pattern);
+      return tags.filter((t) => match.test(t.name));
+    },
+
+    // createTag(name, commit) -> void — sets a tag on a commit; an existing tag is never moved and fails with TagExists
+    // { commit } (A VERSION IS NOT REWRITTEN). Crosses the network; fails also with PermissionMissing, TokenRefused,
+    // RateLimited, Unreachable.
+    async createTag(name, commit) {
+      if (typeof name !== "string" || !name.trim()) throw new TypeError("createTag names the tag");
+      if (!HEAD.test(String(commit))) throw new TypeError(`createTag names the commit it tags: ${commit}`);
+      return adapter.createTag(name, commit);
     },
 
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.

@@ -4,13 +4,15 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), commitFiles(change) — and adds what both adapters share.
+// readFile(commit, path), commitFiles(change), listTags(), createTag(name, commit) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
 const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
 const JSON_ACCEPT = "application/vnd.github+json", RAW_ACCEPT = "application/vnd.github.raw+json";
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
+// "List repository tags": 100 is the most per_page it allows.
+const TAG_PAGE = 100, TAG_MAX_PAGES = 1000;
 
 // The bytes of a file as base64, in pieces small enough for String.fromCharCode.
 function base64(bytes) {
@@ -62,6 +64,12 @@ export function githubAdapter(address, { token, tokenName }, links) {
   };
   const moved = (branch, head) => new HostError("Moved", { head },
     `${branch} has moved on${head ? ` to ${head.slice(0, 12)}` : ""} since it was read — nothing was written; read it again.`);
+
+  // A tag's reference: read at git/ref/tags/…, created at git/refs ("Get a reference", "Create a reference").
+  const tagHead = async (name) => {
+    const r = await read(`${repo}/git/ref/tags/${encodeURIComponent(name)}`, { on: { 404: () => null } });
+    return r?.object?.sha ?? null;
+  };
 
   return {
     async repositoryInfo() {
@@ -122,6 +130,29 @@ export function githubAdapter(address, { token, tokenName }, links) {
       await call("PATCH", `${repo}/git/refs/${heads(branch)}`, { body: { sha: commit.sha, force: false },
         on: { 422: async () => { throw moved(branch, await branchHead(branch).catch(() => null)); } } });
       return { commit: commit.sha, url: commit.html_url ?? `${address.web}/commit/${commit.sha}` };
+    },
+
+    // Every tag with its commit ("List repository tags"), across as many pages as the repository has.
+    async listTags() {
+      const out = [];
+      for (let page = 1; page <= TAG_MAX_PAGES; page++) {
+        const items = await read(`${repo}/tags?per_page=${TAG_PAGE}&page=${page}`);
+        for (const t of items) out.push({ name: t.name, commit: t.commit.sha });
+        if (items.length < TAG_PAGE) break;
+      }
+      return out;
+    },
+
+    // A ref refs/tags/<name> on the commit named ("Create a reference"): 201 on success. A ref that stands already answers
+    // 409 ("Create a reference", HTTP response codes 201/409/422) — read again for its commit and refused as TagExists,
+    // never moved (A VERSION IS NOT REWRITTEN).
+    async createTag(name, commit) {
+      await call("POST", `${repo}/git/refs`, { body: { ref: `refs/tags/${name}`, sha: commit },
+        on: { 409: async (a) => {
+          const existing = await tagHead(name);
+          if (existing) throw new HostError("TagExists", { commit: existing }, `the tag ${name} exists already, on ${existing.slice(0, 12)}.`);
+          throw await refusal(a, { ...context, write: true });
+        } } });
     },
   };
 }

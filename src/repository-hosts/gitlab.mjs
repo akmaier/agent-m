@@ -5,7 +5,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), commitFiles(change) — and adds what both adapters share.
+// readFile(commit, path), commitFiles(change), listTags(), createTag(name, commit) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -118,6 +118,34 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         } } });
       const c = await json(answer, address.origin);
       return { commit: c.id, url: c.web_url ?? `${address.web}/-/commit/${c.id}` };
+    },
+
+    // Every tag with its commit ("List project repository tags"), across as many pages as the project has.
+    async listTags() {
+      const out = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const items = await read(`${api}/repository/tags?per_page=${PAGE}&page=${page}`);
+        for (const t of items) out.push({ name: t.name, commit: t.commit.id });
+        if (items.length < PAGE) break;
+      }
+      return out;
+    },
+
+    // A project tag on the commit named ("Create a new tag"): every failure of Tags::CreateService answers 400 with its
+    // message (gitlab-org/gitlab lib/api/tags.rb); "Tag <name> already exists" (app/services/tags/create_service.rb) is read
+    // again for its commit and refused as TagExists, never moved (A VERSION IS NOT REWRITTEN); any other 400 is the failure
+    // it names.
+    async createTag(name, commit) {
+      await call("POST", `${api}/repository/tags`, { body: { tag_name: name, ref: commit },
+        on: { 400: async (a) => {
+          const said = await a.clone().json().then((j) => String(j.message ?? ""), () => "");
+          if (/already exists/i.test(said)) {
+            const existing = await read(`${api}/repository/tags/${encodeURIComponent(name)}`, { on: { 404: () => null } });
+            const at = existing?.commit?.id ?? null;
+            if (at) throw new HostError("TagExists", { commit: at }, `the tag ${name} exists already, on ${at.slice(0, 12)}.`);
+          }
+          throw await refusal(a, { ...context, write: true });
+        } } });
     },
   };
 }
