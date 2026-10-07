@@ -6,5 +6,7 @@
 // Module: MOD-settings-pages
 
 import { route as addProduct } from "./products.mjs";
+import { route as endpoints } from "./endpoints.mjs";
+import { route as settings } from "./settings.mjs";
 
-export const view = { routes: [addProduct], strategies: [] };
+export const view = { routes: [settings, addProduct, endpoints], strategies: [] };
