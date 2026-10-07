@@ -17,6 +17,7 @@ modules:
   - MOD-settings-pages
 builds_on:
   - ITM-207
+  - ITM-273
   - ITM-259
   - ITM-260
   - ITM-264

@@ -11,6 +11,7 @@ modules:
   - MOD-artifact-edits
 builds_on:
   - ITM-207
+  - ITM-273
 tests:
   - system
   - release
