@@ -289,3 +289,26 @@ test("TST-265012: Settings Clear removes only the selected endpoint entry", asyn
   assert.doesNotMatch(target.textContent, /Endpoint: campus/);
   assert.match(target.textContent, /Endpoint: local/);
 });
+
+// TST-265013
+// Module: MOD-settings-pages
+// Level: unit
+// guards: EVERY STEP EXPLAINS ITSELF
+// given: a browser store with one canonical endpoint setting
+// input: the person opens the public Settings Route
+// expect: the browser section and its stored endpoint line each expose a registered folded explanation
+test("TST-265013: Settings explains its browser section and each stored endpoint line", async () => {
+  const store = freshStore();
+  writeSetting(store, "endpoint:campus", ENDPOINT);
+  const target = await renderSettings(store);
+  const browserExplanation = byClass(target, "settings-browser-explanation");
+  const line = byClass(target, "settings-endpoint")[0];
+  const lineExplanation = byClass(line, "settings-endpoint-explanation");
+  assert.equal(browserExplanation.length, 1, "the browser section has its folded explanation");
+  assert.equal(lineExplanation.length, 1, "the stored endpoint line has its folded explanation");
+  const folded = [...byTag(browserExplanation[0], "details"), ...byTag(lineExplanation[0], "details")];
+  assert.equal(folded.length, 2, "both explanations use the public folded control");
+  assert.ok(folded.every((detail) => byTag(detail, "summary").some((summary) => summary.textContent === "What is this?")));
+  assert.match(browserExplanation[0].textContent, /Bridge/);
+  assert.match(lineExplanation[0].textContent, /short test request/);
+});
