@@ -176,3 +176,41 @@ test("TST-265007: disclosure precedes a hidden endpoint key without repository o
     assert.equal(document.cookie, "", "render, save, and test set no cookie");
   } finally { globalThis.fetch = oldFetch; }
 });
+
+// TST-265008
+// Module: MOD-settings-pages
+// Level: unit
+// guards: THE SHARED PAGES ORIGIN IS DISCLOSED; EVERY STEP EXPLAINS ITSELF
+// given: the public endpoints Route for an instance whose Pages owner is fixture
+// input: the author opens the Route before entering or storing a key
+// expect: the shared-origin disclosure precedes Save and test, and the registered endpoint explanations are folded
+test("TST-265008: endpoint storage is preceded by its Pages-origin notice and folded explanations", async () => {
+  const target = await render(freshStore());
+  const action = byClass(target, "endpoint-test")[0];
+  const disclosure = byClass(target, "endpoint-shared-origin")[0];
+  const ordered = descendants(target, (node) => node === disclosure || node === action);
+  assert.match(disclosure.textContent, /fixture\.github\.io/);
+  assert.ok(ordered.indexOf(disclosure) >= 0 && ordered.indexOf(disclosure) < ordered.indexOf(action), "the shared-origin notice precedes storage");
+  const details = byTag(target, "details");
+  assert.equal(details.length, 7, "every endpoint field and action has its registered folded explanation");
+  assert.ok(details.every((folded) => byTag(folded, "summary").some((summary) => summary.textContent === "What is this?")));
+});
+
+// TST-265009
+// Module: MOD-settings-pages
+// Level: unit
+// guards: A STORED SECRET IS HIDDEN UNTIL SHOWN
+// given: an endpoint whose browser-store record contains a key
+// input: the author reloads the public endpoints Route and presses Show
+// expect: the key begins in a password field and is revealed in full only after Show
+test("TST-265009: a stored endpoint key stays hidden until Show", async () => {
+  const store = freshStore();
+  writeSetting(store, "endpoint:campus", ENDPOINT);
+  const target = await render(store, { name: "campus" });
+  const key = byClass(target, "endpoint-key")[0], show = byClass(target, "endpoint-show")[0];
+  assert.equal(key.type, "password");
+  assert.equal(key.value, ENDPOINT.key);
+  await click(show);
+  assert.equal(key.type, "text");
+  assert.equal(key.value, ENDPOINT.key);
+});
