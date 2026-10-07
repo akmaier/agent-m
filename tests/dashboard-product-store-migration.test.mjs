@@ -124,3 +124,48 @@ test("the public add-product route rejects a synthetic Add product click", async
   await page.click("button.add", { isTrusted: false });
   assert.equal(server.writes.length, 0, "a synthetic click must not commit the product layout");
 });
+
+// TST-269
+// Module: MOD-browser-store
+// Level: component
+// given: GitHub and GitLab product tokens mirrored through the dashboard adapter
+// input: the existing Settings clear-token callers clear each product token, then the adapter reloads
+// expect: both the public catalogue and the legacy settings view stay clear
+test("clearing product tokens clears their canonical values and cannot resurrect them on reload", () => {
+  const github = "https://github.com/alice/tool", gitlab = "https://gitlab.example.org/team/tool", instance = "akmaier/agent-m";
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage() });
+  const dashboard = productStore(instance), store = openStore(instance);
+  dashboard.addProduct(github); dashboard.setGitHubProductToken(github, "github_pat_PRODUCT", "2027-01-01");
+  dashboard.addProduct(gitlab); dashboard.setGitLabToken(gitlab, "glpat_PRODUCT012345678", "2027-01-02");
+  assert.ok(readSetting(store, "github-token:alice/tool")?.value, "known positive: GitHub token reached the public catalogue");
+  assert.ok(readSetting(store, "gitlab-token:gitlab.example.org/team/tool")?.value, "known positive: GitLab token reached the public catalogue");
+  dashboard.clearGitHubProductToken(github); dashboard.clearGitLabToken(gitlab);
+  assert.equal(readSetting(store, "github-token:alice/tool"), null, "GitHub clear removes the public value");
+  assert.equal(readSetting(store, "gitlab-token:gitlab.example.org/team/tool"), null, "GitLab clear removes the public value");
+  const reloaded = productStore(instance);
+  assert.equal(reloaded.getGitHubProductToken(github), null, "reload cannot restore the cleared GitHub token");
+  assert.equal(reloaded.getGitLabToken(gitlab), null, "reload cannot restore the cleared GitLab token");
+});
+
+// TST-270
+// Module: MOD-browser-store
+// Level: component
+// given: GitHub and GitLab products with their own canonical tokens
+// input: the existing Settings remove-product caller removes each product, then the adapter reloads
+// expect: each address and its token are absent from both stores
+test("removing a product clears its canonical address and token without reload resurrection", () => {
+  const github = "https://github.com/alice/tool", gitlab = "https://gitlab.example.org/team/tool", instance = "akmaier/agent-m";
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage() });
+  const dashboard = productStore(instance), store = openStore(instance);
+  dashboard.addProduct(github); dashboard.setGitHubProductToken(github, "github_pat_PRODUCT", "2027-01-01");
+  dashboard.addProduct(gitlab); dashboard.setGitLabToken(gitlab, "glpat_PRODUCT012345678", "2027-01-02");
+  assert.deepEqual(readSetting(store, "products"), [github, gitlab], "known positive: public product list contains both addresses");
+  dashboard.removeProduct(github); dashboard.removeProduct(gitlab);
+  assert.equal(readSetting(store, "products"), null, "removal clears the public product list");
+  assert.equal(readSetting(store, "github-token:alice/tool"), null, "removal clears the GitHub public token");
+  assert.equal(readSetting(store, "gitlab-token:gitlab.example.org/team/tool"), null, "removal clears the GitLab public token");
+  const reloaded = productStore(instance);
+  assert.deepEqual(reloaded.getProducts(), [], "reload cannot restore removed products");
+  assert.equal(reloaded.getGitHubProductToken(github), null);
+  assert.equal(reloaded.getGitLabToken(gitlab), null);
+});
