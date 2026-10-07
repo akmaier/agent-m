@@ -95,3 +95,73 @@ Done — to `docs/process.md` in the product's repository, as one commit under y
 your own input, and needs no further acceptance. The model's version is the commit of this instance its catalogue was read
 at; the product keeps that version until its declaration is saved again. Choosing another model later deletes nothing:
 the page lists the artifacts the new model no longer requires.
+
+## repository
+
+A *repository* is the folder on GitHub — or on a GitLab server — that holds a project's files and their whole history of
+changes. Paste the product repository's address exactly as your browser shows it when that repository is open, for
+example `https://github.com/alice/thesis-tool` or, for a project on a GitLab server, that project's address with every
+group it sits under, for example `https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool`. Agent M reads the
+address alone to tell whether the repository is on GitHub or on a GitLab server. The product's requirements, use cases
+and architecture will live in that repository; this dashboard only reviews them there — it keeps none of that content
+itself.
+
+## product-key
+
+The product gets a key of its own, separate from the key this Agent M instance itself uses: a key that reaches only this
+one product cannot write anywhere else, and GitHub limits a key to the repositories of one owner, so the instance's own
+key could not also reach a product of another owner. GitHub has no way to preselect a repository through a link, but
+Agent M opens the page for a new key with the product's owner, a name and a description already filled in from the
+product's address, and every permission the product needs already checked — on that page you only choose the product's
+repository, press *Generate token* and copy it. On a GitLab server the equivalent is a project access token, created on
+that project's own Access tokens page and scoped to that project alone. Either way, the key is kept in this browser for
+this product only and sent only to that product's own server, in the requests for this product; Settings shows it,
+tests it and can clear it.
+
+## review-layout-commit
+
+Pressing *Add product* writes one commit into the product repository's default branch: a short `README.md` in each of
+the folders Agent M uses that does not hold one yet (`docs/use-cases/`, `docs/architecture/`, `docs/approvals/`,
+`docs/spec-freigaben/`), a `SPEC.md` skeleton that says what a requirement is and holds none yet, and a `CHANGELOG.md`
+with its title — only whatever of this is missing; nothing already there is overwritten. The product's address is then
+added to this browser's own list; nothing is written anywhere else.
+
+## reverting-the-commit
+
+The commit that adds the missing layout is an ordinary commit on the product repository: you can open it on GitHub — or
+on GitLab — like any other, and revert it from there if you no longer want it; nothing about it is special to Agent M.
+If the product repository already has the complete layout, nothing is committed in the first place, so there is then
+nothing to undo.
+
+## the-product-list
+
+The product's address is kept only in this browser's own storage, beside its key — nothing is written into the
+instance repository, and no product is named there. So a fork of Agent M never shows which products you work on, and it
+can be kept in sync with upstream without conflict. Another browser, or another computer, starts with an empty list:
+add the product there again with *+ Add product* — for one that already has its layout, that is its key in Step A,
+*Check* and *Add product*. *Clear everything* in Settings removes the list together with its keys.
+
+## release-test-levels
+
+*Start release candidate* runs the product's complete test suite, at every level, on exactly the commit marked as the
+release candidate: *unit* and *component* tests, fast and with paid external services mocked; *system* tests, which
+walk each use case end to end; *integration* tests against the real external services, the run that otherwise happens
+only nightly; and *release* tests, one or more for each requirement, written by a participant other than the one who
+implemented the behaviour they check. The release panel then shows every level with its result, each model-dependent
+check as a rate against the version currently running, and every requirement beside the evidence that guards it.
+
+## independent-release-tests
+
+Release tests are written by a participant other than the one who implemented the behaviour they check — never by its
+own author. Someone who built a piece of behaviour tends to test what they already thought of while building it; a
+different participant reads the requirement itself and is more likely to find what the behaviour still gets wrong. If
+only the implementing participant is available, Agent M says so and asks you to assign a second participant, or to run
+the release tests yourself.
+
+## version-not-rewritten
+
+Once a version is tagged, that tag is never moved to a later commit, and the release it names is never changed
+afterwards: the tagged commit is exactly the one the complete test suite ran on, at every level, so the tag always
+points to a state that can be recovered, compared and relied on later. If the tag for a version already exists, the
+release stops instead of moving it; a correction becomes the next version rather than a silent change to one already
+released.
