@@ -2,10 +2,10 @@
 // (docs/architecture/MOD-product-process.md): its interface. Of it, ITM-218 builds what UC-002 needs: Workflow;
 // declarationSchema, the schema of a product's docs/process.md; declarationFindings (declaration.mjs); and workflowOf
 // (workflow.mjs). holdsRole, gateSchema with gate-record.schema.md, gateStates, mayDecide, recordGateDecision, doneCheck and
-// processStrategies are not built yet. declarationFindings does not yet name a holder lacking a capability its role needs,
-// nor warn of a holder at a processing place a linked source does not permit: both go through MOD-participant-list's
-// eligible, which takes Participants, and no module turns a row of the register into one yet. workflowOf adds no practice's
-// additions: a shipped practice states its `## Adds` in words only.
+// processStrategies are not built yet. declarationFindings names a holder lacking a capability its role needs, and warns of
+// a holder at a processing place a linked source does not permit (ITM-231): both through MOD-participant-list's eligible,
+// over the participants its participantsOf gives. workflowOf adds no practice's additions: a shipped practice states its
+// `## Adds` in words only.
 //
 // Module: MOD-product-process
 //
