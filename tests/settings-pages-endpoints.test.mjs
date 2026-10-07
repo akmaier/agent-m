@@ -36,7 +36,7 @@ const byTag = (root, name) => descendants(root, (node) => node.localName === nam
 const type = (field, value) => { field.value = value; field.dispatchEvent(new Event("input")); };
 const click = async (button) => { button.dispatchEvent(new Event("click")); await new Promise((resolve) => setImmediate(resolve)); };
 
-class Storage { constructor() { this.values = new Map(); } getItem(key) { return this.values.get(key) ?? null; } setItem(key, value) { this.values.set(key, String(value)); } removeItem(key) { this.values.delete(key); } }
+class Storage { constructor() { this.values = new Map(); } getItem(key) { return this.values.get(key) ?? null; } setItem(key, value) { this.values.set(key, String(value)); } removeItem(key) { this.values.delete(key); } get length() { return this.values.size; } key(index) { return [...this.values.keys()][index] ?? null; } }
 function freshStore() { Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() }); return openStore("fixture/instance"); }
 const contextOf = (store, { host = {}, navigations = [] } = {}) => ({
   page: "review", instance: { repository: "fixture/instance", host }, product: null, store,
