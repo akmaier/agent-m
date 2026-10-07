@@ -795,6 +795,62 @@ test("add-product — 3c/3d: GitLab's Step A is instructions only, Step B stores
   assert.equal(byTag(c, "button")[0].disabled, false, "Step C is enabled once the GitLab project's token is stored");
 });
 
+// TST-279
+// guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
+// Module: MOD-settings-pages
+// Level: unit
+// given: a fresh add-product route for a GitLab project whose author reports that its Access tokens page offers no
+//        project access tokens
+// input: the author expands and selects the public "server offers no project access tokens" cause
+// expect: the selected cause is named, its expandable explanation states that a personal api token reaches every
+//         project the author can reach on that server before leaving the decision to them, and selection makes neither
+//         a server request nor a browser-store write
+test("TST-279 add-product — GitLab's no-project-token cause is selected locally with personal-token breadth before the decision", async () => {
+  const store = freshStore();
+  const target = await renderAddress(contextOf(store), GL_WEB);
+  const a = stepTitled(target, "Step A · Create a key for this project");
+  const select = byTag(a, "button").find((button) => /server offers no project access tokens/.test(button.textContent));
+  assert.ok(select, "the public route offers the author-reported server cause");
+  const requests = countedScript([]);
+  const writesBefore = store.storage.writes;
+  await withFetch(requests.fetch, () => click(select));
+
+  const selected = byTag(stepTitled(target, "Step A · Create a key for this project"), "details")
+    .find((detail) => /Selected: this server offers no project access tokens/.test(detail.textContent));
+  assert.ok(selected, "the active guidance names the cause the author selected");
+  assert.match(selected.textContent, /personal access token with api scope reaches every project you can reach on gitlab\.example\.org/);
+  assert.match(selected.textContent, /You decide whether to use that broader token or seek project access/);
+  assert.equal(requests.requests, 0, "reason selection contacts no server");
+  assert.equal(store.storage.writes, writesBefore, "reason selection stores no browser setting");
+  assert.equal(readSetting(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`), null);
+});
+
+// TST-280
+// guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
+// Module: MOD-settings-pages
+// Level: unit
+// given: a fresh add-product route for a GitLab project whose author reports that they are not Maintainer
+// input: the author expands and selects the public "I am not Maintainer" cause
+// expect: the selected cause is named separately, its expandable explanation states the breadth of a personal api
+//         token before leaving the decision to the author, and the normal project-token route remains available
+test("TST-280 add-product — GitLab's not-Maintainer cause is selected separately without replacing the project-token route", async () => {
+  const store = freshStore();
+  const target = await renderAddress(contextOf(store), GL_WEB);
+  const a = stepTitled(target, "Step A · Create a key for this project");
+  const select = byTag(a, "button").find((button) => /I am not Maintainer/.test(button.textContent));
+  assert.ok(select, "the public route offers the author-reported role cause");
+  await click(select);
+
+  const current = stepTitled(target, "Step A · Create a key for this project");
+  const selected = byTag(current, "details").find((detail) => /Selected: I am not Maintainer/.test(detail.textContent));
+  assert.ok(selected, "the active guidance names the author-reported role cause");
+  assert.match(selected.textContent, /personal access token with api scope reaches every project you can reach on gitlab\.example\.org/);
+  assert.match(selected.textContent, /You decide whether to use that broader token or seek project access/);
+  assert.equal(byTag(current, "a")[0].href, `${GL_WEB}/-/settings/access_tokens`, "the project-token page remains available");
+  assert.ok(stepTitled(target, "Step B · Give the key to Agent M"), "the existing token input and check path remains available");
+  assert.equal(readSetting(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`), null, "selection stores no credential");
+});
+
 // guards: UC-001 3a applied to a GitLab project — "its own" key already stored offers Check directly
 // given: a project's own token already stored in this browser
 // input: render
