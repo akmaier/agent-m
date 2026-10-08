@@ -50,6 +50,12 @@ const evaluate = async (url, expression) => {
   return result.result.value;
 };
 const unusedPort = async () => await new Promise((resolve, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const { port } = server.address(); server.close((failure) => failure ? reject(failure) : resolve(port)); }); });
+const systemClipboardEquals = (value) => {
+  if (process.platform !== "darwin") return null;
+  const pasted = spawnSync("pbpaste", { encoding: "utf8" });
+  return pasted.status === 0 && pasted.stdout === value;
+};
+const nativeClipboardEquals = async (app, value) => process.platform === "darwin" ? systemClipboardEquals(value) : await evaluate(app.main, `process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').clipboard.readText() === ${JSON.stringify(value)}`);
 
 async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")), port, debug, inspect, dataFolder = true, environment = {}, instance = "release-owner/release-frame", origin = "https://release-owner.github.io" } = {}) {
   port ??= await unusedPort();
@@ -62,7 +68,7 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   let stderr = "";
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
-  const stopped = () => { if (child.exitCode !== null) throw new Error(`Electron exited=${child.exitCode}; stderr=${scrub(stderr)}`); };
+  const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
   const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
   const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
   const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
@@ -89,7 +95,19 @@ test("TST-276001: the actual Electron entry renders its forked pairing page and 
     const pair = (value, origin = app.origin) => fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin, "x-agent-m-bridge-token": value } });
     assert.equal((await pair(token)).status, 200);
     assert.equal((await pair(token, "https://other.example")).status, 403);
+    const sentinel = "agent-m-276-clipboard-sentinel";
+    if (process.platform === "darwin") {
+      assert.equal(spawnSync("pbcopy", { input: sentinel, encoding: "utf8" }).status, 0);
+      assert.equal(systemClipboardEquals(sentinel), true);
+    }
+    assert.equal(await evaluate(app.main, `(() => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); electron.clipboard.writeText(${JSON.stringify(sentinel)}); return true; })()`), true);
+    assert.equal(await nativeClipboardEquals(app, sentinel), true);
+    await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Copy address').click()");
+    const address = `http://127.0.0.1:${app.port}`;
+    const addressProbe = { display: await evaluate(app.page.webSocketDebuggerUrl, `document.querySelectorAll('code')[0].textContent === ${JSON.stringify(address)}`), clipboard: await wait(async () => await nativeClipboardEquals(app, address)) };
+    assert.deepEqual(addressProbe, { display: true, clipboard: true });
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Copy token').click()");
+    assert.equal(await wait(async () => await nativeClipboardEquals(app, token)), true);
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Pair anew').click()");
     await evaluate(app.page.webSocketDebuggerUrl, "document.querySelector('.decision button:last-child').click()");
     const rotated = await wait(() => { const value = tokenOf(app.folder); return value !== token && value; });
@@ -155,21 +173,29 @@ test("TST-276006: the production default stores the instance token privately", {
   } finally { await clean(app); rmSync(folder, { recursive: true, force: true }); }
 });
 
-test("TST-276005: a second source start restores the first minimized window", { timeout: 120000, concurrency: false }, async () => {
+test("TST-276005: native close behavior and a second source start restore the first window", { timeout: 120000, concurrency: false }, async () => {
   const app = await launch();
-  let second;
+  const second = [];
   try {
-    await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
+    const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     const state = "process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').BrowserWindow.getAllWindows()[0]";
     assert.equal(await evaluate(app.main, `${state}.isVisible()`), true);
+    await evaluate(app.main, `${state}.close()`);
+    await wait(async () => await evaluate(app.main, process.platform === "linux" ? `!${state}.isDestroyed() && ${state}.isVisible()` : `!${state}.isDestroyed() && !${state}.isVisible()`));
+    assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
+    const startSecond = async () => {
+      const child = spawn(await runtime(), ["src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`], { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
+      child.unref(); second.push(child);
+    };
+    await startSecond();
+    await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
     await evaluate(app.main, `${state}.minimize()`);
     await wait(async () => await evaluate(app.main, `${state}.isMinimized()`));
-    second = spawn(await runtime(), ["src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`], { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
-    second.unref();
+    await startSecond();
     await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
-    assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": tokenOf(app.folder) } })).status, 200);
+    assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
   } finally {
-    second?.kill();
+    for (const child of second) child.kill();
     try {
       await evaluate(app.main, "process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.quit()");
       await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
