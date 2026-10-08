@@ -12,6 +12,7 @@ import { createServer } from "node:net";
 const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-electron-44");
 let runtimeFailure;
+let virtualDisplayFailure;
 const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
 const tokenOf = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
 const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
@@ -40,6 +41,17 @@ async function runtime() {
     return executableOf(installed);
   } catch (failure) { runtimeFailure = failure; throw failure; }
 }
+
+const electronCommand = (executable, arguments_) => {
+  if (process.platform !== "linux") return { command: executable, arguments_ };
+  if (virtualDisplayFailure) throw virtualDisplayFailure;
+  const probe = spawnSync("xvfb-run", ["--help"], { encoding: "utf8", timeout: 5000 });
+  if (probe.status !== 0) {
+    virtualDisplayFailure = new Error(`Linux virtual display probe failed; status=${probe.status}; signal=${probe.signal}; error=${probe.error?.code ?? "none"}; stderr=${scrub(probe.stderr)}`);
+    throw virtualDisplayFailure;
+  }
+  return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", executable, ...arguments_] };
+};
 
 const cdp = async (url, method, params = {}) => {
   const socket = new WebSocket(url);
@@ -70,7 +82,8 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const executable = await runtime();
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
-  const child = spawn(executable, args, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
+  const launched = electronCommand(executable, args);
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
@@ -197,7 +210,8 @@ test("TST-276005: native close behavior and a second source start restore the fi
     await wait(async () => await evaluate(app.main, process.platform === "linux" ? `!${state}.isDestroyed() && ${state}.isVisible()` : `!${state}.isDestroyed() && !${state}.isVisible()`));
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
     const startSecond = async () => {
-      const child = spawn(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`], { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
+      const launched = electronCommand(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`]);
+      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
       child.unref(); second.push(child);
     };
     await startSecond();
