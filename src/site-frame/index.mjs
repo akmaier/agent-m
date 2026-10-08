@@ -20,19 +20,9 @@ export { schemaForm } from "./forms.mjs";
 
 const UPSTREAM = "akmaier/agent-m";
 let notices = null;
-const PRL_LOGO = new URL("./../brand/prl-lettered.png", import.meta.url).href;
-const PRL_LOGO_DARK = new URL("./../brand/prl-lettered-white.png", import.meta.url).href;
-const LOOK = `
-:root { --bg: #091a22; --ink: #0d1f2a; --blue: #0366d6; --orange: #f05a28; }
-.site-header { position: sticky; top: 0; z-index: 10; background: var(--bg); color: white; border-bottom: 3px solid var(--blue); }
-.site-header::before { content: ""; display: block; height: 4px; background: var(--blue); }
-.site-header .inner { display: flex; align-items: center; max-width: 1120px; min-height: 72px; margin: 0 auto; padding: 0 24px; }
-.site-header .brand { display: flex; align-items: center; gap: 14px; color: inherit; text-decoration: none; }
-.site-header .prl-logo { display: block; width: 126px; height: 44px; background: center / contain no-repeat url("${PRL_LOGO}"); }
-@media (prefers-color-scheme: dark) { .site-header .prl-logo { background-image: url("${PRL_LOGO_DARK}"); } }
-.site-header .name { font: 700 1.15rem/1 system-ui, sans-serif; letter-spacing: .02em; }
-.site-header .name small { display: block; color: #8ab4e8; font-size: .72em; font-weight: 600; }
-`;
+const LOOK = new URL("./look.css", import.meta.url).href;
+const PRL_LOGO = new URL("../brand/prl-lettered.png", import.meta.url).href;
+const PRL_LOGO_DARK = new URL("../brand/prl-lettered-white.png", import.meta.url).href;
 
 // Strategies, in the types below, is MOD-job-runner's type of that name; Host is MOD-repository-hosts', Store
 // MOD-browser-store's.
@@ -139,10 +129,10 @@ const fragmentOf = (route, params = {}) => {
 
 function sharedHeader() {
   const head = document.head ?? document.getElementsByTagName("head")[0];
-  if (![...head.getElementsByTagName("style")].some((style) => style.getAttribute("data-site-frame-look") === "shared")) {
-    const look = document.createElement("style");
-    look.setAttribute("data-site-frame-look", "shared");
-    look.textContent = LOOK;
+  if (![...head.getElementsByTagName("link")].some((link) => link.getAttribute("href") === LOOK)) {
+    const look = document.createElement("link");
+    look.setAttribute("rel", "stylesheet");
+    look.setAttribute("href", LOOK);
     head.append(look);
   }
   const header = document.createElement("header");
@@ -153,17 +143,23 @@ function sharedHeader() {
   brand.className = "brand";
   brand.setAttribute("href", "#");
   brand.setAttribute("title", "Agent M Bridge");
-  const logo = document.createElement("span");
-  logo.className = "prl-logo";
-  logo.setAttribute("role", "img");
-  logo.setAttribute("aria-label", "Pattern Recognition Lab");
+  const picture = document.createElement("picture");
+  const dark = document.createElement("source");
+  dark.setAttribute("srcset", PRL_LOGO_DARK);
+  dark.setAttribute("media", "(prefers-color-scheme: dark)");
+  const logo = document.createElement("img");
+  logo.setAttribute("src", PRL_LOGO);
+  logo.setAttribute("alt", "Pattern Recognition Lab");
+  logo.setAttribute("width", "126");
+  logo.setAttribute("height", "44");
+  picture.append(dark, logo);
   const name = document.createElement("span");
   name.className = "name";
   name.append("Agent M ");
   const section = document.createElement("small");
   section.textContent = "Bridge";
   name.append(section);
-  brand.append(logo, name);
+  brand.append(picture, name);
   inner.append(brand);
   header.append(inner);
   return header;

@@ -462,6 +462,7 @@ test("schemaForm — the form opens with its first field focused", async () => {
 // when the explanation is unfolded.
 
 const EXPLANATIONS = readFileSync(new URL("../src/site-frame/explanations.md", import.meta.url), "utf8");
+const LOOK = readFileSync(new URL("../src/site-frame/look.css", import.meta.url), "utf8");
 // The Markdown under `## <topic>`, up to the next such line; undefined where the file holds no such line.
 const topicText = (topic) => EXPLANATIONS.split(/^## /m).slice(1).find((part) => part.startsWith(`${topic}\n`))
   ?.slice(topic.length + 1);
@@ -664,12 +665,15 @@ test("startPage — Bridge-only frame routes its loaded view with the configured
     assert.match(document.body.textContent, /Agent M Bridge/, "the Bridge header is drawn");
     const header = byClass(document.body, "site-header")[0];
     assert.ok(header, "the shared lab header class is used");
-    const logo = byClass(header, "prl-logo")[0];
-    const look = byTag(byTag(document, "head")[0], "style").find((style) => style.getAttribute("data-site-frame-look") === "shared");
+    const logo = byTag(header, "img")[0];
+    const look = byTag(byTag(document, "head")[0], "link").find((link) => link.getAttribute("href")?.endsWith("/site-frame/look.css"));
     assert.equal(header.getAttribute("class"), "site-header top", "the shared lab header class is used");
-    assert.deepEqual([logo.getAttribute("role"), logo.getAttribute("aria-label")], ["img", "Pattern Recognition Lab"],
+    assert.deepEqual([logo.getAttribute("src"), logo.getAttribute("alt"), logo.getAttribute("width"), logo.getAttribute("height")],
+      [new URL("../src/brand/prl-lettered.png", import.meta.url).href, "Pattern Recognition Lab", "126", "44"],
       "the shared PRL logo is present");
-    assert.match(look.textContent, /\.site-header/, "the frame draws its shared lab look");
+    assert.equal(look.getAttribute("rel"), "stylesheet", "the frame loads its shared lab look");
+    assert.match(LOOK, /--fau-blue: #04316a; --fau-dark: #041e42; --tf-metallic: #8c9fb1;/,
+      "the Bridge uses the shared FAU blue, dark blue and metallic palette");
     assert.equal(calls.length, 1, "the initial fragment renders once");
     assert.equal(calls[0].context.page, "bridge");
     assert.equal(calls[0].context.instance.repository, "fork-owner/fork-agent-m");
