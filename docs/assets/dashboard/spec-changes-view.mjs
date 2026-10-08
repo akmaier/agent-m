@@ -11,6 +11,18 @@ import {
 import { h, badge, counts, tickCell, tickBox, batchBar, acceptPanel, editPanel, wireAccept, wireCommon } from "./review-views.mjs";
 import { linkGraph, requirementImpact } from "../traceability.mjs";
 import { ARCHITECTURE_FILE, isCodePath, isTestPath } from "../artifacts.mjs";
+import { view as tracePages } from "../../../src/trace-pages/index.mjs";
+import { parseAddress, connect } from "../../../src/repository-hosts/index.mjs";
+
+const specificationRoute = tracePages.routes.find((route) => route.name === "trace");
+
+async function currentRequirements(app, target) {
+  const { T, ghToken, token } = app;
+  const instanceHost = connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() });
+  const productHost = connect(parseAddress(T.product.address), { token: token() });
+  await specificationRoute.render(target, { instance: { host: instanceHost }, product: { host: productHost } },
+    { key: "specification", ref: app.state.commit });
+}
 
 // The SPEC change queues: each with its index and its decisions — what the list needs to name every queue and entry.
 const queueHeads = (app) => app.once("queues", async () => {
@@ -68,13 +80,16 @@ const specAcceptable = (e) => Boolean(!e.error && e.proposalPath && ["open", "st
 async function viewSpec(app, open = null) {
   const { GITLAB, session, openQueues, main } = app;
   const seq = app.seq();
+  const requirements = document.createElement("div");
   if (open) openQueues.add(open);
-  const queues = await Promise.all((await queueHeads(app)).map(async (q) =>
+  const [heads] = await Promise.all([queueHeads(app), currentRequirements(app, requirements)]);
+  const queues = await Promise.all(heads.map(async (q) =>
     ({ ...q, entries: q.accepted && !openQueues.has(q.name) ? null : await queueEntries(app, q) })));
-  if (seq !== app.seq()) return;
   const all = queues.flatMap((q) => q.entries || []);
   const folded = queues.filter((q) => !q.entries), foldedEntries = folded.reduce((n, q) => n + q.idx.entries.length, 0);
-  main().innerHTML = `
+  if (seq !== app.seq()) return;
+  const history = document.createElement("div");
+  history.innerHTML = `
     <section class="head"><h2>SPEC changes</h2><p>${counts(all)}${folded.length ? ` · ${foldedEntries} accepted
       ${foldedEntries === 1 ? "entry" : "entries"} in ${folded.length} closed ${folded.length === 1 ? "queue" : "queues"}` : ""}</p>
     <p class="muted">Each entry proposes the text of one SPEC section. ${app.token()
@@ -98,7 +113,9 @@ async function viewSpec(app, open = null) {
           <td>${badge(e.status)}</td></tr>`).join("")}
         </tbody></table>
       </section>`).join("")}`;
-  wireAccept(app, main());
+  const page = main();
+  page.replaceChildren(requirements, history);
+  wireAccept(app, history);
 }
 
 // An entry whose heading another entry of its queue creates names that entry, not "anchor found 0 times".
