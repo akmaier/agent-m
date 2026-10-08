@@ -21,7 +21,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { newJobId, startRecord, jobState, listJobs, jobCost } from "../src/job-ledger/index.mjs";
+import { newJobId, startRecord, jobState, listJobs, recordsNewestFirst, jobCost } from "../src/job-ledger/index.mjs";
 
 // ---------------------------------------------------------------- fixtures
 
@@ -29,6 +29,14 @@ import { newJobId, startRecord, jobState, listJobs, jobCost } from "../src/job-l
 // the given job records, by path.
 function snapshotOf(files) {
   return { paths: Object.keys(files), read: async (path) => (Object.hasOwn(files, path) ? files[path] : null) };
+}
+
+function recordedRun(id, start, state = null) {
+  return ["---", `id: ${id}`, "kind: run-tests", "works_on:", "  - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "route: ci hosted", "started_by: akmaier", `start: ${start}`, "agent_m: unknown, commit unknown", "limit: 1", "---",
+    "## Destinations", "", "## Parameters", "", "```json",
+    '{"candidate":{"version":"2026.4.0","tag":"v2026.4.0-rc.1","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}',
+    "```", "", ...(state ? ["## End", "", "at: 2026-10-08 10:00 UTC", `state: ${state}`, ""] : [])].join("\n");
 }
 
 const START = {
@@ -522,4 +530,21 @@ test("jobCost — the cost as reported, at the declared price, or unknown, never
   assert.deepEqual(unknown, { known: false, usage: null });
   const noPrice = jobCost(usage, { price: null });
   assert.deepEqual(noPrice, { known: false, usage });
+});
+
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: two job records whose paths name different start times, and a snapshot that records every read
+// input: recordsNewestFirst(snapshot), stopping after the newest record
+// expect: the newest path is read and yielded first; the older record is not read before the caller asks for it
+test("recordsNewestFirst — yields only the newest record until its caller asks for another", async () => {
+  const newest = "docs/jobs/JOB-20261008-0900-bbbb.md";
+  const older = "docs/jobs/JOB-20261007-0900-aaaa.md";
+  const reads = [];
+  const files = { [newest]: recordedRun("JOB-20261008-0900-bbbb", "2026-10-08 09:00 UTC"),
+    [older]: recordedRun("JOB-20261007-0900-aaaa", "2026-10-07 09:00 UTC") };
+  const snapshot = { paths: [older, newest], read: async (path) => { reads.push(path); return files[path]; } };
+  const iterator = recordsNewestFirst(snapshot);
+  const first = await iterator.next();
+  assert.equal(first.value.path, newest);
+  assert.deepEqual(reads, [newest]);
 });

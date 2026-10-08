@@ -147,3 +147,21 @@ test("waitingForAcceptance — an empty repository waits for nothing", async () 
   const snapshot = fixtureSnapshot({});
   assert.deepEqual(await waitingForAcceptance(null, snapshot), []);
 });
+
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: a candidate's done run-tests record and its candidate tag, with no release report yet
+// input: waitingForAcceptance(host, snapshot)
+// expect: the ordinary waiting list gains the release test report, named release-v<version>, at the run record's path
+test("waitingForAcceptance — a completed candidate run adds its release test report", async () => {
+  const path = "docs/jobs/JOB-20261008-0900-aaaa.md";
+  const text = ["---", "id: JOB-20261008-0900-aaaa", "kind: run-tests", "works_on:", "  - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "route: ci hosted", "started_by: akmaier", "start: 2026-10-08 09:00 UTC", "agent_m: unknown, commit unknown", "limit: 1", "---",
+    "## Destinations", "", "## Parameters", "", "```json",
+    '{"candidate":{"version":"2026.4.0","tag":"v2026.4.0-rc.1","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}', "```", "",
+    "## End", "", "at: 2026-10-08 10:00 UTC", "state: done", ""].join("\n");
+  const snapshot = fixtureSnapshot({ [path]: "d4".repeat(20) }, { [path]: text });
+  const host = { listTags: async () => [{ name: "v2026.4.0-rc.1", commit: "a".repeat(40) }] };
+  assert.deepEqual(await waitingForAcceptance(host, snapshot), [{
+    kind: "release test report", id: "release-v2026.4.0", path, blob: "d4".repeat(20),
+  }]);
+});

@@ -22,7 +22,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { nextVersion, startReleaseCandidate, releaseReport, acceptAndRelease } from "../src/release-evidence/index.mjs";
+import { nextVersion, startReleaseCandidate, releaseReport, acceptAndRelease, reportsAwaitingAcceptance } from "../src/release-evidence/index.mjs";
 
 // ================================================================== fakes
 
@@ -545,4 +545,26 @@ test("acceptAndRelease — TagExists, an existing tag not moved (4a)", async () 
     (error) => error.name === "TagExists",
   );
   assert.equal(host.tagOf("v2026.4.0"), originalTagCommit, "the existing tag was not moved");
+});
+
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: the newest candidate tag and its run-tests record, first without an End, then with End state done
+// input: reportsAwaitingAcceptance(host, snapshot)
+// expect: no report while the run has not ended; its version, candidate, record and record blob after it ends done;
+//         no report after the release report exists
+test("reportsAwaitingAcceptance — a candidate's complete run waits, but an unfinished or accepted one does not", async () => {
+  const path = "docs/jobs/JOB-20261008-0900-aaaa.md";
+  const base = ["---", "id: JOB-20261008-0900-aaaa", "kind: run-tests", "works_on:", "  - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "route: ci hosted", "started_by: akmaier", "start: 2026-10-08 09:00 UTC", "agent_m: unknown, commit unknown", "limit: 1", "---",
+    "## Destinations", "", "## Parameters", "", "```json",
+    '{"candidate":{"version":"2026.4.0","tag":"v2026.4.0-rc.1","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}', "```", ""].join("\n");
+  const host = { listTags: async () => [{ name: "v2026.4.0-rc.1", commit: "a".repeat(40) }] };
+  const snapshot = fixtureSnapshot({ [path]: `${base}\n## End\n\nat: 2026-10-08 10:00 UTC\nstate: done\n` });
+  assert.equal(await reportsAwaitingAcceptance(host, fixtureSnapshot({ [path]: base })), null);
+  assert.deepEqual(await reportsAwaitingAcceptance(host, snapshot), {
+    version: "2026.4.0", candidate: "v2026.4.0-rc.1", record: path, blob: snapshot.blob(path),
+  });
+  const accepted = fixtureSnapshot({ [path]: `${base}\n## End\n\nat: 2026-10-08 10:00 UTC\nstate: done\n`,
+    "docs/tests/releases/v2026.4.0.md": "accepted report" });
+  assert.equal(await reportsAwaitingAcceptance(host, accepted), null);
 });
