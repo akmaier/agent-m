@@ -138,7 +138,7 @@ test("the public trace/specification route reads the pinned SPEC and lists each 
   const productHost = host();
   const target = await render(productHost);
   assert.deepEqual(productHost.calls, ["pinned-commit"]);
-  const names = find(target, (node) => node.localName === "button");
+  const names = find(target, (node) => node.localName === "button" && node.className.includes("requirement-name"));
   assert.deepEqual(names.map((node) => node.textContent), ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUIREMENT"]);
   assert.equal(new Set(names.map((node) => node.textContent)).size, 3);
   const visible = target.textContent;
@@ -163,6 +163,47 @@ test("selecting a requirement renders its four fields safely without navigating 
   }
   assert.equal(find(opened, (node) => node.localName === "img").length, 0);
   assert.equal(find(opened, (node) => node.localName === "a" && node.getAttribute("href")?.includes("queue")).length, 0);
+});
+
+// CASE ITM-278-01
+// given: the public trace/specification route with two sectioned requirements and one outside a section
+// input: a fresh render, then each readable section-heading control is clicked to open, close and reopen its own list
+// expect: section lists start hidden, each toggle changes only its own list, and the outside requirement stays reachable
+test("section headings start collapsed and independently toggle their requirement lists", async () => {
+  const target = await render(host());
+  const sections = find(target, (node) => node.localName === "section" && node.className.includes("spec-section"));
+  const toggles = sections.map((section) => find(section, (node) => node.localName === "button" && node.className.includes("spec-section-toggle"))[0]);
+  const tables = sections.map((section) => find(section, (node) => node.localName === "table")[0]);
+  assert.deepEqual(toggles.map((toggle) => toggle?.textContent), ["First section", "Second section"]);
+  assert.ok(tables.every((table) => table.getAttribute("hidden") === "hidden"), "a fresh render hides every section list");
+  assert.ok(find(target, (node) => node.localName === "button" && node.textContent === "OUTSIDE REQUIREMENT").length === 1,
+    "the requirement outside sections remains reachable");
+  toggles[0].dispatchEvent(new Event("click"));
+  assert.equal(tables[0].getAttribute("hidden"), null, "the first heading opens its own list");
+  assert.equal(tables[1].getAttribute("hidden"), "hidden", "the second list stays collapsed");
+  toggles[0].dispatchEvent(new Event("click"));
+  assert.equal(tables[0].getAttribute("hidden"), "hidden", "the same heading closes its list");
+  toggles[0].dispatchEvent(new Event("click"));
+  assert.equal(tables[0].getAttribute("hidden"), null, "the same heading reopens its list");
+});
+
+// CASE ITM-278-02
+// given: a displayed current requirement in a row-local closed detail
+// input: click its existing requirement-name button three times
+// expect: the first click opens readable four fields, the second closes them, and the third reopens them without changing another section
+test("a requirement name toggles its row-local detail closed and open again", async () => {
+  const target = await render(host());
+  const name = find(target, (node) => node.localName === "button" && node.textContent === "FIRST REQUIREMENT")[0];
+  const opened = name.parentNode.parentNode.nextSibling;
+  assert.equal(opened.textContent, "", "the row-local detail starts closed");
+  name.dispatchEvent(new Event("click"));
+  for (const text of ["FIRST REQUIREMENT", "Source", "Source one", "Rule", "First rule.", "Check", "tests/first.test.mjs"]) {
+    assert.match(opened.textContent, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "the first click opens the readable fields");
+  }
+  name.dispatchEvent(new Event("click"));
+  assert.equal(opened.textContent, "", "the second click closes that detail");
+  name.dispatchEvent(new Event("click"));
+  assert.match(opened.textContent, /FIRST REQUIREMENT/, "the third click reopens the same detail");
 });
 
 // CASE ITM-277-03

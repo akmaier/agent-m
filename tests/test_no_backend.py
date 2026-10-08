@@ -66,7 +66,7 @@ PERMITTED_HOSTS = {
 ADDRESS = re.compile(r"\b(?:https?|wss?)://(\[[0-9a-f:]+\]|[a-z0-9.-]+)", re.I)
 
 CHANNELS = [
-    ("fetch", re.compile(r"(?<![\w$.])fetch\s*\((?!\)\s*\{)")),  # a call, not a method named fetch being defined
+    ("fetch", re.compile(r"(?<![\w$.])(?:(?:globalThis|window)\.)?fetch\s*\((?!\)\s*\{)")),  # a call, not a method named fetch being defined
     ("XMLHttpRequest", re.compile(r"\bXMLHttpRequest\b")),
     ("WebSocket", re.compile(r"\bWebSocket\b")),
     ("EventSource", re.compile(r"\bEventSource\b")),
@@ -96,6 +96,22 @@ def _own_origin(text: str, at: int) -> bool:
     return "new URL(`dashboard/" in window and "import.meta.url" in window
 
 
+FRAME_ASSET_LOADING = "the frame's own look.css or lettered brand asset, resolved from its module address"
+
+
+def _site_frame_asset(text: str, at: int) -> bool:
+    """MOD-site-frame: its three static header resources are adjacent own files, wired directly to their elements."""
+    own = ('const LOOK = new URL("./look.css", import.meta.url).href;',
+           'const PRL_LOGO = new URL("./brand/prl-lettered.png", import.meta.url).href;',
+           'const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;')
+    if not all(item in text for item in own):
+        return False
+    window = text[at:at + 240]
+    return ((window.startswith('createElement("link")') and 'look.setAttribute("href", LOOK)' in window)
+            or (window.startswith('createElement("source")') and 'dark.setAttribute("srcset", PRL_LOGO_DARK)' in window)
+            or (window.startswith('createElement("img")') and 'logo.setAttribute("src", PRL_LOGO)' in window))
+
+
 def _own_data_file(text: str, at: int) -> bool:
     """A module's own data file, read as MOD-spec-document reads its skeleton: the fetch is fetch(url) in ownFile(url), and
     every address the file builds is resolved from a path beginning with ./ against the module's own address — so what
@@ -117,8 +133,24 @@ def _configured_endpoint_transport(text: str, at: int) -> bool:
             and "const { url, init } = requestFor(config);" in before)
 
 
+def _bridge_client_transport(text: str, at: int) -> bool:
+    """MOD-bridge-client sends one request to the Bridge handle, only through its accepted pairing or endpoint-test path."""
+    before = text[:at]
+    return (text[at:].startswith('fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" })')
+            and "async function call(bridge, path, init)" in before
+            and "const address = `${bridge.address}${path}`;" in before
+            and "const headers = requestHeaders(bridge, init.body !== undefined);" in before
+            and "const headers = { [bridgeApi.tokenHeader]: neededToken(" in before
+            and "if (settings?.login) headers.Authorization = basic(settings.login);" in before
+            and "await call(bridge, \"/v1/pair\", { method: \"GET\" });" in text
+            and "candidate.path === \"/v1/probes/{kind}\"" in text
+            and "route.path.replace(\"{kind}\", kind)" in text
+            and "body: JSON.stringify({ args })" in text)
+
+
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
 ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
+BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
 
 # (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
 # An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
@@ -129,6 +161,7 @@ PERMITTED_CHANNELS = {
     ("src/spec-document/index.mjs", "fetch"): (1, "its own skeleton.md, from the address the module itself was loaded from",
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
     ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
+    ("src/bridge-client/", "fetch"): (1, BRIDGE_CLIENT_TRANSPORT, _bridge_client_transport),
     # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -136,6 +169,7 @@ PERMITTED_CHANNELS = {
     ("src/source-register/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/product-process/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/site-frame/", "loading element"): (3, FRAME_ASSET_LOADING, _site_frame_asset),  # link, source and img
     ("src/approvals/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/spec-changes/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/work-plans/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -310,6 +344,37 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": twice}),
                          [f"src/endpoint-calls/index.mjs: fetch found 2 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
 
+    def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
+        accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
+                    'function requestHeaders(bridge, contentType = false) {\n'
+                    '  const headers = { [bridgeApi.tokenHeader]: neededToken(settings?.token) };\n'
+                    '  if (settings?.login) headers.Authorization = basic(settings.login);\n'
+                    '  return headers;\n}\n'
+                    'async function call(bridge, path, init) {\n'
+                    '  const address = `${bridge.address}${path}`;\n'
+                    '  const headers = requestHeaders(bridge, init.body !== undefined);\n'
+                    '  return fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" });\n}\n'
+                    'export async function pair(address, pairingToken) {\n'
+                    '  await call(bridge, "/v1/pair", { method: "GET" });\n}\n'
+                    'export async function probe(bridge, kind, args) {\n'
+                    '  const route = bridgeApi.routes.find((candidate) => candidate.path === "/v1/probes/{kind}");\n'
+                    '  return call(bridge, route.path.replace("{kind}", kind), { body: JSON.stringify({ args }) });\n}\n')
+        path = "src/bridge-client/index.mjs"
+        self.assertEqual(channel_findings({path: accepted}), [])
+        wrong_destination = accepted.replace("`${bridge.address}${path}`", "args.baseUrl")
+        self.assertEqual(channel_findings({path: wrong_destination}),
+                         [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+        wrong_evidence = accepted.replace("JSON.stringify({ args })", "JSON.stringify(args)")
+        self.assertEqual(channel_findings({path: wrong_evidence}),
+                         [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+        extra = accepted + 'fetch(address, init);\n'
+        self.assertEqual(channel_findings({path: extra}),
+                         [f"{path}:19: fetch: not {BRIDGE_CLIENT_TRANSPORT}",
+                          f"src/bridge-client/: fetch found 2 times, permitted at most 1 ({BRIDGE_CLIENT_TRANSPORT})"])
+        indirect = accepted.replace("fetch(address", "globalThis.fetch(address")
+        self.assertEqual(channel_findings({path: indirect}),
+                         [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+
     def test_counter_proof_a_modules_own_data_files(self):
         # The form MOD-spec-document reads its skeleton in, in a module whose file states that it reads its own data files.
         own = ('const SCHEMAS = ["use-case", "module"].map((n) => new URL(`./schemas/${n}.schema.md`, import.meta.url));\n'
@@ -328,6 +393,25 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings({"src/text-tools/index.mjs": own}), ["src/text-tools/index.mjs:3: fetch: fetch(url);"])
         # A listed module whose code reads no data file of its own yet: the entry allows the read and requires none.
         self.assertEqual(channel_findings({"src/participant-list/index.mjs": "export const x = 1;\n"}), [])
+
+    def test_counter_proof_only_the_site_frames_own_static_header_assets_load(self):
+        path = "src/site-frame/index.mjs"
+        accepted = ('const LOOK = new URL("./look.css", import.meta.url).href;\n'
+                    'const PRL_LOGO = new URL("./brand/prl-lettered.png", import.meta.url).href;\n'
+                    'const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;\n'
+                    'const look = document.createElement("link"); look.setAttribute("href", LOOK);\n'
+                    'const dark = document.createElement("source"); dark.setAttribute("srcset", PRL_LOGO_DARK);\n'
+                    'const logo = document.createElement("img"); logo.setAttribute("src", PRL_LOGO);\n')
+        self.assertEqual(channel_findings({path: accepted}), [])
+        wrong_destination = accepted.replace('"./look.css"', '"./elsewhere.css"')
+        self.assertEqual(len(channel_findings({path: wrong_destination})), 3)
+        foreign = accepted.replace('"./brand/prl-lettered.png"', '"https://tracker.example/logo.png"')
+        self.assertEqual(len(channel_findings({path: foreign})), 4)
+        indirect = accepted.replace('logo.setAttribute("src", PRL_LOGO)', 'logo.setAttribute("src", target)')
+        self.assertEqual(channel_findings({path: indirect})[0], f"{path}:6: loading element: not {FRAME_ASSET_LOADING}")
+        extra = accepted + 'const again = document.createElement("img"); again.setAttribute("src", PRL_LOGO);\n'
+        self.assertEqual(channel_findings({path: extra})[-1],
+                         f"src/site-frame/: loading element found 4 times, permitted at most 3 ({FRAME_ASSET_LOADING})")
 
     def test_counter_proof_a_vendored_librarys_addresses_are_not_the_own_codes(self):
         # MOD-markdown-render's vendored folder is skipped by check 1, as docs/assets/vendor/ is; its own code is not.
