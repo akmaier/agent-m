@@ -142,7 +142,7 @@ test("the public trace/specification route reads the pinned SPEC and lists each 
   const names = find(target, (node) => node.localName === "button" && node.className === "requirement-name");
   assert.deepEqual(names.map((node) => node.textContent), ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUIREMENT"]);
   assert.equal(new Set(names.map((node) => node.textContent)).size, 3);
-  assert.equal(find(target, (node) => node.localName === "section" && node.className === "spec-section").map((node) => node.textContent), ["First sectionFIRST REQUIREMENT", "Second sectionSECOND REQUIREMENT"]);
+  assert.equal(JSON.stringify(find(target, (node) => node.localName === "section" && node.className === "spec-section").map((node) => node.textContent)), JSON.stringify(["First sectionFIRST REQUIREMENT", "Second sectionSECOND REQUIREMENT"]));
 });
 
 // CASE ITM-277-02
@@ -154,7 +154,9 @@ test("selecting a requirement renders its four fields safely without navigating 
   const target = await render(host());
   const name = find(target, (node) => node.localName === "button" && node.textContent === "SECOND REQUIREMENT")[0];
   name.dispatchEvent(new Event("click"));
-  assert.match(target.textContent, /SECOND REQUIREMENTSource twoSecond .* rule\.tests\/second\.test\.mjs/);
+  for (const text of ["SECOND REQUIREMENT", "Source", "Source two", "Rule", "Second <img src=x onerror=alert(1)> rule.", "Check", "tests/second.test.mjs"]) {
+    assert.match(target.textContent, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
   assert.equal(find(target, (node) => node.localName === "img").length, 0);
   assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.includes("queue")).length, 0);
 });
