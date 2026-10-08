@@ -34,7 +34,7 @@ function requirementRows(requirement) {
   const row = el("tr", null, el("td", null, button));
   const opened = el("tr", "requirement-opened");
   button.addEventListener("click", () => {
-    if (opened.childNodes.length) {
+    if (opened.textContent) {
       opened.replaceChildren();
       return;
     }
