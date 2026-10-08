@@ -27,6 +27,8 @@ import { repoServer, openDashboard, richDocument, press, settle, REPO, TOKEN } f
 const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the instance (store.mjs prefixOf)
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
 const API = "https://api.github.com"; // GitHub's REST API host (src/repository-hosts/github.mjs) — ITM-238 F2's tests below
+const emptyTags = (url) => (url.origin === API && /\/tags$/.test(url.pathname)
+  ? new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }) : undefined);
 
 // Notification "granted", a worker that registers, setInterval/clearInterval that only record their calls — never a
 // real timer. restore() puts back exactly what was there before (notifications.test.mjs's own installBrowser, trimmed
@@ -69,7 +71,7 @@ function installBrowser() {
 //         switch under MOD-browser-store's own key of the instance — "agent-m:<instance>:notifications" — and the
 //         line then reads on, through the same notificationState
 test("the settings page's line Notifications reaches MOD-notifications: off, then Switch on stores the switch under MOD-browser-store's key", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     const page = await openDashboard({ server, hash: "#uc" });
@@ -105,7 +107,7 @@ test("the settings page's line Notifications reaches MOD-notifications: off, the
 //         time back under the very key it was given — proof that the store watchForAcceptance ran with is the
 //         instance's, not some other
 test("the review pages start MOD-notifications' watchForAcceptance with MOD-browser-store's store of the instance", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   const stale = minutesAgo(6);
   try {
@@ -141,7 +143,7 @@ function fakeMainPageDom() {
 // expect: the same two proofs as the review pages' test — the one check interval, and the stale check's time replaced
 //         — through the main page's own wiring (src/home/home.mjs startNotifications), not the review pages'
 test("the main page starts MOD-notifications' watchForAcceptance with MOD-browser-store's store of the instance", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   const stale = minutesAgo(6);
   const priorDocument = "document" in globalThis ? globalThis.document : undefined, hadDocument = "document" in globalThis;
@@ -201,7 +203,7 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
 // expect (F1 fixed): the Notifications box sits inside the section "This browser", beside #browser-settings — the
 //         box of that section's other lines — not as a section of its own, beside "This browser"
 test("ITM-238 F1 fixed: the Notifications box sits inside the section This browser, beside #browser-settings", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     const page = await openDashboard({ server, hash: "#settings" });
@@ -228,7 +230,7 @@ test("ITM-238 F1 fixed: the Notifications box sits inside the section This brows
 test("ITM-238 F2 fixed: the review pages' check connects the instance with the dashboard's own stored token", async () => {
   const seenAuth = [];
   const browser = installBrowser();
-  const server = await repoServer({ files: {}, handlers: [
+  const server = await repoServer({ files: {}, handlers: [emptyTags,
     (url, init) => { if (url.origin === API) seenAuth.push(init.headers?.Authorization ?? null); return undefined; },
   ] });
   try {
@@ -246,7 +248,7 @@ test("ITM-238 F2 fixed: the review pages' check connects the instance with the d
 //         token — the same fix as the review pages' above, at home.mjs's own call site
 test("ITM-238 F2 fixed: the main page's check also connects the instance with the dashboard's own stored token", async () => {
   const seenAuth = [];
-  const server = await repoServer({ files: {}, handlers: [
+  const server = await repoServer({ files: {}, handlers: [emptyTags,
     (url, init) => { if (url.origin === API) seenAuth.push(init.headers?.Authorization ?? null); return undefined; },
   ] });
   const browser = installBrowser();
