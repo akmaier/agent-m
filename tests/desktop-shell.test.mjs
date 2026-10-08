@@ -68,7 +68,7 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   debug ??= await unusedPort();
   inspect ??= await unusedPort();
   const executable = await runtime();
-  const args = [`--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
+  const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
   const child = spawn(executable, args, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
@@ -197,7 +197,7 @@ test("TST-276005: native close behavior and a second source start restore the fi
     await wait(async () => await evaluate(app.main, process.platform === "linux" ? `!${state}.isDestroyed() && ${state}.isVisible()` : `!${state}.isDestroyed() && !${state}.isVisible()`));
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
     const startSecond = async () => {
-      const child = spawn(await runtime(), ["src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`], { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
+      const child = spawn(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`], { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
       child.unref(); second.push(child);
     };
     await startSecond();
