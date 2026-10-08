@@ -75,10 +75,16 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
-  const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
-  const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
-  const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
-  return { browser, child, exited, folder, main, origin, page, port };
+  try {
+    const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
+    const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
+    const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
+    return { browser, child, exited, folder, main, origin, page, port };
+  } catch (failure) {
+    if (child.exitCode === null) child.kill();
+    await within(exited, "Electron startup cleanup").catch(() => {});
+    throw failure;
+  }
 }
 
 async function quit(app) {
@@ -144,8 +150,9 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
 test("TST-276003: an occupied port is visible and its replacement starts the same real composition", { timeout: 120000, concurrency: false }, async () => {
   const occupied = createServer(), port = await unusedPort();
   await new Promise((resolve, reject) => { occupied.once("error", reject); occupied.listen(port, "127.0.0.1", resolve); });
-  const app = await launch({ port });
+  let app;
   try {
+    app = await launch({ port });
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge could not start')"));
     assert.equal(await evaluate(app.page.webSocketDebuggerUrl, "document.querySelector('input[type=number]')?.value"), "4712");
     const replacement = await unusedPort();
@@ -153,7 +160,7 @@ test("TST-276003: an occupied port is visible and its replacement starts the sam
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Copy token')"));
     const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     assert.equal((await fetch(`http://127.0.0.1:${replacement}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
-  } finally { await new Promise((resolve) => occupied.close(resolve)); await clean(app); }
+  } finally { await new Promise((resolve) => occupied.close(resolve)); if (app) await clean(app); }
 });
 
 test("TST-276004: an unwritable private folder is shown without starting a server", { timeout: 120000, concurrency: false }, async () => {
