@@ -39,7 +39,7 @@ export async function serveBridge(config, handlers) {
     if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
     try { reply(response, 200, await handler({ params: { kind }, body: parsed }), config.origin); log(200); }
     catch (failure) {
-      const code = bridgeApi.errors[failure.code] ? failure.code : "upstream-failed";
+      const code = Object.hasOwn(bridgeApi.errors, failure.code) ? failure.code : "upstream-failed";
       error(response, bridgeApi.errors[code], code, failure.message || "Bridge handler failed.", config.origin);
       log(bridgeApi.errors[code]);
     }

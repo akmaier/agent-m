@@ -175,6 +175,10 @@ test("TST-261008: serveBridge names pause and handler failures", async (t) => {
   const namedResponse = await request(named, "/v1/probes/endpoint-test", { body: { args: CONFIG } });
   assert.equal(namedResponse.status, 422);
   assert.deepEqual(await namedResponse.json(), { error: "invalid-request", message: "configuration refused" });
+  const inherited = await running(t, { jobs: { "POST /v1/probes/endpoint-test": async () => { const refusal = new Error("non-protocol code"); refusal.code = "toString"; throw refusal; } } });
+  const inheritedResponse = await request(inherited, "/v1/probes/endpoint-test", { body: { args: CONFIG } });
+  assert.equal(inheritedResponse.status, 502);
+  assert.deepEqual(await inheritedResponse.json(), { error: "upstream-failed", message: "non-protocol code" });
   const failed = await running(t, { jobs: { "POST /v1/probes/endpoint-test": async () => { throw new Error("local endpoint offline"); } } });
   const response = await request(failed, "/v1/probes/endpoint-test", { body: { args: CONFIG } });
   assert.equal(response.status, 502);
