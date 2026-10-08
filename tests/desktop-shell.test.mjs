@@ -11,6 +11,7 @@ import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-electron-44");
+let runtimeFailure;
 const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
 const tokenOf = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
 const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
@@ -24,15 +25,20 @@ async function runtime() {
   const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
   const executableOf = (installed) => process.platform === "darwin" ? join(installed, "dist/Electron.app/Contents/MacOS/Electron") : join(installed, "dist/electron");
   if (existsSync(executableOf(bundled))) return executableOf(bundled);
+  if (runtimeFailure) throw runtimeFailure;
   const installed = join(electronCache, "node_modules/electron");
-  if (!existsSync(executableOf(installed))) {
-    const result = spawnSync("npm", ["install", "--no-save", "--prefix", electronCache, "electron@44.5.1"], { encoding: "utf8", timeout: 90000 });
-    assert.equal(result.status, 0, scrub(result.stderr));
-    const acquired = spawnSync(process.execPath, [join(installed, "install.js")], { encoding: "utf8", timeout: 90000 });
-    assert.equal(acquired.status, 0, scrub(acquired.stderr));
-  }
-  assert.equal(existsSync(executableOf(installed)), true, "Electron 44.5.1 executable was not acquired.");
-  return executableOf(installed);
+  const acquire = (stage, command, arguments_) => {
+    const started = Date.now(), result = spawnSync(command, arguments_, { encoding: "utf8", timeout: 40000 });
+    if (result.status !== 0) throw new Error(`Electron ${stage} failed after ${Date.now() - started}ms; status=${result.status}; signal=${result.signal}; error=${result.error?.code ?? "none"}; stderr=${scrub(result.stderr)}`);
+  };
+  try {
+    if (!existsSync(executableOf(installed))) {
+      acquire("package acquisition", "npm", ["install", "--no-save", "--prefix", electronCache, "electron@44.5.1"]);
+      acquire("binary acquisition", process.execPath, [join(installed, "install.js")]);
+    }
+    assert.equal(existsSync(executableOf(installed)), true, "Electron 44.5.1 executable was not acquired.");
+    return executableOf(installed);
+  } catch (failure) { runtimeFailure = failure; throw failure; }
 }
 
 const cdp = async (url, method, params = {}) => {
