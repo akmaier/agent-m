@@ -394,3 +394,15 @@ export async function listJobs(products, live) {
   }
   return rows.sort(compareRows);
 }
+
+// recordsNewestFirst(snapshot: Snapshot) -> AsyncIterable<JobRecord> — records ordered by the timestamp their paths
+// name.  Reading happens in the generator, after ordering, so a caller may stop when it has found the recent record it
+// needs without reading older files.
+export async function* recordsNewestFirst(snapshot) {
+  const paths = snapshot.paths.filter((path) => JOB_PATH.test(path)).sort().reverse();
+  for (const path of paths) {
+    const text = await snapshot.read(path);
+    if (text === null) throw new Error(`job record is not held: ${path}`);
+    yield recordFromDocument(readDocument(jobSchema, path, text));
+  }
+}

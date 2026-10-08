@@ -9,6 +9,7 @@
 
 import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
+import { reportsAwaitingAcceptance } from "../release-evidence/index.mjs";
 
 // The human-readable kind MOD-progress-measures' waitingForAcceptance names a reviewed file by (Interfaces), keyed by
 // MOD-approvals' own kind (approval-record.schema.md). A kind with no entry here — release-report — names no
@@ -49,5 +50,9 @@ export async function waitingForAcceptance(host, snapshot) {
     .filter(([, status]) => Object.hasOwn(REVIEWED_KINDS, status.kind) && WAITING_STATUSES.has(status.status))
     .map(([path, status]) => ({ kind: REVIEWED_KINDS[status.kind], id: status.id, path, blob: snapshot.blob(path) }));
 
-  return [...specChanges, ...reviewed];
+  const report = await reportsAwaitingAcceptance(host, snapshot);
+  const releaseReport = report ? [{
+    kind: "release test report", id: `release-v${report.version}`, path: report.record, blob: report.blob,
+  }] : [];
+  return [...specChanges, ...reviewed, ...releaseReport];
 }

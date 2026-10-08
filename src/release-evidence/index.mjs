@@ -15,5 +15,5 @@
 
 export { nextVersion } from "./version.mjs";
 export { startReleaseCandidate } from "./candidate.mjs";
-export { releaseReport, acceptAndRelease } from "./report.mjs";
+export { releaseReport, acceptAndRelease, reportsAwaitingAcceptance } from "./report.mjs";
 export { ReleaseEvidenceError } from "./errors.mjs";

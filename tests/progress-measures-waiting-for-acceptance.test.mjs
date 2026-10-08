@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 import { waitingForAcceptance } from "../src/progress-measures/index.mjs";
 
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const emptyTagsHost = { listTags: async () => [] };
 
 // A fixture snapshot (MOD-repository-hosts' Snapshot): paths, a blob SHA for each, and a read() of the texts given —
 // null for every other path, as a snapshot answers for a path its commit does not hold.
@@ -98,7 +99,7 @@ test("waitingForAcceptance — an open SPEC entry, an open use case and a change
   ];
   const snapshot = fixtureSnapshot(blobs, queue.texts, extraPaths);
 
-  const result = await waitingForAcceptance(null, snapshot);
+  const result = await waitingForAcceptance(emptyTagsHost, snapshot);
   result.sort(byId);
   assert.deepEqual(result, [
     { kind: "module", id: "MOD-sample-waiting", path: "docs/architecture/MOD-sample-waiting.md", blob: MOD_BLOB },
@@ -128,7 +129,7 @@ test("waitingForAcceptance — an open architecture decision and a changed use c
   const extraPaths = [`docs/approvals/UC-051-${UC_OLD_BLOB12}.md`];
   const snapshot = fixtureSnapshot(blobs, {}, extraPaths);
 
-  const result = await waitingForAcceptance(null, snapshot);
+  const result = await waitingForAcceptance(emptyTagsHost, snapshot);
   result.sort(byId);
   assert.deepEqual(result, [
     {
@@ -145,7 +146,7 @@ test("waitingForAcceptance — an open architecture decision and a changed use c
 // expect: an empty array
 test("waitingForAcceptance — an empty repository waits for nothing", async () => {
   const snapshot = fixtureSnapshot({});
-  assert.deepEqual(await waitingForAcceptance(null, snapshot), []);
+  assert.deepEqual(await waitingForAcceptance(emptyTagsHost, snapshot), []);
 });
 
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE

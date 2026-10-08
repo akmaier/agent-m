@@ -27,7 +27,7 @@ import { testDeclarations } from "../test-document/index.mjs";
 import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { resultsAt, rateComparison } from "../result-records/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
-import { listJobs } from "../job-ledger/index.mjs";
+import { listJobs, recordsNewestFirst } from "../job-ledger/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { ReleaseEvidenceError } from "./errors.mjs";
 
@@ -238,6 +238,35 @@ export async function releaseReport(at, results, candidate) {
   return { text: writeDocument(candidateDocumentSchema, document), complete, failing, worse };
 }
 
+const CANDIDATE_TAG = /^v(\d{4}\.\d+\.\d+)-rc\.(\d+)$/;
+
+function newestPendingCandidate(tags, snapshot) {
+  const releases = new Set(tags.map((tag) => tag.name));
+  const reported = new Set(snapshot.paths
+    .map((path) => /^docs\/tests\/releases\/v(\d{4}\.\d+\.\d+)\.md$/.exec(path)?.[1])
+    .filter(Boolean));
+  return tags.map(({ name }) => {
+    const match = CANDIDATE_TAG.exec(name);
+    return match ? { tag: name, version: match[1], number: Number(match[2]) } : null;
+  }).filter((candidate) => candidate && !releases.has(`v${candidate.version}`) && !reported.has(candidate.version))
+    .sort((a, b) => a.version.localeCompare(b.version) || a.number - b.number).at(-1) ?? null;
+}
+
+// reportsAwaitingAcceptance(host, snapshot) -> the completed newest candidate's run record where its report has not
+// yet been written.  Job iteration is deliberately lazy: after any candidate run, an earlier record cannot establish a
+// pending newer candidate.
+export async function reportsAwaitingAcceptance(host, snapshot) {
+  const candidate = newestPendingCandidate(await host.listTags("v*"), snapshot);
+  if (!candidate) return null;
+  for await (const record of recordsNewestFirst(snapshot)) {
+    if (record.kind !== "run-tests" || !record.params?.candidate?.tag) continue;
+    if (record.params.candidate.tag !== candidate.tag) return null;
+    if (record.end?.state !== "done") return null;
+    return { version: candidate.version, candidate: candidate.tag, record: record.path, blob: snapshot.blob(record.path) };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------- acceptAndRelease
 
 // The changelog's text with a new entry added right after its title line (CHANGELOG.md, MOD-release-evidence.md,
@@ -253,14 +282,14 @@ function withChangelogEntry(current, version, today, entryText, limitations) {
   return body.join("\n");
 }
 
-const CANDIDATE_TAG = /^v(.+)-rc\.(\d+)$/;
+const CANDIDATE_TAG_ANY_VERSION = /^v(.+)-rc\.(\d+)$/;
 
 // The newest release candidate tag of `version` — the one whose run just ended, the same "next free N" an earlier
 // one would have stood at (candidate.mjs's nextCandidateNumber) — or null where none is tagged.
 function newestCandidateTag(tags, version) {
   let best = null, highest = -1;
   for (const t of tags) {
-    const m = CANDIDATE_TAG.exec(t.name);
+    const m = CANDIDATE_TAG_ANY_VERSION.exec(t.name);
     if (m && m[1] === version && Number(m[2]) > highest) { highest = Number(m[2]); best = t; }
   }
   return best;
