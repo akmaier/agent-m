@@ -71,7 +71,8 @@ test("every dashboard view file of today is shown — use cases, architecture, S
   assert.equal(await heading("#uc"), "Use cases");
   assert.equal(await heading("#uc/UC-001"), "UC-001 Add a product");
   assert.equal(await heading("#arc"), "Architecture");
-  assert.equal(await heading("#spec"), "SPEC changes");
+  assert.equal(await heading("#spec"), "Current requirements");
+  assert.ok(page.main().indexOf("Current requirements") < page.main().indexOf("SPEC changes"), "the overview precedes its history");
   assert.equal(await heading("#how"), "How acceptance works");
   assert.equal(await heading("#settings"), "Settings");
   assert.equal(await heading("#setup"), "Finish setting up your instance");
