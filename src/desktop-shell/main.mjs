@@ -8,6 +8,12 @@ const origin = option("--origin") ?? "https://akmaier.github.io";
 export async function start(electron, dataFolder) {
   const bridge = await compose({ instance, origin, dataFolder });
   await electron.app.whenReady();
+  electron.ipcMain.handle("bridge-state", () => ({ address: bridge.address, token: bridge.token, instance }));
+  electron.ipcMain.handle("pair-anew", async () => {
+    bridge.token = await bridge.pairAnew();
+    return bridge.token;
+  });
+  electron.ipcMain.handle("copy", async (_event, text) => electron.clipboard.writeText(text));
   electron.protocol.handle("agent-m", (request) => electron.net.fetch(new URL(request.url.replace("agent-m://", "file://")).href));
   const window = new electron.BrowserWindow({ webPreferences: { preload: new URL("./preload.cjs", import.meta.url).pathname, contextIsolation: true, nodeIntegration: false } });
   await window.loadFile(new URL("./window.html", import.meta.url).pathname);
