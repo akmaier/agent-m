@@ -58,16 +58,20 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const executable = await runtime();
   const args = [`--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
-  const child = spawn(executable, args, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: "ignore" });
+  const child = spawn(executable, args, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
-  const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")));
+  const stopped = () => { if (child.exitCode !== null) throw new Error(`Electron exited=${child.exitCode}; stderr=${scrub(stderr)}`); };
+  const page = await wait(async () => { stopped(); return (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")); });
   const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl);
   const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl);
   return { browser, child, exited, folder, main, origin, page, port };
 }
 
 async function quit(app) {
-  try { await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Quit')?.click()"); } catch {}
+  await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Quit')"));
+  try { await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Quit').click()"); } catch {}
   await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
   let timeout;
   try { await Promise.race([app.exited, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("Electron did not exit after Quit.")), 30000); })]); }
@@ -97,6 +101,7 @@ test("TST-276001: the actual Electron entry renders its forked pairing page and 
 
 test("TST-276002: pause refuses new work, resume restores the real server refusal, and Quit stops it", { timeout: 120000, concurrency: false }, async () => {
   const app = await launch();
+  let didQuit = false;
   try {
     const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     const work = () => fetch(`http://127.0.0.1:${app.port}/v1/probes/agent`, { method: "POST", headers: { origin: app.origin, "x-agent-m-bridge-token": token, "content-type": "application/json" }, body: JSON.stringify({ args: {} }) });
@@ -107,8 +112,9 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
     assert.equal((await work()).status, 404);
     await quit(app);
+    didQuit = true;
     await assert.rejects(fetch(`http://127.0.0.1:${app.port}/v1/pair`));
-  } finally { await clean(app); }
+  } finally { if (!didQuit) await clean(app); }
 });
 
 test("TST-276003: an occupied port is visible and its replacement starts the same real composition", { timeout: 120000, concurrency: false }, async () => {
