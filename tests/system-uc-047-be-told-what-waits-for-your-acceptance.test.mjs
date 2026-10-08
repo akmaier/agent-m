@@ -29,6 +29,8 @@ const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the inst
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
 const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
 const PRODUCT = "alice/thesis-tool"; // a product this browser keeps, UC-047 step 2's "each product"
+const emptyTags = (url) => (url.origin === API && /\/tags$/.test(url.pathname)
+  ? new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }) : undefined);
 
 // ---------------------------------------------------------------- the browser: Notification, navigator.serviceWorker and
 // ---------------------------------------------------------------- setInterval/clearInterval stood in for one test, combining
@@ -76,11 +78,12 @@ function installBrowser({ permission = "granted", userAgent = "node" } = {}) {
 // way tests/release-sprint-04-uc-001-repository-hosts.test.mjs's own servers() forwards a product's requests, trimmed to
 // reading alone (no write is tested here).
 async function withProduct(instanceFiles, productFiles) {
-  const product = await repoServer({ repo: PRODUCT, files: productFiles });
+  const product = await repoServer({ repo: PRODUCT, files: productFiles, handlers: [emptyTags] });
   const productAuthorizations = [];
   const instance = await repoServer({
     files: instanceFiles,
     handlers: [
+      emptyTags,
       (url, init) => {
         if (!((url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`))
           || (url.origin === RAW && url.pathname.startsWith(`/${PRODUCT}/`)))) return undefined;
@@ -178,7 +181,7 @@ test("step 1: Switch on asks the browser's permission once, directly on the clic
 test("step 2: the check of the instance connects with the instance's own stored token", async () => {
   const seenAuth = [];
   const browser = installBrowser();
-  const server = await repoServer({ files: {}, handlers: [
+  const server = await repoServer({ files: {}, handlers: [emptyTags,
     (url, init) => { if (url.origin === API) seenAuth.push(init.headers?.Authorization ?? null); return undefined; },
   ] });
   try {
@@ -221,7 +224,7 @@ test("TST-279 step 2: the check also reaches each product this browser keeps, wi
 // expect (step 1/3: "The first check after Switch on tells nothing and takes what waits then as known"): no notification
 //         is shown, even though the use case already waits; it is recorded as the baseline all the same
 test("step 1 into step 3: the first check after Switch on tells nothing, even though something already waits", async () => {
-  const server = await repoServer({ files: { "docs/use-cases/UC-520-sample.md": "# UC-520\n" } });
+  const server = await repoServer({ files: { "docs/use-cases/UC-520-sample.md": "# UC-520\n" }, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({
@@ -244,7 +247,7 @@ test("step 1 into step 3: the first check after Switch on tells nothing, even th
 //         (#uc/<id>) — this also covers 3a: the notification's own title and body already name what waits and where,
 //         so the text leads the person even where a click would not
 test("step 3 (and 3a): a file come to wait is notified once, naming it and an address this page resolves", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
@@ -270,7 +273,7 @@ test("step 3 (and 3a): a file come to wait is notified once, naming it and an ad
 // expect (step 3: "When more than three of one kind come at once... one notification names their number instead"): one
 //         notification, not four, naming the count and the kind
 test("step 3: more than three of one kind in one repository give one notification of their number", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
@@ -291,7 +294,7 @@ test("step 3: more than three of one kind in one repository give one notificatio
 // expect (step 4: "nothing is notified twice while it waits; a file changed again comes to wait anew"): the unchanged
 //         check notifies nothing further; the file edited again is notified a second time
 test("step 4: what was notified is kept — nothing twice while unchanged, a file changed again comes to wait anew", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
@@ -384,7 +387,7 @@ test("2c: a server that cannot be reached is skipped until the next check; nothi
   let failOnce = false;
   const server = await repoServer({
     files: { "docs/use-cases/UC-600-sample.md": "# UC-600\n" },
-    handlers: [(url) => (failOnce && url.origin === API && /\/(commits|git\/(ref|trees)\/)/.test(url.pathname)
+    handlers: [emptyTags, (url) => (failOnce && url.origin === API && /\/(commits|git\/(ref|trees)\/)/.test(url.pathname)
       ? (() => { failOnce = false; return new Response("{}", { status: 500 }); })() : undefined)],
   });
   const browser = installBrowser();

@@ -31,6 +31,8 @@ import { repoServer, openDashboard, richDocument, press, settle, REPO } from "./
 
 const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the instance (store.mjs prefixOf)
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
+const emptyTags = (url) => (url.origin === "https://api.github.com" && /\/tags$/.test(url.pathname)
+  ? new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }) : undefined);
 
 // ---------------------------------------------------------------- the browser, as tests/dashboard-notifications-
 // ---------------------------------------------------------------- wiring.test.mjs's own installBrowser() stands in
@@ -164,7 +166,7 @@ async function openMainPage({ server, entries = {} }) {
 // expect: one notification for the use case and one for the SPEC change entry — each names the file and links the
 //         page where it is accepted (its own review page, through this dashboard's addressOf)
 test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a newly open use case and a newly open SPEC change are each notified, naming the file and linking where it is accepted", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
@@ -195,7 +197,7 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a newly open use case
 // input: a further check with nothing changed since
 // expect: no further notification — a file already notified yields none
 test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a file already notified yields no further notification", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
@@ -218,7 +220,7 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a file already notifi
 // input: opening a review page, where a check would otherwise be due
 // expect: nothing is notified — notifications switched off yields none
 test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — notifications switched off yields no notification", async () => {
-  const server = await repoServer({ files: { "docs/use-cases/UC-932-sample.md": "# UC-932\n" } });
+  const server = await repoServer({ files: { "docs/use-cases/UC-932-sample.md": "# UC-932\n" }, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc" }); // no "notifications" entry: switched off
@@ -241,7 +243,7 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — notifications switche
 //         well as the review pages, each of which starts MOD-notifications' checks (the item's Acceptance, corrected
 //         after docs/gates/20261007-1603-development-release-testing-9980.md) —; the click on Switch on asks it, once
 test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page, the main page among them, asks before the click; the click asks once", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser({ permission: "default" });
   try {
     await openMainPage({ server });
