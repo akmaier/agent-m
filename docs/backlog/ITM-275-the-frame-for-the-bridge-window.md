@@ -53,7 +53,23 @@ to render this page, fake a strategy registry, or claim the remaining main/revie
   the declared upstream fallback. No repository request or job registration occurs for the empty-strategy Bridge page.
 - Notices show their supplied text/link. A decision shows its title/lines and returns confirmed/reason only on the
   person's choice; cancellation stays cancelled. Pairing explanations use the shared renderer.
-- Only src/site-frame/, src/identifiers/ and new tests naming the module they guard change. Existing expected results
+- The implementation PR changes only src/site-frame/, src/identifiers/ and new tests naming the module they guard. The separate whole-check PR below changes no owned source or tests. Existing expected results
   stay unchanged; none of the legacy src/site/ module changes.
 - The tests-only first commit has actual red CI; final-head CI is green; each new case has an executed planted-fault
   counter-proof and restored positive. No paid service is called.
+
+## Whole-repository check integration
+
+Before the corrected source gate, make a separate between-jobs PR into sprint/15 changing only
+`tests/test_no_backend.py`. Under SPEC's WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS, recognise the accepted
+MOD-site-frame local `look.css` and `brand/` loading. Permit at most three loading-element sites across
+`src/site-frame/`: the stylesheet link and the picture's light/dark logo img/source. Require semantic evidence that
+the actual href/src/srcset resolve only `./look.css` or `./brand/` assets against the module's own import.meta.url.
+No arbitrary or foreign asset address, indirect loading bypass, extra loading site or inline CSS workaround is allowed.
+
+Keep the existing own-data fetch predicate and all prior foreign-address/channel guards unchanged. The frame must
+use its own `./brand/` files, with the reused asset bytes and terms. The checker permits no load when the module is
+absent and requires none; exercise actual corrected frame source as an independent diagnostic outside that PR.
+New bounded checker counter-proofs cover accepted local assets, wrong destination/missing evidence and excess sites.
+After independently approved green checker merge, integrate the sprint base ordinarily into the owned275 branch
+before its corrected source gate. Preserve original tests-first history, fixed limit3 and independent release coverage.
