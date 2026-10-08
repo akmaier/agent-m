@@ -34,6 +34,10 @@ function requirementRows(requirement) {
   const row = el("tr", null, el("td", null, button));
   const opened = el("tr", "requirement-opened");
   button.addEventListener("click", () => {
+    if (opened.childNodes.length) {
+      opened.replaceChildren();
+      return;
+    }
     const cell = el("td", "panel", requirementDetail(requirement));
     cell.setAttribute("colspan", "1");
     opened.replaceChildren(cell);
@@ -55,7 +59,18 @@ function overview(spec) {
   if (outside.length) page.append(requirementsTable(outside));
   for (const section of spec.sections) {
     const requirements = section.requirements.map((name) => spec.requirements.get(name)).filter(Boolean);
-    const group = el("section", "panel spec-section", el("h3", null, sectionTitle(section.heading)), requirementsTable(requirements));
+    const table = requirementsTable(requirements);
+    table.setAttribute("hidden", "hidden");
+    const toggle = el("button", "spec-section-toggle btn small", sectionTitle(section.heading));
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.addEventListener("click", () => {
+      const collapsed = table.getAttribute("hidden") !== null;
+      if (collapsed) table.removeAttribute("hidden");
+      else table.setAttribute("hidden", "hidden");
+      toggle.setAttribute("aria-expanded", String(collapsed));
+    });
+    const group = el("section", "panel spec-section", el("h3", null, toggle), table);
     page.append(group);
   }
   if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
