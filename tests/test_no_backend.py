@@ -66,7 +66,7 @@ PERMITTED_HOSTS = {
 ADDRESS = re.compile(r"\b(?:https?|wss?)://(\[[0-9a-f:]+\]|[a-z0-9.-]+)", re.I)
 
 CHANNELS = [
-    ("fetch", re.compile(r"(?<![\w$.])fetch\s*\((?!\)\s*\{)")),  # a call, not a method named fetch being defined
+    ("fetch", re.compile(r"(?<![\w$.])(?:(?:globalThis|window)\.)?fetch\s*\((?!\)\s*\{)")),  # a call, not a method named fetch being defined
     ("XMLHttpRequest", re.compile(r"\bXMLHttpRequest\b")),
     ("WebSocket", re.compile(r"\bWebSocket\b")),
     ("EventSource", re.compile(r"\bEventSource\b")),
@@ -117,8 +117,24 @@ def _configured_endpoint_transport(text: str, at: int) -> bool:
             and "const { url, init } = requestFor(config);" in before)
 
 
+def _bridge_client_transport(text: str, at: int) -> bool:
+    """MOD-bridge-client sends one request to the Bridge handle, only through its accepted pairing or endpoint-test path."""
+    before = text[:at]
+    return (text[at:].startswith('fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" })')
+            and "async function call(bridge, path, init)" in before
+            and "const address = `${bridge.address}${path}`;" in before
+            and "const headers = requestHeaders(bridge, init.body !== undefined);" in before
+            and "const headers = { [bridgeApi.tokenHeader]: neededToken(" in before
+            and "if (settings?.login) headers.Authorization = basic(settings.login);" in before
+            and "await call(bridge, \"/v1/pair\", { method: \"GET\" });" in text
+            and "candidate.path === \"/v1/probes/{kind}\"" in text
+            and "route.path.replace(\"{kind}\", kind)" in text
+            and "body: JSON.stringify({ args })" in text)
+
+
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
 ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
+BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
 
 # (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
 # An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
@@ -129,6 +145,7 @@ PERMITTED_CHANNELS = {
     ("src/spec-document/index.mjs", "fetch"): (1, "its own skeleton.md, from the address the module itself was loaded from",
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
     ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
+    ("src/bridge-client/", "fetch"): (1, BRIDGE_CLIENT_TRANSPORT, _bridge_client_transport),
     # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -309,6 +326,37 @@ class NoServer(unittest.TestCase):
         twice = configured.replace("return fetch(url, init);", "return fetch(url, init);\n  return fetch(url, init);")
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": twice}),
                          [f"src/endpoint-calls/index.mjs: fetch found 2 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
+
+    def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
+        accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
+                    'function requestHeaders(bridge, contentType = false) {\n'
+                    '  const headers = { [bridgeApi.tokenHeader]: neededToken(settings?.token) };\n'
+                    '  if (settings?.login) headers.Authorization = basic(settings.login);\n'
+                    '  return headers;\n}\n'
+                    'async function call(bridge, path, init) {\n'
+                    '  const address = `${bridge.address}${path}`;\n'
+                    '  const headers = requestHeaders(bridge, init.body !== undefined);\n'
+                    '  return fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" });\n}\n'
+                    'export async function pair(address, pairingToken) {\n'
+                    '  await call(bridge, "/v1/pair", { method: "GET" });\n}\n'
+                    'export async function probe(bridge, kind, args) {\n'
+                    '  const route = bridgeApi.routes.find((candidate) => candidate.path === "/v1/probes/{kind}");\n'
+                    '  return call(bridge, route.path.replace("{kind}", kind), { body: JSON.stringify({ args }) });\n}\n')
+        path = "src/bridge-client/index.mjs"
+        self.assertEqual(channel_findings({path: accepted}), [])
+        wrong_destination = accepted.replace("`${bridge.address}${path}`", "args.baseUrl")
+        self.assertEqual(channel_findings({path: wrong_destination}),
+                         [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+        wrong_evidence = accepted.replace("JSON.stringify({ args })", "JSON.stringify(args)")
+        self.assertEqual(channel_findings({path: wrong_evidence}),
+                         [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+        extra = accepted + 'fetch(address, init);\n'
+        self.assertEqual(channel_findings({path: extra}),
+                         [f"{path}:19: fetch: not {BRIDGE_CLIENT_TRANSPORT}",
+                          f"src/bridge-client/: fetch found 2 times, permitted at most 1 ({BRIDGE_CLIENT_TRANSPORT})"])
+        indirect = accepted.replace("fetch(address", "globalThis.fetch(address")
+        self.assertEqual(channel_findings({path: indirect}),
+                         [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
 
     def test_counter_proof_a_modules_own_data_files(self):
         # The form MOD-spec-document reads its skeleton in, in a module whose file states that it reads its own data files.
