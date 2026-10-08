@@ -10,6 +10,7 @@ modules:
 builds_on:
   - ITM-261
   - ITM-262
+  - ITM-276
 tests:
   - unit
 origin:
@@ -23,7 +24,7 @@ origin:
 
 Register the endpoint-test handler in MOD-desktop-shell's compose.mjs through the accepted server and handler interfaces. The actual Bridge entry must serve it for the configured instance origin, with the existing pairing controls and loopback binding. This is module work, not an unowned dashboard wiring change.
 
-Before start, name the merged UC-044 delivery that supplies the runnable shell, its pairing window and lifecycle. If no such delivery exists, this item remains blocked: the full app is not implied by this small integration item. The architecture refinement must explicitly settle any proposed smaller source-mode composition and its dependencies before implementation or selection. No second server or test-only entry is accepted as the production composition.
+Before start, ITM-276 must be merged and its runnable source-folder Electron entry, pairing window and lifecycle named in the PR. MOD-desktop-shell explicitly permits that component-test start with command-line instance/origin and no updates. Register the handler into that same production main.mjs/compose.mjs; no second server or test-only entry substitutes for it. This integration does not complete UC-044's signed platform distribution, agent/tunnel/job features or updates.
 
 ## Acceptance
 
