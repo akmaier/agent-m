@@ -133,21 +133,23 @@ test("TST-263007: Bridge failures and unreadable answers have their separate nam
 });
 
 // TST-263008
-// given: a paired Bridge whose pair and endpoint-test calls first answer, then each receives a constructed TimeoutError
+// given: a paired Bridge whose pair and endpoint-test calls first answer, then each fetch or response body receives a constructed TimeoutError
 // input: repeat pair and probe after their known-positive calls
-// expect: both operations name Timeout, while ordinary unreadable answers remain NoAnswer
-// Planted fault: mapping TimeoutError through NoAnswer makes each named-timeout assertion fail.
+// expect: both operations name Timeout at either request stage, while ordinary unreadable answers remain NoAnswer
+// Planted fault: reading the response body outside the timeout mapping makes the body assertion receive raw TimeoutError.
 test("TST-263008: pair and endpoint-test name a finite request timeout", async (t) => {
   let calls = 0;
   withFetch(t, async () => {
     calls += 1;
     if (calls === 1) return json(200, { bridge: { name: "Agent M Bridge", version: "1", platform: "macOS" }, origin: "https://akmaier.github.io" });
     if (calls === 3) return json(200, { answer: { works: true, model: "tiny" } });
+    if (calls === 5) return { ok: true, text: async () => { throw new DOMException("The response timed out", "TimeoutError"); } };
     throw new DOMException("The request timed out", "TimeoutError");
   });
   assert.deepEqual(await pair("http://localhost:4711", "copied-token"), { address: "http://localhost:4711", token: "copied-token" });
   await assert.rejects(() => pair("http://localhost:4711", "copied-token"), (error) => error instanceof BridgeError && error.name === "Timeout");
   const bridge = bridgeAt({ address: "http://127.0.0.1:4711", token: "bridge-token" });
   assert.deepEqual(await probe(bridge, "endpoint-test", CONFIG), { works: true, model: "tiny" });
+  await assert.rejects(() => probe(bridge, "endpoint-test", CONFIG), (error) => error instanceof BridgeError && error.name === "Timeout");
   await assert.rejects(() => probe(bridge, "endpoint-test", CONFIG), (error) => error instanceof BridgeError && error.name === "Timeout");
 });

@@ -65,14 +65,15 @@ async function call(bridge, path, init) {
   const headers = requestHeaders(bridge, init.body !== undefined);
   const signal = AbortSignal.timeout(requestTimeoutMs);
   let answer;
+  let body;
   try {
     answer = await fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" });
+    body = await answerJson(answer);
   } catch (error) {
     if (error?.name === "TimeoutError") throw new BridgeError("Timeout", {}, "The Bridge request timed out.");
     const likely = likelyNoAnswer(bridge);
     throw new BridgeError("NoAnswer", { likely }, `The Bridge gave no answer: ${String(error?.message ?? error)}`);
   }
-  const body = await answerJson(answer);
   if (answer.ok) return body;
   if (answer.status === 401) {
     if (bridge.route === "jump-host" && privateSettings.get(bridge)?.login && answer.headers.get("www-authenticate")) {
