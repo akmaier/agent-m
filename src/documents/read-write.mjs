@@ -26,6 +26,10 @@ import { leftOut, textOf, valueProblem } from "./checks.mjs";
 
 const HEADING = /^(#{1,6})[ \t]+\S/;
 const FIELD_LINE = /^([a-z][a-z0-9_-]*):[ \t]*(.*)$/;
+// A section's or an appended section's field line: its key may also be words of a front matter key's form separated by
+// single spaces, such as `gate record:` (ITM-252, MOD-job-ledger.md Data). Never used for front matter or for the
+// "lines" shape, whose keys stay FIELD_LINE, with no space.
+const SECTION_FIELD_LINE = /^([a-z][a-z0-9_-]*(?: [a-z][a-z0-9_-]*)*):[ \t]*(.*)$/;
 const NUMBER = /^-?\d+(?:\.\d+)?$/;
 const LEFT_OUT = "—";
 
@@ -56,6 +60,10 @@ const cellError = (section, row, line, column, why) => namedError("DocumentError
 const notAppendable = (section, row, line) => namedError("NotAppendable",
   `writeDocument: the table under ${section} only grows, and its row ${row} (line ${line}) would be lost or changed — rows `
     + "are added at its end, and every row that stands keeps its bytes", { section, row, line });
+
+// NotAppendable — appendSection is asked for a heading the schema does not append, or for one it appends only once that
+// already stands in the record: `heading`.
+const notAppendableHeading = (heading, why) => namedError("NotAppendable", `appendSection: ${why}`, { heading });
 
 // ---------------------------------------------------------------- values
 
@@ -157,7 +165,7 @@ function sectionFields(fields, text, frontLookup) {
   const { inBlock } = fences(lines);
   const raw = {};
   lines.forEach((line, i) => {
-    const m = inBlock[i] ? null : FIELD_LINE.exec(line);
+    const m = inBlock[i] ? null : SECTION_FIELD_LINE.exec(line);
     if (m && Object.hasOwn(fields, m[1]) && !Object.hasOwn(raw, m[1])) raw[m[1]] = m[2].trim();
   });
   const lookup = (name) => (Object.hasOwn(fields, name) ? textOf(raw[name]) : frontLookup(name));
@@ -395,7 +403,7 @@ function withFields(fields, section) {
   const line = (key, value) => (lineText(value) === "" ? `${key}:` : `${key}: ${lineText(value)}`);
   const seen = new Set(), out = [];
   lines.forEach((raw, i) => {
-    const m = inBlock[i] ? null : FIELD_LINE.exec(bare(raw));
+    const m = inBlock[i] ? null : SECTION_FIELD_LINE.exec(bare(raw));
     if (!m || !Object.hasOwn(fields, m[1]) || seen.has(m[1])) { out.push(raw); return; }
     seen.add(m[1]);
     if (has(section.fields, m[1]) && !leftOut(section.fields[m[1]])) out.push(line(m[1], section.fields[m[1]]));
@@ -454,4 +462,31 @@ export function writeDocument(schema, document) {
     out += part(section, compiled.appended.get(section?.heading));
   }
   return formatFrontMatter(front, order, out);
+}
+
+// ---------------------------------------------------------------- appendSection
+
+// appendSection(schema: Schema, text: string, heading: string, fields: Record<string, string | string[] | number>) ->
+// string — the record's text byte for byte, followed by the new section: a record is only ever appended to, never
+// rewritten (A RECORD IS EVIDENCE, NOT A PROPOSAL). Throws NotAppendable when the schema does not let that section be
+// appended, or appended a second time, and DocumentError when a field does not fit.
+export function appendSection(schema, text, heading, fields) {
+  const compiled = compiledOf(schema);
+  const spec = compiled.appended.get(heading);
+  if (!spec) {
+    throw notAppendableHeading(heading, `${heading} is not a section this format appends; it appends `
+      + `${[...compiled.appended.keys()].join(", ") || "none"}`);
+  }
+  const body = typeof text === "string" ? text : "";
+  const { chunks } = layout(compiled, body);
+  if (spec.repeat !== true && chunks.some((chunk) => chunk.heading === heading)) {
+    throw notAppendableHeading(heading, `${heading} is already in the record, and this format appends it only once`);
+  }
+  const front = parseFrontMatter(body);
+  const frontFields = typedValues(front.fields, front.order, schema.frontMatter, "front matter");
+  const frontLookup = (name) => textOf(frontFields[name]);
+  const section = { heading, fields: isObject(fields) ? fields : {} };
+  if (spec.fields) checkFields(spec.fields, section, frontLookup);
+  const rendered = spec.fields ? withFields(spec.fields, { ...section, text: "" }) : "";
+  return appendBlock(body, `${heading}\n${rendered}`);
 }

@@ -54,6 +54,7 @@ The job rules hold for every pull request; no condition is added.
   more work in the next sprint.
 - Questions to `akmaier` must be avoided. They are allowed only when the SPEC and the use cases cannot be implemented as
   specified.
+- A rejected item may be reworked once within the sprint, by its developer, on exactly the condition the gate names.
 - The Product Owner decides every merge into `sprint/<nn>` and of `sprint/<nn>` into `main`, after a review it records
   on the pull request. scrum-master-session carries out each merge on that decision, on the head commit the decision
   names: the session's permission system refuses a merge by an agent, and `akmaier` assigned the merge to it.
