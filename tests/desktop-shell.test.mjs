@@ -213,7 +213,11 @@ test("TST-276005: native close behavior and a second source start restore the fi
     await evaluate(app.main, `${state}.minimize()`);
     if (process.platform === "linux") {
       const manager = await evaluate(app.main, "(() => { try { const text = process.getBuiltinModule('child_process').execFileSync('xprop', ['-root', '_NET_SUPPORTING_WM_CHECK'], { encoding: 'utf8' }); return { available: true, windowManager: text.includes('_NET_SUPPORTING_WM_CHECK') }; } catch (failure) { return { available: false, error: failure.code ?? failure.name }; } })()");
-      assert.deepEqual(manager, { available: true, windowManager: true }, "Linux native minimize needs an X11 window manager");
+      const candidates = ["openbox", "fluxbox", "metacity", "xfwm4", "mutter", "kwin_x11"].map((command) => {
+        const result = spawnSync(command, ["--version"], { encoding: "utf8", timeout: 5000 });
+        return { command, status: result.status, signal: result.signal, error: result.error?.code ?? null };
+      });
+      assert.equal(manager.available && manager.windowManager, true, `Linux native minimize needs an X11 window manager; xprop=${JSON.stringify(manager)}; candidates=${JSON.stringify(candidates)}`);
     }
     await wait(async () => await evaluate(app.main, `${state}.isMinimized()`));
     count = await observeSecond(); started = await startSecond();
