@@ -249,7 +249,10 @@ function newestPendingCandidate(tags, snapshot) {
     const match = CANDIDATE_TAG.exec(name);
     return match ? { tag: name, version: match[1], number: Number(match[2]) } : null;
   }).filter((candidate) => candidate && !releases.has(`v${candidate.version}`) && !reported.has(candidate.version))
-    .sort((a, b) => a.version.localeCompare(b.version) || a.number - b.number).at(-1) ?? null;
+    .sort((a, b) => {
+      const av = a.version.split(".").map(Number), bv = b.version.split(".").map(Number);
+      return av[0] - bv[0] || av[1] - bv[1] || av[2] - bv[2] || a.number - b.number;
+    }).at(-1) ?? null;
 }
 
 // reportsAwaitingAcceptance(host, snapshot) -> the completed newest candidate's run record where its report has not

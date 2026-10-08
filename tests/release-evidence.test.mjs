@@ -568,3 +568,23 @@ test("reportsAwaitingAcceptance — a candidate's complete run waits, but an unf
     "docs/tests/releases/v2026.4.0.md": "accepted report" });
   assert.equal(await reportsAwaitingAcceptance(host, accepted), null);
 });
+
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: completed candidates in calendar versions 2026.9.0 and 2026.10.0, where only the latter's run is newest
+// input: reportsAwaitingAcceptance(host, snapshot)
+// expect: the 2026.10.0 report waits; numeric calendar components, not lexical text, decide newest
+test("reportsAwaitingAcceptance — calendar version 2026.10.0 is newer than 2026.9.0", async () => {
+  const path = "docs/jobs/JOB-20261010-0900-bbbb.md";
+  const text = ["---", "id: JOB-20261010-0900-bbbb", "kind: run-tests", "works_on:", "  - bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "route: ci hosted", "started_by: akmaier", "start: 2026-10-10 09:00 UTC", "agent_m: unknown, commit unknown", "limit: 1", "---",
+    "## Destinations", "", "## Parameters", "", "```json",
+    '{"candidate":{"version":"2026.10.0","tag":"v2026.10.0-rc.1","commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}', "```", "",
+    "## End", "", "at: 2026-10-10 10:00 UTC", "state: done", ""].join("\n");
+  const snapshot = fixtureSnapshot({ [path]: text });
+  const host = { listTags: async () => [
+    { name: "v2026.9.0-rc.1", commit: "a".repeat(40) }, { name: "v2026.10.0-rc.1", commit: "b".repeat(40) },
+  ] };
+  assert.deepEqual(await reportsAwaitingAcceptance(host, snapshot), {
+    version: "2026.10.0", candidate: "v2026.10.0-rc.1", record: path, blob: snapshot.blob(path),
+  });
+});
