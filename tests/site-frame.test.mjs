@@ -251,7 +251,7 @@ globalThis.window = { document, Node, Element, Text, Comment, DocumentFragment, 
 
 // The modules, loaded once the document is there: DOMPurify, which the renderer uses, takes the window it finds when it is
 // loaded. MOD-documents plays the page that hands the form its schema and its document, and writes what the form hands over.
-const { schemaForm, explain } = await import("../src/site-frame/index.mjs");
+const { schemaForm, explain, startPage, instanceOf, notice, confirmDecision } = await import("../src/site-frame/index.mjs");
 const { renderArtifact } = await import("../src/markdown-render/index.mjs");
 const { loadSchema, readDocument, writeDocument } = await import("../src/documents/index.mjs");
 
@@ -616,4 +616,123 @@ test("explain — version-not-rewritten: why a released version is never changed
   assert.match(text, /tag is never moved/);
   assert.match(text, /recovered, compared and relied on/);
   assert.match(text, /correction becomes the next version/);
+});
+
+// ---------------------------------------------------------------- Bridge frame (ITM-275)
+
+// A Map-backed browser store, as the browser-store unit tests use. The frame opens it through the real public interface.
+function bridgeStorage() {
+  const values = new Map();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: (key) => values.delete(key),
+    get length() { return values.size; },
+    key: (index) => [...values.keys()][index] ?? null,
+  };
+}
+
+// guards: UC-044; UC-003; MOD-site-frame; MOD-identifiers; EVERY STEP EXPLAINS ITSELF
+// given: an own-protocol Bridge window whose location has the configured Pages hostname and path, an empty browser store,
+//        and one loaded Bridge view whose route records the real context it receives
+// input: startPage({ page: "bridge", views: [view], menuViews: [] }), then the route is changed through the fragment
+// expect: the Bridge header and first route are drawn; the context names the configured fork, an empty product state, the
+//         real store and host, and a go callback. The later fragment redraws that route. No repository request or strategy
+//         registration occurs for this empty-strategy page.
+test("startPage — Bridge-only frame routes its loaded view with the configured Pages instance and empty product", async () => {
+  const priorLocation = globalThis.location;
+  const priorStorage = globalThis.localStorage;
+  const priorAdd = window.addEventListener;
+  const listeners = new Map();
+  const location = { hostname: "fork-owner.github.io", pathname: "/fork-agent-m/bridge.html", hash: "#pair" };
+  const calls = [];
+  let fetches = 0;
+  const priorFetch = globalThis.fetch;
+  Object.defineProperty(globalThis, "location", { configurable: true, value: location });
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: bridgeStorage() });
+  window.addEventListener = (type, listener) => listeners.set(type, listener);
+  globalThis.fetch = async () => { fetches += 1; throw new Error("a Bridge frame with no strategy does not read a repository"); };
+  document.body.replaceChildren();
+  try {
+    const view = { strategies: [], routes: [{ name: "pair", entry: null, title: "Pair the Bridge", async render(target, context, params) {
+      calls.push({ context, params });
+      target.replaceChildren(document.createElement("p"));
+      target.firstChild.textContent = `pair:${params.code ?? ""}`;
+    } }] };
+    await startPage({ page: "bridge", views: [view], menuViews: [] });
+
+    assert.match(document.body.textContent, /Agent M Bridge/, "the Bridge header is drawn");
+    assert.equal(calls.length, 1, "the initial fragment renders once");
+    assert.equal(calls[0].context.page, "bridge");
+    assert.equal(calls[0].context.instance.repository, "fork-owner/fork-agent-m");
+    assert.equal(calls[0].context.product, null, "the Bridge starts without a chosen product");
+    assert.equal(calls[0].context.store.prefix, "agent-m:fork-owner/fork-agent-m:", "the real store is scoped to the fork");
+    assert.equal(typeof calls[0].context.host.repositoryInfo, "function", "the real repository host is supplied");
+    assert.equal(typeof calls[0].context.go, "function");
+    assert.equal(fetches, 0, "connecting the host does not read a repository");
+
+    calls[0].context.go("pair", { code: "again" });
+    assert.equal(location.hash, "#pair/code=again", "go writes the route in the fragment");
+    await listeners.get("hashchange")();
+    assert.equal(calls.length, 2, "the later fragment redraws the loaded route");
+    assert.deepEqual(calls[1].params, { code: "again" });
+    assert.equal(fetches, 0, "fragment navigation still makes no repository request");
+  } finally {
+    document.body.replaceChildren();
+    Object.defineProperty(globalThis, "location", { configurable: true, value: priorLocation });
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: priorStorage });
+    globalThis.fetch = priorFetch;
+    window.addEventListener = priorAdd;
+  }
+});
+
+// guards: MOD-site-frame; MOD-identifiers
+// given: a Pages location and an ordinary local location
+// input: instanceOf(location)
+// expect: the Pages address uses MOD-identifiers' owner/name result, and every other host takes the declared upstream fallback
+test("instanceOf — Pages identity through MOD-identifiers and the upstream fallback", () => {
+  assert.equal(instanceOf({ hostname: "alice.github.io", pathname: "/my-agent/" }), "alice/my-agent");
+  assert.equal(instanceOf({ hostname: "127.0.0.1", pathname: "/bridge.html" }), "akmaier/agent-m");
+});
+
+// guards: UC-044; ONE CLICK PER DECISION; MOD-site-frame
+// given: the started Bridge frame and a supplied notice, then a decision with a title, two lines and a reason field
+// input: notice followed by confirmDecision, first cancelled and then confirmed with the person's reason
+// expect: the notice preserves its text and link; cancellation remains cancelled, and confirmation returns only confirmed
+//         plus the typed reason.
+test("notice and confirmDecision — supplied notice text/link and the person's cancellation or reasoned confirmation", async () => {
+  document.body.replaceChildren();
+  notice("info", { text: "Pair this Bridge with its dashboard.", link: { label: "Learn about pairing", href: "#pairing" } });
+  const link = byTag(document.body, "a")[0];
+  assert.equal(link.textContent, "Learn about pairing");
+  assert.equal(link.getAttribute("href"), "#pairing");
+  assert.match(document.body.textContent, /Pair this Bridge with its dashboard\./);
+
+  const cancelled = confirmDecision({ title: "Replace the pairing", lines: ["The old token stops working.", "The new token is shown once."],
+    confirm: "Replace", reason: true });
+  const firstButtons = byTag(document.body, "button");
+  assert.ok(document.body.textContent.includes("Replace the pairing"), "the title is shown");
+  assert.ok(document.body.textContent.includes("The old token stops working."), "the supplied lines are shown");
+  firstButtons.find((button) => button.textContent === "Cancel").dispatchEvent(new Event("click"));
+  assert.deepEqual(await cancelled, { confirmed: false, reason: null });
+
+  const confirmed = confirmDecision({ title: "Replace the pairing", lines: ["The old token stops working."], confirm: "Replace", reason: true });
+  const field = byTag(document.body, "textarea").at(-1);
+  field.value = "Rotating a misplaced token";
+  const buttons = byTag(document.body, "button");
+  buttons.find((button) => button.textContent === "Replace").dispatchEvent(new Event("click"));
+  assert.deepEqual(await confirmed, { confirmed: true, reason: "Rotating a misplaced token" });
+  document.body.replaceChildren();
+});
+
+// guards: UC-044; EVERY STEP EXPLAINS ITSELF; MOD-site-frame
+// given: the pairing explanation the Bridge shell names
+// input: explain("bridge-pairing")
+// expect: the shared renderer supplies the folded explanation and it tells the person that the displayed token pairs this
+//         dashboard with this local Bridge.
+test("explain — bridge-pairing gives the Bridge shell its shared folded pairing explanation", () => {
+  assert.ok(topicText("bridge-pairing")?.trim(), "known positive: explanations.md holds bridge-pairing");
+  const pairing = explain("bridge-pairing");
+  assert.equal(pairing.localName, "details");
+  assert.match(pairing.textContent, /pairs this dashboard with this Bridge/);
 });
