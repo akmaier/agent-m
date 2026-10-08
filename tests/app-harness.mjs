@@ -88,7 +88,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
         return json({ object: { sha: head } });
       }
       if (method !== "GET") return new Response("{}", { status: 500 });
-      if (p === `${api}/commits/main`) { what = "commit"; return json({ sha: head }); }
+      if (p === `${api}/commits/main` || p === `${api}/commits/${head}`) { what = "commit"; return json({ sha: head }); }
       if (p === `${api}/git/ref/heads/main`) { what = "ref"; return json({ object: { sha: head } }); }
       if (p === `${api}/git/commits/${head}`) { what = "commit object"; return json({ sha: head, tree: { sha: "t".repeat(40) } }); }
       if (p === `${api}/git/trees/${head}`) {
@@ -161,14 +161,14 @@ function control(tag) {
     getAttribute: (name) => attrOf(tag, name) };
   return c;
 }
-function find(html, sel, found) {
+function find(html, sel, found, prefix = "") {
   const m = ATTR_SELECTOR.exec(sel);
   if (!m) return [];
   const needle = m[2] === undefined ? new RegExp(`\\s${m[1]}(?=[\\s=>])`, "g") : new RegExp(`\\s${m[1]}="${reEsc(m[2])}"`, "g");
   const out = [];
   let i = 0;
   for (const hit of html.matchAll(needle)) {
-    const key = `${sel}#${i++}`;
+    const key = `${prefix}${sel}#${i++}`;
     if (!found.has(key)) found.set(key, control(html.slice(html.lastIndexOf("<", hit.index), html.indexOf(">", hit.index) + 1)));
     out.push(found.get(key));
   }
@@ -176,12 +176,12 @@ function find(html, sel, found) {
 }
 
 function domElement(localName) {
-  const children = [], listeners = [];
+  const children = [], listeners = [], controls = new Map();
   const node = {
-    localName, children, className: "", value: "", checked: false, disabled: false, hidden: false,
+    localName, children, controls, className: "", value: "", checked: false, disabled: false, hidden: false,
     type: "", placeholder: "", autocomplete: "", spellcheck: true, href: "", target: "", rel: "", dataset: {}, style: {},
     append(...items) { children.push(...items); },
-    replaceChildren(...items) { children.splice(0, children.length, ...items); },
+    replaceChildren(...items) { children.splice(0, children.length, ...items); controls.clear(); },
     addEventListener(type, listener) { listeners.push([type, listener]); },
     fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
     dispatchEvent(ev) { return node.fire(ev.type, ev); },
@@ -219,9 +219,17 @@ function domFind(root, selector) {
     return Boolean(match && (!match[1] || node.localName === match[1]) && (!match[2] || node.className.split(/\s+/).includes(match[2])));
   };
   const found = [];
+  let index = 0;
   for (const child of root.children ?? []) {
+    if (typeof child === "string") {
+      if (!root.controls) root.controls = new Map();
+      found.push(...find(child, selector, root.controls, `${index}:`));
+      index += 1;
+      continue;
+    }
     if (matches(child)) found.push(child);
-    if (typeof child !== "string") found.push(...domFind(child, selector));
+    found.push(...domFind(child, selector));
+    index += 1;
   }
   return found;
 }
