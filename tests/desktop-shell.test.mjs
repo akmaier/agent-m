@@ -203,9 +203,12 @@ test("TST-276005: native close behavior and a second source start restore the fi
     const startSecond = async () => {
       const launched = electronCommand(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`]);
       const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
-      child.unref(); second.push(child);
+      child.unref(); second.push(child); return { child, exited: new Promise((resolve) => child.once("exit", resolve)) };
     };
-    await startSecond();
+    const observeSecond = async () => await evaluate(app.main, "(() => { globalThis.__agentMSecondInstanceCount ??= 0; process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.once('second-instance', () => { globalThis.__agentMSecondInstanceCount += 1; }); return globalThis.__agentMSecondInstanceCount; })()");
+    let count = await observeSecond(), started = await startSecond();
+    await wait(async () => await evaluate(app.main, `globalThis.__agentMSecondInstanceCount === ${count + 1}`));
+    await within(started.exited, "second source start exit");
     await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
     await evaluate(app.main, `${state}.minimize()`);
     if (process.platform === "linux") {
@@ -213,7 +216,9 @@ test("TST-276005: native close behavior and a second source start restore the fi
       assert.deepEqual(manager, { available: true, windowManager: true }, "Linux native minimize needs an X11 window manager");
     }
     await wait(async () => await evaluate(app.main, `${state}.isMinimized()`));
-    await startSecond();
+    count = await observeSecond(); started = await startSecond();
+    await wait(async () => await evaluate(app.main, `globalThis.__agentMSecondInstanceCount === ${count + 1}`));
+    await within(started.exited, "second source start exit");
     await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
   } finally {
