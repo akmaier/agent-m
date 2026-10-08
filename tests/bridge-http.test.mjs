@@ -165,12 +165,16 @@ test("TST-261007: serveBridge names origin, token and body refusals", async (t) 
 });
 
 // TST-261008
-// given: a paused Bridge and a handler that raises a non-protocol failure
+// given: a paused Bridge, a handler that raises an accepted named error, and one that raises a non-protocol failure
 // input: endpoint-test requests
-// expect: pause is 503 and the handler failure is the named 502 upstream-failed error
+// expect: pause is 503, the named handler error keeps its status, and the generic failure is upstream-failed
 test("TST-261008: serveBridge names pause and handler failures", async (t) => {
   const paused = await running(t, { paused: () => true, jobs: { "POST /v1/probes/endpoint-test": async () => ({ answer: SUCCESS }) } });
   assert.equal((await request(paused, "/v1/probes/endpoint-test", { body: { args: CONFIG } })).status, 503);
+  const named = await running(t, { jobs: { "POST /v1/probes/endpoint-test": async () => { const refusal = new Error("configuration refused"); refusal.code = "invalid-request"; throw refusal; } } });
+  const namedResponse = await request(named, "/v1/probes/endpoint-test", { body: { args: CONFIG } });
+  assert.equal(namedResponse.status, 422);
+  assert.deepEqual(await namedResponse.json(), { error: "invalid-request", message: "configuration refused" });
   const failed = await running(t, { jobs: { "POST /v1/probes/endpoint-test": async () => { throw new Error("local endpoint offline"); } } });
   const response = await request(failed, "/v1/probes/endpoint-test", { body: { args: CONFIG } });
   assert.equal(response.status, 502);

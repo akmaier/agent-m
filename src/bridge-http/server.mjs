@@ -38,7 +38,11 @@ export async function serveBridge(config, handlers) {
     const handler = handlers.jobs?.[`${request.method} ${path}`] ?? handlers.jobs?.[`POST /v1/probes/${kind}`];
     if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
     try { reply(response, 200, await handler({ params: { kind }, body: parsed }), config.origin); log(200); }
-    catch (failure) { error(response, 502, "upstream-failed", failure.message || "Bridge handler failed.", config.origin); log(502); }
+    catch (failure) {
+      const code = bridgeApi.errors[failure.code] ? failure.code : "upstream-failed";
+      error(response, bridgeApi.errors[code], code, failure.message || "Bridge handler failed.", config.origin);
+      log(bridgeApi.errors[code]);
+    }
   });
   await new Promise((resolve, reject) => {
     const started = () => { server.off("error", failed); resolve(); };
