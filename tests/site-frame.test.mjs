@@ -667,7 +667,7 @@ test("startPage — Bridge-only frame routes its loaded view with the configured
     assert.equal(calls[0].context.instance.repository, "fork-owner/fork-agent-m");
     assert.equal(calls[0].context.product, null, "the Bridge starts without a chosen product");
     assert.equal(calls[0].context.store.prefix, "agent-m:fork-owner/fork-agent-m:", "the real store is scoped to the fork");
-    assert.equal(typeof calls[0].context.host.repositoryInfo, "function", "the real repository host is supplied");
+    assert.equal(typeof calls[0].context.instance.host.repositoryInfo, "function", "the real repository host is supplied");
     assert.equal(typeof calls[0].context.go, "function");
     assert.equal(fetches, 0, "connecting the host does not read a repository");
 
@@ -701,28 +701,38 @@ test("instanceOf — Pages identity through MOD-identifiers and the upstream fal
 // expect: the notice preserves its text and link; cancellation remains cancelled, and confirmation returns only confirmed
 //         plus the typed reason.
 test("notice and confirmDecision — supplied notice text/link and the person's cancellation or reasoned confirmation", async () => {
+  const priorLocation = globalThis.location;
+  const priorStorage = globalThis.localStorage;
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { hostname: "alice.github.io", pathname: "/agent-m/", hash: "" } });
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: bridgeStorage() });
   document.body.replaceChildren();
-  notice("info", { text: "Pair this Bridge with its dashboard.", link: { label: "Learn about pairing", href: "#pairing" } });
-  const link = byTag(document.body, "a")[0];
-  assert.equal(link.textContent, "Learn about pairing");
-  assert.equal(link.getAttribute("href"), "#pairing");
-  assert.match(document.body.textContent, /Pair this Bridge with its dashboard\./);
+  try {
+    await startPage({ page: "bridge", views: [], menuViews: [] });
+    notice("info", { text: "Pair this Bridge with its dashboard.", link: { label: "Learn about pairing", href: "#pairing" } });
+    const link = byTag(document.body, "a")[0];
+    assert.equal(link.textContent, "Learn about pairing");
+    assert.equal(link.getAttribute("href"), "#pairing");
+    assert.match(document.body.textContent, /Pair this Bridge with its dashboard\./);
 
-  const cancelled = confirmDecision({ title: "Replace the pairing", lines: ["The old token stops working.", "The new token is shown once."],
-    confirm: "Replace", reason: true });
-  const firstButtons = byTag(document.body, "button");
-  assert.ok(document.body.textContent.includes("Replace the pairing"), "the title is shown");
-  assert.ok(document.body.textContent.includes("The old token stops working."), "the supplied lines are shown");
-  firstButtons.find((button) => button.textContent === "Cancel").dispatchEvent(new Event("click"));
-  assert.deepEqual(await cancelled, { confirmed: false, reason: null });
+    const cancelled = confirmDecision({ title: "Replace the pairing", lines: ["The old token stops working.", "The new token is shown once."],
+      confirm: "Replace", reason: true });
+    const firstButtons = byTag(document.body, "button");
+    assert.ok(document.body.textContent.includes("Replace the pairing"), "the title is shown");
+    assert.ok(document.body.textContent.includes("The old token stops working."), "the supplied lines are shown");
+    firstButtons.find((button) => button.textContent === "Cancel").dispatchEvent(new Event("click"));
+    assert.deepEqual(await cancelled, { confirmed: false, reason: null });
 
-  const confirmed = confirmDecision({ title: "Replace the pairing", lines: ["The old token stops working."], confirm: "Replace", reason: true });
-  const field = byTag(document.body, "textarea").at(-1);
-  field.value = "Rotating a misplaced token";
-  const buttons = byTag(document.body, "button");
-  buttons.find((button) => button.textContent === "Replace").dispatchEvent(new Event("click"));
-  assert.deepEqual(await confirmed, { confirmed: true, reason: "Rotating a misplaced token" });
-  document.body.replaceChildren();
+    const confirmed = confirmDecision({ title: "Replace the pairing", lines: ["The old token stops working."], confirm: "Replace", reason: true });
+    const field = byTag(document.body, "textarea").at(-1);
+    field.value = "Rotating a misplaced token";
+    const buttons = byTag(document.body, "button");
+    buttons.find((button) => button.textContent === "Replace").dispatchEvent(new Event("click"));
+    assert.deepEqual(await confirmed, { confirmed: true, reason: "Rotating a misplaced token" });
+  } finally {
+    document.body.replaceChildren();
+    Object.defineProperty(globalThis, "location", { configurable: true, value: priorLocation });
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: priorStorage });
+  }
 });
 
 // guards: UC-044; EVERY STEP EXPLAINS ITSELF; MOD-site-frame

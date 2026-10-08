@@ -12,8 +12,14 @@
 // index.mjs. Every other file of this folder is private to the module.
 
 import { renderArtifact } from "../markdown-render/index.mjs";
+import { openStore } from "../browser-store/index.mjs";
+import { parseAddress, connect } from "../repository-hosts/index.mjs";
+import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 
 export { schemaForm } from "./forms.mjs";
+
+const UPSTREAM = "akmaier/agent-m";
+let notices = null;
 
 // Strategies, in the types below, is MOD-job-runner's type of that name; Host is MOD-repository-hosts', Store
 // MOD-browser-store's.
@@ -94,4 +100,111 @@ export function explain(topic) {
   summary.textContent = "What is this?";
   folded.append(summary, renderArtifact(text));
   return folded;
+}
+
+// The instance whose Pages address this page belongs to. A local Bridge window keeps that Pages location as private shell
+// metadata; when no Pages address is supplied, it deliberately uses the upstream instance.
+export function instanceOf(location) {
+  return instanceOfPagesAddress(location) ?? UPSTREAM;
+}
+
+const partsOf = (fragment) => String(fragment ?? "").replace(/^#/, "").split("/").filter(Boolean);
+const routeOf = (fragment) => {
+  const [name = "", ...given] = partsOf(fragment);
+  const params = {};
+  for (const part of given) {
+    const at = part.indexOf("=");
+    if (at > 0) params[decodeURIComponent(part.slice(0, at))] = decodeURIComponent(part.slice(at + 1));
+  }
+  return { name: decodeURIComponent(name), params };
+};
+
+const fragmentOf = (route, params = {}) => {
+  const supplied = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  return `#${[route, ...supplied].join("/")}`;
+};
+
+// startPage(setup) -> Promise<void> — the bounded Bridge composition: one shared frame, the routes the entry passes it and
+// the browser store and repository host of the instance. Bridge views have no strategies, so this starts neither jobs nor
+// notifications and connects no repository until a view asks its supplied host to do so.
+export async function startPage({ page, views, menuViews }) {
+  if (page !== "bridge") throw new TypeError("This delivered frame starts the Bridge page only.");
+  if (!Array.isArray(views) || !Array.isArray(menuViews)) throw new TypeError("PageSetup names views and menuViews as lists.");
+  const location = globalThis.location ?? {};
+  const repository = instanceOf(location);
+  const store = openStore(repository);
+  const host = connect(parseAddress(`https://github.com/${repository}`));
+  const routes = views.flatMap((view) => view?.routes ?? []);
+  const first = routes[0] ?? null;
+  const header = document.createElement("header");
+  header.className = "site-frame-header";
+  header.append(document.createElement("h1"));
+  header.firstChild.textContent = "Agent M Bridge";
+  notices = document.createElement("section");
+  notices.className = "site-frame-notices";
+  const target = document.createElement("main");
+  target.className = "site-frame-route";
+  document.body.replaceChildren(header, notices, target);
+
+  const show = async () => {
+    const selected = routeOf(location.hash);
+    const route = routes.find((candidate) => candidate.name === selected.name) ?? first;
+    if (!route) {
+      target.textContent = "This Bridge page has no view yet.";
+      return;
+    }
+    const context = { page, instance: { repository, host }, product: null, store,
+      go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
+    await route.render(target, context, route.name === selected.name ? selected.params : {});
+  };
+  const browser = globalThis.window ?? globalThis;
+  browser.addEventListener?.("hashchange", show);
+  await show();
+}
+
+// notice(kind, detail) -> void — one supplied message at the frame's notice place. It performs no action beyond drawing the
+// supplied text and optional link.
+export function notice(kind, { text, link } = {}) {
+  if (!notices) throw new Error("Start a page before showing a notice.");
+  const shown = document.createElement("p");
+  shown.className = `notice ${kind}`;
+  shown.append(String(text ?? ""));
+  if (link) {
+    const anchor = document.createElement("a");
+    anchor.setAttribute("href", link.href);
+    anchor.textContent = link.label;
+    shown.append(" ", anchor);
+  }
+  notices.append(shown);
+}
+
+// confirmDecision(decision) -> Promise<{ confirmed: boolean, reason: string | null }> — the single small confirmation
+// surface used by the Bridge frame. The result is produced only by the person's button click.
+export function confirmDecision({ title, lines, confirm, reason = false }) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("section");
+    dialog.className = "decision";
+    const heading = document.createElement("h2");
+    heading.textContent = title;
+    dialog.append(heading);
+    for (const line of lines ?? []) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = line;
+      dialog.append(paragraph);
+    }
+    const reasonField = reason ? document.createElement("textarea") : null;
+    if (reasonField) dialog.append(reasonField);
+    const cancel = document.createElement("button");
+    cancel.textContent = "Cancel";
+    const accept = document.createElement("button");
+    accept.textContent = confirm;
+    const answer = (confirmed) => {
+      dialog.remove();
+      resolve({ confirmed, reason: confirmed && reasonField ? reasonField.value : null });
+    };
+    cancel.addEventListener("click", () => answer(false));
+    accept.addEventListener("click", () => answer(true));
+    dialog.append(cancel, accept);
+    document.body.append(dialog);
+  });
 }
