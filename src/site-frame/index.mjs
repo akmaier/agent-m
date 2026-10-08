@@ -20,6 +20,9 @@ export { schemaForm } from "./forms.mjs";
 
 const UPSTREAM = "akmaier/agent-m";
 let notices = null;
+const LOOK = new URL("./look.css", import.meta.url).href;
+const PRL_LOGO = new URL("../brand/prl-lettered.png", import.meta.url).href;
+const PRL_LOGO_DARK = new URL("../brand/prl-lettered-white.png", import.meta.url).href;
 
 // Strategies, in the types below, is MOD-job-runner's type of that name; Host is MOD-repository-hosts', Store
 // MOD-browser-store's.
@@ -124,6 +127,44 @@ const fragmentOf = (route, params = {}) => {
   return `#${[route, ...supplied].join("/")}`;
 };
 
+function sharedHeader() {
+  const head = document.head ?? document.getElementsByTagName("head")[0];
+  if (![...head.getElementsByTagName("link")].some((link) => link.getAttribute("href") === LOOK)) {
+    const look = document.createElement("link");
+    look.setAttribute("rel", "stylesheet");
+    look.setAttribute("href", LOOK);
+    head.append(look);
+  }
+  const header = document.createElement("header");
+  header.className = "site-header top";
+  const inner = document.createElement("div");
+  inner.className = "inner";
+  const brand = document.createElement("a");
+  brand.className = "brand";
+  brand.setAttribute("href", "#");
+  brand.setAttribute("title", "Agent M Bridge");
+  const picture = document.createElement("picture");
+  const dark = document.createElement("source");
+  dark.setAttribute("srcset", PRL_LOGO_DARK);
+  dark.setAttribute("media", "(prefers-color-scheme: dark)");
+  const logo = document.createElement("img");
+  logo.setAttribute("src", PRL_LOGO);
+  logo.setAttribute("alt", "Pattern Recognition Lab");
+  logo.setAttribute("width", "126");
+  logo.setAttribute("height", "44");
+  picture.append(dark, logo);
+  const name = document.createElement("span");
+  name.className = "name";
+  name.append("Agent M ");
+  const section = document.createElement("small");
+  section.textContent = "Bridge";
+  name.append(section);
+  brand.append(picture, name);
+  inner.append(brand);
+  header.append(inner);
+  return header;
+}
+
 // startPage(setup) -> Promise<void> — the bounded Bridge composition: one shared frame, the routes the entry passes it and
 // the browser store and repository host of the instance. Bridge views have no strategies, so this starts neither jobs nor
 // notifications and connects no repository until a view asks its supplied host to do so.
@@ -136,10 +177,7 @@ export async function startPage({ page, views, menuViews }) {
   const host = connect(parseAddress(`https://github.com/${repository}`));
   const routes = views.flatMap((view) => view?.routes ?? []);
   const first = routes[0] ?? null;
-  const header = document.createElement("header");
-  header.className = "site-frame-header";
-  header.append(document.createElement("h1"));
-  header.firstChild.textContent = "Agent M Bridge";
+  const header = sharedHeader();
   notices = document.createElement("section");
   notices.className = "site-frame-notices";
   const target = document.createElement("main");

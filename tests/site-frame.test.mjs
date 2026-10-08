@@ -662,6 +662,15 @@ test("startPage — Bridge-only frame routes its loaded view with the configured
     await startPage({ page: "bridge", views: [view], menuViews: [] });
 
     assert.match(document.body.textContent, /Agent M Bridge/, "the Bridge header is drawn");
+    const header = byClass(document.body, "site-header")[0];
+    assert.ok(header, "the shared lab header class is used");
+    const logo = byTag(header, "img")[0];
+    const look = byTag(byTag(document, "head")[0], "link").find((link) => link.getAttribute("href")?.endsWith("/site-frame/look.css"));
+    assert.equal(header.getAttribute("class"), "site-header top", "the shared lab header class is used");
+    assert.deepEqual([logo.getAttribute("src"), logo.getAttribute("alt"), logo.getAttribute("width"), logo.getAttribute("height")],
+      [new URL("../src/brand/prl-lettered.png", import.meta.url).href, "Pattern Recognition Lab", "126", "44"],
+      "the shared PRL logo is present");
+    assert.equal(look.getAttribute("rel"), "stylesheet", "the frame loads its shared lab look");
     assert.equal(calls.length, 1, "the initial fragment renders once");
     assert.equal(calls[0].context.page, "bridge");
     assert.equal(calls[0].context.instance.repository, "fork-owner/fork-agent-m");
@@ -709,7 +718,7 @@ test("notice and confirmDecision — supplied notice text/link and the person's 
   try {
     await startPage({ page: "bridge", views: [], menuViews: [] });
     notice("info", { text: "Pair this Bridge with its dashboard.", link: { label: "Learn about pairing", href: "#pairing" } });
-    const link = byTag(document.body, "a")[0];
+    const link = byTag(byClass(document.body, "notice")[0], "a")[0];
     assert.equal(link.textContent, "Learn about pairing");
     assert.equal(link.getAttribute("href"), "#pairing");
     assert.match(document.body.textContent, /Pair this Bridge with its dashboard\./);
