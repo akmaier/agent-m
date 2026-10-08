@@ -62,15 +62,22 @@ legacy asset. Independent E then supplies actual-dashboard system/release tests 
   shows the new current requirement; an empty or absent SPEC gives an explicit empty state while existing queues remain
   usable. Opening and navigating the overview writes nothing, with or without a token.
 - Existing #spec/<queue> and #spec/<queue>/<nn> links, statuses, lazy closed queues, proposal comparison, editing and
-  acceptance stay intact. Existing test expectations remain unchanged. The owned implementation changes no helper; the separate
+  acceptance stay intact. Existing expected results remain unchanged except the two adapter updates below. The owned implementation
+  changes no helper; the separate
   between-jobs PR permits only the bounded helper capabilities stated above.
 - The implementation changes only src/trace-pages/ and new tests naming MOD-trace-pages. Existing diagram behaviour,
-  SPEC, use cases, architecture, parser, shared helpers and all old expectations stay unchanged. The separately reviewed
+  SPEC, use cases, architecture, parser, shared helpers and old expectations stay unchanged in the owned module PR. The separately reviewed
   between-jobs PR changes only the legacy public-module call and its descriptive texts, the stated helper
   capabilities and regression coverage for the real pinned-snapshot/module composition. Establish main-snapshot
   and append positives before the pinned-SHA/insertion failures; after correction, verify the current SHA reaches
   the same fixture bytes, an unknown SHA is refused, and inserting the overview preserves queue controls and order.
   No production fallback, swallowed Host error, fake Snapshot or helper relabelling bypasses the public module path.
+- The between-jobs adapter may update only the necessary existing assertions in tests/dashboard-shell.test.mjs
+  and tests/load-per-view.test.mjs: #spec's first h2 is Current requirements, with SPEC changes still present below
+  it; the initial exact file-read list includes the additional SPEC.md read made by the public Host/Snapshot,
+  and opening the accepted queue includes that SPEC.md read beside its previously required proposal. Keep exact
+  request multiplicities, all existing queue lazy-loading/cache/proposal/status assertions and unrelated expected
+  results. Do not use a Set or remove checks to hide repeated queue reads. No production cache bypass is needed.
 - The implementation's first commit contains only new tests and has actual red CI before implementation. Final-head full CI is green;
   each new case has an executed planted-fault failure and restored positive recorded in the PR. po-sol independently
   decides the exact-head gate as a different participant/model. No paid service is called.
