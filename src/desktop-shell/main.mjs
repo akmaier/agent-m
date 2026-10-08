@@ -14,3 +14,9 @@ export async function start(electron, dataFolder) {
   electron.app.on("before-quit", () => bridge.close());
   return bridge;
 }
+
+if (process.versions.electron) {
+  const electron = await import("electron");
+  const folder = option("--data-folder") ?? electron.app.getPath("userData");
+  start(electron, folder).catch((failure) => { console.error(failure.message); electron.app.quit(); });
+}
