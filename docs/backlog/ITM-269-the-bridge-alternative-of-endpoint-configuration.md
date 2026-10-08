@@ -16,6 +16,7 @@ builds_on:
   - ITM-265
   - ITM-263
   - ITM-268
+  - ITM-280
 tests:
   - unit
 origin:
@@ -29,7 +30,7 @@ origin:
 
 Extend ITM-265's endpoints route with UC-003 alternative 2a using the accepted Bridge test operation. Use the paired Bridge settings and configured HTTPS route supplied by UC-044; disclose where the request goes before the action. Save the endpoint configuration in this browser before testing, preserve a refused key until changed or cleared, and clear its actual storage entry. Keep the direct path working.
 
-Start only after ITM-265 has merged and its module is free, and after the accepted transport and runnable composition are present. Name the merged UC-044 setup delivery before selection. A missing setup leads to the agreed pairing/setup handoff with an actionable message, never a successful test or a direct browser fallback to the model. This item does not provision tunnels or implement the full Bridge setup.
+Start only after ITM-265 has merged and its module is free, and after the accepted transport and runnable composition are present. Name ITM-280's merged configuration route and actual dashboard entry before selection. Read the Bridge address/token and jump-host HTTPS address/login from their accepted separate store entries into BridgeSettings; a saved HTTPS configuration is untested until this actual endpoint test answers. A missing setup leads to the agreed pairing/setup handoff with an actionable message, never a successful test or a direct browser fallback to the model. This item does not provision tunnels or implement the full Bridge setup.
 
 ## Acceptance
 
