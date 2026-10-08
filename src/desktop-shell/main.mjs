@@ -1,35 +1,84 @@
 // Module: MOD-desktop-shell
+import { join, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import { compose } from "./compose.mjs";
 
-const option = (name) => process.argv.slice(2).find((value) => value.startsWith(`${name}=`))?.slice(name.length + 1);
-const instance = option("--instance") ?? "akmaier/agent-m";
-const origin = option("--origin") ?? "https://akmaier.github.io";
-
-export async function start(electron, dataFolder) {
-  if (!electron.app.requestSingleInstanceLock()) { electron.app.quit(); return null; }
-  const bridge = await compose({ instance, origin, dataFolder });
-  await electron.app.whenReady();
-  electron.ipcMain.handle("bridge-state", () => ({ address: bridge.address, token: bridge.token, instance }));
-  electron.ipcMain.handle("pair-anew", async () => {
-    bridge.token = await bridge.pairAnew();
-    return bridge.token;
+const option = (arguments_, name) => arguments_.find((value) => value.startsWith(`${name}=`))?.slice(name.length + 1);
+const options = (arguments_ = process.argv.slice(2)) => ({ instance: option(arguments_, "--instance") ?? "akmaier/agent-m", origin: option(arguments_, "--origin") ?? "https://akmaier.github.io", dataFolder: option(arguments_, "--data-folder"), port: Number(option(arguments_, "--port") ?? 4711) });
+const pagesLocation = (instance) => {
+  const [owner, repository] = instance.split("/");
+  if (!owner || !repository) throw new TypeError("--instance must be owner/repository.");
+  return { hostname: `${owner}.github.io`, pathname: `/${repository}` };
+};
+const defaultDataFolder = (electron, instance) => {
+  const [owner, repository] = instance.split("/");
+  return join(electron.app.getPath("appData"), `io.github.${owner}.${repository}.bridge`);
+};
+const sourceRoot = resolve(new URL("../", import.meta.url).pathname);
+const ownFile = (pathname, repository) => {
+  const prefix = `/${repository}/`;
+  if (!pathname.startsWith(prefix)) return null;
+  const local = resolve(sourceRoot, pathname.slice(prefix.length));
+  return local.startsWith(`${sourceRoot}${sep}`) ? local : null;
+};
+function registerProtocol(electron, instance) {
+  const { hostname, pathname } = pagesLocation(instance);
+  electron.protocol.handle("agent-m", async (request) => {
+    const url = new URL(request.url);
+    if (url.hostname !== hostname) return new Response("Not found", { status: 404 });
+    const file = ownFile(url.pathname, pathname.slice(1));
+    if (!file) return new Response("Not found", { status: 404 });
+    return electron.net.fetch(pathToFileURL(file).href);
   });
-  electron.ipcMain.handle("copy", async (_event, text) => electron.clipboard.writeText(text));
-  electron.protocol.handle("agent-m", (request) => electron.net.fetch(new URL(request.url.replace("agent-m://", "file://")).href));
+  return `agent-m://${hostname}${pathname}/desktop-shell/window.html`;
+}
+const show = (window) => { if (window.isMinimized()) window.restore(); window.show(); window.focus(); };
+
+export async function start(electron, supplied = {}) {
+  const config = typeof supplied === "string" ? { ...options(), dataFolder: supplied } : { ...options(), ...supplied };
+  config.dataFolder ??= defaultDataFolder(electron, config.instance);
+  if (!electron.app.requestSingleInstanceLock()) { electron.app.exit(); return null; }
+  electron.protocol.registerSchemesAsPrivileged?.([{ scheme: "agent-m", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
+  await electron.app.whenReady();
+  const page = registerProtocol(electron, config.instance);
+  let bridge = null, paused = false, quitting = false, startupFailure = null;
   const window = new electron.BrowserWindow({ webPreferences: { preload: new URL("./preload.cjs", import.meta.url).pathname, contextIsolation: true, nodeIntegration: false } });
-  await window.loadFile(new URL("./window.html", import.meta.url).pathname);
-  electron.app.on("second-instance", () => { window.show(); window.focus(); });
-  if (electron.Tray && process.platform !== "linux") {
-    const tray = new electron.Tray(electron.nativeImage.createEmpty());
-    tray.on("click", () => { window.show(); window.focus(); });
-    window.on("close", (event) => { if (!electron.app.isQuiting) { event.preventDefault(); window.hide(); } });
+  window.webContents.setWindowOpenHandler(({ url }) => { electron.shell.openExternal(url); return { action: "deny" }; });
+  window.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("agent-m://")) { event.preventDefault(); electron.shell.openExternal(url); } });
+  electron.ipcMain.handle("bridge-state", () => startupFailure ? { failure: startupFailure } : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused }));
+  electron.ipcMain.handle("pair-anew", async () => { bridge.token = await bridge.pairAnew(); return bridge.token; });
+  electron.ipcMain.handle("copy", (_event, text) => electron.clipboard.writeText(String(text)));
+  electron.ipcMain.handle("pause", () => { paused = true; return paused; });
+  electron.ipcMain.handle("resume", () => { paused = false; return paused; });
+  electron.ipcMain.handle("retry-port", async (_event, port) => {
+    config.port = Number(port);
+    bridge = await compose({ instance: config.instance, origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused });
+    startupFailure = null;
+  });
+  electron.ipcMain.handle("quit", () => electron.app.quit());
+  electron.app.on("second-instance", () => show(window));
+  if (process.platform === "linux") {
+    window.on("close", (event) => { if (!quitting) event.preventDefault(); });
+  } else if (electron.Tray) {
+    const tray = new electron.Tray(electron.nativeImage.createFromPath(join(sourceRoot, "site-frame", "brand", "prl-lettered.png")));
+    tray.setContextMenu(electron.Menu.buildFromTemplate([{ label: "Open Agent M Bridge", click: () => show(window) }, { label: "Pause", click: () => { paused = true; } }, { label: "Resume", click: () => { paused = false; } }, { label: "Quit", click: () => electron.app.quit() }]));
+    tray.on("click", () => show(window));
+    window.on("close", (event) => { if (!quitting) { event.preventDefault(); window.hide(); } });
   }
-  electron.app.on("before-quit", () => { electron.app.isQuiting = true; bridge.close(); });
-  return bridge;
+  electron.app.on("before-quit", (event) => {
+    if (quitting) return;
+    quitting = true;
+    if (!bridge) return;
+    event.preventDefault();
+    bridge.close().finally(() => electron.app.exit());
+  });
+  try { bridge = await compose({ instance: config.instance, origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused }); }
+  catch (failure) { startupFailure = { name: failure.name, message: failure.message, folder: failure.folder ?? null }; }
+  await window.loadURL(page);
+  return bridge ?? { failure: startupFailure, close: async () => {} };
 }
 
 if (process.versions.electron) {
   const electron = await import("electron");
-  const folder = option("--data-folder") ?? electron.app.getPath("userData");
-  start(electron, folder).catch((failure) => { console.error(failure.message); electron.app.quit(); });
+  start(electron.default ?? electron).catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });
 }

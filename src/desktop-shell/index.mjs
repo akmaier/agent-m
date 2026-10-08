@@ -1,2 +1,5 @@
 // Module: MOD-desktop-shell
-export const appDescription = { productName: "Agent M Bridge", main: "src/desktop-shell/main.mjs", window: "src/desktop-shell/window.html", preload: "src/desktop-shell/preload.cjs" };
+export const appDescription = {
+  productName: "Agent M Bridge", main: "src/desktop-shell/main.mjs", window: "src/desktop-shell/window.html", preload: "src/desktop-shell/preload.cjs",
+  icons: { macos: "icons/macos.png", windows: "icons/windows.png", linux: "icons/linux.png" }, resources: { build: "build.json", updateKey: "update-key.pem" },
+};
