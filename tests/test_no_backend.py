@@ -136,7 +136,11 @@ def _configured_endpoint_transport(text: str, at: int) -> bool:
 def _bridge_client_transport(text: str, at: int) -> bool:
     """MOD-bridge-client sends one request to the Bridge handle, only through its accepted pairing or endpoint-test path."""
     before = text[:at]
-    return (text[at:].startswith('fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" })')
+    direct = text[at:].startswith('fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" })')
+    finite = (text[at:].startswith('fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" })')
+              and re.search(r"const requestTimeoutMs = [1-9][0-9_]*;", before)
+              and "const signal = AbortSignal.timeout(requestTimeoutMs);" in before)
+    return ((direct or finite)
             and "async function call(bridge, path, init)" in before
             and "const address = `${bridge.address}${path}`;" in before
             and "const headers = requestHeaders(bridge, init.body !== undefined);" in before
@@ -374,6 +378,14 @@ class NoServer(unittest.TestCase):
         indirect = accepted.replace("fetch(address", "globalThis.fetch(address")
         self.assertEqual(channel_findings({path: indirect}),
                          [f"{path}:10: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
+        finite = ("const requestTimeoutMs = 15000;\n" + accepted.replace(
+            '  return fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" });',
+            '  const signal = AbortSignal.timeout(requestTimeoutMs);\n'
+            '  return fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" });'))
+        self.assertEqual(channel_findings({path: finite}), [])
+        missing_signal = finite.replace('  const signal = AbortSignal.timeout(requestTimeoutMs);\n', "")
+        self.assertEqual(channel_findings({path: missing_signal}),
+                         [f"{path}:11: fetch: not {BRIDGE_CLIENT_TRANSPORT}"])
 
     def test_counter_proof_a_modules_own_data_files(self):
         # The form MOD-spec-document reads its skeleton in, in a module whose file states that it reads its own data files.
