@@ -519,16 +519,26 @@ async function route() {
       }
       return;
     }
-    // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
-    const v = DASHBOARD.find((x) => x.view && x.view === kind);
-    const views = v && built.has(v.file) ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
-    if (views?.routes?.[v.view]) {
-      linkStylesheet(views.stylesheet);
-      await views.routes[v.view](app, a, b);
+    if (kind === "endpoints") {
+      const endpoints = settingsPages.routes.find((r) => r.name === "endpoints");
+      await endpoints.render(main(), {
+        instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route, params = {}) {
+          if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+        },
+      }, { name: a ? decodeURIComponent(a) : "" });
     } else {
-      const uc = await loadFile(DASHBOARD.find((x) => x.view === "uc").file);
-      linkStylesheet(uc.stylesheet);
-      await uc.routes.uc(app);
+      // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
+      const v = DASHBOARD.find((x) => x.view && x.view === kind);
+      const views = v && built.has(v.file) ? await loadFile(v.file).catch((e) => { if (notThere(e)) return null; throw e; }) : null;
+      if (views?.routes?.[v.view]) {
+        linkStylesheet(views.stylesheet);
+        await views.routes[v.view](app, a, b);
+      } else {
+        const uc = await loadFile(DASHBOARD.find((x) => x.view === "uc").file);
+        linkStylesheet(uc.stylesheet);
+        await uc.routes.uc(app);
+      }
     }
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
     const own = ownShown();

@@ -24,16 +24,6 @@ const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
 const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
 const PRODUCT = "alice/thesis-tool";
 
-// Same root cause as the system test's "step 2: the check also reaches each product..." (src/notifications/checks.mjs:74
-// reads MOD-browser-store's agent-m:<instance>:products, which nothing in the repository writes; the real "+ Add
-// product" flow keeps the list under settings-store.mjs's own agent-m.products) — cited again here because it is this
-// requirement's own test that cannot otherwise be demonstrated through the real pages.
-const F3 = "FINDING ITM-238-F3 — src/notifications/checks.mjs:74: readSetting(store, \"products\") reads MOD-browser-" +
-  "store's agent-m:<instance>:products, which nothing in the repository ever writes; the real \"+ Add product\" flow " +
-  "keeps this browser's product list under settings-store.mjs's own key (agent-m.products, read by store.getProducts()) " +
-  "— so \"products\" is always [], and no product this browser keeps is ever checked, however many are added (backlog " +
-  "item to be added by the Product Owner)";
-
 // ---------------------------------------------------------------- the browser, as tests/system-uc-047-be-told-what-
 // ---------------------------------------------------------------- waits-for-your-acceptance.test.mjs's own (not a change
 // ---------------------------------------------------------------- to either shared file; each file of this item keeps
@@ -87,14 +77,19 @@ function captureNotifications() {
 
 async function withProduct(instanceFiles, productFiles) {
   const product = await repoServer({ repo: PRODUCT, files: productFiles });
+  const productAuthorizations = [];
   const instance = await repoServer({
     files: instanceFiles,
     handlers: [
-      (url, init) => ((url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`))
-        || (url.origin === RAW && url.pathname.startsWith(`/${PRODUCT}/`)) ? product.fetch(url.href, init) : undefined),
+      (url, init) => {
+        if (!((url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`))
+          || (url.origin === RAW && url.pathname.startsWith(`/${PRODUCT}/`)))) return undefined;
+        productAuthorizations.push(new Headers(init.headers).get("Authorization"));
+        return product.fetch(url.href, init);
+      },
     ],
   });
-  return { instance, product };
+  return { instance, product, productAuthorizations };
 }
 
 // What a person reads: tags stripped, entities decoded, runs of whitespace (including a template literal's own line
@@ -103,7 +98,7 @@ const unesc = (s) => String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").re
 const textOf = (html) => unesc(String(html).replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
 
 const PRODUCT_ENTRIES = {
-  "agent-m.products": JSON.stringify([`https://github.com/${PRODUCT}`]),
+  [`${PREFIX}products`]: JSON.stringify([`https://github.com/${PRODUCT}`]),
   [`${PREFIX}github-token:${PRODUCT}`]: JSON.stringify({ value: "github_pat_PRODUCTTOKEN0123456789abcdefg", name: PRODUCT }),
 };
 
@@ -274,8 +269,12 @@ test("A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN — Test and Swi
 // input: opening a review page (#uc)
 // expect: the product's own token reaches only its own server's API — never any other server, never the address or the
 //         body of a request
-test("A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a product's own token reaches only its own server", { todo: F3 }, async () => {
-  const { instance, product } = await withProduct({}, { "docs/use-cases/UC-740-product.md": "# UC-740\n" });
+// TST-280
+// Module: MOD-notifications
+// Guards: UC-047; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// Level: release
+test("TST-280 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a product's own token reaches only its own server", async () => {
+  const { instance, product, productAuthorizations } = await withProduct({}, { "docs/use-cases/UC-740-product.md": "# UC-740\n" });
   const browser = installBrowser();
   try {
     await openDashboard({
@@ -283,7 +282,7 @@ test("A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a product's own token r
       entries: { ...PRODUCT_ENTRIES, [`${PREFIX}notifications`]: JSON.stringify({ checked: minutesAgo(6) }) },
     });
     assert.ok(product.requests.length > 0, "the product's own server is reached at all");
-    assert.ok(product.requests.some((r) => r.includes("github_pat_PRODUCTTOKEN")), "reached with its own token");
+    assert.ok(productAuthorizations.includes("Bearer github_pat_PRODUCTTOKEN0123456789abcdefg"), "reached with its own token");
   } finally { browser.restore(); }
 });
 
