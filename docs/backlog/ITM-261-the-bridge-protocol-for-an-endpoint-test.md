@@ -24,7 +24,7 @@ origin:
 
 Build bridgeApi, serveBridge and pairAnew only as needed to pair and dispatch UC-003's endpoint-test operation. Binding, origin/preflight restrictions, token persistence, rotation, pause and secret-free logging follow MOD-bridge-http. Endpoint configuration belongs in the request body and is not retained. Other work handlers, the Electron app and mail/tunnel/job execution are outside this item.
 
-Precondition: akmaier has accepted the exact protocol refinement described in docs/backlog/sprints/09.md. The current endpoint-models probe is not an endpoint test. The final selected item must name the accepted endpoint-test method, path and formats before work starts.
+Use MOD-bridge-http's accepted `POST /v1/probes/endpoint-test`: JSON `{ args }`, where `args` is the protocol's endpoint-test configuration `{ name, kind, baseUrl, model, key }`, and JSON `{ answer }`, where `answer` is its success or diagnosis result. The pairing token stays in `X-Agent-M-Bridge-Token`. The protocol defines the field types, named errors and HTTP statuses; endpoint-models remains a separate models-list probe.
 
 ## Acceptance
 

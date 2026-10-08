@@ -23,7 +23,7 @@ origin:
 
 Build bridgeAt, pair and the accepted endpoint-test client operation needed by UC-003. It reads the common bridgeApi protocol, sends the configuration only in the JSON body, uses the pairing token and optional HTTPS jump-host login in headers, and returns the test result or named Bridge error. No settings are stored here. Implement neither askAgent nor remote-session provisioning or the job dashboard.
 
-Precondition: akmaier has accepted this client operation and its failure contract; finalise its name in this item before selection.
+After ITM-261 merges, implement the accepted `probe(bridge, "endpoint-test", args)` overload using bridgeApi's endpoint-test configuration and answer types. It sends `POST /v1/probes/endpoint-test` with `{ args }`, unwraps `{ answer }`, and preserves provider diagnoses separately from the applicable named `BridgeError` failures. The client uses only the independent Bridge protocol, not the endpoint driver.
 
 ## Acceptance
 

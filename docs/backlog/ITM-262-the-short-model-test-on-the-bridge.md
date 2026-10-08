@@ -25,7 +25,7 @@ origin:
 
 Build only the endpoint-test handler of jobHandlers under the accepted UC-003 refinement: call the configured model on the Bridge computer, send one short request, and return success or the diagnosis with the provider's message preserved. It retains neither configuration nor credentials after the request, and never writes them to a clone, record or log. Implement no CLI agent, work-folder, watcher, job queue, mail or cluster function.
 
-Precondition: the handler and its use of MOD-endpoint-calls are accepted. The approved protocol from ITM-261 determines the route and format. A models-list probe cannot replace this handler.
+After ITM-261 merges, handle the accepted `POST /v1/probes/endpoint-test` route: map `body.args` from bridgeApi's configuration to `EndpointConfig`, invoke the existing Node `testEndpoint` once, and return `{ answer }` with its structurally corresponding success or diagnosis result unchanged. Invalid input is `invalid-request`; another handler failure is `upstream-failed`. Provider failures remain returned diagnoses. A models-list probe cannot replace this handler.
 
 ## Acceptance
 
