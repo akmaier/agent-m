@@ -43,9 +43,12 @@ parser, SPEC, use case or architecture changes are needed.
 
 After the owned module merges, a separate change-between-jobs PR makes docs/assets/dashboard/spec-changes-view.mjs call
 its public route above the existing queues, using the working process-view.mjs Host/context adapter pattern. Its only
-production change is that module call and the texts describing it. Preserve the pinned dashboard commit and sequence
-guard; no overview computation lives in the legacy asset. Independent E then supplies actual-dashboard system/release
-tests for the complete increment before Sprint14 closes.
+production change is that module call and the texts describing it. In the same separately reviewed between-jobs PR,
+tests/app-harness.mjs may gain only the capabilities that let the real module call run: resolve the fixture
+repository’s actual current-head SHA as well as main, and preserve normal DOM insertion and control lookup when
+created nodes and existing queue HTML are composed. Unknown SHAs remain refused; no arbitrary commit resolves to
+the fixture head. Preserve the pinned dashboard commit and sequence guard; no overview computation lives in the
+legacy asset. Independent E then supplies actual-dashboard system/release tests for the complete increment before Sprint14 closes.
 
 ## Acceptance
 
@@ -59,10 +62,15 @@ tests for the complete increment before Sprint14 closes.
   shows the new current requirement; an empty or absent SPEC gives an explicit empty state while existing queues remain
   usable. Opening and navigating the overview writes nothing, with or without a token.
 - Existing #spec/<queue> and #spec/<queue>/<nn> links, statuses, lazy closed queues, proposal comparison, editing and
-  acceptance stay intact. Existing test expectations and helpers remain unchanged.
+  acceptance stay intact. Existing test expectations remain unchanged. The owned implementation changes no helper; the separate
+  between-jobs PR permits only the bounded helper capabilities stated above.
 - The implementation changes only src/trace-pages/ and new tests naming MOD-trace-pages. Existing diagram behaviour,
   SPEC, use cases, architecture, parser, shared helpers and all old expectations stay unchanged. The separately reviewed
-  between-jobs PR changes only the legacy public-module call and its descriptive texts.
+  between-jobs PR changes only the legacy public-module call and its descriptive texts, the stated helper
+  capabilities and regression coverage for the real pinned-snapshot/module composition. Establish main-snapshot
+  and append positives before the pinned-SHA/insertion failures; after correction, verify the current SHA reaches
+  the same fixture bytes, an unknown SHA is refused, and inserting the overview preserves queue controls and order.
+  No production fallback, swallowed Host error, fake Snapshot or helper relabelling bypasses the public module path.
 - The implementation's first commit contains only new tests and has actual red CI before implementation. Final-head full CI is green;
   each new case has an executed planted-fault failure and restored positive recorded in the PR. po-sol independently
   decides the exact-head gate as a different participant/model. No paid service is called.
