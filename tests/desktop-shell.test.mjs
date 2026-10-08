@@ -68,12 +68,7 @@ const evaluate = async (url, expression) => {
   return result.result.value;
 };
 const unusedPort = async () => await new Promise((resolve, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const { port } = server.address(); server.close((failure) => failure ? reject(failure) : resolve(port)); }); });
-const systemClipboardEquals = (value) => {
-  if (process.platform !== "darwin") return null;
-  const pasted = spawnSync("pbpaste", { encoding: "utf8" });
-  return pasted.status === 0 && pasted.stdout === value;
-};
-const nativeClipboardEquals = async (app, value) => process.platform === "darwin" ? systemClipboardEquals(value) : await evaluate(app.main, `process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').clipboard.readText() === ${JSON.stringify(value)}`);
+const nativeClipboardEquals = async (app, value) => await evaluate(app.main, `(async () => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); return await electron.clipboard.readText() === ${JSON.stringify(value)}; })()`);
 
 async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")), port, debug, inspect, dataFolder = true, environment = {}, instance = "release-owner/release-frame", origin = "https://release-owner.github.io" } = {}) {
   port ??= await unusedPort();
@@ -121,18 +116,13 @@ test("TST-276001: the actual Electron entry renders its forked pairing page and 
     assert.equal((await pair(token)).status, 200);
     assert.equal((await pair(token, "https://other.example")).status, 403);
     const sentinel = "agent-m-276-clipboard-sentinel";
-    if (process.platform === "darwin") {
-      assert.equal(spawnSync("pbcopy", { input: sentinel, encoding: "utf8" }).status, 0);
-      assert.equal(systemClipboardEquals(sentinel), true);
-    }
-    assert.equal(await evaluate(app.main, `(() => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); electron.clipboard.writeText(${JSON.stringify(sentinel)}); return true; })()`), true);
-    assert.equal(await nativeClipboardEquals(app, sentinel), true);
+    assert.equal(await evaluate(app.main, `(async () => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); await electron.clipboard.writeText(${JSON.stringify(sentinel)}); return await electron.clipboard.readText() === ${JSON.stringify(sentinel)}; })()`), true, "native clipboard sentinel");
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Copy address').click()");
     const address = `http://127.0.0.1:${app.port}`;
     const addressProbe = { display: await evaluate(app.page.webSocketDebuggerUrl, `document.querySelectorAll('code')[0].textContent === ${JSON.stringify(address)}`), clipboard: await wait(async () => await nativeClipboardEquals(app, address)) };
-    assert.deepEqual(addressProbe, { display: true, clipboard: true });
+    assert.deepEqual(addressProbe, { display: true, clipboard: true }, "Copy address reaches the native clipboard");
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Copy token').click()");
-    assert.equal(await wait(async () => await nativeClipboardEquals(app, token)), true);
+    assert.equal(await wait(async () => await nativeClipboardEquals(app, token)), true, "Copy token reaches the native clipboard");
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Pair anew').click()");
     await evaluate(app.page.webSocketDebuggerUrl, "document.querySelector('.decision button:last-child').click()");
     const rotated = await wait(() => { const value = tokenOf(app.folder); return value !== token && value; });
@@ -148,6 +138,7 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
   try {
     const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     const work = () => fetch(`http://127.0.0.1:${app.port}/v1/probes/agent`, { method: "POST", headers: { origin: app.origin, "x-agent-m-bridge-token": token, "content-type": "application/json" }, body: JSON.stringify({ args: {} }) });
+    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Pause').click()");
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Resume')"));
     assert.equal((await work()).status, 503);
@@ -217,6 +208,10 @@ test("TST-276005: native close behavior and a second source start restore the fi
     await startSecond();
     await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
     await evaluate(app.main, `${state}.minimize()`);
+    if (process.platform === "linux") {
+      const manager = await evaluate(app.main, "(() => { try { const text = process.getBuiltinModule('child_process').execFileSync('xprop', ['-root', '_NET_SUPPORTING_WM_CHECK'], { encoding: 'utf8' }); return { available: true, windowManager: text.includes('_NET_SUPPORTING_WM_CHECK') }; } catch (failure) { return { available: false, error: failure.code ?? failure.name }; } })()");
+      assert.deepEqual(manager, { available: true, windowManager: true }, "Linux native minimize needs an X11 window manager");
+    }
     await wait(async () => await evaluate(app.main, `${state}.isMinimized()`));
     await startSecond();
     await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
