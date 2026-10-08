@@ -6,6 +6,7 @@ const instance = option("--instance") ?? "akmaier/agent-m";
 const origin = option("--origin") ?? "https://akmaier.github.io";
 
 export async function start(electron, dataFolder) {
+  if (!electron.app.requestSingleInstanceLock()) { electron.app.quit(); return null; }
   const bridge = await compose({ instance, origin, dataFolder });
   await electron.app.whenReady();
   electron.ipcMain.handle("bridge-state", () => ({ address: bridge.address, token: bridge.token, instance }));
@@ -17,7 +18,13 @@ export async function start(electron, dataFolder) {
   electron.protocol.handle("agent-m", (request) => electron.net.fetch(new URL(request.url.replace("agent-m://", "file://")).href));
   const window = new electron.BrowserWindow({ webPreferences: { preload: new URL("./preload.cjs", import.meta.url).pathname, contextIsolation: true, nodeIntegration: false } });
   await window.loadFile(new URL("./window.html", import.meta.url).pathname);
-  electron.app.on("before-quit", () => bridge.close());
+  electron.app.on("second-instance", () => { window.show(); window.focus(); });
+  if (electron.Tray && process.platform !== "linux") {
+    const tray = new electron.Tray(electron.nativeImage.createEmpty());
+    tray.on("click", () => { window.show(); window.focus(); });
+    window.on("close", (event) => { if (!electron.app.isQuiting) { event.preventDefault(); window.hide(); } });
+  }
+  electron.app.on("before-quit", () => { electron.app.isQuiting = true; bridge.close(); });
   return bridge;
 }
 
