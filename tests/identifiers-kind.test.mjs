@@ -13,7 +13,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { kindOfIdentifier } from "../src/identifiers/index.mjs";
+import { kindOfIdentifier, instanceOfPagesAddress } from "../src/identifiers/index.mjs";
 
 // One example of each kind the scheme (docs/architecture/MOD-identifiers.md, Data) defines, exactly as its table gives it.
 const EXAMPLES = {
@@ -62,4 +62,15 @@ test("kindOfIdentifier — null for a string that is none of the scheme's kinds"
   assert.equal(kindOfIdentifier("THE NAMe IS THE ID AND IT SURVIVES"), null);
   assert.equal(kindOfIdentifier("UC-02"), null, "short of UC's three digits");
   assert.equal(kindOfIdentifier("ARC-1234"), null, "ARC takes exactly three digits, unlike UC");
+});
+
+// guards: MOD-identifiers; AN INSTANCE IS A FORK OF AGENT M
+// given: a GitHub Pages hostname with a repository as its first path segment, and a known positive matching that shape
+// input: instanceOfPagesAddress on that address and on a non-Pages hostname
+// expect: owner/name for the Pages address, and null for the other host
+test("instanceOfPagesAddress — the owner and first path segment of a Pages address, null elsewhere", () => {
+  assert.equal(instanceOfPagesAddress({ hostname: "alice.github.io", pathname: "/research-agent/docs/index.html" }),
+    "alice/research-agent", "known positive: a Pages hostname and repository path");
+  assert.equal(instanceOfPagesAddress({ hostname: "localhost", pathname: "/research-agent/" }), null,
+    "a non-Pages host is not an instance address");
 });

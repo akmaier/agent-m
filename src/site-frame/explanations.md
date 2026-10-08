@@ -211,3 +211,9 @@ Agent M shows the reason rather than treating the configuration as working.
 
 *Clear* removes this endpoint configuration and its key from localStorage, not only from the form on screen. Agent M then
 confirms that nothing is stored for the endpoint in this browser. Add the URL, kind and model again before a later test.
+
+## bridge-pairing
+
+The token shown by the Bridge pairs this dashboard with this Bridge. Copy it only into the dashboard that belongs to this
+instance; it authorises that dashboard to ask this local app to reach services on this computer. It is not a model key and
+is never put into a repository, a link or a cookie.
