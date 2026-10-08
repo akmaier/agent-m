@@ -23,6 +23,8 @@ const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the inst
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
 const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
 const PRODUCT = "alice/thesis-tool";
+const emptyTags = (url) => (url.origin === API && /\/tags$/.test(url.pathname)
+  ? new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }) : undefined);
 
 // ---------------------------------------------------------------- the browser, as tests/system-uc-047-be-told-what-
 // ---------------------------------------------------------------- waits-for-your-acceptance.test.mjs's own (not a change
@@ -76,11 +78,12 @@ function captureNotifications() {
 }
 
 async function withProduct(instanceFiles, productFiles) {
-  const product = await repoServer({ repo: PRODUCT, files: productFiles });
+  const product = await repoServer({ repo: PRODUCT, files: productFiles, handlers: [emptyTags] });
   const productAuthorizations = [];
   const instance = await repoServer({
     files: instanceFiles,
     handlers: [
+      emptyTags,
       (url, init) => {
         if (!((url.origin === API && url.pathname.startsWith(`/repos/${PRODUCT}`))
           || (url.origin === RAW && url.pathname.startsWith(`/${PRODUCT}/`)))) return undefined;
@@ -110,7 +113,7 @@ const PRODUCT_ENTRIES = {
 // expect: the browser shows one notification naming the file and the repository it is in, with a link to where it is
 //         accepted (MOD-notifications' own addressOf, as this dashboard resolves it)
 test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a file come to wait is notified, naming it and where it is", async () => {
-  const server = await repoServer({ files: {} });
+  const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
@@ -156,7 +159,7 @@ test("STATUS IS DERIVED FROM THE RECORDS — accepted while the blob matches the
   const text1 = "# UC-710 v1\n";
   const blob1 = await gitBlobSha(text1);
   const server = await repoServer({
-    files: { [path]: text1, [`docs/approvals/UC-710-${blob1.slice(0, 12)}.md`]: `kind: use-case\nblob: ${blob1}\n` },
+    files: { [path]: text1, [`docs/approvals/UC-710-${blob1.slice(0, 12)}.md`]: `kind: use-case\nblob: ${blob1}\n` }, handlers: [emptyTags],
   });
   const browser = installBrowser();
   try {
@@ -179,7 +182,7 @@ test("STATUS IS DERIVED FROM THE RECORDS — accepted while the blob matches the
 // expect: the same file is derived as waiting again, from the repository alone — nothing about it was carried over in
 //         storage; deleting all local storage and reloading rederives the same facts
 test("PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — deleting all local storage and reloading rederives the same facts", async () => {
-  const server = await repoServer({ files: { "docs/use-cases/UC-720-sample.md": "# UC-720\n" } });
+  const server = await repoServer({ files: { "docs/use-cases/UC-720-sample.md": "# UC-720\n" }, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
