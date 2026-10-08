@@ -24,6 +24,10 @@ origin:
 
 **REGISTER**
 
+## Start condition
+
+**Blocked.** An endpoint is never accessed through the Bridge. Endpoint configuration and its test use the direct browser-to-endpoint path. This item's endpoint-through-Bridge scope conflicts with that boundary; do not select or start it. UC-003 alternative 2a contains a contradictory Bridge route and must not be used to authorize this work.
+
 ## Outcome
 
 UC-003 checked through the dashboard's Settings entry after the endpoint wiring and runnable Bridge composition named in docs/backlog/sprints/09.md are merged. A Developer who implemented none of the exercised behaviour writes the system test of the main flow and alternatives 4a, 2a, 4b and 2b, and at least one release test per requirement UC-003 realises. For 2a, exercise the implemented Bridge client, server and handler against a controlled model server; an HTTPS forwarding fixture represents UC-044's already-configured route. Replacing the whole Bridge by a result stub is insufficient. CI/Bridge job execution and tunnel provisioning remain their own use-case handoffs.

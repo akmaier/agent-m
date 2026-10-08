@@ -25,9 +25,8 @@ It belongs to Participants and jobs (ARC-046). It is the participant driver for 
 Anthropic, hosted or self-hosted — that a browser or Node calls directly: it sends a job's input as one request and
 returns the answer and the usage the endpoint reported; it sends the short test request of UC-003; and when a browser
 cannot call an endpoint, it names the reason and the routes that would work instead (`AN UNSUPPORTED ENDPOINT SAYS SO`).
-A model server on a person's computer is called through the Bridge only for UC-003's short test: MOD-bridge-jobs invokes
-`testEndpoint` in Node after the page explicitly chooses its `throughBridge` route. The endpoint driver remains a direct
-browser or Node caller; it neither selects nor reaches a Bridge. It runs in a browser and in Node, and keeps nothing.
+A model server on a person's computer, reached through a Bridge, is not called here: MOD-runtimes' driver of an agent on a
+Bridge reaches it. It runs in a browser and in Node, and keeps nothing.
 
 ## Parts
 
@@ -46,11 +45,9 @@ secrets:
   "key": "…" }
 ```
 
-The key is the endpoint's own, held in a browser's store or, in CI, read from the CI secret the participant names. A
-direct call sends it only to the endpoint's own address in the request's authorisation header. For UC-003's explicit
-local `throughBridge` test, the browser sends the endpoint configuration only in the paired Bridge request body; the Bridge
-then sends the key only to the local endpoint in that endpoint request's authorisation header. It never appears in an
-address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, `NO SECRET IN THE REPOSITORY`).
+The key is the endpoint's own, held in a browser's store or, in CI, read from the CI secret the participant names; it is
+sent only to the endpoint's own address, in the request's authorisation header, never in an address
+(`A CREDENTIAL IS NEVER PLACED IN A URL`), and never written anywhere (`NO SECRET IN THE REPOSITORY`).
 
 ## Interfaces
 
