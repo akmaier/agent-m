@@ -32,12 +32,12 @@ before the author resumed; unrelated assertions remain unchanged.
 ## Actual public call and composition
 
 `dashboard-app.mjs:236 loadSnapshot → :240 state.commit → context.state`
-→ `spec-changes-view.mjs:20 currentRequirements → :22–23 public parseAddress/connect with instance/product tokens`
-→ `:24–25 public trace Route.render({key: specification, ref: app.state.commit})`
+→ `spec-changes-view.mjs:19 currentRequirements → :21–22 public parseAddress/connect with instance/product tokens`
+→ `:23–24 public trace Route.render({key: specification, ref: app.state.commit})`
 → inherited `src/trace-pages/flow.mjs:77 Host.readSnapshot → :78 Snapshot.read(SPEC.md) → :79 parseSpec/overview`
 → public renderer for details. No requirement computation, fake Snapshot, silent catch or cache bypass enters the asset.
 
-`spec-changes-view.mjs:83 captured seq → :86 awaited module/queue reads → :92 seq check`
+`spec-changes-view.mjs:82 captured seq → :85–87 awaited module/queue reads → :90 seq check`
 → `:117 replaceChildren(requirements, history) → :118 wireAccept(history)` preserves the real module DOM and old history
 controls. Queue entry route, lazy queue computation, proposal comparison, statuses, edits and acceptance implementation
 are otherwise untouched. The alternative normal replaceChildren composition needs no new prepend helper method.
