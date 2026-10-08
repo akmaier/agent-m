@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { compose } from "./compose.mjs";
 
+let tray;
+
 const option = (arguments_, name) => arguments_.find((value) => value.startsWith(`${name}=`))?.slice(name.length + 1);
 const options = (arguments_ = process.argv.slice(2)) => ({ instance: option(arguments_, "--instance"), origin: option(arguments_, "--origin"), dataFolder: option(arguments_, "--data-folder"), port: Number(option(arguments_, "--port") ?? 4711) });
 const pagesLocation = (instance) => {
@@ -61,7 +63,7 @@ export async function start(electron, supplied = {}) {
   if (process.platform === "linux") {
     window.on("close", (event) => { if (!quitting) event.preventDefault(); });
   } else if (electron.Tray) {
-    const tray = new electron.Tray(electron.nativeImage.createFromPath(join(sourceRoot, "site-frame", "brand", "prl-lettered.png")));
+    tray = new electron.Tray(electron.nativeImage.createFromPath(join(sourceRoot, "site-frame", "brand", "prl-lettered.png")));
     tray.setContextMenu(electron.Menu.buildFromTemplate([{ label: "Open Agent M Bridge", click: () => show(window) }, { label: "Pause", click: () => { paused = true; } }, { label: "Resume", click: () => { paused = false; } }, { label: "Quit", click: () => electron.app.quit() }]));
     tray.on("click", () => show(window));
     window.on("close", (event) => { if (!quitting) { event.preventDefault(); window.hide(); } });
