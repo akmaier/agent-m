@@ -51,7 +51,7 @@ no timestamp is backdated. No paid service calls were made; cost/usage is not gu
 The cases load the real dashboard through tests/app-harness.mjs:273–300 openDashboard, with repository files served
 by repoServer's existing fetch pattern and an enabled browser notification store. Dashboard-app.mjs:454–463 starts
 watchForAcceptance; checks.mjs:39–43 executes its immediate and interval checks; :90–92 reads a real host snapshot
-and waitingForAcceptance; progress-measures/stages.mjs:53–57 maps reportsAwaitingAcceptance to release-v<version>;
+and waitingForAcceptance; progress-measures/stages.mjs:49–53 maps reportsAwaitingAcceptance to release-v<version>;
 release-evidence/report.mjs:260–267 reads tags and the candidate run. The actual notification reaches
 checks.mjs:124–145 → currentRegistration → the browser's showNotification capture. Its address comes from
 dashboard-app.mjs:439–445 addressOfNotification and its release route, not from a fake notification function.
@@ -67,7 +67,7 @@ The author-recorded faults were independently planted and executed, one at a tim
 
 - TST-293001: invert report.mjs:266's done condition. The system case fails at:73, actual notification count 0 versus
   expected 1 after completion. Byte restoration makes the case pass.
-- TST-293002: replace checks.mjs:126's single-file title suffix with “is ready”. The release case fails at:58,
+- TST-293002: replace checks.mjs:129's single-file title suffix with “is ready”. The release case fails at:58,
   actual release-v2026.10.8 is ready versus expected release-v2026.10.8 waits for your acceptance, while its repository
   and release address remain visible. Byte restoration makes the case pass.
 
@@ -82,7 +82,7 @@ requested accepted-state question, rather than adding requirements.
    the previously observed count remains1. Known positive: both cases pass on original code. Controlled fault:
    replace report.mjs:250's candidate filter by candidate-only, removing both release-tag and report-file exclusions.
    Both tests still pass2/2, exit 0. Data flow: report:250 now retains the already accepted candidate → :267 returns
-   its unchanged run path/blob → stages:53–57 still derives a waiting report → checks:95–97 rejects it as already
+   its unchanged run path/blob → stages:49–53 still derives a waiting report → checks:95–97 rejects it as already
    notified → system:86/release:66 see count 1. Expected semantic state is that this report no longer waits; the faulty
    semantic state is still waiting. The assertions cannot distinguish them. The new tests must meaningfully establish
    the accepted-state requirement through the public dashboard path, without relying solely on unchanged-notice dedup.
