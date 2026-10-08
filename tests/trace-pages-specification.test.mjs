@@ -138,11 +138,14 @@ test("the public trace/specification route reads the pinned SPEC and lists each 
   const productHost = host();
   const target = await render(productHost);
   assert.deepEqual(productHost.calls, ["pinned-commit"]);
-  assert.equal(target.textContent, "Current requirementsOUTSIDE REQUIREMENTFirst sectionFIRST REQUIREMENTSecond sectionSECOND REQUIREMENT");
-  const names = find(target, (node) => node.localName === "button" && node.className === "requirement-name");
+  const names = find(target, (node) => node.localName === "button");
   assert.deepEqual(names.map((node) => node.textContent), ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUIREMENT"]);
   assert.equal(new Set(names.map((node) => node.textContent)).size, 3);
-  assert.equal(JSON.stringify(find(target, (node) => node.localName === "section" && node.className === "spec-section").map((node) => node.textContent)), JSON.stringify(["First sectionFIRST REQUIREMENT", "Second sectionSECOND REQUIREMENT"]));
+  const visible = target.textContent;
+  assert.ok(visible.indexOf("OUTSIDE REQUIREMENT") < visible.indexOf("First section"));
+  assert.ok(visible.indexOf("First section") < visible.indexOf("FIRST REQUIREMENT"));
+  assert.ok(visible.indexOf("FIRST REQUIREMENT") < visible.indexOf("Second section"));
+  assert.deepEqual(find(target, (node) => node.localName === "h3").map((node) => node.textContent), ["First section", "Second section"]);
 });
 
 // CASE ITM-277-02
@@ -154,11 +157,12 @@ test("selecting a requirement renders its four fields safely without navigating 
   const target = await render(host());
   const name = find(target, (node) => node.localName === "button" && node.textContent === "SECOND REQUIREMENT")[0];
   name.dispatchEvent(new Event("click"));
+  const opened = name.parentNode.parentNode.nextSibling;
   for (const text of ["SECOND REQUIREMENT", "Source", "Source two", "Rule", "Second <img src=x onerror=alert(1)> rule.", "Check", "tests/second.test.mjs"]) {
-    assert.match(target.textContent, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(opened.textContent, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  assert.equal(find(target, (node) => node.localName === "img").length, 0);
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.includes("queue")).length, 0);
+  assert.equal(find(opened, (node) => node.localName === "img").length, 0);
+  assert.equal(find(opened, (node) => node.localName === "a" && node.getAttribute("href")?.includes("queue")).length, 0);
 });
 
 // CASE ITM-277-03

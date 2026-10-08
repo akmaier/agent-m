@@ -28,30 +28,37 @@ function requirementDetail(requirement) {
   return detail;
 }
 
-function requirementButton(requirement, detail) {
+function requirementRows(requirement) {
   const button = el("button", "requirement-name", requirement.name);
   button.type = "button";
-  button.addEventListener("click", () => detail.replaceChildren(requirementDetail(requirement)));
-  return button;
+  const row = el("tr", null, el("td", null, button));
+  const opened = el("tr", "requirement-opened");
+  button.addEventListener("click", () => {
+    const cell = el("td", "panel", requirementDetail(requirement));
+    cell.setAttribute("colspan", "1");
+    opened.replaceChildren(cell);
+  });
+  return [row, opened];
+}
+
+function requirementsTable(requirements) {
+  const body = el("tbody");
+  for (const requirement of requirements) body.append(...requirementRows(requirement));
+  return el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"))), body);
 }
 
 function overview(spec) {
   const page = el("section", "current-requirements", el("h2", null, "Current requirements"));
-  const detail = el("div", "requirement-reading");
   const sectioned = new Set(spec.sections.flatMap((section) => section.requirements));
   const outside = [...spec.requirements.values()].filter((requirement) => !sectioned.has(requirement.name));
 
-  for (const requirement of outside) page.append(requirementButton(requirement, detail));
+  if (outside.length) page.append(requirementsTable(outside));
   for (const section of spec.sections) {
-    const group = el("section", "spec-section", el("h3", null, sectionTitle(section.heading)));
-    for (const name of section.requirements) {
-      const requirement = spec.requirements.get(name);
-      if (requirement) group.append(requirementButton(requirement, detail));
-    }
+    const requirements = section.requirements.map((name) => spec.requirements.get(name)).filter(Boolean);
+    const group = el("section", "panel spec-section", el("h3", null, sectionTitle(section.heading)), requirementsTable(requirements));
     page.append(group);
   }
   if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
-  page.append(detail);
   return page;
 }
 
