@@ -21,8 +21,8 @@ export { schemaForm } from "./forms.mjs";
 const UPSTREAM = "akmaier/agent-m";
 let notices = null;
 const LOOK = new URL("./look.css", import.meta.url).href;
-const PRL_LOGO = new URL("../brand/prl-lettered.png", import.meta.url).href;
-const PRL_LOGO_DARK = new URL("../brand/prl-lettered-white.png", import.meta.url).href;
+const PRL_LOGO = new URL("./brand/prl-lettered.png", import.meta.url).href;
+const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;
 
 // Strategies, in the types below, is MOD-job-runner's type of that name; Host is MOD-repository-hosts', Store
 // MOD-browser-store's.

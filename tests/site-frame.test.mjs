@@ -669,7 +669,7 @@ test("startPage — Bridge-only frame routes its loaded view with the configured
     const look = byTag(byTag(document, "head")[0], "link").find((link) => link.getAttribute("href")?.endsWith("/site-frame/look.css"));
     assert.equal(header.getAttribute("class"), "site-header top", "the shared lab header class is used");
     assert.deepEqual([logo.getAttribute("src"), logo.getAttribute("alt"), logo.getAttribute("width"), logo.getAttribute("height")],
-      [new URL("../src/brand/prl-lettered.png", import.meta.url).href, "Pattern Recognition Lab", "126", "44"],
+      [new URL("../src/site-frame/brand/prl-lettered.png", import.meta.url).href, "Pattern Recognition Lab", "126", "44"],
       "the shared PRL logo is present");
     assert.equal(look.getAttribute("rel"), "stylesheet", "the frame loads its shared lab look");
     assert.match(LOOK, /--fau-blue: #04316a; --fau-dark: #041e42; --tf-metallic: #8c9fb1;/,
