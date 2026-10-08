@@ -41,7 +41,8 @@ blob (`git show <blob sha>`) and say so in your report.
   the gap in the pull request — file, line, what is unclear, in one or two lines. Do not design around it and do not
   draft a change for it: gaps are discussed at the sprint's end. Stop and report only if the item cannot be built at all
   as specified, saying exactly what cannot be built and why.
-- The Product Owner's gate decision is final within the sprint; a rejected pull request is not reworked in the sprint. So
+- A rejected pull request may be reworked once within the sprint, on exactly the condition the gate names, when the
+  Scrum Master gives it back to you (`docs/process.md`, Sprint); a second rejection is final within the sprint. So
   before you report, go through the item's Acceptance line by line and through the job rules below, and finish whatever
   does not hold yet.
 
