@@ -56,3 +56,25 @@ updates and signed platform distribution remain later deliveries; this component
   merged prerequisite revisions, and distinguishes this source component from signed UC-044 distribution.
 - The tests-only first commit has actual red CI; final-head CI is green; each new case has an executed planted-fault
   counter-proof and restored positive. No paid service is called.
+
+## Runtime readiness and CI recovery
+
+Use the exact Electron44.5.1 runtime in a temporary tool directory outside the checkout. A new test adapter naming
+MOD-desktop-shell launches that real binary on the production `src/desktop-shell/main.mjs` entry with the controlled
+instance/origin, and observes the real window/server/lifecycle. The existing Node suite invokes this component test;
+do not substitute an injected Electron fake, source-text regex or successful missing-runtime skip for it. Name the
+runtime acquisition and source-start commands in the PR. Keep module source free of test-only app entry points.
+
+No repository package manifest or lockfile is selected: accepted MOD-bridge-build owns those for release packaging,
+which remains later work. Do not install builder, updater, mail, tunnel or signing packages just for this pairing slice.
+Measure the real runtime/test path on the existing CI runner and retain the declared CI budget. If it demonstrably needs
+additional unowned CI/helper tooling, report the concrete known-positive/failure path and obtain separately bounded
+between-jobs integration before editing; no workflow change or helper bypass is authorised by this item.
+
+Preserve original tests-only2eebbb5538a3a928365d41cbd5f495d06c3876dd and partial source1ee7a2a986a0594d8e0b38f697c9c1a87e7dc014
+and their branch history. Expose the original tests-only commit through a separate recovery PR and record its actual
+red CI before continuing the paused source work; then integrate normally without reset, rebase, amendment or force.
+SPEC requires the tests-only first commit and red CI on it; it states no additional chronological CI-before-source
+invariant. The initial local red and source-text test do not establish actual red CI or runnable Electron delivery.
+Continue the original recorded job/limit parameter, not a fabricated automatic-loop restart. Final source-head CI,
+real component acceptance, per-case fault/restoration and independent source/release gates remain required.
