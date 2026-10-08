@@ -41,7 +41,8 @@ function capture() {
 // Guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // Level: release
 // Precondition: this browser has notifications on and records an unfinished tagged release candidate as its baseline.
-// Input: its public run-tests record ends done, is checked again unchanged, then receives its release report and tag.
+// Input: an unchanged due check runs before End; its public run-tests record ends done, is checked again unchanged, then
+//        receives its release report and tag.
 // Expected: the release report appears once at release-v<version>, identifies this repository, opens #release, and stops
 //           appearing both while unchanged and after acceptance.
 test("TST-293002: release notification names and routes exactly one completed report", async () => {
@@ -53,6 +54,9 @@ test("TST-293002: release notification names and routes exactly one completed re
     await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: null }) } });
     const shown = capture(); await settle(server);
     assert.equal(shown.length, 0, "the run has not ended, so no report is announced");
+    globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) })); b.tick(); await settle(server);
+    assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notified`))[REPO], {},
+      "the due unfinished check leaves no release report in the browser's public notified record");
     await server.change(JOB, record("## End\n\nat: 2026-10-08 02:00 UTC\nstate: done\n"));
     globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) })); b.tick(); await settle(server);
     assert.deepEqual(shown.map(({ title, body, data }) => ({ title, body, url: data.url })), [{
@@ -64,5 +68,7 @@ test("TST-293002: release notification names and routes exactly one completed re
     tags.push({ name: `v${VERSION}`, commit: "a".repeat(40) }); await server.change(`docs/tests/releases/v${VERSION}.md`, "accepted\n");
     globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) })); b.tick(); await settle(server);
     assert.equal(shown.length, 1, "an accepted report with its release tag no longer waits");
+    assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notified`))[REPO], {},
+      "acceptance removes the waiting report rather than leaving a deduplicated copy in browser state");
   } finally { b.restore(); }
 });

@@ -50,7 +50,8 @@ function notifications() {
 // Guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // Level: system
 // Precondition: notifications are on; the instance has a v<version>-rc.N tag and its run-tests job has no End record.
-// Input: the run ends done, then remains unchanged, then its report and release tag are present.
+// Input: an unchanged due check runs before End; the run then ends done and remains unchanged; its report and release tag
+//        are then present.
 // Expected: no notice precedes End; exactly one release-v<version> notice names the repository and release route; no
 //           repeat follows while it waits, and no notice follows acceptance.
 test("TST-293001: UC-047 derives a release report only after its candidate run ends", async () => {
@@ -65,6 +66,11 @@ test("TST-293001: UC-047 derives a release report only after its candidate run e
     const shown = notifications();
     await settle(server);
     assert.deepEqual(shown, [], "the unfinished run is only the baseline, and tells nothing");
+
+    globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) }));
+    pageBrowser.tick(); await settle(server);
+    assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notified`))[REPO], {},
+      "a due unfinished check derives no report into the browser's notified state");
 
     await server.change(JOB, runRecord("done"));
     globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) }));
@@ -84,5 +90,7 @@ test("TST-293001: UC-047 derives a release report only after its candidate run e
     globalThis.localStorage.setItem(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) }));
     pageBrowser.tick(); await settle(server);
     assert.equal(shown.length, 1, "the accepted report and release tag leave nothing to notify");
+    assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notified`))[REPO], {},
+      "the accepted public repository state removes the report from what waits, rather than merely deduplicating it");
   } finally { pageBrowser.restore(); }
 });
