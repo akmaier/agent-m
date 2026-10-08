@@ -14,6 +14,7 @@ export class BridgeError extends Error {
 }
 
 const privateSettings = new WeakMap();
+const requestTimeoutMs = 15_000;
 
 function addressOf(address) {
   let url;
@@ -62,10 +63,12 @@ async function answerJson(answer) {
 async function call(bridge, path, init) {
   const address = `${bridge.address}${path}`;
   const headers = requestHeaders(bridge, init.body !== undefined);
+  const signal = AbortSignal.timeout(requestTimeoutMs);
   let answer;
   try {
-    answer = await fetch(address, { ...init, headers, credentials: "omit", cache: "no-store" });
+    answer = await fetch(address, { ...init, headers, signal, credentials: "omit", cache: "no-store" });
   } catch (error) {
+    if (error?.name === "TimeoutError") throw new BridgeError("Timeout", {}, "The Bridge request timed out.");
     const likely = likelyNoAnswer(bridge);
     throw new BridgeError("NoAnswer", { likely }, `The Bridge gave no answer: ${String(error?.message ?? error)}`);
   }
