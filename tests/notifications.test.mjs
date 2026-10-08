@@ -106,6 +106,7 @@ function fakeHost() {
         if (nextFailure) { const e = nextFailure; nextFailure = null; throw e; }
         return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" };
       },
+      async listTags() { return []; },
       async readSnapshot(ref) {
         if (nextFailure) { const e = nextFailure; nextFailure = null; throw e; }
         const blobs = Object.fromEntries(waiting.map((w) => [w.path, w.blob]));

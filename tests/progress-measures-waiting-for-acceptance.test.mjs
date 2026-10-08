@@ -2,9 +2,8 @@
 // docs/architecture/MOD-progress-measures.md states it: what waits for the person's acceptance in one repository — the
 // open entries of a SPEC change queue (MOD-spec-changes' queues), and the use cases, architecture decisions and module
 // files whose status is open or changed (MOD-approvals' statuses) —, each with its identifier, path and blob; nothing
-// for what is accepted, approved or already in SPEC. A release test report that waits is not part of this item: no
-// release candidate exists before UC-013's release is built; ITM-239 adds it. Nothing else of the module is part of
-// this item (ITM-235, Outcome).
+// for what is accepted, approved or already in SPEC, plus a release test report whose candidate run ended. Nothing
+// else of the module is part of this item.
 // Run: node --test tests/progress-measures-waiting-for-acceptance.test.mjs
 //
 // Module: MOD-progress-measures
@@ -14,15 +13,16 @@
 // Each test states its input and its expected result before it runs (given / input / expect). waitingForAcceptance is
 // given a snapshot already held in memory — paths, blob SHAs and a read() of the texts given, as MOD-repository-hosts'
 // Snapshot gives them, exactly as MOD-approvals' and MOD-spec-changes' own fixtures build one (tests/approvals-status.
-// test.mjs, tests/spec-changes-queues.test.mjs) — and a host this item's scope never calls: no release test report
-// (ITM-239). No readSnapshot, no fetch; nothing sleeps or waits. The combined list carries no order of its own, so
-// results are compared sorted by id. The counter-proofs are recorded in the pull request.
+// test.mjs, tests/spec-changes-queues.test.mjs) — and a host whose tags response is also held in memory. No
+// readSnapshot, no fetch; nothing sleeps or waits. The combined list carries no order of its own, so results are
+// compared sorted by id. The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { waitingForAcceptance } from "../src/progress-measures/index.mjs";
 
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const emptyTagsHost = { listTags: async () => [] };
 
 // A fixture snapshot (MOD-repository-hosts' Snapshot): paths, a blob SHA for each, and a read() of the texts given —
 // null for every other path, as a snapshot answers for a path its commit does not hold.
@@ -98,7 +98,7 @@ test("waitingForAcceptance — an open SPEC entry, an open use case and a change
   ];
   const snapshot = fixtureSnapshot(blobs, queue.texts, extraPaths);
 
-  const result = await waitingForAcceptance(null, snapshot);
+  const result = await waitingForAcceptance(emptyTagsHost, snapshot);
   result.sort(byId);
   assert.deepEqual(result, [
     { kind: "module", id: "MOD-sample-waiting", path: "docs/architecture/MOD-sample-waiting.md", blob: MOD_BLOB },
@@ -128,7 +128,7 @@ test("waitingForAcceptance — an open architecture decision and a changed use c
   const extraPaths = [`docs/approvals/UC-051-${UC_OLD_BLOB12}.md`];
   const snapshot = fixtureSnapshot(blobs, {}, extraPaths);
 
-  const result = await waitingForAcceptance(null, snapshot);
+  const result = await waitingForAcceptance(emptyTagsHost, snapshot);
   result.sort(byId);
   assert.deepEqual(result, [
     {
@@ -145,5 +145,23 @@ test("waitingForAcceptance — an open architecture decision and a changed use c
 // expect: an empty array
 test("waitingForAcceptance — an empty repository waits for nothing", async () => {
   const snapshot = fixtureSnapshot({});
-  assert.deepEqual(await waitingForAcceptance(null, snapshot), []);
+  assert.deepEqual(await waitingForAcceptance(emptyTagsHost, snapshot), []);
+});
+
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: a candidate's done run-tests record and its candidate tag, with no release report yet
+// input: waitingForAcceptance(host, snapshot)
+// expect: the ordinary waiting list gains the release test report, named release-v<version>, at the run record's path
+test("waitingForAcceptance — a completed candidate run adds its release test report", async () => {
+  const path = "docs/jobs/JOB-20261008-0900-aaaa.md";
+  const text = ["---", "id: JOB-20261008-0900-aaaa", "kind: run-tests", "works_on:", "  - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "route: ci hosted", "started_by: akmaier", "start: 2026-10-08 09:00 UTC", "agent_m: unknown, commit unknown", "limit: 1", "---",
+    "## Destinations", "", "## Parameters", "", "```json",
+    '{"candidate":{"version":"2026.4.0","tag":"v2026.4.0-rc.1","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}', "```", "",
+    "## End", "", "at: 2026-10-08 10:00 UTC", "state: done", ""].join("\n");
+  const snapshot = fixtureSnapshot({ [path]: "d4".repeat(20) }, { [path]: text });
+  const host = { listTags: async () => [{ name: "v2026.4.0-rc.1", commit: "a".repeat(40) }] };
+  assert.deepEqual(await waitingForAcceptance(host, snapshot), [{
+    kind: "release test report", id: "release-v2026.4.0", path, blob: "d4".repeat(20),
+  }]);
 });
