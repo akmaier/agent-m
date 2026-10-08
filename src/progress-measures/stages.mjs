@@ -1,8 +1,5 @@
-// stages.mjs — waitingForAcceptance: what waits for the person's acceptance in one repository, from its snapshot alone
-// (MOD-progress-measures, Interfaces). Of the module, this item (ITM-235) builds the SPEC-change-queue kind and the
-// use-case, architecture-decision and module kinds; the release-test-report kind is not part of this item: no release
-// candidate exists before UC-013's release is built, so `host` — which that kind alone would cross the network
-// through — is accepted, as the interface states it, but not called (ITM-239 adds it, through MOD-release-evidence).
+// stages.mjs — waitingForAcceptance: what waits for the person's acceptance in one repository, derived from the
+// snapshot and, for a release-test report, its host through MOD-release-evidence (MOD-progress-measures, Interfaces).
 // stageShares, currentStage, the build in progress and waitingForAPerson are not built yet (index.mjs).
 //
 // Module: MOD-progress-measures
@@ -27,9 +24,8 @@ const QUEUE_FOLDER_PREFIX = "docs/spec-freigaben/";
  * waitingForAcceptance(host, snapshot) -> Promise<Array<{ kind, id, path, blob }>> — what waits for the person's
  * acceptance in one repository (MOD-progress-measures, Interfaces): every entry of a change queue in the state open
  * (MOD-spec-changes' queues), and every use case, architecture decision and module file whose status is open or
- * changed (MOD-approvals' statuses). This item derives no release test report (ITM-235, Outcome); `host` is unused
- * until ITM-239 builds that kind.
- * @param {unknown} host
+ * changed (MOD-approvals' statuses), and a completed release candidate's report (MOD-release-evidence).
+ * @param {{ listTags: (pattern: string) => Promise<Array<{ name: string, commit: string }>> }} host
  * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
  * @returns {Promise<Array<{ kind: string, id: string, path: string, blob: string }>>}
  */

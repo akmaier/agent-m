@@ -1,13 +1,12 @@
 // MOD-job-ledger — the record, state and cost of every job (docs/architecture/MOD-job-ledger.md): its interface. Of it,
 // ITM-252 builds JobStart, RecordPart, JobRecord, LiveState, JobState, Cost, JobRow, newJobId, startRecord, jobState,
-// listJobs and jobCost, as its file states them: a job's identifier, none of those its product holds; the start of its
+// listJobs, recordsNewestFirst and jobCost, as its file states them: a job's identifier, none of those its product holds; the start of its
 // record; a record read with every part appended to it, each kind of part as the file writes it — the lines
 // `gate record:`, `works on:` and `jobs at once:` with their spaces, a question to the author under `## Gate reached`,
 // an End's `draft:` as one fenced JSON block, its End without a round record (MOD-job-runner's roundsText, which no
 // item has built and no job has written yet); its state from its last part and, for a job that has not ended, from its
-// runtime's live state; and every job of the products given, newest first, with its cost. appendToRecord, takeJob and
-// recordsNewestFirst are not part of this item (they belong to the routes of UC-010/UC-011, and to ITM-239) and are not
-// built yet.
+// runtime's live state; and every job of the products given, newest first, with its cost. appendToRecord and takeJob
+// belong to the routes of UC-010/UC-011 and are not built yet.
 //
 // Module: MOD-job-ledger
 //

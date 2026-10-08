@@ -2,9 +2,8 @@
 // docs/architecture/MOD-progress-measures.md states it: what waits for the person's acceptance in one repository — the
 // open entries of a SPEC change queue (MOD-spec-changes' queues), and the use cases, architecture decisions and module
 // files whose status is open or changed (MOD-approvals' statuses) —, each with its identifier, path and blob; nothing
-// for what is accepted, approved or already in SPEC. A release test report that waits is not part of this item: no
-// release candidate exists before UC-013's release is built; ITM-239 adds it. Nothing else of the module is part of
-// this item (ITM-235, Outcome).
+// for what is accepted, approved or already in SPEC, plus a release test report whose candidate run ended. Nothing
+// else of the module is part of this item.
 // Run: node --test tests/progress-measures-waiting-for-acceptance.test.mjs
 //
 // Module: MOD-progress-measures
@@ -14,9 +13,9 @@
 // Each test states its input and its expected result before it runs (given / input / expect). waitingForAcceptance is
 // given a snapshot already held in memory — paths, blob SHAs and a read() of the texts given, as MOD-repository-hosts'
 // Snapshot gives them, exactly as MOD-approvals' and MOD-spec-changes' own fixtures build one (tests/approvals-status.
-// test.mjs, tests/spec-changes-queues.test.mjs) — and a host this item's scope never calls: no release test report
-// (ITM-239). No readSnapshot, no fetch; nothing sleeps or waits. The combined list carries no order of its own, so
-// results are compared sorted by id. The counter-proofs are recorded in the pull request.
+// test.mjs, tests/spec-changes-queues.test.mjs) — and a host whose tags response is also held in memory. No
+// readSnapshot, no fetch; nothing sleeps or waits. The combined list carries no order of its own, so results are
+// compared sorted by id. The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
 import assert from "node:assert/strict";

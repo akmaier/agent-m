@@ -3,8 +3,7 @@
 // the next version of a product's own line; the release candidate tagged and its complete run queued; the release
 // test report of a candidate whose run has ended; and, on the person's one click, the report, its approval record
 // with every known limitation and the changelog entry in one commit, then the tag on the tested commit.
-// reportsAwaitingAcceptance (ITM-239) and the audit (auditRows, auditDocument, UC-030) are not part of this item and
-// are not tested here.
+// reportsAwaitingAcceptance (ITM-239) is covered below; the audit (auditRows, auditDocument, UC-030) is not.
 // Run: node --test tests/release-evidence.test.mjs
 //
 // Module: MOD-release-evidence

@@ -5,8 +5,8 @@
 // `jobs at once:` with their spaces, a question to the author as `question:` under `## Gate reached`, an End's
 // `draft:` as one fenced JSON block —, read, the question as the record's question and the draft as its End's draft,
 // its End without a round record; its state from its last part and, for a job that has not ended, from its runtime's
-// live state; and every job of the products given, newest first, with its cost. appendToRecord, takeJob and
-// recordsNewestFirst are not part of this item and are not tested here.
+// live state; every job of the products given, newest first, with its cost; and recordsNewestFirst's lazy newest-first
+// iteration. appendToRecord and takeJob are not part of this item and are not tested here.
 // Run: node --test tests/job-ledger.test.mjs
 //
 // Module: MOD-job-ledger

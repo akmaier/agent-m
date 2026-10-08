@@ -1,7 +1,6 @@
 // report.mjs — the release test report, and releasing on its acceptance (MOD-release-evidence, Parts: "report.mjs —
 // the release test report, whether one waits for acceptance, and releasing on its acceptance"). Of it, ITM-254 builds
-// releaseReport and acceptAndRelease, as the module file states them. reportsAwaitingAcceptance is ITM-239's and not
-// built here.
+// releaseReport, acceptAndRelease and reportsAwaitingAcceptance, as the module file states them.
 //
 // Module: MOD-release-evidence
 //
