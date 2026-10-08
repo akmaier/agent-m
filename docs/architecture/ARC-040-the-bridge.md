@@ -37,6 +37,7 @@ forced_by:
   - A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER
   - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
   - A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF
+  - UC-003
   - UC-011
   - UC-017
   - UC-037
@@ -88,9 +89,10 @@ agents, tunnels and updates in its window; and being released as one signed file
 
 The Bridge API, over HTTP, defined in MOD-bridge-http and described in its file: pairing test, jobs (hand over, list,
 log, cancel), mail (read folders read-only, find by identifier, read Drafts and Sent, store a draft, send with a
-single-use confirmation, test), probes (an agent's harmless request, an endpoint's served models, a cluster's
-partitions), tunnels (state). Every request carries the Bridge's token in its own header; a request through the jump host
-also carries the web server's login, which the web server checks first.
+single-use confirmation, test), probes (an agent's harmless request, an endpoint's served models, the short test of a
+local endpoint the page explicitly marked as through the Bridge, a cluster's partitions), tunnels (state). Every request
+carries the Bridge's token in its own header; a request through the jump host also carries the web server's login, which
+the web server checks first.
 
 | Module | Functions other subsystems use |
 |---|---|

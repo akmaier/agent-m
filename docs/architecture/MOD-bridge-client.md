@@ -134,10 +134,16 @@ uses; the key itself stays on its computer.
   defines; `confirm-send` and `send` carry the single-use confirmation as `bridgeApi` defines it. Crosses the network;
   fails with every `BridgeError` but `AskFailed`, among them `BridgeFailed` with `confirmation-refused`, `no-encryption`,
   `login-refused`, `upstream-failed` — the mail server's own message — or `paused`.
-- `probe(bridge: Bridge, kind: "agent" | "endpoint-models" | "partitions", args: unknown) -> Promise<unknown>` —
-  `POST /v1/probes/{kind}` with `{ args }`, resolving with the answer's `answer`: an agent answers a harmless request, an
-  endpoint lists its served models, a cluster lists its partitions. Crosses the network; fails with every `BridgeError`
-  but `AskFailed`, among them `BridgeFailed` with `upstream-failed` or `paused`.
+- `probe(bridge: Bridge, kind: "agent" | "endpoint-models" | "partitions", args: unknown) -> Promise<unknown>` and
+  `probe(bridge: Bridge, kind: "endpoint-test", args: bridgeApi's endpoint-test configuration) -> Promise<bridgeApi's
+  endpoint-test answer>` — `POST /v1/probes/{kind}` with `{ args }`, resolving with the answer's
+  `answer`: an agent answers a harmless request, an endpoint lists its served models, the explicitly chosen local
+  endpoint configuration receives UC-003's short test on the Bridge, or a cluster lists its partitions. The endpoints
+  page maps its saved `{ url, kind, model, key?, throughBridge }` record to the Bridge API endpoint-test configuration only for
+  `throughBridge: true`: its selected name and kind, `url` as `baseUrl`, optional `key` as `key ?? null`, and model.
+  A result with `works: false` is the provider or local-endpoint diagnosis returned by `testEndpoint`; an invalid body or
+  Bridge transport failure is the named `BridgeError`, not a diagnosis. Crosses the network; fails with every
+  `BridgeError` but `AskFailed`, among them `BridgeFailed` with `upstream-failed` or `paused`.
 - `allocatePort(range: [number, number], sessions: RemoteSession[]) -> number` — the lowest port of the range that no
   session holds (`EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE`). Throws `NoFreePort` naming the range.
 - `tunnelCommands(jumpHost: JumpHost, session: RemoteSession, bridgePort: number, keyFiles: { remote: string, local:

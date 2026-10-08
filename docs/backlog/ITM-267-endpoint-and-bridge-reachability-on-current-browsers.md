@@ -20,10 +20,6 @@ origin:
 
 **REGISTER**
 
-## Start condition
-
-**Blocked.** An endpoint is never accessed through the Bridge. Endpoint configuration and its test use the direct browser-to-endpoint path. This item's endpoint-through-Bridge scope conflicts with that boundary; do not select or start it. UC-003 alternative 2a contains a contradictory Bridge route and must not be used to authorize this work.
-
 ## Outcome
 
 A dated measurement under docs/measurements/ of UC-003's integrated revision on current Chrome, Firefox and Safari: permitted direct endpoint call, refused browser call with its observable diagnosis, local model test through a paired loopback Bridge where the browser allows it, and the configured trusted HTTPS/jump-host route for Safari. Name the served revision, origin, endpoint fixtures, Bridge revision and each browser's version. Use controlled endpoints; real paid-provider behaviour is not inferred from fixture results.

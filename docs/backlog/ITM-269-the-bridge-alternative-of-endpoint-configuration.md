@@ -25,10 +25,6 @@ origin:
 
 **REGISTER**
 
-## Start condition
-
-**Blocked.** An endpoint is never accessed through the Bridge. Endpoint configuration and its test use the direct browser-to-endpoint path. This item's endpoint-through-Bridge scope conflicts with that boundary; do not select or start it. UC-003 alternative 2a contains a contradictory Bridge route and must not be used to authorize this work.
-
 ## Outcome
 
 Extend ITM-265's endpoints route with UC-003 alternative 2a using the accepted Bridge test operation. Use the paired Bridge settings and configured HTTPS route supplied by UC-044; disclose where the request goes before the action. Save the endpoint configuration in this browser before testing, preserve a refused key until changed or cleared, and clear its actual storage entry. Keep the direct path working.

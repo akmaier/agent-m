@@ -20,10 +20,6 @@ origin:
 
 **REGISTER**
 
-## Start condition
-
-**Blocked.** An endpoint is never accessed through the Bridge. Endpoint configuration and its test use the direct browser-to-endpoint path. This item's endpoint-through-Bridge scope conflicts with that boundary; do not select or start it. UC-003 alternative 2a contains a contradictory Bridge route and must not be used to authorize this work.
-
 ## Outcome
 
 Build bridgeApi, serveBridge and pairAnew only as needed to pair and dispatch UC-003's endpoint-test operation. Binding, origin/preflight restrictions, token persistence, rotation, pause and secret-free logging follow MOD-bridge-http. Endpoint configuration belongs in the request body and is not retained. Other work handlers, the Electron app and mail/tunnel/job execution are outside this item.

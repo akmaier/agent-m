@@ -19,10 +19,6 @@ origin:
 
 **REGISTER**
 
-## Start condition
-
-**Blocked.** An endpoint is never accessed through the Bridge. Endpoint configuration and its test use the direct browser-to-endpoint path. This item's endpoint-through-Bridge scope conflicts with that boundary; do not select or start it. UC-003 alternative 2a contains a contradictory Bridge route and must not be used to authorize this work.
-
 ## Outcome
 
 Register the endpoint-test handler in MOD-desktop-shell's compose.mjs through the accepted server and handler interfaces. The actual Bridge entry must serve it for the configured instance origin, with the existing pairing controls and loopback binding. This is module work, not an unowned dashboard wiring change.

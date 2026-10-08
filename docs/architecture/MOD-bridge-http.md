@@ -41,6 +41,12 @@ proposes that address when pairing. Every request carries the pairing token in t
 through the jump host also carries the web server's own login, which the web server checks first (`THE JUMP HOST FORWARDS
 TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); the Bridge does not read it. Bodies are JSON. Routes:
 
+**Endpoint-test configuration.** The `args` of `endpoint-test` is `{ name: string, kind: "openai-compatible" |
+"anthropic", baseUrl: string, model: string, key: string | null }`. Its `answer` is `{ works: true, model: string }` or
+`{ works: false, diagnosis: { reason: "cross-origin refused" | "opt-in header missing" | "blocked by the browser" |
+"not reachable" | "key refused" | "model unknown" | "too long" | "rate limited" | "endpoint error", message: string,
+routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire format.
+
 | Method and path | Request | Answer | Handler |
 |---|---|---|---|
 | `GET /v1/pair` | — | `{ bridge: { name, version, platform }, origin }` | the server itself |
@@ -51,7 +57,7 @@ TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); the Bridge does not read it. Bodies are 
 | `POST /v1/jobs/{id}/cancel` | — | `{ confirmed }` — `true` once the agent's process has ended | jobs |
 | `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent | `{ ask }` | jobs |
 | `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, usage, error }` | jobs |
-| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models` or `partitions` | `{ answer }` | jobs |
+| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` takes the endpoint-test configuration | `{ answer }`; for `endpoint-test`, the endpoint-test answer | jobs |
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |
 

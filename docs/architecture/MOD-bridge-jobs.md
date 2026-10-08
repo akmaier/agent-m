@@ -8,6 +8,8 @@ follows:
 uses:
   - MOD-bridge-http.bridgeApi
   - MOD-bridge-http.BridgeHandlers
+  - MOD-endpoint-calls.EndpointConfig
+  - MOD-endpoint-calls.testEndpoint
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.readSnapshot
   - MOD-documents.readDocument
@@ -80,8 +82,13 @@ when the job ends. Which products it serves, and the Bridge's name — the name 
   - `POST /v1/ask`, `GET /v1/ask/{ask}` — a drafting request of the page's job runner to one agent, answered with its text
     and the usage it reported; the correction loop stays in the page.
   - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` lists the
-    models an endpoint on this computer serves; `partitions` lists a cluster's partitions through its scheduler's
-    command on this computer (UC-017, UC-040). Errors: `upstream-failed` with the answer.
+    models an endpoint on this computer serves; `endpoint-test` receives the valid endpoint-test configuration for a
+    local endpoint the page explicitly marked `throughBridge`, maps its fields to MOD-endpoint-calls' `EndpointConfig`,
+    calls `testEndpoint` in Node once, and returns the structurally corresponding `{ works: true, model }` or
+    `{ works: false, diagnosis }` answer unchanged; `partitions` lists a cluster's
+    partitions through its scheduler's command on this computer (UC-003, UC-017, UC-040). An invalid endpoint-test body
+    is `invalid-request`; a provider or local-endpoint failure is the returned diagnosis; `upstream-failed` names another
+    probe-handler failure.
 - `startWatching(config: { dataFolder: string, bridgeName: string, products: { address: string }[], every: number })
   -> void` — starts reading every served product through Access's local clone with the computer's own git login, at the
   given interval and after every hand-over: queued jobs whose participant's route is this Bridge are taken — a commit
@@ -98,6 +105,9 @@ Every job it runs, the Bridge runs from its start record alone — its kind, the
 pinned inputs —, prepared by the job runner on the job's working clone. No person attends a job on a Bridge: as on CI,
 its kind's writer writes at once, and a kind that hands its draft back leaves it in the record's end as `draft:`, from
 which the page shows it and a run starts the job that follows.
+
+An endpoint-test configuration and its key exist only for that request. The handler retains neither in a clone, job
+record, log, disk file, shell setting nor process command.
 
 Access's local clone does files and commits only — no pull request, issue or CI run. On a Bridge the coding agent opens
 its pull request with its own tools and its own login on this computer; the Bridge records the branch and the pull
