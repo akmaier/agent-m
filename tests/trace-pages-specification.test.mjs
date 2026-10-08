@@ -6,8 +6,8 @@
 // Guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // Level: unit
 //
-// This test calls the public trace/specification Route.render with a Host/Snapshot-shaped fake.  The fixture has two
-// sections and a requirement before every section. The fake has no write method: rendering has no write path.
+// This test calls the public trace/specification Route.render with a Host/Snapshot-shaped fake. The fixture has two
+// sections and a requirement before every section. The fake has no write method, so rendering has no write path.
 
 import test from "node:test";
 import assert from "node:assert/strict";

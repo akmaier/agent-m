@@ -1,5 +1,5 @@
-// The private descriptor of the current-specification slice. A TraceView descriptor belongs to MOD-trace-pages; the
-// public Site-frame Route stays the accepted `trace/<key>` route.
+// The private descriptor of the current-specification view. A TraceView descriptor belongs to MOD-trace-pages; the
+// public Site-frame Route is `trace/<key>`.
 //
 // Module: MOD-trace-pages
 

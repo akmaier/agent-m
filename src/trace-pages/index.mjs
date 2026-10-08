@@ -1,5 +1,5 @@
-// MOD-trace-pages — its public View. ITM-277 supplies the current-specification route only; the remaining trace views
-// described by the accepted module remain for later items.
+// MOD-trace-pages — its public View. It exposes the current-specification route; the other accepted trace views are
+// not part of this source slice.
 //
 // Module: MOD-trace-pages
 

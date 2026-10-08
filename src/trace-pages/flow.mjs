@@ -1,5 +1,5 @@
-// The public trace Route for ITM-277's current SPEC slice. It deliberately does not choose versions, derive traces,
-// read queues or write: the caller hands it the pinned ref of the dashboard it is embedded in.
+// The public trace Route for the current SPEC slice. It does not choose versions, derive traces, read queues or write:
+// the caller hands it the pinned ref of the dashboard it is embedded in.
 //
 // Module: MOD-trace-pages
 
@@ -29,7 +29,7 @@ function requirementDetail(requirement) {
 }
 
 function requirementRows(requirement) {
-  const button = el("button", "requirement-name", requirement.name);
+  const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
   const row = el("tr", null, el("td", null, button));
   const opened = el("tr", "requirement-opened");
