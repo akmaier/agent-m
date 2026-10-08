@@ -664,13 +664,12 @@ test("startPage — Bridge-only frame routes its loaded view with the configured
     assert.match(document.body.textContent, /Agent M Bridge/, "the Bridge header is drawn");
     const header = byClass(document.body, "site-header")[0];
     assert.ok(header, "the shared lab header class is used");
-    const logo = byTag(header, "img")[0];
-    const look = byTag(byTag(document, "head")[0], "link").find((link) => link.getAttribute("href")?.endsWith("/site-frame/look.css"));
+    const logo = byClass(header, "prl-logo")[0];
+    const look = byTag(byTag(document, "head")[0], "style").find((style) => style.getAttribute("data-site-frame-look") === "shared");
     assert.equal(header.getAttribute("class"), "site-header top", "the shared lab header class is used");
-    assert.deepEqual([logo.getAttribute("src"), logo.getAttribute("alt"), logo.getAttribute("width"), logo.getAttribute("height")],
-      [new URL("../src/brand/prl-lettered.png", import.meta.url).href, "Pattern Recognition Lab", "126", "44"],
+    assert.deepEqual([logo.getAttribute("role"), logo.getAttribute("aria-label")], ["img", "Pattern Recognition Lab"],
       "the shared PRL logo is present");
-    assert.equal(look.getAttribute("rel"), "stylesheet", "the frame loads its shared lab look");
+    assert.match(look.textContent, /\.site-header/, "the frame draws its shared lab look");
     assert.equal(calls.length, 1, "the initial fragment renders once");
     assert.equal(calls[0].context.page, "bridge");
     assert.equal(calls[0].context.instance.repository, "fork-owner/fork-agent-m");
