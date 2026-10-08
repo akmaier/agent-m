@@ -11,7 +11,7 @@ import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-electron-44");
-const wait = async (f) => { for (let n = 0; n < 240; n += 1) { try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
+const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
 const tokenOf = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
 const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
 const within = async (promise, name) => {
@@ -63,9 +63,9 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const stopped = () => { if (child.exitCode !== null) throw new Error(`Electron exited=${child.exitCode}; stderr=${scrub(stderr)}`); };
-  const page = await wait(async () => { stopped(); return (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")); });
-  const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl);
-  const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl);
+  const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
+  const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
+  const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
   return { browser, child, exited, folder, main, origin, page, port };
 }
 
