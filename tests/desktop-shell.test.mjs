@@ -28,6 +28,8 @@ async function runtime() {
   if (!existsSync(executableOf(installed))) {
     const result = spawnSync("npm", ["install", "--no-save", "--prefix", electronCache, "electron@44.5.1"], { encoding: "utf8", timeout: 90000 });
     assert.equal(result.status, 0, scrub(result.stderr));
+    const acquired = spawnSync(process.execPath, [join(installed, "install.js")], { encoding: "utf8", timeout: 90000 });
+    assert.equal(acquired.status, 0, scrub(acquired.stderr));
   }
   assert.equal(existsSync(executableOf(installed)), true, "Electron 44.5.1 executable was not acquired.");
   return executableOf(installed);

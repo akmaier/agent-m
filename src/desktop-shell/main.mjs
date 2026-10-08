@@ -1,10 +1,11 @@
 // Module: MOD-desktop-shell
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import electron from "electron";
 import { compose } from "./compose.mjs";
 
 const option = (arguments_, name) => arguments_.find((value) => value.startsWith(`${name}=`))?.slice(name.length + 1);
-const options = (arguments_ = process.argv.slice(2)) => ({ instance: option(arguments_, "--instance") ?? "akmaier/agent-m", origin: option(arguments_, "--origin") ?? "https://akmaier.github.io", dataFolder: option(arguments_, "--data-folder"), port: Number(option(arguments_, "--port") ?? 4711) });
+const options = (arguments_ = process.argv.slice(2)) => ({ instance: option(arguments_, "--instance"), origin: option(arguments_, "--origin"), dataFolder: option(arguments_, "--data-folder"), port: Number(option(arguments_, "--port") ?? 4711) });
 const pagesLocation = (instance) => {
   const [owner, repository] = instance.split("/");
   if (!owner || !repository) throw new TypeError("--instance must be owner/repository.");
@@ -78,7 +79,4 @@ export async function start(electron, supplied = {}) {
   return bridge ?? { failure: startupFailure, close: async () => {} };
 }
 
-if (process.versions.electron) {
-  const electron = await import("electron");
-  start(electron.default ?? electron).catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });
-}
+start(electron).catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });
