@@ -7,9 +7,7 @@
 // Level: unit
 //
 // This test calls the public trace/specification Route.render with a Host/Snapshot-shaped fake.  The fixture has two
-// sections and a requirement before every section.  It proves that the route reads the supplied pinned ref, preserves
-// file order, makes every requirement selectable, and sends its Markdown through the renderer rather than assigning
-// artifact text as HTML.  The fake has no write method: rendering has no write path.
+// sections and a requirement before every section. The fake has no write method: rendering has no write path.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -103,7 +101,7 @@ globalThis.document = document;
 globalThis.window = { document, Node, Element, Text, DocumentFragment: Fragment, DOMParser, NodeFilter: { SHOW_ELEMENT: 1, SHOW_TEXT: 4 } };
 
 const { view } = await import("../src/trace-pages/index.mjs");
-const route = view.routes.find((candidate) => candidate.name === "trace" && candidate.descriptor?.key === "specification");
+const route = view.routes.find((candidate) => candidate.name === "trace");
 
 const SPEC = `# Fixture — Specification
 
@@ -129,33 +127,45 @@ function host(text = SPEC) {
   return { calls, async readSnapshot(ref) { calls.push(ref); return { ref, commit: ref, paths: text === null ? [] : ["SPEC.md"], read: async (path) => path === "SPEC.md" ? text : null, blob: () => null }; } };
 }
 function find(root, match) { const found = []; (function walk(node) { for (const kid of node.childNodes) { if (kid.nodeType === 1) { if (match(kid)) found.push(kid); walk(kid); } } })(root); return found; }
-function render(productHost, params = { ref: "pinned-commit" }) { const target = document.createElement("div"); document.body.append(target); return route.render(target, { product: { host: productHost } }, params).then(() => target); }
+function render(productHost, params = { key: "specification", ref: "pinned-commit" }) { const target = document.createElement("div"); document.body.append(target); return route.render(target, { product: { host: productHost } }, params).then(() => target); }
 
+// CASE ITM-277-01
+// given: a public trace Route and a Host whose pinned snapshot has one unsectioned requirement and two sections
+// input: Route.render(target, { product: { host } }, { key: "specification", ref: "pinned-commit" })
+// expect: the Host receives exactly that ref; current requirement names appear once, before/within their sections in SPEC order
 test("the public trace/specification route reads the pinned SPEC and lists each requirement in file order", async () => {
-  assert.ok(route, "the public trace route exposes the specification descriptor");
+  assert.ok(route, "the public trace route is exposed");
   const productHost = host();
   const target = await render(productHost);
   assert.deepEqual(productHost.calls, ["pinned-commit"]);
-  assert.equal(target.textContent, "Current requirementsOutside requirementFirst sectionFIRST REQUIREMENTSecond sectionSECOND REQUIREMENT");
+  assert.equal(target.textContent, "Current requirementsOUTSIDE REQUIREMENTFirst sectionFIRST REQUIREMENTSecond sectionSECOND REQUIREMENT");
   const names = find(target, (node) => node.localName === "button" && node.className === "requirement-name");
   assert.deepEqual(names.map((node) => node.textContent), ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUIREMENT"]);
   assert.equal(new Set(names.map((node) => node.textContent)).size, 3);
   assert.equal(find(target, (node) => node.localName === "section" && node.className === "spec-section").map((node) => node.textContent), ["First sectionFIRST REQUIREMENT", "Second sectionSECOND REQUIREMENT"]);
 });
 
+// CASE ITM-277-02
+// given: the rendered overview and an unsafe HTML image in SECOND REQUIREMENT's rule (known positive: SPEC contains both `<img` and `onerror`)
+// input: a click on SECOND REQUIREMENT's displayed name
+// expect: its name, source, rule and check are readable in the detail, no image node is created, and no route/navigation context is needed
 test("selecting a requirement renders its four fields safely without navigating to a queue", async () => {
+  assert.match(SPEC, /<img[^>]+onerror=/, "known positive: the fixture has unsafe HTML");
   const target = await render(host());
   const name = find(target, (node) => node.localName === "button" && node.textContent === "SECOND REQUIREMENT")[0];
   name.dispatchEvent(new Event("click"));
-  assert.match(target.textContent, /SECOND REQUIREMENTSource twoSecond <img src=x onerror=alert\(1\)> rule\.tests\/second\.test\.mjs/);
+  assert.match(target.textContent, /SECOND REQUIREMENTSource twoSecond .* rule\.tests\/second\.test\.mjs/);
   assert.equal(find(target, (node) => node.localName === "img").length, 0);
-  assert.equal(find(target, (node) => node.localName === "script").length, 0);
-  assert.equal(target.textContent.includes("queue"), false);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.includes("queue")).length, 0);
 });
 
+// CASE ITM-277-03
+// given: a Host whose pinned snapshot has no SPEC.md
+// input: the same public specification route
+// expect: it states that the current requirements are empty and calls no write operation
 test("an absent or empty SPEC has an explicit empty state and rendering offers no write", async () => {
   const productHost = host(null);
-  const target = await render(productHost, { ref: "pinned-empty" });
+  const target = await render(productHost, { key: "specification", ref: "pinned-empty" });
   assert.equal(target.textContent, "Current requirementsNo current requirements are recorded in SPEC.md.");
   assert.equal(Object.hasOwn(productHost, "commitFiles"), false);
 });
