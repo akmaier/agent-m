@@ -140,6 +140,9 @@ test("TST-261006: serveBridge allows the paired origin and dispatches endpoint-t
   assert.equal(preflight.headers.get("access-control-allow-origin"), ORIGIN);
   assert.match(preflight.headers.get("access-control-allow-headers"), /x-agent-m-bridge-token/i);
   assert.equal(preflight.headers.get("access-control-allow-private-network"), "true");
+  const ordinaryPreflight = await fetch(`${bridge.address}/v1/probes/endpoint-test`, { method: "OPTIONS", headers: { Origin: ORIGIN, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,x-agent-m-bridge-token" } });
+  assert.equal(ordinaryPreflight.status, 204);
+  assert.equal(ordinaryPreflight.headers.get("access-control-allow-private-network"), null);
   const response = await request(bridge, "/v1/probes/endpoint-test", { body: { args: CONFIG } });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { answer: SUCCESS });

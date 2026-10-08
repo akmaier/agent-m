@@ -14,12 +14,14 @@ export async function serveBridge(config, handlers) {
   const http = globalThis.process?.getBuiltinModule?.("node:http");
   if (!http) throw new Error("Bridge server requires Node.");
   const server = http.createServer(async (request, response) => {
-    const started = Date.now(), path = new URL(request.url, "http://bridge").pathname;
+    const started = Date.now(), path = new URL(request.url, "http://localhost").pathname;
     const origin = request.headers.origin;
     const log = (status) => console.info(JSON.stringify({ method: request.method, path, status, duration: Date.now() - started }));
     if (origin !== config.origin) { error(response, 403, "origin-refused", "Bridge origin refused."); log(403); return; }
     if (request.method === "OPTIONS") {
-      response.writeHead(204, { "access-control-allow-origin": config.origin, "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type, x-agent-m-bridge-token", "access-control-allow-private-network": request.headers["access-control-request-private-network"] === "true" ? "true" : undefined, vary: "Origin" });
+      const headers = { "access-control-allow-origin": config.origin, "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type, x-agent-m-bridge-token", vary: "Origin" };
+      if (request.headers["access-control-request-private-network"] === "true") headers["access-control-allow-private-network"] = "true";
+      response.writeHead(204, headers);
       response.end(); log(204); return;
     }
     if (request.headers[bridgeApi.tokenHeader] !== await currentToken(config.dataFolder)) { error(response, 401, "token-refused", "Bridge token refused.", config.origin); log(401); return; }
