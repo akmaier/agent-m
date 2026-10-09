@@ -247,3 +247,19 @@ test("TST-286010: supplied runtime tunnelHandlers answer through the authenticat
   `;
   try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/runtime-handler-route-positive/); } finally { rmSync(folder,{recursive:true,force:true}); }
 });
+
+// TST-286011
+// level: unit
+// module: MOD-tunnels
+// guards: A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; UC-011
+// given: a pinned ssh2@1.17.0 loopback connection proven before the product call and a non-loopback forward plan
+// input: openTunnels(dataFolder, [nonLoopbackForwardPlan], bridgePort)
+// expect: NotLoopback is reported before registration, connection, or forwarding
+test("TST-286011: runtime refuses a non-loopback forward plan before forwarding", () => {
+  const folder = dataFolder();
+  try {
+    const result = invoke(folder, { direction: "forward", jumpHost: "127.0.0.1", user: "fixture", sshPort: 1, remotePort: 41011, bind: "0.0.0.0", bridgePort: 4711, keyFile: "fixture" });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /NotLoopback/);
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+});

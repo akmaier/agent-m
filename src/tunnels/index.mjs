@@ -124,7 +124,7 @@ export async function openTunnels(dataFolder, plans, bridgePort) {
   const key = await ensureKey(dataFolder);
   const privateKey = readFileSync(join(dataFolder, "ssh", "id_ed25519"), "utf8");
   for (const plan of plans) {
-    if (plan.direction === "reverse" && plan.bind !== "127.0.0.1" && plan.bind !== "::1") {
+    if (plan.bind !== "127.0.0.1" && plan.bind !== "::1") {
       const error = new Error("Reverse tunnel bind must be loopback."); error.name = "NotLoopback"; throw error;
     }
     const state = { name: stateName(plan), kind: plan.direction, state: "opening", reason: null };
