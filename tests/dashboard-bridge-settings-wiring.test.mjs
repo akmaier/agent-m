@@ -1,7 +1,7 @@
 // The dashboard's Bridge-settings composition (ITM-280).
 // Run: node --test tests/dashboard-bridge-settings-wiring.test.mjs
 //
-// Module: MOD-dashboard-app · MOD-settings-pages · MOD-browser-store
+// Module: MOD-settings-pages · MOD-browser-store
 // Level: component
 // Guards: UC-003; UC-044; EVERY SETTING IS REACHED FROM ONE PAGE
 
@@ -27,7 +27,7 @@ async function mountedSettings(entries = {}) {
 }
 
 // TST-280003
-// Module: MOD-dashboard-app · MOD-settings-pages · MOD-browser-store
+// Module: MOD-settings-pages · MOD-browser-store
 // Level: component
 // Guards: UC-003; UC-044; EVERY SETTING IS REACHED FROM ONE PAGE
 // Precondition: the dashboard browser has no endpoint, Bridge, or jump-host setting.
@@ -50,7 +50,7 @@ test("TST-280003: empty Settings reaches the public Bridge configuration route",
 });
 
 // TST-280004
-// Module: MOD-dashboard-app · MOD-settings-pages · MOD-browser-store
+// Module: MOD-settings-pages · MOD-browser-store
 // Level: component
 // Guards: UC-044; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
 // Precondition: this dashboard browser stores a successful Bridge pairing in MOD-browser-store's canonical instance key.
