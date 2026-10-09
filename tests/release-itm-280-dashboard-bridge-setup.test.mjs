@@ -17,11 +17,13 @@ import { serveBridge } from "../src/bridge-http/index.mjs";
 const ORIGIN = "https://akmaier.github.io";
 const INSTANCE = "akmaier/agent-m";
 const key = (name) => `agent-m:${INSTANCE}:${name}`;
+// app-harness replaces global fetch for every dashboard. Keep Node's fetch before the first load, so each
+// independently created repoServer handler reaches its own controlled loopback Bridge.
+const nativeFetch = globalThis.fetch;
 
 async function dashboardAtBridge(t) {
   // Capture native fetch before the dashboard replaces global fetch. The repository handler forwards only the
   // controlled loopback Bridge request and supplies the same Pages-origin context as bridge-http's HTTP tests.
-  const nativeFetch = globalThis.fetch;
   const folder = await mkdtemp(join(tmpdir(), "agent-m-280-release-"));
   const bridge = await serveBridge({ host: "127.0.0.1", port: 0, origin: ORIGIN, dataFolder: folder, paused: () => false }, { jobs: {}, mail: {}, tunnels: {} });
   const calls = [];
@@ -65,6 +67,7 @@ test("TST-280901: public Settings pairs a real Bridge, reloads through Change, a
   await press(server, main.querySelector(".bridge-pair"));
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(key("bridge"))), { address: bridge.address, token: bridge.token }, "failure node: pair success reaches MOD-browser-store's canonical Bridge key");
   assert.deepEqual(calls.map(({ url }) => new URL(url).pathname), ["/v1/pair"], "the public dashboard used the real controlled Bridge pairing API once");
+  assert.ok(server.requests.some((request) => request.startsWith("handler GET http://127.0.0.1:")), "known positive: repoServer records the controlled real Bridge request");
   assert.equal(calls[0].url.includes(bridge.token), false, "the copied token never enters the request address");
 
   await page.go("#bridge");
@@ -87,8 +90,8 @@ test("TST-280901: public Settings pairs a real Bridge, reloads through Change, a
 // Input: Pair a refused token, then an unreadable address; separately save the trusted HTTPS address and nested login.
 // Expected: neither failure stores a fake success; HTTPS save makes no request, remains untested, keeps login under
 // jump-host and the copied Bridge token under bridge, reloads hidden, and Settings Change/Clear reaches/removes jump-host.
-// Planted fault: moving the HTTPS save's writeSetting("bridge", ...) before the trusted-address check makes this case's
-// no-fake-success assertion fail; restoring the guarded write returns the positive result.
+// Planted fault: omitting the HTTPS save's writeSetting("bridge", ...) makes the separate Bridge-storage assertion fail;
+// restoring that exact write returns the positive result.
 test("TST-280902: failures do not pair, while configured HTTPS storage stays separate and untested", async (t) => {
   const { bridge, calls, main, page, server, mounted } = await dashboardAtBridge(t);
   main.querySelector(".bridge-address").value = bridge.address;
@@ -108,10 +111,10 @@ test("TST-280902: failures do not pair, while configured HTTPS storage stays sep
   main.querySelector(".jump-host-bridge-token").value = "https-copied-token";
   main.querySelector(".jump-host-login-user").value = "web-user";
   main.querySelector(".jump-host-login-password").value = "web-password";
-  const callsBeforeSave = calls.length;
+  const requestsBeforeSave = server.requests.length;
   await press(server, main.querySelector(".jump-host-save"));
   assert.match(main.querySelector(".jump-host-result").textContent, /remains untested/i, "HTTPS saving is explicitly untested");
-  assert.equal(calls.length, callsBeforeSave, "saving configured HTTPS access makes no hidden Bridge request");
+  assert.deepEqual(server.requests.slice(requestsBeforeSave), [], "saving configured HTTPS access makes no hidden request, including to its configured HTTPS address");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(key("jump-host"))), { hostname: "jump.example.test", user: "alice", sshPort: 22, portRange: [40100, 40199], httpsAddress: "https://jump.example.test/bridge/demo", login: { user: "web-user", password: "web-password" } });
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(key("bridge"))), { address: "https://jump.example.test/bridge/demo", token: "https-copied-token" }, "the Bridge address/token are separate from the jump-host login");
 
