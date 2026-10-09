@@ -263,3 +263,19 @@ test("TST-286011: runtime refuses a non-loopback forward plan before forwarding"
     assert.match(result.stderr, /NotLoopback/);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
+
+// TST-286012
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE CREATES ITS OWN SSH KEY; UC-044
+// given: real ssh2@1.17.0 parsed positive and leading-zero malformed Ed25519 generator results captured before the product call
+// input: ensureKey creates a new pair from malformed then valid output, and reads a separately persisted malformed pair
+// expect: it persists only the usable matching pair and refuses the existing malformed bytes unchanged
+test("TST-286012: ensureKey regenerates malformed generated Ed25519 output without replacing existing invalid files", () => {
+  const folder=dataFolder(); const script=`
+    import {createRequire} from "node:module"; import {existsSync,mkdirSync,readFileSync,writeFileSync} from "node:fs"; import {join} from "node:path"; const require=createRequire(import.meta.url); const {utils}=require("ssh2"); const {ensureKey}=await import(${JSON.stringify(source)}); let positive,negative;
+    for(let i=0;i<2048&&(!positive||!negative);i++){const pair=utils.generateKeyPairSync("ed25519"),priv=utils.parseKey(pair.private),pub=utils.parseKey(pair.public),valid=priv.type==="ssh-ed25519"&&priv.getPublicSSH().compare(pub.getPublicSSH())===0;if(valid&&!positive)positive=pair;if(!valid&&positive)negative=pair} if(!positive||!negative)throw Error("leading-zero fixture absent");
+    const generated=utils.generateKeyPairSync; let calls=0; utils.generateKeyPairSync=()=>[negative,positive][calls++]; const fresh=join(process.argv[1],"fresh"); const result=await ensureKey(fresh); const freshPrivate=readFileSync(join(fresh,"ssh","id_ed25519"),"utf8"),freshPublic=readFileSync(join(fresh,"ssh","id_ed25519.pub"),"utf8"); if(calls!==2||freshPrivate!==positive.private||freshPublic!==positive.public||!result.fingerprint)throw Error(JSON.stringify({calls,freshPublic:result.publicKey===positive.public}));
+    const existing=join(process.argv[1],"existing"); mkdirSync(join(existing,"ssh"),{recursive:true}); writeFileSync(join(existing,"ssh","id_ed25519"),negative.private); writeFileSync(join(existing,"ssh","id_ed25519.pub"),negative.public); const before=[readFileSync(join(existing,"ssh","id_ed25519")),readFileSync(join(existing,"ssh","id_ed25519.pub"))]; let error; try{await ensureKey(existing)}catch(value){error=value} const after=[readFileSync(join(existing,"ssh","id_ed25519")),readFileSync(join(existing,"ssh","id_ed25519.pub"))]; utils.generateKeyPairSync=generated; if(!/does not correspond/.test(error?.message)||!before[0].equals(after[0])||!before[1].equals(after[1]))throw Error("existing-invalid-changed"); console.log("key-regeneration-positive");
+  `;try{const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/key-regeneration-positive/)}finally{rmSync(folder,{recursive:true,force:true})}
+});
