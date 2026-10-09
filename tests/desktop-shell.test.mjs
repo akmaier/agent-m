@@ -211,15 +211,16 @@ test("TST-276005: native close behavior and a second source start restore the fi
     await within(started.exited, "second source start exit");
     await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
     await evaluate(app.main, `${state}.minimize()`);
-    if (process.platform === "linux") {
-      const manager = await evaluate(app.main, "(() => { try { const text = process.getBuiltinModule('child_process').execFileSync('xprop', ['-root', '_NET_SUPPORTING_WM_CHECK'], { encoding: 'utf8' }); return { available: true, windowManager: text.includes('_NET_SUPPORTING_WM_CHECK') }; } catch (failure) { return { available: false, error: failure.code ?? failure.name }; } })()");
+    try { await wait(async () => await evaluate(app.main, `${state}.isMinimized()`)); }
+    catch (failure) {
+      if (process.platform !== "linux") throw failure;
+      const manager = await evaluate(app.main, "(() => { try { const text = process.getBuiltinModule('child_process').execFileSync('xprop', ['-root', '_NET_SUPPORTING_WM_CHECK'], { encoding: 'utf8' }); return { available: true, windowManager: text.includes('_NET_SUPPORTING_WM_CHECK') }; } catch (error) { return { available: false, error: error.code ?? error.name }; } })()");
       const candidates = ["openbox", "fluxbox", "metacity", "xfwm4", "mutter", "kwin_x11"].map((command) => {
         const result = spawnSync(command, ["--version"], { encoding: "utf8", timeout: 5000 });
         return { command, status: result.status, signal: result.signal, error: result.error?.code ?? null };
       });
-      assert.equal(manager.available && manager.windowManager, true, `Linux native minimize needs an X11 window manager; xprop=${JSON.stringify(manager)}; candidates=${JSON.stringify(candidates)}`);
+      throw new Error(`${failure.message}; xprop=${JSON.stringify(manager)}; candidates=${JSON.stringify(candidates)}`);
     }
-    await wait(async () => await evaluate(app.main, `${state}.isMinimized()`));
     count = await observeSecond(); started = await startSecond();
     await wait(async () => await evaluate(app.main, `globalThis.__agentMSecondInstanceCount === ${count + 1}`));
     await within(started.exited, "second source start exit");
