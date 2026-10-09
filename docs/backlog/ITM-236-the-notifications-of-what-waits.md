@@ -40,3 +40,9 @@ page show the line *Notifications* and its pages start the checks is a change be
   code it guards, and the test failing on it — is recorded in the pull request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/notifications/` and the tests that name MOD-notifications change (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`).
+
+## Verification
+
+The notification implementation is delivered in `src/notifications/` and reached by the dashboard. Its unit, system and independent release guards are present in `tests/notifications.test.mjs`, `tests/system-uc-047-be-told-what-waits-for-your-acceptance.test.mjs`, `tests/release-sprint-07-uc-047-notifications.test.mjs` and `tests/dashboard-notifications.test.mjs`.
+
+Browser operation is tested and confirmed by akmaier in [the native notification confirmation](../measurements/2026-10-09_notifications-confirmed-by-akmaier.md).

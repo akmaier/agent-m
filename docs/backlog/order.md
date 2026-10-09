@@ -13,6 +13,8 @@ goes to the item that first needs it.
 
 ## Order
 
+Browser notifications (UC-047) are implemented and tested. ITM-236 names the delivered implementation and automated guards; ITM-237 links [akmaier's browser-test confirmation](../measurements/2026-10-09_notifications-confirmed-by-akmaier.md).
+
 | Item |
 |---|
 | ITM-203 |

@@ -36,3 +36,7 @@ he gave it: "I was able to test notifications and it did work on iphone." He sta
 - It quotes akmaier's measurement as the iPhone's row, with its date and the site it was made on, and says that it names
   no version.
 - Only `docs/measurements/` changes.
+
+## Verification
+
+Akmaier has manually tested browser notifications and confirms they work in Chrome, Safari, Firefox and on iPhone. [His confirmation](../measurements/2026-10-09_notifications-confirmed-by-akmaier.md) records the accepted Chrome repeated-message behaviour and preserves earlier observations. Native confirmation is provided by him; agents do not control his devices or change their settings.
