@@ -621,6 +621,62 @@ test("workflowOf — nothing else enters the workflow: a declared practice adds 
   assert.deepEqual(workflowOf(declarationOf(unheld), model, [], INSTANCE_SPEC), expected);
 });
 
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE
+//         MODEL
+// given: the known-positive team-scrum model and its process-requirement gate; a declaration selecting evidence-practice;
+//        and an accepted practice Document whose ## Adds has model-table-form phases, gates and roles
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: the practice's phase, its produced artifact kind, its role and its gate enter the workflow; the gate is marked
+//         with that practice while the existing model and requirement gates retain their own attribution
+test("workflowOf — an explicitly tabled practice adds its phase, artifact, role and marked gate beside the model and requirement gates", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/evidence-practice.md", `---
+name: evidence-practice
+fits:
+  - team-scrum
+---
+# Evidence practice
+
+## Adds
+
+### Phases
+
+| Name | Role | Produces |
+|---|---|---|
+| Evidence review | Evidence keeper | TST |
+
+### Gates
+
+| Between | Artifacts | Condition | Decider |
+|---|---|---|---|
+| Development → Evidence review | evidence TST | the evidence is reviewed | Product Owner |
+
+### Roles
+
+| Name | Filled by | Capabilities |
+|---|---|---|
+| Evidence keeper | either | read the repository |
+
+## What it is
+
+Fixture practice.
+`);
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- evidence-practice"));
+
+  const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
+
+  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", role: "Evidence keeper", produces: ["TST"] });
+  assert.deepEqual(workflow.roles.at(-1), {
+    name: "Evidence keeper", filledBy: "either", capabilities: ["read the repository"], holders: [],
+  });
+  assert.deepEqual(workflow.gates.at(-1), {
+    name: "Development → Evidence review", from: "Development", to: "Evidence review", artifacts: "evidence TST",
+    condition: "the evidence is reviewed", decider: "Product Owner", addedBy: null, practice: "evidence-practice",
+  });
+  assert.equal(workflow.gates[0].practice, null, "the model gate stays attributed to the model");
+  assert.deepEqual(workflow.gates[2].addedBy, { requirement: "UNIT VERIFICATION IS DOCUMENTED", source: "SRC-iec-62304, 5.5.5" });
+});
+
 // guards: UC-002; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES; A PRODUCT DECLARES ITS DEFINITION OF DONE
 // given: known positive first — the fixture product's declaration with its ## Definition of Done (line 32) adding the
 //        condition `review: 1 by participants other than the implementer`; then the declaration as it stands, whose
