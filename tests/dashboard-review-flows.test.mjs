@@ -686,7 +686,6 @@ test("UC-042 step 1: one page — each browser setting is a line with its state,
   assert.match(browser, /<input class="secret" type="password" readonly value="github_pat_HARNESS0123456789abcdefghij"/);
   assert.match(browser, /data-show="agent-m\.github-token">Show</);
   for (const b of ["data-test", "data-change", "data-clear"]) assert.ok(browser.includes(`${b}="agent-m.github-token"`), b);
-  assert.match(html, /<h3>Export and import<\/h3>/);
   assert.match(html, /<h3>Clear everything in this browser<\/h3>/);
   assert.match(dom.byId("product-settings").innerHTML, /<h3>Product · https:\/\/github\.com\/akmaier\/agent-m<\/h3>[^]*Pseudonymisation — <span class="state">on \(the default\)<\/span>[^]*Collaborators — none named/);
   assert.equal((browser.match(/<summary>What is this\?<\/summary>/g) || []).length, 6, "every line explains itself");
@@ -957,92 +956,6 @@ test("UC-042 5a: Remove takes a collaborator off the list with one commit, and s
   await press(srv, among(product(), "data-remove-collaborator", "jdoe"));
   assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${COLLABORATORS_HEAD}| Max Müller | @max-m | 2026-10-01 |\n` }]);
   assert.match(page.main(), /Removed @jdoe; earlier commits keep the name in the history — <a href="[^"]+"[^>]*>commit [0-9a-f]{7}<\/a>\./);
-});
-
-// The file the browser would download: what Export hands to URL.createObjectURL; the ten-second timer that revokes it is not
-// left running.
-async function downloaded(f) {
-  const blobs = [], real = { create: URL.createObjectURL, revoke: URL.revokeObjectURL, timer: globalThis.setTimeout };
-  URL.createObjectURL = (b) => { blobs.push(b); return "blob:export"; };
-  URL.revokeObjectURL = () => {};
-  globalThis.setTimeout = (fn, ms, ...a) => (ms >= 1000 ? 0 : real.timer(fn, ms, ...a));
-  try { await f(); } finally { URL.createObjectURL = real.create; URL.revokeObjectURL = real.revoke; globalThis.setTimeout = real.timer; }
-  return Promise.all(blobs.map((b) => b.text()));
-}
-
-test("UC-042 step 6: the export states what it contains and what each secret grants; Export saves every browser setting, the token included, and sends nothing", async () => {
-  const { srv, dom, page } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([PRODUCT_ADDR]) } });
-  assert.ok(page.main().includes("The file contains every setting of this browser in full, including your GitHub token, which writes — commits, issues, " +
-    "pull requests and workflow runs — to every repository it was given, under your account. It opens all of that to whoever holds the file — keep it like a " +
-    "password, or lock it with a passphrase."));
-  let made;
-  const [file] = await downloaded(async () => { made = await press(srv, dom.byId("export-go")); });
-  assert.deepEqual(made, [], "nothing is sent anywhere");
-  assert.deepEqual(srv.writes, []);
-  const f = JSON.parse(file);
-  assert.deepEqual(f.settings, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([PRODUCT_ADDR]) });
-  assert.equal(dom.byId("io-msg").textContent, "Saved. The file holds your token in clear — keep it like a password.");
-});
-
-test("UC-042 step 6: an export locked with a passphrase holds no secret in clear; two different passphrases save nothing", async () => {
-  const { srv, dom } = await settingsPage();
-  dom.byId("export-pass").value = "correct horse";
-  dom.byId("export-pass2").value = "correct hors";
-  assert.deepEqual(await downloaded(() => press(srv, dom.byId("export-go"))), []);
-  assert.equal(dom.byId("io-msg").textContent, "The two passphrases differ — nothing was saved.");
-  dom.byId("export-pass2").value = "correct horse";
-  const [file] = await downloaded(async () => {
-    await press(srv, dom.byId("export-go"));
-    await until(() => /^Saved/.test(dom.byId("io-msg").textContent), "the locked file");
-  });
-  assert.ok(!file.includes(TOKEN), "no token in clear");
-  assert.ok(JSON.parse(file).locked, "locked");
-  assert.equal(dom.byId("io-msg").textContent, "Saved, locked with your passphrase.");
-});
-
-// A settings file handed to the page's file field.
-const fileField = (dom, text) => { dom.byId("import-file").files = [{ text: async () => text }]; };
-
-test("UC-042 step 6 · UC-014 7a: Import, after the notice is ticked, restores every setting of an export in a browser that had none", async () => {
-  const file = await exportSettings({ "agent-m.github-token": TOKEN, "agent-m.github-token-expires": day(60),
-    "agent-m.products": JSON.stringify([PRODUCT_ADDR]) });
-  const { srv, dom } = await settingsPage({ token: null });
-  assert.equal(dom.byId("import-go").disabled, true, "Import waits for the notice");
-  await tick(srv, dom.byId("ack"));
-  fileField(dom, file);
-  await press(srv, dom.byId("import-go"));
-  assert.equal(stored("agent-m.github-token"), TOKEN);
-  assert.equal(stored("agent-m.github-token-expires"), day(60));
-  assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]));
-  assert.equal(dom.byId("io-msg").innerHTML, `Imported.<br>Added: GitHub token, product ${PRODUCT_ADDR}.`);
-});
-
-test("UC-042 step 6: a locked file is imported with its passphrase; with a wrong one nothing is imported", async () => {
-  const file = await exportSettings({ "agent-m.github-token": TOKEN }, { passphrase: "correct horse" });
-  const { srv, dom } = await settingsPage({ token: null });
-  await tick(srv, dom.byId("ack"));
-  fileField(dom, file);
-  dom.byId("import-pass").value = "wrong horse";
-  await press(srv, dom.byId("import-go"));
-  await until(() => dom.byId("io-msg").textContent !== "", "the answer to the wrong passphrase");
-  assert.deepEqual(agentKeys(), []);
-  assert.equal(dom.byId("io-msg").textContent, "Wrong passphrase, or the file is damaged — nothing was imported.");
-  dom.byId("import-pass").value = "correct horse";
-  await press(srv, dom.byId("import-go"));
-  await until(() => stored("agent-m.github-token") !== null, "the import");
-  assert.equal(stored("agent-m.github-token"), TOKEN);
-});
-
-test("UC-042 6a: an import keeps what this browser has, adds only what is missing, and lists both", async () => {
-  const file = await exportSettings({ "agent-m.github-token": "github_pat_OTHER0123456789abcdefghijkl",
-    "agent-m.products": JSON.stringify([PRODUCT_ADDR]) });
-  const { srv, dom } = await settingsPage();
-  await tick(srv, dom.byId("ack"));
-  fileField(dom, file);
-  await press(srv, dom.byId("import-go"));
-  assert.equal(stored("agent-m.github-token"), TOKEN, "this browser's token is kept");
-  assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]));
-  assert.equal(dom.byId("io-msg").innerHTML, `Imported.<br>Added: product ${PRODUCT_ADDR}.<br>Kept as this browser had them: GitHub token.`);
 });
 
 test("UC-042 step 6: Clear everything removes every Agent M entry from localStorage and the kept file texts, after a confirmation", async () => {

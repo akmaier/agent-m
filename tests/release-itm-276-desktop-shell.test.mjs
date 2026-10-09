@@ -7,10 +7,11 @@
 //         THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
 
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 import test, { after, before } from "node:test";
 
@@ -37,8 +38,63 @@ const acquireNativeFixtureLock = async () => {
   }
   throw new Error("Timed out waiting for the native Electron fixture lock.");
 };
-before(acquireNativeFixtureLock);
-after(() => { if (nativeFixtureLockHeld) rmdirSync(nativeFixtureLock); });
+const releaseNativeFixtureLock = () => { if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; } };
+const commandEvidence = (stage, result) => {
+  const evidence = { stage, status: result.status, signal: result.signal, error: result.error?.code ?? null, stdout: scrub(result.stdout), stderr: scrub(result.stderr) };
+  process.stdout.write(`native-fixture ${JSON.stringify(evidence)}\n`);
+  return evidence;
+};
+const publicUbuntuPackage = (uri) => {
+  try {
+    const parsed = new URL(uri);
+    return ["http:", "https:"].includes(parsed.protocol) && !parsed.username && !parsed.password && ["azure.archive.ubuntu.com", "archive.ubuntu.com"].includes(parsed.hostname) && (parsed.pathname === "/ubuntu" || parsed.pathname.startsWith("/ubuntu/"));
+  } catch { return false; }
+};
+const credentialBearingUri = (uri) => { try { const parsed = new URL(uri); return Boolean(parsed.username || parsed.password); } catch { return false; } };
+const sanitizedCliText = (value) => scrub(String(value).replace(/(https?:\/\/)[^/\s@]*@/gi, "$1[redacted]@"));
+const recordedPackagePlan = (output) => String(output).split(/\r?\n/).flatMap((line) => {
+  const match = /^'([^']+)'\s+(\S+)\s+(\d+)\s+(\S+)$/.exec(line);
+  if (!match) return [];
+  const [, uri, filename, bytes, digest] = match, md5 = /^(?:MD5Sum:)?([a-f0-9]{32})$/i.exec(digest)?.[1] ?? null, evidence = { filename, bytes: Number(bytes), md5, digest: md5 ?? scrub(digest), observation: md5 ? undefined : "unrecognized-digest" };
+  if (uri.startsWith("mirror+file:")) return [{ transport: "mirror+file", ...evidence }];
+  if (credentialBearingUri(uri)) return [{ transport: "credential-rejected", ...evidence }];
+  if (publicUbuntuPackage(uri)) return [{ transport: new URL(uri).protocol.slice(0, -1), uri, ...evidence }];
+  return [{ transport: "unrecorded", ...evidence }];
+});
+const publicMirrors = () => {
+  try {
+    return readFileSync("/etc/apt/apt-mirrors.txt", "utf8").split(/\r?\n/).map((line) => line.trim().split(/\s+/, 1)[0]).filter((uri) => publicUbuntuPackage(uri));
+  } catch { return []; }
+};
+const diagnosticEvidence = (stage, evidence) => process.stdout.write(`native-fixture ${JSON.stringify({ stage, ...evidence })}\n`);
+const diagnoseOpenboxAcquisition = () => {
+  try {
+    const started = Date.now();
+    const resolution = spawnSync("sudo", ["apt-get", "--print-uris", "--yes", "--no-install-recommends", "install", "openbox"], { encoding: "utf8", timeout: 6000 });
+    const packages = recordedPackagePlan(resolution.stdout);
+    const font = packages.find((candidate) => candidate.filename.startsWith("fonts-urw-base35_") && candidate.filename.endsWith("_all.deb"));
+    diagnosticEvidence("Linux Openbox diagnostic plan", { status: resolution.status, signal: resolution.signal, error: resolution.error?.code ?? null, elapsedMs: Date.now() - started, stdout: sanitizedCliText(resolution.stdout), stderr: sanitizedCliText(resolution.stderr), packages, mirrors: packages.some((candidate) => candidate.transport === "mirror+file") ? publicMirrors() : [], observation: !packages.length ? "unparseable-print-uris" : !font ? "fonts-package-not-resolved" : !font.md5 ? "font-digest-not-md5" : !font.uri?.startsWith("http://") ? "font-uri-not-direct-http" : "direct-http-font-uri" });
+    if (!font?.uri?.startsWith("http://") || !font.md5) return;
+    for (const scheme of ["http", "https"]) {
+      const folder = mkdtempSync(join(tmpdir(), "agent-m-276-openbox-diagnostic-")), archive = join(folder, font.filename), uri = `${scheme}:${font.uri.slice("http:".length)}`;
+      try {
+        const acquired = Date.now(), result = spawnSync("curl", ["-q", "--fail", "--silent", "--show-error", "--location", "--proto", `=${scheme}`, "--proto-redir", `=${scheme}`, "--connect-timeout", "2", "--max-time", "5", "--output", archive, "--write-out", "%{http_code} %{size_download} %{time_total}", uri], { encoding: "utf8", timeout: 6000 });
+        const body = existsSync(archive) ? readFileSync(archive) : null;
+        diagnosticEvidence("Linux Openbox package probe", { scheme, status: result.status, signal: result.signal, error: result.error?.code ?? null, elapsedMs: Date.now() - acquired, stdout: sanitizedCliText(result.stdout), stderr: sanitizedCliText(result.stderr), expectedBytes: font.bytes, actualBytes: body?.length ?? 0, expectedMd5: font.md5, actualMd5: body ? createHash("md5").update(body).digest("hex") : null, bytesMatch: body?.length === font.bytes, hashMatch: body ? createHash("md5").update(body).digest("hex") === font.md5 : false });
+      } finally { rmSync(folder, { recursive: true, force: true }); }
+    }
+  } catch (failure) { diagnosticEvidence("Linux Openbox diagnostic", { observation: "diagnostic-error", error: failure.code ?? failure.name }); }
+};
+const prepareNativeFixture = async () => {
+  const executable = await runtime();
+  electronCommand(executable, []);
+  await acquireNativeFixtureLock();
+  try {
+    process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
+  } catch (failure) { releaseNativeFixtureLock(); throw failure; }
+};
+before(prepareNativeFixture);
+after(releaseNativeFixtureLock);
 
 async function runtime() {
   const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
@@ -48,7 +104,8 @@ async function runtime() {
   const installed = join(electronCache, "node_modules/electron");
   const acquire = (stage, command, arguments_) => {
     const started = Date.now(), result = spawnSync(command, arguments_, { encoding: "utf8", timeout: 40000 });
-    if (result.status !== 0) throw new Error(`Electron ${stage} failed after ${Date.now() - started}ms; status=${result.status}; signal=${result.signal}; error=${result.error?.code ?? "none"}; stderr=${scrub(result.stderr)}`);
+    const evidence = commandEvidence(`Electron ${stage}`, result);
+    if (result.status !== 0) throw new Error(`Electron ${stage} failed after ${Date.now() - started}ms; ${JSON.stringify(evidence)}`);
   };
   try {
     if (!existsSync(executableOf(installed))) {
@@ -64,24 +121,30 @@ const electronCommand = (executable, arguments_) => {
   if (process.platform !== "linux") return { command: executable, arguments_ };
   if (virtualDisplayFailure) throw virtualDisplayFailure;
   const probe = spawnSync("xvfb-run", ["--help"], { encoding: "utf8", timeout: 5000 });
+  const displayEvidence = commandEvidence("Linux virtual display probe", probe);
   if (probe.status !== 0) {
-    virtualDisplayFailure = new Error(`Linux virtual display probe failed; status=${probe.status}; signal=${probe.signal}; error=${probe.error?.code ?? "none"}; stderr=${scrub(probe.stderr)}`);
+    virtualDisplayFailure = new Error(`Linux virtual display probe failed; ${JSON.stringify(displayEvidence)}`);
     throw virtualDisplayFailure;
   }
   const manager = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  commandEvidence("Linux Openbox initial probe", manager);
   if (manager.status !== 0) {
     if (windowManagerFailure) throw windowManagerFailure;
-    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    diagnoseOpenboxAcquisition();
+    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "-o", "Debug::Acquire::http=true", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    const installEvidence = commandEvidence("Linux Openbox install", install);
     let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+    let availableEvidence = commandEvidence("Linux Openbox ready probe", available);
     const locked = install.status !== 0 && /lock-frontend/.test(String(install.stderr));
     if (locked) {
       for (let n = 0; n < 160 && available.status !== 0; n += 1) {
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
         available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+        availableEvidence = commandEvidence("Linux Openbox ready probe", available);
       }
     }
     if ((!locked && install.status !== 0) || available.status !== 0) {
-      windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install-status=${install.status}; install-signal=${install.signal}; install-error=${install.error?.code ?? "none"}; install-stderr=${scrub(install.stderr)}; probe-status=${available.status}; probe-signal=${available.signal}; probe-error=${available.error?.code ?? "none"}; probe-stderr=${scrub(available.stderr)}`);
+      windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install=${JSON.stringify(installEvidence)}; probe=${JSON.stringify(availableEvidence)}`);
       throw windowManagerFailure;
     }
   }

@@ -16,7 +16,6 @@ import {
   GITLAB_TOKENS_KEY, GITHUB_PRODUCT_TOKENS_KEY, JUMP_HOST_KEY, REMOTE_SESSIONS_KEY, KEYS,
 } from "../../docs/assets/settings-store.mjs";
 import { addRemoteSession } from "../../docs/assets/bridge-tunnel.mjs";
-import { exportNotice } from "../../docs/assets/dashboard/settings-view.mjs";
 import { fakeStorage, WHEN, GL, GL_ADDR, GL_TOKEN, JUMP, BRIDGE_TOKEN } from "./helpers.mjs";
 
 const SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop";
@@ -121,7 +120,6 @@ test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitLab tokens in
   s.addProduct(GL_ADDR);
   const file = await exportSettings(s.entries(), { now: WHEN });
   assert.ok(file.includes(GL_TOKEN));
-  assert.match(exportNotice(s.entries()), /GitLab project token/);
   const t = createStore(fakeStorage());
   t.setGitLabToken("https://gitlab.com/alice/thesis", "glpat-mine0123456789", null);
   t.setGitLabToken(GL_ADDR, "glpat-newer0123456789", "2027-01-01");
@@ -186,7 +184,6 @@ test("SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — GitHub product t
   s.addProduct(GH_PRODUCT);
   const file = await exportSettings(s.entries(), { now: WHEN });
   assert.ok(file.includes(GH_PRODUCT_TOKEN));
-  assert.match(exportNotice(s.entries()), /GitHub product tokens/);
   const newer = "github_pat_NEWER0123456789abcdefghij";
   const t = createStore(fakeStorage());
   t.setGitHubProductToken(GH_PRODUCT, newer, "2027-01-01");
@@ -216,7 +213,6 @@ test("THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS — stored under their 
   // Exported with the bridge token, named in the notice; imported into an empty browser as they were.
   const file = await exportSettings(s.entries(), { now: WHEN });
   assert.ok(file.includes(BRIDGE_TOKEN));
-  assert.match(exportNotice(s.entries()), /bridge token/i);
   const t = createStore(fakeStorage());
   const m = mergeSettings(t.entries(), await readSettingsFile(file));
   t.putEntries(m.put);

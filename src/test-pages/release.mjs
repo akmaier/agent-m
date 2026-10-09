@@ -23,15 +23,14 @@
 // `uses:` list does not name MOD-text-tools. Used here through its index.mjs all the same, since acceptAndRelease
 // cannot otherwise be called as its own file specifies; no item needs the architecture file changed for this alone.
 //
-// Gap: reportsAwaitingAcceptance, by which a notification would address this route at a report that already waits,
-// is ITM-239's and not built yet (src/release-evidence/index.mjs's own header); so this route does not yet resolve
-// such an address — it always opens at the version form. The address itself is reachable (`params` is accepted, per
-// the Route contract render(target, context, params)), just not yet interpreted.
+// A notification addresses this route at the selected product; render resolves its current waiting report from the
+// product records rather than receiving candidate data in the address.
 //
 // Module: MOD-test-pages
 
-import { nextVersion, startReleaseCandidate, releaseReport, acceptAndRelease, ReleaseEvidenceError }
+import { nextVersion, startReleaseCandidate, releaseReport, acceptAndRelease, reportsAwaitingAcceptance, ReleaseEvidenceError }
   from "../release-evidence/index.mjs";
+import { recordsNewestFirst } from "../job-ledger/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
@@ -133,6 +132,27 @@ async function paintCandidate(container, context, candidate) {
   await load();
 }
 
+// The candidate that already waits for the person's decision. reportsAwaitingAcceptance identifies the newest
+// completed candidate without a release report; its recorded run supplies the commit and changelog with which the
+// report was generated. Reading these public records has no write path.
+async function pendingCandidate(host) {
+  const info = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(info.defaultBranch);
+  const pending = await reportsAwaitingAcceptance(host, snapshot);
+  if (!pending) return null;
+  for await (const record of recordsNewestFirst(snapshot)) {
+    if (record.path !== pending.record) continue;
+    return {
+      version: pending.version,
+      tag: pending.candidate,
+      commit: record.params?.candidate?.commit,
+      changelog: record.params?.changelog,
+      run: record.id,
+    };
+  }
+  throw new Error(`The pending release report's recorded run ${pending.record} cannot be read.`);
+}
+
 // ---------------------------------------------------------------- the version form: UC-013 step 1-2, 1a and 2a.
 
 async function paintForm(container, context) {
@@ -185,7 +205,6 @@ export const route = {
   name: "release",
   entry: "releases",
   title: "Release",
-  // params: not yet interpreted — see the gap noted above.
   async render(target, context, params) {
     target.replaceChildren();
     if (!context.product?.host) {
@@ -196,6 +215,12 @@ export const route = {
     const body = el("div", "release-body");
     target.append(body);
     void params;
-    await paintForm(body, context);
+    try {
+      const candidate = await pendingCandidate(context.product.host);
+      if (candidate) await paintCandidate(body, context, candidate);
+      else await paintForm(body, context);
+    } catch (e) {
+      body.append(el("p", "result", `The pending release report cannot be reopened: ${messageFor(e)}`));
+    }
   },
 };
