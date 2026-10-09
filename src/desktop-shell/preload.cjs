@@ -1,0 +1,2 @@
+const { contextBridge, ipcRenderer } = require("electron");
+contextBridge.exposeInMainWorld("bridge", { state: () => ipcRenderer.invoke("bridge-state"), copy: (text) => ipcRenderer.invoke("copy", text), pairAnew: () => ipcRenderer.invoke("pair-anew"), pause: () => ipcRenderer.invoke("pause"), resume: () => ipcRenderer.invoke("resume"), retryPort: (port) => ipcRenderer.invoke("retry-port", port), quit: () => ipcRenderer.invoke("quit") });

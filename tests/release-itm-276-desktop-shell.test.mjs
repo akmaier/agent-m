@@ -1,0 +1,168 @@
+// Independent release coverage for ITM-276's source Bridge pairing app.
+// Run: node --test tests/release-itm-276-desktop-shell.test.mjs
+//
+// Module: MOD-desktop-shell
+// Level: release
+// Guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW;
+//         THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+
+import assert from "node:assert/strict";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:net";
+import test, { after, before } from "node:test";
+
+const root = new URL("..", import.meta.url).pathname;
+const electronCache = join(tmpdir(), "agent-m-276-release-electron-44");
+const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
+let nativeFixtureLockHeld = false;
+let runtimeFailure;
+let virtualDisplayFailure;
+let windowManagerFailure;
+const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
+const token = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
+const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
+const within = async (promise, name) => {
+  let timeout;
+  try { return await Promise.race([promise, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error(`${name} timed out.`)), 5000); })]); }
+  finally { clearTimeout(timeout); }
+};
+const acquireNativeFixtureLock = async () => {
+  for (let n = 0; n < 240; n += 1) {
+    try { mkdirSync(nativeFixtureLock); nativeFixtureLockHeld = true; return; }
+    catch (failure) { if (failure.code !== "EEXIST") throw failure; }
+    await new Promise((resolve) => setTimeout(resolve, 125));
+  }
+  throw new Error("Timed out waiting for the native Electron fixture lock.");
+};
+before(acquireNativeFixtureLock);
+after(() => { if (nativeFixtureLockHeld) rmdirSync(nativeFixtureLock); });
+
+async function runtime() {
+  const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
+  const executableOf = (installed) => process.platform === "darwin" ? join(installed, "dist/Electron.app/Contents/MacOS/Electron") : join(installed, "dist/electron");
+  if (existsSync(executableOf(bundled))) return executableOf(bundled);
+  if (runtimeFailure) throw runtimeFailure;
+  const installed = join(electronCache, "node_modules/electron");
+  const acquire = (stage, command, arguments_) => {
+    const started = Date.now(), result = spawnSync(command, arguments_, { encoding: "utf8", timeout: 40000 });
+    if (result.status !== 0) throw new Error(`Electron ${stage} failed after ${Date.now() - started}ms; status=${result.status}; signal=${result.signal}; error=${result.error?.code ?? "none"}; stderr=${scrub(result.stderr)}`);
+  };
+  try {
+    if (!existsSync(executableOf(installed))) {
+      acquire("package acquisition", "npm", ["install", "--no-save", "--prefix", electronCache, "electron@44.5.1"]);
+      acquire("binary acquisition", process.execPath, [join(installed, "install.js")]);
+    }
+    assert.equal(existsSync(executableOf(installed)), true, "Electron 44.5.1 executable was not acquired.");
+    return executableOf(installed);
+  } catch (failure) { runtimeFailure = failure; throw failure; }
+}
+
+const electronCommand = (executable, arguments_) => {
+  if (process.platform !== "linux") return { command: executable, arguments_ };
+  if (virtualDisplayFailure) throw virtualDisplayFailure;
+  const probe = spawnSync("xvfb-run", ["--help"], { encoding: "utf8", timeout: 5000 });
+  if (probe.status !== 0) {
+    virtualDisplayFailure = new Error(`Linux virtual display probe failed; status=${probe.status}; signal=${probe.signal}; error=${probe.error?.code ?? "none"}; stderr=${scrub(probe.stderr)}`);
+    throw virtualDisplayFailure;
+  }
+  const manager = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (manager.status !== 0) {
+    if (windowManagerFailure) throw windowManagerFailure;
+    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+    const locked = install.status !== 0 && /lock-frontend/.test(String(install.stderr));
+    if (locked) {
+      for (let n = 0; n < 160 && available.status !== 0; n += 1) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+        available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+      }
+    }
+    if ((!locked && install.status !== 0) || available.status !== 0) {
+      windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install-status=${install.status}; install-signal=${install.signal}; install-error=${install.error?.code ?? "none"}; install-stderr=${scrub(install.stderr)}; probe-status=${available.status}; probe-signal=${available.signal}; probe-error=${available.error?.code ?? "none"}; probe-stderr=${scrub(available.stderr)}`);
+      throw windowManagerFailure;
+    }
+  }
+  return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", "sh", "-c", "openbox >/dev/null 2>&1 & wm=$!; trap 'kill \"$wm\" 2>/dev/null; wait \"$wm\" 2>/dev/null' EXIT INT TERM; \"$@\"; status=$?; exit \"$status\"", "agent-m-xvfb-openbox", executable, ...arguments_] };
+};
+
+const cdp = async (url, method, params = {}) => {
+  const socket = new WebSocket(url);
+  await within(new Promise((resolve, reject) => { socket.addEventListener("open", resolve, { once: true }); socket.addEventListener("error", reject, { once: true }); socket.addEventListener("close", () => reject(new Error(`CDP ${method} closed before opening.`)), { once: true }); }), `CDP ${method} connection`);
+  try {
+    const reply = await within(new Promise((resolve, reject) => {
+      socket.addEventListener("message", ({ data }) => { const result = JSON.parse(data); if (result.id === 1) resolve(result); });
+      socket.addEventListener("error", reject, { once: true });
+      socket.addEventListener("close", () => reject(new Error(`CDP ${method} closed before responding.`)), { once: true });
+      socket.send(JSON.stringify({ id: 1, method, params }));
+    }), `CDP ${method} response`);
+    if (reply.error) throw new Error(reply.error.message);
+    return reply.result;
+  } finally { socket.close(); }
+};
+const evaluate = async (url, expression) => {
+  const result = await cdp(url, "Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+  if (result.exceptionDetails) throw new Error(`CDP evaluation failed: ${result.exceptionDetails.text}`);
+  return result.result.value;
+};
+const port = async () => await new Promise((resolve, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const { port: value } = server.address(); server.close((failure) => failure ? reject(failure) : resolve(value)); }); });
+
+async function launch() {
+  const dataFolder = mkdtempSync(join(tmpdir(), "agent-m-release-276-"));
+  const apiPort = await port(), debugPort = await port(), inspectPort = await port();
+  const instance = "release-fork/paired-bridge", origin = "https://release-fork.github.io";
+  const executable = await runtime();
+  const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspectPort}`, `--remote-debugging-port=${debugPort}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${apiPort}`, `--data-folder=${dataFolder}`];
+  const launched = electronCommand(executable, args);
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, stdio: ["ignore", "ignore", "pipe"] });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-2000); });
+  const exited = new Promise((resolve) => child.once("exit", resolve));
+  const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
+  try {
+    const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json()).find((item) => item.url.startsWith("agent-m://")), stopped);
+    const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspectPort}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
+    return { port: apiPort, child, folder: dataFolder, exited, instance, main, origin, page };
+  } catch (failure) {
+    if (child.exitCode === null) child.kill();
+    await within(exited, "Electron startup cleanup").catch(() => {});
+    throw failure;
+  }
+}
+async function stop(app) {
+  try {
+    try { await click(app.page, "Quit"); } catch {}
+    await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
+    let timeout;
+    try { await Promise.race([app.exited, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("Electron did not exit after Quit.")), 30000); })]); }
+    finally { clearTimeout(timeout); }
+  } finally { if (app.child.exitCode === null) app.child.kill(); }
+}
+const click = (page, label) => evaluate(page.webSocketDebuggerUrl, `[...document.querySelectorAll('button')].find((button) => button.textContent === ${JSON.stringify(label)}).click()`);
+
+// TST-276901
+// Precondition: Electron 44.5.1 is acquired in the established temporary fixture and the production source entry is
+// started for a fork identity with an empty private data folder.
+// Input: inspect the actual renderer's exposed surface and pair once through the real displayed loopback address.
+// Expected: the fork-local window has only the fixed preload controls and no Node globals; the address is loopback;
+// the configured origin and private token pair, while another origin is refused.
+// Planted fault: changing the `127.0.0.1` host in src/desktop-shell/compose.mjs to `0.0.0.0` reaches the real
+// server BindRefused check before token creation, so the private-token precondition fails; restoring that byte-exact
+// source makes this positive pass.
+test("TST-276901: actual forked Electron source keeps its renderer private and pairs only on configured loopback", { timeout: 60000, concurrency: false }, async () => {
+  const app = await launch();
+  try {
+    const pairingToken = await wait(() => existsSync(join(app.folder, "pairing-token")) && token(app.folder));
+    const expectedAddress = `http://127.0.0.1:${app.port}`;
+    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge pairing')"));
+    assert.equal(app.page.url, "agent-m://release-fork.github.io/paired-bridge/desktop-shell/window.html");
+    assert.deepEqual(await evaluate(app.page.webSocketDebuggerUrl, "({ calls: Object.keys(window.bridge).sort(), node: [typeof window.process, typeof window.require], address: [...document.querySelectorAll('code')][0].textContent })"), {
+      calls: ["copy", "pairAnew", "pause", "quit", "resume", "retryPort", "state"], node: ["undefined", "undefined"], address: expectedAddress,
+    }, "failure node: the only renderer privilege is the fixed preload API");
+    const pair = (origin) => fetch(`${expectedAddress}/v1/pair`, { headers: { origin, "x-agent-m-bridge-token": pairingToken } });
+    assert.equal((await pair(app.origin)).status, 200, "known positive: the configured page origin pairs with the real loopback server");
+    assert.equal((await pair("https://unrelated.example")).status, 403, "failure node: a non-configured origin is refused");
+  } finally { await stop(app); }
+});

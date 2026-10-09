@@ -15,6 +15,7 @@ export async function renderSection(app, box) {
     store: openStore(app.T.instance),
     go(route, params = {}) {
       if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+      if (route === "bridge") location.hash = "#bridge";
     },
   };
   const configure = document.createElement("button");
@@ -24,4 +25,9 @@ export async function renderSection(app, box) {
   const slice = document.createElement("div");
   box.replaceChildren(configure, slice);
   await endpointRoute("settings").render(slice, context, {});
+  const configureBridge = document.createElement("button");
+  configureBridge.className = "btn settings-bridge-configure";
+  configureBridge.textContent = "Configure the Agent M Bridge";
+  configureBridge.addEventListener("click", () => context.go("bridge"));
+  slice.append(configureBridge);
 }
