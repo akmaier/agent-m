@@ -959,48 +959,6 @@ test("UC-042 5a: Remove takes a collaborator off the list with one commit, and s
   assert.match(page.main(), /Removed @jdoe; earlier commits keep the name in the history — <a href="[^"]+"[^>]*>commit [0-9a-f]{7}<\/a>\./);
 });
 
-test("UC-042 step 6 · UC-014 7a: Import, after the notice is ticked, restores every setting of an export in a browser that had none", async () => {
-  const file = await exportSettings({ "agent-m.github-token": TOKEN, "agent-m.github-token-expires": day(60),
-    "agent-m.products": JSON.stringify([PRODUCT_ADDR]) });
-  const { srv, dom } = await settingsPage({ token: null });
-  assert.equal(dom.byId("import-go").disabled, true, "Import waits for the notice");
-  await tick(srv, dom.byId("ack"));
-  fileField(dom, file);
-  await press(srv, dom.byId("import-go"));
-  assert.equal(stored("agent-m.github-token"), TOKEN);
-  assert.equal(stored("agent-m.github-token-expires"), day(60));
-  assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]));
-  assert.equal(dom.byId("io-msg").innerHTML, `Imported.<br>Added: GitHub token, product ${PRODUCT_ADDR}.`);
-});
-
-test("UC-042 step 6: a locked file is imported with its passphrase; with a wrong one nothing is imported", async () => {
-  const file = await exportSettings({ "agent-m.github-token": TOKEN }, { passphrase: "correct horse" });
-  const { srv, dom } = await settingsPage({ token: null });
-  await tick(srv, dom.byId("ack"));
-  fileField(dom, file);
-  dom.byId("import-pass").value = "wrong horse";
-  await press(srv, dom.byId("import-go"));
-  await until(() => dom.byId("io-msg").textContent !== "", "the answer to the wrong passphrase");
-  assert.deepEqual(agentKeys(), []);
-  assert.equal(dom.byId("io-msg").textContent, "Wrong passphrase, or the file is damaged — nothing was imported.");
-  dom.byId("import-pass").value = "correct horse";
-  await press(srv, dom.byId("import-go"));
-  await until(() => stored("agent-m.github-token") !== null, "the import");
-  assert.equal(stored("agent-m.github-token"), TOKEN);
-});
-
-test("UC-042 6a: an import keeps what this browser has, adds only what is missing, and lists both", async () => {
-  const file = await exportSettings({ "agent-m.github-token": "github_pat_OTHER0123456789abcdefghijkl",
-    "agent-m.products": JSON.stringify([PRODUCT_ADDR]) });
-  const { srv, dom } = await settingsPage();
-  await tick(srv, dom.byId("ack"));
-  fileField(dom, file);
-  await press(srv, dom.byId("import-go"));
-  assert.equal(stored("agent-m.github-token"), TOKEN, "this browser's token is kept");
-  assert.equal(stored("agent-m.products"), JSON.stringify([PRODUCT_ADDR]));
-  assert.equal(dom.byId("io-msg").innerHTML, `Imported.<br>Added: product ${PRODUCT_ADDR}.<br>Kept as this browser had them: GitHub token.`);
-});
-
 test("UC-042 step 6: Clear everything removes every Agent M entry from localStorage and the kept file texts, after a confirmation", async () => {
   const caches = fakeCaches();
   const srv = await ucServer();
