@@ -112,3 +112,22 @@ test("TST-286003: reverse forwarding carries exact bytes through real ssh2 loopb
     assert.match(result.stdout, /reverse-byte-positive/);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
+
+// TST-286004
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-011
+// given: a controlled ssh2 jump host with an accepted tcpip channel and a remote loopback TCP echo server
+// input: bytes written to the public forward listener opened by openTunnels
+// expect: the remote echo returns the exact bytes and closeTunnels closes the forward listener
+test("TST-286004: forward forwarding carries exact bytes through real ssh2 loopback", () => {
+  const folder = dataFolder(); const script = `
+    import { createRequire } from "node:module"; import net from "node:net";
+    const require=createRequire(import.meta.url); const {Server,utils}=require("ssh2"); const {openTunnels,closeTunnels,tunnelState}=await import(${JSON.stringify(source)});
+    const listen=s=>new Promise((ok,no)=>s.listen(0,"127.0.0.1",e=>e?no(e):ok(s.address().port))); const echo=net.createServer(s=>s.pipe(s)); const remotePort=await listen(echo);
+    const reservation=net.createServer(); const localPort=await listen(reservation); await new Promise(r=>reservation.close(r)); const ssh=new Server({hostKeys:[utils.generateKeyPairSync("ed25519").private]},c=>{c.on("authentication",x=>x.accept());c.on("tcpip",(accept,reject,info)=>{if(info.destIP!=="127.0.0.1"||info.destPort!==localPort)return reject();const stream=accept();const s=net.connect(remotePort,"127.0.0.1");s.pipe(stream).pipe(s);});}); const sshPort=await listen(ssh);
+    await openTunnels(process.argv[1],[{direction:"forward",jumpHost:"127.0.0.1",user:"fixture",sshPort,remotePort:localPort,bind:"127.0.0.1",bridgePort:remotePort}],remotePort);
+    for(let i=0;i<50&&tunnelState()[0]?.state!=="open";i++)await new Promise(r=>setTimeout(r,10)); if(tunnelState()[0]?.state!=="open")throw Error(JSON.stringify(tunnelState()));
+    const got=await new Promise((ok,no)=>{const s=net.connect(localPort,"127.0.0.1");s.once("error",no);s.once("data",d=>{ok(d.toString());s.destroy()});s.write("forward-bytes")}); await closeTunnels();await new Promise(r=>ssh.close(r));await new Promise(r=>echo.close(r));if(got!=="forward-bytes")throw Error(got);console.log("forward-byte-positive");
+  `; try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/forward-byte-positive/);} finally {rmSync(folder,{recursive:true,force:true});}
+});
