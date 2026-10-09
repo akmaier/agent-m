@@ -45,7 +45,7 @@ test("TST-280003: empty Settings reaches the public Bridge configuration route",
   await configureBridge.fire("click");
   assert.equal(globalThis.location.hash, "#bridge", "Configure delegates to the public Bridge route");
   await page.go("#bridge");
-  assert.match(page.main(), /Pair your Agent M Bridge/, "failure node: #bridge dispatches to MOD-settings-pages' public Bridge Route");
+  assert.match(page.main(), /Connect a Bridge/, "failure node: #bridge dispatches to MOD-settings-pages' public Bridge Route");
   assert.match(page.main(), /Pairing token/, "the public route, rather than a dashboard-local form, owns pairing input");
 });
 
