@@ -525,6 +525,7 @@ async function route() {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
         go(route, params = {}) {
           if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+          if (route === "bridge") location.hash = "#bridge";
         },
       }, { name: a ? decodeURIComponent(a) : "" });
     } else if (kind === "bridge") {
