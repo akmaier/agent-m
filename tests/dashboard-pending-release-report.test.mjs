@@ -1,10 +1,10 @@
 // TST-289101
 // level: component
 // module: MOD-test-pages
-// guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+// guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; THE MENU FOLLOWS THE PROCESS
 // given: a selected product, distinct from the dashboard instance, with a completed recorded release candidate and result.
-// input: the person opens #release, then checks that pending report again.
-// expect: the public dashboard caller reopens the candidate and its guarded result without an opening or refresh write.
+// input: the person opens #release, observes its position in the public process menu, then checks that pending report again.
+// expect: the public dashboard links Release between Tests and Maintenance, then reopens the candidate and its guarded result without an opening or refresh write.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -72,6 +72,14 @@ test("TST-289101: public #release reopens the selected product's pending report 
   const page = await openDashboard({ server, hash: "#uc", search: `?repo=${PRODUCT}` });
   richDocument();
   await page.go("#release");
+  const tabs = page.el("tabs").split("\n");
+  const release = '<a href="#release" role="tab" id="tab-release" data-entry="releases">Releases</a>';
+  const releasePosition = tabs.indexOf(release);
+  assert.ok(releasePosition > 0, "the process menu links the built Release view");
+  assert.equal(tabs[releasePosition - 1], '<span class="soon" data-entry="tests" aria-disabled="true" title="Tests — not built yet">Tests</span>',
+    "Release follows Tests in the process menu");
+  assert.equal(tabs[releasePosition + 1], '<span class="soon" data-entry="maintenance" aria-disabled="true" title="Maintenance — not built yet">Maintenance</span>',
+    "Maintenance follows Release in the process menu");
   assert.match(page.main(), new RegExp(`Release candidate ${TAG}`));
   assert.match(page.main(), /TST-100.*A SAMPLE REQUIREMENT.*Recorded release entry/s);
   assert.ok(server.requests.some((request) => request.includes(`/repos/${PRODUCT}/`)), "the public caller uses T.product.address, not the instance repository");
