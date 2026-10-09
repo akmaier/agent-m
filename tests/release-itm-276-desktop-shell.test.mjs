@@ -61,13 +61,14 @@ const electronCommand = (executable, arguments_) => {
     if (windowManagerFailure) throw windowManagerFailure;
     const started = Date.now(), install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
     let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
-    if (install.status !== 0 && /lock-frontend/.test(String(install.stderr))) {
+    const locked = install.status !== 0 && /lock-frontend/.test(String(install.stderr));
+    if (locked) {
       for (let n = 0; n < 160 && available.status !== 0; n += 1) {
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
         available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
       }
     }
-    if (install.status !== 0 || available.status !== 0) {
+    if ((!locked && install.status !== 0) || available.status !== 0) {
       windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install-status=${install.status}; install-signal=${install.signal}; install-error=${install.error?.code ?? "none"}; install-stderr=${scrub(install.stderr)}; probe-status=${available.status}; probe-signal=${available.signal}; probe-error=${available.error?.code ?? "none"}; probe-stderr=${scrub(available.stderr)}`);
       throw windowManagerFailure;
     }
