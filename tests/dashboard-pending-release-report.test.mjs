@@ -73,7 +73,7 @@ test("TST-289101: public #release reopens the selected product's pending report 
   richDocument();
   await page.go("#release");
   assert.match(page.main(), new RegExp(`Release candidate ${TAG}`));
-  assert.match(page.main(), /Recorded release entry.*A SAMPLE REQUIREMENT.*TST-100/s);
+  assert.match(page.main(), /TST-100.*A SAMPLE REQUIREMENT.*Recorded release entry/s);
   assert.ok(server.requests.some((request) => request.includes(`/repos/${PRODUCT}/`)), "the public caller uses T.product.address, not the instance repository");
   assert.deepEqual(server.writes, [], "opening the selected product's pending report writes nothing");
   const refresh = globalThis.document.getElementById("main").querySelector("button.refresh");
