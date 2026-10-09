@@ -98,5 +98,9 @@ Browser notifications (UC-047) are implemented and tested. ITM-236 names the del
 | ITM-283 |
 | ITM-284 |
 | ITM-285 |
+| ITM-286 |
+| ITM-287 |
+| ITM-288 |
+| ITM-289 |
 | ITM-267 |
 | ITM-281 |
