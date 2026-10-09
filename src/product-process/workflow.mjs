@@ -22,6 +22,8 @@ const JOB_RULES = [
 ];
 
 const text = (value) => (typeof value === "string" ? value : "");
+const EXPLAINED = /[ \t]*\([^()]*\)\s*$/;
+const kindOf = (produced) => produced.replace(EXPLAINED, "").trim();
 
 // The explicit model-table data in a practice's ## Adds, optionally under its matching level-three heading. Its explanation
 // is otherwise free text, so only a table with exactly the model-table columns becomes workflow data.
@@ -34,8 +36,12 @@ function additionsTable(document, heading, columns) {
   const rowsOf = (block) => {
     const header = block.findIndex((line) => line.trim().startsWith("|") && JSON.stringify(cells(line)) === JSON.stringify(columns));
     if (header < 0 || !/^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?$/.test(block[header + 1] ?? "")) return [];
-    return block.slice(header + 2).filter((line) => line.trim().startsWith("|")).map(cells)
-      .filter((row) => row.length === columns.length)
+    const body = [];
+    for (const line of block.slice(header + 2)) {
+      if (!line.trim().startsWith("|")) break;
+      body.push(line);
+    }
+    return body.map(cells).filter((row) => row.length === columns.length)
       .map((row) => Object.fromEntries(columns.map((column, index) => [column, row[index]])));
   };
   return rowsOf(start < 0 ? lines : lines.slice(start + 1, end < 0 ? lines.length : end));
@@ -82,7 +88,7 @@ export function workflowOf(declaration, model, practices, instanceSpec) {
     phases: [
       ...model.phases.map(({ name, role, produces }) => ({ name, role, produces: [...produces] })),
       ...additions.flatMap(({ phases }) => phases.map((phase) =>
-        ({ name: phase.Name, role: phase.Role, produces: phase.Produces.split(",").map((artifact) => artifact.trim()).filter(Boolean) }))),
+        ({ name: phase.Name, role: phase.Role, produces: phase.Produces.split(",").map(kindOf).filter(Boolean) }))),
     ],
     transitions: model.transitions.map(({ from, to, kind }) => ({ from, to, kind })),
     pairs: model.pairs.map(({ phase, checkedBy }) => ({ phase, checkedBy })),
