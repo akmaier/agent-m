@@ -1,6 +1,6 @@
 // MOD-settings-pages' implemented Settings slice: the endpoint settings MOD-browser-store already enumerates.
 
-import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { clearSetting, exportSettings, importSettings, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
@@ -136,6 +136,63 @@ function jumpHostLine(target, context) {
   );
 }
 
+function exportNotice(store) {
+  const secrets = listSettings(store)
+    .filter((setting) => setting.secret && readSetting(store, setting.key) !== null)
+    .map((setting) => `${setting.label} (${setting.grants})`);
+  const contained = secrets.length ? secrets.join("; ") : "no stored secret";
+  return `This file contains every stored token, key and password. Whoever holds it can use: ${contained}. You may lock it with a passphrase; it cannot be recovered.`;
+}
+
+function exportImportControls(context) {
+  const notice = el("p", "settings-export-notice", exportNotice(context.store));
+  const passphrase = el("input", "settings-export-passphrase");
+  const download = el("button", "settings-export-download", "Export settings");
+  const file = el("input", "settings-import-file");
+  const importPassphrase = el("input", "settings-import-passphrase");
+  const result = el("p", "settings-import-result");
+  passphrase.type = "password";
+  passphrase.autocomplete = "new-password";
+  importPassphrase.type = "password";
+  importPassphrase.autocomplete = "current-password";
+  file.type = "file";
+  file.accept = "application/json";
+  download.addEventListener("click", async () => {
+    try {
+      const text = await exportSettings(context.store, passphrase.value);
+      const blob = new Blob([text], { type: "application/json" });
+      const address = URL.createObjectURL(blob);
+      const link = el("a");
+      link.href = address;
+      link.download = "agent-m-settings.json";
+      link.click();
+      URL.revokeObjectURL(address);
+      result.textContent = "Settings export is ready.";
+    } catch (error) {
+      result.textContent = error.message;
+    }
+  });
+  file.addEventListener("change", async () => {
+    const chosen = file.files?.[0];
+    if (!chosen) return;
+    try {
+      const imported = await importSettings(context.store, await chosen.text(), importPassphrase.value);
+      result.textContent = `Added: ${imported.added.join(", ") || "none"}. Kept: ${imported.kept.join(", ") || "none"}.`;
+    } catch (error) {
+      result.textContent = error.message;
+    }
+  });
+  return el("section", "settings-export-import",
+    el("h3", null, "Export and import settings"),
+    notice,
+    el("p", null, el("label", null, "Optional export passphrase ", passphrase)),
+    download,
+    el("p", null, el("label", null, "Import settings file ", file)),
+    el("p", null, el("label", null, "Import passphrase ", importPassphrase)),
+    result,
+  );
+}
+
 export const route = {
   name: "settings",
   entry: "settings",
@@ -155,6 +212,7 @@ export const route = {
       ...(bridge ? [bridge] : []),
       ...(jumpHost ? [jumpHost] : []),
       el("div", "settings-endpoints", ...endpoints),
+      exportImportControls(context),
     );
   },
 };
