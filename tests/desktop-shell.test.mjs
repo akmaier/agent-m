@@ -25,7 +25,7 @@ const within = async (promise, name) => {
   finally { clearTimeout(timeout); }
 };
 const acquireNativeFixtureLock = async () => {
-  for (let n = 0; n <= 40000 / 125; n += 1) {
+  for (let n = 0; n < 240; n += 1) {
     try { mkdirSync(nativeFixtureLock); nativeFixtureLockHeld = true; return; }
     catch (failure) { if (failure.code !== "EEXIST") throw failure; }
     await new Promise((resolve) => setTimeout(resolve, 125));
@@ -44,7 +44,7 @@ const prepareNativeFixture = async () => {
   try {
     electronCommand(executable, []);
     process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
-  } finally { releaseNativeFixtureLock(); }
+  } catch (failure) { releaseNativeFixtureLock(); throw failure; }
 };
 before(prepareNativeFixture);
 after(releaseNativeFixtureLock);
