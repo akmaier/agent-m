@@ -54,11 +54,10 @@ const settings = {
   products: ["https://github.com/alice/product"],
   "endpoint:campus": { url: "https://models.example.test/v1", kind: "openai-compatible", model: "campus-1", key: "endpoint-secret-constructed-004", throughBridge: false },
   bridge: { address: "http://127.0.0.1:8111", token: "bridge-secret-constructed-005" },
-  "jump-host": { hostname: "jump.example.test", user: "agent-m", sshPort: 2222, portRange: [42000, 42099], httpsAddress: "https://jump.example.test/bridge", login: "jump-secret-constructed-006" },
+  "jump-host": { hostname: "jump.example.test", user: "agent-m", sshPort: 2222, portRange: [42000, 42099], httpsAddress: "https://jump.example.test/bridge", login: { user: "jump-web-user", password: "jump-secret-constructed-006" } },
   "remote-session:lab": { port: 42001, token: "remote-secret-constructed-007" },
   notifications: { checked: "2026-10-09T16:00:00.000Z" },
   notified: { "alice/product": { "SPEC.md": "0123456789abcdef" } },
-  "acknowledged:shared-origin": "2026-10-09T16:00:00.000Z",
   "last-test:bridge": { at: "2026-10-09T16:01:00.000Z", outcome: "working" },
 };
 
@@ -76,12 +75,14 @@ function assertCanonicalPlain(file) {
   assert.deepEqual(file.foreign, {}, "the bounded implemented catalogue exports no foreign sign-in-library keys");
 }
 
-// TST-283-01 · module: MOD-browser-store · level: unit
+// TST-283001
+// level: unit
+// module: MOD-browser-store
 // guards: UC-042; UC-044; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; CONFIGURATION LIVES IN THE BROWSER
 // given: one instance containing every implemented catalogue family, constructed secrets, and another instance's secret
 // input: exportSettings(store), then readExport(text) after localStorage is unavailable in Node
-// expected result: the exact version-1 plain envelope holds only this instance's values, every secret included, and Node reads it without localStorage
-test("TST-283-01 exports and reads the canonical plain version-1 envelope without localStorage", async () => {
+// expect: the exact version-1 plain envelope holds only this instance's values, every secret included, and Node reads it without localStorage
+test("TST-283001 exports and reads the canonical plain version-1 envelope without localStorage", async () => {
   const storage = memoryStorage();
   install(storage);
   const store = openStore(INSTANCE);
@@ -98,12 +99,14 @@ test("TST-283-01 exports and reads the canonical plain version-1 envelope withou
   assert.deepEqual(await readExport(text), { instance: INSTANCE, settings }, "Node reads the export without opening browser storage");
 });
 
-// TST-283-02 · module: MOD-browser-store · level: unit
+// TST-283002
+// level: unit
+// module: MOD-browser-store
 // guards: UC-042; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
 // given: every implemented setting and constructed secret in one browser instance
 // input: exportSettings(store, passphrase), readExport with the passphrase, then import with a wrong passphrase
-// expected result: the locked version-1 envelope exposes no secret, uses PBKDF2/SHA-256/600000 and AES-GCM, round-trips with the passphrase, and a wrong passphrase changes no byte
-test("TST-283-02 locks every exported secret with the accepted WebCrypto envelope and leaves storage unchanged on a wrong passphrase", async () => {
+// expect: the locked version-1 envelope exposes no secret, uses PBKDF2/SHA-256/600000 and AES-GCM, round-trips with the passphrase, and a wrong passphrase changes no byte
+test("TST-283002 locks every exported secret with the accepted WebCrypto envelope and leaves storage unchanged on a wrong passphrase", async () => {
   const storage = memoryStorage();
   install(storage);
   const store = openStore(INSTANCE);
@@ -124,7 +127,7 @@ test("TST-283-02 locks every exported secret with the accepted WebCrypto envelop
   assert.deepEqual(Object.keys(file.cipher).sort(), ["iv", "name"]);
   assert.equal(file.cipher.name, "AES-GCM");
   assert.equal(typeof file.data, "string");
-  for (const secret of [settings["github-token"].value, settings["endpoint:campus"].key, settings.bridge.token, settings["remote-session:lab"].token]) {
+  for (const secret of [settings["github-token"].value, settings["endpoint:campus"].key, settings.bridge.token, settings["jump-host"].login.password, settings["remote-session:lab"].token]) {
     assert.equal(text.includes(secret), false, `the locked envelope exposes no ${secret}`);
   }
   assert.deepEqual(await readExport(text, "correct constructed passphrase"), { instance: INSTANCE, settings });
@@ -134,12 +137,14 @@ test("TST-283-02 locks every exported secret with the accepted WebCrypto envelop
   assert.deepEqual(storage.snapshot(), before, "a wrong passphrase writes no localStorage byte");
 });
 
-// TST-283-03 · module: MOD-browser-store · level: unit
+// TST-283003
+// level: unit
+// module: MOD-browser-store
 // guards: UC-042; UC-044; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: a saved remote session with a constructed bridge token
 // input: reopen the instance, list its settings, and clear the remote session
-// expected result: the session persists under its own name, metadata returns no raw port or token, and Clear removes the raw localStorage entry
-test("TST-283-03 persists named remote sessions, lists no secret metadata, and clears their raw entry", () => {
+// expect: the session persists under its own name, metadata returns no raw port or token, and Clear removes the raw localStorage entry
+test("TST-283003 persists named remote sessions, lists no secret metadata, and clears their raw entry", () => {
   const storage = memoryStorage();
   install(storage);
   const store = openStore(INSTANCE);
@@ -159,12 +164,14 @@ test("TST-283-03 persists named remote sessions, lists no secret metadata, and c
   assert.equal(storage.getItem(PREFIX + key), null, "Clear removes the raw remote-session entry");
 });
 
-// TST-283-04 · module: MOD-browser-store · level: unit
+// TST-283004
+// level: unit
+// module: MOD-browser-store
 // guards: UC-042; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE
-// given: an export with missing settings, an existing destination key with deliberately noncanonical raw JSON bytes, and malformed input
-// input: importSettings(destination, export), then import malformed text
-// expected result: missing keys are added, existing bytes remain exact, added/kept keys are returned, and malformed input makes no partial change
-test("TST-283-04 imports only absent settings and validates malformed input before any write", async () => {
+// given: an export with missing settings, an existing destination key with deliberately noncanonical raw JSON bytes, malformed input, and a valid envelope with an unknown key after a missing one
+// input: importSettings(destination, export), then import each invalid input
+// expect: missing keys are added, existing bytes remain exact, added/kept keys are returned, and each invalid input makes no partial change
+test("TST-283004 imports only absent settings and validates every incoming key before any write", async () => {
   const sourceStorage = memoryStorage();
   install(sourceStorage);
   const source = openStore(INSTANCE);
@@ -185,4 +192,17 @@ test("TST-283-04 imports only absent settings and validates malformed input befo
   await assert.rejects(importSettings(destination, "{ not JSON"),
     (error) => error instanceof StoreError && error.name === "NotAnExport");
   assert.deepEqual(destinationStorage.snapshot(), beforeMalformed, "malformed input cannot write after validation");
+
+  const validButUnknown = JSON.stringify({
+    "agent-m-settings": 1,
+    instance: INSTANCE,
+    exported: "2026-10-09T16:30:00.000Z",
+    locked: false,
+    settings: { products: ["https://github.com/alice/missing"], "unknown-after-products": { secret: "constructed" } },
+    foreign: {},
+  });
+  await assert.rejects(importSettings(destination, validButUnknown),
+    (error) => error instanceof StoreError && error.name === "NotAnExport");
+  assert.deepEqual(destinationStorage.snapshot(), beforeMalformed,
+    "an unknown key rejects before the preceding missing products setting is written");
 });
