@@ -38,7 +38,11 @@ export async function ensureKey(dataFolder) {
       privateKey = readFileSync(privatePath, "utf8");
       publicKey = readFileSync(publicPath, "utf8");
     } else {
-      ({ private: privateKey, public: publicKey } = utils.generateKeyPairSync("ed25519"));
+      for (let attempt = 0; attempt < 64; attempt += 1) {
+        ({ private: privateKey, public: publicKey } = utils.generateKeyPairSync("ed25519"));
+        if (matchedPair(privateKey, publicKey)) break;
+      }
+      if (!matchedPair(privateKey, publicKey)) throw new Error("Could not generate a corresponding SSH key pair.");
       writeFileSync(privatePath, privateKey, { mode: 0o600 });
       chmodSync(privatePath, 0o600);
       writeFileSync(publicPath, publicKey, { mode: 0o644 });
