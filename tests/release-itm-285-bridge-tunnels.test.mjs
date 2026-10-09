@@ -103,7 +103,7 @@ test("TST-285903: tunnel state preserves origin, preflight, and current-token bo
 // level: release
 // module: MOD-bridge-http
 // guards: UC-044; THE LOCAL BRIDGE REQUIRES A TOKEN
-// given: a paused paired Bridge with a supplied tunnels handler and an existing work-starting endpoint-test handler
+// given: a paused paired Bridge with a supplied tunnels handler and the server's existing endpoint-test route
 // input: authenticated GET /v1/tunnels and POST /v1/probes/endpoint-test are sent to the actual server
 // expect: read-only state is available while the existing work-starting request retains its named paused refusal
 test("TST-285904: pause leaves tunnel state readable and retains work refusal", async (t) => {
