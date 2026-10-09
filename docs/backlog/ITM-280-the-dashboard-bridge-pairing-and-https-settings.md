@@ -65,5 +65,6 @@ web-server login and forwarding only for this instance's origin. Actual reachabi
 After the owned route is approved and merged, reach it from the working dashboard through a separately reviewed,
 bounded between-jobs public-view caller if the current adapter does not already route it. No setup logic or parser is
 implemented in that adapter. Name the merged owned route and actual dashboard entry before selecting269; independent
-system/release coverage must observe the public setup rather than merely seed its storage. This item is not selected
-in Sprint16; selection and participant assignment belong to the next explicit Start decision.
+system/release coverage must observe the public setup rather than merely seed its storage. This item is selected
+in Sprint16 by its explicit Start decision: developer-terra-c owns source, developer-terra-e independent release
+coverage after the approved source merge. Selection and current assignments live in docs/backlog/sprints/16.md.
