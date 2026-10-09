@@ -3,9 +3,10 @@
 //
 // Module: MOD-settings-pages
 // Level: unit
-// Guards: UC-003 alternative 2a; UC-044; CONFIGURATION LIVES IN THE BROWSER;
+// Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER;
 // A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO;
 // A CLEAR IS A REAL CLEAR; THE PAGE STATES WHAT IT SENDS WHERE.
+// Scope: UC-003 alternative 2a, the local-model route through the paired Bridge.
 
 import test from "node:test";
 import assert from "node:assert/strict";
