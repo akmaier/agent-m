@@ -7,6 +7,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rm
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -37,6 +38,47 @@ const commandEvidence = (stage, result) => {
   const evidence = { stage, status: result.status, signal: result.signal, error: result.error?.code ?? null, stdout: scrub(result.stdout), stderr: scrub(result.stderr) };
   process.stdout.write(`native-fixture ${JSON.stringify(evidence)}\n`);
   return evidence;
+};
+const publicUbuntuPackage = (uri) => {
+  try {
+    const parsed = new URL(uri);
+    return ["http:", "https:"].includes(parsed.protocol) && !parsed.username && !parsed.password && ["azure.archive.ubuntu.com", "archive.ubuntu.com"].includes(parsed.hostname) && (parsed.pathname === "/ubuntu" || parsed.pathname.startsWith("/ubuntu/"));
+  } catch { return false; }
+};
+const credentialBearingUri = (uri) => { try { const parsed = new URL(uri); return Boolean(parsed.username || parsed.password); } catch { return false; } };
+const sanitizedCliText = (value) => scrub(String(value).replace(/(https?:\/\/)[^/\s@]*@/gi, "$1[redacted]@"));
+const recordedPackagePlan = (output) => String(output).split(/\r?\n/).flatMap((line) => {
+  const match = /^'([^']+)'\s+(\S+)\s+(\d+)\s+(\S+)$/.exec(line);
+  if (!match) return [];
+  const [, uri, filename, bytes, digest] = match, md5 = /^(?:MD5Sum:)?([a-f0-9]{32})$/i.exec(digest)?.[1] ?? null, evidence = { filename, bytes: Number(bytes), md5, digest: md5 ?? scrub(digest), observation: md5 ? undefined : "unrecognized-digest" };
+  if (uri.startsWith("mirror+file:")) return [{ transport: "mirror+file", ...evidence }];
+  if (credentialBearingUri(uri)) return [{ transport: "credential-rejected", ...evidence }];
+  if (publicUbuntuPackage(uri)) return [{ transport: new URL(uri).protocol.slice(0, -1), uri, ...evidence }];
+  return [{ transport: "unrecorded", ...evidence }];
+});
+const publicMirrors = () => {
+  try {
+    return readFileSync("/etc/apt/apt-mirrors.txt", "utf8").split(/\r?\n/).map((line) => line.trim().split(/\s+/, 1)[0]).filter((uri) => publicUbuntuPackage(uri));
+  } catch { return []; }
+};
+const diagnosticEvidence = (stage, evidence) => process.stdout.write(`native-fixture ${JSON.stringify({ stage, ...evidence })}\n`);
+const diagnoseOpenboxAcquisition = () => {
+  try {
+    const started = Date.now();
+    const resolution = spawnSync("sudo", ["apt-get", "--print-uris", "--yes", "--no-install-recommends", "install", "openbox"], { encoding: "utf8", timeout: 6000 });
+    const packages = recordedPackagePlan(resolution.stdout);
+    const font = packages.find((candidate) => candidate.filename.startsWith("fonts-urw-base35_") && candidate.filename.endsWith("_all.deb"));
+    diagnosticEvidence("Linux Openbox diagnostic plan", { status: resolution.status, signal: resolution.signal, error: resolution.error?.code ?? null, elapsedMs: Date.now() - started, stdout: sanitizedCliText(resolution.stdout), stderr: sanitizedCliText(resolution.stderr), packages, mirrors: packages.some((candidate) => candidate.transport === "mirror+file") ? publicMirrors() : [], observation: !packages.length ? "unparseable-print-uris" : !font ? "fonts-package-not-resolved" : !font.md5 ? "font-digest-not-md5" : !font.uri?.startsWith("http://") ? "font-uri-not-direct-http" : "direct-http-font-uri" });
+    if (!font?.uri?.startsWith("http://") || !font.md5) return;
+    for (const scheme of ["http", "https"]) {
+      const folder = mkdtempSync(join(tmpdir(), "agent-m-276-openbox-diagnostic-")), archive = join(folder, font.filename), uri = `${scheme}:${font.uri.slice("http:".length)}`;
+      try {
+        const acquired = Date.now(), result = spawnSync("curl", ["-q", "--fail", "--silent", "--show-error", "--location", "--proto", `=${scheme}`, "--proto-redir", `=${scheme}`, "--connect-timeout", "2", "--max-time", "5", "--output", archive, "--write-out", "%{http_code} %{size_download} %{time_total}", uri], { encoding: "utf8", timeout: 6000 });
+        const body = existsSync(archive) ? readFileSync(archive) : null;
+        diagnosticEvidence("Linux Openbox package probe", { scheme, status: result.status, signal: result.signal, error: result.error?.code ?? null, elapsedMs: Date.now() - acquired, stdout: sanitizedCliText(result.stdout), stderr: sanitizedCliText(result.stderr), expectedBytes: font.bytes, actualBytes: body?.length ?? 0, expectedMd5: font.md5, actualMd5: body ? createHash("md5").update(body).digest("hex") : null, bytesMatch: body?.length === font.bytes, hashMatch: body ? createHash("md5").update(body).digest("hex") === font.md5 : false });
+      } finally { rmSync(folder, { recursive: true, force: true }); }
+    }
+  } catch (failure) { diagnosticEvidence("Linux Openbox diagnostic", { observation: "diagnostic-error", error: failure.code ?? failure.name }); }
 };
 const prepareNativeFixture = async () => {
   const executable = await runtime();
@@ -83,6 +125,7 @@ const electronCommand = (executable, arguments_) => {
   commandEvidence("Linux Openbox initial probe", manager);
   if (manager.status !== 0) {
     if (windowManagerFailure) throw windowManagerFailure;
+    diagnoseOpenboxAcquisition();
     const started = Date.now(), install = spawnSync("sudo", ["apt-get", "-o", "Debug::Acquire::http=true", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
     const installEvidence = commandEvidence("Linux Openbox install", install);
     let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
