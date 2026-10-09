@@ -31,6 +31,7 @@ test("TST-288101: dashboard Settings exports and restores every delivered setup 
   assert.match(route.textContent, /Export and import settings/);
   assert.match(route.textContent, /Endpoint: campus.*Bridge.*Jump host.*Remote session: gpu/s);
   assert.match(route.textContent, /contains every stored token, key and password/);
+  assert.equal(page.main().includes('id="export-go"') || page.main().includes('id="import-go"'), false, "the dashboard no longer renders its duplicate legacy export controls");
   const downloads = [], oldUrl = globalThis.URL;
   globalThis.URL = { createObjectURL(blob) { downloads.push(blob); return "blob:controlled-settings"; }, revokeObjectURL() {} };
   try { await route.querySelector("button.settings-export-download").fire("click"); } finally { globalThis.URL = oldUrl; }
