@@ -111,9 +111,10 @@ test("TST-282003: proxyConfiguration emits authenticated instance-only Apache an
           `nginx uses a prefix location so ${path} accepts /v1 route suffixes`);
         assert.match(block, /Access-Control-Allow-Origin "https:\/\/owner\.github\.io"/,
           `nginx allows only the configured instance origin for ${path}`);
+        assert.match(configuration, /ssl_certificate[\s\S]*ssl_certificate_key/, "nginx names both TLS certificate files");
         assert.match(block, /if \(\$request_method = OPTIONS\) \{[\s\S]*return 204;/,
           `nginx returns ${path}'s OPTIONS preflight itself`);
-        assert.match(block, /if \(\$http_origin != "https:\/\/owner\.github\.io"\) \{ return 403; \}/,
+        assert.match(block, /if \(\$http_origin != "https:\/\/owner\.github\.io"\) \{ return 403; \}[\s\S]*if \(\$request_method = OPTIONS\)/,
           `nginx refuses ${path}'s foreign OPTIONS preflight`);
         assert.ok(block.indexOf("return 204;") < block.indexOf("proxy_pass"),
           `nginx ends ${path}'s OPTIONS request before proxy forwarding`);

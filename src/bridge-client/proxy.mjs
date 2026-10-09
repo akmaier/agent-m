@@ -52,8 +52,8 @@ function nginx(sessions, origin) {
       `location ${path} {`,
       "  auth_basic \"Agent M jump host\";",
       "  auth_basic_user_file /etc/agent-m/jump-host.htpasswd;",
+      `  if ($http_origin != \"${origin}\") { return 403; }`,
       "  if ($request_method = OPTIONS) {",
-      `    if ($http_origin != \"${origin}\") { return 403; }`,
       `    add_header Access-Control-Allow-Origin \"${origin}\" always;`,
       "    add_header Access-Control-Allow-Methods \"GET, POST, OPTIONS\" always;",
       "    add_header Access-Control-Allow-Headers \"Authorization, Content-Type, X-Agent-M-Bridge-Token\" always;",
@@ -69,6 +69,7 @@ function nginx(sessions, origin) {
     "server {",
     "  listen 443 ssl;",
     "  ssl_certificate /etc/agent-m/jump-host-cert.pem;",
+    "  ssl_certificate_key /etc/agent-m/jump-host-key.pem;",
     ...blocks.map((block) => `  ${block.replace(/\n/g, "\n  ")}`),
     "}",
   ].join("\n");
