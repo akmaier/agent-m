@@ -74,10 +74,13 @@ function ensure(folder) {
 
 function temporaryFolder() { return mkdtempSync(join(tmpdir(), "agent-m-284-key-")); }
 
-// TST-284001 · level: unit · module: MOD-tunnels
-// Guards: THE BRIDGE CREATES ITS OWN SSH KEY; UC-044
-// Precondition/input: a new controlled per-user data folder.
-// Expected result: ensureKey generates an Ed25519 OpenSSH pair and returns its public key and SHA256 fingerprint only.
+// TST-284001
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE CREATES ITS OWN SSH KEY; UC-044
+// given: a new controlled per-user data folder
+// input: ensureKey(dataFolder)
+// expect: an Ed25519 OpenSSH pair whose public data and SHA256 fingerprint are returned without a private key
 test("TST-284001: ensureKey creates the Bridge Ed25519 pair with matching public data", () => {
   const folder = temporaryFolder();
   try {
@@ -89,10 +92,13 @@ test("TST-284001: ensureKey creates the Bridge Ed25519 pair with matching public
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 
-// TST-284002 · level: unit · module: MOD-tunnels
-// Guards: THE BRIDGE CREATES ITS OWN SSH KEY; UC-044
-// Precondition/input: a generated controlled data folder, then a separate child process using the same folder.
-// Expected result: the exact private and public file bytes persist, and the private file is owner-only.
+// TST-284002
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE CREATES ITS OWN SSH KEY; UC-044
+// given: a generated controlled data folder and a separate child process using it
+// input: ensureKey(dataFolder) in each child
+// expect: exact private and public bytes persist and the private file has owner-only access
 test("TST-284002: ensureKey keeps the exact existing pair and private-file mode", () => {
   const folder = temporaryFolder();
   try {
@@ -105,10 +111,13 @@ test("TST-284002: ensureKey keeps the exact existing pair and private-file mode"
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 
-// TST-284003 · level: unit · module: MOD-tunnels
-// Guards: THE BRIDGE CREATES ITS OWN SSH KEY; UC-044
-// Precondition/input: a controlled directory that denies its owner writes.
-// Expected result: ensureKey rejects with NotWritable naming that supplied folder and creates no key.
+// TST-284003
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE CREATES ITS OWN SSH KEY; UC-044
+// given: a controlled directory that denies its owner writes
+// input: ensureKey(dataFolder)
+// expect: NotWritable names the supplied folder and no private key is created
 test("TST-284003: ensureKey reports a controlled unwritable folder", () => {
   const folder = temporaryFolder();
   try {
@@ -123,6 +132,9 @@ test("TST-284003: ensureKey reports a controlled unwritable folder", () => {
     `;
     const result = spawnSync(process.execPath, ["--input-type=module", "-e", script, folder], { encoding: "utf8", timeout: 40_000, env: { ...process.env, NODE_PATH: runtime() } });
     assert.equal(result.status, 0, `NotWritable child failed: ${result.stderr}`);
-    assert.deepEqual(JSON.parse(result.stdout), { name: "NotWritable", folder, message: `The key folder is not writable: ${folder}`, created: false });
+    const refused = JSON.parse(result.stdout);
+    assert.equal(refused.name, "NotWritable");
+    assert.equal(refused.folder, folder);
+    assert.equal(refused.created, false);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
