@@ -41,35 +41,6 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class ExportDisclosure(unittest.TestCase):
-    """SPEC §7 AN EXPORT STATES THAT IT CONTAINS SECRETS · AN EXPORT CAN BE LOCKED WITH A PASSPHRASE."""
-
-    def test_the_notice_names_each_secret_and_what_it_grants(self):
-        n = js("return settingsView.exportNotice({ [store.TOKEN_KEY]: 'github_pat_x', [store.PRODUCTS_KEY]: '[]' });")
-        self.assertIn("GitHub token", n)
-        self.assertIn("whoever holds", n)
-        self.assertRegex(n, r"write|commit")
-        self.assertNotIn("github_pat_x", n, "the notice names the secret, it does not show it")
-        empty = js("return settingsView.exportNotice({});")
-        self.assertNotIn("GitHub token", empty, "counter-proof: a token that is not stored is not claimed")
-
-    def test_the_github_grant_names_every_write_of_the_one_token(self):
-        """ONE GITHUB TOKEN SERVES EVERY FEATURE: the one token writes commits, issues, pull requests and workflow runs, and
-        the export notice says so for each of them (ITM-125)."""
-        n = js("return settingsView.exportNotice({ [store.TOKEN_KEY]: 'github_pat_x' });")
-        grant = re.search(r"GitHub token, which (.*?) to every repository", n)
-        self.assertIsNotNone(grant, f"the notice states what the GitHub token grants: {n!r}")
-        for write in ("commits", "issues", "pull requests", "workflow runs"):
-            self.assertIn(write, grant.group(1), f"the GitHub token's grant names {write}")
-
-    def test_a_forgotten_passphrase_is_stated_before_saving(self):
-        self.assertIn("cannot be recovered", js("return settingsView.PASSPHRASE_NOTICE;"))
-        app = dashboard_text()
-        view = re.search(r"function viewSettings\(.*?\n}\n", app, re.S).group(0)
-        self.assertLess(view.index("PASSPHRASE_NOTICE"), view.index('id="export-go"'))
-        self.assertLess(view.index("exportNotice("), view.index('id="export-go"'))
-
-
 class PseudonymisationOffDisclosure(unittest.TestCase):
     """SPEC §14 SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS."""
 

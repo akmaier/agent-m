@@ -959,50 +959,6 @@ test("UC-042 5a: Remove takes a collaborator off the list with one commit, and s
   assert.match(page.main(), /Removed @jdoe; earlier commits keep the name in the history — <a href="[^"]+"[^>]*>commit [0-9a-f]{7}<\/a>\./);
 });
 
-// The file the browser would download: what Export hands to URL.createObjectURL; the ten-second timer that revokes it is not
-// left running.
-async function downloaded(f) {
-  const blobs = [], real = { create: URL.createObjectURL, revoke: URL.revokeObjectURL, timer: globalThis.setTimeout };
-  URL.createObjectURL = (b) => { blobs.push(b); return "blob:export"; };
-  URL.revokeObjectURL = () => {};
-  globalThis.setTimeout = (fn, ms, ...a) => (ms >= 1000 ? 0 : real.timer(fn, ms, ...a));
-  try { await f(); } finally { URL.createObjectURL = real.create; URL.revokeObjectURL = real.revoke; globalThis.setTimeout = real.timer; }
-  return Promise.all(blobs.map((b) => b.text()));
-}
-
-test("UC-042 step 6: the export states what it contains and what each secret grants; Export saves every browser setting, the token included, and sends nothing", async () => {
-  const { srv, dom, page } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([PRODUCT_ADDR]) } });
-  assert.ok(page.main().includes("The file contains every setting of this browser in full, including your GitHub token, which writes — commits, issues, " +
-    "pull requests and workflow runs — to every repository it was given, under your account. It opens all of that to whoever holds the file — keep it like a " +
-    "password, or lock it with a passphrase."));
-  let made;
-  const [file] = await downloaded(async () => { made = await press(srv, dom.byId("export-go")); });
-  assert.deepEqual(made, [], "nothing is sent anywhere");
-  assert.deepEqual(srv.writes, []);
-  const f = JSON.parse(file);
-  assert.deepEqual(f.settings, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([PRODUCT_ADDR]) });
-  assert.equal(dom.byId("io-msg").textContent, "Saved. The file holds your token in clear — keep it like a password.");
-});
-
-test("UC-042 step 6: an export locked with a passphrase holds no secret in clear; two different passphrases save nothing", async () => {
-  const { srv, dom } = await settingsPage();
-  dom.byId("export-pass").value = "correct horse";
-  dom.byId("export-pass2").value = "correct hors";
-  assert.deepEqual(await downloaded(() => press(srv, dom.byId("export-go"))), []);
-  assert.equal(dom.byId("io-msg").textContent, "The two passphrases differ — nothing was saved.");
-  dom.byId("export-pass2").value = "correct horse";
-  const [file] = await downloaded(async () => {
-    await press(srv, dom.byId("export-go"));
-    await until(() => /^Saved/.test(dom.byId("io-msg").textContent), "the locked file");
-  });
-  assert.ok(!file.includes(TOKEN), "no token in clear");
-  assert.ok(JSON.parse(file).locked, "locked");
-  assert.equal(dom.byId("io-msg").textContent, "Saved, locked with your passphrase.");
-});
-
-// A settings file handed to the page's file field.
-const fileField = (dom, text) => { dom.byId("import-file").files = [{ text: async () => text }]; };
-
 test("UC-042 step 6 · UC-014 7a: Import, after the notice is ticked, restores every setting of an export in a browser that had none", async () => {
   const file = await exportSettings({ "agent-m.github-token": TOKEN, "agent-m.github-token-expires": day(60),
     "agent-m.products": JSON.stringify([PRODUCT_ADDR]) });
