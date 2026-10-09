@@ -26,14 +26,37 @@ function runtime() {
       run("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
     }
     const positive = run(process.execPath, ["--input-type=module", "-e", `
+      import assert from "node:assert/strict";
       import { createRequire } from "node:module";
       const require = createRequire(import.meta.url);
-      const ssh2 = require("ssh2");
-      if (require("ssh2/package.json").version !== "1.17.0") throw new Error("ssh2 version");
-      const pair = ssh2.utils.generateKeyPairSync("ed25519");
-      const privateKey = ssh2.utils.parseKey(pair.private);
-      const publicKey = ssh2.utils.parseKey(pair.public);
-      if (privateKey.type !== "ssh-ed25519" || privateKey.getPublicSSH().compare(publicKey.getPublicSSH()) !== 0) throw new Error("ssh2 correspondence");
+      const crypto = require("node:crypto");
+      const fixturePrivateKey = crypto.createPrivateKey({ key: {
+        kty: "OKP",
+        crv: "Ed25519",
+        d: Buffer.from("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60", "hex").toString("base64url"),
+        x: Buffer.from("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", "hex").toString("base64url")
+      }, format: "jwk" });
+      const fixturePublicKey = crypto.createPublicKey(fixturePrivateKey);
+      if (fixturePublicKey.export({ type: "spki", format: "der" }).at(-32) === 0) throw new Error("fixture leading-zero public byte");
+      const generateKeyPairSync = crypto.generateKeyPairSync;
+      crypto.generateKeyPairSync = (type, options) => {
+        assert.equal(type, "ed25519");
+        return {
+          privateKey: fixturePrivateKey.export(options.privateKeyEncoding),
+          publicKey: fixturePublicKey.export(options.publicKeyEncoding)
+        };
+      };
+      let ssh2;
+      try {
+        ssh2 = require("ssh2");
+        if (require("ssh2/package.json").version !== "1.17.0") throw new Error("ssh2 version");
+        const pair = ssh2.utils.generateKeyPairSync("ed25519");
+        const privateKey = ssh2.utils.parseKey(pair.private);
+        const publicKey = ssh2.utils.parseKey(pair.public);
+        if (privateKey.type !== "ssh-ed25519" || privateKey.getPublicSSH().compare(publicKey.getPublicSSH()) !== 0) throw new Error("ssh2 correspondence");
+      } finally {
+        crypto.generateKeyPairSync = generateKeyPairSync;
+      }
       console.log("ssh2-known-positive");
     `], { env: { ...process.env, NODE_PATH: join(ssh2Cache, "node_modules") } });
     assert.match(positive.stdout, /ssh2-known-positive/);
