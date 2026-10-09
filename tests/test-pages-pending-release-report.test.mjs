@@ -102,11 +102,9 @@ test("TST-289001: a refused pending-report lookup is named before the new-releas
 // level: unit
 // module: MOD-test-pages
 // guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
-// given: the selected product has a completed recorded run for an unreported candidate, its declared guarded test, and
-//        its failed recorded outcome.
+// given: the selected product has a completed recorded run, its declared guarded test, and its failed recorded outcome.
 // input: render the release route, refresh its report, then enter the required limitation and explicitly accept it.
-// expect: the recorded candidate, tested commit, report requirement and limitation reopen; render and refresh write
-//         nothing, and only the explicit acceptance invokes the existing release service.
+// expect: the candidate, report requirement and limitation reopen without writes; only explicit acceptance invokes release.
 test("TST-289002: a completed recorded candidate reopens without writes and accepts through the existing service", async () => {
   const target = new Element("target");
   const host = pendingHost();
