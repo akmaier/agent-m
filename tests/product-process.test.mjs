@@ -729,3 +729,71 @@ test("workflowOf — the job rules are the Definition of Done when the declarati
   assert.deepEqual(added.done, [...JOB_RULES, review]);
   assert.deepEqual(workflowOf(declarationOf(DECLARATION), model, [], INSTANCE_SPEC).done, JOB_RULES);
 });
+
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// given: a schema-valid selected practice whose bare ## Adds phase table names a documented artifact kind
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: the phase produces the kind TST, without the explanatory parenthesis
+ test("workflowOf — a practice phase drops its Produces explanation as the model reader does", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/evidence-kind.md", `---
+name: evidence-kind
+fits:
+  - team-scrum
+---
+# Evidence kind
+
+## Adds
+
+| Name | Role | Produces |
+|---|---|---|
+| Evidence review | Evidence keeper | TST (evidence from the review) |
+
+## What it is
+
+Fixture practice.
+`);
+  assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the practice document is valid");
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- evidence-kind"));
+  assert.deepEqual(workflowOf(declaration, model, [practice], INSTANCE_SPEC).phases.at(-1), {
+    name: "Evidence review", role: "Evidence keeper", produces: ["TST"],
+  });
+});
+
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// given: a schema-valid selected practice whose bare ## Adds holds consecutive Phases and Roles model tables
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: each contiguous table contributes only to its matching workflow collection
+ test("workflowOf — consecutive bare phase and role tables do not cross into each other", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/bare-tables.md", `---
+name: bare-tables
+fits:
+  - team-scrum
+---
+# Bare tables
+
+## Adds
+
+| Name | Role | Produces |
+|---|---|---|
+| Evidence review | Evidence keeper | TST |
+
+| Name | Filled by | Capabilities |
+|---|---|---|
+| Evidence keeper | either | read the repository |
+
+## What it is
+
+Fixture practice.
+`);
+  assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the practice document is valid");
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- bare-tables"));
+  const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
+  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", role: "Evidence keeper", produces: ["TST"] });
+  assert.equal(workflow.phases.length, model.phases.length + 1, "only the phase table adds a phase");
+  assert.deepEqual(workflow.roles.at(-1), {
+    name: "Evidence keeper", filledBy: "either", capabilities: ["read the repository"], holders: [],
+  });
+  assert.equal(workflow.roles.length, model.roles.length + 1, "only the role table adds a role");
+});
