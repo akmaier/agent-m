@@ -90,8 +90,8 @@ const SETTINGS = {
 };
 function populate(store) { for (const [key, value] of Object.entries(SETTINGS)) writeSetting(store, key, value); }
 
-// TST-288001 verifies the Settings failure node before the route gains an export control: baseline Settings has no
-// export button, so no canonical bytes can reach the constructed download boundary.
+// Failure node: rendered Settings has neither the required disclosure nor an export control, so canonical bytes cannot
+// reach the constructed download boundary.
 test("TST-288001: Settings discloses exported secrets and grants before one canonical download", async () => {
   const store = freshStore(); populate(store);
   const target = await render(store);
@@ -108,8 +108,8 @@ test("TST-288001: Settings discloses exported secrets and grants before one cano
   assert.deepEqual(JSON.parse(await downloads[0].text()).settings, SETTINGS);
 });
 
-// TST-288002 failure node: the absent route import control cannot call canonical importSettings, so kept raw bytes
-// and the complete added/kept result are unavailable until the route composes that interface.
+// Failure node: rendered Settings has no import-file control composing canonical importSettings, so kept raw bytes and
+// the complete added/kept result are unavailable.
 test("TST-288002: Settings imports absent canonical settings and keeps existing bytes", async () => {
   const source = freshStore(); populate(source);
   const sourceTarget = await render(source);
@@ -130,8 +130,8 @@ test("TST-288002: Settings imports absent canonical settings and keeps existing 
   assert.match(result, /Kept:.*bridge/s);
 });
 
-// TST-288003 failure node: without a route passphrase field and file reader, Settings cannot compose the existing
-// canonical lock/error boundaries; this case restores the exact original settings after each attempted import.
+// Failure node: rendered Settings has no passphrase/file controls composing the canonical lock and error boundaries;
+// this case restores the exact original settings after each attempted import.
 test("TST-288003: Settings locks imports with a passphrase and leaves malformed import destinations untouched", async () => {
   const source = freshStore(); populate(source);
   const sourceTarget = await render(source);
