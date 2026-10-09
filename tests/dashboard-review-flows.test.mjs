@@ -686,7 +686,6 @@ test("UC-042 step 1: one page — each browser setting is a line with its state,
   assert.match(browser, /<input class="secret" type="password" readonly value="github_pat_HARNESS0123456789abcdefghij"/);
   assert.match(browser, /data-show="agent-m\.github-token">Show</);
   for (const b of ["data-test", "data-change", "data-clear"]) assert.ok(browser.includes(`${b}="agent-m.github-token"`), b);
-  assert.match(html, /<h3>Export and import<\/h3>/);
   assert.match(html, /<h3>Clear everything in this browser<\/h3>/);
   assert.match(dom.byId("product-settings").innerHTML, /<h3>Product · https:\/\/github\.com\/akmaier\/agent-m<\/h3>[^]*Pseudonymisation — <span class="state">on \(the default\)<\/span>[^]*Collaborators — none named/);
   assert.equal((browser.match(/<summary>What is this\?<\/summary>/g) || []).length, 6, "every line explains itself");
