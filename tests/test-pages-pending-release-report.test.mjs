@@ -25,8 +25,8 @@ globalThis.document = { createElement: (name) => new Element(name) };
 
 const { route } = await import("../src/test-pages/release.mjs");
 
-// TST-289001 — the old route unconditionally invokes paintForm(), so repositoryInfo throws this sentinel before any
-// pending report is read.  The restored route must instead render its named pending-read failure.
+// The pending-read sentinel is the observable failure node. repositoryInfo is a separate sentinel: reaching it means
+// the route attempted the new-release form before reporting the pending read failure.
 test("TST-289001: a refused pending-report lookup is named before the new-release form", async () => {
   const target = new Element("target");
   const host = {
