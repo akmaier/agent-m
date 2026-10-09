@@ -527,6 +527,15 @@ async function route() {
           if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
         },
       }, { name: a ? decodeURIComponent(a) : "" });
+    } else if (kind === "bridge") {
+      const bridge = settingsPages.routes.find((r) => r.name === "bridge");
+      await bridge.render(main(), {
+        instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route, params = {}) {
+          if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+          if (route === "bridge") location.hash = "#bridge";
+        },
+      }, {});
     } else {
       // A view by its name; an address no view answers — or a view whose file is not there yet — shows the use cases.
       const v = DASHBOARD.find((x) => x.view && x.view === kind);
