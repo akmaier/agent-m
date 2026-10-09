@@ -29,7 +29,6 @@ function runtime() {
       run("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
     }
     const positive = run(process.execPath, ["--input-type=module", "-e", `
-      import assert from "node:assert/strict";
       import { createRequire } from "node:module";
       const require = createRequire(import.meta.url);
       const crypto = require("node:crypto");
@@ -43,15 +42,14 @@ function runtime() {
       if (fixturePublicKey.export({ type: "spki", format: "der" }).at(-32) === 0) throw new Error("fixture leading-zero public byte");
       const generateKeyPairSync = crypto.generateKeyPairSync;
       crypto.generateKeyPairSync = (type, options) => {
-        assert.equal(type, "ed25519");
+        if (type !== "ed25519") throw new Error("fixture key type");
         return {
           privateKey: fixturePrivateKey.export(options.privateKeyEncoding),
           publicKey: fixturePublicKey.export(options.publicKeyEncoding)
         };
       };
-      let ssh2;
       try {
-        ssh2 = require("ssh2");
+        const ssh2 = require("ssh2");
         if (require("ssh2/package.json").version !== "1.17.0") throw new Error("ssh2 version");
         const pair = ssh2.utils.generateKeyPairSync("ed25519");
         const privateKey = ssh2.utils.parseKey(pair.private);
