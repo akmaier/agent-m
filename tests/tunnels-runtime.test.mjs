@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -49,20 +50,28 @@ function invoke(folder, plan) {
 }
 
 function dataFolder() { return mkdtempSync(join(tmpdir(), "agent-m-286-tunnels-")); }
+async function closedPort() {
+  const server = createServer();
+  await new Promise((resolve, reject) => server.listen(0, "127.0.0.1", (error) => error ? reject(error) : resolve()));
+  const { port } = server.address();
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
 
 // TST-286001
 // level: unit
 // module: MOD-tunnels
 // guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-044
-// given: a pinned ssh2@1.17.0 loopback connection proven before the product call and a controlled canonical reverse plan
+// given: a pinned ssh2@1.17.0 loopback connection proven before the product call and a dynamically reserved then closed SSH port
 // input: openTunnels(dataFolder, [plan], bridgePort)
-// expect: the runtime exposes the plan as reverse while its controlled SSH connection is opening or open
-test("TST-286001: public runtime accepts a canonical reverse tunnel plan after ssh2 loopback positive", () => {
+// expect: the runtime exposes the exact named canonical reverse state as opening before its asynchronous connection fails
+test("TST-286001: public runtime exposes the exact opening state before a dynamic unavailable SSH port fails", async () => {
   const folder = dataFolder();
   try {
-    const result = invoke(folder, { direction: "reverse", jumpHost: "127.0.0.1", user: "fixture", sshPort: 1, remotePort: 41001, bind: "127.0.0.1", bridgePort: 4711, keyFile: "fixture" });
+    const sshPort = await closedPort();
+    const result = invoke(folder, { direction: "reverse", jumpHost: "127.0.0.1", user: "fixture", sshPort, remotePort: 41001, bind: "127.0.0.1", bridgePort: 4711, keyFile: "fixture" });
     assert.equal(result.status, 0, `failure node: runtime opener: ${result.stderr}`);
-    assert.ok(JSON.parse(result.stdout).some((state) => state.kind === "reverse"));
+    assert.deepEqual(JSON.parse(result.stdout), [{ name: "reverse:127.0.0.1:41001", kind: "reverse", state: "opening", reason: null }]);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 
@@ -219,4 +228,22 @@ test("TST-286009: refused forward channels leave no listener for a later client 
     const refused=await new Promise((ok,no)=>{const s=net.connect(localPort,"127.0.0.1");let done=false;const finish=v=>{if(!done){done=true;ok(v)}};s.once("error",e=>finish(e.code));s.once("close",()=>finish("closed"));s.write("refused");setTimeout(()=>no(Error("refused client stayed open")),500)}); if(!refusals||!refused)throw Error(JSON.stringify({refusals,refused}));
     await closeTunnels(); const after=await new Promise(ok=>{const s=net.connect(localPort,"127.0.0.1");s.once("error",e=>ok(e.code));s.once("connect",()=>ok("connected"))}); await new Promise(r=>ssh.close(r)); if(after!=="ECONNREFUSED")throw Error("listener="+after); console.log("refused-forward-close-positive");
   `; try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/refused-forward-close-positive/)}finally{rmSync(folder,{recursive:true,force:true})}
+});
+
+// TST-286010
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-044
+// given: a paired controlled loopback Bridge supplied with the runtime's actual tunnelHandlers
+// input: the authenticated bridgeAt address sends GET /v1/tunnels through serveBridge
+// expect: the Bridge returns the runtime's actual empty state list rather than a constructed handler result
+test("TST-286010: supplied runtime tunnelHandlers answer through the authenticated Bridge route", async () => {
+  const folder = dataFolder();
+  const bridgeHttp = new URL("../src/bridge-http/index.mjs", import.meta.url).href;
+  const bridgeClient = new URL("../src/bridge-client/index.mjs", import.meta.url).href;
+  const script = `
+    const {bridgeApi,serveBridge}=await import(${JSON.stringify(bridgeHttp)}); const {bridgeAt}=await import(${JSON.stringify(bridgeClient)}); const {tunnelHandlers}=await import(${JSON.stringify(source)});
+    const bridge=await serveBridge({host:"127.0.0.1",port:0,origin:"https://owner.github.io",dataFolder:process.argv[1],paused:()=>false},{jobs:{},mail:{},tunnels:tunnelHandlers}); const client=bridgeAt({address:bridge.address,token:bridge.token}); const answer=await fetch(client.address+"/v1/tunnels",{headers:{Origin:"https://owner.github.io",[bridgeApi.tokenHeader]:bridge.token}}); const body=await answer.json(); await bridge.close(); if(answer.status!==200||JSON.stringify(body)!==JSON.stringify({tunnels:[]}))throw Error(JSON.stringify({status:answer.status,body})); console.log("runtime-handler-route-positive");
+  `;
+  try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/runtime-handler-route-positive/); } finally { rmSync(folder,{recursive:true,force:true}); }
 });
