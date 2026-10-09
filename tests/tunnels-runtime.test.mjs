@@ -131,3 +131,16 @@ test("TST-286004: forward forwarding carries exact bytes through real ssh2 loopb
     const got=await new Promise((ok,no)=>{const s=net.connect(localPort,"127.0.0.1");s.once("error",no);s.once("data",d=>{ok(d.toString());s.destroy()});s.write("forward-bytes")}); await closeTunnels();await new Promise(r=>ssh.close(r));await new Promise(r=>echo.close(r));if(got!=="forward-bytes")throw Error(got);console.log("forward-byte-positive");
   `; try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/forward-byte-positive/);} finally {rmSync(folder,{recursive:true,force:true});}
 });
+
+// TST-286005
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-044
+// given: one controlled jump-host endpoint whose real ssh2 host key changes after first trust
+// input: openTunnels is called before and after the key change
+// expect: the original known-jump-hosts bytes persist, changed host key becomes failed, and forwarding is never requested
+test("TST-286005: changed host key is refused before forwarding", () => {
+  const folder=dataFolder(); const script=`
+    import {createRequire} from "node:module";import {readFileSync} from "node:fs";import {join} from "node:path";const require=createRequire(import.meta.url);const {Server,utils}=require("ssh2");const {openTunnels,closeTunnels,tunnelState}=await import(${JSON.stringify(source)});let requests=0;const key1=utils.generateKeyPairSync("ed25519").private,key2=utils.generateKeyPairSync("ed25519").private;const make=(key,allow)=>new Server({hostKeys:[key]},c=>{c.on("error",()=>{});c.on("authentication",x=>x.accept());c.on("request",(a,r)=>{requests++;allow?a():r()})});let s=make(key1,true);await new Promise((ok,no)=>s.listen(0,"127.0.0.1",e=>e?no(e):ok()));const port=s.address().port,plan={direction:"reverse",jumpHost:"127.0.0.1",user:"x",sshPort:port,remotePort:44005,bind:"127.0.0.1",bridgePort:1};await openTunnels(process.argv[1],[plan],1);for(let i=0;i<30&&tunnelState()[0]?.state!=="open";i++)await new Promise(r=>setTimeout(r,10));if(tunnelState()[0]?.state!=="open")throw Error(JSON.stringify(tunnelState()));const before=readFileSync(join(process.argv[1],"ssh","known-jump-hosts"));await closeTunnels();await new Promise(r=>s.close(r));s=make(key2,false);await new Promise((ok,no)=>s.listen(port,"127.0.0.1",e=>e?no(e):ok()));requests=0;await openTunnels(process.argv[1],[plan],1);await new Promise(r=>setTimeout(r,100));const state=tunnelState()[0];const after=readFileSync(join(process.argv[1],"ssh","known-jump-hosts"));await closeTunnels();await new Promise(r=>s.close(r));if(state.reason!=="host-key-changed"||requests!==0||!before.equals(after))throw Error(JSON.stringify({state,requests}));console.log("host-key-positive");
+  `;try{const r=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(r.status,0,r.stderr);assert.match(r.stdout,/host-key-positive/)}finally{rmSync(folder,{recursive:true,force:true})}
+});
