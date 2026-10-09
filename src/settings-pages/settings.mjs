@@ -89,6 +89,53 @@ function endpointLine(target, context, info) {
   );
 }
 
+function bridgeLine(target, context) {
+  const setting = readSetting(context.store, "bridge");
+  if (!setting) return null;
+  const token = el("input", "settings-bridge-token");
+  const show = el("button", "settings-bridge-show", "Show");
+  const change = el("button", "settings-bridge-change", "Change");
+  const clear = el("button", "settings-bridge-clear", "Clear");
+  token.type = "password";
+  token.value = setting.token ?? "";
+  token.autocomplete = "off";
+  token.spellcheck = false;
+  show.addEventListener("click", () => {
+    const hidden = token.type === "password";
+    token.type = hidden ? "text" : "password";
+    show.textContent = hidden ? "Hide" : "Show";
+  });
+  change.addEventListener("click", () => context.go("bridge", {}));
+  clear.addEventListener("click", async () => {
+    clearSetting(context.store, "bridge");
+    await route.render(target, context);
+  });
+  return el("section", "settings-bridge",
+    el("h3", null, "Bridge"),
+    el("p", null, `Address: ${setting.address}`),
+    el("p", null, el("label", null, "Pairing token ", token, " ", show)),
+    el("p", null, change, " ", clear),
+  );
+}
+
+function jumpHostLine(target, context) {
+  const setting = readSetting(context.store, "jump-host");
+  if (!setting) return null;
+  const change = el("button", "settings-jump-host-change", "Change");
+  const clear = el("button", "settings-jump-host-clear", "Clear");
+  change.addEventListener("click", () => context.go("bridge", {}));
+  clear.addEventListener("click", async () => {
+    clearSetting(context.store, "jump-host");
+    await route.render(target, context);
+  });
+  return el("section", "settings-jump-host",
+    el("h3", null, "Jump host"),
+    el("p", null, `Host: ${setting.hostname}`),
+    el("p", null, `HTTPS address: ${setting.httpsAddress ?? "Not configured."}`),
+    el("p", null, change, " ", clear),
+  );
+}
+
 export const route = {
   name: "settings",
   entry: "settings",
@@ -98,11 +145,15 @@ export const route = {
       .filter((setting) => setting.key.startsWith("endpoint:"))
       .map((setting) => endpointLine(target, context, setting))
       .filter(Boolean);
+    const bridge = bridgeLine(target, context);
+    const jumpHost = jumpHostLine(target, context);
     target.replaceChildren(
       el("h2", null, "Settings"),
       el("h3", null, "This browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
+      ...(bridge ? [bridge] : []),
+      ...(jumpHost ? [jumpHost] : []),
       el("div", "settings-endpoints", ...endpoints),
     );
   },
