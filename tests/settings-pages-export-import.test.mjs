@@ -51,7 +51,7 @@ class Element extends EventTarget {
 }
 class Text { constructor(value) { this.value = String(value); } get textContent() { return this.value; } }
 globalThis.document = { createElement: (name) => new Element(name) };
-globalThis.crypto = webcrypto;
+Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true, writable: true });
 
 function descendants(root, predicate) {
   const found = [];
