@@ -121,7 +121,7 @@ async function launch() {
 }
 async function stop(app) {
   try {
-    await click(app.page, "Quit");
+    try { await click(app.page, "Quit"); } catch {}
     await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
     let timeout;
     try { await Promise.race([app.exited, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("Electron did not exit after Quit.")), 30000); })]); }
