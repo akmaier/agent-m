@@ -58,5 +58,5 @@ routes, model-version comparison, jobs or source-content routing.
   relevant planted-fault failure and exact-restored positive. The source and independent release gates retain their
   declared deciders. No paid service is called.
 
-This item remains in the product backlog after the UC-003 chain. It is not selected in Sprint16; participant assignment
-and a start belong to a fresh explicit selection.
+Selected in Sprint16 by its explicit Start decision, alongside the UC-003 chain. developer-terra-d owns the two
+assigned modules; developer-terra-e reserves independent release coverage and implements none of this behaviour.
