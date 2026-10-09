@@ -42,7 +42,7 @@ export function clearSetting(store, key) {
   removeRaw(store, key);
 }
 
-const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge"];
+const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host"];
 
 function settingDescription(key) {
   if (key === "github-token") return { label: "GitHub token", secret: true, grants: "access to the instance repository", setUpIn: "settings" };
@@ -50,6 +50,7 @@ function settingDescription(key) {
   if (key === "notifications") return { label: "Notifications", secret: false, grants: "acceptance notifications", setUpIn: "notifications" };
   if (key === "notified") return { label: "Notified files", secret: false, grants: "the record of notified files", setUpIn: "notifications" };
   if (key === "bridge") return { label: "Bridge", secret: true, grants: "access to the paired Bridge", setUpIn: "bridge" };
+  if (key === "jump-host") return { label: "Jump host", secret: true, grants: "access to the configured jump host", setUpIn: "bridge" };
   if (key.startsWith("github-token:")) return { label: `GitHub token: ${key.slice("github-token:".length)}`, secret: true, grants: "access to one GitHub product", setUpIn: "add-product" };
   if (key.startsWith("gitlab-token:")) return { label: `GitLab token: ${key.slice("gitlab-token:".length)}`, secret: true, grants: "access to one GitLab product", setUpIn: "add-product" };
   if (key.startsWith("endpoint:")) return { label: `Endpoint: ${key.slice("endpoint:".length)}`, secret: true, grants: "access to a model endpoint", setUpIn: "endpoints" };

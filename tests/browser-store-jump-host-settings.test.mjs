@@ -50,7 +50,9 @@ function byKey(settings) {
 // expected result: the accepted value persists, and list metadata names its bridge setup route without returning login or any stored value
 test("TST-279-01 persists the accepted jump-host value and lists only non-secret metadata", () => {
   install(memoryStorage());
-  writeSetting(openStore(INSTANCE), JUMP_HOST, JUMP_HOST_VALUE);
+  const first = openStore(INSTANCE);
+  assert.ok(byKey(listSettings(first)).has(JUMP_HOST), "the jump host is listed while unset");
+  writeSetting(first, JUMP_HOST, JUMP_HOST_VALUE);
 
   assert.deepEqual(readSetting(openStore(INSTANCE), JUMP_HOST), JUMP_HOST_VALUE,
     "reopening the instance returns the accepted jump-host value unchanged");
