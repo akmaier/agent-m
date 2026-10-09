@@ -122,6 +122,7 @@ export const route = {
     // A real Document for workflowOf even for a product without a declaration yet: readDocument never throws on the
     // content, so the empty text reads as a document with no fields and no sections.
     const declarationForWorkflow = readDocument(declarationSchema, DECLARATION_PATH, declarationText ?? "");
+    let workflowDeclaration = declarationForWorkflow;
 
     const participants = readDocument(participantSchema(), PARTICIPANTS_PATH, participantsText ?? "");
     const allParticipants = participantsOf(participants);
@@ -137,6 +138,8 @@ export const route = {
 
     const instanceSpec = instanceSpecText ?? "";
     const declaredModel = openedDeclaration ? modelAt(cat.models, String(openedDeclaration.fields.model_file ?? "")) : null;
+    let activeModel = declaredModel;
+    let panelsReady = false;
 
     // F4 (step 6): each catalogue practice's own "## Adds", read from its file in the instance's snapshot — the path
     // `catalogue` names it at, shipped or the instance's own — with the catalogue's own practice schema. A practice
@@ -193,7 +196,12 @@ export const route = {
       // throwing through the form's one call to both.
       extraChecks: (live) => {
         try {
-          return declarationFindings(reread(declarationSchema, DECLARATION_PATH, live), cat, participants, sourceDocuments, instanceSpec);
+          workflowDeclaration = reread(declarationSchema, DECLARATION_PATH, live);
+          if (panelsReady) {
+            activeModel = modelAt(cat.models, String(workflowDeclaration.fields.model_file ?? "")) ?? activeModel;
+            renderPanels(activeModel);
+          }
+          return declarationFindings(workflowDeclaration, cat, participants, sourceDocuments, instanceSpec);
         } catch {
           return [];
         }
@@ -226,6 +234,7 @@ export const route = {
     // into the form's fields, as a person's typing does, so the rest of the page answers through the same reactivity;
     // the workflow panels and the lost-artifacts notice (3b) are drawn for it.
     function pick(model) {
+      activeModel = model;
       setField(form, "model", model.name);
       setField(form, "model_file", model.path);
       setField(form, "model_version", instanceSnapshot.commit);
@@ -233,18 +242,19 @@ export const route = {
       lost.textContent = lostArtifacts(declaredModel, model);
     }
 
+    panelsReady = true;
     renderPanels(declaredModel);
 
-    // The panels beside the form that follow the picked model alone: the roles' eligible participants (step 4, 4b),
+    // The panels beside the form that follow the live declaration's selected model and practices: the roles' eligible participants (step 4, 4b),
     // phases/transitions/pairs/gates and branches (step 5), the available practices (step 6), what the process
     // requirements add or that there are none (step 7, 7a), and the Definition of Done's preset rules (step 8).
     function renderPanels(model) {
       extra.replaceChildren();
       if (!model) return;
-      const selectedPracticeNames = workflowOf(declarationForWorkflow, model, [], instanceSpec).practices;
+      const selectedPracticeNames = workflowOf(workflowDeclaration, model, [], instanceSpec).practices;
       const selectedPractices = practicesWithAdds.filter((practice) => selectedPracticeNames.includes(practice.name))
         .map((practice) => practice.document).filter(Boolean);
-      const workflow = workflowOf(declarationForWorkflow, model, selectedPractices, instanceSpec);
+      const workflow = workflowOf(workflowDeclaration, model, selectedPractices, instanceSpec);
 
       const rolesPanel = el("section", "roles-panel", el("h3", null, "Roles"), explain("roles-and-participants"));
       for (const role of workflow.roles) rolesPanel.append(roleInfo(role));

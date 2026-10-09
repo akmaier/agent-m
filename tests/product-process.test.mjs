@@ -25,8 +25,8 @@
 //
 // Not tested here, since ITM-218 leaves them out: holdsRole, gateSchema, gateStates, mayDecide, recordGateDecision,
 // doneCheck and processStrategies; a holder lacking a capability its role needs, and the warning about a holder at a place a
-// linked source does not permit — both go through MOD-participant-list's eligible —; and a practice's additions, which
-// workflowOf does not add (a shipped practice states its `## Adds` in words only).
+// linked source does not permit — both go through MOD-participant-list's eligible. Explicit practice tables are covered;
+// shipped practices whose Adds are prose still contribute no workflow data.
 //
 // The fixture product declares an instance model, docs/process-models/team-scrum.md — Scrum adapted so that its Product
 // Owner must be a person —, at the commit VERSION. Its Catalogue is the one MOD-model-catalogue's catalogue gives over the
@@ -675,6 +675,40 @@ Fixture practice.
   });
   assert.equal(workflow.gates[0].practice, null, "the model gate stays attributed to the model");
   assert.deepEqual(workflow.gates[2].addedBy, { requirement: "UNIT VERIFICATION IS DOCUMENTED", source: "SRC-iec-62304, 5.5.5" });
+});
+
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// given: the same selected practice, but its valid ## Adds holds the model's gate table directly, with no extra heading
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: the exact model-schema table still adds its marked gate; prose and unrecognised text stay outside the workflow
+test("workflowOf — a valid practice gate table directly under Adds enters the workflow without an invented heading", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/bare-gate.md", `---
+name: bare-gate
+fits:
+  - team-scrum
+---
+# Bare gate
+
+## Adds
+
+| Between | Artifacts | Condition | Decider |
+|---|---|---|---|
+| Development → Evidence review | evidence TST | evidence is reviewed | Product Owner |
+
+## What it is
+
+Fixture practice.
+`);
+  assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the schema accepts the bare table");
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- bare-gate"));
+
+  const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
+
+  assert.deepEqual(workflow.gates.at(-1), {
+    name: "Development → Evidence review", from: "Development", to: "Evidence review", artifacts: "evidence TST",
+    condition: "evidence is reviewed", decider: "Product Owner", addedBy: null, practice: "bare-gate",
+  });
 });
 
 // guards: UC-002; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES; A PRODUCT DECLARES ITS DEFINITION OF DONE

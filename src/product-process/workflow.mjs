@@ -23,21 +23,22 @@ const JOB_RULES = [
 
 const text = (value) => (typeof value === "string" ? value : "");
 
-// The explicit table under a level-three heading in a practice's ## Adds. Its explanation is otherwise free text, so only
-// a table with exactly the model-table columns becomes workflow data.
+// The explicit model-table data in a practice's ## Adds, optionally under its matching level-three heading. Its explanation
+// is otherwise free text, so only a table with exactly the model-table columns becomes workflow data.
 function additionsTable(document, heading, columns) {
   const adds = document.sections.find((section) => section.heading === "## Adds")?.text ?? "";
   const lines = adds.split("\n");
   const start = lines.findIndex((line) => line.trim() === `### ${heading}`);
-  if (start < 0) return [];
   const end = lines.findIndex((line, index) => index > start && /^###[#]?[ \t]/.test(line));
-  const block = lines.slice(start + 1, end < 0 ? lines.length : end);
   const cells = (line) => line.trim().replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim());
-  const header = block.findIndex((line) => line.trim().startsWith("|") && JSON.stringify(cells(line)) === JSON.stringify(columns));
-  if (header < 0 || !/^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?$/.test(block[header + 1] ?? "")) return [];
-  return block.slice(header + 2).filter((line) => line.trim().startsWith("|")).map(cells)
-    .filter((row) => row.length === columns.length)
-    .map((row) => Object.fromEntries(columns.map((column, index) => [column, row[index]])));
+  const rowsOf = (block) => {
+    const header = block.findIndex((line) => line.trim().startsWith("|") && JSON.stringify(cells(line)) === JSON.stringify(columns));
+    if (header < 0 || !/^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?$/.test(block[header + 1] ?? "")) return [];
+    return block.slice(header + 2).filter((line) => line.trim().startsWith("|")).map(cells)
+      .filter((row) => row.length === columns.length)
+      .map((row) => Object.fromEntries(columns.map((column, index) => [column, row[index]])));
+  };
+  return rowsOf(start < 0 ? lines : lines.slice(start + 1, end < 0 ? lines.length : end));
 }
 
 function additionsOf(practices) {
