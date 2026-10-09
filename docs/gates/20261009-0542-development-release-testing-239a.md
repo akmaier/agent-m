@@ -8,7 +8,7 @@ decision: rejected
 on:
   - 038eba3d929524b4d967e7cd9859a2b434a3728b
   - https://github.com/akmaier/agent-m/pull/239
-date: 2026-10-09 05:42 UTC
+date: 2026-10-09 05:41:42 UTC
 ---
 # Development → Release testing: ITM-281
 
@@ -21,7 +21,7 @@ External PR decision publication remains pending human authorization; a decision
 ## Reason
 
 Original ITM-281 requires explicit practice additions in the existing model-table format. MOD-model-catalogue Data
-(lines56/71–73) permits tables under ## Adds without additional headings and permits a Produces kind followed by an
+(lines60/71–73) permits tables under ## Adds without additional headings and permits a Produces kind followed by an
 explanation in parentheses. Its Model contract (:84) carries kinds without their explanations. UC-002's postcondition
 and MOD-product-process.workflowOf derive the workflow only from the model, practices and process requirements.
 
