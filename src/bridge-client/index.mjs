@@ -4,6 +4,8 @@
 // Public: BridgeError, bridgeAt, pair, probe
 
 import { bridgeApi } from "../bridge-http/index.mjs";
+export { allocatePort, tunnelCommands } from "./tunnels.mjs";
+export { proxyConfiguration } from "./proxy.mjs";
 
 export class BridgeError extends Error {
   constructor(name, fields = {}, message = name) {
