@@ -46,17 +46,19 @@ async function renderBridge(store) { const target = document.createElement("div"
 // reverse, forward, service, Apache and nginx setup text without a request or process start.
 test("the public Bridge route persists a distinct remote session and renders canonical setup text", async () => {
   const store = freshStore();
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { origin: "https://published.example.test" } });
   writeSetting(store, "jump-host", { hostname: "jump.example.test", user: "agentm", sshPort: 22, portRange: [40100, 40102] });
-  writeSetting(store, "remote-session:alpha", { name: "alpha", port: 40100, bridgePort: 4711, token: "alpha-token" });
+  writeSetting(store, "remote-session:alpha", { port: 40100, token: "alpha-token" });
   globalThis.fetch = async () => { throw new Error("a setup screen must not request a network service"); };
   const route = await renderBridge(store);
   byClass(route, "remote-session-name")[0].value = "lab-pc";
   byClass(route, "remote-session-token")[0].value = "lab-token";
   await click(byClass(route, "remote-session-save")[0]);
-  assert.deepEqual(readSetting(store, "remote-session:lab-pc"), { name: "lab-pc", port: 40101, bridgePort: 4711, token: "lab-token" }, "the next session receives the lowest free inclusive port");
+  assert.deepEqual(readSetting(store, "remote-session:lab-pc"), { port: 40101, token: "lab-token" }, "the next session receives the lowest free inclusive port in its canonical record");
   assert.match(byClass(route, "remote-session-commands")[0].textContent, /-R 127\.0\.0\.1:40101:127\.0\.0\.1:4711/, "the reverse command uses the public loopback builder");
   assert.match(byClass(route, "remote-session-commands")[0].textContent, /-L 127\.0\.0\.1:40101:127\.0\.0\.1:40101/, "the forward command uses the public loopback builder");
   assert.match(byClass(route, "remote-session-proxy-apache")[0].textContent, /<Location "\/bridge\/lab-pc\/">/, "Apache configuration uses the session route");
+  assert.match(byClass(route, "remote-session-proxy-apache")[0].textContent, /Access-Control-Allow-Origin "https:\/\/published\.example\.test"/, "the proxy uses the actual served Pages origin");
   assert.match(byClass(route, "remote-session-proxy-nginx")[0].textContent, /location \/bridge\/lab-pc\//, "nginx configuration uses the session route");
   const reopened = await renderBridge(store);
   assert.equal(byClass(reopened, "remote-session-name")[0].value, "lab-pc", "the stored session is selected after reopen");

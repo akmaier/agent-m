@@ -50,13 +50,16 @@ function trustedHttpsAddress(value) {
 function remoteSessions(store) {
   return listSettings(store)
     .filter((setting) => setting.key.startsWith("remote-session:"))
-    .map((setting) => readSetting(store, setting.key))
-    .filter((session) => session && typeof session.name === "string");
+    .map((setting) => {
+      const session = readSetting(store, setting.key);
+      return session && typeof session === "object" ? { ...session, name: setting.key.slice("remote-session:".length) } : null;
+    })
+    .filter(Boolean);
 }
 
-function instanceOrigin(context) {
-  const owner = String(context.instance?.repository ?? "").split("/")[0];
-  return owner ? `https://${owner}.github.io` : null;
+function instanceOrigin() {
+  const origin = globalThis.location?.origin;
+  return typeof origin === "string" && origin.startsWith("https://") ? origin : null;
 }
 
 function usableJumpHost(jumpHost) {
@@ -92,7 +95,6 @@ export const route = {
     const remoteSessionName = el("input", "remote-session-name");
     const remoteSessionToken = el("input", "remote-session-token");
     const showRemoteSessionToken = el("button", "remote-session-show", "Show");
-    const remoteBridgePort = el("input", "remote-session-bridge-port");
     const remoteKey = el("input", "remote-session-reverse-key");
     const localKey = el("input", "remote-session-forward-key");
     const saveRemoteSession = el("button", "remote-session-save", "Save remote session");
@@ -122,8 +124,6 @@ export const route = {
     remoteSessionName.placeholder = "Remote session name";
     remoteSessionToken.type = "password";
     remoteSessionToken.placeholder = "Copied remote Bridge token";
-    remoteBridgePort.type = "number";
-    remoteBridgePort.value = "4711";
     remoteKey.placeholder = "Remote SSH key file";
     localKey.placeholder = "Local SSH key file";
     remoteKey.value = "~/.ssh/agent-m-remote";
@@ -141,14 +141,13 @@ export const route = {
       remoteSessionSelect.value = session?.name ?? "";
       remoteSessionName.value = session?.name ?? "";
       remoteSessionToken.value = session?.token ?? "";
-      remoteBridgePort.value = String(session?.bridgePort ?? 4711);
     }
     function renderRemoteSetup(session) {
       if (!session) { remoteCommands.textContent = ""; remoteApache.textContent = ""; remoteNginx.textContent = ""; return; }
       const jumpHost = readSetting(context.store, "jump-host");
-      const origin = instanceOrigin(context);
+      const origin = instanceOrigin();
       if (!usableJumpHost(jumpHost) || !origin) return;
-      const commands = tunnelCommands(jumpHost, session, session.bridgePort, { remote: remoteKey.value.trim(), local: localKey.value.trim() });
+      const commands = tunnelCommands(jumpHost, session, undefined, { remote: remoteKey.value.trim(), local: localKey.value.trim() });
       remoteCommands.textContent = `${commands.reverse}\n\n${commands.forward}\n\n${commands.service}`;
       const allSessions = remoteSessions(context.store);
       remoteApache.textContent = proxyConfiguration(jumpHost, allSessions, origin, "apache");
@@ -214,15 +213,15 @@ export const route = {
       const jumpHost = readSetting(context.store, "jump-host");
       const name = remoteSessionName.value.trim();
       const token = remoteSessionToken.value.trim();
-      const bridgePort = Number(remoteBridgePort.value);
       if (!usableJumpHost(jumpHost)) { remoteResult.textContent = "The jump host is required; set it up before adding a remote session."; return; }
-      if (!name || !token || !Number.isInteger(bridgePort) || bridgePort < 1 || bridgePort > 65535) { remoteResult.textContent = "Enter a remote-session name, copied Bridge token and Bridge port first."; return; }
+      if (!name || !token) { remoteResult.textContent = "Enter a remote-session name and copied Bridge token first."; return; }
       const current = remoteSessions(context.store);
       const previous = current.find((session) => session.name === name);
       try {
         const port = previous?.port ?? allocatePort(jumpHost.portRange, current);
-        const session = { name, port, bridgePort, token };
-        writeSetting(context.store, `remote-session:${name}`, session);
+        const stored = { port, token };
+        const session = { ...stored, name };
+        writeSetting(context.store, `remote-session:${name}`, stored);
         sessions.splice(0, sessions.length, ...remoteSessions(context.store));
         remoteSessionSelect.replaceChildren(...sessions.map((item) => el("option", null, item.name)));
         applyRemoteSession(session);
@@ -257,7 +256,6 @@ export const route = {
       el("p", null, el("label", null, "Stored session ", remoteSessionSelect)),
       el("p", null, el("label", null, "Session name ", remoteSessionName)),
       el("p", null, el("label", null, "Copied remote Bridge token ", remoteSessionToken, " ", showRemoteSessionToken)),
-      el("p", null, el("label", null, "Remote Bridge port ", remoteBridgePort)),
       el("p", null, el("label", null, "Remote SSH key file ", remoteKey)),
       el("p", null, el("label", null, "Local SSH key file ", localKey)),
       el("p", null, saveRemoteSession), remoteResult,
