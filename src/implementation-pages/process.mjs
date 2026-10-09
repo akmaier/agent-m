@@ -144,10 +144,9 @@ export const route = {
     // repository that ships them) adds "": nothing crashes, and nothing is shown for it.
     const practicesWithAdds = await Promise.all(cat.practices.map(async (practice) => {
       const text = await instanceSnapshot.read(practice.path);
-      const adds = text != null
-        ? readDocument(modelSchema.practice, practice.path, text).sections.find((section) => section.heading === "## Adds")?.text ?? ""
-        : "";
-      return { ...practice, adds };
+      const document = text != null ? readDocument(modelSchema.practice, practice.path, text) : null;
+      const adds = document?.sections.find((section) => section.heading === "## Adds")?.text ?? "";
+      return { ...practice, adds, document };
     }));
 
     target.replaceChildren();
@@ -242,7 +241,10 @@ export const route = {
     function renderPanels(model) {
       extra.replaceChildren();
       if (!model) return;
-      const workflow = workflowOf(declarationForWorkflow, model, [], instanceSpec);
+      const selectedPracticeNames = workflowOf(declarationForWorkflow, model, [], instanceSpec).practices;
+      const selectedPractices = practicesWithAdds.filter((practice) => selectedPracticeNames.includes(practice.name))
+        .map((practice) => practice.document).filter(Boolean);
+      const workflow = workflowOf(declarationForWorkflow, model, selectedPractices, instanceSpec);
 
       const rolesPanel = el("section", "roles-panel", el("h3", null, "Roles"), explain("roles-and-participants"));
       for (const role of workflow.roles) rolesPanel.append(roleInfo(role));
@@ -258,7 +260,7 @@ export const route = {
         el("ul", "verification-pairs", ...workflow.pairs.map((pair) =>
           el("li", null, `${pair.phase} checked by ${pair.checkedBy}`))),
         el("ul", "gates", ...workflow.gates.filter((gate) => !gate.addedBy).map((gate) =>
-          el("li", null, `${gate.name}: ${gate.artifacts} — ${gate.condition} — decided by ${gate.decider}`))),
+          el("li", null, `${gate.name}: ${gate.artifacts} — ${gate.condition} — decided by ${gate.decider}${gate.practice ? ` — practice: ${gate.practice}` : ""}`))),
         // F3: beside a branch, the gate at its end — merging it into the default branch (`WORK MERGES INTO THE
         // DEFAULT BRANCH UNLESS A BRANCH IS SET`), decided by the model's own gate that leaves the phase, or, for the
         // sprint, the model's own gate back to its first phase.

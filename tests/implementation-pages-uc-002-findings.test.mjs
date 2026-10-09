@@ -397,7 +397,7 @@ Fixture text.
 
 // A declaration text declaring fixture-sprint-model, with the given rows under ## Roles, ## Branches and, when given,
 // ## Gates added by requirements.
-function declarationText({ roles = [], branches = [], requirementGates = [] } = {}) {
+function declarationText({ roles = [], practices = ["none"], branches = [], requirementGates = [] } = {}) {
   const roleRows = roles.map(({ role, holders = [] }) => `| ${role} | ${holders.join(", ")} |`).join("\n");
   const branchRows = branches.map(({ at, branch }) => `| ${at} | ${branch} |`).join("\n");
   const requirementsSection = requirementGates.length
@@ -420,7 +420,7 @@ ${roleRows}
 
 ## Practices
 
-- none
+${practices.map((practice) => `- ${practice}`).join("\n")}
 
 ## Branches
 
@@ -570,6 +570,54 @@ test("process route — each practice is shown with what it adds, beside the mod
   assert.match(practicesPanel.textContent, /fixture addition: a continuous pipeline/, "what it adds is shown");
 
   target.remove();
+});
+
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE
+//         MODEL; MOD-implementation-pages
+// given: the same instance snapshot holds the selected devops practice with explicit model-table additions and a product
+//        declaration selecting it; a second declaration names no practice
+// input: route.render for each controlled snapshot
+// expect: only the selected declaration's workflow shows the practice phase, its produced artifact kind, role and marked gate;
+//         the model's own gates remain and the unselected declaration shows none of the practice additions
+test("process route — selected tabled practice additions enter the workflow and disappear when the selection changes", async () => {
+  const practiceAdds = `### Phases
+
+| Name | Role | Produces |
+|---|---|---|
+| Evidence review | Evidence keeper | TST |
+
+### Gates
+
+| Between | Artifacts | Condition | Decider |
+|---|---|---|---|
+| Development → Evidence review | evidence TST | evidence is reviewed | Owner |
+
+### Roles
+
+| Name | Filled by | Capabilities |
+|---|---|---|
+| Evidence keeper | either | read the repository |`;
+  const instanceHost = fakeHost(instanceFiles({ practiceAdds }), INSTANCE_COMMIT);
+  const selectedHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES, practices: ["devops"] }) },
+    sha1("practice-selected"));
+  const selectedTarget = connectedTarget();
+
+  await route.render(selectedTarget, contextOf(instanceHost, selectedHost));
+
+  const selected = byClass(selectedTarget, "workflow-extra")[0].textContent;
+  assert.match(selected, /Evidence review/, "the selected practice phase is in the workflow");
+  assert.match(selected, /Evidence keeper/, "the selected practice role is in the workflow");
+  assert.match(selected, /evidence TST/, "the phase's artifact addition is in the workflow");
+  assert.match(selected, /practice: devops/, "the practice gate is marked distinctly");
+  assert.match(selected, /Design → Build/, "the model's own gate remains");
+  selectedTarget.remove();
+
+  const unselectedHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES }) }, sha1("practice-unselected"));
+  const unselectedTarget = connectedTarget();
+  await route.render(unselectedTarget, contextOf(instanceHost, unselectedHost));
+  assert.doesNotMatch(byClass(unselectedTarget, "phases-panel")[0].textContent, /Evidence review/,
+    "a practice absent from the declaration adds nothing");
+  unselectedTarget.remove();
 });
 
 // ---------------------------------------------------------------- F5: a process requirement's gate, the phases it stands between
