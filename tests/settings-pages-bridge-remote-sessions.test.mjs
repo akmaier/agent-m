@@ -6,8 +6,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { view } from "../src/settings-pages/index.mjs";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { testDeclarations } from "../src/test-document/index.mjs";
+import { traceGraph, tracesTo } from "../src/trace-graph/index.mjs";
 
 class Element extends EventTarget {
   constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.parentNode = null; }
@@ -36,9 +39,7 @@ async function renderBridge(store) { const target = document.createElement("div"
 // TST-287001
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE;
-// THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS;
-// A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; A STORED SECRET IS HIDDEN UNTIL SHOWN.
+// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; A STORED SECRET IS HIDDEN UNTIL SHOWN.
 // given: canonical jump-host storage has 40100–40102 and its first remote session occupies 40100.
 // input: the public Bridge route saves the named second session with its copied token and is reopened.
 // expect: it stores remote-session:lab-pc at lowest free port 40101, reloads its hidden token, and renders the public
@@ -62,13 +63,17 @@ test("the public Bridge route persists a distinct remote session and renders can
   assert.equal(byClass(reopened, "remote-session-token")[0].type, "password", "a stored remote-session token remains hidden");
   await click(byClass(reopened, "remote-session-show")[0]);
   assert.equal(byClass(reopened, "remote-session-token")[0].type, "text", "Show alone reveals the selected session token");
+  const path = "tests/settings-pages-bridge-remote-sessions.test.mjs";
+  const source = { paths: ["SPEC.md", path], read: (file) => readFile(file, "utf8") };
+  const declarations = testDeclarations(path, await readFile(new URL(import.meta.url), "utf8"));
+  assert.ok(declarations.every((declaration) => declaration.level && declaration.module && declaration.guards?.length && declaration.given && declaration.input && declaration.expect), "the final cases have readable canonical declarations");
+  assert.deepEqual(tracesTo(await traceGraph(source), "EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE").tests.sort(), ["TST-287001", "TST-287002"], "the graph traces both final remote-session guards");
 });
 
 // TST-287002
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE;
-// THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS.
+// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS.
 // given: a canonical one-port jump-host range already belongs to an existing session, then no jump host at all.
 // input: the public Bridge route is asked to save another named remote session in each state.
 // expect: exhaustion and missing setup are named, no remote-session record is written, and neither state claims a tunnel
