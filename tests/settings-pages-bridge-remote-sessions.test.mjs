@@ -42,9 +42,8 @@ async function renderBridge(store) { const target = document.createElement("div"
 // guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; A STORED SECRET IS HIDDEN UNTIL SHOWN.
 // given: canonical jump-host storage has 40100–40102 and its first remote session occupies 40100.
 // input: the public Bridge route saves the named second session with its copied token and is reopened.
-// expect: it stores remote-session:lab-pc at lowest free port 40101, reloads its hidden token, and renders the public
-// reverse, forward, service, Apache and nginx setup text without a request or process start.
-test("the public Bridge route persists a distinct remote session and renders canonical setup text", async () => {
+// expect: it stores remote-session:lab-pc at lowest free port 40101, reloads its hidden token, and renders the public reverse, forward, service, Apache and nginx setup text without a request or process start.
+test("TST-287001: the public Bridge route persists a distinct remote session and renders canonical setup text", async () => {
   const store = freshStore();
   Object.defineProperty(globalThis, "location", { configurable: true, value: { origin: "https://published.example.test" } });
   writeSetting(store, "jump-host", { hostname: "jump.example.test", user: "agentm", sshPort: 22, portRange: [40100, 40102] });
@@ -78,9 +77,8 @@ test("the public Bridge route persists a distinct remote session and renders can
 // guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS.
 // given: a canonical one-port jump-host range already belongs to an existing session, then no jump host at all.
 // input: the public Bridge route is asked to save another named remote session in each state.
-// expect: exhaustion and missing setup are named, no remote-session record is written, and neither state claims a tunnel
-// or tested HTTPS connection.
-test("the public Bridge route names exhausted and setup-required remote-session states without a tunnel claim", async () => {
+// expect: exhaustion and missing setup are named, no remote-session record is written, and neither state claims a tunnel or tested HTTPS connection.
+test("TST-287002: the public Bridge route names exhausted and setup-required remote-session states without a tunnel claim", async () => {
   const store = freshStore();
   writeSetting(store, "jump-host", { hostname: "jump.example.test", user: "agentm", sshPort: 22, portRange: [40100, 40100] });
   writeSetting(store, "remote-session:alpha", { name: "alpha", port: 40100, bridgePort: 4711, token: "alpha-token" });
