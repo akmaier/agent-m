@@ -42,6 +42,8 @@ test("TST-282901: public canonical plans allocate, command and proxy each config
       assert.match(text, /location \/bridge\/alpha\/ \{[\s\S]*auth_basic[\s\S]*auth_basic_user_file[\s\S]*proxy_pass http:\/\/127\.0\.0\.1:40100\//);
       assert.match(text, /if \(\$http_origin != "https:\/\/owner\.github\.io"\) \{ return 403; \}[\s\S]*if \(\$request_method = OPTIONS\) \{[\s\S]*return 204;/);
     }
+    for (const session of sessions) assert.match(text, server === "apache" ? new RegExp(`ProxyPass "\\/bridge\\/${session.name}\\/" "http:\\/\\/127\\.0\\.0\\.1:${session.port}\\/"`) : new RegExp(`location \\/bridge\\/${session.name}\\/ \\{[\\s\\S]*proxy_pass http:\\/\\/127\\.0\\.0\\.1:${session.port}\\/`));
+    for (const session of sessions) assert.equal(text.includes(session.token), false, `${server} excludes ${session.name}'s constructed token`);
     assert.equal(text.includes("constructed-token-a") || text.includes("constructed-password"), false);
   }
 });
