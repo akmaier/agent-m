@@ -21,6 +21,11 @@ test("TST-282901: public canonical plans allocate, command and proxy each config
   assert.match(commands.reverse, /-R 127\.0\.0\.1:40100:127\.0\.0\.1:4715/);
   assert.match(commands.forward, /-L 127\.0\.0\.1:40100:127\.0\.0\.1:40100/);
   assert.match(commands.reverse + commands.forward, /ServerAliveInterval/);
+  assert.deepEqual(commands.plans, [
+    { direction: "reverse", jumpHost: "jump.example.test", user: "bridge", sshPort: 2222, remotePort: 40100, bind: "127.0.0.1", bridgePort: 4715, keyFile: "remote.key" },
+    { direction: "forward", jumpHost: "jump.example.test", user: "bridge", sshPort: 2222, remotePort: 40100, bind: "127.0.0.1", bridgePort: 4715, keyFile: "local.key" },
+  ]);
+  assert.match(commands.service, /remote\.key[\s\S]*127\.0\.0\.1:40100:127\.0\.0\.1:4715/);
   assert.equal(JSON.stringify(commands.plans).includes("constructed-token-a"), false);
   for (const server of ["apache", "nginx"]) {
     const text = proxyConfiguration(host, sessions, "https://owner.github.io", server);
@@ -31,6 +36,8 @@ test("TST-282901: public canonical plans allocate, command and proxy each config
     assert.match(text, /certificate/i); assert.match(text, /key/i); assert.match(text, /https/i);
     assert.match(text, /https:\/\/owner\.github\.io/); assert.doesNotMatch(text, /Access-Control-Allow-Origin[^\n]*\*/);
     assert.match(text, /OPTIONS/); assert.match(text, /204/); assert.match(text, /403/);
+    assert.match(text, server === "apache" ? /AuthType Basic[\s\S]*Require valid-user/ : /auth_basic[\s\S]*auth_basic_user_file/);
+    assert.match(text, server === "apache" ? /ProxyPass "\/bridge\/alpha\/" "http:\/\/127\.0\.0\.1:40100\// : /location \/bridge\/alpha\/ \{[\s\S]*proxy_pass http:\/\/127\.0\.0\.1:40100\//);
     assert.equal(text.includes("constructed-token-a") || text.includes("constructed-password"), false);
   }
 });
