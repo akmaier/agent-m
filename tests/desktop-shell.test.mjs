@@ -13,6 +13,7 @@ const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-electron-44");
 let runtimeFailure;
 let virtualDisplayFailure;
+let windowManagerFailure;
 const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
 const tokenOf = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
 const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
@@ -50,7 +51,17 @@ const electronCommand = (executable, arguments_) => {
     virtualDisplayFailure = new Error(`Linux virtual display probe failed; status=${probe.status}; signal=${probe.signal}; error=${probe.error?.code ?? "none"}; stderr=${scrub(probe.stderr)}`);
     throw virtualDisplayFailure;
   }
-  return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", executable, ...arguments_] };
+  const manager = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (manager.status !== 0) {
+    if (windowManagerFailure) throw windowManagerFailure;
+    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    const available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+    if (install.status !== 0 || available.status !== 0) {
+      windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install-status=${install.status}; install-signal=${install.signal}; install-error=${install.error?.code ?? "none"}; install-stderr=${scrub(install.stderr)}; probe-status=${available.status}; probe-signal=${available.signal}; probe-error=${available.error?.code ?? "none"}; probe-stderr=${scrub(available.stderr)}`);
+      throw windowManagerFailure;
+    }
+  }
+  return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", "sh", "-c", "openbox >/dev/null 2>&1 & wm=$!; trap 'kill \"$wm\" 2>/dev/null; wait \"$wm\" 2>/dev/null' EXIT INT TERM; \"$@\"; status=$?; exit \"$status\"", "agent-m-xvfb-openbox", executable, ...arguments_] };
 };
 
 const cdp = async (url, method, params = {}) => {
