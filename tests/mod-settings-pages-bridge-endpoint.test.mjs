@@ -41,6 +41,7 @@ function fill(target, setting, name = "local") {
   byClass(target, "endpoint-model")[0].value = setting.model;
   byClass(target, "endpoint-key")[0].value = setting.key;
   byClass(target, "endpoint-through-bridge")[0].checked = true;
+  byClass(target, "endpoint-through-bridge")[0].dispatchEvent(new Event("change"));
 }
 const LOCAL = { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "local-model", key: "endpoint-key", throughBridge: true };
 const ARGS = { name: "local", kind: LOCAL.kind, baseUrl: LOCAL.url, model: LOCAL.model, key: LOCAL.key };
@@ -52,7 +53,7 @@ const json = (status, body, headers = {}) => new Response(JSON.stringify(body), 
 // guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; THE PAGE STATES WHAT IT SENDS WHERE; A CREDENTIAL IS NEVER PLACED IN A URL
 // input/precondition: a paired loopback Bridge and a local endpoint entered on the public endpoints Route
 // expected: Save precedes one disclosed Bridge endpoint-test call, whose canonical args contain the endpoint key only in JSON, then the actual answer marks it working
-// Planted fault: retaining the former throughBridge early return makes the Bridge-call assertion fail.
+// Planted fault: replacing the Bridge probe with testEndpoint makes the Bridge-route assertion fail.
 test("TST-269001: a local endpoint saves then probes only its paired Bridge", async (t) => {
   const store = freshStore(), calls = [];
   const oldFetch = globalThis.fetch;
@@ -81,7 +82,7 @@ test("TST-269001: a local endpoint saves then probes only its paired Bridge", as
 // guards: UC-003 alternative 4b; CONFIGURATION LIVES IN THE BROWSER
 // input/precondition: a paired Bridge answers endpoint-test with a provider key refusal
 // expected: the provider diagnosis is shown, the endpoint key remains stored, and reload reads the refused key
-// Planted fault: replacing the probe answer with a generic Bridge error makes the provider-message assertion fail.
+// Planted fault: replacing the provider diagnosis with generic text makes the provider-message assertion fail.
 test("TST-269002: a provider refusal through Bridge remains a stored provider diagnosis", async (t) => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = async () => json(200, { answer: { works: false, diagnosis: { reason: "key refused", message: "Provider says key is invalid.", routes: [] } } });
@@ -102,7 +103,7 @@ test("TST-269002: a provider refusal through Bridge remains a stored provider di
 // guards: UC-003 alternative 2a; UC-044; CONFIGURATION LIVES IN THE BROWSER
 // input/precondition: no paired Bridge is stored and a local endpoint is completed
 // expected: Save retains the endpoint, makes no direct or Bridge request, and offers the actionable pairing handoff without success
-// Planted fault: calling testEndpoint when Bridge setup is absent makes the zero-request assertion fail.
+// Planted fault: removing the public Bridge setup action makes the handoff assertion fail.
 test("TST-269003: absent Bridge setup retains the endpoint and directs the author to pairing", async (t) => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   let calls = 0;
@@ -125,7 +126,7 @@ test("TST-269003: absent Bridge setup retains the endpoint and directs the autho
 // guards: UC-003 alternative 2a; UC-044; AN UNSUPPORTED ENDPOINT SAYS SO
 // input/precondition: a paired Bridge rejects its token, then an unavailable Bridge gives no answer
 // expected: each named Bridge failure is actionable and neither is presented as a provider answer or success
-// Planted fault: collapsing Bridge errors into resultText's provider diagnosis makes the named-failure assertions fail.
+// Planted fault: collapsing TokenRefused into a generic Bridge failure makes the named-failure assertion fail.
 test("TST-269004: refused and unavailable Bridges stay distinct from provider diagnoses", async (t) => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   let mode = "refused";
@@ -138,7 +139,7 @@ test("TST-269004: refused and unavailable Bridges stay distinct from provider di
   let target = await render(store); fill(target, LOCAL); await click(byClass(target, "endpoint-test")[0]);
   assert.match(byClass(target, "endpoint-result")[0].textContent, /refused.*token|token.*refused/i);
   mode = "unavailable";
-  target = await render(store); await click(byClass(target, "endpoint-test")[0]);
+  target = await render(store, { name: "local" }); await click(byClass(target, "endpoint-test")[0]);
   assert.match(byClass(target, "endpoint-result")[0].textContent, /gave no answer|not running|wrong address/i);
   assert.doesNotMatch(byClass(target, "endpoint-result")[0].textContent, /working/i);
 });
