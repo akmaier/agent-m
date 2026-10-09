@@ -10,7 +10,7 @@
 // It opens no SSH tunnel and does not claim an HTTPS route or a desktop-shell integration.
 
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -25,7 +25,7 @@ const STATES = [
 async function running(t, { paused = () => false, tunnels = {} } = {}) {
   const folder = await mkdtemp(join(tmpdir(), "agent-m-tunnel-state-"));
   const bridge = await serveBridge({ host: "127.0.0.1", port: 0, origin: ORIGIN, dataFolder: folder, paused }, { jobs: {}, mail: {}, tunnels });
-  t.after(() => bridge.close());
+  t.after(async () => { await bridge.close(); await rm(folder, { recursive: true, force: true }); });
   return { ...bridge, folder };
 }
 
@@ -34,9 +34,12 @@ async function request(bridge, path = "/v1/tunnels", { method = "GET", origin = 
 }
 
 // TST-285001
-// Precondition: a paired loopback Bridge has a supplied tunnels route that returns constructed states.
-// Input: the paired Pages origin sends GET /v1/tunnels.
-// Expected result: protocol data names the GET route and the exact handler state/reason array is returned once.
+// level: unit
+// module: MOD-bridge-http
+// guards: UC-044; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN
+// given: a paired loopback Bridge has a supplied tunnels route that returns constructed states
+// input: the paired Pages origin sends GET /v1/tunnels
+// expect: protocol data names the GET route and the exact handler state/reason array is returned once
 test("TST-285001: GET tunnels dispatches exact constructed states through the route data", async (t) => {
   const seen = [];
   const bridge = await running(t, { tunnels: { "GET /v1/tunnels": async (request_) => { seen.push(request_); return { tunnels: STATES }; } } });
@@ -49,9 +52,12 @@ test("TST-285001: GET tunnels dispatches exact constructed states through the ro
 });
 
 // TST-285002
-// Precondition: one paired Bridge has an explicit empty tunnels handler and another has no tunnels handler.
-// Input: each receives GET /v1/tunnels with its current pairing token.
-// Expected result: the explicit empty result is successful; an absent handler remains the named 404, never an invented empty list.
+// level: unit
+// module: MOD-bridge-http
+// guards: UC-044; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: one paired Bridge has an explicit empty tunnels handler and another has no tunnels handler
+// input: each receives GET /v1/tunnels with its current pairing token
+// expect: the explicit empty result is successful; an absent handler remains the named 404, never an invented empty list
 test("TST-285002: an explicit empty state differs from an absent tunnels handler", async (t) => {
   const empty = await running(t, { tunnels: { "GET /v1/tunnels": async () => ({ tunnels: [] }) } });
   const emptyResponse = await request(empty);
@@ -65,9 +71,12 @@ test("TST-285002: an explicit empty state differs from an absent tunnels handler
 });
 
 // TST-285003
-// Precondition: paired Bridges have tunnels handlers that fail with an accepted code or an ordinary error.
-// Input: GET /v1/tunnels reaches each handler.
-// Expected result: the accepted error keeps its mapping and an untyped failure is upstream-failed.
+// level: unit
+// module: MOD-bridge-http
+// guards: UC-044; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: paired Bridges have tunnels handlers that fail with an accepted code or an ordinary error
+// input: GET /v1/tunnels reaches each handler
+// expect: the accepted error keeps its mapping and an untyped failure is upstream-failed
 test("TST-285003: tunnels handler failures retain the server error mapping", async (t) => {
   const named = await running(t, { tunnels: { "GET /v1/tunnels": async () => { const error = new Error("tunnel plan refused"); error.code = "invalid-request"; throw error; } } });
   const namedResponse = await request(named);
@@ -81,9 +90,12 @@ test("TST-285003: tunnels handler failures retain the server error mapping", asy
 });
 
 // TST-285004
-// Precondition: a paired Bridge has a tunnels handler and its token can rotate while the server is running.
-// Input: a paired preflight, a foreign-origin GET, a missing-token GET, then old and current tokens after rotation.
-// Expected result: only the allowed preflight and current-token same-origin GET can reach the handler.
+// level: unit
+// module: MOD-bridge-http
+// guards: UC-044; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE
+// given: a paired Bridge has a tunnels handler and its token can rotate while the server is running
+// input: a paired preflight, a foreign-origin GET, a missing-token GET, then old and current tokens after rotation
+// expect: only the allowed preflight and current-token same-origin GET can reach the handler
 test("TST-285004: tunnels keeps origin, preflight and current-token protections after rotation", async (t) => {
   let calls = 0;
   const bridge = await running(t, { tunnels: { "GET /v1/tunnels": async () => { calls += 1; return { tunnels: [] }; } } });
@@ -102,9 +114,12 @@ test("TST-285004: tunnels keeps origin, preflight and current-token protections 
 });
 
 // TST-285005
-// Precondition: a paused paired Bridge has a tunnels state handler and the existing endpoint-test work handler.
-// Input: GET /v1/tunnels followed by the existing POST endpoint-test probe.
-// Expected result: read-only tunnel state remains readable while the old work-starting POST still answers paused.
+// level: unit
+// module: MOD-bridge-http
+// guards: UC-044; THE LOCAL BRIDGE REQUIRES A TOKEN
+// given: a paused paired Bridge has a tunnels state handler and the existing endpoint-test work handler
+// input: GET /v1/tunnels followed by the existing POST endpoint-test probe
+// expect: read-only tunnel state remains readable while the old work-starting POST still answers paused
 test("TST-285005: paused Bridges expose tunnel state but retain paused POST refusal", async (t) => {
   let tunnelCalls = 0;
   const bridge = await running(t, { paused: () => true, tunnels: { "GET /v1/tunnels": async () => { tunnelCalls += 1; return { tunnels: STATES }; } } });
@@ -118,9 +133,12 @@ test("TST-285005: paused Bridges expose tunnel state but retain paused POST refu
 });
 
 // TST-285006
-// Precondition: a paired Bridge's request logger is captured and its tunnels handler returns a constructed empty state.
-// Input: GET /v1/tunnels carries an extra credential-shaped header.
-// Expected result: the route is logged with method/path/status only; no token, header value or handler result is logged.
+// level: unit
+// module: MOD-bridge-http
+// guards: UC-044; THE LOCAL BRIDGE REQUIRES A TOKEN
+// given: a paired Bridge's request logger is captured and its tunnels handler returns a constructed empty state
+// input: GET /v1/tunnels carries an extra credential-shaped header
+// expect: the route is logged with method/path/status only; no token, header value or handler result is logged
 test("TST-285006: tunnel-state request logging excludes token and headers", async (t) => {
   const lines = [], previous = console.info;
   console.info = (...values) => lines.push(values.join(" "));
