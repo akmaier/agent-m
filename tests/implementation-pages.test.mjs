@@ -422,9 +422,25 @@ const LINKS = `# Fixture product's linked sources
 
 // An instance snapshot with the participants, the fixture model, the instance's SPEC, and, when `linked` is given, the
 // fixture source entry.
-function instanceFiles({ withSource = false } = {}) {
-  const files = { "docs/participants.md": PARTICIPANTS, [FIXTURE_MODEL_PATH]: FIXTURE_MODEL, "SPEC.md": SPEC_TEXT };
+function instanceFiles({ withSource = false, practiceAdds = null, participants = PARTICIPANTS } = {}) {
+  const files = { "docs/participants.md": participants, [FIXTURE_MODEL_PATH]: FIXTURE_MODEL, "SPEC.md": SPEC_TEXT };
   if (withSource) files[SOURCE_PATH] = SOURCE_ENTRY;
+  if (practiceAdds !== null) files["src/model-catalogue/practices/devops.md"] = `---
+name: devops
+fits:
+  - scrum
+  - kanban
+---
+# DevOps
+
+## Adds
+
+${practiceAdds}
+
+## What it is
+
+Fixture practice.
+`;
   return files;
 }
 
@@ -928,6 +944,73 @@ test("process route — Save commits docs/process.md once, naming model_version 
   assert.equal(saved.fields.model_file, FIXTURE_MODEL_PATH);
   assert.equal(saved.fields.model_version, INSTANCE_COMMIT);
 
+  target.remove();
+});
+
+// guards: UC-002; A PRACTICE IS NOT A MODEL; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY;
+//         MOD-implementation-pages
+// given: one valid Scrum declaration rendered through the public route with no selected practice; the same instance snapshot
+//        carries devops' explicit gate table, and the route's normal form caller edits ## Practices
+// input: select devops, deselect it, then press the form's one Save
+// expect: the live workflow gains then loses the marked gate before any write; the one save writes docs/process.md only and
+//         preserves the final no-practice selection
+test("process route — changing a practice in one live form updates the workflow before Save and Save preserves the selection", async () => {
+  const practiceAdds = `| Between | Artifacts | Condition | Decider |
+|---|---|---|---|
+| Development → Evidence review | evidence TST | evidence is reviewed | Product Owner |`;
+  const participants = PARTICIPANTS.replace("draft text, write to the repository", "draft text, read the repository, write to the repository");
+  const declaration = `---
+model: scrum
+model_file: src/model-catalogue/models/scrum.md
+model_version: ${INSTANCE_COMMIT}
+---
+# How the fixture product is developed
+
+## Roles
+
+| Role | Participants |
+|---|---|
+| Product Owner | alice |
+| Scrum Master | alice |
+| Developers | alice |
+
+## Practices
+
+- none
+
+## Branches
+
+| Phase or time box | Branch |
+|---|---|
+
+## Definition of Done
+
+The job rules hold; no condition is added.
+`;
+  const instanceHost = fakeHost(instanceFiles({ practiceAdds, participants }), INSTANCE_COMMIT);
+  const productHost = fakeHost({ "docs/process.md": declaration }, sha1("live-practice-selection"));
+  const target = connectedTarget();
+
+  await route.render(target, contextOf(instanceHost, productHost));
+  const form = byClass(target, "schema-form")[0];
+  const phases = () => byClass(target, "phases-panel")[0].textContent;
+  assert.doesNotMatch(phases(), /practice: devops/, "known positive: no practice gate starts in the workflow");
+  assert.equal(saveOf(form).disabled, false, "known positive: the valid declaration can be saved");
+
+  type(areaOf(form, "## Practices"), "\n- devops\n");
+  await turn();
+  assert.match(phases(), /practice: devops/, "the selected practice gate enters before Save");
+  assert.equal(productHost.commits.length, 0, "selection writes nothing before Save");
+
+  type(areaOf(form, "## Practices"), "\n- none\n");
+  await turn();
+  assert.doesNotMatch(phases(), /practice: devops/, "deselecting removes the practice gate before Save");
+  assert.equal(productHost.commits.length, 0, "deselection still writes nothing before Save");
+
+  await click(saveOf(form));
+  assert.equal(productHost.commits.length, 1, "one Save writes once");
+  assert.deepEqual(productHost.commits[0].files.map((file) => file.path), ["docs/process.md"], "Save writes the declaration only");
+  assert.match(productHost.commits[0].files[0].text, /## Practices\n\n- none/, "Save preserves the final practice selection");
   target.remove();
 });
 

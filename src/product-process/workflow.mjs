@@ -1,12 +1,12 @@
-// The workflow of a product (MOD-product-process, Interfaces: Workflow, workflowOf): what its declared model, and the gates
-// its process requirements add, make of it — and nothing else (THE MODEL DETERMINES THE PHASES AND THE GATES, A PROCESS
-// REQUIREMENT ADDS TO THE MODEL). ITM-218 builds it; index.mjs offers workflowOf.
+// The workflow of a product (MOD-product-process, Interfaces: Workflow, workflowOf): what its declared model, practices,
+// and process requirements add — and nothing else (THE MODEL DETERMINES THE PHASES AND THE GATES, A PRACTICE IS NOT A MODEL,
+// A PROCESS REQUIREMENT ADDS TO THE MODEL). index.mjs offers workflowOf.
 //
 // Module: MOD-product-process
 //
-// A practice's additions do not enter the workflow yet: a shipped practice states its `## Adds` in words only, so no gate is
-// marked with a practice. The Definition of Done is the job rules of the module file's Data, then the conditions the
-// declaration adds (THE DEFAULT DEFINITION OF DONE IS THE JOB RULES).
+// A practice contributes only explicit model-table data below ## Adds. Its prose stays readable on the page but creates no
+// workflow entry. The Definition of Done is the job rules of the module file's Data, then the conditions the declaration
+// adds (THE DEFAULT DEFINITION OF DONE IS THE JOB RULES).
 
 import { parseSpec } from "../spec-document/index.mjs";
 import { addedGatesOf, branchesOf, conditionsOf, practicesOf, rolesOf } from "./declaration.mjs";
@@ -21,6 +21,46 @@ const JOB_RULES = [
   "every gate the workflow places before the merge is recorded",
 ];
 
+const text = (value) => (typeof value === "string" ? value : "");
+const EXPLAINED = /[ \t]*\([^()]*\)\s*$/;
+const kindOf = (produced) => produced.replace(EXPLAINED, "").trim();
+
+// The explicit model-table data in a practice's ## Adds, optionally under its matching level-three heading. Its explanation
+// is otherwise free text, so only a table with exactly the model-table columns becomes workflow data.
+function additionsTable(document, heading, columns) {
+  const adds = document.sections.find((section) => section.heading === "## Adds")?.text ?? "";
+  const lines = adds.split("\n");
+  const start = lines.findIndex((line) => line.trim() === `### ${heading}`);
+  const end = lines.findIndex((line, index) => index > start && /^###[#]?[ \t]/.test(line));
+  const cells = (line) => line.trim().replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim());
+  const rowsOf = (block) => {
+    const header = block.findIndex((line) => line.trim().startsWith("|") && JSON.stringify(cells(line)) === JSON.stringify(columns));
+    if (header < 0 || !/^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?$/.test(block[header + 1] ?? "")) return [];
+    const body = [];
+    for (const line of block.slice(header + 2)) {
+      if (!line.trim().startsWith("|")) break;
+      body.push(line);
+    }
+    return body.map(cells).filter((row) => row.length === columns.length)
+      .map((row) => Object.fromEntries(columns.map((column, index) => [column, row[index]])));
+  };
+  return rowsOf(start < 0 ? lines : lines.slice(start + 1, end < 0 ? lines.length : end));
+}
+
+function additionsOf(practices) {
+  return practices.map((document) => ({
+    practice: text(document.fields.name),
+    phases: additionsTable(document, "Phases", ["Name", "Role", "Produces"]),
+    gates: additionsTable(document, "Gates", ["Between", "Artifacts", "Condition", "Decider"]),
+    roles: additionsTable(document, "Roles", ["Name", "Filled by", "Capabilities"]),
+  }));
+}
+
+function between(written) {
+  const at = written.indexOf("→");
+  return at < 0 ? { from: written, to: "" } : { from: written.slice(0, at).trim(), to: written.slice(at + 1).trim() };
+}
+
 /**
  * workflowOf(declaration: Document, model: Model, practices: Document[], instanceSpec: string) -> Workflow — the model's
  * phases, transitions, verification pairs and gates, each gate named `<phase> → <phase>`; then the gates and their artifacts
@@ -29,7 +69,8 @@ const JOB_RULES = [
  * that SPEC does not hold stays, with the source null, and declarationFindings names it —; nothing else enters the workflow.
  * With them: the practices the declaration names, the model's roles with the participants `## Roles` assigns to each, the
  * branch `## Branches` sets for each phase or time box, and the Definition of Done — the job rules, then each condition the
- * declaration adds. A practice adds nothing yet: `practices` is not read.
+ * declaration adds. A selected practice contributes only its explicit `### Phases`, `### Gates` and `### Roles` model tables
+ * below `## Adds`; a phase's `Produces` is its artifact addition, and a practice gate names its practice.
  * @param {Document} declaration — the product's docs/process.md, as readDocument returns it with declarationSchema
  * @param {Model} model — the declared model, as the catalogue at the commit the declaration names gives it
  * @param {Document[]} practices — the declared practices' files, read with MOD-model-catalogue's practice schema
@@ -39,10 +80,16 @@ const JOB_RULES = [
 export function workflowOf(declaration, model, practices, instanceSpec) {
   const requirements = parseSpec(instanceSpec).requirements;
   const roles = rolesOf(declaration);
+  const selected = new Set(practicesOf(declaration).map((practice) => practice.name));
+  const additions = additionsOf(practices.filter((practice) => selected.has(text(practice.fields.name))));
   return {
     model,
-    practices: practicesOf(declaration).map((practice) => practice.name),
-    phases: model.phases.map(({ name, role, produces }) => ({ name, role, produces: [...produces] })),
+    practices: [...selected],
+    phases: [
+      ...model.phases.map(({ name, role, produces }) => ({ name, role, produces: [...produces] })),
+      ...additions.flatMap(({ phases }) => phases.map((phase) =>
+        ({ name: phase.Name, role: phase.Role, produces: phase.Produces.split(",").map(kindOf).filter(Boolean) }))),
+    ],
     transitions: model.transitions.map(({ from, to, kind }) => ({ from, to, kind })),
     pairs: model.pairs.map(({ phase, checkedBy }) => ({ phase, checkedBy })),
     gates: [
@@ -51,9 +98,19 @@ export function workflowOf(declaration, model, practices, instanceSpec) {
       ...addedGatesOf(declaration).map(({ requirement, from, to, artifacts, condition, decider }) =>
         ({ name: requirement, from, to, artifacts, condition, decider,
           addedBy: { requirement, source: requirements.get(requirement)?.source ?? null }, practice: null })),
+      ...additions.flatMap(({ practice, gates }) => gates.map((gate) => {
+        const { from, to } = between(gate.Between);
+        return { name: `${from} → ${to}`, from, to, artifacts: gate.Artifacts, condition: gate.Condition,
+          decider: gate.Decider, addedBy: null, practice };
+      })),
     ],
-    roles: model.roles.map(({ name, filledBy, capabilities }) => ({ name, filledBy, capabilities: [...capabilities],
-      holders: roles.find((row) => row.role === name)?.holders ?? [] })),
+    roles: [
+      ...model.roles.map(({ name, filledBy, capabilities }) => ({ name, filledBy, capabilities: [...capabilities],
+        holders: roles.find((row) => row.role === name)?.holders ?? [] })),
+      ...additions.flatMap(({ roles: added }) => added.map((role) => ({ name: role.Name, filledBy: role["Filled by"],
+        capabilities: role.Capabilities.split(",").map((capability) => capability.trim()).filter(Boolean),
+        holders: roles.find((row) => row.role === role.Name)?.holders ?? [] }))),
+    ],
     branches: Object.fromEntries(branchesOf(declaration).map(({ at, branch }) => [at, branch])),
     done: [...JOB_RULES, ...conditionsOf(declaration)],
   };

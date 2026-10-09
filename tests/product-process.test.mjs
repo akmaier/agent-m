@@ -25,8 +25,8 @@
 //
 // Not tested here, since ITM-218 leaves them out: holdsRole, gateSchema, gateStates, mayDecide, recordGateDecision,
 // doneCheck and processStrategies; a holder lacking a capability its role needs, and the warning about a holder at a place a
-// linked source does not permit — both go through MOD-participant-list's eligible —; and a practice's additions, which
-// workflowOf does not add (a shipped practice states its `## Adds` in words only).
+// linked source does not permit — both go through MOD-participant-list's eligible. Explicit practice tables are covered;
+// shipped practices whose Adds are prose still contribute no workflow data.
 //
 // The fixture product declares an instance model, docs/process-models/team-scrum.md — Scrum adapted so that its Product
 // Owner must be a person —, at the commit VERSION. Its Catalogue is the one MOD-model-catalogue's catalogue gives over the
@@ -621,6 +621,96 @@ test("workflowOf — nothing else enters the workflow: a declared practice adds 
   assert.deepEqual(workflowOf(declarationOf(unheld), model, [], INSTANCE_SPEC), expected);
 });
 
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE
+//         MODEL
+// given: the known-positive team-scrum model and its process-requirement gate; a declaration selecting evidence-practice;
+//        and an accepted practice Document whose ## Adds has model-table-form phases, gates and roles
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: the practice's phase, its produced artifact kind, its role and its gate enter the workflow; the gate is marked
+//         with that practice while the existing model and requirement gates retain their own attribution
+test("workflowOf — an explicitly tabled practice adds its phase, artifact, role and marked gate beside the model and requirement gates", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/evidence-practice.md", `---
+name: evidence-practice
+fits:
+  - team-scrum
+---
+# Evidence practice
+
+## Adds
+
+### Phases
+
+| Name | Role | Produces |
+|---|---|---|
+| Evidence review | Evidence keeper | TST |
+
+### Gates
+
+| Between | Artifacts | Condition | Decider |
+|---|---|---|---|
+| Development → Evidence review | evidence TST | the evidence is reviewed | Product Owner |
+
+### Roles
+
+| Name | Filled by | Capabilities |
+|---|---|---|
+| Evidence keeper | either | read the repository |
+
+## What it is
+
+Fixture practice.
+`);
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- evidence-practice"));
+
+  const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
+
+  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", role: "Evidence keeper", produces: ["TST"] });
+  assert.deepEqual(workflow.roles.at(-1), {
+    name: "Evidence keeper", filledBy: "either", capabilities: ["read the repository"], holders: [],
+  });
+  assert.deepEqual(workflow.gates.at(-1), {
+    name: "Development → Evidence review", from: "Development", to: "Evidence review", artifacts: "evidence TST",
+    condition: "the evidence is reviewed", decider: "Product Owner", addedBy: null, practice: "evidence-practice",
+  });
+  assert.equal(workflow.gates[0].practice, null, "the model gate stays attributed to the model");
+  assert.deepEqual(workflow.gates[2].addedBy, { requirement: "UNIT VERIFICATION IS DOCUMENTED", source: "SRC-iec-62304, 5.5.5" });
+});
+
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// given: the same selected practice, but its valid ## Adds holds the model's gate table directly, with no extra heading
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: the exact model-schema table still adds its marked gate; prose and unrecognised text stay outside the workflow
+test("workflowOf — a valid practice gate table directly under Adds enters the workflow without an invented heading", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/bare-gate.md", `---
+name: bare-gate
+fits:
+  - team-scrum
+---
+# Bare gate
+
+## Adds
+
+| Between | Artifacts | Condition | Decider |
+|---|---|---|---|
+| Development → Evidence review | evidence TST | evidence is reviewed | Product Owner |
+
+## What it is
+
+Fixture practice.
+`);
+  assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the schema accepts the bare table");
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- bare-gate"));
+
+  const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
+
+  assert.deepEqual(workflow.gates.at(-1), {
+    name: "Development → Evidence review", from: "Development", to: "Evidence review", artifacts: "evidence TST",
+    condition: "evidence is reviewed", decider: "Product Owner", addedBy: null, practice: "bare-gate",
+  });
+});
+
 // guards: UC-002; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES; A PRODUCT DECLARES ITS DEFINITION OF DONE
 // given: known positive first — the fixture product's declaration with its ## Definition of Done (line 32) adding the
 //        condition `review: 1 by participants other than the implementer`; then the declaration as it stands, whose
@@ -638,4 +728,72 @@ test("workflowOf — the job rules are the Definition of Done when the declarati
   const added = workflowOf(declarationOf(replaced(DECLARATION, 32, sentence, review)), model, [], INSTANCE_SPEC);
   assert.deepEqual(added.done, [...JOB_RULES, review]);
   assert.deepEqual(workflowOf(declarationOf(DECLARATION), model, [], INSTANCE_SPEC).done, JOB_RULES);
+});
+
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// given: a schema-valid selected practice whose bare ## Adds phase table names a documented artifact kind
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: the phase produces the kind TST, without the explanatory parenthesis
+ test("workflowOf — a practice phase drops its Produces explanation as the model reader does", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/evidence-kind.md", `---
+name: evidence-kind
+fits:
+  - team-scrum
+---
+# Evidence kind
+
+## Adds
+
+| Name | Role | Produces |
+|---|---|---|
+| Evidence review | Evidence keeper | TST (evidence from the review) |
+
+## What it is
+
+Fixture practice.
+`);
+  assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the practice document is valid");
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- evidence-kind"));
+  assert.deepEqual(workflowOf(declaration, model, [practice], INSTANCE_SPEC).phases.at(-1), {
+    name: "Evidence review", role: "Evidence keeper", produces: ["TST"],
+  });
+});
+
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// given: a schema-valid selected practice whose bare ## Adds holds consecutive Phases and Roles model tables
+// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+// expect: each contiguous table contributes only to its matching workflow collection
+ test("workflowOf — consecutive bare phase and role tables do not cross into each other", async () => {
+  const model = await teamScrum();
+  const practice = readDocument(modelSchema.practice, "docs/practices/bare-tables.md", `---
+name: bare-tables
+fits:
+  - team-scrum
+---
+# Bare tables
+
+## Adds
+
+| Name | Role | Produces |
+|---|---|---|
+| Evidence review | Evidence keeper | TST |
+
+| Name | Filled by | Capabilities |
+|---|---|---|
+| Evidence keeper | either | read the repository |
+
+## What it is
+
+Fixture practice.
+`);
+  assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the practice document is valid");
+  const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- bare-tables"));
+  const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
+  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", role: "Evidence keeper", produces: ["TST"] });
+  assert.equal(workflow.phases.length, model.phases.length + 1, "only the phase table adds a phase");
+  assert.deepEqual(workflow.roles.at(-1), {
+    name: "Evidence keeper", filledBy: "either", capabilities: ["read the repository"], holders: [],
+  });
+  assert.equal(workflow.roles.length, model.roles.length + 1, "only the role table adds a role");
 });
