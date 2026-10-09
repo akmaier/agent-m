@@ -10,7 +10,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 const source = new URL("../src/tunnels/index.mjs", import.meta.url).href;
-const ssh2Cache = "/private/tmp/agent-m-286-ssh2-1.17.0";
+const ssh2Cache = join(tmpdir(), "agent-m-286-ssh2-1.17.0");
 
 function run(command, arguments_, options = {}) {
   const result = spawnSync(command, arguments_, { encoding: "utf8", timeout: 40_000, ...options });
