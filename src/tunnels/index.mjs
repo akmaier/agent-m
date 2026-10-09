@@ -60,6 +60,17 @@ function failure(error) {
   if (text.includes("host key") || text.includes("host-key")) return "host-key-changed";
   return "host-unreachable";
 }
+function knownHostVerifier(dataFolder, host, entry) {
+  const path = join(dataFolder, "ssh", "known-jump-hosts");
+  return (key) => {
+    const value = Buffer.isBuffer(key) ? key.toString("base64") : String(key);
+    let known = {};
+    try { known = JSON.parse(readFileSync(path, "utf8")); } catch { /* first connection */ }
+    if (known[host] && known[host] !== value) { entry.hostKeyChanged = true; return false; }
+    if (!known[host]) { known[host] = value; writeFileSync(path, JSON.stringify(known), { mode: 0o600 }); }
+    return true;
+  };
+}
 function closeEntry(entry) {
   clearTimeout(entry.timer);
   entry.server?.close();
@@ -87,12 +98,12 @@ function reconnect(entry) {
   });
   const fail = (error) => failEntry(entry, error);
   client.once("error", fail).once("close", () => { if (!entry.closed && entry.state.state === "open") fail(new Error("connection closed")); });
-  client.connect({ host: entry.plan.jumpHost, port: entry.plan.sshPort ?? 22, username: entry.plan.user, privateKey: entry.privateKey, keepaliveInterval: 30_000, hostVerifier: () => true });
+  client.connect({ host: entry.plan.jumpHost, port: entry.plan.sshPort ?? 22, username: entry.plan.user, privateKey: entry.privateKey, keepaliveInterval: 30_000, hostVerifier: knownHostVerifier(entry.dataFolder, entry.plan.jumpHost, entry) });
 }
 function failEntry(entry, error) {
   if (entry.closed) return;
   entry.state.state = "failed";
-  entry.state.reason = failure(error);
+  entry.state.reason = entry.hostKeyChanged ? "host-key-changed" : failure(error);
   entry.timer = setTimeout(() => reconnect(entry), entry.wait);
   entry.wait = Math.min(entry.wait * 2, 30_000);
 }
@@ -106,7 +117,7 @@ export async function openTunnels(dataFolder, plans, bridgePort) {
       const error = new Error("Reverse tunnel bind must be loopback."); error.name = "NotLoopback"; throw error;
     }
     const state = { name: stateName(plan), kind: plan.direction, state: "opening", reason: null };
-    const entry = { plan: { ...plan, bridgePort: plan.bridgePort ?? bridgePort }, state, privateKey, publicKey: key.publicKey, closed: false, wait: 100, timer: null, client: null, server: null };
+    const entry = { plan: { ...plan, bridgePort: plan.bridgePort ?? bridgePort }, state, dataFolder, privateKey, publicKey: key.publicKey, closed: false, wait: 100, timer: null, client: null, server: null };
     active.set(state.name, entry);
     reconnect(entry);
   }
