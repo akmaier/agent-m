@@ -136,8 +136,9 @@ const click = (page, label) => evaluate(page.webSocketDebuggerUrl, `[...document
 // Input: inspect the actual renderer's exposed surface and pair once through the real displayed loopback address.
 // Expected: the fork-local window has only the fixed preload controls and no Node globals; the address is loopback;
 // the configured origin and private token pair, while another origin is refused.
-// Planted fault: changing the `127.0.0.1` host in src/desktop-shell/compose.mjs to `0.0.0.0` makes the displayed
-// loopback-address assertion fail; restoring that byte-exact source makes this positive pass.
+// Planted fault: changing the `127.0.0.1` host in src/desktop-shell/compose.mjs to `0.0.0.0` reaches the real
+// server BindRefused check before token creation, so the private-token precondition fails; restoring that byte-exact
+// source makes this positive pass.
 test("TST-276901: actual forked Electron source keeps its renderer private and pairs only on configured loopback", { timeout: 60000, concurrency: false }, async () => {
   const app = await launch();
   try {
