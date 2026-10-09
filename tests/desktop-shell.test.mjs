@@ -25,15 +25,29 @@ const within = async (promise, name) => {
   finally { clearTimeout(timeout); }
 };
 const acquireNativeFixtureLock = async () => {
-  for (let n = 0; n < 240; n += 1) {
+  for (let n = 0; n <= 40000 / 125; n += 1) {
     try { mkdirSync(nativeFixtureLock); nativeFixtureLockHeld = true; return; }
     catch (failure) { if (failure.code !== "EEXIST") throw failure; }
     await new Promise((resolve) => setTimeout(resolve, 125));
   }
   throw new Error("Timed out waiting for the native Electron fixture lock.");
 };
-before(acquireNativeFixtureLock);
-after(() => { if (nativeFixtureLockHeld) rmdirSync(nativeFixtureLock); });
+const releaseNativeFixtureLock = () => { if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; } };
+const commandEvidence = (stage, result) => {
+  const evidence = { stage, status: result.status, signal: result.signal, error: result.error?.code ?? null, stdout: scrub(result.stdout), stderr: scrub(result.stderr) };
+  process.stdout.write(`native-fixture ${JSON.stringify(evidence)}\n`);
+  return evidence;
+};
+const prepareNativeFixture = async () => {
+  const executable = await runtime();
+  await acquireNativeFixtureLock();
+  try {
+    electronCommand(executable, []);
+    process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
+  } finally { releaseNativeFixtureLock(); }
+};
+before(prepareNativeFixture);
+after(releaseNativeFixtureLock);
 
 async function runtime() {
   const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
@@ -43,7 +57,8 @@ async function runtime() {
   const installed = join(electronCache, "node_modules/electron");
   const acquire = (stage, command, arguments_) => {
     const started = Date.now(), result = spawnSync(command, arguments_, { encoding: "utf8", timeout: 40000 });
-    if (result.status !== 0) throw new Error(`Electron ${stage} failed after ${Date.now() - started}ms; status=${result.status}; signal=${result.signal}; error=${result.error?.code ?? "none"}; stderr=${scrub(result.stderr)}`);
+    const evidence = commandEvidence(`Electron ${stage}`, result);
+    if (result.status !== 0) throw new Error(`Electron ${stage} failed after ${Date.now() - started}ms; ${JSON.stringify(evidence)}`);
   };
   try {
     if (!existsSync(executableOf(installed))) {
@@ -59,24 +74,29 @@ const electronCommand = (executable, arguments_) => {
   if (process.platform !== "linux") return { command: executable, arguments_ };
   if (virtualDisplayFailure) throw virtualDisplayFailure;
   const probe = spawnSync("xvfb-run", ["--help"], { encoding: "utf8", timeout: 5000 });
+  const displayEvidence = commandEvidence("Linux virtual display probe", probe);
   if (probe.status !== 0) {
-    virtualDisplayFailure = new Error(`Linux virtual display probe failed; status=${probe.status}; signal=${probe.signal}; error=${probe.error?.code ?? "none"}; stderr=${scrub(probe.stderr)}`);
+    virtualDisplayFailure = new Error(`Linux virtual display probe failed; ${JSON.stringify(displayEvidence)}`);
     throw virtualDisplayFailure;
   }
   const manager = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  commandEvidence("Linux Openbox initial probe", manager);
   if (manager.status !== 0) {
     if (windowManagerFailure) throw windowManagerFailure;
     const started = Date.now(), install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    const installEvidence = commandEvidence("Linux Openbox install", install);
     let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+    let availableEvidence = commandEvidence("Linux Openbox ready probe", available);
     const locked = install.status !== 0 && /lock-frontend/.test(String(install.stderr));
     if (locked) {
       for (let n = 0; n < 160 && available.status !== 0; n += 1) {
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
         available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+        availableEvidence = commandEvidence("Linux Openbox ready probe", available);
       }
     }
     if ((!locked && install.status !== 0) || available.status !== 0) {
-      windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install-status=${install.status}; install-signal=${install.signal}; install-error=${install.error?.code ?? "none"}; install-stderr=${scrub(install.stderr)}; probe-status=${available.status}; probe-signal=${available.signal}; probe-error=${available.error?.code ?? "none"}; probe-stderr=${scrub(available.stderr)}`);
+      windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install=${JSON.stringify(installEvidence)}; probe=${JSON.stringify(availableEvidence)}`);
       throw windowManagerFailure;
     }
   }
