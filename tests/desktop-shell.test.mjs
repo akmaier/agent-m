@@ -1,16 +1,18 @@
 // Module: MOD-desktop-shell
 // Guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
 // Level: component
-import test from "node:test";
+import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
-const electronCache = join(tmpdir(), "agent-m-276-electron-44");
+const electronCache = join(tmpdir(), "agent-m-276-component-electron-44");
+const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
+let nativeFixtureLockHeld = false;
 let runtimeFailure;
 let virtualDisplayFailure;
 let windowManagerFailure;
@@ -22,6 +24,16 @@ const within = async (promise, name) => {
   try { return await Promise.race([promise, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error(`${name} timed out.`)), 5000); })]); }
   finally { clearTimeout(timeout); }
 };
+const acquireNativeFixtureLock = async () => {
+  for (let n = 0; n < 240; n += 1) {
+    try { mkdirSync(nativeFixtureLock); nativeFixtureLockHeld = true; return; }
+    catch (failure) { if (failure.code !== "EEXIST") throw failure; }
+    await new Promise((resolve) => setTimeout(resolve, 125));
+  }
+  throw new Error("Timed out waiting for the native Electron fixture lock.");
+};
+before(acquireNativeFixtureLock);
+after(() => { if (nativeFixtureLockHeld) rmdirSync(nativeFixtureLock); });
 
 async function runtime() {
   const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
@@ -55,8 +67,15 @@ const electronCommand = (executable, arguments_) => {
   if (manager.status !== 0) {
     if (windowManagerFailure) throw windowManagerFailure;
     const started = Date.now(), install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
-    const available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
-    if (install.status !== 0 || available.status !== 0) {
+    let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+    const locked = install.status !== 0 && /lock-frontend/.test(String(install.stderr));
+    if (locked) {
+      for (let n = 0; n < 160 && available.status !== 0; n += 1) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+        available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+      }
+    }
+    if ((!locked && install.status !== 0) || available.status !== 0) {
       windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install-status=${install.status}; install-signal=${install.signal}; install-error=${install.error?.code ?? "none"}; install-stderr=${scrub(install.stderr)}; probe-status=${available.status}; probe-signal=${available.signal}; probe-error=${available.error?.code ?? "none"}; probe-stderr=${scrub(available.stderr)}`);
       throw windowManagerFailure;
     }
