@@ -146,6 +146,12 @@ test("TST-288003: Settings locks imports with a passphrase and leaves malformed 
   await change(input);
   await waitFor(() => readSetting(destination, "bridge") !== null);
   assert.deepEqual(readSetting(destination, "bridge"), SETTINGS.bridge);
+  const wrong = freshStore(), wrongTarget = await render(wrong), wrongBefore = wrong.storage.snapshot();
+  byClass(wrongTarget, "settings-import-passphrase")[0].value = "wrong passphrase";
+  const wrongFile = byClass(wrongTarget, "settings-import-file")[0]; wrongFile.files = [{ text: async () => locked }];
+  await change(wrongFile);
+  await waitFor(() => /passphrase.*wrong/i.test(byClass(wrongTarget, "settings-import-result")[0].textContent));
+  assert.deepEqual(wrong.storage.snapshot(), wrongBefore, "WrongPassphrase restores the exact clean destination bytes");
   const clean = freshStore(), cleanTarget = await render(clean), before = clean.storage.snapshot();
   const malformed = byClass(cleanTarget, "settings-import-file")[0]; malformed.files = [{ text: async () => "{ malformed" }];
   await change(malformed);
