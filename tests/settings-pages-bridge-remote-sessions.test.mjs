@@ -34,8 +34,9 @@ function bridgeRoute() { const route = view.routes.find((candidate) => candidate
 async function renderBridge(store) { const target = document.createElement("div"); await bridgeRoute().render(target, { instance: { repository: "fixture/instance" }, store }); return target; }
 
 // TST-287001
-// Module: MOD-settings-pages
-// Guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE;
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE;
 // THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS;
 // A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; A STORED SECRET IS HIDDEN UNTIL SHOWN.
 // given: canonical jump-host storage has 40100–40102 and its first remote session occupies 40100.
@@ -64,8 +65,9 @@ test("the public Bridge route persists a distinct remote session and renders can
 });
 
 // TST-287002
-// Module: MOD-settings-pages
-// Guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE;
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE;
 // THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS.
 // given: a canonical one-port jump-host range already belongs to an existing session, then no jump host at all.
 // input: the public Bridge route is asked to save another named remote session in each state.
