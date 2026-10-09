@@ -45,9 +45,9 @@ const commandEvidence = (stage, result) => {
 };
 const prepareNativeFixture = async () => {
   const executable = await runtime();
+  electronCommand(executable, []);
   await acquireNativeFixtureLock();
   try {
-    electronCommand(executable, []);
     process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
   } catch (failure) { releaseNativeFixtureLock(); throw failure; }
 };
