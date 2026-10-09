@@ -5,8 +5,8 @@
 // Level: component
 // Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; AN UNSUPPORTED ENDPOINT SAYS SO
 //
-// Counter-proof: the public dashboard's endpoint Route currently supplies a context.go that handles only
-// `endpoints`. Consequently the final setup action below leaves #endpoints instead of selecting #bridge.
+// Counter-proof: omitting the endpoint Route's `bridge` mapping from its context.go makes this handoff leave
+// #endpoints instead of selecting #bridge; the mapping is restored byte-for-byte after that failure.
 
 import test from "node:test";
 import assert from "node:assert/strict";
