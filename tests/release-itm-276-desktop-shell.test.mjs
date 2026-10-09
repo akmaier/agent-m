@@ -15,7 +15,7 @@ import { createServer } from "node:net";
 import test from "node:test";
 
 const root = new URL("..", import.meta.url).pathname;
-const electronCache = join(tmpdir(), "agent-m-276-electron-44");
+const electronCache = join(tmpdir(), "agent-m-276-release-electron-44");
 let runtimeFailure;
 let virtualDisplayFailure;
 let windowManagerFailure;
