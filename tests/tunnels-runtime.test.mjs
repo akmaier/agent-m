@@ -1,9 +1,6 @@
 // Module: MOD-tunnels
 // Guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; UC-011; UC-044
 // Level: unit
-// Participant: developer-terra-a
-// Model: gpt-5.6-terra
-// Version: ssh2@1.17.0
 
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
@@ -13,7 +10,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 const source = new URL("../src/tunnels/index.mjs", import.meta.url).href;
-const ssh2Cache = join(tmpdir(), "agent-m-286-ssh2-1.17.0");
+const ssh2Cache = "/private/tmp/agent-m-286-ssh2-1.17.0";
 
 function run(command, arguments_, options = {}) {
   const result = spawnSync(command, arguments_, { encoding: "utf8", timeout: 40_000, ...options });
