@@ -32,7 +32,8 @@ function runtime() {
     await new Promise((resolve, reject) => server.listen(0, "127.0.0.1", (error) => error ? reject(error) : resolve()));
     const client = new Client();
     await new Promise((resolve, reject) => client.once("ready", resolve).once("error", reject).connect({ host: "127.0.0.1", port: server.address().port, username: "fixture", password: "fixture", hostVerifier: () => true }));
-    client.end(); await new Promise((resolve) => server.close(resolve));
+    const closed = new Promise((resolve) => client.once("close", resolve));
+    client.end(); await closed; await new Promise((resolve) => server.close(resolve));
     console.log("ssh2-loopback-known-positive");
   `], { env: { ...process.env, NODE_PATH: join(ssh2Cache, "node_modules") } });
   assert.match(positive.stdout, /ssh2-loopback-known-positive/);
