@@ -9,43 +9,51 @@ function sharedHeader(origin) {
   return origin;
 }
 
-function apache(jumpHost, sessions, origin) {
-  const blocks = sessions.map((session) => {
-    const path = pathOf(session), upstream = `http://127.0.0.1:${session.port}`;
+function apache(sessions, origin) {
+  const originExpression = `expr=%{HTTP:Origin} == '${origin}'`;
+  const routes = sessions.map((session) => {
+    const path = `${pathOf(session)}/`, upstream = `http://127.0.0.1:${session.port}/`;
     return [
       `<Location "${path}">`,
       "  AuthType Basic",
       "  AuthName \"Agent M jump host\"",
       "  AuthUserFile /etc/agent-m/jump-host.htpasswd",
       "  Require valid-user",
-      `  Header always set Access-Control-Allow-Origin \"${origin}\"`,
-      "  Header always set Access-Control-Allow-Methods \"GET, POST, OPTIONS\"",
-      "  Header always set Access-Control-Allow-Headers \"Authorization, Content-Type, X-Agent-M-Bridge-Token\"",
-      "  RewriteEngine On",
-      "  RewriteCond %{REQUEST_METHOD} =OPTIONS",
-      "  RewriteRule ^ - [R=204,L]",
-      `  ProxyPass \"${upstream}\"`,
-      `  ProxyPassReverse \"${upstream}\"`,
       "</Location>",
+      `ProxyPass \"${path}\" \"${upstream}\"`,
+      `ProxyPassReverse \"${path}\" \"${upstream}\"`,
     ].join("\n");
   });
   return [
     "# HTTPS only: use a trusted certificate from an authority the browser trusts; self-signed certificates do not work.",
     "<VirtualHost *:443>",
     "  SSLEngine on",
-    ...blocks.map((block) => `  ${block.replace(/\n/g, "\n  ")}`),
+    "  SSLCertificateFile /etc/agent-m/jump-host-cert.pem",
+    "  SSLCertificateKeyFile /etc/agent-m/jump-host-key.pem",
+    `  Header always set Access-Control-Allow-Origin \"${origin}\" \"${originExpression}\"`,
+    `  Header always set Access-Control-Allow-Methods \"GET, POST, OPTIONS\" \"${originExpression}\"`,
+    `  Header always set Access-Control-Allow-Headers \"Authorization, Content-Type, X-Agent-M-Bridge-Token\" \"${originExpression}\"`,
+    "  RewriteEngine On",
+    `  RewriteCond %{HTTP:Origin} !^${origin.replace(/[./]/g, "\\$&")}$`,
+    "  RewriteCond %{REQUEST_METHOD} =OPTIONS",
+    "  RewriteRule ^/bridge/ - [R=403,L]",
+    `  RewriteCond %{HTTP:Origin} ^${origin.replace(/[./]/g, "\\$&")}$`,
+    "  RewriteCond %{REQUEST_METHOD} =OPTIONS",
+    "  RewriteRule ^/bridge/ - [R=204,L]",
+    ...routes.map((route) => `  ${route.replace(/\n/g, "\n  ")}`),
     "</VirtualHost>",
   ].join("\n");
 }
 
-function nginx(jumpHost, sessions, origin) {
+function nginx(sessions, origin) {
   const blocks = sessions.map((session) => {
-    const path = pathOf(session), upstream = `http://127.0.0.1:${session.port}`;
+    const path = `${pathOf(session)}/`, upstream = `http://127.0.0.1:${session.port}/`;
     return [
-      `location = ${path} {`,
+      `location ${path} {`,
       "  auth_basic \"Agent M jump host\";",
       "  auth_basic_user_file /etc/agent-m/jump-host.htpasswd;",
       "  if ($request_method = OPTIONS) {",
+      `    if ($http_origin != \"${origin}\") { return 403; }`,
       `    add_header Access-Control-Allow-Origin \"${origin}\" always;`,
       "    add_header Access-Control-Allow-Methods \"GET, POST, OPTIONS\" always;",
       "    add_header Access-Control-Allow-Headers \"Authorization, Content-Type, X-Agent-M-Bridge-Token\" always;",
@@ -69,7 +77,7 @@ function nginx(jumpHost, sessions, origin) {
 export function proxyConfiguration(jumpHost, sessions, instanceOrigin, server) {
   const origin = sharedHeader(instanceOrigin);
   if (!Array.isArray(sessions) || sessions.length === 0) throw new TypeError("at least one remote session is required");
-  if (server === "apache") return apache(jumpHost, sessions, origin);
-  if (server === "nginx") return nginx(jumpHost, sessions, origin);
+  if (server === "apache") return apache(sessions, origin);
+  if (server === "nginx") return nginx(sessions, origin);
   throw new TypeError("server is apache or nginx");
 }

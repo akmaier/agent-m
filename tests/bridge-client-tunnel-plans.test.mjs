@@ -88,26 +88,37 @@ test("TST-282003: proxyConfiguration emits authenticated instance-only Apache an
     assert.doesNotMatch(configuration, new RegExp(jumpHost.login.password));
 
     for (const session of sessions) {
-      const path = `/bridge/${session.name}`;
+      const path = `/bridge/${session.name}/`;
       const at = configuration.indexOf(path);
       const end = server === "apache" ? configuration.indexOf("</Location>", at) : configuration.indexOf("\n}", at);
       const block = configuration.slice(at, end < 0 ? configuration.length : end);
       assert.ok(at >= 0, `${server} names ${path}`);
       assert.match(block, server === "apache" ? /AuthType Basic[\s\S]*Require valid-user/ : /auth_basic[\s\S]*auth_basic_user_file/,
         `${server} protects ${path} before handling it`);
-      assert.match(block, /Access-Control-Allow-Origin "https:\/\/owner\.github\.io"/,
-        `${server} allows only the configured instance origin for ${path}`);
-      assert.doesNotMatch(block, /Access-Control-Allow-Origin[^\n]*\*/, `${server} does not wildcard ${path}'s CORS`);
+      assert.doesNotMatch(configuration, /Access-Control-Allow-Origin[^\n]*\*/, `${server} does not wildcard ${path}'s CORS`);
       if (server === "apache") {
-        assert.match(block, /RewriteCond %\{REQUEST_METHOD\} =OPTIONS[\s\S]*RewriteRule \^ - \[R=204,L\]/,
-          `Apache returns ${path}'s OPTIONS preflight itself`);
-        assert.ok(block.indexOf("RewriteRule ^ - [R=204,L]") < block.indexOf("ProxyPass"),
-          `Apache ends ${path}'s OPTIONS request before proxy mapping`);
+        assert.match(configuration, /SSLCertificateFile[\s\S]*SSLCertificateKeyFile/, "Apache names both TLS certificate files");
+        assert.match(configuration, /Header always set Access-Control-Allow-Origin "https:\/\/owner\.github\.io" "expr=%\{HTTP:Origin\} == 'https:\/\/owner\.github\.io'"/,
+          `Apache allows only the configured instance origin for ${path}`);
+        assert.match(configuration, /RewriteCond %\{HTTP:Origin\} !\^https:\\\/\\\/owner\\\.github\\\.io\$[\s\S]*RewriteRule \^\/bridge\/ - \[R=403,L\]/,
+          "Apache refuses a foreign OPTIONS origin before proxy mapping");
+        assert.match(configuration, /RewriteCond %\{HTTP:Origin\} \^https:\\\/\\\/owner\\\.github\\\.io\$[\s\S]*RewriteCond %\{REQUEST_METHOD\} =OPTIONS[\s\S]*RewriteRule \^\/bridge\/ - \[R=204,L\]/,
+          `Apache returns ${path}'s allowed OPTIONS preflight in vhost context`);
+        assert.match(configuration, new RegExp(`ProxyPass "${path}" "http://127\\.0\\.0\\.1:${session.port}/"`),
+          `Apache strips ${path} before forwarding the /v1 suffix`);
       } else {
+        assert.match(configuration, new RegExp(`location ${path.replace(/[/.]/g, "\\$&")} \\{`),
+          `nginx uses a prefix location so ${path} accepts /v1 route suffixes`);
+        assert.match(block, /Access-Control-Allow-Origin "https:\/\/owner\.github\.io"/,
+          `nginx allows only the configured instance origin for ${path}`);
         assert.match(block, /if \(\$request_method = OPTIONS\) \{[\s\S]*return 204;/,
           `nginx returns ${path}'s OPTIONS preflight itself`);
+        assert.match(block, /if \(\$http_origin != "https:\/\/owner\.github\.io"\) \{ return 403; \}/,
+          `nginx refuses ${path}'s foreign OPTIONS preflight`);
         assert.ok(block.indexOf("return 204;") < block.indexOf("proxy_pass"),
           `nginx ends ${path}'s OPTIONS request before proxy forwarding`);
+        assert.match(block, new RegExp(`proxy_pass http://127\\.0\\.0\\.1:${session.port}/;`),
+          `nginx strips ${path} before forwarding the /v1 suffix`);
       }
     }
     assert.doesNotMatch(configuration, /https:\/\/evil\.example/);
