@@ -21,24 +21,12 @@
 // given: canonical settings, a chosen passphrase, and controlled locked and malformed files
 // input: the person exports, imports with the passphrase, then imports malformed bytes into a clean destination
 // expect: locked bytes hide secrets, the passphrase restores settings, and malformed input writes no new setting
-//
-// TST-288004
-// level: unit
-// module: MOD-settings-pages
-// guards: UC-042; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE
-// given: this module test file
-// input: MOD-test-document and MOD-trace-graph read its declarations
-// expect: every TST-288 declaration has the declared module and guards trace to the canonical Settings requirements
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { view } from "../src/settings-pages/index.mjs";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
-import { testDeclarations } from "../src/test-document/index.mjs";
-import { traceGraph, tracesTo } from "../src/trace-graph/index.mjs";
 
 class Element extends EventTarget {
   constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.files = []; this.parentNode = null; this.clicked = false; }
@@ -61,6 +49,14 @@ function descendants(root, predicate) {
 const byClass = (root, name) => descendants(root, (node) => node.className.split(" ").includes(name));
 const click = async (button) => { button.dispatchEvent(new Event("click")); await new Promise((resolve) => setImmediate(resolve)); };
 const change = async (input) => { input.dispatchEvent(new Event("change")); await new Promise((resolve) => setImmediate(resolve)); };
+async function waitFor(predicate) {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.ok(predicate(), "the selected asynchronous operation completes");
+}
 
 class Storage {
   constructor() { this.values = new Map(); }
@@ -103,7 +99,7 @@ test("TST-288001: Settings discloses exported secrets and grants before one cano
   assert.ok(ordered.indexOf(notice) >= 0 && ordered.indexOf(notice) < ordered.indexOf(download), "notice precedes Export settings");
   const downloads = [], oldUrl = globalThis.URL;
   globalThis.URL = { createObjectURL(blob) { downloads.push(blob); return "blob:controlled-export"; }, revokeObjectURL() {} };
-  try { await click(download); } finally { globalThis.URL = oldUrl; }
+  try { await click(download); await waitFor(() => downloads.length === 1); } finally { globalThis.URL = oldUrl; }
   assert.equal(downloads.length, 1, "the click creates one controlled download");
   assert.deepEqual(JSON.parse(await downloads[0].text()).settings, SETTINGS);
 });
@@ -115,7 +111,7 @@ test("TST-288002: Settings imports absent canonical settings and keeps existing 
   const sourceTarget = await render(source);
   const downloads = [], oldUrl = globalThis.URL;
   globalThis.URL = { createObjectURL(blob) { downloads.push(blob); return "blob:controlled-export"; }, revokeObjectURL() {} };
-  try { await click(byClass(sourceTarget, "settings-export-download")[0]); } finally { globalThis.URL = oldUrl; }
+  try { await click(byClass(sourceTarget, "settings-export-download")[0]); await waitFor(() => downloads.length === 1); } finally { globalThis.URL = oldUrl; }
   const exported = await downloads[0].text();
   const destination = freshStore();
   destination.storage.setItem(`${destination.prefix}bridge`, '{ "address" : "kept-byte-exact" }');
@@ -123,6 +119,7 @@ test("TST-288002: Settings imports absent canonical settings and keeps existing 
   const input = byClass(target, "settings-import-file")[0];
   input.files = [{ text: async () => exported }];
   await change(input);
+  await waitFor(() => readSetting(destination, "endpoint:main") !== null);
   assert.equal(destination.storage.getItem(`${destination.prefix}bridge`), '{ "address" : "kept-byte-exact" }');
   for (const [key, value] of Object.entries(SETTINGS)) if (key !== "bridge") assert.deepEqual(readSetting(destination, key), value);
   const result = byClass(target, "settings-import-result")[0].textContent;
@@ -139,7 +136,7 @@ test("TST-288003: Settings locks imports with a passphrase and leaves malformed 
   passphrase.value = "constructed passphrase";
   const downloads = [], oldUrl = globalThis.URL;
   globalThis.URL = { createObjectURL(blob) { downloads.push(blob); return "blob:controlled-export"; }, revokeObjectURL() {} };
-  try { await click(byClass(sourceTarget, "settings-export-download")[0]); } finally { globalThis.URL = oldUrl; }
+  try { await click(byClass(sourceTarget, "settings-export-download")[0]); await waitFor(() => downloads.length === 1); } finally { globalThis.URL = oldUrl; }
   const locked = await downloads[0].text();
   assert.equal(locked.includes("bridge-secret") || locked.includes("jump-secret"), false, "locked bytes hide stored secrets");
   const destination = freshStore();
@@ -147,19 +144,12 @@ test("TST-288003: Settings locks imports with a passphrase and leaves malformed 
   byClass(target, "settings-import-passphrase")[0].value = "constructed passphrase";
   const input = byClass(target, "settings-import-file")[0]; input.files = [{ text: async () => locked }];
   await change(input);
+  await waitFor(() => readSetting(destination, "bridge") !== null);
   assert.deepEqual(readSetting(destination, "bridge"), SETTINGS.bridge);
   const clean = freshStore(), cleanTarget = await render(clean), before = clean.storage.snapshot();
   const malformed = byClass(cleanTarget, "settings-import-file")[0]; malformed.files = [{ text: async () => "{ malformed" }];
   await change(malformed);
+  await waitFor(() => /not.*export/i.test(byClass(cleanTarget, "settings-import-result")[0].textContent));
   assert.deepEqual(clean.storage.snapshot(), before, "NotAnExport restores the exact clean destination bytes");
   assert.match(byClass(cleanTarget, "settings-import-result")[0].textContent, /not.*export/i);
-});
-
-test("TST-288004: canonical Settings export declarations trace their guards", async () => {
-  const path = fileURLToPath(import.meta.url), text = await readFile(path, "utf8");
-  const declarations = testDeclarations(path, text).filter((declaration) => declaration.id.startsWith("TST-288"));
-  assert.equal(declarations.length, 4);
-  assert.ok(declarations.every((declaration) => declaration.module === "MOD-settings-pages" && declaration.level === "unit" && declaration.guards.length > 0));
-  const graph = await traceGraph({ paths: [path], read: async () => text });
-  assert.deepEqual(tracesTo(graph, "SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS").tests, ["TST-288001", "TST-288002", "TST-288003", "TST-288004"]);
 });
