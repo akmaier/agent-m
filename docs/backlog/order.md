@@ -15,6 +15,12 @@ goes to the item that first needs it.
 
 Browser notifications (UC-047) are implemented and tested. ITM-236 names the delivered implementation and automated guards; ITM-237 links [akmaier's browser-test confirmation](../measurements/2026-10-09_notifications-confirmed-by-akmaier.md).
 
+The current goals are complete UC-003, UC-002 and UC-047, with UC-003 first, together with the mobile-compatible Settings
+tabs of ITM-290. Sprints continue through those outcomes. Once they are complete, the Product Owner assesses the actual
+implementation against the full accepted UC-004, UC-005 and UC-006 and fills this backlog with the necessary remaining
+work, ordered by delivered interfaces. Existing items and working behavior are considered before adding items; those
+later use cases are not implicitly selected in the current sprint.
+
 | Item |
 |---|
 | ITM-203 |
