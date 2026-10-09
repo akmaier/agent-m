@@ -1,10 +1,8 @@
-// MOD-browser-store — one person's configuration in their browser (docs/architecture/MOD-browser-store.md): its
-// interface. Of it, ITM-204 builds what UC-001 keeps in the browser and, for UC-047, its notifications and what they
-// notified: openStore, readSetting, writeSetting and clearSetting, over the catalogue's keys for the instance's GitHub
-// token, a GitHub product's own token, a GitLab project's token, the list of products, notifications and notified
-// (CONFIGURATION LIVES IN THE BROWSER, CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE, A CLEAR IS A REAL
-// CLEAR, THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER). ITM-272 adds listSettings for the implemented catalogue;
-// clearEverything, exportSettings, importSettings, readExport, expiringSoon and secretValues are not built yet.
+// MOD-browser-store — one person's configuration in their browser (docs/architecture/MOD-browser-store.md): its public
+// interface. It stores and clears the implemented catalogue keys under the instance's localStorage prefix and lists
+// their metadata without returning stored values. The implemented catalogue includes instance and product tokens,
+// products, notifications, endpoints, the paired Bridge, the jump host, and recorded setting tests. clearEverything,
+// exportSettings, importSettings, readExport, expiringSoon and secretValues are not implemented.
 //
 // Module: MOD-browser-store
 //

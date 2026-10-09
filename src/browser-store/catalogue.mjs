@@ -1,8 +1,7 @@
-// Every key of MOD-browser-store's catalogue that ITM-204 builds (docs/architecture/MOD-browser-store.md, Data): the
-// instance's GitHub token, a GitHub product's own token, a GitLab project's token, the list of products, and, for
-// UC-047, the notifications switch and what it notified. ITM-259 adds model endpoints, the paired Bridge and each
-// setting's recorded last test. A key outside this catalogue is never written (writeSetting, in index.mjs). The jump
-// host, remote sessions, the mailbox, "not an issue" and "acknowledged" are not built yet.
+// Every implemented key of MOD-browser-store's catalogue (docs/architecture/MOD-browser-store.md, Data): the instance's
+// GitHub token, product tokens, products, notifications, endpoints, the paired Bridge, the jump host, and recorded
+// setting tests. A key outside this catalogue is never written (writeSetting, in index.mjs). Remote sessions, mailbox,
+// "not an issue" and "acknowledged" are not implemented.
 //
 // Module: MOD-browser-store
 
