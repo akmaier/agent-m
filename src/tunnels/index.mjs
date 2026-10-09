@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
-const { utils } = require("ssh2");
+const { Client, utils } = require("ssh2");
+const active = new Map();
 
 function notWritable(folder, cause) {
   const error = new Error(`The key folder is not writable: ${folder}`, { cause });
@@ -36,7 +38,11 @@ export async function ensureKey(dataFolder) {
       privateKey = readFileSync(privatePath, "utf8");
       publicKey = readFileSync(publicPath, "utf8");
     } else {
-      ({ private: privateKey, public: publicKey } = utils.generateKeyPairSync("ed25519"));
+      for (let attempt = 0; attempt < 64; attempt += 1) {
+        ({ private: privateKey, public: publicKey } = utils.generateKeyPairSync("ed25519"));
+        if (matchedPair(privateKey, publicKey)) break;
+      }
+      if (!matchedPair(privateKey, publicKey)) throw new Error("Could not generate a corresponding SSH key pair.");
       writeFileSync(privatePath, privateKey, { mode: 0o600 });
       chmodSync(privatePath, 0o600);
       writeFileSync(publicPath, publicKey, { mode: 0o644 });
@@ -49,3 +55,93 @@ export async function ensureKey(dataFolder) {
     throw error;
   }
 }
+
+function stateName(plan) { return `${plan.direction}:${plan.jumpHost}:${plan.remotePort}`; }
+function failure(error) {
+  const text = String(error?.message ?? error).toLowerCase();
+  if (text.includes("all configured authentication")) return "auth-refused";
+  if (text.includes("address already in use") || text.includes("administratively prohibited")) return "port-taken";
+  if (text.includes("host key") || text.includes("host-key")) return "host-key-changed";
+  return "host-unreachable";
+}
+function knownHostVerifier(dataFolder, host, entry) {
+  const path = join(dataFolder, "ssh", "known-jump-hosts");
+  return (key) => {
+    const value = Buffer.isBuffer(key) ? key.toString("base64") : String(key);
+    let known = {};
+    try { known = JSON.parse(readFileSync(path, "utf8")); } catch { /* first connection */ }
+    if (known[host] && known[host] !== value) { entry.hostKeyChanged = true; return false; }
+    if (!known[host]) { known[host] = value; writeFileSync(path, JSON.stringify(known), { mode: 0o600 }); }
+    return true;
+  };
+}
+function closeEntry(entry) {
+  clearTimeout(entry.timer);
+  entry.server?.close();
+  entry.client?.end();
+}
+function reconnect(entry) {
+  if (entry.closed) return;
+  entry.state.state = "opening";
+  const client = new Client();
+  entry.client = client;
+  client.on("tcp connection", (_info, accept) => {
+    const stream = accept();
+    const bridge = createConnection({ host: "127.0.0.1", port: entry.plan.bridgePort });
+    stream.pipe(bridge).pipe(stream);
+    stream.once("error", () => bridge.destroy());
+    bridge.once("error", () => stream.destroy());
+  });
+  client.once("ready", () => {
+    if (entry.closed) return client.end();
+    if (entry.plan.direction === "reverse") {
+      client.forwardIn("127.0.0.1", entry.plan.remotePort, (error) => {
+        if (error) return failEntry(entry, error);
+        entry.state.state = "open"; entry.state.reason = null;
+      });
+    } else {
+      entry.server = createServer((socket) => client.forwardOut("127.0.0.1", socket.remotePort ?? 0, "127.0.0.1", entry.plan.remotePort, (error, stream) => {
+        if (error) return socket.destroy();
+        socket.pipe(stream).pipe(socket);
+        stream.once("error", () => socket.destroy());
+        socket.once("error", () => stream.destroy());
+      }));
+      entry.server.once("error", (error) => failEntry(entry, error));
+      entry.server.listen(entry.plan.remotePort, "127.0.0.1", () => { entry.state.state = "open"; entry.state.reason = null; });
+    }
+  });
+  const fail = (error) => failEntry(entry, error);
+  client.once("error", fail).once("close", () => { if (!entry.closed && entry.state.state === "open") fail(new Error("connection closed")); });
+  client.connect({ host: entry.plan.jumpHost, port: entry.plan.sshPort ?? 22, username: entry.plan.user, privateKey: entry.privateKey, keepaliveInterval: 30_000, hostVerifier: knownHostVerifier(entry.dataFolder, entry.plan.jumpHost, entry) });
+}
+function failEntry(entry, error) {
+  if (entry.closed) return;
+  closeEntry(entry);
+  entry.state.state = "failed";
+  entry.state.reason = entry.hostKeyChanged ? "host-key-changed" : failure(error);
+  entry.timer = setTimeout(() => reconnect(entry), entry.wait);
+  entry.wait = Math.min(entry.wait * 2, 30_000);
+}
+
+export async function openTunnels(dataFolder, plans, bridgePort) {
+  await closeTunnels();
+  const key = await ensureKey(dataFolder);
+  const privateKey = readFileSync(join(dataFolder, "ssh", "id_ed25519"), "utf8");
+  for (const plan of plans) {
+    if (plan.bind !== "127.0.0.1" && plan.bind !== "::1") {
+      const error = new Error("Reverse tunnel bind must be loopback."); error.name = "NotLoopback"; throw error;
+    }
+    const state = { name: stateName(plan), kind: plan.direction, state: "opening", reason: null };
+    const entry = { plan: { ...plan, bridgePort: plan.bridgePort ?? bridgePort }, state, dataFolder, privateKey, publicKey: key.publicKey, closed: false, wait: 100, timer: null, client: null, server: null };
+    active.set(state.name, entry);
+    reconnect(entry);
+  }
+}
+
+export async function closeTunnels() {
+  for (const entry of active.values()) { entry.closed = true; closeEntry(entry); entry.state.state = "closed"; entry.state.reason = null; }
+  active.clear();
+}
+
+export function tunnelState() { return [...active.values()].map(({ state }) => ({ ...state })); }
+export const tunnelHandlers = { "GET /v1/tunnels": async () => ({ tunnels: tunnelState() }) };
