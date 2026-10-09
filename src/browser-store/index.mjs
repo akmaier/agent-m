@@ -1,10 +1,8 @@
-// MOD-browser-store — one person's configuration in their browser (docs/architecture/MOD-browser-store.md): its
-// interface. Of it, ITM-204 builds what UC-001 keeps in the browser and, for UC-047, its notifications and what they
-// notified: openStore, readSetting, writeSetting and clearSetting, over the catalogue's keys for the instance's GitHub
-// token, a GitHub product's own token, a GitLab project's token, the list of products, notifications and notified
-// (CONFIGURATION LIVES IN THE BROWSER, CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE, A CLEAR IS A REAL
-// CLEAR, THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER). ITM-272 adds listSettings for the implemented catalogue;
-// clearEverything, exportSettings, importSettings, readExport, expiringSoon and secretValues are not built yet.
+// MOD-browser-store — one person's configuration in their browser (docs/architecture/MOD-browser-store.md): its public
+// interface. It stores and clears the implemented catalogue keys under the instance's localStorage prefix and lists
+// their metadata without returning stored values. The implemented catalogue includes instance and product tokens,
+// products, notifications, endpoints, the paired Bridge, the jump host, and recorded setting tests. clearEverything,
+// exportSettings, importSettings, readExport, expiringSoon and secretValues are not implemented.
 //
 // Module: MOD-browser-store
 //
@@ -42,7 +40,7 @@ export function clearSetting(store, key) {
   removeRaw(store, key);
 }
 
-const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge"];
+const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host"];
 
 function settingDescription(key) {
   if (key === "github-token") return { label: "GitHub token", secret: true, grants: "access to the instance repository", setUpIn: "settings" };
@@ -50,6 +48,7 @@ function settingDescription(key) {
   if (key === "notifications") return { label: "Notifications", secret: false, grants: "acceptance notifications", setUpIn: "notifications" };
   if (key === "notified") return { label: "Notified files", secret: false, grants: "the record of notified files", setUpIn: "notifications" };
   if (key === "bridge") return { label: "Bridge", secret: true, grants: "access to the paired Bridge", setUpIn: "bridge" };
+  if (key === "jump-host") return { label: "Jump host", secret: true, grants: "access to the configured jump host", setUpIn: "bridge" };
   if (key.startsWith("github-token:")) return { label: `GitHub token: ${key.slice("github-token:".length)}`, secret: true, grants: "access to one GitHub product", setUpIn: "add-product" };
   if (key.startsWith("gitlab-token:")) return { label: `GitLab token: ${key.slice("gitlab-token:".length)}`, secret: true, grants: "access to one GitLab product", setUpIn: "add-product" };
   if (key.startsWith("endpoint:")) return { label: `Endpoint: ${key.slice("endpoint:".length)}`, secret: true, grants: "access to a model endpoint", setUpIn: "endpoints" };
