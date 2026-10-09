@@ -22,6 +22,7 @@ class Element {
   focus() {}
   get dataset() { return this.data; }
   get textContent() { return `${this.children.map((child) => child?.textContent ?? String(child)).join("")}${this.innerHTML ?? ""}`; }
+  set textContent(value) { this.children = [String(value)]; }
 }
 
 globalThis.document = { createElement: (name) => new Element(name) };
@@ -50,20 +51,30 @@ function jobRecord() {
     "## End", "", "at: 2026-10-09 02:00 UTC", "state: done", ""].join("\n");
 }
 
+const SPEC = ["# Fixture product", "", "**A SAMPLE REQUIREMENT** *(Product Owner)*", "A sample rule.",
+  "*Check:* `tests/pending.test.mjs`", ""].join("\n");
+const DECLARATION = ["// TST-100", "// level: unit", "// guards: A SAMPLE REQUIREMENT", ""].join("\n");
+function resultRecord(outcome = "failed") {
+  return ["---", `commit: ${COMMIT}`, "levels:", "  - unit", "occasion: release-candidate", "participant: ci",
+    "date: 2026-10-09 02:00 UTC", "---", "## Outcomes", "", "| Test | Level | Outcome | Runs |",
+    "|---|---|---|---|", `| TST-100 | unit | ${outcome} | |`, ""].join("\n");
+}
+
 function snapshot(files, ref) {
   return { repository: { path: "org/product" }, ref, commit: COMMIT, paths: Object.keys(files),
     read: async (path) => files[path] ?? null, blob: () => "b".repeat(40) };
 }
 
-function pendingHost({ pending = true } = {}) {
-  const branch = pending ? { [JOB]: jobRecord() } : {};
+function pendingHost({ pending = true, complete = true } = {}) {
+  const branch = pending ? { [JOB]: jobRecord(), "SPEC.md": SPEC, "tests/pending.test.mjs": DECLARATION } : {};
+  const results = complete ? { [`runs/${COMMIT}/20261009-0200-release-candidate.md`]: resultRecord() } : {};
   const writes = [];
   const tags = pending ? [{ name: TAG, commit: COMMIT }] : [];
   return { writes, tags,
     async repositoryInfo() { return { defaultBranch: "main" }; },
     async listTags() { return tags; },
     async readSnapshot(ref) {
-      if (ref === "test-results") return snapshot({}, ref);
+      if (ref === "test-results") return snapshot(results, ref);
       return snapshot(branch, ref);
     },
     async commitFiles(change) { writes.push(change); return { commit: COMMIT }; },
@@ -91,20 +102,30 @@ test("TST-289001: a refused pending-report lookup is named before the new-releas
 // level: unit
 // module: MOD-test-pages
 // guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
-// given: the selected product has a completed recorded run for an unreported candidate and an empty test-results branch.
-// input: render the release route, then refresh its report.
-// expect: the recorded candidate and its report reopen, and neither render nor refresh writes a commit or tag.
-test("TST-289002: a completed recorded candidate reopens and refreshes without writes", async () => {
+// given: the selected product has a completed recorded run for an unreported candidate, its declared guarded test, and
+//        its failed recorded outcome.
+// input: render the release route, refresh its report, then enter the required limitation and explicitly accept it.
+// expect: the recorded candidate, tested commit, report requirement and limitation reopen; render and refresh write
+//         nothing, and only the explicit acceptance invokes the existing release service.
+test("TST-289002: a completed recorded candidate reopens without writes and accepts through the existing service", async () => {
   const target = new Element("target");
   const host = pendingHost();
 
   await route.render(target, { product: { host } }, {});
   assert.match(target.textContent, new RegExp(`Release candidate ${TAG}`));
   assert.match(target.textContent, /Recorded release entry/);
+  assert.match(target.textContent, /A SAMPLE REQUIREMENT/);
+  assert.match(target.textContent, /TST-100/);
   assert.equal(host.writes.length, 0, "opening a waiting report does not write");
 
   await elements(target, "refresh")[0].fire("click");
   assert.equal(host.writes.length, 0, "refreshing the waiting report does not write");
+
+  const accept = elements(target, "accept")[0];
+  elements(accept, "person")[0].value = "akmaier";
+  elements(accept, "reason")[0].value = "known fixture limitation";
+  await elements(accept, "accept")[0].fire("click");
+  assert.equal(host.writes.length, 2, "only the explicit acceptance writes the report commit and tested tag");
 });
 
 // TST-289003
@@ -118,4 +139,18 @@ test("TST-289003: a selected product without a pending report keeps the new-rele
   const target = new Element("target");
   await route.render(target, { product: { host: pendingHost({ pending: false }) } }, {});
   assert.match(target.textContent, /New release/);
+});
+
+// TST-289004
+// level: unit
+// module: MOD-test-pages
+// guards: UC-013; UC-047; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+// given: the selected product has a completed run record for a pending candidate but no outcome on its test-results branch.
+// input: render the release route.
+// expect: the existing candidate report reopens as incomplete and offers no Accept and release action.
+test("TST-289004: a pending candidate with missing results remains incomplete", async () => {
+  const target = new Element("target");
+  await route.render(target, { product: { host: pendingHost({ complete: false }) } }, {});
+  assert.match(target.textContent, /has not finished at every level/);
+  assert.equal(elements(target, "accept").length, 0);
 });
