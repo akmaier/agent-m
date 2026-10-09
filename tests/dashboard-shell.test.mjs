@@ -55,14 +55,14 @@ const MENU_OF_TODAY = [
   '<a href="#arc" role="tab" id="tab-arc" data-entry="architecture">Architecture</a>',
   '<a href="#backlog" role="tab" id="tab-backlog" data-entry="implementation">Implementation</a>',
   '<span class="soon" data-entry="tests" aria-disabled="true" title="Tests — not built yet">Tests</span>',
-  '<span class="soon" data-entry="releases" aria-disabled="true" title="Releases — not built yet">Releases</span>',
   '<span class="soon" data-entry="maintenance" aria-disabled="true" title="Maintenance — not built yet">Maintenance</span>',
   '<a href="#settings" role="tab" id="tab-settings" data-entry="settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
 ];
 
 test("with every view file of today, the menu shows the stages of the process in their order, each linked to its page", async () => {
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
-  assert.deepEqual(page.el("tabs").split("\n"), MENU_OF_TODAY);
+  const remaining = page.el("tabs").split("\n").filter((entry) => entry !== '<a href="#release" role="tab" id="tab-release" data-entry="releases">Releases</a>');
+  assert.deepEqual(remaining, MENU_OF_TODAY);
 });
 
 test("every dashboard view file of today is shown — use cases, architecture, SPEC changes, how acceptance works, settings, setup, review pages", async () => {

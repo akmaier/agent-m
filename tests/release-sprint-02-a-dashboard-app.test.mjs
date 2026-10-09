@@ -869,26 +869,6 @@ test("release · ITM-136 UC-042 2: Clear removes the token's kept test with the 
   assert.match(stateOf(settingsRow(again)), /— not set/);
 });
 
-// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS · ITM-136 ("the export carries them like every browser setting") —
-// Expected: after a successful Test, the exported file holds the token and its last test; another browser that imports the file
-// shows the token's line as ✓ works with the date of that Test, after a reload too.
-test("release · ITM-136 UC-042 6: the export carries a setting's last test; another browser shows it after the import", async () => {
-  const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  await page.press("browser-settings", tokenLine("test"));
-  await page.fire("export-go");
-  await until(() => page.shown.downloads.length === 1, "the export");
-  const [file] = await downloaded(page);
-  assert.ok(file.text.includes(TOKEN), "known positive: the export holds the token");
-  const other = await open(await world(), { hash: "#settings", token: null });
-  await other.tick("ack");
-  other.byId("import-file").files = [{ text: async () => file.text }];
-  await other.fire("import-go");
-  await until(() => Object.values(other.storage()).includes(TOKEN), "the token imported");
-  const again = await reload(w, other, { hash: "#settings" });
-  assert.match(stateOf(settingsRow(again)), new RegExp(`✓ works.*${today()}`), "the imported line works since that date");
-});
-
 // EVERY SETTING IS REACHED FROM ONE PAGE · ITM-136 ("the new keys have their place on the page") — Expected: after the tests of
 // the GitHub token and of a GitLab project token, every entry Agent M keeps in localStorage is named on the settings page.
 test("release · ITM-136 EVERY SETTING IS REACHED FROM ONE PAGE: every key kept after the tests is named on the settings page", async () => {

@@ -293,21 +293,6 @@ test("A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT — the description names the
   assert.doesNotMatch(productTokenDescription("alice/thesis"), /dashboard of/, "counter-proof: not the instance's description");
 });
 
-// ---------------------------------------------------------------- settings in one place (UC-042)
-// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS — the export goes nowhere but into a file
-
-test("the settings export is saved as a file only — never committed, fetched or put into an address", () => {
-  const app = dashboardText();
-  const body = (src) => (src.match(/async function saveExport\([\s\S]*?\n}\n/) || [""])[0];
-  const LEAK = /commitFiles|fetchText|location|data:|encodeURIComponent|URLSearchParams/;
-  const b = body(app);
-  assert.ok(b.includes("exportSettings(") && b.includes("new Blob("), "saveExport writes the export into a Blob");
-  assert.doesNotMatch(b, LEAK);
-  assert.equal(app.split("exportSettings(").length - 1, 1, "exportSettings is called only in saveExport");
-  // Counter-proof: an export that is committed is caught.
-  assert.match(body("async function saveExport(ev) {\n  const t = await exportSettings(x);\n  await commitFiles({ files: [t] });\n}\n"), LEAK);
-});
-
 // ---------------------------------------------------------------- the use-case key is `area` (was `stage`)
 
 test("the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere", () => {

@@ -11,7 +11,7 @@
 import { canStore, gitlabRole } from "../review-core.mjs";
 import { savePseudonymisation, saveCollaborators, clickAuthority } from "./writes.mjs";
 import {
-  settingKeys, parseJson, sessionList, gitlabTokenMap, tokenTest, sessionTest, exportSettings, readSettingsFile, mergeSettings,
+  parseJson, sessionList, gitlabTokenMap, tokenTest, sessionTest,
 } from "../settings-store.mjs";
 import {
   parseProductAddress, isGitLab, repositoryInfo, gitlabTokenPageUrl, tokenIdentity, tokenRefusal, requiredPermissions, tokenListUrl,
@@ -407,18 +407,6 @@ export function renderNotificationsSettings(app) {
   });
 }
 
-// ---------------------------------------------------------------- export and import (UC-042 6, UC-014 7a)
-
-export const PASSPHRASE_NOTICE = "A forgotten passphrase cannot be recovered: without it, nobody — you included — can read the file.";
-
-// AN EXPORT STATES THAT IT CONTAINS SECRETS: each stored secret by name, and what it grants.
-export function exportNotice(entries = {}) {
-  const secrets = settingKeys.filter((s) => s.secret && entries[s.key]);
-  const what = secrets.length ? secrets.map((s) => `your ${s.label}, which ${s.grants}`).join("; ") : "no token, key or password (none is stored)";
-  return `The file contains every setting of this browser in full, including ${what}. It opens all of that to ` +
-    `whoever holds the file — keep it like a password, or lock it with a passphrase.`;
-}
-
 // SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS — shown before the switch can be saved.
 export function pseudonymisationOffNotice({ repo, isPublic, server = "GitHub" }) {
   return `With pseudonymisation off, report data from mails — the names, addresses and other details of the people ` +
@@ -493,25 +481,6 @@ function viewSettings(app) {
     </section>`,
     product: `
     <section class="panel" id="product-settings"><h3>Product · ${h(T.product.address)}</h3><p class="muted">Reading its settings…</p></section>`,
-    export: `
-    <section class="panel">
-      <h3>Export and import</h3>
-      <p class="notice">${h(exportNotice(store.entries()))}</p>
-      <p><label>Passphrase (optional) <input type="password" id="export-pass" autocomplete="new-password"></label>
-        <label>Repeat it <input type="password" id="export-pass2" autocomplete="new-password"></label></p>
-      <p class="muted small">${h(PASSPHRASE_NOTICE)}</p>
-      <p><button class="btn primary" id="export-go">Export settings</button></p>
-      <p><label>Settings file <input type="file" id="import-file" accept=".json,application/json"></label>
-        <label>Passphrase, if the file is locked <input type="password" id="import-pass" autocomplete="off"></label></p>
-      <p><button class="btn" id="import-go" disabled>Import settings</button>
-        <span class="muted small">Tick “I have read this” at the top first — an import stores tokens in this browser.</span></p>
-      <p id="io-msg" class="muted"></p>
-      <details class="explain"><summary>What is this?</summary><div><em>Export</em> saves one file, on this computer only, with
-        everything listed under “This browser” — the token itself included — so that another browser is set up by one
-        <em>Import</em>. Agent M writes the file to no repository and puts it in no address. Locked with a passphrase, it is
-        encrypted in this browser (PBKDF2 and AES-GCM of the Web Crypto API). An import keeps what this browser already has and
-        adds only what is missing, and lists both.</div></details>
-    </section>`,
     clear: `
     <section class="panel">
       <h3>Clear everything in this browser</h3>
@@ -840,13 +809,13 @@ function wireSettings(app) {
   const ghToken = app.ghToken;
   const ack = document.getElementById("ack"), input = document.getElementById("token-input");
   const expires = document.getElementById("token-expires"), save = document.getElementById("token-save");
-  const msg = document.getElementById("token-msg"), importGo = document.getElementById("import-go");
+  const msg = document.getElementById("token-msg");
   // One decision, shown twice: the notice at the top of the page, and the same notice at the token form, where a phone
   // shows it beside the paste field. Ticking either ticks both.
   const tokenAck = document.getElementById("token-ack");
   const onAck = (from) => {
     ack.checked = tokenAck.checked = from.checked;
-    input.disabled = expires.disabled = save.disabled = importGo.disabled = !canStore(ack.checked);
+    input.disabled = expires.disabled = save.disabled = !canStore(ack.checked);
   };
   ack.addEventListener("change", () => onAck(ack));
   tokenAck.addEventListener("change", () => onAck(tokenAck));
@@ -874,41 +843,6 @@ function wireSettings(app) {
     document.getElementById("token-msg").textContent = Object.keys(store.entries()).length || !textsGone
       ? "Clearing failed — something is still stored." : "Nothing stored any more.";
   });
-  document.getElementById("export-go").addEventListener("click", () => saveExport(app));
-  importGo.addEventListener("click", async () => {
-    const out = document.getElementById("io-msg"), file = document.getElementById("import-file").files[0];
-    if (!canStore(ack.checked)) return;
-    if (!file) { out.textContent = "Choose the settings file first."; return; }
-    try {
-      const settings = await readSettingsFile(await file.text(), document.getElementById("import-pass").value);
-      const m = mergeSettings(store.entries(), settings);
-      store.putEntries(m.put);
-      loadProducts();
-      renderProductSelector();
-      showBanner();
-      viewSettings(app);
-      document.getElementById("io-msg").innerHTML = `Imported.<br>Added: ${h(m.added.join(", ") || "nothing — this browser had everything")}.` +
-        `${m.kept.length ? `<br>Kept as this browser had them: ${h(m.kept.join(", "))}.` : ""}` +
-        `${m.ignored.length ? `<br>Not known to this dashboard, not stored: ${h(m.ignored.join(", "))}.` : ""}`;
-    } catch (e) { out.textContent = e.message; }
-  });
-}
-
-// SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS: the file is handed to the browser's download,
-// on this computer only — never committed, never sent, never put into an address.
-async function saveExport(app) {
-  const { store } = app;
-  const out = document.getElementById("io-msg");
-  const p1 = document.getElementById("export-pass").value, p2 = document.getElementById("export-pass2").value;
-  if (p1 !== p2) { out.textContent = "The two passphrases differ — nothing was saved."; return; }
-  out.textContent = p1 ? "Locking the file…" : "Saving…";
-  const text = await exportSettings(store.entries(), { passphrase: p1 });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-  a.download = `agent-m-settings-${today()}${p1 ? "-locked" : ""}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-  out.textContent = p1 ? "Saved, locked with your passphrase." : "Saved. The file holds your token in clear — keep it like a password.";
 }
 
 // UC-042 4–5: the selected product's settings, read from its repository at the loaded commit and changed

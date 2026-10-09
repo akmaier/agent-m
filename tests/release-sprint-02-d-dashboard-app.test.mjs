@@ -84,36 +84,6 @@ async function instance({ files = instanceFiles(), handlers = [] } = {}) {
   return box.server;
 }
 
-// ------------------------------------------------------------------------------------------------ ITM-125
-
-// AN EXPORT STATES THAT IT CONTAINS SECRETS · UC-042 step 6: before an export is saved, the page states that the file contains
-// every token, key and password it holds, and what each grants. Expected with the GitHub token stored: the notice stands before
-// the Export button and names the GitHub token with its writes — commits, issues, pull requests and workflow runs (ONE GITHUB
-// TOKEN SERVES EVERY FEATURE). With a GitLab project token stored as well, it names that one too, with what it grants. With nothing
-// stored, it claims no GitHub token.
-test("ITM-125 · the export notice names each stored secret with what it grants — the GitHub token's pull requests included", async () => {
-  const server = await instance();
-  const page = await openDashboard({ server, hash: "#settings" });
-  const main = page.main(), go = main.indexOf('id="export-go"');
-  assert.ok(go > 0, "the settings page has its Export button");
-  const notice = main.slice(main.lastIndexOf("<p", main.lastIndexOf("GitHub token", go)), go);
-  for (const w of ["GitHub token", "commits", "issues", "pull requests", "workflow runs"]) assert.ok(notice.includes(w), `before Export: ${w}`);
-
-  globalThis.localStorage.setItem("agent-m.gitlab-tokens", JSON.stringify({
-    "https://gitlab.example.org/group/thesis": { token: "glpat-RELEASE0123456789abcd", expires: "2026-12-31" } }));
-  await page.go("#uc");
-  await page.go("#settings");
-  const withGitLab = page.main();
-  const before = withGitLab.slice(0, withGitLab.indexOf('id="export-go"'));
-  assert.match(before, /GitLab project tokens?, which [^.;]*project/i, "the GitLab project token, with what it grants");
-  assert.ok(before.includes("pull requests"), "and still the GitHub token's grant");
-
-  const bare = await openDashboard({ server: await instance(), hash: "#settings", token: null });
-  const none = bare.main();
-  const exportPart = none.slice(none.indexOf("Export and import"), none.indexOf('id="export-go"'));
-  assert.ok(exportPart.length > 0 && !/your GitHub token/.test(exportPart), "nothing stored: no GitHub token claimed");
-});
-
 // ------------------------------------------------------------------------------------------------ ITM-131
 
 const EDIT_LINE = "Edited on the dashboard by the reviewer.", THEIR_LINE = "Committed meanwhile by somebody else.";
