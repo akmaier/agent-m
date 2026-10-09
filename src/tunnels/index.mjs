@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { createServer } from "node:net";
+import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
@@ -81,6 +81,13 @@ function reconnect(entry) {
   entry.state.state = "opening";
   const client = new Client();
   entry.client = client;
+  client.on("tcp connection", (_info, accept) => {
+    const stream = accept();
+    const bridge = createConnection({ host: "127.0.0.1", port: entry.plan.bridgePort });
+    stream.pipe(bridge).pipe(stream);
+    stream.once("error", () => bridge.destroy());
+    bridge.once("error", () => stream.destroy());
+  });
   client.once("ready", () => {
     if (entry.closed) return client.end();
     if (entry.plan.direction === "reverse") {
