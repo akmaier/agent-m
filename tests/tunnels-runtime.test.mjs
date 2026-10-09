@@ -144,3 +144,79 @@ test("TST-286005: changed host key is refused before forwarding", () => {
     import {createRequire} from "node:module";import {readFileSync} from "node:fs";import {join} from "node:path";const require=createRequire(import.meta.url);const {Server,utils}=require("ssh2");const {openTunnels,closeTunnels,tunnelState}=await import(${JSON.stringify(source)});let requests=0;const key1=utils.generateKeyPairSync("ed25519").private,key2=utils.generateKeyPairSync("ed25519").private;const make=(key,allow)=>new Server({hostKeys:[key]},c=>{c.on("error",()=>{});c.on("authentication",x=>x.accept());c.on("request",(a,r)=>{requests++;allow?a():r()})});let s=make(key1,true);await new Promise((ok,no)=>s.listen(0,"127.0.0.1",e=>e?no(e):ok()));const port=s.address().port,plan={direction:"reverse",jumpHost:"127.0.0.1",user:"x",sshPort:port,remotePort:44005,bind:"127.0.0.1",bridgePort:1};await openTunnels(process.argv[1],[plan],1);for(let i=0;i<30&&tunnelState()[0]?.state!=="open";i++)await new Promise(r=>setTimeout(r,10));if(tunnelState()[0]?.state!=="open")throw Error(JSON.stringify(tunnelState()));const before=readFileSync(join(process.argv[1],"ssh","known-jump-hosts"));await closeTunnels();await new Promise(r=>s.close(r));s=make(key2,false);await new Promise((ok,no)=>s.listen(port,"127.0.0.1",e=>e?no(e):ok()));requests=0;await openTunnels(process.argv[1],[plan],1);await new Promise(r=>setTimeout(r,100));const state=tunnelState()[0];const after=readFileSync(join(process.argv[1],"ssh","known-jump-hosts"));await closeTunnels();await new Promise(r=>s.close(r));if(state.reason!=="host-key-changed"||requests!==0||!before.equals(after))throw Error(JSON.stringify({state,requests}));console.log("host-key-positive");
   `;try{const r=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(r.status,0,r.stderr);assert.match(r.stdout,/host-key-positive/)}finally{rmSync(folder,{recursive:true,force:true})}
 });
+
+// TST-286006
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-011; UC-044
+// given: a real authenticated ssh2 jump host, one accepted reverse plan, and an occupied loopback port for a forward plan
+// input: openTunnels(dataFolder, [reversePlan, forwardPlan], bridgePort)
+// expect: the named reverse state remains open while the named forward state becomes port-taken, and closeTunnels stops both
+test("TST-286006: an occupied forward listener fails without closing another authenticated tunnel", () => {
+  const folder = dataFolder();
+  const script = `
+    import {createRequire} from "node:module"; import net from "node:net";
+    const require=createRequire(import.meta.url); const {Server,utils}=require("ssh2"); const {openTunnels,closeTunnels,tunnelState}=await import(${JSON.stringify(source)});
+    const listen=s=>new Promise((ok,no)=>s.listen(0,"127.0.0.1",e=>e?no(e):ok(s.address().port))); const pause=ms=>new Promise(r=>setTimeout(r,ms));
+    const ssh=new Server({hostKeys:[utils.generateKeyPairSync("ed25519").private]},c=>{c.on("error",()=>{});c.on("authentication",x=>x.accept());c.on("request",(a,r,n)=>n==="tcpip-forward"?a():r())}); const sshPort=await listen(ssh);
+    const held=net.createServer(); const forwardPort=await listen(held); const reversePort=forwardPort+1;
+    const plans=[{direction:"reverse",jumpHost:"127.0.0.1",user:"fixture",sshPort,remotePort:reversePort,bind:"127.0.0.1",bridgePort:1},{direction:"forward",jumpHost:"127.0.0.1",user:"fixture",sshPort,remotePort:forwardPort,bind:"127.0.0.1",bridgePort:1}];
+    await openTunnels(process.argv[1],plans,1); for(let i=0;i<60;i++){const states=tunnelState();if(states.some(x=>x.name===\`reverse:127.0.0.1:\${reversePort}\`&&x.state==="open")&&states.some(x=>x.name===\`forward:127.0.0.1:\${forwardPort}\`&&x.reason==="port-taken"))break;await pause(10)}
+    const states=tunnelState(); const reverse=states.find(x=>x.name===\`reverse:127.0.0.1:\${reversePort}\`); const forward=states.find(x=>x.name===\`forward:127.0.0.1:\${forwardPort}\`); if(reverse?.state!=="open"||forward?.state!=="failed"||forward.reason!=="port-taken")throw Error(JSON.stringify(states));
+    await closeTunnels(); await new Promise(r=>held.close(r)); await new Promise(r=>ssh.close(r)); console.log("forward-port-collision-positive");
+  `;
+  try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/forward-port-collision-positive/); } finally { rmSync(folder,{recursive:true,force:true}); }
+});
+
+// TST-286007
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-011; UC-044
+// given: one authenticated real ssh2 jump host, one host refusing authentication, and one dynamically reserved then closed loopback port
+// input: openTunnels(dataFolder, [openPlan, authPlan, unreachablePlan], bridgePort)
+// expect: the named open state remains open while the named failed states expose auth-refused and host-unreachable
+test("TST-286007: authentication and unreachable failures are isolated from an open authenticated tunnel", () => {
+  const folder=dataFolder(); const script=`
+    import {createRequire} from "node:module"; import net from "node:net";
+    const require=createRequire(import.meta.url); const {Server,utils}=require("ssh2"); const {openTunnels,closeTunnels,tunnelState}=await import(${JSON.stringify(source)}); const listen=s=>new Promise((ok,no)=>s.listen(0,"127.0.0.1",e=>e?no(e):ok(s.address().port))); const pause=ms=>new Promise(r=>setTimeout(r,ms));
+    const hostKey=utils.generateKeyPairSync("ed25519").private; const open=new Server({hostKeys:[hostKey]},c=>{c.on("error",()=>{});c.on("authentication",x=>x.accept());c.on("request",(a,r,n)=>n==="tcpip-forward"?a():r())}); const openPort=await listen(open);
+    const denied=new Server({hostKeys:[hostKey]},c=>{c.on("error",()=>{});c.on("authentication",x=>x.reject())}); const deniedPort=await listen(denied);
+    const reserved=net.createServer(); const unreachablePort=await listen(reserved); await new Promise(r=>reserved.close(r)); const plan=(sshPort,remotePort)=>({direction:"reverse",jumpHost:"127.0.0.1",user:"fixture",sshPort,remotePort,bind:"127.0.0.1",bridgePort:1}); const plans=[plan(openPort,45107),plan(deniedPort,45108),plan(unreachablePort,45109)];
+    await openTunnels(process.argv[1],plans,1); for(let i=0;i<100;i++){const states=tunnelState(); if(states.some(x=>x.name==="reverse:127.0.0.1:45107"&&x.state==="open")&&states.some(x=>x.name==="reverse:127.0.0.1:45108"&&x.reason==="auth-refused")&&states.some(x=>x.name==="reverse:127.0.0.1:45109"&&x.reason==="host-unreachable"))break; await pause(10)}
+    const states=tunnelState(); if(!states.some(x=>x.name==="reverse:127.0.0.1:45107"&&x.state==="open")||!states.some(x=>x.name==="reverse:127.0.0.1:45108"&&x.state==="failed"&&x.reason==="auth-refused")||!states.some(x=>x.name==="reverse:127.0.0.1:45109"&&x.state==="failed"&&x.reason==="host-unreachable"))throw Error(JSON.stringify(states));
+    await closeTunnels(); await new Promise(r=>open.close(r)); await new Promise(r=>denied.close(r)); console.log("isolated-failure-positive");
+  `; try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/isolated-failure-positive/)}finally{rmSync(folder,{recursive:true,force:true})}
+});
+
+// TST-286008
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-044
+// given: a real authenticated ssh2 host that accepts a reverse request and then closes each connection
+// input: openTunnels followed by closeTunnels while reconnect supervision is active
+// expect: reconnect delays grow, and closing cancels the next timer and closes the client connection
+test("TST-286008: reconnect delays grow and close cancels the next reconnect", () => {
+  const folder=dataFolder(); const script=`
+    import {createRequire} from "node:module"; const require=createRequire(import.meta.url); const {Server,utils}=require("ssh2"); const {openTunnels,closeTunnels}=await import(${JSON.stringify(source)}); const pause=ms=>new Promise(r=>setTimeout(r,ms)); const attempts=[];
+    const ssh=new Server({hostKeys:[utils.generateKeyPairSync("ed25519").private]},c=>{attempts.push(Date.now());c.on("error",()=>{});c.on("authentication",x=>x.accept());c.on("request",(a,r,n)=>{if(n!=="tcpip-forward")return r();a();setTimeout(()=>c.end(),5)})}); await new Promise((ok,no)=>ssh.listen(0,"127.0.0.1",e=>e?no(e):ok())); const sshPort=ssh.address().port;
+    await openTunnels(process.argv[1],[{direction:"reverse",jumpHost:"127.0.0.1",user:"fixture",sshPort,remotePort:45208,bind:"127.0.0.1",bridgePort:1}],1); for(let i=0;i<70&&attempts.length<3;i++)await pause(10); if(attempts.length<3)throw Error("attempts="+attempts.length); const gaps=[attempts[1]-attempts[0],attempts[2]-attempts[1]]; if(gaps[0]<70||gaps[1]<170)throw Error("gaps="+gaps);
+    await closeTunnels(); const stopped=attempts.length; await pause(350); if(attempts.length!==stopped)throw Error("reconnect-after-close="+attempts.length); await new Promise(r=>ssh.close(r)); console.log("reconnect-close-positive",gaps.join(","));
+  `; try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/reconnect-close-positive/)}finally{rmSync(folder,{recursive:true,force:true})}
+});
+
+// TST-286009
+// level: unit
+// module: MOD-tunnels
+// guards: THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-011
+// given: a real authenticated ssh2 host that refuses each forward tcpip channel
+// input: a client writes through the public forward listener, then closeTunnels is called
+// expect: the refused client closes and the listener refuses a later client after close
+test("TST-286009: refused forward channels leave no listener for a later client after close", () => {
+  const folder=dataFolder(); const script=`
+    import {createRequire} from "node:module"; import net from "node:net"; const require=createRequire(import.meta.url); const {Server,utils}=require("ssh2"); const {openTunnels,closeTunnels,tunnelState}=await import(${JSON.stringify(source)}); const listen=s=>new Promise((ok,no)=>s.listen(0,"127.0.0.1",e=>e?no(e):ok(s.address().port))); const pause=ms=>new Promise(r=>setTimeout(r,ms));
+    let refusals=0; const ssh=new Server({hostKeys:[utils.generateKeyPairSync("ed25519").private]},c=>{c.on("error",()=>{});c.on("authentication",x=>x.accept());c.on("tcpip",(_a,r)=>{refusals++;r()})}); const sshPort=await listen(ssh); const reservation=net.createServer(); const localPort=await listen(reservation); await new Promise(r=>reservation.close(r));
+    await openTunnels(process.argv[1],[{direction:"forward",jumpHost:"127.0.0.1",user:"fixture",sshPort,remotePort:localPort,bind:"127.0.0.1",bridgePort:1}],1); for(let i=0;i<50&&tunnelState()[0]?.state!=="open";i++)await pause(10); if(tunnelState()[0]?.state!=="open")throw Error(JSON.stringify(tunnelState()));
+    const refused=await new Promise((ok,no)=>{const s=net.connect(localPort,"127.0.0.1");let done=false;const finish=v=>{if(!done){done=true;ok(v)}};s.once("error",e=>finish(e.code));s.once("close",()=>finish("closed"));s.write("refused");setTimeout(()=>no(Error("refused client stayed open")),500)}); if(!refusals||!refused)throw Error(JSON.stringify({refusals,refused}));
+    await closeTunnels(); const after=await new Promise(ok=>{const s=net.connect(localPort,"127.0.0.1");s.once("error",e=>ok(e.code));s.once("connect",()=>ok("connected"))}); await new Promise(r=>ssh.close(r)); if(after!=="ECONNREFUSED")throw Error("listener="+after); console.log("refused-forward-close-positive");
+  `; try { const result=spawnSync(process.execPath,["--input-type=module","-e",script,folder],{encoding:"utf8",timeout:40000,env:{...process.env,NODE_PATH:runtime()}});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/refused-forward-close-positive/)}finally{rmSync(folder,{recursive:true,force:true})}
+});

@@ -97,9 +97,12 @@ function reconnect(entry) {
       });
     } else {
       entry.server = createServer((socket) => client.forwardOut("127.0.0.1", socket.remotePort ?? 0, "127.0.0.1", entry.plan.remotePort, (error, stream) => {
-        if (error) return socket.destroy(error);
+        if (error) return socket.destroy();
         socket.pipe(stream).pipe(socket);
+        stream.once("error", () => socket.destroy());
+        socket.once("error", () => stream.destroy());
       }));
+      entry.server.once("error", (error) => failEntry(entry, error));
       entry.server.listen(entry.plan.remotePort, "127.0.0.1", () => { entry.state.state = "open"; entry.state.reason = null; });
     }
   });
@@ -109,6 +112,7 @@ function reconnect(entry) {
 }
 function failEntry(entry, error) {
   if (entry.closed) return;
+  closeEntry(entry);
   entry.state.state = "failed";
   entry.state.reason = entry.hostKeyChanged ? "host-key-changed" : failure(error);
   entry.timer = setTimeout(() => reconnect(entry), entry.wait);
