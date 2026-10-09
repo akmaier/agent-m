@@ -10,65 +10,115 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import test from "node:test";
 
 const root = new URL("..", import.meta.url).pathname;
-const executable = process.platform === "darwin"
-  ? "/private/tmp/agent-m-electron-44/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
-  : "/private/tmp/agent-m-electron-44/node_modules/electron/dist/electron";
-const wait = async (check, name) => {
-  for (let tries = 0; tries < 160; tries += 1) {
-    try { const value = await check(); if (value) return value; } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 125));
-  }
-  throw new Error(`${name} timed out.`);
-};
-const port = async () => await new Promise((resolve, reject) => {
-  const server = createServer();
-  server.once("error", reject);
-  server.listen(0, "127.0.0.1", () => {
-    const value = server.address().port;
-    server.close((failure) => failure ? reject(failure) : resolve(value));
-  });
-});
+const electronCache = join(tmpdir(), "agent-m-276-electron-44");
+let runtimeFailure;
+let virtualDisplayFailure;
+let windowManagerFailure;
+const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
 const token = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
+const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
+const within = async (promise, name) => {
+  let timeout;
+  try { return await Promise.race([promise, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error(`${name} timed out.`)), 5000); })]); }
+  finally { clearTimeout(timeout); }
+};
+
+async function runtime() {
+  const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
+  const executableOf = (installed) => process.platform === "darwin" ? join(installed, "dist/Electron.app/Contents/MacOS/Electron") : join(installed, "dist/electron");
+  if (existsSync(executableOf(bundled))) return executableOf(bundled);
+  if (runtimeFailure) throw runtimeFailure;
+  const installed = join(electronCache, "node_modules/electron");
+  const acquire = (stage, command, arguments_) => {
+    const started = Date.now(), result = spawnSync(command, arguments_, { encoding: "utf8", timeout: 40000 });
+    if (result.status !== 0) throw new Error(`Electron ${stage} failed after ${Date.now() - started}ms; status=${result.status}; signal=${result.signal}; error=${result.error?.code ?? "none"}; stderr=${scrub(result.stderr)}`);
+  };
+  try {
+    if (!existsSync(executableOf(installed))) {
+      acquire("package acquisition", "npm", ["install", "--no-save", "--prefix", electronCache, "electron@44.5.1"]);
+      acquire("binary acquisition", process.execPath, [join(installed, "install.js")]);
+    }
+    assert.equal(existsSync(executableOf(installed)), true, "Electron 44.5.1 executable was not acquired.");
+    return executableOf(installed);
+  } catch (failure) { runtimeFailure = failure; throw failure; }
+}
+
+const electronCommand = (executable, arguments_) => {
+  if (process.platform !== "linux") return { command: executable, arguments_ };
+  if (virtualDisplayFailure) throw virtualDisplayFailure;
+  const probe = spawnSync("xvfb-run", ["--help"], { encoding: "utf8", timeout: 5000 });
+  if (probe.status !== 0) {
+    virtualDisplayFailure = new Error(`Linux virtual display probe failed; status=${probe.status}; signal=${probe.signal}; error=${probe.error?.code ?? "none"}; stderr=${scrub(probe.stderr)}`);
+    throw virtualDisplayFailure;
+  }
+  const manager = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (manager.status !== 0) {
+    if (windowManagerFailure) throw windowManagerFailure;
+    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    const available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+    if (install.status !== 0 || available.status !== 0) {
+      windowManagerFailure = new Error(`Linux Openbox fixture failed after ${Date.now() - started}ms; install-status=${install.status}; install-signal=${install.signal}; install-error=${install.error?.code ?? "none"}; install-stderr=${scrub(install.stderr)}; probe-status=${available.status}; probe-signal=${available.signal}; probe-error=${available.error?.code ?? "none"}; probe-stderr=${scrub(available.stderr)}`);
+      throw windowManagerFailure;
+    }
+  }
+  return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", "sh", "-c", "openbox >/dev/null 2>&1 & wm=$!; trap 'kill \"$wm\" 2>/dev/null; wait \"$wm\" 2>/dev/null' EXIT INT TERM; \"$@\"; status=$?; exit \"$status\"", "agent-m-xvfb-openbox", executable, ...arguments_] };
+};
 
 const cdp = async (url, method, params = {}) => {
   const socket = new WebSocket(url);
-  await new Promise((resolve, reject) => { socket.addEventListener("open", resolve, { once: true }); socket.addEventListener("error", reject, { once: true }); });
+  await within(new Promise((resolve, reject) => { socket.addEventListener("open", resolve, { once: true }); socket.addEventListener("error", reject, { once: true }); socket.addEventListener("close", () => reject(new Error(`CDP ${method} closed before opening.`)), { once: true }); }), `CDP ${method} connection`);
   try {
-    const reply = await new Promise((resolve, reject) => {
+    const reply = await within(new Promise((resolve, reject) => {
       socket.addEventListener("message", ({ data }) => { const result = JSON.parse(data); if (result.id === 1) resolve(result); });
       socket.addEventListener("error", reject, { once: true });
+      socket.addEventListener("close", () => reject(new Error(`CDP ${method} closed before responding.`)), { once: true });
       socket.send(JSON.stringify({ id: 1, method, params }));
-    });
+    }), `CDP ${method} response`);
     if (reply.error) throw new Error(reply.error.message);
     return reply.result;
   } finally { socket.close(); }
 };
-const evaluate = async (url, expression) => (await cdp(url, "Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result.value;
+const evaluate = async (url, expression) => {
+  const result = await cdp(url, "Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+  if (result.exceptionDetails) throw new Error(`CDP evaluation failed: ${result.exceptionDetails.text}`);
+  return result.result.value;
+};
+const port = async () => await new Promise((resolve, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const { port: value } = server.address(); server.close((failure) => failure ? reject(failure) : resolve(value)); }); });
 
 async function launch() {
-  assert.equal(existsSync(executable), true, "Electron 44.5.1 must be acquired outside the checkout by the established native fixture.");
   const dataFolder = mkdtempSync(join(tmpdir(), "agent-m-release-276-"));
   const apiPort = await port(), debugPort = await port(), inspectPort = await port();
   const instance = "release-fork/paired-bridge", origin = "https://release-fork.github.io";
+  const executable = await runtime();
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspectPort}`, `--remote-debugging-port=${debugPort}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${apiPort}`, `--data-folder=${dataFolder}`];
-  const child = spawn(executable, args, { cwd: root, stdio: ["ignore", "ignore", "pipe"] });
+  const launched = electronCommand(executable, args);
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-2000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
-  const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json()).find((item) => item.url.startsWith("agent-m://")), "actual pairing window").catch(async (failure) => { if (child.exitCode === null) child.kill(); await exited; throw new Error(`${failure.message}; Electron=${stderr}`); });
-  const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspectPort}/json/list`)).json())[0]?.webSocketDebuggerUrl, "actual Electron main inspector");
-  return { apiPort, child, dataFolder, exited, instance, main, origin, page };
+  const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
+  try {
+    const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json()).find((item) => item.url.startsWith("agent-m://")), stopped);
+    const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspectPort}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
+    return { port: apiPort, child, folder: dataFolder, exited, instance, main, origin, page };
+  } catch (failure) {
+    if (child.exitCode === null) child.kill();
+    await within(exited, "Electron startup cleanup").catch(() => {});
+    throw failure;
+  }
 }
 async function stop(app) {
   try {
     await click(app.page, "Quit");
-    await wait(async () => { try { await fetch(`http://127.0.0.1:${app.apiPort}/v1/pair`); return false; } catch { return true; } }, "server shutdown");
-    await Promise.race([app.exited, new Promise((_, reject) => setTimeout(() => reject(new Error("Electron did not exit after Quit.")), 10000))]);
+    await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
+    let timeout;
+    try { await Promise.race([app.exited, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("Electron did not exit after Quit.")), 30000); })]); }
+    finally { clearTimeout(timeout); }
   } finally { if (app.child.exitCode === null) app.child.kill(); }
 }
 const click = (page, label) => evaluate(page.webSocketDebuggerUrl, `[...document.querySelectorAll('button')].find((button) => button.textContent === ${JSON.stringify(label)}).click()`);
@@ -84,9 +134,9 @@ const click = (page, label) => evaluate(page.webSocketDebuggerUrl, `[...document
 test("TST-276901: actual forked Electron source keeps its renderer private and pairs only on configured loopback", { timeout: 60000, concurrency: false }, async () => {
   const app = await launch();
   try {
-    const pairingToken = await wait(() => existsSync(join(app.dataFolder, "pairing-token")) && token(app.dataFolder), "private pairing token");
-    const expectedAddress = `http://127.0.0.1:${app.apiPort}`;
-    await wait(async () => (await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge pairing')")), "pairing page");
+    const pairingToken = await wait(() => existsSync(join(app.folder, "pairing-token")) && token(app.folder));
+    const expectedAddress = `http://127.0.0.1:${app.port}`;
+    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge pairing')"));
     assert.equal(app.page.url, "agent-m://release-fork.github.io/paired-bridge/desktop-shell/window.html");
     assert.deepEqual(await evaluate(app.page.webSocketDebuggerUrl, "({ calls: Object.keys(window.bridge).sort(), node: [typeof window.process, typeof window.require], address: [...document.querySelectorAll('code')][0].textContent })"), {
       calls: ["copy", "pairAnew", "pause", "quit", "resume", "retryPort", "state"], node: ["undefined", "undefined"], address: expectedAddress,
