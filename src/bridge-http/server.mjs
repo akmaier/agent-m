@@ -27,9 +27,22 @@ export async function serveBridge(config, handlers) {
     if (request.headers[bridgeApi.tokenHeader] !== await currentToken(config.dataFolder)) { error(response, 401, "token-refused", "Bridge token refused.", config.origin); log(401); return; }
     if (config.paused() && request.method === "POST") { error(response, 503, "paused", "Bridge is paused.", config.origin); log(503); return; }
     if (request.method === "GET" && path === "/v1/pair") { reply(response, 200, { bridge: { name: "Bridge", version: "unreleased", platform: process.platform }, origin: config.origin }, config.origin); log(200); return; }
+    const route = bridgeApi.routes.find((candidate) => candidate.method === request.method && candidate.path === path);
+    if (route?.path === "/v1/tunnels") {
+      const handler = handlers.tunnels?.[`${request.method} ${path}`];
+      if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
+      try { reply(response, 200, await handler({ params: {}, body: {} }), config.origin); log(200); }
+      catch (failure) {
+        const code = Object.hasOwn(bridgeApi.errors, failure.code) ? failure.code : "upstream-failed";
+        error(response, bridgeApi.errors[code], code, failure.message || "Bridge handler failed.", config.origin);
+        log(bridgeApi.errors[code]);
+      }
+      return;
+    }
     if (request.method !== "POST" || !path.startsWith("/v1/probes/")) { error(response, 404, "not-found", "Bridge route not found.", config.origin); log(404); return; }
     const kind = decodeURIComponent(path.slice("/v1/probes/".length));
-    if (!bridgeApi.routes[0].kinds.includes(kind)) { error(response, 404, "not-found", "Bridge probe not found.", config.origin); log(404); return; }
+    const probeRoute = bridgeApi.routes.find((candidate) => candidate.method === "POST" && candidate.path === "/v1/probes/{kind}" && candidate.kinds?.includes(kind));
+    if (!probeRoute) { error(response, 404, "not-found", "Bridge probe not found.", config.origin); log(404); return; }
     let body = "";
     for await (const chunk of request) body += chunk;
     let parsed;

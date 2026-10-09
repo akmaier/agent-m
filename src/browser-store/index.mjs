@@ -1,8 +1,8 @@
 // MOD-browser-store — one person's configuration in their browser (docs/architecture/MOD-browser-store.md): its public
 // interface. It stores and clears the implemented catalogue keys under the instance's localStorage prefix and lists
 // their metadata without returning stored values. The implemented catalogue includes instance and product tokens,
-// products, notifications, endpoints, the paired Bridge, the jump host, and recorded setting tests. clearEverything,
-// exportSettings, importSettings, readExport, expiringSoon and secretValues are not implemented.
+// products, notifications, endpoints, the paired Bridge, the jump host, named remote sessions and recorded setting tests.
+// Its canonical settings export is implemented in export.mjs. clearEverything, expiringSoon and secretValues are not.
 //
 // Module: MOD-browser-store
 //
@@ -11,6 +11,7 @@
 
 import { isKnownKey } from "./catalogue.mjs";
 import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError } from "./store.mjs";
+export { exportSettings, importSettings, readExport } from "./export.mjs";
 
 export { StoreError };
 
@@ -52,6 +53,7 @@ function settingDescription(key) {
   if (key.startsWith("github-token:")) return { label: `GitHub token: ${key.slice("github-token:".length)}`, secret: true, grants: "access to one GitHub product", setUpIn: "add-product" };
   if (key.startsWith("gitlab-token:")) return { label: `GitLab token: ${key.slice("gitlab-token:".length)}`, secret: true, grants: "access to one GitLab product", setUpIn: "add-product" };
   if (key.startsWith("endpoint:")) return { label: `Endpoint: ${key.slice("endpoint:".length)}`, secret: true, grants: "access to a model endpoint", setUpIn: "endpoints" };
+  if (key.startsWith("remote-session:")) return { label: `Remote session: ${key.slice("remote-session:".length)}`, secret: true, grants: "access to a remote Bridge session", setUpIn: "bridge" };
   if (key.startsWith("last-test:")) return { label: `Last test: ${key.slice("last-test:".length)}`, secret: false, grants: "the recorded result of a setting test", setUpIn: "settings" };
   return null;
 }
