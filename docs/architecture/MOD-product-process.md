@@ -37,6 +37,8 @@ provides:
   - Workflow
   - declarationSchema
   - declarationFindings
+  - roleAssignmentSchema
+  - roleAssignmentFindings
   - workflowOf
   - holdsRole
   - gateSchema
@@ -51,19 +53,27 @@ provides:
 ## Responsibility
 
 It belongs to Process (ARC-042). It reads and checks the declaration of how a product is developed — exactly one process
-model, its roles and their holders, practices, branches, the Definition of Done, who closes a sprint (`THE PROCESS MODEL IS
-DECLARED PER PRODUCT`, `A PROCESS MODEL ORGANISES PEOPLE AND AGENTS`, `A PRODUCT DECLARES ITS DEFINITION OF DONE`) —, and
-derives the product's workflow from the model, the practices and the gates the product's process requirements add, and
-from nothing else (`THE MODEL DETERMINES THE PHASES AND THE GATES`, `A PROCESS REQUIREMENT ADDS TO THE MODEL`). It keeps
-gate records and derives each gate's state, decides who may decide a gate (`A GATE NAMES WHO DECIDES IT`, `A GATE IS NOT
-DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS`), records a decision as a gate record (`THE GATE IS RECORDED`), and checks a pull request against the Definition of Done in the
-product's CI (`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS`). It runs in the browser and in Node.
+model, practices, branches and the Definition of Done; the declaration names the model's roles and never a participant
+(`THE PROCESS MODEL IS DECLARED PER PRODUCT`, `THE PROCESS NAMES ROLES, NOT PARTICIPANTS`, `A PRODUCT DECLARES ITS
+DEFINITION OF DONE`) —, and the role assignments that fill those roles with participants: one per product, or one per
+team in a model with sprints, and a participant may serve several teams (`A PROCESS MODEL ORGANISES PEOPLE AND AGENTS`,
+`A ROLE ASSIGNMENT FILLS THE ROLES`, `A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM`, `A PARTICIPANT MAY SERVE
+SEVERAL TEAMS`). It derives the product's workflow from the model, the practices and the gates the product's process
+requirements add, and from nothing else (`THE MODEL DETERMINES THE PHASES AND THE GATES`, `A PROCESS REQUIREMENT ADDS TO
+THE MODEL`). It keeps gate records and derives each gate's state, decides who may decide a gate — a holder of the
+deciding role in the job's role assignment, never the participant whose work the gate checks — (`A GATE NAMES WHO DECIDES
+IT`, `A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT`, `A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT
+CHECKS`), records a decision as a gate record (`THE GATE IS RECORDED`), and checks a pull request against the Definition
+of Done in the product's CI (`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS`). It runs in the browser
+and in Node.
 
 ## Parts
 
 - `index.mjs` — the interface.
-- `declaration.schema.md`, `gate-record.schema.md` — the two schemas, in MOD-documents' schema language.
-- `declaration.mjs` — the declaration's findings and the roles.
+- `declaration.schema.md`, `role-assignment.schema.md`, `gate-record.schema.md` — the three schemas, in MOD-documents'
+  schema language.
+- `declaration.mjs` — the declaration's findings.
+- `assignments.mjs` — the role assignments' findings, and who holds a role.
 - `workflow.mjs` — the workflow of a product.
 - `gates.mjs` — gate states, who may decide, and the record of a decision.
 - `done.mjs` — the Definition-of-Done check of a pull request.
@@ -71,14 +81,13 @@ product's CI (`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS`)
 
 ## Data
 
-It keeps nothing. It owns two formats.
+It keeps nothing. It owns three formats.
 
 **Schema `declaration`** (`declaration.schema.md`), the file `docs/process.md` of a product:
 
 | Part of the schema | Value |
 |---|---|
-| front matter | `model` (its name), `model_file` (its path in the instance or in the shipped catalogue), `model_version` (the commit of the instance that holds the declared file: the version the product keeps until its declaration is saved again, UC-031 6a), `sprint_close` (the participant who closes a sprint; the Product Owner when empty) |
-| `## Roles` | a table: `Role`, `Participants` — participants by name from the instance's list, several where the role allows it |
+| front matter | `model` (its name), `model_file` (its path in the instance or in the shipped catalogue), `model_version` (the commit of the instance that holds the declared file: the version the product keeps until its declaration is saved again, UC-031 6a) |
 | `## Practices` | a list of practice names, or `none` |
 | `## Branches` | a table: `Phase or time box`, `Branch`; without a row, work merges into the default branch (`WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET`) |
 | `## Definition of Done` | the conditions added to the job rules, one per line — `review: <n> by participants other than the implementer`, `check: <CI check name>`, `gate: <gate>` —, or the sentence that the job rules hold and no condition is added |
@@ -90,6 +99,15 @@ job's first commit holds only tests and CI was red on it — for a refactoring j
 test's expected result changed —; every changed code file lies in the folder of one of the job's modules; every new test
 names a requirement and a module; every gate the workflow places before the merge is recorded.
 
+**Schema `role-assignment`** (`role-assignment.schema.md`), a file `docs/role-assignments/<name>.md` of a product —
+`<name>` is the team in a model with sprints:
+
+| Part of the schema | Value |
+|---|---|
+| `## Roles` | a table: `Role`, `Participants` — each role of the product's model with its participants, by name from the instance's list: one for a role that one participant fills, one or more for a role that several may fill |
+
+Nothing else stands in it (`A ROLE ASSIGNMENT FILLS THE ROLES`).
+
 **Schema `gate-record`** (`gate-record.schema.md`), a file `docs/gates/<yyyymmdd>-<hhmm>-<gate slug>-<4 hex>.md`, written
 once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 
@@ -100,34 +118,49 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 
 ## Interfaces
 
-- `Workflow` — `{ model: Model, practices: string[], phases: Array<{ name: string, role: string, produces: string[] }>,
+- `Workflow` — `{ model: Model, practices: string[], phases: Array<{ name: string, roles: string[], produces: string[] }>,
   transitions: Array<{ from: string, to: string, kind: string }>, pairs: Array<{ phase: string, checkedBy: string }>,
   gates: Array<{ name: string, from: string, to: string, artifacts: string, condition: string, decider: string,
   addedBy: { requirement: string, source: string } | null, practice: string | null }>, roles: Array<{ name: string,
-  filledBy: string, capabilities: string[], holders: string[] }>, branches: Record<string, string>, done: string[] }`.
+  filledBy: string, howMany: "one" | "several", capabilities: string[] }>, branches: Record<string, string>, done:
+  string[] }`.
 - `declarationSchema: Schema` — the declaration's schema, for MOD-documents and for the form of UC-002.
-- `declarationFindings(declaration: Document, catalogue: Catalogue, participants: Document, sources: Document[],
-  instanceSpec: string) -> Finding[]` — the findings of a declaration against the version it declared.
+- `declarationFindings(declaration: Document, catalogue: Catalogue, participants: Document, instanceSpec: string) ->
+  Finding[]` — the findings of a declaration against the version it declared.
   - `catalogue` is MOD-model-catalogue's `catalogue` over the instance's snapshot at the commit the declaration's
     `model_version` names, read by the caller with MOD-repository-hosts' `readSnapshot`. It holds the instance's models
     as they stood then: the version the product declared and keeps (UC-031 6a).
   - Each an error:
     - a model that this catalogue does not hold at `model_file` — the named version lacks it —, or whose findings in
       it hold an error;
-    - a role that needs a person and has none;
-    - a holder that lacks a capability its role needs, naming it (`A ROLE NAMES THE CAPABILITIES IT NEEDS`);
+    - a participant of the instance's list, `participants`, named anywhere in the declaration (`THE PROCESS NAMES ROLES,
+      NOT PARTICIPANTS`);
     - a practice the catalogue does not hold, or whose `fits` does not name the model;
     - a branch for a phase the model lacks;
     - a gate under `## Gates added by requirements` whose requirement the instance's SPEC, `instanceSpec`, does not hold.
+- `roleAssignmentSchema: Schema` — the role assignment's schema, for MOD-documents and for the form of UC-048.
+- `roleAssignmentFindings(assignments: Document[], workflow: Workflow, participants: Document, sources: Document[]) ->
+  Finding[]` — the findings of a product's role assignments, read together.
+  - Each an error:
+    - more than one role assignment where the model works without sprints (`A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE
+      PER TEAM`);
+    - a role the workflow does not have, or anything besides the roles table (`A ROLE ASSIGNMENT FILLS THE ROLES`);
+    - more than one participant for a role that one participant fills (`A ROLE NAMES HOW MANY FILL IT`);
+    - a name the instance's list does not hold (`PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE`);
+    - a role that needs a person and has none;
+    - a holder that lacks a capability its role needs, naming it (`A ROLE NAMES THE CAPABILITIES IT NEEDS`).
   - A warning: a holder at a processing place a linked source does not permit, naming the source and the role. That
     source's content is then never given to that holder (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
+  - The same participant in the role assignments of several teams is no finding (`A PARTICIPANT MAY SERVE SEVERAL
+    TEAMS`).
 - `workflowOf(declaration: Document, model: Model, practices: Document[], instanceSpec: string) -> Workflow` — the model's
   phases, transitions, pairs and gates, the practices' additions, and the gates and artifacts the process requirements
   add, as the declaration's `## Gates added by requirements` names them, each marked with its requirement and the source
   that requirement names in the instance's SPEC, `instanceSpec`; nothing else enters the workflow. A gate whose
   requirement that SPEC does not hold stays in the workflow with `addedBy.source` null; `declarationFindings` names it.
-- `holdsRole(declaration: Document, participant: string, role: string) -> boolean` — whether the declaration assigns the
-  participant to the role (`A JOB GOES ONLY TO A HOLDER OF ITS ROLE`).
+- `holdsRole(assignment: Document, participant: string, role: string) -> boolean` — whether the role assignment gives the
+  participant the role (`A JOB GOES ONLY TO A HOLDER OF ITS ROLE`). A job's role assignment is its team's in a model with
+  sprints, and the product's one otherwise (MOD-work-plans).
 - `gateSchema: Schema` — the gate record's schema.
 - `gateStates(workflow: Workflow, records: Document[], texts: Record<string, string>) -> Array<{ gate: string, state:
   "passed" | "passed on an earlier text" | "rejected" | "pending" | "not reached", record: string | null,
@@ -136,12 +169,15 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   `pending` with what it still needs; `texts` are the blobs of the artifacts the gates check (`STATUS IS DERIVED FROM THE
   RECORDS`).
 - `mayDecide(participant: { name: string, kind: "person" | "agent" | "check" }, gate: string, workflow: Workflow,
-  workBy: string[]) -> { may: true } | { may: false, reason: "not a holder of the deciding role" | "did the work this gate
-  checks" | "not the gate's check", holders: string[] }` — whether a decision would pass the gate; a record by the
-  participant whose work the gate checks does not, even when it holds the role.
+  assignment: Document, workBy: string[]) -> { may: true } | { may: false, reason: "not a holder of the deciding role" |
+  "did the work this gate checks" | "not the gate's check", holders: string[] }` — whether a decision would pass the
+  gate: only a holder of the deciding role in `assignment`, the job's role assignment, decides it, and `holders` names that
+  assignment's holders; a record by the participant whose work the gate checks does not pass it, even when it holds the
+  role.
 - `recordGateDecision(host: Host, decision: { gate: string, job: string | null, decider: { name: string, kind: "person" |
   "agent" | "check" }, role: string, decision: "passed" | "rejected", reason: string | null, on: string[] }, context: {
-  workflow: Workflow, workBy: string[], head: string, now: Date, trailers: string[] }) -> Promise<{ commit: string, path:
+  workflow: Workflow, assignment: Document, workBy: string[], head: string, now: Date, trailers: string[] }) -> Promise<{
+  commit: string, path:
   string }>` — a decision on a gate — a person's on the page, an agent's through the writer `gate-record`, a CI check's
   through the Workflows — written as one gate record in one commit on the head that was read; `on` names each checked
   artifact as `<path>@<blob>`, or the commit; `trailers` are a job's provenance lines, empty for a person's own decision.
@@ -166,11 +202,11 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 
 ## Files
 
-- Reads `docs/process.md`, `docs/gates/*.md`, the instance's `docs/participants.md`, source register and `SPEC.md` — whose
+- Reads `docs/process.md`, `docs/role-assignments/*.md`, `docs/gates/*.md`, the instance's `docs/participants.md`, source register and `SPEC.md` — whose
   requirements are the process requirements —, the product's `docs/sources.md`, the module files under
   `docs/architecture/`, and the test files a pull request changes.
-- Writes `docs/gates/<…>.md` through `recordGateDecision`; the declaration itself is committed by the page as the person's own
-  input.
+- Writes `docs/gates/<…>.md` through `recordGateDecision`; the declaration and the role assignments are committed by the
+  page as the person's own input.
 
 ## Uses
 

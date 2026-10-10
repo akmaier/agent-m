@@ -7,7 +7,9 @@ follows:
   - ARC-042
 uses:
   - MOD-work-plans.ItemState
+  - MOD-work-plans.Held
   - MOD-work-plans.itemStates
+  - MOD-work-plans.heldItems
   - MOD-work-plans.planSchemas
   - MOD-product-process.Workflow
   - MOD-product-process.declarationSchema
@@ -110,8 +112,8 @@ The six stages of the main page, each a share between 0 and 1:
   requirements: string[], statuses: Map<string, { id: string, kind: string, status: string }>, queues: Queue[],
   declaration: Document | null, workflow: Workflow | null | "unknown", model: Model | null | "unknown", modelUnread: {
   commit: string, error: string } | null, modelSince: string | null, participants:
-  Participant[], plan: { order: Document | null, items: Document[], states: ItemState[] }, sprint: Document | null,
-  sprints: Document[], gates: Document[], gateStates: Array<{ gate: string, state: string, record: string | null, needs:
+  Participant[], plan: { order: Document | null, items: Document[], states: ItemState[] }, sprints: Document[],
+  assignments: Document[], held: Held[], gates: Document[], gateStates: Array<{ gate: string, state: string, record: string | null, needs:
   string | null, difference: string | null }>, jobs: JobRow[], pullRequests: PullRequest[] | "unknown", schedule:
   Document, ci: { runs: CiRun[] | "unknown", configured: boolean, drift: Array<{ path: string, difference: string }>,
   jobWorkflow: boolean }, tags: Array<{ name: string, commit: string }> | "unknown", results: Snapshot | null, tests:
@@ -120,8 +122,9 @@ The six stages of the main page, each a share between 0 and 1:
   and keeps (UC-031 6a) —, and `workflow` derived from it. Both are `"unknown"` when that commit cannot be read, and
   `modelUnread` then names the commit and the error it was read with. `modelSince` is the date the declared model was
   declared; `plan`
-  the steps of the implementation plan or the backlog items, in their order, with their states; `sprint` the running or
-  the last sprint; `jobs` every job of the product with the live state of those that have not ended — a row whose source
+  the steps of the implementation plan in their order, or the backlog items after the items they build on, with their
+  states; `sprints` the sprints of every team, a team's running or last sprint being its newest; `assignments` the
+  role assignments; `held` what the teams' sprints hold (MOD-work-plans' `heldItems`); `jobs` every job of the product with the live state of those that have not ended — a row whose source
   cannot be read says so —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
   the runs of the default branch's head; `ci.configured` whether the configuration Agent M generates from the schedule
   is present, `ci.drift` how it differs from the schedule, `ci.jobWorkflow` whether the job workflow of MOD-runtimes is
@@ -163,16 +166,17 @@ The six stages of the main page, each a share between 0 and 1:
     reaches it), `TokenRefused`, `RateLimited`, `Unreachable`.
 - `progressIn(facts: Facts, now: Date) -> { measure: string, planned: { grid: { entries: Array<{ requirement: string,
   phase: string, state: "open" | "in progress" | "done" }>, count: string }, timeline: Array<{ phase: string, from: string
-  | null, to: string | null, gate: string | null, passed: string | null }>, steps: ItemState[] } | null, sprint: { items:
-  ItemState[], burnDown: Array<{ day: string, remaining: number }>, final: boolean } | null, flow: { columns: Array<{
+  | null, to: string | null, gate: string | null, passed: string | null }>, steps: ItemState[] } | null, sprints: Array<{ team:
+  string, items: ItemState[], burnDown: Array<{ day: string, remaining: number }>, final: boolean }>, flow: { columns: Array<{
   name: string, items: string[] }>, wip: number | null, cumulative: Array<{ day: string, counts: Record<string, number>
   }> } | null, since: string | null }` — the progress in the declared model's measure. For a planned model, the grid of
   every accepted requirement in every phase, each cell done when what the phase produces for the requirement is accepted
   — or, for implementation and tests, merged and passing —, in progress while it is open or a job works on it, and open
   otherwise; the phases on a timeline with their gates as milestones; beside it the steps of the implementation plan with
-  their states; with no accepted requirement, the phases empty. For a model with time boxes, the sprint's items and the
-  remaining items per day of the sprint; with no running sprint, the last sprint's final burn-down. For a model with a
-  work-in-progress limit, the board with its columns and its limit and the items per state per day. Each item's state on
+  their states; with no accepted requirement, the phases empty. For a model with time boxes, for each team its sprint's items
+  and the remaining items per day of the sprint; for a team with no running sprint, its last sprint's final burn-down.
+  For a model with a work-in-progress limit, the board with its columns and its limit — counted per team in a model with
+  sprints — and the items per state per day. Each item's state on
   a day is dated by the records and the pull requests. After a change of model, `since` is the change, and the chart starts
   there. Errors: `NoModel` when the product declares none.
 - `stageShares(facts: Facts) -> Array<{ stage: string, share: number | null, detail: string }>` — the six stages of the
@@ -186,11 +190,12 @@ The six stages of the main page, each a share between 0 and 1:
   reached; a gate whose record names a text that has changed since, as passed on an earlier text, with the difference;
   each gate a process requirement adds, with its requirement and source.
 - `blocked(facts: Facts) -> Array<{ item: string, reason: "failed job" | "waiting at a gate" | "requirement not
-  accepted" | "work-in-progress limit", detail: string }>` — every item or plan entry that cannot move, each with its
-  reason; for a gate, the role or check that decides it.
-- `whoWorksOnWhat(facts: Facts) -> { participants: Array<{ participant: string, roles: string[], jobs: string[] }>,
-  unreachable: Array<{ route: string, reason: string | null }> }` — each participant of the product with its roles and
-  current jobs; and each source of jobs that could not be read, whose running jobs are not shown.
+  accepted" | "work-in-progress limit" | "held by another team's sprint", detail: string }>` — every item or plan entry
+  that cannot move, each with its reason; for a gate, the role or check that decides it; for a held module, the other
+  team's sprint and the module.
+- `whoWorksOnWhat(facts: Facts) -> { participants: Array<{ participant: string, roles: string[], teams: string[], jobs:
+  string[] }>, held: Held[], unreachable: Array<{ route: string, reason: string | null }> }` — each participant of the
+  product with its roles, its teams in a product with several teams, and its current jobs; what each team's sprint holds; and each source of jobs that could not be read, whose running jobs are not shown.
 - `buildInProgress(facts: Facts) -> Array<{ item: string, job: string, participant: string, state: string, elapsed:
   number, reachable: boolean }>` — the steps or items in progress, each with the job working on it, its participant,
   state and elapsed time, jobs on Bridges included; a job whose runtime does not answer is listed as not reachable, with
@@ -235,7 +240,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 
 ## Uses
 
-- MOD-work-plans.ItemState, itemStates, planSchemas — the steps and items, their order, the sprints, and each one's state.
+- MOD-work-plans.ItemState, Held, itemStates, heldItems, planSchemas — the steps and items, their order, the sprints,
+  what they hold, and each one's state.
 - MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates — the declared process, its gates
   and their states. The workflow is read with the instance's SPEC, where the process requirements stand.
 - MOD-model-catalogue.Model, catalogue, planGrid — the declared model, from the catalogue at the commit the declaration

@@ -72,11 +72,10 @@ prefills is a document of the item schema of MOD-documents, written by Process (
   and the modules the analysis names, which the person confirms or corrects (`A BACKLOG ITEM NAMES WHAT IT REALISES`, `A
   BACKLOG ITEM NAMES THE MODULES IT CHANGES`); placed at the top for a bug and at the bottom for a change unless the
   person moves it. Errors: `NotClassified` for an issue without a class — no item is offered.
-- `moveToBacklog(host: Host, issue: { number: number, address: string }, item: Document, place: number | "top" |
-  "bottom", existing: string | null) -> Promise<{ item: string, comment: { text: string, issue: string } | null }>` — the
+- `moveToBacklog(host: Host, issue: { number: number, address: string }, item: Document, existing:
+  string | null) -> Promise<{ item: string, comment: { text: string, issue: string } | null }>` — the
   person's one click *Add* (UC-033): the item — the one `backlogItemFrom` prefilled and the person checked, or, when
-  `existing` names an item, that item with this issue added to its origins — written with its place in the order
-  through Process's `saveItems`; then the comment `item-added` on the issue, naming the item and its address on the
+  `existing` names an item, that item with this issue added to its origins — written through Process's `saveItems`; then the comment `item-added` on the issue, naming the item and its address on the
   dashboard, and the label `backlog`, also for a second issue added to an existing item. When the token may not comment,
   the item is written all the same and the comment's text and the issue's address are returned for the person to copy
   (UC-033). Crosses the network. Errors: `saveItems`' own — nothing is written then —, and Access's.
@@ -100,8 +99,7 @@ prefills is a document of the item schema of MOD-documents, written by Process (
 ## Files
 
 It reads the SPEC, the change queues, and the files the trace graph needs, from a snapshot. It writes comments and
-labels and closes issues in the product's tracker through Access; the item and the order are written by Process's
-`saveItems`.
+labels and closes issues in the product's tracker through Access; the item is written by Process's `saveItems`.
 
 ## Uses
 

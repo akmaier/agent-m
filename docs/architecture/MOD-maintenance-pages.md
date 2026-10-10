@@ -105,8 +105,8 @@ person reviews it. Its formats are those of the modules it uses.
     change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates
     shown by class beside the requirements they refer to and every conflict decided by the person, then *Save*, which
     writes them as a change queue naming the issue; *Move to backlog* with the item prefilled — its fields checked in a
-    form while the person edits them — and its place in the order, the top for a bug and the bottom for a change; *Add*,
-    which writes the item, its place and the issue's comment and label with `moveToBacklog`, or names the comment to copy
+    form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
+    `moveToBacklog`, or names the comment to copy
     when the token may not comment; closing an issue with links once its pull request is merged.
   - `mail` — *Read mailbox*; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in
     this browser only; the participant for the proposals among those at places the mailbox allows, a place outside the

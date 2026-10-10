@@ -79,6 +79,7 @@ forced_by:
   - UC-045
   - UC-046
   - UC-047
+  - UC-048
 designs:
   - MOD-site-frame
   - MOD-markdown-render

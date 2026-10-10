@@ -74,6 +74,7 @@ forced_by:
   - UC-045
   - UC-046
   - UC-047
+  - UC-048
 ---
 # ARC-037 Agent M as a whole
 
@@ -578,8 +579,8 @@ the strategies it uses are named with the subsystem that offers them.
 | UC-029 | Site's trace page groups the tests the Artifact model reads by level, requirement, use case or module; Tests and releases adds each test's history from the result records. |
 | UC-030 | Site's trace page shows the audit Tests and releases derives at the tag from the Artifact model, Sources and resources' links, the result records and the approval records, with the instance's SPEC for the process requirements whose gates the product's workflow holds; the export is committed only on a person's click, through Access. |
 | UC-031 | Site's form, from Process's model schema, edits a definition; Process validates what the schema cannot and previews the plan of requirements times phases; Site draws it live; saving is one commit through Access. |
-| UC-032 | Process derives each item's state and checks the order bottom-up against the architecture through the Artifact model; proposing items is a kind the runner runs with Process's recipe and writer; items, order and sprints are committed through Access. |
-| UC-033 | Issues and mail prefills the item from the issue and its class; Process writes item and order; Access comments on and labels the issue. |
+| UC-032 | Process derives each item's state, lists each item after the items it builds on and checks the items against the architecture through the Artifact model; with several teams, it derives what their sprints hold and refuses a selection that would collide; proposing items is a kind the runner runs with Process's recipe and writer; items and sprints are committed through Access. |
+| UC-033 | Issues and mail prefills the item from the issue and its class; Process writes the item; Access comments on and labels the issue. |
 | UC-034 | Process finds the startable items and gives the implementation inputs and the gates; Participants and jobs starts the jobs on their routes; gates are decided and recorded through Process; the pull request merges once Process's Definition-of-Done check holds. |
 | UC-035 | Process computes the progress in the model's measure, the gate states, what is blocked and who works on what, from the records Access reads and the live job states of Participants and jobs. |
 | UC-036 | Site's main page lists the jobs of every product, which Participants and jobs derives from their records and their runtimes' live states, streams logs and cancels or retries; a person's gate decision is checked and recorded by Process. |
@@ -594,6 +595,7 @@ the strategies it uses are named with the subsystem that offers them.
 | UC-045 | The runner runs the planning kind with Process's recipe of the architecture and the model; Process checks the draft against the module order the Artifact model derives; the plan is committed through Access. |
 | UC-046 | Site's main page reads the instance's or each product's snapshot through Access; Process derives the stage shares, the build in progress and what waits for a person, with the job states of Participants and jobs. |
 | UC-047 | Site's settings page asks the browser's permission on the person's click and keeps the switch in the browser's store through Access; while a page is open, the Site reads every five minutes the instance's and each product's snapshot through Access, each with its own token; Process derives from each what waits for acceptance, from its files, records and tags — the release test reports with Tests and releases —; the Site compares it with what the browser's store keeps as notified, shows what has come to wait through its service worker, and the worker opens the page where it is accepted on a click. |
+| UC-048 | Site's implementation pages show the model's roles and the instance's participants; Process checks the role assignments against both; each role assignment is committed through Access as the author's input. |
 
 ### Testing
 

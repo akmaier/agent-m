@@ -31,7 +31,8 @@ It belongs to Process (ARC-042). It holds the catalogue of process models and pr
 the book's models — waterfall, V-model, reuse-oriented, Scrum, Kanban — and, separately, its practices — DevOps,
 prototyping, incremental delivery, the scaling layers of disciplined agile delivery (`AGENT M CARRIES THE BOOK'S
 CATALOGUE`, `A PRACTICE IS NOT A MODEL`) — beside the instance's own models. It validates a definition before any product
-may declare it (`A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED`), derives the plan of every accepted requirement in
+may declare it (`A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED`) — each role saying how many participants fill it (`A
+ROLE NAMES HOW MANY FILL IT`) —, derives the plan of every accepted requirement in
 every phase of a planned model (`A PLAN COVERS THE WHOLE SPECIFICATION`), and draws a model as a diagram. It runs in the
 browser and in Node.
 
@@ -57,11 +58,11 @@ It keeps nothing beyond its shipped data files. It owns two formats.
 |---|---|
 | front matter | `name`; `kind` (`planned` or `pulled`); `adapted_from` (the model it was adapted from, if any); `measure` (`plan entries per phase`, `remaining items per time box` or `items per state over time`) |
 | `## About` | optional, before `## Phases`: the lines `manages:` — the risk the model manages well —, `accepts:` — the risk it accepts —, `example:` — an example project it suits — and `chapter:` — the chapter of the book that explains it |
-| `## Phases` | a table: `Name`, `Role`, `Produces` (the kinds of artifact, among requirements, `UC`, `ARC`, `MOD`, `TST`, `ITM`, sprint record; a kind may be followed by an explanation in parentheses: the kind is what stands before it, and no check reads the explanation) |
+| `## Phases` | a table: `Name`, `Role` (the role that works in the phase, or several, separated by commas), `Produces` (the kinds of artifact, among requirements, `UC`, `ARC`, `MOD`, `TST`, `ITM`, sprint record; a kind may be followed by an explanation in parentheses: the kind is what stands before it, and no check reads the explanation) |
 | `## Transitions` | a table: `From`, `To`, `Kind` (`sequence`, `alternative`, `back`) |
 | `## Verification pairs` | a table: `Phase`, `Checked by` |
 | `## Gates` | a table: `Between` (`<phase> → <phase>`), `Artifacts`, `Condition`, `Decider` (a role of the model, or `check: <CI check name>`) |
-| `## Roles` | a table: `Name`, `Filled by` (`person`, `agent` or `either`), `Capabilities` |
+| `## Roles` | a table: `Name`, `Filled by` (`person`, `agent` or `either`), `How many` (`one`, or `several` where several participants may fill it), `Capabilities` |
 | `## Flow control` | for `pulled` only, a table `Kind`, `Value` with the rows `WIP limit`, `Time box` (its length, or `none` for no time box), `Sprints` |
 
 Free text may stand between the title and the first section. A shipped model's file is in exactly this format; an
@@ -76,9 +77,9 @@ is` — its explanation for someone new to it, with the book chapter.
 
 - `Model` — a model read by its schema: `{ name: string, kind: "planned" | "pulled", adaptedFrom: string | null,
   measure: string, about: { manages: string, accepts: string, example: string, chapter: string } | null, phases:
-  Array<{ name: string, role: string, produces: string[] }>, transitions: Array<{ from: string, to: string, kind: string
+  Array<{ name: string, roles: string[], produces: string[] }>, transitions: Array<{ from: string, to: string, kind: string
   }>, pairs: Array<{ phase: string, checkedBy: string }>, gates: Array<{ from: string, to: string, artifacts: string,
-  condition: string, decider: string }>, roles: Array<{ name: string, filledBy: string, capabilities: string[] }>, flow:
+  condition: string, decider: string }>, roles: Array<{ name: string, filledBy: string, howMany: "one" | "several", capabilities: string[] }>, flow:
   { wip: number | null, timeBox: string | null, sprints: boolean } | null, version: string, path: string }`.
   - `about` is what the model's `## About` says, and `null` for a model without one.
   - `produces` holds each phase's kinds without their explanations, and `flow.timeBox` is `null` for `none`.
@@ -96,7 +97,7 @@ is` — its explanation for someone new to it, with the book chapter.
 - `modelFindings(model: Document) -> Finding[]` — every rule a definition must keep, each finding beside the field that
   causes it: a transition naming a phase that is not defined, or a phase no transition reaches from the first phase; a
   verification pair naming a missing phase; a gate without artifacts, without a condition or without a decider; a role
-  without capabilities, or a phase without a role; a gate that checks a kind of artifact no earlier phase produces; for
+  without capabilities, or without how many fill it; a phase without a role, or with a role the model does not name; a gate that checks a kind of artifact no earlier phase produces; for
   `pulled` work, neither a time box nor a work-in-progress limit, or both; a measure that does not fit the kind of work;
   no declaration of planned or pulled. A definition with an error finding can be declared by no product.
 - `planGrid(requirements: string[], model: Model) -> { entries: Array<{ requirement: string, phase: string }>, count:

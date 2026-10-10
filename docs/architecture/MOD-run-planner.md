@@ -42,7 +42,8 @@ provides:
 
 ## Responsibility
 
-It belongs to Process (ARC-042). A run carries a selection — steps of the implementation plan, or backlog items —
+It belongs to Process (ARC-042). A run carries a selection — steps of the implementation plan, or backlog items, in a model with sprints those of one
+team's current sprint —
 through the product's process model as jobs (`A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION`), recorded as a job
 that names its jobs (`A RUN IS A JOB THAT NAMES ITS JOBS`). This module reads a run from its record and computes, from
 the records alone, its next actions: CI set up first (`A RUN SETS UP CI BEFORE IT IMPLEMENTS`), then the steps in the
@@ -87,7 +88,7 @@ limit or stops it.
   job rows carry the live states, in this order: while the product has no CI configuration of Agent M's
   (`facts.ci.configured` false), start the kind `set-up-ci` and nothing else until its pull request is merged; start the
   kind `implement` for every selected step or item that `startable` admits and whose modules use only modules already
-  done, each on a route of a holder of the implementing role who may receive its content that reaches the product's
+  done, each on a route of a holder of the implementing role in the item's role assignment who may receive its content that reaches the product's
   resources (`facts.resourceNeeds`), as many as `jobs at once` allows; the steps of a phase only once the gate before it is recorded; resume a job whose gate has been decided; once
   the selected plan steps are implemented, start `propose-tests` for them at every level the product's schedule names —
   its rows but `paid` (`facts.schedule`) —, and when that job has ended, `write-tests` with the cases its record's

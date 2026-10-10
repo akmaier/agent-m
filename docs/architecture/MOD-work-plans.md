@@ -48,15 +48,17 @@ uses:
   - MOD-job-runner.provenanceLines
 provides:
   - ItemState
+  - Held
   - planSchemas
   - itemStates
   - startable
+  - heldItems
+  - conflicts
   - planFindings
   - backlogFindings
   - sprintFacts
   - savePlan
   - saveItems
-  - saveOrder
   - startSprint
   - endSprint
   - closeSprint
@@ -66,70 +68,91 @@ provides:
 
 ## Responsibility
 
-It belongs to Process (ARC-042). It keeps the order in which a product's work is done: the implementation plan of a model
-that plans its work (`THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY`, `AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM
-FROM ITS MODULES`, `A PLAN STEP NAMES THE TESTS OF ITS LEVEL`), and the backlog and sprints of a model that pulls its work
+It belongs to Process (ARC-042). It keeps the work of a product: the implementation plan of a model that plans its work,
+in its order (`THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY`, `AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM
+ITS MODULES`, `A PLAN STEP NAMES THE TESTS OF ITS LEVEL`), and the backlog and sprints of a model that pulls its work
 (`THE BACKLOG LIVES IN THE PRODUCT REPOSITORY`, `A BACKLOG ITEM NAMES WHAT IT REALISES`, `A BACKLOG ITEM NAMES THE MODULES IT
-CHANGES`). It derives each step's or item's state and every reason it cannot start (`NOTHING IS IMPLEMENTED BEFORE IT IS
-ACCEPTED`, `NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT`, `A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT`), never
-storing a state (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`), and records a sprint from its start to its review and
-retrospective (`A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT`, `A SPRINT ENDS WITH A RETROSPECTIVE`). It commits each save
-of a plan, of items, of an order, and of a sprint's start, end and close as one commit on the head that was read, checked
-by its findings — a person's own input on the page, and the same functions behind the writers of the kinds that draft a
-plan, propose items and close a sprint, whose recipes and checks it offers too. It runs in the browser and in Node.
+CHANGES`). A backlog keeps no order of its own: its items are listed after the items they build on. In a model with
+sprints, every team runs sprints of its own, and a sprint holds its items until their change is in the default branch or
+they return to the backlog. A team's selection is refused when one of its items changes a module that an item of another
+team's sprint changes or uses, or uses a module that such an item changes (`EVERY TEAM RUNS SPRINTS OF ITS OWN`, `A SPRINT
+HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH`, `SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR
+USES`, `SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD`). It derives each step's or item's state and every reason
+it cannot start (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`, `NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT`, `A TIME
+BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT`), never storing a state (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`), and
+records a sprint from its start to its review and retrospective (`A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT`, `A SPRINT
+ENDS WITH A RETROSPECTIVE`). It commits each save of a plan, of items, and of a sprint's start, end and close as one commit
+on the head that was read, checked by its findings — a person's own input on the page, and the same functions behind the
+writers of the kinds that draft a plan, propose items and close a sprint, whose recipes and checks it offers too. It runs
+in the browser and in Node.
 
 ## Parts
 
 - `index.mjs` — the interface.
-- `plan-order.schema.md`, `backlog-order.schema.md`, `sprint.schema.md` — the schemas, in MOD-documents' schema language.
+- `plan-order.schema.md`, `sprint.schema.md` — the schemas, in MOD-documents' schema language.
 - `states.mjs` — item states and startability.
 - `checks.mjs` — the findings of a plan and of a backlog.
-- `sprints.mjs` — the facts of a sprint.
-- `saves.mjs` — the commits of a plan, of items, of an order and of a sprint.
+- `sprints.mjs` — the facts of a sprint, the items the sprints hold, and what keeps an item from a team's selection.
+- `saves.mjs` — the commits of a plan, of items and of a sprint.
 - `strategies.mjs` — the recipes, checks and writers of `workStrategies`.
 
 ## Data
 
-It keeps nothing. It owns three formats; the files of the steps and items themselves (`ITM-<nnn>-<slug>.md`) are of the
+It keeps nothing. It owns two formats; the files of the steps and items themselves (`ITM-<nnn>-<slug>.md`) are of the
 item schema of MOD-documents (`artifactSchemas().item`).
 
 | Schema | File | Content |
 |---|---|---|
 | `plan-order` | `docs/plan/order.md` | a table `Step`, `Phase`: every step of the plan by identifier, in its order, with the phase of the model it belongs to |
-| `backlog-order` | `docs/backlog/order.md` | a table `Item`: every backlog item by identifier, in its order |
-| `sprint` | `docs/backlog/sprints/<nn>.md` | front matter `sprint`, `goal`, `start`, `end` (the date the time box gives, empty without one), `closer` (the participant who closes it), `branch` (its own branch, empty for none), `selection` (the items); then sections appended as the sprint goes on, never rewritten: `## Selection` when the selection is changed by a new start decision, `## Ended` when the Product Owner ends a sprint without a time box, `## Review` (the increment, the items not done with their reasons, each feedback line with where it goes — new item, change to an item, noted —, who took part, and for an agent the sources of its feedback), `## Unfinished items` (each to the backlog or into the next sprint, with the reason), `## Retrospective` (what went well, what did not, each change with where it goes — process model, Definition of Done, a participant's instructions, team agreement —; an agent's changes as proposals only) |
+| `sprint` | `docs/backlog/sprints/<team>/<nn>.md`, numbered within the team; `<team>` is the name of the team's role assignment | front matter `sprint`, `goal`, `start`, `end` (the date the time box gives, empty without one), `closer` (the participant who closes it), `branch` (its own branch, empty for none), `selection` (the items); then sections appended as the sprint goes on, never rewritten: `## Selection` when the selection is changed by a new start decision, `## Ended` when the Product Owner ends a sprint without a time box, `## Review` (the increment, the items not done with their reasons, each feedback line with where it goes — new item, change to an item, noted —, who took part, and for an agent the sources of its feedback), `## Unfinished items` (each to the backlog or into the next sprint, with the reason), `## Retrospective` (what went well, what did not, each change with where it goes — process model, Definition of Done, a participant's instructions, team agreement —; an agent's changes as proposals only) |
 
 An item's state, `ItemState`, is derived from the approval records, the queues, the job records and the pull requests:
 `waiting for acceptance`, `waiting for an item it builds on`, `ready`, `in progress` (a job runs, or its pull request is
 open), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged). A plan step that waits for
 the gate before its phase is `waiting` with that gate named.
 
+An item is held by a team's sprint from its selection until a pull request with its change is merged into the default
+branch, or until its sprint's close sends it back to the backlog. An item's role assignment is the one of the team whose
+sprint holds it, and the product's one in a model without sprints.
+
 ## Interfaces
 
 - `ItemState` — `{ item: string, state: "waiting for acceptance" | "waiting for an item it builds on" | "waiting" |
   "ready" | "in progress" | "blocked" | "done" | "unknown", reason: string | null, job: string | null, pullRequest:
   string | null }`; `unknown` when the state needs pull requests the host could not read.
-- `planSchemas: { planOrder: Schema, backlogOrder: Schema, sprint: Schema }` — the three schemas, for MOD-documents and
+- `Held` — `{ item: string, sprint: string, team: string, changes: string[], uses: string[] }`: an item a team's sprint
+  holds, with the modules it changes and the modules whose interfaces those use.
+- `planSchemas: { planOrder: Schema, sprint: Schema }` — the two schemas, for MOD-documents and
   for the page's forms.
-- `itemStates(items: Document[], order: Document, facts: { statuses: Map<string, { id: string, kind: string, status:
+- `itemStates(items: Document[], order: Document | null, facts: { statuses: Map<string, { id: string, kind: string, status:
   string }>, queues: Queue[], jobs: JobRow[], pullRequests: PullRequest[] | "unknown", gates: Array<{ gate: string,
-  state: string }>, workflow: Workflow | null }) -> ItemState[]` — every step or item in its order with its state, from
+  state: string }>, workflow: Workflow | null }) -> ItemState[]` — every step in the plan's order, or every item after the items it builds on — a backlog has no
+  `order` —, with its state, from
   the approval statuses, the change queues, the jobs, the pull requests and the gate states `gateStates` gives; with the
   pull requests `"unknown"` — a host that does no server operations —, a step or item whose state needs them is
   `unknown`, never guessed; a requirement an item realises that has been withdrawn or changed marks the item.
-- `startable(item: string, states: ItemState[], context: { workflow: Workflow, declaration: Document, sprint: Document |
-  null, wip: number | null, participants: Participant[] }) -> { startable: true } | { startable: false, reasons:
-  string[] }` — every reason a job for this step or item cannot start: not selected for the current sprint; a requirement
-  or use case it names not accepted, named; an item it builds on not done, named; the work-in-progress limit reached,
-  naming the items in progress and those waiting for review; the gate before its phase not recorded, naming it and its
-  decider; no holder of the implementing role with what the role needs.
+- `startable(item: string, states: ItemState[], context: { workflow: Workflow, assignment: Document, sprint: Document |
+  null, held: Held[], wip: number | null, participants: Participant[] }) -> { startable: true } | { startable: false,
+  reasons: string[] }` — every reason a job for this step or item cannot start: not selected for the current sprint of its
+  team, `sprint`; a requirement or use case it names not accepted, named; an item it builds on not done, named; the
+  work-in-progress limit reached by the items in progress under `assignment`, the item's role assignment, naming them and
+  those waiting for review; the gate before its phase not recorded, naming it and its decider; no holder of the
+  implementing role in `assignment` with what the role needs.
+- `heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown") ->
+  Held[]` — every item a team's sprint holds, from the sprint records and the pull requests, with the modules it changes
+  and the modules whose interfaces they use (`A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH`); with the pull
+  requests unknown, a selected item counts as held.
+- `conflicts(item: Document, team: string, held: Held[], architecture: Document[]) -> Array<{ sprint: string, team:
+  string, item: string, module: string }>` — what keeps an item from the team's selection: each item another team's sprint
+  holds that is the item itself, changes a module the item changes or uses, or uses a module the item changes, with that
+  module (`SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES`).
 - `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow) -> Finding[]` — a
   module, a subsystem or the system without a step; a module ordered before one whose interface it uses; a step without
   the tests of its level, or with the tests of another; a step without a phase of the model; a cycle in the modules'
   uses, naming its modules.
-- `backlogFindings(items: Document[], order: Document, architecture: Document[]) -> Finding[]` — an item that realises
-  nothing; that names no module the architecture describes; that stands before an item it builds on, naming that item; and,
-  as a warning, an item that restates an existing one.
+- `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
+  no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
+  and, as a warning, an item that restates an existing one.
 - `sprintFacts(sprint: Document, facts: { states: ItemState[], jobs: JobRow[], results: Snapshot, pullRequests:
   PullRequest[], issues: Issue[] }) -> { increment: Array<{ item: string, pullRequest: string, realises: string[],
   tests: string[] }>, notDone: ItemState[], numbers: { failedJobs: number, retriedJobs: number, correctionRounds: number,
@@ -143,25 +166,25 @@ the gate before its phase is `waiting` with that gate named.
   `docs/plan/` and `docs/plan/order.md`, the files of removed steps deleted. `trailers` are a job's provenance lines,
   empty for a person's own input — the same for every save below. Crosses the network. Errors: `PlanRefused { findings
   }`, `Moved`, `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable` — the host's errors, here and below.
-- `saveItems(host: Host, change: { items: Document[], removed: string[], order: Document }, context: { architecture:
+- `saveItems(host: Host, change: { items: Document[], removed: string[] }, context: { architecture:
   Document[], head: string, trailers: string[] }) -> Promise<{ commit: string, written: string[], warnings: Finding[] }>`
   — **Add to backlog** and **+ Item** (UC-032), an item pointed at a replacing requirement or removed (UC-032 1a), and
   **Move to backlog** (UC-033): `backlogFindings` first, and with an error finding nothing is written; a warning — an item
   that restates an existing one — is returned with the commit; a new item gets an identifier that no history holds; one
-  commit of the item files under `docs/backlog/` and the order, each new item after the items it builds on. An item
-  added while a sprint runs enters the backlog, never the sprint's selection. Errors: `ItemsRefused { findings }`, and
+  commit of the item files under `docs/backlog/`. An item added while a sprint runs enters the backlog, never the
+  sprint's selection. Errors: `ItemsRefused { findings }`, and
   the host's.
-- `saveOrder(host: Host, order: Document, context: { items: Document[], head: string, trailers: string[] }) -> Promise<{
-  commit: string }>` — **Save order** (UC-032 step 5): one commit of `docs/backlog/order.md`. Errors: `OrderRefused {
-  item, buildsOn }` for an item placed above an item it builds on, naming both, with nothing written; and the host's.
-- `startSprint(host: Host, sprint: { goal: string, start: string, closer: string, selection: string[] }, context: {
-  states: ItemState[], model: Model, declaration: Document, running: Document | null, head: string, trailers: string[] })
-  -> Promise<{ commit: string, path: string, added: string[], removed: string[] }>` — **Start sprint** (UC-032 step 6):
-  `end` set to the date the model's time box gives from `start`, empty without one; `branch` the one the declaration
-  gives the time box, created from the head where it does not exist yet; `docs/backlog/sprints/<nn>.md` committed with the
-  next number. While a sprint runs, a new start decision is appended to its file as `## Selection`, and `added` and
-  `removed` name what it changes (UC-032 6a). Errors: `SprintRefused { reasons }` — an item waiting for acceptance, or one
-  selected without the items it builds on that are not done —, and the host's.
+- `startSprint(host: Host, sprint: { team: string, goal: string, start: string, closer: string, selection: string[] },
+  context: { states: ItemState[], model: Model, declaration: Document, held: Held[], architecture: Document[], running:
+  Document | null, head: string, trailers: string[] }) -> Promise<{ commit: string, path: string, added: string[],
+  removed: string[] }>` — **Start sprint** (UC-032 step 6), for one team: `end` set to the date the model's time box gives
+  from `start`, empty without one; `branch` the one the declaration gives the time box, followed by `/<team>/<nn>`,
+  created from the head where it does not exist yet; `docs/backlog/sprints/<team>/<nn>.md` committed with the team's next
+  number. `held` is read at the head the commit is written on, and each selected item is checked with `conflicts` (UC-032
+  6c). While a sprint runs, a new start decision is appended to its file as `## Selection`, and `added` and `removed` name
+  what it changes (UC-032 6a). Errors: `SprintRefused { reasons }` — an item waiting for acceptance, one selected without
+  the items it builds on that are not done, or one that `conflicts` names, with the sprint, the held item and the module
+  —, and the host's.
 - `endSprint(host: Host, sprint: string, context: { head: string, now: Date, trailers: string[] }) -> Promise<{ commit:
   string }>` — **End sprint** (UC-032 6b): appends `## Ended` with the date to a sprint without a time box. Errors:
   `NotEndable` for a sprint with a time box, whose end is its date, or one already ended; and the host's.
@@ -170,17 +193,17 @@ the gate before its phase is `waiting` with that gate named.
   string, to: "backlog" | "next sprint", reason: string }>, retrospective: Array<{ text: string, kind: "went well" | "did
   not go well" | "change", goes: "process model" | "Definition of Done" | "a participant's instructions" | "team
   agreement" | null }>, newItems: Document[] }, context: { facts: ReturnType<typeof sprintFacts>, architecture:
-  Document[], order: Document, head: string, trailers: string[] }) -> Promise<{ commit: string, written: string[] }>` —
+  Document[], head: string, trailers: string[] }) -> Promise<{ commit: string, written: string[] }>` —
   **Close sprint** (UC-041 step 6): appends `## Review` — the increment and the items not done from `facts`, the feedback,
   who took part, for an agent the sources of its feedback —, `## Unfinished items` and `## Retrospective` to the sprint's
-  file; adds the feedback's new items to the backlog as `saveItems` does and places the unfinished items going back in
-  the order; all in one commit. Errors: `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
+  file; adds the feedback's new items to the backlog as `saveItems` does, and records for each unfinished item whether it
+  goes back to the backlog or into the team's next sprint; all in one commit. Errors: `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
   without a decision, `AlreadyClosed`, `ItemsRefused { findings }`, and the host's.
 - `workStrategies: Strategies` — the strategies this module offers the job runner (ARC-046):
   - recipe `architecture-and-model` — the decision that states the system, the subsystems' decisions, the module files,
     the process model with its phases and gates, and the existing plan;
   - recipe `backlog-inputs` — the accepted requirements and use cases, those no item realises yet, the architecture, and
-    the existing items in their order;
+    the existing items;
   - recipe `sprint-facts` — the sprint's facts, the product's issues opened or closed during the sprint, its job records
     and result records — each named as a source; never a mail;
   - check `plan-checks` — `planFindings` on a drafted plan;
@@ -200,16 +223,17 @@ the gate before its phase is `waiting` with that gate named.
 
 ## Files
 
-- Reads `docs/plan/`, `docs/backlog/`, `docs/backlog/sprints/`, `docs/process.md` through the workflow, the architecture
+- Reads `docs/plan/`, `docs/backlog/`, `docs/backlog/sprints/`, `docs/process.md` through the workflow, the role
+  assignments under `docs/role-assignments/`, the architecture
   under `docs/architecture/`, `SPEC.md`, the approval records, the change queues, `docs/jobs/`, the branch `test-results`,
   the pull requests and the issues of the product, and the history of `docs/plan/` and `docs/backlog/`.
-- Writes, through its saves, `docs/plan/ITM-*.md`, `docs/plan/order.md`, `docs/backlog/ITM-*.md`,
-  `docs/backlog/order.md` and `docs/backlog/sprints/<nn>.md`, and creates a sprint's own branch.
+- Writes, through its saves, `docs/plan/ITM-*.md`, `docs/plan/order.md`, `docs/backlog/ITM-*.md` and
+  `docs/backlog/sprints/<team>/<nn>.md`, and creates a sprint's own branch.
 
 ## Uses
 
 - MOD-product-process.Workflow, gateStates, holdsRole — the phases and gates, a gate's state, the implementing role's
-  holders.
+  holders in a role assignment.
 - MOD-model-catalogue.Model — the phases a plan's steps belong to.
 - MOD-approvals.statuses, MOD-spec-changes.Queue, queues, MOD-spec-document.parseSpec — whether what an item names is
   accepted.

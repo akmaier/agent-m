@@ -39,6 +39,8 @@ uses:
   - MOD-model-catalogue.modelDiagram
   - MOD-product-process.declarationSchema
   - MOD-product-process.declarationFindings
+  - MOD-product-process.roleAssignmentSchema
+  - MOD-product-process.roleAssignmentFindings
   - MOD-product-process.workflowOf
   - MOD-product-process.holdsRole
   - MOD-product-process.doneCheck
@@ -46,12 +48,13 @@ uses:
   - MOD-work-plans.planSchemas
   - MOD-work-plans.itemStates
   - MOD-work-plans.startable
+  - MOD-work-plans.heldItems
+  - MOD-work-plans.conflicts
   - MOD-work-plans.planFindings
   - MOD-work-plans.backlogFindings
   - MOD-work-plans.sprintFacts
   - MOD-work-plans.savePlan
   - MOD-work-plans.saveItems
-  - MOD-work-plans.saveOrder
   - MOD-work-plans.startSprint
   - MOD-work-plans.endSprint
   - MOD-work-plans.closeSprint
@@ -91,12 +94,12 @@ provides:
 
 ## Responsibility
 
-It belongs to the Site (ARC-038). Its one responsibility is the menu entry Implementation: how a product is developed
-and the process models of the instance; the implementation plan, or the backlog with its sprints and their close;
+It belongs to the Site (ARC-038). Its one responsibility is the menu entry Implementation: how a product is developed,
+who fills its roles, and the process models of the instance; the implementation plan, or the backlog with its sprints and their close;
 starting the jobs of steps or items and a run over a selection; and progress in the model's own measure. It shows what
 Process derives and turns each decision into one call of the service that owns it.
 
-It serves UC-002, UC-024, UC-031, UC-032, UC-034, UC-035, UC-041, UC-043 and UC-045.
+It serves UC-002, UC-024, UC-031, UC-032, UC-034, UC-035, UC-041, UC-043, UC-045 and UC-048.
 
 It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
@@ -104,8 +107,9 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
 - `index.mjs` — the interface: `view`.
 - `process.mjs` — how the product is developed, and the instance's process models.
+- `roles.mjs` — who fills the roles: the product's role assignments.
 - `plan.mjs` — the implementation plan.
-- `backlog.mjs` — the backlog, its order, sprints, the board, closing a sprint.
+- `backlog.mjs` — the backlog, the sprints of each team, the board, closing a sprint.
 - `implement.mjs` — starting the jobs of steps or items, the merge of a pull request.
 - `run.mjs` — a run over a selection.
 - `progress.mjs` — progress in the model's measure, gates, what is blocked, who works on what.
@@ -121,12 +125,11 @@ Its formats are those of the modules it uses.
   `processStrategies`, `scheduleStrategies`, `resultStrategies`, `routeStrategies`, `approvalStrategies`:
   - `process` — *How this product is developed*: the five models in their two groups, each with what its `about` holds —
     the risk it manages well, the risk it accepts, an example project it suits, its chapter —, the roles with
-    whether a person, an agent or either may hold them and the capabilities each needs, the participants offered for a
-    role — only those with every capability, each with where it processes data —, phases, transitions, verification
+    whether a person, an agent or either may hold them, the capabilities each needs and whether one participant fills it
+    or several may, phases, transitions, verification
     pairs and gates with their deciders, a branch for a phase or sprint, practices, what the product's process
     requirements add, the Definition of Done, in a form from the declaration's schema; the findings of
-    `declarationFindings`, given the entries of the instance's source register that the product's `docs/sources.md`
-    links; *Save* writes the declaration with `saveFile`, naming the declared model's version by the commit of the
+    `declarationFindings`; *Save* writes the declaration with `saveFile`, naming the declared model's version by the commit of the
     instance its catalogue was read at. When the author selects another model than the declared one, the route lists the
     kinds of artifact the declared model's phases produce and the selected one's do not, and deletes none. When the
     catalogue as it stands holds another version of the declared model than the commit the declaration names — their
@@ -134,8 +137,15 @@ Its formats are those of the modules it uses.
     6a):
     - the phases, gates and roles of `workflowOf` under each version, side by side;
     - the difference of the two model files, with `showDifference`;
-    - the assignments that become invalid: what `declarationFindings` finds for the declaration as it would be saved,
-      naming the current commit, against the catalogue as it stands.
+    - what becomes invalid: what `declarationFindings` finds for the declaration as it would be saved, naming the current
+      commit, against the catalogue as it stands, and what `roleAssignmentFindings` finds for the role assignments
+      against that version's workflow.
+  - `roles` — *Roles* (UC-048): the product's role assignments — its teams, in a model with sprints —, each with who fills
+    which role, and the roles of the model with what each needs and how many fill it; for a role, the participants of the
+    instance's list that have every capability it needs, each with where it processes data; *+ Team* in a model with
+    sprints; the findings of `roleAssignmentFindings`, given the entries of the instance's source register that the
+    product's `docs/sources.md` links; *Save* writes a role assignment with `saveFile`; a team is removed only while no
+    sprint of it holds an item (`heldItems`).
   - `models`, `models/<name>` — the instance's process models: the catalogue, *Adapt* and *+ New model* with a form from
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
     every phase, *Save* only without errors, with `saveFile`.
@@ -143,18 +153,19 @@ Its formats are those of the modules it uses.
     waits for; *Draft the plan* with its run panel, run in this tab and attended, whose result waits for the planner; the
     draft reviewed in order, reordered, split, merged or edited where its dependencies allow; *Save plan*, which lets the
     drafted plan go on as the planner left it, or writes a plan made by hand with `savePlan`; *+ Step*.
-  - `backlog`, `board` — the items in their order with their derived states, the requirements and use cases no item
-    realises; *Propose items* with its run panel, whose drafts wait for the Product Owner, and *Add to backlog*, which
-    lets them go on as edited; *+ Item*, an item pointed at a replacing requirement or removed, with `saveItems`;
-    reordering and *Save order* with `saveOrder`, refused above an item it builds on, naming both; *Plan sprint* and
-    *Start sprint* with `startSprint`, *End sprint* with `endSprint`; for a model with a work-in-progress limit, the board
-    and *Pull*, refused at the limit with the items in progress named.
-  - `sprint/<n>/close` — the increment and the items not done, the feedback lines, the unfinished items' decisions, the
+  - `backlog`, `board` — the items, each after the items it builds on, with their derived states, the requirements and
+    use cases no item realises; *Propose items* with its run panel, whose drafts wait for the Product Owner, and *Add to
+    backlog*, which lets them go on as edited; *+ Item*, an item pointed at a replacing requirement or removed, with
+    `saveItems`; in a product with several teams, what the other teams' sprints hold, from `heldItems`, and on each item
+    the marks `conflicts` gives; *Plan sprint* and *Start sprint* for the person's team with `startSprint`, *End sprint*
+    with `endSprint`; for a model with a work-in-progress limit, the board and *Pull*, refused at the limit with the items
+    in progress named.
+  - `sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines, the unfinished items' decisions, the
     retrospective with the sprint's numbers as material; *Close sprint* with `closeSprint`, offered only with a
     retrospective entry and a decision for every unfinished item; *Merge increment* as a pull request whose CI must be
     green, for a sprint with a branch of its own.
   - `implement` — the steps of the plan or the ready items, each with its state and, if it cannot start, the reasons;
-    the participants that hold the implementing role and can write and run tests, the attempt limit, who merges, the
+    the participants that hold the implementing role in the item's role assignment and can write and run tests, the attempt limit, who merges, the
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
     participant's route — handed to a Bridge at once where the route is one; for each pull request its CI runs and
     whether the Definition of Done holds, and *Merge* once it does.
@@ -165,13 +176,14 @@ Its formats are those of the modules it uses.
     which records each end; and
     *Continue* once the person has raised the limit that stopped it.
   - `progress` — the progress in the model's measure — the grid of requirements by phases with the steps of the plan,
-    the sprint's burn-down, or the board's cumulative flow —, the gates passed, pending and not reached, what is
+    the burn-down of each team's running sprint, or the board's cumulative flow —, the gates passed, pending and not reached, what is
     blocked, who works on what; a cell, card or point leads to the trace page of what is behind it.
 
 ## Files
 
-It writes, only on a person's click and as that person's commit: the product's `docs/process.md` and a model under
-`docs/process-models/` of the instance, with `saveFile`; the plan, items, order and sprints through MOD-work-plans'
+It writes, only on a person's click and as that person's commit: the product's `docs/process.md`, its role assignments
+under `docs/role-assignments/`, and a model under `docs/process-models/` of the instance, with `saveFile`; the plan,
+items and sprints through MOD-work-plans'
 functions, or, for a drafted plan or drafted items, through the writer of their kind; a job's start record, and the end of a cancelled job, through
 MOD-runtimes; merges of pull requests, and the pull
 request of a sprint branch. It reads the product's snapshot, its pull requests and CI runs, and the instance's
@@ -199,13 +211,15 @@ product's `docs/sources.md`.
   MOD-model-catalogue.planGrid, MOD-model-catalogue.modelDiagram — models: the catalogue as it stands, and as it stood at
   the commit a declaration names.
 - MOD-product-process.declarationSchema, MOD-product-process.declarationFindings, MOD-product-process.workflowOf,
-  MOD-product-process.holdsRole, MOD-product-process.doneCheck — the declaration, its workflow and gates, and the
-  Definition of Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
+  MOD-product-process.roleAssignmentSchema, MOD-product-process.roleAssignmentFindings, MOD-product-process.holdsRole,
+  MOD-product-process.doneCheck — the declaration, its role assignments, its workflow and gates, and the Definition of
+  Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
   where the process requirements stand, and with the catalogue at the commit the declaration names, read with
   MOD-repository-hosts' `readSnapshot`.
 - MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.planFindings,
-  MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts — plans, backlogs, sprints and their states;
-  MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.saveOrder, MOD-work-plans.startSprint,
+  MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
+  plans, backlogs, sprints, their states, and what the teams' sprints hold;
+  MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.startSprint,
   MOD-work-plans.endSprint, MOD-work-plans.closeSprint — every save of a plan, a backlog or a sprint.
 - MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits — a run, its next actions, and the
   limits a person raises to continue it.
@@ -214,7 +228,7 @@ product's `docs/sources.md`.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
   participants a role or a job may have.
 - MOD-source-register.sourceSchemas — the product's links to its sources and the linked entries of the instance's
-  register, which `declarationFindings` judges the holders' places against.
+  register, which `roleAssignmentFindings` judges the holders' places against.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob — the
   run panels; MOD-job-runner.writeResult — a drafted plan or drafted items written on the person's click.
 - MOD-job-ledger.newJobId, MOD-job-ledger.listJobs, MOD-job-ledger.jobState — the jobs a page starts and follows;
