@@ -294,8 +294,8 @@ test("UC-008 1a: a private repository is read with the stored token through the 
     "through the API, with the token");
   assert.ok(!srv.seen.some((r) => r.url.startsWith("https://raw.githubusercontent.com/")), "never through the raw host");
   const without = await openDashboard({ server: await ucServer({}, [priv]), hash: "#uc", token: null });
-  assert.match(without.main(), /Could not read akmaier\/agent-m @ main: 404/);
-  assert.match(without.main(), /A private repository cannot be read without a token — add one in <a href="#settings">Settings<\/a>\./);
+  assert.match(without.main(), /HostError.*NotFound/i);
+  assert.match(without.main(), /private repository is found only with a token that reaches it/i);
   assert.doesNotMatch(without.main(), /UC-002/);
 });
 
@@ -631,7 +631,9 @@ test("UC-014 steps 8–9: after the notice is ticked, the pasted token and its e
   dom.byId("key-token").value = key;
   dom.byId("key-expires").value = "2027-01-15";
   await press(srv, dom.byId("key-store"));
-  assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((storedKey) => storedKey.startsWith("agent-m:akmaier/agent-m:")).sort(), ["agent-m:akmaier/agent-m:github-token"], "one canonical token, in this browser, and nothing else");
+  const storedKeys = [...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((storedKey) => storedKey.startsWith("agent-m:akmaier/agent-m:")).sort();
+  assert.deepEqual(storedKeys, ["agent-m:akmaier/agent-m:acknowledged:shared-origin", "agent-m:akmaier/agent-m:github-token"], "one canonical token and its explicit acknowledgement, in this browser, and nothing else");
+  assert.match(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:acknowledged:shared-origin")), /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, key);
   assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).expires, "2027-01-15", "the date as entered");
   assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${REPO}` && r.auth === `Bearer ${key}`), "the instance is read with it");
