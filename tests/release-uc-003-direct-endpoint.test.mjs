@@ -19,6 +19,16 @@ const BRIDGED = { name: "local", url: "http://127.0.0.1:11434", kind: "openai-co
 const type = (control, value) => { control.value = value; };
 const setting = (name) => globalThis.localStorage.getItem(`${prefix}endpoint:${name}`);
 
+const publicControl = (root, className) => {
+  for (const child of root?.children ?? []) {
+    if (typeof child !== "object") continue;
+    if (child.className?.split(" ").includes(className)) return child;
+    const found = publicControl(child, className);
+    if (found) return found;
+  }
+  return null;
+};
+
 function activate(browser) {
   Object.defineProperties(globalThis, {
     document: { value: browser.document, configurable: true, writable: true },
@@ -29,22 +39,26 @@ function activate(browser) {
 }
 
 async function openEndpointDashboard({ entries = {}, handlers = [], pathname = null, storage = null } = {}) {
-  const server = await repoServer({ files: {}, handlers });
+  const server = await repoServer({ repo: pathname ? "akmaier/other" : INSTANCE, files: {}, handlers });
   const page = await openDashboard({ server, hash: "#uc", entries });
   if (storage) globalThis.localStorage = storage;
   const dom = richDocument();
-  const main = dom.byId("main"), base = main.querySelector.bind(main);
+  const main = dom.byId("main");
   let mounted = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]'
-    ? { replaceChildren(...children) { mounted = children; } }
-    : base(selector);
+  const replace = main.replaceChildren.bind(main);
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   if (pathname) {
+    // dashboard-app derives its instance/store once during import.  The second controlled Pages address must therefore
+    // exist before its own dashboard module starts, and its repoServer must answer for that derived instance.
     globalThis.location.pathname = pathname;
     globalThis.location.hash = "#settings";
     await import(`../docs/assets/dashboard-app.mjs?itm270-instance=${encodeURIComponent(pathname)}`);
     await settle(server);
   } else await page.go("#settings");
-  await press(server, mounted[0]);
+  const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  const configure = publicControl(endpoints, "settings-endpoint-configure");
+  assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
+  await press(server, configure);
   assert.equal(globalThis.location.hash, "#endpoints", "Configure selects the dashboard's endpoint route");
   await page.go("#endpoints");
   return { server, page, main, browser: { document: globalThis.document, location: globalThis.location,

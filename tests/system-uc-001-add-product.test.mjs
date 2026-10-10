@@ -108,7 +108,8 @@ test("TST-281 UC-001 main flow stores a product token and adds the missing layou
   assert.deepEqual(w.instance.writes, [], "nothing is written to the instance repository");
   const productCalls = w.log.filter((r) => r.url.includes(`/repos/${PRODUCT}`));
   assert.ok(productCalls.length > 0 && productCalls.every((r) => r.authorization === `Bearer ${PRODUCT_TOKEN}`), "the product token reaches only product API calls");
-  assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "the instance token is unchanged");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token`)).value, TOKEN,
+    "the canonical instance token is unchanged");
 });
 
 // TST-282

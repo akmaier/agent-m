@@ -85,6 +85,26 @@ function captureNotifications() {
   return shown;
 }
 
+const publicControls = (root, name, out = []) => {
+  for (const child of root?.children ?? []) {
+    if (typeof child !== "object") continue;
+    if (child.className?.split(" ").includes(name)) out.push(child);
+    publicControls(child, name, out);
+  }
+  return out;
+};
+
+async function usabilitySettings(page) {
+  const main = globalThis.document.getElementById("main");
+  const replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Usability/.test(node.textContent));
+  assert.ok(pane, "the dashboard mounts MOD-settings-pages' public Usability tab");
+  return pane;
+}
+
 // One open SPEC change queue entry, in the files MOD-spec-changes' queues() reads them from (its index.md: the title,
 // the target line, and one row of its entry table; the entry's own proposal file, named "<nr>-*.md") — the same
 // minimal shape tests/progress-measures-waiting-for-acceptance.test.mjs's own queueFixture() builds and is proven
@@ -251,12 +271,11 @@ test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page, the main page amo
 
     const page = await openDashboard({ server, hash: "#uc" });
     assert.equal(browser.calls.requestPermission, 0, "the review page alone does not ask either");
-    await page.go("#settings");
+    const box = await usabilitySettings(page);
     assert.equal(browser.calls.requestPermission, 0, "opening settings alone does not ask either");
-
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    await press(server, box.querySelector("[data-notifications-switch-on]"));
+    const switchOn = publicControls(box, "settings-notifications-on")[0];
+    assert.ok(switchOn, "the public Usability pane offers Switch on");
+    await press(server, switchOn);
     assert.equal(browser.calls.requestPermission, 1, "the click asks the permission, once");
   } finally { browser.restore(); }
 });

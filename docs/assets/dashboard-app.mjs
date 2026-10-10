@@ -1,10 +1,8 @@
 // Dashboard — the browser runtime's composition root and router. SPEC §10; ARC-003 (shells).
 //
-// Reads one pinned commit of the product — on GitHub (two API calls, then immutable raw files) or on a
-// GitLab server (its REST API v4, at the same pinned commit) — through the reads the git host provides (readSnapshot,
-// readFile, repositoryInfo; dashboard/reads.mjs for a blob and the last accepted text), and renders use cases and SPEC change
-// proposals. A page load reads only the commit and its tree; each view then reads the files it shows, each by its blob
-// SHA and kept in this browser by that SHA, so that a file is read again only when it changed. With a stored token, a
+// Reads one pinned commit of the product — on GitHub or on a GitLab server (its REST API v4, at the same pinned commit) —
+// through the public repository Host reads, and renders use cases and SPEC change proposals. A page load reads only the commit
+// and its tree; each view then reads the files it shows through that pinned Snapshot. With a stored token, a
 // person's click commits an edit or an acceptance: the button's trusted click becomes the authority of the git host's one
 // write path (dashboard/writes.mjs clickAuthority; ARC-003 decision 3); an accepted SPEC change is written in
 // the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
@@ -26,15 +24,14 @@
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 import builtFiles from "./dashboard/built.json" with { type: "json" };
-import { fileTexts } from "./settings-store.mjs";
 import { productStore } from "./product-store-adapter.mjs";
 import {
-  REPO_RE, parseProductAddress, isGitLab, readSnapshot, readFile, repositoryInfo, tokenRefusal, usedUpLimit,
+  REPO_RE, parseProductAddress, isGitLab, tokenRefusal, usedUpLimit,
 } from "./git-host.mjs";
 import {
   parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
 } from "./review-core.mjs";
-import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
+import { tokenBannerHtml } from "./dashboard/settings-view.mjs";
 import { DASHBOARD, builtViews } from "../../src/site/views.mjs";
 import { menuHtml, entryOf } from "../../src/site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
@@ -202,13 +199,35 @@ export function deriveTarget({ hostname, pathname, search }) {
 }
 
 // The instance is the fork this page is served from; the product is chosen with ?repo= or ?product= (SPEC §10). Set by start().
-let T, GITLAB, SERVER, store, kept, REPO_KEY;
+let T, GITLAB, SERVER, store, host, hostAddress, hostToken, snapshot, snapshotHost;
 // The GitHub token (the instance's key, UC-014).
 const ghToken = () => store.getToken();
 // The token that writes to the product shown (settings-store tokenFor): a GitLab product's own project token (A GITLAB PRODUCT
 // USES A PROJECT ACCESS TOKEN), never the GitHub token; a GitHub product's own token, or the instance's while it has none (A
 // GITHUB PRODUCT USES A TOKEN OF ITS OWN).
 const token = () => store.tokenFor(T.product);
+// A Host retains the credential it was connected with. Reuse its Snapshot and blob memory while the selected repository and
+// actual credential are unchanged; create a new Host after Settings changes or clears that credential.
+function currentHost() {
+  const address = T.product.address;
+  const currentToken = token() || null;
+  if (!host || hostAddress !== address || hostToken !== currentToken) {
+    const changed = Boolean(host);
+    host = connect(parseAddress(address), { token: currentToken });
+    hostAddress = address;
+    hostToken = currentToken;
+    if (changed) {
+      snapshot = null;
+      snapshotHost = null;
+      memo = new Map();
+      state.records = null;
+      verified.clear();
+      acceptedCache.clear();
+      headersCache.clear();
+    }
+  }
+  return host;
+}
 // The product whose own token a request to `p` carries — a GitLab product, or a GitHub product with a token of its own —, so that
 // a refusal names that token; null where the instance's token was used.
 const ownTokenOf = (p) => (isGitLab(p) || (p?.address && !p.error && store.getGitHubProductToken(p.address)) ? p : null);
@@ -222,9 +241,9 @@ let flash = null; // the outcome of the last acceptance, shown once above the ne
 // ---------------------------------------------------------------- loading
 //
 // A page load reads the commit the branch points at and that commit's tree — two requests. The tree names every file with its
-// blob SHA. Each view then reads what it shows, once per commit (`once`): a file by its blob SHA, from the texts this browser
-// kept (readByBlob checks each against its SHA) or else from the server. The status of a reviewed file comes from the names of
-// the approval records in the tree (statusByNames); a record is read where its content decides.
+// blob SHA. Each view then reads what it shows, once per commit (`once`): a file by its blob SHA through the pinned Snapshot.
+// The status of a reviewed file comes from the names of the approval records in the tree (statusByNames); a record is read
+// where its content decides.
 
 let memo = new Map(); // what this page has read or derived at state.commit
 function once(key, f) {
@@ -234,28 +253,20 @@ function once(key, f) {
 
 async function loadSnapshot() {
   const before = state.commit;
+  const activeHost = currentHost();
   // GITLAB PRODUCTS ARE SUPPORTED: its default branch unless ?ref= names one, resolved to one commit.
-  if (GITLAB && !T.refGiven) T.ref = (await repositoryInfo({ product: T.product, token: token() })).defaultBranch || T.ref;
-  const snap = await readSnapshot({ product: T.product, ref: T.ref, token: token() });
+  if (GITLAB && !T.refGiven) T.ref = (await activeHost.repositoryInfo()).defaultBranch || T.ref;
+  const snap = await activeHost.readSnapshot(T.ref);
+  snapshot = snap;
+  snapshotHost = activeHost;
   state.commit = snap.commit;
-  state.tree = snap.tree;
+  state.tree = snap.paths.map((path) => ({ path, sha: snap.blob(path) }));
   state.byPath = new Map(state.tree.map((e) => [e.path, e]));
   if (state.commit !== before) { memo = new Map(); state.records = null; verified.clear(); }
 }
 
-// Without a token, files come from GitHub's raw host (public repositories). With a token, they come
-// through the API, the only place the token may go (SPEC §7 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT) —
-// which is also what makes private repositories readable. A GitLab product is read through its own
-// server's API, with its project token if one is stored (MOD-git-host readFile). A file the pinned tree names is there: a
-// GitLab product's that its server does not find is shown empty, a GitHub product's is an error, as before ITM-130.
-async function raw(path) {
-  const text = await readFile({ product: T.product, commit: state.commit, path, token: token() });
-  if (text === null && !GITLAB) throw Object.assign(new Error(`404 Not Found — ${path} at ${state.commit}`), { status: 404 });
-  return text ?? "";
-}
-
 // A file on the commit an acceptance is written on (dashboard/writes.mjs acceptItems); null if it is absent.
-const readAt = (head, path) => readFile({ product: T.product, commit: head, path, token: token() });
+const readAt = async (head, path) => (await currentHost().readSnapshot(head)).read(path);
 
 // The product shown, for a write (writeFiles): a GitLab product by itself, a GitHub one by its repository.
 const writeTarget = () => (GITLAB ? { product: T.product } : { repo: T.repo });
@@ -267,11 +278,22 @@ function loadProducts() {
 }
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
-// A file of the pinned commit, by its blob SHA — "" for a file the tree does not hold.
+// A file of the pinned commit, by its blob SHA — "" for a file the tree does not hold. Snapshot.read is the public Host
+// interface for this address and credential lifetime; without an injected cache, readByBlob returns Snapshot.read's text.
 function fileText(path) {
   const e = state.byPath.get(path);
   if (!e) return Promise.resolve("");
-  return once(`file:${path}`, () => readByBlob({ sha: e.sha, key: `${REPO_KEY}/${e.sha}`, cache: kept, read: () => raw(path) }));
+  currentHost();
+  return once(`file:${path}`, () => readByBlob({ sha: e.sha, read: async () => {
+    const activeHost = currentHost();
+    if (snapshotHost !== activeHost) {
+      snapshot = await activeHost.readSnapshot(state.commit);
+      snapshotHost = activeHost;
+    }
+    const text = await snapshot.read(path);
+    if (text === null && !GITLAB) throw Object.assign(new Error(`404 Not Found — ${path} at ${state.commit}`), { status: 404 });
+    return text ?? "";
+  } }));
 }
 
 // The approval records named in the tree, and those read so far (each parsed, with its own path).
@@ -352,7 +374,6 @@ function noteRefusal(e, product = T.product) {
     else if (ownTokenOf(product)) store.setGitHubProductTokenTest(product.address, { refused: true });
     else store.setTokenTest({ refused: true });
     showBanner();
-    if (document.getElementById("browser-settings")) renderBrowserSettings(app);
   }
   return e;
 }
@@ -466,7 +487,7 @@ function startNotifications() {
 let app = null;
 function context() {
   return {
-    T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, DASHBOARD,
+    T, GITLAB, SERVER, store, session, state, DASHBOARD,
     ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
     recordsOf, verified, prerequisitesOf, acceptedCache, headersCache, shownSecrets,
     main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,
@@ -504,7 +525,26 @@ async function route() {
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
     await available;
-    if (kind === "add") {
+    loadProducts();
+    renderProductSelector();
+    if (kind === "settings") {
+      const settings = settingsPages.routes.find((r) => r.name === "settings");
+      const settingsStore = openStore(T.instance);
+      const address = parseAddress(T.product.address);
+      await settings.render(main(), {
+        instance: {
+          repository: T.instance,
+          host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }),
+        },
+        product: { address: T.product.address, kind: address.server, host: connect(address, { token: store.tokenFor(T.product) }) },
+        store: settingsStore,
+        go(route, params = {}) {
+          if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
+          if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+          if (route === "bridge") location.hash = "#bridge";
+        },
+      }, {});
+    } else if (kind === "add") {
       const addProduct = settingsPages.routes.find((r) => r.name === "add-product");
       await addProduct.render(main(), {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
@@ -517,7 +557,7 @@ async function route() {
       }
       return;
     }
-    if (kind === "endpoints") {
+    else if (kind === "endpoints") {
       const endpoints = settingsPages.routes.find((r) => r.name === "endpoints");
       await endpoints.render(main(), {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
@@ -569,10 +609,14 @@ async function start() {
   GITLAB = isGitLab(T.product);
   SERVER = GITLAB ? T.product.host : "GitHub";
   store = productStore(T.instance);
-  // The texts of files read before, by blob SHA (settings-store.mjs; cleared by "Clear everything").
-  kept = fileTexts();
-  // The product's key among the texts this browser keeps: its server and repository.
-  REPO_KEY = `${T.product.host}/${T.product.repo}`;
+  currentHost();
+  // Retire the old CacheStorage store before a view can read it. A missing CacheStorage API cannot hold that store; an
+  // available API must confirm absence, so a failed deletion is never reported as successful.
+  const cacheStorage = globalThis.caches;
+  if (cacheStorage) {
+    await cacheStorage.delete("agent-m-file-texts");
+    if (await cacheStorage.has("agent-m-file-texts")) throw new Error("Could not remove retired CacheStorage agent-m-file-texts.");
+  }
   startNotifications(); // UC-047: the review pages start the checks, with MOD-browser-store's store of the instance
   app = context();
   available = renderTabs();
@@ -590,12 +634,12 @@ async function start() {
   } catch (e) {
     noteRefusal(e);
     state.loadError = e;
-    if (early) { loadProductSettings(app); return; }
+    if (early) return;
     main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()), own: ownTokenOf(T.product) });
     addEventListener("hashchange", route);
     return;
   }
-  if (!early) { addEventListener("hashchange", route); route(); } else loadProductSettings(app);
+  if (!early) { addEventListener("hashchange", route); route(); }
 }
 
 if (globalThis.document) start();

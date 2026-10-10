@@ -41,10 +41,14 @@ async function renderBridge(store) { const target = document.createElement("div"
 // module: MOD-settings-pages
 // guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; A STORED SECRET IS HIDDEN UNTIL SHOWN.
 // given: canonical jump-host storage has 40100–40102 and its first remote session occupies 40100.
-// input: the public Bridge route saves the named second session with its copied token and is reopened.
-// expect: it stores remote-session:lab-pc at lowest free port 40101, reloads its hidden token, and renders the public reverse, forward, service, Apache and nginx setup text without a request or process start.
+// input: the public Bridge route saves the named second session with its copied token, copies its written commands, and is reopened.
+// expect: it stores remote-session:lab-pc at lowest free port 40101, reloads its hidden token, copies the public reverse,
+//   forward and service commands only on the person's click, and renders Apache and nginx setup text without a request or process start.
 test("TST-287001: the public Bridge route persists a distinct remote session and renders canonical setup text", async () => {
   const store = freshStore();
+  const priorNavigator = globalThis.navigator;
+  const copied = [];
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: async (text) => { copied.push(text); } } } });
   Object.defineProperty(globalThis, "location", { configurable: true, value: { origin: "https://published.example.test" } });
   writeSetting(store, "jump-host", { hostname: "jump.example.test", user: "agentm", sshPort: 22, portRange: [40100, 40102] });
   writeSetting(store, "remote-session:alpha", { port: 40100, token: "alpha-token" });
@@ -59,11 +63,14 @@ test("TST-287001: the public Bridge route persists a distinct remote session and
   assert.match(byClass(route, "remote-session-proxy-apache")[0].textContent, /<Location "\/bridge\/lab-pc\/">/, "Apache configuration uses the session route");
   assert.match(byClass(route, "remote-session-proxy-apache")[0].textContent, /Access-Control-Allow-Origin "https:\/\/published\.example\.test"/, "the proxy uses the actual served Pages origin");
   assert.match(byClass(route, "remote-session-proxy-nginx")[0].textContent, /location \/bridge\/lab-pc\//, "nginx configuration uses the session route");
+  await click(byClass(route, "remote-session-copy-commands")[0]);
+  assert.match(copied[0], /-R 127\.0\.0\.1:40101:127\.0\.0\.1:4711/, "Copy uses the command text already written by the public builder");
   const reopened = await renderBridge(store);
   assert.equal(byClass(reopened, "remote-session-name")[0].value, "lab-pc", "the stored session is selected after reopen");
   assert.equal(byClass(reopened, "remote-session-token")[0].type, "password", "a stored remote-session token remains hidden");
   await click(byClass(reopened, "remote-session-show")[0]);
   assert.equal(byClass(reopened, "remote-session-token")[0].type, "text", "Show alone reveals the selected session token");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: priorNavigator });
   const path = "tests/settings-pages-bridge-remote-sessions.test.mjs";
   const source = { paths: ["SPEC.md", path], read: (file) => readFile(file, "utf8") };
   const declarations = testDeclarations(path, await readFile(new URL(import.meta.url), "utf8"));
