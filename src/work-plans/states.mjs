@@ -11,15 +11,17 @@ const named = (values) => list(values).filter((value) => typeof value === "strin
 
 function orderedItems(items, order) {
   const byId = new Map(items.map((item) => [idOf(item), item]));
-  const names = [];
+  const entries = [];
   for (const section of list(order?.sections)) {
     for (const row of list(section?.rows)) {
       const name = text(row?.cells?.Item) || text(row?.cells?.Step);
-      if (name && byId.has(name) && !names.includes(name)) names.push(name);
+      if (name && byId.has(name) && !entries.some((entry) => idOf(entry.item) === name)) {
+        entries.push({ item: byId.get(name), phase: text(row?.cells?.Phase) });
+      }
     }
   }
-  for (const item of items) if (!names.includes(idOf(item))) names.push(idOf(item));
-  return names.map((name) => byId.get(name));
+  for (const item of items) if (!entries.some((entry) => idOf(entry.item) === idOf(item))) entries.push({ item, phase: "" });
+  return entries;
 }
 
 function statusOf(statuses, name) {
@@ -29,13 +31,10 @@ function statusOf(statuses, name) {
   return null;
 }
 
-function gateBefore(item, gates, workflow) {
-  const phase = text(fieldsOf(item).phase);
-  if (!phase) return null;
-  const gate = list(workflow?.gates).find((candidate) => candidate.to === phase);
-  if (!gate) return null;
-  const state = list(gates).find((candidate) => candidate.gate === gate.name)?.state;
-  return state === "passed" ? null : gate;
+function gatesBefore(phase, gates, workflow) {
+  if (!phase) return [];
+  return list(workflow?.gates).filter((gate) => gate.to === phase
+    && list(gates).find((candidate) => candidate.gate === gate.name)?.state !== "passed");
 }
 
 function jobFor(item, jobs) {
@@ -48,17 +47,22 @@ function pullFor(item, pullRequests) {
   return list(pullRequests).find((pull) => pull?.branch === name || text(pull?.title).includes(name)) ?? null;
 }
 
-function state(item, states, facts) {
+function state(item, phase, states, facts) {
   const name = idOf(item);
   const realises = named(fieldsOf(item).realises);
-  const unaccepted = realises.find((artifact) => statusOf(facts.statuses, artifact) !== "accepted");
-  if (unaccepted) return { item: name, state: "waiting for acceptance", reason: `${unaccepted} is not accepted`, job: null, pullRequest: null };
+  const unaccepted = realises.filter((artifact) => statusOf(facts.statuses, artifact) !== "accepted");
+  const prerequisites = named(fieldsOf(item).builds_on).filter((dependency) => states.get(dependency)?.state !== "done");
+  const gates = gatesBefore(phase, facts.gates, facts.workflow);
+  const reasons = [
+    ...unaccepted.map((artifact) => `${artifact} is not accepted`),
+    ...prerequisites.map((dependency) => `${dependency} is not done`),
+    ...gates.map((gate) => `${gate.name} is not recorded by ${gate.decider}`),
+  ];
+  const reason = reasons.join("; ");
+  if (unaccepted.length) return { item: name, state: "waiting for acceptance", reason, job: null, pullRequest: null };
 
-  const prerequisite = named(fieldsOf(item).builds_on).find((dependency) => states.get(dependency)?.state !== "done");
-  if (prerequisite) return { item: name, state: "waiting for an item it builds on", reason: `${prerequisite} is not done`, job: null, pullRequest: null };
-
-  const gate = gateBefore(item, facts.gates, facts.workflow);
-  if (gate) return { item: name, state: "waiting", reason: `${gate.name} is not recorded`, job: null, pullRequest: null };
+  if (prerequisites.length) return { item: name, state: "waiting for an item it builds on", reason, job: null, pullRequest: null };
+  if (gates.length) return { item: name, state: "waiting", reason, job: null, pullRequest: null };
 
   const job = jobFor(item, facts.jobs);
   if (job?.state === "failed" || job?.state === "waiting at a gate") {
@@ -81,8 +85,8 @@ function state(item, states, facts) {
  */
 export function itemStates(items, order, facts) {
   const states = new Map();
-  for (const item of orderedItems(list(items), order)) {
-    const result = state(item, states, facts ?? {});
+  for (const { item, phase } of orderedItems(list(items), order)) {
+    const result = state(item, phase, states, facts ?? {});
     states.set(result.item, result);
   }
   return [...states.values()];

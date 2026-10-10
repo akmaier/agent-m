@@ -26,8 +26,12 @@ const workflow = {
     { name: "Planning", role: "Product Owner", produces: ["ITM"] },
     { name: "Development", role: "Developers", produces: ["MOD", "TST"] },
   ],
-  gates: [{ name: "Planning → Development", from: "Planning", to: "Development", artifacts: "plan",
-    condition: "the plan is accepted", decider: "Product Owner" }],
+  gates: [
+    { name: "Planning → Development", from: "Planning", to: "Development", artifacts: "plan",
+      condition: "the plan is accepted", decider: "Product Owner" },
+    { name: "Architecture → Development", from: "Architecture", to: "Development", artifacts: "architecture",
+      condition: "the architecture is accepted", decider: "Architecture Owner" },
+  ],
   roles: [
     { name: "Product Owner", holders: ["po"], capabilities: ["read the repository"] },
     { name: "Developers", holders: ["dev"], capabilities: ["read the repository", "write to the repository", "run code and tests"] },
@@ -43,13 +47,15 @@ const participants = [{ name: "dev", type: "CLI agent", model: "fixture", contex
   capabilities: ["read the repository", "write to the repository", "run code and tests"], place: "fixture", route: "bridge fixture agent codex" }];
 
 const item = (id, fields = {}) => ({ path: `docs/backlog/${id}.md`, id, fields: {
-  realises: ["UC-032"], builds_on: [], phase: "Development", ...fields,
+  realises: ["UC-032"], builds_on: [], ...fields,
 }, sections: [] });
 const order = (ids) => ({ path: "docs/backlog/order.md", fields: {}, sections: [{ heading: "## Order", rows:
   ids.map((Item) => ({ cells: { Item } })) }] });
+const planOrder = (steps) => ({ path: "docs/plan/order.md", fields: {}, sections: [{ heading: "## Order", rows:
+  steps.map(({ Step, Phase }) => ({ cells: { Step, Phase } })) }] });
 const accepted = (ids) => new Map(ids.map((id) => [id, { id, kind: id.startsWith("UC-") ? "use-case" : "requirement", status: "accepted" }]));
 const facts = (more = {}) => ({ statuses: accepted(["UC-032"]), queues: [], jobs: [], pullRequests: [],
-  gates: [{ gate: "Planning → Development", state: "passed" }], workflow, ...more });
+  gates: [{ gate: "Planning → Development", state: "passed" }, { gate: "Architecture → Development", state: "passed" }], workflow, ...more });
 const stateOf = (states, id) => states.find((state) => state.item === id);
 const job = (worksOn, state) => ({ record: { worksOn: [worksOn] }, state });
 const pull = (branch, state, number = 1) => ({ number, title: branch, branch, base: "sprint/1", head: "a".repeat(40),
@@ -107,23 +113,43 @@ test("TST-295002: itemStates derives prerequisite, open-review, failure, person-
 // level: unit
 // module: MOD-work-plans
 // guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
-// given: a ready item, its derived ItemState list, the public workflow/declaration and an active sprint
+// given: real Step/Phase order rows, a ready item, its derived ItemState list, the public workflow/declaration and an active sprint
 // input: startable before and after selection, WIP, gate and role-holder facts change
-// expect: the ready selected item starts; every refusal names selection, active work including review, gate, or the missing implementing holder and role needs
+// expect: the ready selected item starts; every refusal names selection, active work including review, every unaccepted artifact and unfinished prerequisite, every applicable gate and decider, or the missing implementing holder and role needs
 test("TST-295003: startable returns every supplied selection, WIP, gate, and implementing-role refusal", () => {
-  const ready = [{ item: "ITM-295-ready", state: "ready", reason: null, job: null, pullRequest: null }];
+  const ready = itemStates([item("ITM-295-ready")], planOrder([{ Step: "ITM-295-ready", Phase: "Development" }]), facts());
   const context = { workflow, declaration, sprint: { fields: { selection: ["ITM-295-ready"] } }, wip: 2, participants };
   assert.deepEqual(startable("ITM-295-ready", ready, context), { startable: true }, "known positive: ready selected work below WIP has an eligible developer");
   const unselected = startable("ITM-295-ready", ready, { ...context, sprint: { fields: { selection: [] } } });
   assert.equal(unselected.startable, false); assert.match(unselected.reasons.join("\n"), /selected|sprint/i);
   const full = startable("ITM-295-ready", [...ready, { item: "ITM-running", state: "in progress", reason: "open pull request waiting for review", job: null, pullRequest: "1" }, { item: "ITM-review", state: "in progress", reason: "waiting for review", job: null, pullRequest: "2" }], context);
   assert.equal(full.startable, false); assert.match(full.reasons.join("\n"), /ITM-running/); assert.match(full.reasons.join("\n"), /ITM-review/);
-  const waiting = itemStates([item("ITM-295-ready")], order(["ITM-295-ready"]), facts({
-    gates: [{ gate: "Planning → Development", state: "pending" }],
+  const waiting = itemStates([item("ITM-295-ready")], planOrder([{ Step: "ITM-295-ready", Phase: "Development" }]), facts({
+    gates: [{ gate: "Planning → Development", state: "passed" }, { gate: "Architecture → Development", state: "pending" }],
   }));
   assert.equal(waiting[0].state, "waiting", "known gate input produces the ItemState startable consumes");
   const blockedGate = startable("ITM-295-ready", waiting, context);
-  assert.equal(blockedGate.startable, false); assert.match(blockedGate.reasons.join("\n"), /Planning → Development/);
+  assert.equal(blockedGate.startable, false); assert.match(blockedGate.reasons.join("\n"), /Architecture → Development/); assert.match(blockedGate.reasons.join("\n"), /Architecture Owner/);
+  const rejectedGate = itemStates([item("ITM-295-ready")], planOrder([{ Step: "ITM-295-ready", Phase: "Development" }]), facts({
+    gates: [{ gate: "Planning → Development", state: "rejected" }, { gate: "Architecture → Development", state: "passed" }],
+  }));
+  assert.match(rejectedGate[0].reason, /Planning → Development/); assert.match(rejectedGate[0].reason, /Product Owner/);
+  const staleGate = itemStates([item("ITM-295-ready")], planOrder([{ Step: "ITM-295-ready", Phase: "Development" }]), facts({
+    gates: [{ gate: "Planning → Development", state: "passed on an earlier text" }, { gate: "Architecture → Development", state: "passed" }],
+  }));
+  assert.equal(staleGate[0].state, "waiting"); assert.match(staleGate[0].reason, /Planning → Development/);
+  const allBlockers = itemStates([
+    item("ITM-295-one"), item("ITM-295-two"), item("ITM-295-all", { realises: ["REQ-ONE", "REQ-TWO"], builds_on: ["ITM-295-one", "ITM-295-two"] }),
+  ], planOrder([
+    { Step: "ITM-295-one", Phase: "Planning" }, { Step: "ITM-295-two", Phase: "Planning" }, { Step: "ITM-295-all", Phase: "Development" },
+  ]), facts({ statuses: new Map([
+    ["REQ-ONE", { id: "REQ-ONE", kind: "requirement", status: "open" }], ["REQ-TWO", { id: "REQ-TWO", kind: "requirement", status: "changed" }],
+  ]), gates: [{ gate: "Planning → Development", state: "pending" }, { gate: "Architecture → Development", state: "rejected" }] }));
+  const allRefused = startable("ITM-295-all", allBlockers, { ...context, sprint: { fields: { selection: ["ITM-295-all"] } } });
+  assert.equal(allRefused.startable, false);
+  for (const namedBlocker of ["REQ-ONE", "REQ-TWO", "ITM-295-one", "ITM-295-two", "Planning → Development", "Architecture → Development", "Product Owner", "Architecture Owner"]) {
+    assert.match(allRefused.reasons.join("\n"), new RegExp(namedBlocker));
+  }
   const absentDeveloper = startable("ITM-295-ready", ready, { ...context, participants: [] });
   assert.equal(absentDeveloper.startable, false); assert.match(absentDeveloper.reasons.join("\n"), /Developers/); assert.match(absentDeveloper.reasons.join("\n"), /write to the repository/);
 
