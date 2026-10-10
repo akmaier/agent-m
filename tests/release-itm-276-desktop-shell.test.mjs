@@ -7,7 +7,7 @@
 //         THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
 
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, rmdirSync, symlinkSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -18,7 +18,10 @@ import test, { after, before } from "node:test";
 const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-release-electron-44");
 const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
+const ssh2Cache = join(tmpdir(), "agent-m-291-release-ssh2-1.17.0");
+const electronModules = join(root, "node_modules"), electronSsh2 = join(electronModules, "ssh2");
 let nativeFixtureLockHeld = false;
+let electronModulesCreated = false, electronSsh2Owned = false;
 let runtimeFailure;
 let virtualDisplayFailure;
 let windowManagerFailure;
@@ -38,7 +41,11 @@ const acquireNativeFixtureLock = async () => {
   }
   throw new Error("Timed out waiting for the native Electron fixture lock.");
 };
-const releaseNativeFixtureLock = () => { if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; } };
+const releaseNativeFixtureLock = () => {
+  if (electronSsh2Owned) { unlinkSync(electronSsh2); electronSsh2Owned = false; }
+  if (electronModulesCreated) { rmdirSync(electronModules); electronModulesCreated = false; }
+  if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; }
+};
 const commandEvidence = (stage, result) => {
   const evidence = { stage, status: result.status, signal: result.signal, error: result.error?.code ?? null, stdout: scrub(result.stdout), stderr: scrub(result.stderr) };
   process.stdout.write(`native-fixture ${JSON.stringify(evidence)}\n`);
@@ -90,6 +97,12 @@ const prepareNativeFixture = async () => {
   electronCommand(executable, []);
   await acquireNativeFixtureLock();
   try {
+    const target = join(sshRuntime(), "ssh2");
+    if (!existsSync(electronModules)) { mkdirSync(electronModules); electronModulesCreated = true; }
+    if (existsSync(electronSsh2)) {
+      assert.equal(lstatSync(electronSsh2).isSymbolicLink(), true, "existing Electron ssh2 dependency link is not a link");
+      assert.equal(readlinkSync(electronSsh2), target, "existing Electron ssh2 dependency link has another target");
+    } else { symlinkSync(target, electronSsh2); electronSsh2Owned = true; }
     process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
   } catch (failure) { releaseNativeFixtureLock(); throw failure; }
 };
@@ -115,6 +128,18 @@ async function runtime() {
     assert.equal(existsSync(executableOf(installed)), true, "Electron 44.5.1 executable was not acquired.");
     return executableOf(installed);
   } catch (failure) { runtimeFailure = failure; throw failure; }
+}
+
+function sshRuntime() {
+  if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
+    const installed = spawnSync("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"], { encoding: "utf8", timeout: 40_000 });
+    assert.equal(installed.status, 0, `ssh2 staging failed: ${installed.stderr}`);
+  }
+  const nodePath = join(ssh2Cache, "node_modules");
+  const positive = spawnSync(process.execPath, ["-e", "const ssh2=require('ssh2');if(require('ssh2/package.json').version!=='1.17.0'||typeof ssh2.utils.generateKeyPairSync!=='function')throw Error('ssh2 known positive');console.log('ssh2-known-positive')"], { encoding: "utf8", timeout: 40_000, env: { ...process.env, NODE_PATH: nodePath } });
+  assert.equal(positive.status, 0, `ssh2 known positive failed: ${positive.stderr}`);
+  assert.match(positive.stdout, /ssh2-known-positive/);
+  return nodePath;
 }
 
 const electronCommand = (executable, arguments_) => {

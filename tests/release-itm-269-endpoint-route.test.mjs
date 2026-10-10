@@ -11,12 +11,34 @@
 
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import Module from "node:module";
 import test from "node:test";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
-import { compose } from "../src/desktop-shell/compose.mjs";
+
+const ssh2Cache = join(tmpdir(), "agent-m-291-release-269-ssh2-1.17.0");
+let sshRuntimeFailure;
+function sshRuntime() {
+  if (sshRuntimeFailure) throw sshRuntimeFailure;
+  try {
+    if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
+      const installed = spawnSync("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"], { encoding: "utf8", timeout: 40_000 });
+      assert.equal(installed.status, 0, `ssh2 staging failed: ${installed.stderr}`);
+    }
+    const nodePath = join(ssh2Cache, "node_modules");
+    const positive = spawnSync(process.execPath, ["-e", "const ssh2=require('ssh2');if(require('ssh2/package.json').version!=='1.17.0'||typeof ssh2.utils.generateKeyPairSync!=='function')throw Error('ssh2 known positive');console.log('ssh2-known-positive')"], { encoding: "utf8", timeout: 40_000, env: { ...process.env, NODE_PATH: nodePath } });
+    assert.equal(positive.status, 0, `ssh2 known positive failed: ${positive.stderr}`);
+    assert.match(positive.stdout, /ssh2-known-positive/);
+    return nodePath;
+  } catch (failure) { sshRuntimeFailure = failure; throw failure; }
+}
+process.env.NODE_PATH = sshRuntime();
+Module._initPaths();
+const { compose } = await import("../src/desktop-shell/compose.mjs");
 import { view } from "../src/settings-pages/index.mjs";
 
 const INSTANCE = "release-owner/agent-m", ORIGIN = "https://release-owner.github.io";
