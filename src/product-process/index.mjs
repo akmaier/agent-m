@@ -23,6 +23,7 @@ import { loadSchema } from "../documents/index.mjs";
 
 export { declarationFindings } from "./declaration.mjs";
 export { workflowOf } from "./workflow.mjs";
+export { holdsRole, gateStates, mayDecide } from "./gates.mjs";
 
 /**
  * The workflow of a product: the model it follows; the practices its declaration names; the model's phases, the transitions
@@ -42,6 +43,7 @@ export { workflowOf } from "./workflow.mjs";
 
 const OWNER = "MOD-product-process";
 const DECLARATION_FILE = new URL("./declaration.schema.md", import.meta.url);
+const GATE_RECORD_FILE = new URL("./gate-record.schema.md", import.meta.url);
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 
 /**
@@ -51,6 +53,8 @@ const disk = globalThis.process?.getBuiltinModule?.("node:fs");
  */
 export const declarationSchema = loadSchema(disk ? disk.readFileSync(DECLARATION_FILE, "utf8") : await ownFile(DECLARATION_FILE),
   OWNER);
+
+export const gateSchema = loadSchema(disk ? disk.readFileSync(GATE_RECORD_FILE, "utf8") : await ownFile(GATE_RECORD_FILE), OWNER);
 
 // In a browser: the module's own file, from the address the module itself was loaded from. Throws an Error naming the file
 // and the server's status when it is not served.
