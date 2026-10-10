@@ -145,6 +145,8 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     await waitFor(() => bridge.tunnels().then(rows => rows[0]?.state === "open"), "reverse tunnel did not become open");
     assert.ok(signedAuthentication?.accepted && signedAuthentication.signed && signedAuthentication.signatureValid, "the reverse tunnel completed signed public-key authentication with the Bridge key");
     assert.ok(sshForwarding.length > 0 && sshForwarding.every(receipt => receipt.signedAuthenticationOrder < receipt.order), "every accepted reverse forward follows signed Bridge-key authentication");
+    const directPair = await nativeFetch(bridge.address + "/v1/pair", { headers: { Origin: origin, "x-agent-m-bridge-token": bridge.token } });
+    assert.equal(directPair.status, 200, "the composed loopback Bridge pairs before the authenticated HTTPS proxy probe");
     const login = { user: "fixture-web", password: "fixture-web-password" };
     const loginFile = join(folder, "jump-host.htpasswd"); writeFileSync(loginFile, login.user + ":" + hash(login.password) + "\\n");
     const runServer = async kind => {
@@ -184,9 +186,26 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         const config = ["pid " + join(root, "nginx.pid") + ";", "error_log " + join(root, "error.log") + ";", "events {}", "http {", "  access_log " + join(root, "access.log") + ";", emitted.replace("listen 443 ssl;", "listen 127.0.0.1:" + port + " ssl;").split("\\n").map(line => "  " + line).join("\\n"), "}"].join("\\n");
         const file = join(root, "nginx.conf"); writeFileSync(file, config); serverProcess = start("nginx", ["-p", root, "-c", file, "-g", "daemon off;"]);
       }
-      const base = "https://localhost:" + port + "/bridge/component";
-      try { await waitFor(async () => { try { const reply = await nativeFetch(base + "/v1/pair", { headers: { Origin: origin, Authorization: "Basic " + btoa(login.user + ":" + login.password), "x-agent-m-bridge-token": bridge.token } }); return reply.status === 200; } catch { return false; } }, kind + " did not accept TLS"); return { base, process: serverProcess }; }
-      catch (error) { await stop(serverProcess.child); throw new Error(kind + " startup: " + serverProcess.stderr() + "; " + (serverProcess.error()?.message ?? "") + "; " + error.message); }
+      const base = "https://localhost:" + port + "/bridge/component", readiness = { attempts: 0, statuses: [], errors: [] }, readinessAuthorization = "Basic " + btoa(login.user + ":" + login.password);
+      const redact = value => String(value ?? "").replaceAll(bridge.token, "<bridge-token>").replaceAll(readinessAuthorization, "<jump-login-authorization>").replaceAll(login.password, "<jump-login-password>");
+      const logTail = file => { try { return redact(readFileSync(file, "utf8").slice(-4000)); } catch (error) { return "unavailable:" + (error.code ?? error.name); } };
+      const ready = async () => {
+        readiness.attempts += 1;
+        try {
+          const reply = await nativeFetch(base + "/v1/pair", { headers: { Origin: origin, Authorization: readinessAuthorization, "x-agent-m-bridge-token": bridge.token } });
+          readiness.statuses.push(reply.status);
+          return reply.status === 200;
+        } catch (error) {
+          readiness.errors.push(redact((error.name ?? "Error") + ": " + (error.message ?? "")));
+          return false;
+        }
+      };
+      try { await waitFor(ready, kind + " did not accept TLS"); return { base, process: serverProcess }; }
+      catch (error) {
+        const diagnostic = { kind, readiness: { attempts: readiness.attempts, statuses: [...new Set(readiness.statuses)], lastStatus: readiness.statuses.at(-1) ?? null, errors: [...new Set(readiness.errors)].slice(-4) }, process: { exitCode: serverProcess.child.exitCode, signalCode: serverProcess.child.signalCode, spawnError: serverProcess.error()?.code ?? null, stderr: redact(serverProcess.stderr()) }, logs: { errorLog: logTail(join(root, "error.log")), accessLog: logTail(join(root, "access.log")) } };
+        console.log("TST-294001-readiness " + JSON.stringify(diagnostic));
+        await stop(serverProcess.child); throw new Error(kind + " startup: " + JSON.stringify(diagnostic) + "; " + error.message);
+      }
     };
     try {
       for (const kind of ["apache", "nginx"]) {
