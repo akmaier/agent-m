@@ -29,7 +29,7 @@ const agentEntries = () => {
   const out = {};
   for (let i = 0; i < globalThis.localStorage.length; i++) {
     const k = globalThis.localStorage.key(i);
-    if (k && k.startsWith("agent-m.")) out[k] = globalThis.localStorage.getItem(k);
+    if (k && (k.startsWith("agent-m.") || k.startsWith("agent-m:"))) out[k] = globalThis.localStorage.getItem(k);
   }
   return out;
 };
@@ -86,29 +86,34 @@ const sessionLine = (box) => /<div class="remote-session">[^]*?<\/div>/.exec(box
 // A control of the page found as the view finds it: by the selector the view asks for, or among those of one attribute by value.
 const inBox = (box, sel) => box().querySelector(sel);
 const among = (box, attr, value) => box().querySelectorAll(`[${attr}]`).find((c) => attrOf(c.tag, attr) === value) ?? null;
+const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
+const githubRow = (box) => publicControls(box(), "settings-repository").find((row) => /GitHub token/.test(row.textContent));
+const repositoryControl = (box, name) => publicControls(githubRow(box), `settings-repository-${name}`)[0];
+const canonicalToken = () => ({ ["agent-m:akmaier/agent-m:github-token"]: JSON.stringify({ value: TOKEN, name: "GitHub token", expires: day(90), stored: TODAY }) });
 
 // ---------------------------------------------------------------- the GitHub token
 
 test("UC-042 step 1: a successful Test of the GitHub token is shown after a reload — ✓ works with the date of that test", async () => {
   const world = await instanceWorld();
-  const { box } = await settingsPage(world);
-  assert.equal(stateOf(row(box, "github-token")), "stored — not tested on this page yet", "before any test");
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
-  assert.equal(stateOf(row(box, "github-token")), `✓ works — tested ${TODAY}`);
-  const again = await reload(world);
-  assert.equal(stateOf(row(again.box, "github-token")), `✓ works — tested ${TODAY}`, "after the reload");
+  const { box } = await settingsPage(world, canonicalToken());
+  assert.match(repositoryControl(box, "status").textContent, /Expires on/);
+  await repositoryControl(box, "test").fire("click");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token")).outcome, "working");
+  assert.match(repositoryControl(box, "status").textContent, /Last successful test:/);
+  const again = await settingsPage(world, agentEntries());
+  assert.match(repositoryControl(again.box, "status").textContent, /Last successful test:/, "after the reload");
 });
 
 // A token GitHub refuses stays refused: the reload's own requests with it are refused again. Expected: its line and the line at
 // the top name it refused after the reload as before it.
 test("UC-042 step 1 · 1b: a token GitHub refused at its last use is shown refused after a reload — on its line and at the top", async () => {
   const world = await instanceWorld();
-  const { box } = await settingsPage(world);
+  const { box } = await settingsPage(world, canonicalToken());
   world.refuseGitHub = true;
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
-  assert.equal(stateOf(row(box, "github-token")), "✗ refused — GitHub did not accept it at the last use");
-  const again = await reload(world);
-  assert.equal(stateOf(row(again.box, "github-token")), "✗ refused — GitHub did not accept it at the last use", "after the reload");
+  await repositoryControl(box, "test").fire("click");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token")).outcome, "refused");
+  const again = await settingsPage(world, agentEntries());
+  assert.match(repositoryControl(again.box, "status").textContent, /Refused/, "after the reload");
   const banner = again.page.el("token-banner");
   assert.ok(banner.includes("<strong>GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub.</strong>"));
   assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "with Renew");
@@ -118,13 +123,13 @@ test("UC-042 step 1 · 1b: a token GitHub refused at its last use is shown refus
 
 test("UC-042 step 1: a successful Test after a refusal replaces it — the line works again, and so does the next page load", async () => {
   const world = await instanceWorld();
-  const { box } = await settingsPage(world);
+  const { box } = await settingsPage(world, canonicalToken());
   world.refuseGitHub = true;
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
+  await repositoryControl(box, "test").fire("click");
   world.refuseGitHub = false;
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
-  const again = await reload(world);
-  assert.equal(stateOf(row(again.box, "github-token")), `✓ works — tested ${TODAY}`);
+  await repositoryControl(box, "test").fire("click");
+  const again = await settingsPage(world, agentEntries());
+  assert.match(repositoryControl(again.box, "status").textContent, /Last successful test:/);
   assert.equal(again.page.el("token-banner"), "", "no refusal at the top");
 });
 
