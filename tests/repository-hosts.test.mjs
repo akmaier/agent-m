@@ -894,10 +894,14 @@ function pullFactsServer(kind, { refused = false } = {}) {
   } };
 }
 
-// 296.1 | unit | MOD-repository-hosts | Given recorded GitHub REST answers through public connect, input an open-state/branch
-// filter and pull request 17; expected the complete public records, ordered commits, per-commit and aggregate files, review,
-// named head checks, and immutable base/head reads; actual guard: UC-002, UC-032, ITM-296.
-test("296.1 unit MOD-repository-hosts: GitHub lists and reads immutable pull-request facts", async () => {
+// TST-296001
+// level: unit
+// module: MOD-repository-hosts
+// guards: UC-002; UC-032; STATUS IS DERIVED FROM THE RECORDS; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: recorded GitHub REST answers through public connect
+// input: an open-state/source-branch filter and pull request 17
+// expect: public records preserve ordered commits, files, reviews, named head checks, and immutable base/head reads including a missing path
+test("TST-296001: GitHub lists and reads immutable pull-request facts", async () => {
   const server = pullFactsServer("github");
   await using(server.fetch, async () => {
     const host = connect(parseAddress(GH_WEB), { token: GH_TOKEN, tokenName: "GitHub token" });
@@ -912,10 +916,14 @@ test("296.1 unit MOD-repository-hosts: GitHub lists and reads immutable pull-req
   });
 });
 
-// 296.2 | unit | MOD-repository-hosts | Given equivalent recorded GitLab REST answers through public connect, input the same
-// pull request; expected exactly the public facts shape of 296.1 including approvals and pipeline jobs; actual guard: UC-002,
-// UC-032, ITM-296.
-test("296.2 unit MOD-repository-hosts: GitLab maps merge-request facts to the public shape", async () => {
+// TST-296002
+// level: unit
+// module: MOD-repository-hosts
+// guards: UC-002; UC-032; STATUS IS DERIVED FROM THE RECORDS; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: equivalent recorded GitLab REST answers through public connect
+// input: an open-state/source-branch filter and merge request 17
+// expect: the public facts shape preserves commits, files, approvals, pipeline jobs, and immutable base/head reads including a missing path
+test("TST-296002: GitLab maps merge-request facts to the public shape", async () => {
   const server = pullFactsServer("gitlab");
   await using(server.fetch, async () => {
     const host = connect(parseAddress(GL_WEB), { token: GL_TOKEN, tokenName: "GitLab token" });
@@ -930,10 +938,14 @@ test("296.2 unit MOD-repository-hosts: GitLab maps merge-request facts to the pu
   });
 });
 
-// 296.3 | unit | MOD-repository-hosts | Given a known-positive list on each host then a refused token, input both reads;
-// expected TokenRefused rather than an empty success, GET-only traffic, and no token at another host; actual guard: A TOKEN
-// GOES ONLY TO THE SERVER THAT ISSUED IT, UC-002, UC-032, ITM-296.
-test("296.3 unit MOD-repository-hosts: pull-request reads preserve refusal and read-only token boundaries", async () => {
+// TST-296003
+// level: unit
+// module: MOD-repository-hosts
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-002; UC-032
+// given: a known-positive list read on each host followed by a refused token
+// input: listPullRequests and pullRequestFacts
+// expect: TokenRefused is preserved rather than an empty success, and all observed traffic is GET-only at the issuing host
+test("TST-296003: pull-request reads preserve refusal and read-only token boundaries", async () => {
   for (const [kind, address, token] of [["github", GH_WEB, GH_TOKEN], ["gitlab", GL_WEB, GL_TOKEN]]) {
     const positive = pullFactsServer(kind);
     await using(positive.fetch, () => connect(parseAddress(address), { token }).listPullRequests({ state: "open" }));
@@ -947,10 +959,14 @@ test("296.3 unit MOD-repository-hosts: pull-request reads preserve refusal and r
   }
 });
 
-// 296.4 | unit | MOD-repository-hosts | Given recorded two-page GitHub/GitLab lists containing open, merged and closed
-// requests, input every accepted state and source-branch filter; expected all pages in server order with merged distinguished
-// from closed and only the named source branch; actual guard: STATUS IS DERIVED FROM THE RECORDS, UC-002, UC-032, ITM-296.
-test("296.4 unit MOD-repository-hosts: both hosts page and filter open, merged, and closed pull requests", async () => {
+// TST-296004
+// level: unit
+// module: MOD-repository-hosts
+// guards: STATUS IS DERIVED FROM THE RECORDS; UC-002; UC-032
+// given: recorded two-page GitHub and GitLab lists containing open, merged, and closed pull requests
+// input: every accepted state and source-branch filter
+// expect: both hosts follow their next-page metadata, preserve server order, distinguish merged from closed, and retain only the named source branch
+test("TST-296004: both hosts page and filter open, merged, and closed pull requests", async () => {
   for (const [kind, address, token] of [["github", GH_WEB, GH_TOKEN], ["gitlab", GL_WEB, GL_TOKEN]]) {
     const github = kind === "github", prefix = github ? "/repos/alice/thesis-tool/pulls" : "/api/v4/projects/grp%2Fsub%2Fthesis-tool/merge_requests";
     const row = (number, state, branch = PR.branch) => github ? { number, title: `#${number}`, state: state === "merged" ? "closed" : state,
@@ -967,7 +983,10 @@ test("296.4 unit MOD-repository-hosts: both hosts page and filter open, merged, 
       const branch = github ? r.url.searchParams.get("head") : r.url.searchParams.get("source_branch"), state = r.url.searchParams.get("state");
       const all = pages.flat(), selected = state && state !== "all" ? all.filter((x) => github ? (state === "open" ? x.state === "open" : x.state === "closed") : x.state === state) : null;
       const rows = branch ? all.filter((x) => github ? x.head.ref === branch.replace(/^alice:/, "") : x.source_branch === branch) : selected ?? pages[Number(r.url.searchParams.get("page") ?? 1) - 1] ?? [];
-      return json(200, rows);
+      const page = Number(r.url.searchParams.get("page") ?? 1);
+      const headers = !branch && !selected && page === 1 ? (github
+        ? { Link: `<${origin}${prefix}?page=2>; rel="next"` } : { "X-Next-Page": "2" }) : {};
+      return json(200, rows, headers);
     };
     await using(fetch, async () => {
       const host = connect(parseAddress(address), { token });
