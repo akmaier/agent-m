@@ -376,7 +376,10 @@ function notificationsControls(context) {
   const test = el("button", "settings-notifications-test", "Test");
   const off = el("button", "settings-notifications-off", "Switch off");
   const refresh = (next) => {
-    status.textContent = next.on ? "On." : next.permission === "denied" ? "Blocked." : "Off.";
+    status.textContent = next.on ? "On. Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens."
+      : next.permission === "denied" ? "Blocked. Allow notifications for this site in the browser's own site settings, then reload."
+        : next.available === "from the Home Screen" ? "On iPhone or iPad, add this site to the Home Screen before switching notifications on."
+          : next.available === "no" ? "Notifications are not available in this browser." : "Off.";
     on.disabled = next.on || next.permission === "denied";
     test.disabled = !next.on;
     off.disabled = !next.on;

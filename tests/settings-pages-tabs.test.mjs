@@ -171,3 +171,28 @@ test("TST-290111: Settings saves, tests, and records an expiring repository toke
     assert.match(byClass(line, "settings-repository-status")[0].textContent, /Refused/);
   } finally { globalThis.fetch = oldFetch; }
 });
+
+// TST-290112
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-047; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: a browser that has refused notifications for this site
+// input: the person opens the public Settings Route and selects Usability without pressing Switch on
+// expect: the status names the refusal and browser-site-settings recovery path without a permission request or browser-store write
+test("TST-290112: Settings names denied notification permission without asking again", async () => {
+  const storage = new Storage();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const priorNotification = globalThis.Notification;
+  let asked = 0;
+  Object.defineProperty(globalThis, "Notification", { configurable: true, value: { permission: "denied", requestPermission: async () => { asked += 1; return "denied"; } } });
+  try {
+    const store = openStore("fixture/instance");
+    const target = document.createElement("div");
+    await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
+    click(byClass(target, "settings-tab")[3]);
+    const status = byClass(target, "settings-notifications-status")[0];
+    assert.match(status.textContent, /Blocked.*site settings/i);
+    assert.equal(asked, 0, "rendering or selecting Usability never requests notification permission");
+    assert.equal(readSetting(store, "notifications"), null);
+  } finally { Object.defineProperty(globalThis, "Notification", { configurable: true, value: priorNotification }); }
+});
