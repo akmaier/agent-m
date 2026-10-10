@@ -160,9 +160,12 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         const availableNames = new Set(readdirSync(available));
         const mpm = ["mpm_event", "mpm_worker", "mpm_prefork"].find(name => availableNames.has(name + ".load"));
         assert.ok(mpm, "an installed Apache MPM is available for the temporary ServerRoot");
-        // Ubuntu's installed ssl.conf uses AddType (mod_mime), BrowserMatch (mod_setenvif),
-        // and SSLSessionCache (mod_socache_shmcb). Stage their installed loads beside ssl.conf.
-        const required = ["ssl", "proxy", "proxy_http", "rewrite", "headers", "auth_basic", "authn_file", "authn_core", "authz_core", "authz_host", "mime", "setenvif", "socache_shmcb", mpm];
+        // Production apache() emits SSL, Header, Rewrite, Basic/file authentication,
+        // Require valid-user authorization, and HTTP proxy directives. ssl.conf adds
+        // AddType (mime), BrowserMatch (setenvif), and SSLSessionCache (socache_shmcb).
+        const emittedModules = ["ssl", "proxy", "proxy_http", "rewrite", "headers", "auth_basic", "authn_file", "authn_core", "authz_core", "authz_user"];
+        const sslConfigurationDependencies = ["mime", "setenvif", "socache_shmcb"];
+        const required = [...emittedModules, ...sslConfigurationDependencies, mpm];
         const configured = new Set(["ssl"]);
         for (const name of required) {
           assert.ok(availableNames.has(name + ".load"), "installed Apache module is available: " + name);
@@ -170,7 +173,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
           if (configured.has(name) && availableNames.has(name + ".conf")) cpSync(join(available, name + ".conf"), join(modules, name + ".conf"), { dereference: true });
         }
         const loaded = readdirSync(modules).filter(name => name.endsWith(".load"));
-        assert.ok(["ssl.load", "proxy.load", "proxy_http.load", "rewrite.load", "headers.load", "auth_basic.load", "authn_file.load", "mime.load", "setenvif.load", "socache_shmcb.load"].every(name => loaded.includes(name)), "temporary Apache configuration loads the emitted modules and ssl.conf dependencies");
+        assert.ok([...emittedModules, ...sslConfigurationDependencies].every(name => loaded.includes(name + ".load")), "temporary Apache configuration loads every generated directive provider and ssl.conf dependency");
         assert.ok(readdirSync(modules).includes("ssl.conf"), "temporary Apache configuration stages the installed SSL configuration");
         assert.deepEqual(loaded.filter(name => /^mpm_.*\.load$/.test(name)), [mpm + ".load"], "temporary Apache configuration stages exactly one installed MPM");
         const runtime = join(root, "run"), logs = join(root, "log"), locks = join(root, "lock"); mkdirSync(runtime, { recursive: true }); mkdirSync(logs, { recursive: true }); mkdirSync(locks, { recursive: true });
