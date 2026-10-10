@@ -10,11 +10,16 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { appendSection, documentFindings, readDocument, readRegister, writeDocument } from "../src/documents/index.mjs";
 import { planSchemas } from "../src/work-plans/index.mjs";
 
 const PLAN_PATH = "docs/plan/order.md";
 const SPRINT_PATH = "docs/backlog/sprints/19.md";
+const MODULE = new URL("../src/work-plans/index.mjs", import.meta.url);
+const BACKLOG_ORDER_SCHEMA_FILE = new URL("../src/work-plans/backlog-order.schema.md", import.meta.url);
+const PLAN_ORDER_SCHEMA_FILE = new URL("../src/work-plans/plan-order.schema.md", import.meta.url);
+const SPRINT_SCHEMA_FILE = new URL("../src/work-plans/sprint.schema.md", import.meta.url);
 
 const planOrderOf = (...rows) => [
   "# The order of the implementation plan", "", "**REGISTER**", "", "The plan's steps in their order.", "", "## Order", "",
@@ -30,6 +35,27 @@ const sprintOf = ({ selection = ["ITM-297", "ITM-298"], start = "2026-10-10", en
 const findingsOf = (schema, path, text) => documentFindings(schema, readDocument(schema, path, text));
 
 const findingShape = ({ artifact, line, kind, rule, what }) => ({ artifact, line, kind, rule, what });
+
+let loads = 0;
+async function load({ disk, fetch }) {
+  const saved = { getBuiltinModule: process.getBuiltinModule, fetch: globalThis.fetch };
+  const reads = [];
+  process.getBuiltinModule = (name) => (name === "node:fs" ? disk?.(reads) : saved.getBuiltinModule.call(process, name));
+  globalThis.fetch = fetch ? (url) => { reads.push(`fetch ${url}`); return fetch(url); } : undefined;
+  try {
+    loads += 1;
+    return { module: await import(new URL(`?load=${loads}`, MODULE)), error: null, reads };
+  } catch (error) {
+    return { module: null, error, reads };
+  } finally {
+    process.getBuiltinModule = saved.getBuiltinModule;
+    globalThis.fetch = saved.fetch;
+  }
+}
+
+const realDisk = (reads) => ({
+  readFileSync: (url, encoding) => { reads.push(`disk ${url}`); return readFileSync(url, encoding); },
+});
 
 // TST-297011
 // given: an implementation-plan order with three ITM steps in two model phases
@@ -115,4 +141,37 @@ test("TST-297015: sprint appended records preserve review, unfinished-item, and 
   assert.match(appended[1].text, /gate records under docs\/gates/);
   assert.match(appended[2].text, /stay in the backlog/);
   assert.match(appended[3].text, /Proposed, team agreement/);
+});
+
+// TST-297016
+// given: MOD-work-plans loaded afresh from disk, then from each of its three own schema addresses, and finally with its
+//        first own schema address refused
+// input: planSchemas on each module load
+// expect: each schema is read once from the selected owned boundary; a refused own schema stops the module and names its file
+// guards: A DATA FORMAT IS DEFINED ONCE; THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
+test("TST-297016: planSchemas loads each owned schema from its module boundary", async () => {
+  const texts = new Map([
+    [BACKLOG_ORDER_SCHEMA_FILE.href, readFileSync(BACKLOG_ORDER_SCHEMA_FILE, "utf8")],
+    [PLAN_ORDER_SCHEMA_FILE.href, readFileSync(PLAN_ORDER_SCHEMA_FILE, "utf8")],
+    [SPRINT_SCHEMA_FILE.href, readFileSync(SPRINT_SCHEMA_FILE, "utf8")],
+  ]);
+  const onDisk = await load({ disk: realDisk });
+  const atAddress = await load({ disk: undefined, fetch: async (url) => new Response(texts.get(new URL(url).href) ?? "Not Found", {
+    status: texts.has(new URL(url).href) ? 200 : 404,
+  }) });
+  for (const [where, loaded, read] of [["disk", onDisk, "disk"], ["address", atAddress, "fetch"]]) {
+    assert.equal(loaded.error, null, `${where}: the module loads: ${loaded.error?.message}`);
+    assert.deepEqual(loaded.reads, [
+      `${read} ${BACKLOG_ORDER_SCHEMA_FILE.href}`,
+      `${read} ${PLAN_ORDER_SCHEMA_FILE.href}`,
+      `${read} ${SPRINT_SCHEMA_FILE.href}`,
+    ], where);
+    assert.deepEqual(loaded.module.planSchemas.planOrder, planSchemas.planOrder, where);
+    assert.deepEqual(loaded.module.planSchemas.sprint, planSchemas.sprint, where);
+  }
+  const notServed = await load({ disk: undefined, fetch: async () => new Response("Not Found", { status: 404 }) });
+  assert.deepEqual(notServed.reads, [`fetch ${BACKLOG_ORDER_SCHEMA_FILE.href}`]);
+  assert.equal(notServed.module, null, "a refused own schema stops the module");
+  assert.ok(notServed.error instanceof Error && notServed.error.message.includes("backlog-order.schema.md")
+    && notServed.error.message.includes("404"), `the error names the refused own schema: ${notServed.error?.message}`);
 });
