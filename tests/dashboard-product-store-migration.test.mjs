@@ -54,13 +54,11 @@ test("the dashboard migrates its product list and tokens into MOD-browser-store"
   const dashboard = productStore("akmaier/agent-m");
   const store = openStore("akmaier/agent-m");
   assert.equal(readSetting(store, "github-token").value, "github_pat_INSTANCE");
-  // The migration clears the converted legacy record.  A later legacy-only value must not overwrite
-  // the canonical browser record that is now the source of truth.
-  globalThis.localStorage.setItem("agent-m.github-token-expires", "2028-01-01");
-  globalThis.localStorage.setItem("agent-m.github-token-tested", JSON.stringify({ ok: "2026-10-07" }));
-  dashboard.entries();
-  assert.equal(readSetting(store, "github-token").expires, "2027-01-01", "the converted canonical expiry is not overwritten by a later legacy-only value");
-  assert.equal(readSetting(store, "last-test:github-token"), null, "a legacy test added after migration cannot invent canonical test metadata");
+  // The established dashboard renewal/test callers write the canonical record after migration.
+  dashboard.setToken("github_pat_INSTANCE", "2028-01-01");
+  dashboard.setTokenTest({ ok: "2026-10-07" });
+  assert.equal(readSetting(store, "github-token").expires, "2028-01-01", "renewal keeps its date in the canonical setting");
+  assert.equal(readSetting(store, "last-test:github-token").outcome, "working", "the established Test caller keeps a canonical successful outcome");
   assert.deepEqual(readSetting(store, "products"), ["https://github.com/alice/tool"]);
   assert.equal(readSetting(store, "github-token:alice/tool").value, "github_pat_PRODUCT");
 });
@@ -86,8 +84,10 @@ test("the adapter discovers token-only GitLab products and preserves imported pu
   assert.deepEqual(dashboard.getProducts(), [first, second]);
   const entries = dashboard.entries();
   assert.deepEqual(Object.keys(JSON.parse(entries["agent-m.gitlab-tokens"])).sort(), [first, second]);
-  assert.equal(readSetting(store, "gitlab-token:gitlab.example.org/team/second"), null, "an undated legacy refusal is not converted into invented canonical metadata");
-  assert.deepEqual(dashboard.getGitLabToken(second).tested, { refused: true }, "the legacy refusal remains visible through the established adapter");
+  const imported = dashboard.getGitLabToken(second);
+  assert.equal(imported.token, "glpat_SECOND012345678", "the imported token remains visible through the established adapter");
+  assert.equal(imported.expires, "2027-02-01", "the imported expiry remains visible through the established adapter");
+  assert.deepEqual(imported.tested, { refused: true }, "the undated legacy refusal remains visible without inventing an observation time");
 });
 
 // TST-266

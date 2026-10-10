@@ -940,9 +940,7 @@ test("UC-042 step 4: switching pseudonymisation off shows what follows — publi
   const save = publicControls(product, "settings-pseudonymisation-save")[0];
   const settingsBefore = [...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")).sort();
   off.checked = true;
-  assert.match(product.textContent, /issues and the repository.*unchanged/i);
-  assert.match(product.textContent, /protected, non-public data space/i);
-  assert.match(product.textContent, /public.*published/i);
+  assert.ok(product.textContent.includes("With pseudonymisation off, report data from mails — the names, addresses and other details of the people who write — enters the issues and the repository of akmaier/agent-m unchanged. This is advisable only on a protected, non-public data space. Issue texts themselves stay neutral either way. GitHub reports akmaier/agent-m as public: the data will be published — anyone on the internet can read it."));
   await publicPress(srv, save);
   assert.equal(publicControls(product, "settings-pseudonymisation-result")[0].textContent, "Tick I have read this before switching pseudonymisation off.");
   acknowledgement.checked = true; acknowledgement.fire("change", {});
@@ -978,7 +976,7 @@ test("UC-042 4a: switching pseudonymisation back on is saved without a notice �
   const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": off }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
-  assert.match(product.textContent, /history.*rewrite/i);
+  assert.ok(product.textContent.includes("Data written while pseudonymisation was off stays in the repository's history; removing it needs a rewrite of that history."));
   const toggle = publicControls(product, "settings-pseudonymisation-off")[0];
   assert.equal(toggle.checked, true);
   toggle.checked = false;
