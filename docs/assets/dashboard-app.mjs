@@ -535,7 +535,7 @@ async function route() {
       }
       return;
     }
-    if (kind === "endpoints") {
+    else if (kind === "endpoints") {
       const endpoints = settingsPages.routes.find((r) => r.name === "endpoints");
       await endpoints.render(main(), {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),

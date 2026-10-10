@@ -55,6 +55,7 @@ function copyToken(store, key, token, expires, name, tested) {
 }
 
 function copyProducts(store, products) {
+  if (!products.length) return true;
   const current = readSetting(store, "products");
   const next = [...new Set([...(Array.isArray(current) ? current : []), ...products])];
   if (current === null || next.length !== current.length) writeSetting(store, "products", next);
