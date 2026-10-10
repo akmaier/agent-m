@@ -49,5 +49,8 @@ ITM-257 remains independent test-only work; its current red confidence-interval 
 
 ## Ordering
 
-This correction precedes completion of ITM-257. It is ordered for the next available WIP slot or next sprint;
-it is not selected or started while Sprint19's four selected outcomes remain in progress.
+This correction precedes completion of ITM-257 and is selected in Sprint19's fourth WIP slot after bounded292's
+actual source and independent release delivery. Selected292 remains done;290/291/257/293 are the four in-progress
+outcomes. Developer-terra-c owns the source; developer-terra-e follows independently after source delivery and a
+fresh guarded provenance check. Root publishes the selection and a fresh source Start before tests-only actual
+product-red CI and implementation.
