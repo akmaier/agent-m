@@ -43,20 +43,13 @@ function copyToken(store, key, token, expires, name, tested) {
   const test = canonicalTest(tested);
   if (typeof token !== "string") return false;
   const current = readSetting(store, key);
-  if (!tokenMatches(current, token, expires)) {
-    writeSetting(store, key, current && typeof current === "object"
-      ? { ...current, value: token, name: current.name ?? name, expires: expires ?? null }
-      : valueOf(token, expires, name));
-  }
+  if (current === null) writeSetting(store, key, valueOf(token, expires, name));
   if (!tokenMatches(readSetting(store, key), token, expires)) return false;
   if (!test.converted) return false;
   const testKey = `last-test:${key}`;
   if (test.value) {
-    if (JSON.stringify(readSetting(store, testKey)) !== JSON.stringify(test.value)) writeSetting(store, testKey, test.value);
+    if (readSetting(store, testKey) === null) writeSetting(store, testKey, test.value);
     if (JSON.stringify(readSetting(store, testKey)) !== JSON.stringify(test.value)) return false;
-  } else if (readSetting(store, testKey) !== null) {
-    clearSetting(store, testKey);
-    if (readSetting(store, testKey) !== null) return false;
   }
   return true;
 }
