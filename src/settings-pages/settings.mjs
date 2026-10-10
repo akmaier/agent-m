@@ -426,7 +426,7 @@ function notificationsControls(context) {
   return el("section", "settings-notifications",
     el("h3", null, "Notifications"), status,
     el("p", null, on, " ", test, " ", off),
-    explain("notifications"), result,
+    whatIsThis("Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch."), result,
   );
 }
 
