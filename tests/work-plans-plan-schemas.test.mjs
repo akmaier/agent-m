@@ -111,7 +111,7 @@ test("TST-297013: malformed identifiers, paths, and sprint dates are findings af
   const [badDate] = findingsOf(planSchemas.sprint, SPRINT_PATH, sprintOf({ start: "2026-99-10" }));
   assert.deepEqual(findingShape(badDate), {
     artifact: SPRINT_PATH, line: 4, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
-    what: 'the key start "2026-99-10" is not a date YYYY-MM-DD',
+    what: 'the key start does not fit: "2026-99-10" is not a date YYYY-MM-DD',
   });
 });
 
