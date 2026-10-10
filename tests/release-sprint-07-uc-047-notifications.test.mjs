@@ -306,6 +306,8 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
     const notification = publicControls(box, "settings-notifications")[0];
     const details = notification.children.find((node) => node.className === "explain");
     assert.ok(details, "the public Notifications control carries its folded explanation");
+    assert.equal(details.localName, "details", "the public explanation remains a details element");
+    assert.equal(Boolean(details.open), false, "the public explanation is collapsed by default");
     assert.equal(details.children[0].localName, "summary", "the public explanation keeps its What is this? summary");
     assert.equal(details.children[0].textContent, "What is this?");
     const explanation = details.textContent;
