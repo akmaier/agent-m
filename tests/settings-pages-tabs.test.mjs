@@ -144,6 +144,7 @@ test("TST-290111: Settings saves, tests, and records an expiring repository toke
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
   const store = openStore("fixture/instance");
+  writeSetting(store, "gitlab-token:gitlab.example.test/group/product", { value: "glpat_fixtureToken", name: "Agent M", expires: "2026-12-01" });
   const target = document.createElement("div");
   const oldFetch = globalThis.fetch;
   let reply = 200, request;
@@ -154,6 +155,8 @@ test("TST-290111: Settings saves, tests, and records an expiring repository toke
   try {
     await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
     click(byClass(target, "settings-tab")[1]);
+    const gitlab = byClass(target, "settings-repository").find((node) => /GitLab token: gitlab\.example\.test\/group\/product/.test(node.textContent));
+    assert.equal(byClass(gitlab, "settings-repository-renew")[0].href, "https://gitlab.example.test/group/product/-/settings/access_tokens", "GitLab product credentials renew on that product's own Access tokens page");
     const line = byClass(target, "settings-repository").find((node) => /GitHub token/.test(node.textContent));
     const change = byClass(line, "settings-repository-change")[0];
     const acknowledgement = byClass(line, "settings-repository-ack")[0];
