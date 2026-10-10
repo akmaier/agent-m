@@ -29,6 +29,8 @@ const sprintOf = ({ selection = ["ITM-297", "ITM-298"], start = "2026-10-10", en
 
 const findingsOf = (schema, path, text) => documentFindings(schema, readDocument(schema, path, text));
 
+const findingShape = ({ artifact, line, rule, what }) => ({ artifact, line, kind: "error", rule, what });
+
 // TST-297011
 // given: an implementation-plan order with three ITM steps in two model phases
 // input: readRegister(planSchemas.planOrder, docs/plan/order.md, text)
@@ -56,47 +58,61 @@ test("TST-297012: canonical plan order and sprint records round-trip without per
 });
 
 // TST-297013
-// given: known-valid plan and sprint records; then an invalid plan step, an invalid sprint path, and an invalid sprint date
+// given: known-valid plan and sprint records; then an invalid plan step, a sprint path outside its folder or with the
+//        wrong extension, and an invalid sprint date
 // input: documentFindings through planSchemas
-// expect: valid records have no finding; each malformed value is named on its record line by the schema rule
+// expect: valid records have no finding; each malformed value names its artifact, line, format rule and compiler message
 // guards: THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
 test("TST-297013: malformed identifiers, paths, and sprint dates are findings after known-valid records", () => {
   assert.deepEqual(findingsOf(planSchemas.planOrder, PLAN_PATH, planOrderOf(["ITM-297", "Planning"])), []);
   assert.deepEqual(findingsOf(planSchemas.sprint, SPRINT_PATH, sprintOf()), []);
-  assert.equal(findingsOf(planSchemas.planOrder, PLAN_PATH, planOrderOf(["NOT-297", "Planning"])).length, 1);
-  assert.ok(findingsOf(planSchemas.sprint, "docs/backlog/sprints/x.md", sprintOf()).length > 0);
-  assert.ok(findingsOf(planSchemas.sprint, SPRINT_PATH, sprintOf({ start: "2026-99-10" })).length > 0);
+  const [badStep] = findingsOf(planSchemas.planOrder, PLAN_PATH, planOrderOf(["NOT-297", "Planning"]));
+  assert.deepEqual(findingShape(badStep), {
+    artifact: PLAN_PATH, line: 11, kind: "error", rule: "THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY",
+    what: 'the cell Step "NOT-297" is not an identifier ITM',
+  });
+  for (const path of ["docs/backlog/other/19.md", "docs/backlog/sprints/19.txt"]) {
+    const [badPath] = findingsOf(planSchemas.sprint, path, sprintOf());
+    assert.deepEqual(findingShape(badPath), {
+      artifact: "19", line: 1, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
+      what: `the path ${path} does not match a path of the format sprint`,
+    });
+  }
+  const [badDate] = findingsOf(planSchemas.sprint, SPRINT_PATH, sprintOf({ start: "2026-99-10" }));
+  assert.deepEqual(findingShape(badDate), {
+    artifact: "19", line: 4, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
+    what: 'the key start "2026-99-10" is not a date YYYY-MM-DD',
+  });
 });
 
 // TST-297014
-// given: a sprint record and its first Selection decision
-// input: appendSection for Selection twice, then readDocument
-// expect: each allowed append retains every earlier byte, both decisions remain readable in order, and no item/job state is added
+// given: a sprint record and two later Selection headings, whose accepted format declares no structured fields
+// input: appendSection with an empty field record twice, then readDocument
+// expect: each allowed append retains every earlier byte, both headings remain in order, and no item/job state is added
 // guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 test("TST-297014: repeated Selection decisions append without changing earlier sprint bytes", () => {
-  const first = appendSection(planSchemas.sprint, sprintOf(), "## Selection", { selection: ["ITM-299"] });
-  const second = appendSection(planSchemas.sprint, first, "## Selection", { selection: ["ITM-300"] });
+  const first = appendSection(planSchemas.sprint, sprintOf(), "## Selection", {});
+  const second = appendSection(planSchemas.sprint, first, "## Selection", {});
+  assert.ok(first.startsWith(sprintOf()));
   assert.ok(second.startsWith(first));
   const document = readDocument(planSchemas.sprint, SPRINT_PATH, second);
-  assert.deepEqual(document.appended.filter((section) => section.heading === "## Selection").map((section) => section.fields.selection),
-    [["ITM-299"], ["ITM-300"]]);
+  assert.deepEqual(document.appended.filter((section) => section.heading === "## Selection").map((section) => section.text), ["", ""]);
   assert.equal(second.includes("state:"), false);
 });
 
 // TST-297015
-// given: a sprint record with each accepted append-only record kind
-// input: appendSection then readDocument through planSchemas.sprint
-// expect: Ended, Review, Unfinished items and Retrospective preserve their declared fields for later callers
+// given: a sprint record with each accepted appended section as freeform prose, feedback destinations, tables and lists
+// input: readDocument then writeDocument through planSchemas.sprint
+// expect: Ended, Review, Unfinished items and Retrospective retain their complete section text for later callers
 // guards: UC-002; UC-032; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
-test("TST-297015: sprint accepted appended records preserve review, unfinished-item, and retrospective facts", () => {
-  let text = sprintOf();
-  text = appendSection(planSchemas.sprint, text, "## Ended", { ended: "2026-10-11" });
-  text = appendSection(planSchemas.sprint, text, "## Review", { increment: "ITM-297", feedback: "ITM-300: new item", participants: ["po-sol"], sources: ["issue #12"] });
-  text = appendSection(planSchemas.sprint, text, "## Unfinished items", { item: "ITM-298", to: "backlog", reason: "needs review" });
-  text = appendSection(planSchemas.sprint, text, "## Retrospective", { entry: "keep the review evidence", kind: "went well", goes: "team agreement" });
-  const appended = readDocument(planSchemas.sprint, SPRINT_PATH, text).appended;
+test("TST-297015: sprint appended records preserve review, unfinished-item, and retrospective text", () => {
+  const text = `${sprintOf()}\n## Ended\n\nThe Product Owner ended this sprint without a time box on 2026-10-10.\n\n## Review\n\nBy scrum-master-session, the closer of sprint 04, on sprint/04 at 1f18003, 2026-10-06. Who took part:\n- akmaier, the person: started the sprint;\n- po-opus, Product Owner: every gate;\n- tester-opus: the release tests.\n\nThe feedback below comes from:\n- the pull requests #97–#106, their CI runs and their reviews;\n- the gate records under docs/gates/;\n- the reports of the developers and the tester.\n\n**The increment.** UC-001 adds a product through the modules of the accepted architecture.\n\n**Feedback, each with where it goes.**\n- The order of the backlog is a table in MOD-work-plans.\n  → New item ITM-209.\n- Step A shows no tokens button before an address is typed.\n  → Noted.\n\n## Unfinished items\n\nNone of the selection is unfinished. ITM-204 and ITM-207 left the sprint by the Product Owner's start decision and stay in the backlog.\n\n## Retrospective\n\n**What went well.**\n- Every item began with failing tests, and every new test has a recorded counter-proof.\n\n**What did not.**\n- The Scrum Master wrote item texts that asked for re-exports in old files.\n\n**Changes, each with where it goes.** An agent's changes are proposals only.\n- Proposed, team agreement: a sprint runs as one coordinated run.\n`;
+  const document = readDocument(planSchemas.sprint, SPRINT_PATH, text);
+  const appended = document.appended;
+  assert.equal(writeDocument(planSchemas.sprint, document), text);
   assert.deepEqual(appended.map((section) => section.heading), ["## Ended", "## Review", "## Unfinished items", "## Retrospective"]);
-  assert.equal(appended[1].fields.feedback, "ITM-300: new item");
-  assert.equal(appended[2].fields.to, "backlog");
-  assert.equal(appended[3].fields.goes, "team agreement");
+  assert.match(appended[1].text, /Feedback, each with where it goes/);
+  assert.match(appended[1].text, /gate records under docs\/gates/);
+  assert.match(appended[2].text, /stays in the backlog/);
+  assert.match(appended[3].text, /Proposed, team agreement/);
 });
