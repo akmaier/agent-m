@@ -168,8 +168,8 @@ implementation (UC-024). Its files in the product repository:
    The participant returns the decision that states the system, the subsystems' decisions, the module files and the
    further decisions.
 6. **The check of the whole, before the author sees anything.** Once the draft is complete, Agent M sends it to the
-   reviewing participant together with the whole SPEC and every use case. The reviewer checks the whole draft against the
-   whole SPEC — its definition of an architecture and its design principles included —, and checks, level by level:
+   reviewing participant together with the whole SPEC, every use case and chapters 9 to 12 of the book *Vibe Coding*.
+   The reviewer checks the whole draft against the whole SPEC — its definition of an architecture and its design principles included —, and checks, level by level:
    - every use case against the system: whether its scenario is possible with the subsystems and their interfaces;
    - every subsystem against the system: whether it fulfils the responsibility and offers the interface that the
      decision stating the system gives it;

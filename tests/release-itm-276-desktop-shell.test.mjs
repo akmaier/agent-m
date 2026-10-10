@@ -16,6 +16,11 @@ import { createServer } from "node:net";
 import test, { after, before } from "node:test";
 
 const root = new URL("..", import.meta.url).pathname;
+
+// Electron's windows show on the screen unless a virtual screen holds them. These tests therefore run only on Linux, under
+// xvfb-run, as on the CI; elsewhere each is skipped with this reason, and Electron is neither installed nor started.
+const NO_VIRTUAL_SCREEN = process.platform === "linux" ? false
+  : "needs a virtual screen: runs only on Linux under xvfb-run, as on the CI; elsewhere Electron's windows would show";
 const electronCache = join(tmpdir(), "agent-m-276-release-electron-44");
 const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
 let nativeFixtureLockHeld = false;
@@ -93,8 +98,10 @@ const prepareNativeFixture = async () => {
     process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
   } catch (failure) { releaseNativeFixtureLock(); throw failure; }
 };
-before(prepareNativeFixture);
-after(releaseNativeFixtureLock);
+if (!NO_VIRTUAL_SCREEN) {
+  before(prepareNativeFixture);
+  after(releaseNativeFixtureLock);
+}
 
 async function runtime() {
   const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
@@ -214,7 +221,7 @@ const click = (page, label) => evaluate(page.webSocketDebuggerUrl, `[...document
 // Planted fault: changing the `127.0.0.1` host in src/desktop-shell/compose.mjs to `0.0.0.0` reaches the real
 // server BindRefused check before token creation, so the private-token precondition fails; restoring that byte-exact
 // source makes this positive pass.
-test("TST-276901: actual forked Electron source keeps its renderer private and pairs only on configured loopback", { timeout: 60000, concurrency: false }, async () => {
+test("TST-276901: actual forked Electron source keeps its renderer private and pairs only on configured loopback", { timeout: 60000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   try {
     const pairingToken = await wait(() => existsSync(join(app.folder, "pairing-token")) && token(app.folder));
