@@ -33,18 +33,20 @@ async function openEndpointDashboard({ entries = {}, handlers = [], pathname = n
   const page = await openDashboard({ server, hash: "#uc", entries });
   if (storage) globalThis.localStorage = storage;
   const dom = richDocument();
-  const main = dom.byId("main"), base = main.querySelector.bind(main);
+  const main = dom.byId("main");
   let mounted = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]'
-    ? { replaceChildren(...children) { mounted = children; } }
-    : base(selector);
+  const replace = main.replaceChildren.bind(main);
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   if (pathname) {
     globalThis.location.pathname = pathname;
     globalThis.location.hash = "#settings";
     await import(`../docs/assets/dashboard-app.mjs?itm270-instance=${encodeURIComponent(pathname)}`);
     await settle(server);
   } else await page.go("#settings");
-  await press(server, mounted[0]);
+  const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  const configure = endpoints?.querySelector("button.settings-endpoint-configure");
+  assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
+  await press(server, configure);
   assert.equal(globalThis.location.hash, "#endpoints", "Configure selects the dashboard's endpoint route");
   await page.go("#endpoints");
   return { server, page, main, browser: { document: globalThis.document, location: globalThis.location,

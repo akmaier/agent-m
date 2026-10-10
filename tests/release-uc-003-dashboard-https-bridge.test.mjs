@@ -79,10 +79,14 @@ test("TST-266002: configured HTTPS forwarding keeps jump-host login separate fro
     [`${PREFIX}jump-host`]: JSON.stringify({ hostname: "jump.example.test", user: "ssh-user", sshPort: 22, portRange: [40100, 40199], httpsAddress: HTTPS, login: LOGIN }),
   };
   const page = await openDashboard({ server, hash: "#uc", entries });
-  const dom = richDocument(), main = dom.byId("main"), original = main.querySelector.bind(main); let section = [];
+  const dom = richDocument(), main = dom.byId("main"); let mounted = [];
   globalThis.document.cookie = "";
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]' ? { replaceChildren(...children) { section = children; } } : original(selector);
-  await page.go("#settings"); await press(server, section[0]);
+  const replace = main.replaceChildren.bind(main); main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  const configure = endpoints?.querySelector("button.settings-endpoint-configure");
+  assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
+  await press(server, configure);
   assert.equal(globalThis.location.hash, "#endpoints", "failure node: Settings Configure selected the public endpoint route");
   await page.go("#endpoints");
   const key = "release-local-key", endpointUrl = `http://127.0.0.1:${port}/v1`;
