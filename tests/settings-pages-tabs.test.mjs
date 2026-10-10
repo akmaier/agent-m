@@ -119,11 +119,14 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
 
   click(tabs[1]);
   const product = byClass(target, "settings-product-list-item")[0];
+  const priorConfirm = globalThis.confirm;
+  globalThis.confirm = () => true;
   click(byClass(product, "settings-product-remove")[0]);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(readSetting(store, "products"), [], "Remove updates the canonical browser product list");
   assert.equal(readSetting(store, "github-token:fixture/product"), null, "Remove takes the product's own GitHub token with its browser list entry");
   assert.equal(readSetting(store, "last-test:github-token:fixture/product"), null, "Remove takes the adjacent token-test metadata too");
+  globalThis.confirm = priorConfirm;
 
   click(tabs[0]);
   const clear = byClass(target, "settings-clear-everything")[0];

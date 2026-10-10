@@ -235,7 +235,7 @@ function repositoryLine(context, info) {
     const status = el("p", "settings-repository-status", "Product addresses are stored in this browser.");
     change.addEventListener("click", () => context.go("add-product", {}));
     clear.addEventListener("click", () => {
-      if (typeof globalThis.confirm === "function" && !globalThis.confirm("Clear all managed products and their stored tokens from this browser?")) return;
+      if (typeof globalThis.confirm !== "function" || !globalThis.confirm("Clear all managed products and their stored tokens from this browser?")) return;
       for (const web of readSetting(context.store, "products") ?? []) clearProductToken(context.store, web);
       clearSetting(context.store, info.key);
       status.textContent = "Cleared from this browser with every product's own token.";
@@ -364,7 +364,7 @@ function productListControls(target, context) {
       } catch (error) { result.textContent = `✗ ${error.message}`; }
     });
     remove.addEventListener("click", async () => {
-      if (typeof globalThis.confirm === "function" && !globalThis.confirm(`Remove ${web} and its stored token from this browser?`)) return;
+      if (typeof globalThis.confirm !== "function" || !globalThis.confirm(`Remove ${web} and its stored token from this browser?`)) return;
       clearProductToken(context.store, web);
       writeSetting(context.store, "products", products.filter((candidate) => candidate !== web));
       await route.render(target, context, {});
@@ -561,7 +561,7 @@ async function productControls(context) {
     collaboratorsBlob = result.blob; collaboratorsBytes = text; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
     collaboratorRecords.replaceChildren(...Array.from(collaboratorRecords.childNodes).filter((node) => !node.textContent.includes(`${wantedName} · @${wantedAccount} ·`)));
     collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
-    if (result.commit) { const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${context.product.address.replace(/\/$/, "")}/commit/${result.commit}`; collabResult.append(link); }
+    if (result.commit) { const address = parseAddress(context.product.address); const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${address.web}/${address.kind === "gitlab" ? "-/commit" : "commit"}/${result.commit}`; collabResult.append(link); }
   });
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
