@@ -313,7 +313,7 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
     const explanation = details.textContent;
     assert.match(explanation, /While a dashboard page is open, it checks every five minutes/, "how often, and while what");
     assert.match(explanation, /repository servers with the tokens of this browser and nowhere else/, "whose tokens, and nowhere else");
-    assert.match(explanation, /Nothing is checked while no page is open/, "nothing while no page is open");
+    assert.match(explanation, /Nothing is checked while no dashboard page is open/, "nothing while no dashboard page is open");
   } finally { browser.restore(); }
 });
 
