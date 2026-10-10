@@ -261,7 +261,8 @@ test("UC-042 step 1: a remote session's last test — something answered, or not
   assert.match(result.textContent, /answers at localhost:20001|something answered/, "the public Test establishes the controlled working result");
   assert.ok(globalThis.localStorage.getItem(canonicalKey("last-test:remote-session:lab-pc")), "required working outcome persists for reload");
   let again = await settingsPage(world, agentEntries());
-  assert.match(again.endpointBox().textContent, /answers at localhost:20001|something answered/, "working outcome is shown after reload");
+  assert.match(again.endpointBox().textContent, /Works\. Last successful test: .*\./,
+    "the public setting line shows the persisted working outcome and its recorded date after reload");
   world.up.clear();
   const retry = publicControls(publicControls(again.endpointBox(), "settings-remote-session")[0], "settings-remote-session-test")[0];
   await retry.fire("click");
