@@ -2,7 +2,7 @@
 // interface. It stores and clears the implemented catalogue keys under the instance's localStorage prefix and lists
 // their metadata without returning stored values. The implemented catalogue includes instance and product tokens,
 // products, notifications, endpoints, the paired Bridge, the jump host, named remote sessions and recorded setting tests.
-// Its canonical settings export is implemented in export.mjs. clearEverything, expiringSoon and secretValues are not.
+// Its canonical settings export is implemented in export.mjs. expiringSoon is not.
 //
 // Module: MOD-browser-store
 //
@@ -39,6 +39,15 @@ export function writeSetting(store, key, value) {
 // REAL CLEAR).
 export function clearSetting(store, key) {
   removeRaw(store, key);
+}
+
+// clearEverything(store) -> void — removes every raw localStorage entry of this instance, including an entry that no
+// longer belongs to the current catalogue, while leaving every other instance and unrelated browser state untouched.
+export function clearEverything(store) {
+  for (let index = store.storage.length - 1; index >= 0; index -= 1) {
+    const storageKey = store.storage.key(index);
+    if (storageKey?.startsWith(store.prefix)) store.storage.removeItem(storageKey);
+  }
 }
 
 const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host"];
@@ -88,4 +97,22 @@ export function listSettings(store) {
     const description = settingDescription(key);
     return { key, ...description, expires: expiryOf(readSetting(store, key)), lastTest: lastTestOf(store, key) };
   });
+}
+
+const text = (value) => typeof value === "string" ? value : null;
+
+function secretOf(key, value) {
+  if (!value || typeof value !== "object") return null;
+  if (key === "github-token" || key.startsWith("github-token:") || key.startsWith("gitlab-token:")) return text(value.value);
+  if (key.startsWith("endpoint:")) return text(value.key);
+  if (key === "bridge" || key.startsWith("remote-session:")) return text(value.token);
+  if (key === "jump-host") return text(value.login) ?? text(value.login?.password);
+  return null;
+}
+
+// secretValues(store) -> string[] — the actual credential strings in the implemented catalogue families. It deliberately
+// omits configuration values, labels, products, notifications and recorded test metadata.
+export function secretValues(store) {
+  const keys = ["github-token", "bridge", "jump-host", ...storedSettingKeys(store)];
+  return keys.map((key) => secretOf(key, readSetting(store, key))).filter((value) => value !== null);
 }
