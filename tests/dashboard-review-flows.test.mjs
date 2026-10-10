@@ -669,7 +669,12 @@ async function publicSettingsPage({ server = null, token = TOKEN, settings = {},
   const entries = Object.fromEntries(Object.entries(storedSettings).map(([key, value]) => [`agent-m:akmaier/agent-m:${key}`, JSON.stringify(value)]));
   const writable = (url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined;
   const srv = server ?? await ucServer({}, writableProduct ? [writable] : []), page = await openDashboard({ server: srv, hash: "#uc", token, entries, ...(caches ? { caches } : {}) });
-  const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
+  const dom = richDocument(), createElement = globalThis.document.createElement.bind(globalThis.document), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
+  globalThis.document.createElement = (name) => {
+    const node = createElement(name);
+    if (!("childNodes" in node)) Object.defineProperty(node, "childNodes", { get: () => node.children ?? [] });
+    return node;
+  };
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
   const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
@@ -677,8 +682,11 @@ async function publicSettingsPage({ server = null, token = TOKEN, settings = {},
 }
 async function publicBridgePage(options = {}) {
   const settings = await publicSettingsPage(options);
+  const main = settings.dom.byId("main"), replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await settings.page.go("#bridge");
-  return { ...settings, main: () => settings.dom.byId("main") };
+  return { ...settings, mounted: () => ({ children: mounted }) };
 }
 // Until `cond` holds — for work that waits on the browser's cryptography rather than on a request.
 async function until(cond, what) {
@@ -891,8 +899,8 @@ test("UC-042 step 2: a GitLab project token — hidden until Show, changed after
 });
 
 test("UC-042 step 2: the jump host and a remote session are set, their commands written, and each is cleared — all in this browser", async () => {
-  const { srv, page, main } = await publicBridgePage();
-  const control = (name) => publicControls(main(), name)[0];
+  const { srv, page, mounted } = await publicBridgePage();
+  const control = (name) => publicControls(mounted(), name)[0];
   for (const [name, value] of Object.entries({ "jump-host-name": "jump.example.org", "jump-host-user": "agentm", "jump-host-ssh-port": "22", "jump-host-port-first": "20001", "jump-host-port-last": "20003" })) control(name).value = value;
   await publicPress(srv, control("jump-host-save"));
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:jump-host")), { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] });
@@ -904,7 +912,7 @@ test("UC-042 step 2: the jump host and a remote session are set, their commands 
   assert.match(control("remote-session-commands").textContent, /127\.0\.0\.1:20001/, "the commands are written from the settings");
   assert.doesNotMatch(control("remote-session-commands").textContent, /bridgeTOKEN/, "the bridge token is in no command");
   await page.go("#settings");
-  const endpoints = () => publicControls(main(), "settings-tab-panel").find((pane) => pane.textContent.includes("Endpoints & Agents"));
+  const endpoints = () => publicControls(mounted(), "settings-tab-panel").find((pane) => pane.textContent.includes("Endpoints & Agents"));
   await publicPress(srv, publicControls(endpoints(), "settings-remote-session-clear")[0]);
   assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:remote-session:lab-pc"), null);
   await publicPress(srv, publicControls(endpoints(), "settings-jump-host-clear")[0]);
@@ -913,12 +921,13 @@ test("UC-042 step 2: the jump host and a remote session are set, their commands 
 });
 
 test("UC-042 3a: without a token the product's settings are read-only, and link to the token step of UC-001", async () => {
-  const { box } = await publicSettingsPage({ token: null, settings: { "github-token": null } });
+  const { srv, box } = await publicSettingsPage({ token: null, settings: { "github-token": null } });
   const product = publicControls(box(), "settings-product")[0];
   assert.match(publicControls(product, "settings-product-read-only")[0].textContent, /Read-only: This browser has no token that can write to this product\./);
   const tokenStep = publicControls(product, "settings-product-token-step")[0];
   assert.ok(tokenStep);
-  assert.equal(tokenStep.href, `#add/${encodeURIComponent(`https://github.com/${REPO}`)}`, "the token step is linked to this product");
+  await publicPress(srv, tokenStep);
+  assert.equal(globalThis.location.hash, `#add/${encodeURIComponent(`https://github.com/${REPO}`)}`, "the token-step control selects this product's public route");
   assert.equal(publicControls(product, "settings-pseudonymisation-off").length, 0);
   assert.equal(publicControls(product, "settings-pseudonymisation-save").length, 0);
   assert.equal(publicControls(product, "settings-collaborator-save").length, 0);
@@ -987,7 +996,7 @@ test("UC-042 step 5: + Collaborator with the tick that the person agreed commits
   const product = publicControls(box(), "settings-product")[0];
   publicControls(product, "settings-collaborator-name")[0].value = "Jane Doe";
   publicControls(product, "settings-collaborator-account")[0].value = "jdoe";
-  const consentDate = publicControls(product, "settings-collaborator-agreed-on")[0];
+  const consentDate = publicControls(product, "settings-collaborator-agreed-date")[0];
   assert.ok(consentDate, "the chosen consent date remains a Settings control");
   consentDate.value = "2026-09-30";
   const agreed = publicControls(product, "settings-collaborator-agreed")[0]; agreed.checked = true; agreed.fire("change", {});

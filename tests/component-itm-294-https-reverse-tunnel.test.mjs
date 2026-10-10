@@ -228,9 +228,13 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         assert.equal(badToken.status, 401, kind + " carries a refused Bridge token to the Bridge"); assert.equal(modelReceipts.length, modelsBeforeRejected, kind + " refuses the Bridge token before another model call");
         const server = await repoServer({ files: {}, handlers: [async (url, init) => url.origin === new URL(base).origin ? nativeFetch(url.href, { ...init, headers: { ...init.headers, Origin: origin } }) : null, async (url, init) => url.origin === "http://127.0.0.1:" + modelPort ? nativeFetch(url.href, init) : null] });
         const entries = { [prefix + "bridge"]: JSON.stringify({ address: base, token: "wrong-token" }), [prefix + "jump-host"]: JSON.stringify({ hostname: "localhost", user: "fixture", sshPort, portRange: [tunnelPort, tunnelPort], httpsAddress: base, login }) };
-        const page = await openDashboard({ server, hash: "#uc", entries }); const dom = richDocument(), main = dom.byId("main"), original = main.querySelector.bind(main); let section = []; globalThis.document.cookie = "";
-        main.querySelector = selector => selector === '[data-settings-section="endpoints"]' ? { replaceChildren(...children) { section = children; } } : original(selector);
-        await page.go("#settings"); await press(server, section[0]); assert.equal(globalThis.location.hash, "#endpoints", kind + " public Settings Configure selects endpoint route"); await page.go("#endpoints");
+        const page = await openDashboard({ server, hash: "#uc", entries }); const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = []; globalThis.document.cookie = "";
+        main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+        await page.go("#settings");
+        const endpoints = mounted.find(node => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+        const configure = endpoints?.querySelector("button.settings-endpoint-configure");
+        assert.ok(configure, kind + " public Settings exposes Configure in its Endpoints & Agents pane");
+        await press(server, configure); assert.equal(globalThis.location.hash, "#endpoints", kind + " public Settings Configure selects endpoint route"); await page.go("#endpoints");
         const key = "endpoint-key-" + kind; main.querySelector(".endpoint-name").value = "through-" + kind; main.querySelector(".endpoint-url").value = "http://127.0.0.1:" + modelPort + "/v1"; main.querySelector(".endpoint-model").value = "controlled-" + kind; main.querySelector(".endpoint-key").value = key; main.querySelector(".endpoint-through-bridge").checked = true;
         await press(server, main.querySelector(".endpoint-test")); assert.match(main.querySelector(".endpoint-result").textContent, /Bridge refused its pairing token/, kind + " Settings shows its real refused Bridge token");
         assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(prefix + "endpoint:through-" + kind)), { url: "http://127.0.0.1:" + modelPort + "/v1", kind: "openai-compatible", model: "controlled-" + kind, throughBridge: true, key }, kind + " saved endpoint/key survives refusal");
