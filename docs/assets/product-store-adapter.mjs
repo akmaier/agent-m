@@ -11,16 +11,15 @@ function tokenKey(address) {
   return url.hostname === "github.com" ? `github-token:${path}` : `gitlab-token:${url.hostname}/${path}`;
 }
 
-function valueOf(token, expires, name, tested = null) {
-  return { value: token, name, expires: expires ?? null, stored: day(), ...(tested ? { tested } : {}) };
+function valueOf(token, expires, name) {
+  return { value: token, name, expires: expires ?? null, stored: day() };
 }
 
 function canonicalTest(test, kind = "token") {
   if (!test || typeof test !== "object") return { converted: true, value: null };
   const at = kind === "session" ? test.up : test.ok;
   if (typeof at === "string") return { converted: true, value: { at, outcome: "working" } };
-  // Legacy refusal/down records deliberately have no date.  The canonical shape requires one, so leave their
-  // source record intact instead of inventing an observed test time.
+  if (kind === "token" && test.refused === true) return { converted: true, value: { at: "unknown", outcome: "refused" } };
   return { converted: false, value: null };
 }
 
@@ -42,12 +41,13 @@ function tokenMatches(value, token, expires) {
 
 function copyToken(store, key, token, expires, name, tested) {
   const test = canonicalTest(tested);
-  if (typeof token !== "string" || !test.converted) return false;
+  if (typeof token !== "string") return false;
   const current = readSetting(store, key);
   if (current === null) writeSetting(store, key, valueOf(token, expires, name));
   if (!tokenMatches(readSetting(store, key), token, expires)) return false;
+  if (!test.converted) return false;
+  const testKey = `last-test:${key}`;
   if (test.value) {
-    const testKey = `last-test:${key}`;
     if (readSetting(store, testKey) === null) writeSetting(store, testKey, test.value);
     if (JSON.stringify(readSetting(store, testKey)) !== JSON.stringify(test.value)) return false;
   }
@@ -180,6 +180,6 @@ export function productStore(instance) {
     },
     clear() { this.clearToken(); this.clearProducts(); legacy.clear(); },
     putEntries(values) { legacy.putEntries(values); migrate(); },
-    entries() { return legacy.entries(); },
+    entries() { migrate(); return legacy.entries(); },
   };
 }
