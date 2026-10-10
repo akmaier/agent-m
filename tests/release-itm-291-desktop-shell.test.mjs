@@ -102,12 +102,14 @@ test("TST-291901: public desktop import preserves bounded private state into the
       assert.notDeepEqual(mutation, original, "fault text exists in the production import selector");
       const childArgv = [process.execPath, "--test", "--test-name-pattern", "TST-291901", testPath];
       const childEnvironment = { AGENT_M_291_SOURCE_ROOT: copied, AGENT_M_291_FAULT_CHILD: "1" };
-      const invoke = () => spawnSync(childArgv[0], childArgv.slice(1), { cwd: process.cwd(), encoding: "utf8", timeout: 40_000, env: { ...process.env, ...childEnvironment } });
+      const childEnv = { ...process.env, ...childEnvironment };
+      delete childEnv.NODE_TEST_CONTEXT;
+      const invoke = () => spawnSync(childArgv[0], childArgv.slice(1), { cwd: process.cwd(), encoding: "utf8", timeout: 40_000, env: childEnv });
       try {
         const faultStarted = new Date().toISOString(); writeFileSync(settings, mutation); const faultSourceHash = createHash("sha256").update(readFileSync(settings)).digest("hex"), failed = invoke(); const faultEnded = new Date().toISOString();
         const restoredStarted = new Date().toISOString(); writeFileSync(settings, original); const restoredSourceHash = createHash("sha256").update(readFileSync(settings)).digest("hex"), passed = invoke(); const restoredEnded = new Date().toISOString();
         const testHash = createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex");
-        const receipt = { case: "TST-291901", cwd: process.cwd(), childArgv, childEnvironment, originalHash, faultSourceHash, restoredSourceHash, testHash, fault: 'choice.ownComputer ? "forward" : "reverse" -> "forward"', faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoredStarted, restoredEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr };
+        const receipt = { case: "TST-291901", cwd: process.cwd(), childArgv, childEnvironment: { ...childEnvironment, NODE_TEST_CONTEXT: null }, originalHash, faultSourceHash, restoredSourceHash, testHash, fault: 'choice.ownComputer ? "forward" : "reverse" -> "forward"', faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoredStarted, restoredEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr };
         process.stdout.write(`TST-291901-counterproof ${JSON.stringify(receipt)}\n`);
         assert.equal(restoredSourceHash, originalHash, "byte-exact source restoration precedes the same-case positive");
         assert.notEqual(failed.status, 0, "faulted same case fails"); assert.equal(failed.signal, null, "fault receipt is not a timed-out child"); assert.equal(failed.error, undefined, "fault receipt has no launcher error"); assert.match(`${failed.stdout}\n${failed.stderr}`, /failure node: named remote import uses its one reverse plan/, "fault reaches the guarded reverse-plan assertion");
