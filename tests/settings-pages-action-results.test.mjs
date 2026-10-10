@@ -124,11 +124,19 @@ function settingsActionCounterproof() {
     const original = readFileSync(source);
     const text = original.toString();
     const productClear = `status.textContent = "Cleared from this browser with every product's own token.";\n      await route.render(target, context, {});`;
-    const fault = text
-      .replace('catch (error) {\n    return el("section", "settings-product",', 'catch (error) { throw error;\n    return el("section", "settings-product",')
-      .replace(productClear, `status.textContent = "Cleared from this browser with every product's own token.";\n      void target;`)
-      .replaceAll('writeSetting(context.store, `last-test:${info.key}`, lastTest);', 'void lastTest;');
-    assert.notEqual(fault, text, "the copied Settings source contains every guarded action path");
+    // Each fault must find its own target: a target the source no longer holds fails here, by name, before any child run.
+    const plant = (from, [path, target, replacement, everywhere = false]) => {
+      const to = everywhere ? from.replaceAll(target, replacement) : from.replace(target, replacement);
+      assert.notEqual(to, from, `the copied Settings source contains the guarded action path: ${path}`);
+      return to;
+    };
+    const fault = [
+      ["TST-290125, refused product metadata", 'catch (error) {\n    return el("section", "settings-product panel",',
+        'catch (error) { throw error;\n    return el("section", "settings-product panel",'],
+      ["TST-290126, product Clear", productClear,
+        `status.textContent = "Cleared from this browser with every product's own token.";\n      void target;`],
+      ["TST-290127, a Test's persisted result", 'writeSetting(context.store, `last-test:${info.key}`, lastTest);', "void lastTest;", true],
+    ].reduce(plant, text);
     const testPath = new URL(import.meta.url).pathname;
     const argv = [process.execPath, "--test", "--test-name-pattern", "TST-290125|TST-290126|TST-290127", testPath];
     const environment = { ...process.env, AGENT_M_290_ACTIONS_ROOT: copied, AGENT_M_290_ACTIONS_FAULT_CHILD: "1" }; delete environment.NODE_TEST_CONTEXT;
