@@ -16,9 +16,13 @@ const BRIDGE = { address: "http://127.0.0.1:4711", token: "copied-pairing-token"
 async function mountedSettings(entries = {}) {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries });
-  richDocument();
+  const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  return { page };
+  const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  assert.ok(endpoints, "the dashboard mounts MOD-settings-pages' public Endpoints & Agents tab");
+  return { page, endpoints };
 }
 
 // TST-280003
@@ -30,10 +34,10 @@ async function mountedSettings(entries = {}) {
 // Expected: the existing endpoint-first, two-child Settings mount is retained; the new control selects #bridge; and the
 //           dashboard's actual dispatcher renders MOD-settings-pages' public Bridge Route.
 test("TST-280003: empty Settings reaches the public Bridge configuration route", async () => {
-  const { page } = await mountedSettings();
+  const { page, endpoints } = await mountedSettings();
 
-  assert.match(page.main(), /Endpoints &amp; Agents/, "the public Settings Route owns the Bridge entry point");
-  assert.match(page.main(), /Configure the Agent M Bridge/, "empty Settings offers Bridge configuration without seeded browser storage");
+  assert.match(endpoints.textContent, /Endpoints & Agents/, "the public Settings Route owns the Bridge entry point");
+  assert.match(endpoints.textContent, /Configure the Agent M Bridge/, "empty Settings offers Bridge configuration without seeded browser storage");
   await page.go("#bridge");
   assert.match(page.main(), /Connect a Bridge/, "failure node: #bridge dispatches to MOD-settings-pages' public Bridge Route");
   assert.match(page.main(), /Pairing token/, "the public route, rather than a dashboard-local form, owns pairing input");
@@ -48,9 +52,9 @@ test("TST-280003: empty Settings reaches the public Bridge configuration route",
 // Expected: Change uses the adapter's context.go to select #bridge, whose public route reloads the stored Bridge address;
 //           no dashboard-specific form or endpoint request is needed.
 test("TST-280004: saved Bridge Change reaches the public route through dashboard go", async () => {
-  const { page } = await mountedSettings({ [BRIDGE_KEY]: JSON.stringify(BRIDGE) });
+  const { page, endpoints } = await mountedSettings({ [BRIDGE_KEY]: JSON.stringify(BRIDGE) });
 
-  assert.match(page.main(), /Bridge/, "the public Settings route renders the stored Bridge entry");
+  assert.match(endpoints.textContent, /Bridge/, "the public Settings route renders the stored Bridge entry");
   await page.go("#bridge");
   assert.match(page.main(), new RegExp(BRIDGE.address.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "the public Bridge Route reloads the canonical browser-store address");
 });

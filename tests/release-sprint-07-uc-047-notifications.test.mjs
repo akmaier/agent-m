@@ -265,7 +265,7 @@ test("A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN — Test and Swi
     assert.ok(offBtn, "cleared, where the setting is shown");
 
     await press(server, testBtn);
-    assert.match(publicControls(box, "settings-notifications-result")[0].textContent, /Test notification shown/);
+    assert.match(publicControls(box, "settings-notifications-result")[0].textContent, /Test notification sent/);
 
     await press(server, offBtn);
     assert.equal(globalThis.localStorage.getItem(`${PREFIX}notifications`), null, "Switch off is a real clear");
@@ -304,16 +304,16 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
     const page = await openDashboard({ server, hash: "#uc" });
     const box = await usabilitySettings(page);
     const notification = publicControls(box, "settings-notifications")[0];
-    const details = notification.children.find((node) => node.className === "explain");
+    const details = publicControls(notification, "settings-what-is-this")[0];
     assert.ok(details, "the public Notifications control carries its folded explanation");
     assert.equal(details.localName, "details", "the public explanation remains a details element");
     assert.equal(Boolean(details.open), false, "the public explanation is collapsed by default");
     assert.equal(details.children[0].localName, "summary", "the public explanation keeps its What is this? summary");
     assert.equal(details.children[0].textContent, "What is this?");
     const explanation = details.textContent;
-    assert.match(explanation, /every five minutes while a page of this dashboard is open/, "how often, and while what");
-    assert.match(explanation, /this browser's own tokens and nowhere else/, "whose tokens, and nowhere else");
-    assert.match(explanation, /nothing is checked while no page is open/, "nothing while no page is open");
+    assert.match(explanation, /While a dashboard page is open, it checks every five minutes/, "how often, and while what");
+    assert.match(explanation, /repository servers with the tokens of this browser and nowhere else/, "whose tokens, and nowhere else");
+    assert.match(explanation, /Nothing is checked while no dashboard page is open/, "nothing while no dashboard page is open");
   } finally { browser.restore(); }
 });
 
