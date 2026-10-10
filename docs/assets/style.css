@@ -52,6 +52,7 @@ aside .panel:first-child { margin-top: 0; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 .btn.small { font-size: .78rem; padding: .2rem .5rem; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
 .record { font-size: .8rem; white-space: pre-wrap; word-break: break-all; }
 
 .editor { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
