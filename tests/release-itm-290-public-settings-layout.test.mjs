@@ -68,12 +68,23 @@ const fixture = () => {
 
 test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout: 120000, concurrency: false }, async (t) => {
   await acquireNativeFixtureLock();
-  let child = null, server = null;
-  t.after(() => { if (child?.exitCode === null) child.kill(); server?.close(); rmSync(nativeFixtureLock, { recursive: true, force: true }); });
+  let child = null, server = null, entryFolder = null, released = false;
+  const release = async () => {
+    if (released) return;
+    released = true;
+    if (child?.exitCode === null) { child.kill(); await new Promise((resolve) => child.once("exit", resolve)); }
+    if (server) await new Promise((resolve) => server.close(resolve));
+    if (entryFolder) rmSync(entryFolder, { recursive: true, force: true });
+    rmSync(nativeFixtureLock, { recursive: true, force: true });
+  };
+  t.after(release);
   const electron = await runtime();
   server = fixture(); await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const debug = await port(), address = `http://127.0.0.1:${server.address().port}/docs/#settings`;
-  const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, `--app=${address}`]);
+  entryFolder = mkdtempSync(join(tmpdir(), "agent-m-290-electron-entry-"));
+  const entry = join(entryFolder, "main.mjs");
+  writeFileSync(entry, `import electron from "electron"; const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); const window = new electron.BrowserWindow({ webPreferences: { contextIsolation: true, nodeIntegration: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url);`);
+  const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
   child = spawn(launched.command, launched.arguments_, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "", spawnError = null;
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
@@ -91,6 +102,7 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
     for (const tab of result.tabs) { assert.equal(tab.selected, "true", `${width}px: selected state follows the clicked tab`); assert.equal(tab.readable, true, `${width}px: tab control is readable and usable`); assert.equal(tab.visible, true, `${width}px: selected panel is visible`); assert.equal(tab.visibleCount, 1, `${width}px: exactly one tab panel is visible`); assert.equal(tab.documentOverflow, true, `${width}px: the document has no horizontal overflow after selecting ${tab.name}`); assert.equal(tab.panelOverflow, true, `${width}px: selected panel has no horizontal overflow`); }
   }
   if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_290_FAULT_CHILD) return;
+  await release();
   const temporary = mkdtempSync(join(tmpdir(), "agent-m-290-fault-")), copied = join(temporary, "agent-m");
   try {
     cpSync(join(root, "src"), join(copied, "src"), { recursive: true });
