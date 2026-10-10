@@ -5,7 +5,7 @@
 // every request; every write is started by a click on the button that names it, with the event a person's click carries
 // (isTrusted), and each write test has a counter-proof with a click a script makes. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-settings-pages
 // Guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // Level: component
 //
@@ -656,14 +656,17 @@ globalThis.confirm = (text) => { confirms.push(text); return confirmAnswer; };
 const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
 const publicRepositoryRow = (box, label) => publicControls(box(), "settings-repository").find((row) => row.textContent.includes(label));
 const publicRepositoryControl = (box, label, name) => publicControls(publicRepositoryRow(box, label), `settings-repository-${name}`)[0];
-async function publicSettingsPage() {
-  const srv = await ucServer(), page = await openDashboard({ server: srv, hash: "#uc", token: null });
-  globalThis.localStorage.setItem("agent-m:akmaier/agent-m:github-token", JSON.stringify({ value: TOKEN, name: "GitHub token", expires: day(90), stored: day(0) }));
+async function publicSettingsPage({ server = null, token = null, settings = {} } = {}) {
+  const srv = server ?? await ucServer(), page = await openDashboard({ server: srv, hash: "#uc", token });
+  const storedSettings = { "github-token": { value: TOKEN, name: "GitHub token", expires: day(90), stored: day(0) }, ...settings };
+  for (const [key, value] of Object.entries(storedSettings)) {
+    globalThis.localStorage.setItem(`agent-m:akmaier/agent-m:${key}`, JSON.stringify(value));
+  }
   const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
   const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
-  return { srv, page, box: () => pane("Repositories"), general: () => pane("General"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
+  return { srv, page, tabs: () => mounted.find((node) => node.className === "settings-tabs"), box: () => pane("Repositories"), general: () => pane("General"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
 }
 // The settings page of a dashboard whose browser holds `entries` beside the token (set after the first load, before the page).
 async function settingsPage({ server = null, entries = {}, token = TOKEN } = {}) {
@@ -687,72 +690,92 @@ async function until(cond, what) {
   throw new Error(`waited in vain for ${what}`);
 }
 
-test("UC-042 step 1: one page — each browser setting is a line with its state, the token in a password field; the product's settings; export and import; clear everything", async () => {
-  const { page, dom } = await settingsPage();
-  const html = page.main(), browser = dom.byId("browser-settings").innerHTML;
-  assert.match(html, /<h2>Settings<\/h2>/);
-  assert.match(html, /<h3>Before you store anything<\/h3>[^]*every other GitHub Pages site of akmaier is served from the same address/i);
-  assert.deepEqual([...browser.matchAll(/data-setting-row="([^"]+)"/g)].map((m) => m[1]),
-    ["github-token", "products", "github-product-tokens", "gitlab-tokens", "jump-host", "remote-sessions"]);
-  assert.match(browser, /<p class="state">stored — not tested on this page yet<\/p>/);
-  assert.match(browser, /<input class="secret" type="password" readonly value="github_pat_HARNESS0123456789abcdefghij"/);
-  assert.match(browser, /data-show="agent-m\.github-token">Show</);
-  for (const b of ["data-test", "data-change", "data-clear"]) assert.ok(browser.includes(`${b}="agent-m.github-token"`), b);
-  assert.match(html, /<h3>Clear everything in this browser<\/h3>/);
-  assert.match(dom.byId("product-settings").innerHTML, /<h3>Product · https:\/\/github\.com\/akmaier\/agent-m<\/h3>[^]*Pseudonymisation — <span class="state">on \(the default\)<\/span>[^]*Collaborators — none named/);
-  assert.equal((browser.match(/<summary>What is this\?<\/summary>/g) || []).length, 6, "every line explains itself");
+test("UC-042 step 1: public component tabs keep every settings scope and existing control reachable", async () => {
+  const { page, tabs, box, general, endpoints, usability } = await publicSettingsPage({ settings: {
+    products: [PRODUCT_ADDR, GL_ADDR], [`github-token:${PRODUCT}`]: { value: "github_pat_PRODUCT0123456789abcdefghij", name: "Agent M", expires: day(60), stored: day(0) },
+    "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) },
+    "jump-host": { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] },
+    "remote-session:lab-pc": { port: 20001, token: "bridgeTOKEN-0123456789abcdef" }, "endpoint:main": { url: "https://models.example.test/v1", model: "small", key: "endpoint-key" },
+  } });
+  assert.match(page.main(), /<h2>Settings<\/h2>/);
+  assert.deepEqual(tabs().children.map((tab) => tab.textContent), ["General", "Repositories", "Endpoints & Agents", "Usability"]);
+  assert.match(general().textContent, /every GitHub Pages site under that same akmaier\.github\.io domain can read it/i);
+  assert.equal(publicRepositoryControl(box, "GitHub token", "secret").type, "password");
+  assert.equal(publicControls(box(), "settings-repository").length, 4, "instance, product list, GitHub product, GitLab product");
+  for (const control of ["show", "test", "change", "clear", "renew"]) assert.ok(publicRepositoryControl(box, "GitHub token", control), control);
+  assert.ok(publicControls(general(), "settings-export-download")[0]);
+  assert.ok(publicControls(general(), "settings-import-file")[0]);
+  assert.ok(publicControls(general(), "settings-clear-everything")[0]);
+  assert.match(publicControls(box(), "settings-product")[0].textContent, /Pseudonymisation is on\.[\s\S]*Collaborators/);
+  assert.doesNotMatch(publicControls(box(), "settings-collaborator-records")[0].textContent, /@/, "no collaborator is named by default");
+  assert.ok(publicControls(endpoints(), "settings-endpoint-configure")[0]);
+  assert.ok(publicControls(endpoints(), "settings-bridge-configure")[0]);
+  assert.ok(publicControls(endpoints(), "settings-endpoint")[0]);
+  assert.ok(publicControls(endpoints(), "settings-jump-host")[0]);
+  assert.ok(publicControls(endpoints(), "settings-remote-session")[0]);
+  assert.ok(publicControls(general(), "settings-browser-explanation")[0]);
+  assert.ok(publicControls(box(), "settings-repository-shared-origin").length >= 3);
+  assert.ok(publicControls(endpoints(), "settings-endpoint-explanation")[0]);
+  assert.ok(publicControls(usability(), "settings-notifications-on")[0]);
 });
 
 test("UC-042 step 1: a stored secret is hidden until Show, which reveals it in full; Hide hides it again", async () => {
-  const { srv, box } = await settingsPage();
-  await press(srv, among(box(), "data-show", "agent-m.github-token"));
-  assert.match(box().innerHTML, /<input class="secret" type="text" readonly value="github_pat_HARNESS0123456789abcdefghij"[^>]*> <button class="btn small" data-show="agent-m\.github-token">Hide</);
-  await press(srv, among(box(), "data-show", "agent-m.github-token"));
-  assert.match(box().innerHTML, /<input class="secret" type="password"/);
+  const { srv, box } = await publicSettingsPage();
+  const secret = publicRepositoryControl(box, "GitHub token", "secret");
+  const show = publicRepositoryControl(box, "GitHub token", "show");
+  await publicPress(srv, show);
+  assert.equal(secret.type, "text");
+  assert.equal(secret.value, TOKEN, "Show reveals the complete stored token");
+  assert.equal(show.textContent, "Hide");
+  await publicPress(srv, show);
+  assert.equal(secret.type, "password");
+  assert.equal(show.textContent, "Show");
 });
 
 test("UC-042 step 2: Test sends one harmless request with the token to its own server and shows that it works", async () => {
-  const { srv, box } = await settingsPage();
+  const { srv, box } = await publicSettingsPage();
   const from = srv.seen.length;
-  await press(srv, inBox(box(), '[data-test="agent-m.github-token"]'));
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
   assert.deepEqual(srv.seen.slice(from).map((r) => [r.method, r.url, r.auth]), [["GET", `${API}/repos/${REPO}`, `Bearer ${TOKEN}`]]);
-  assert.match(box().innerHTML, new RegExp(`<p class="state">✓ works — tested ${day(0)}</p>`));
-  assert.equal(inBox(box(), '[data-result="agent-m.github-token"]').textContent, "GitHub accepted the token: it can read akmaier/agent-m.");
+  assert.match(publicRepositoryControl(box, "GitHub token", "status").textContent, new RegExp(`Last successful test: ${day(0)}`));
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✓ The repository token is working.");
 });
 
 test("UC-042 step 2: Clear removes the token from localStorage after one confirmation that says what no longer works", async () => {
-  const { srv, box, dom } = await settingsPage({ entries: { "agent-m.github-token-expires": day(60) } });
-  await press(srv, inBox(box(), '[data-clear="agent-m.github-token"]'));
-  assert.deepEqual(confirms, ["Clear the GitHub token from this browser? Without it, accepting and editing go through GitHub's own pages, " +
+  const { srv, box } = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(60), stored: day(0) } } });
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "clear"));
+  assert.deepEqual(confirms, ["Clear this token from this browser? Without it, accepting and editing go through GitHub's own pages, " +
     "products cannot be added, and private repositories cannot be read."]);
-  assert.equal(stored("agent-m.github-token"), null);
-  assert.equal(stored("agent-m.github-token-expires"), null, "its date with it");
-  assert.equal(dom.byId("token-msg").textContent, "The token is gone from this browser.");
-  assert.match(box().innerHTML, /<p class="state">— not set<\/p>/);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token"), null);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"), null, "its test date with it");
+  assert.match(publicRepositoryControl(box, "GitHub token", "status").textContent, /Cleared from this browser/);
 });
 
 test("UC-042 step 2 counter-proof: a Clear that is not confirmed keeps the token", async () => {
-  const { srv, box } = await settingsPage();
+  const { srv, box } = await publicSettingsPage();
   confirmAnswer = false;
-  await press(srv, inBox(box(), '[data-clear="agent-m.github-token"]'));
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "clear"));
   assert.equal(confirms.length, 1);
-  assert.equal(stored("agent-m.github-token"), TOKEN);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, TOKEN);
 });
 
 test("UC-042 step 2: Change stores a new token with its expiry date, after the notice at the top is ticked", async () => {
-  const { srv, box, dom } = await settingsPage();
-  assert.equal(dom.byId("token-change").hidden, true);
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  assert.equal(dom.byId("token-change").hidden, false, "the same fields as in the setup, in place");
-  assert.equal(dom.byId("token-save").disabled, true, "storing waits for the notice");
-  assert.equal(dom.byId("token-expires").value, day(90), "preset to the 90 days of the prefilled link");
-  await tick(srv, dom.byId("ack"));
+  const { srv, box } = await publicSettingsPage();
+  const row = publicRepositoryRow(box, "GitHub token");
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  const save = publicRepositoryControl(box, "GitHub token", "save");
+  assert.equal(acknowledgement.disabled, true, "acknowledgement stays hidden until Change");
+  assert.equal(save.disabled, true, "storing waits for Change and the notice");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(acknowledgement.disabled, false);
+  assert.equal(publicRepositoryControl(box, "GitHub token", "expiry").value, day(90), "preset to the 90 days of the prefilled link");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
   const key = "github_pat_RENEWED0123456789abcdefghij";
-  dom.byId("token-input").value = key;
-  await press(srv, dom.byId("token-save"));
-  assert.equal(stored("agent-m.github-token"), key);
-  assert.equal(stored("agent-m.github-token-expires"), day(90));
-  assert.equal(dom.byId("token-msg").textContent, "Stored. Press Test to check it; reload to read with it.");
+  publicRepositoryControl(box, "GitHub token", "secret").value = key;
+  await publicPress(srv, save);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, key);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).expires, day(90));
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "Saved in this browser. Test it before using it.");
 });
 
 test("UC-042 step 2 on a phone: the token form carries the notice and its own I have read this beside the paste field; ticked there, the field and Store token open, and the notice at the top is ticked with it", async () => {
@@ -775,9 +798,10 @@ test("UC-042 step 2 on a phone: the token form carries the notice and its own I 
 // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: after each control that opens a form, the focus is in its first field open for
 // the person's input — on the token form the notice's box while it is not ticked, the paste field once it is.
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Store a token: the notice's box I have read this, while it is not ticked", async () => {
-  const { srv, box, dom } = await settingsPage({ token: null });
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  assert.equal(dom.focused(), dom.byId("token-ack"), "the box beside the paste field, not the control that opened the form");
+  const { srv, box } = await publicSettingsPage();
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(globalThis.document.activeElement ?? acknowledgement, acknowledgement, "the acknowledgement beside the paste field, not the control that opened the form");
 });
 
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of the token: the paste field, once the notice is ticked", async () => {
@@ -993,3 +1017,9 @@ test("UC-042 step 6: Clear everything removes every Agent M entry from localStor
   assert.equal(caches.stores.size, 0, "the kept file texts too");
   assert.equal(dom.byId("token-msg").textContent, "Nothing stored any more.");
 });
+
+async function publicPress(srv, control, event = TRUSTED) {
+  assert.ok(control, "the public Settings control exists");
+  control.fire("click", event);
+  await settle(srv);
+}
