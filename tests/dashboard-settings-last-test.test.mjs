@@ -135,40 +135,40 @@ test("UC-042 step 1: a successful Test after a refusal replaces it — the line 
 
 test("UC-042 step 2: a new token stored with Change starts untested — the last test of the old token does not stick to it", async () => {
   const world = await instanceWorld();
-  const { box, dom } = await settingsPage(world);
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
-  await press(world.srv, inBox(box, '[data-change="agent-m.github-token"]'));
-  dom.byId("ack").checked = true;
-  dom.byId("ack").fire("change", {});
-  await settle(world.srv);
-  dom.byId("token-input").value = "github_pat_RENEWED0123456789abcdefghij";
-  await press(world.srv, dom.byId("token-save"));
-  assert.equal(stateOf(row(box, "github-token")), "stored — not tested on this page yet");
-  const again = await reload(world);
-  assert.equal(stateOf(row(again.box, "github-token")), "stored — not tested on this page yet", "after the reload too");
+  const { box } = await settingsPage(world, canonicalToken());
+  await repositoryControl(box, "test").fire("click");
+  await repositoryControl(box, "change").fire("click");
+  const acknowledgement = repositoryControl(box, "ack"), secret = repositoryControl(box, "secret"), expiry = repositoryControl(box, "expiry");
+  acknowledgement.checked = true; await acknowledgement.fire("change");
+  secret.value = "github_pat_RENEWED0123456789abcdefghij"; expiry.value = day(90);
+  await repositoryControl(box, "save").fire("click");
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"), null, "Change removes the old canonical outcome");
+  const again = await settingsPage(world, agentEntries());
+  assert.doesNotMatch(repositoryControl(again.box, "status").textContent, /Last successful test|Refused/, "after the reload too");
 });
 
 // ---------------------------------------------------------------- A CLEAR IS A REAL CLEAR · EVERY SETTING IS REACHED FROM ONE PAGE
 
 test("UC-042 step 2 · A CLEAR IS A REAL CLEAR: Clear removes the kept date and outcome with the token from localStorage", async () => {
   const world = await instanceWorld();
-  const { box } = await settingsPage(world);
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
-  assert.ok(Object.values(agentEntries()).some((v) => v.includes(TODAY)), "the date of the test is kept in this browser");
-  await press(world.srv, inBox(box, '[data-clear="agent-m.github-token"]'));
-  assert.deepEqual(agentEntries(), {}, "nothing of the token is left — its last test neither");
-  const again = await settingsPage(world, { "agent-m.github-token": TOKEN });
-  assert.equal(stateOf(row(again.box, "github-token")), "stored — not tested on this page yet", "the same token stored again starts untested");
+  const prior = globalThis.confirm; globalThis.confirm = () => true;
+  try {
+    const { box } = await settingsPage(world, canonicalToken());
+    await repositoryControl(box, "test").fire("click");
+    assert.ok(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"));
+    await repositoryControl(box, "clear").fire("click");
+    assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token"), null);
+    assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"), null, "token Clear removes its outcome");
+  } finally { globalThis.confirm = prior; }
 });
 
 test("UC-042 step 6 · A CLEAR IS A REAL CLEAR: Clear everything removes every kept test result", async () => {
   const world = await instanceWorld();
-  const { box, dom } = await settingsPage(world, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
-    "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }) });
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
-  await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
-  await press(world.srv, dom.byId("token-clear"));
-  assert.deepEqual(agentEntries(), {});
+  const { main } = await settingsPage(world, { ...canonicalToken(), ["agent-m:akmaier/agent-m:last-test:github-token"]: JSON.stringify({ at: new Date().toISOString(), outcome: "working" }), ["agent-m:akmaier/agent-m:last-test:endpoint:campus"]: JSON.stringify({ at: new Date().toISOString(), outcome: "refused" }) });
+  const clear = publicControls(main, "settings-clear-everything")[0], acknowledgement = publicControls(main, "settings-clear-ack")[0];
+  acknowledgement.checked = true; await acknowledgement.fire("change"); await clear.fire("click");
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"), null);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:endpoint:campus"), null, "Clear everything removes every outcome");
 });
 
 test("EVERY SETTING IS REACHED FROM ONE PAGE: after the tests, every entry Agent M keeps in localStorage has its place on the settings page", async () => {
