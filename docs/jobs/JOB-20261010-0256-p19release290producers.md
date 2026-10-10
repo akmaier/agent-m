@@ -49,3 +49,13 @@ context: after full original queued Start read on published0ee8af5, before fresh
 evidence: actual tools.clock receipt reported to root
 usage: null
 cost: null
+
+## End
+
+at: 2026-10-10 03:24:21 UTC
+state: done
+results:
+  - Exact PR287 head2caeda0 independently approved and merged06d932fec05dfbf4ea297ec532f0c76e73467740 at03:24:17 UTC; actual observed End03:24:21 UTC.
+  - Bounded Settings producers delivered; whole ITM290 remains open.
+usage: null
+cost: null

@@ -42,3 +42,13 @@ context: before fresh agent-terra-e-release290-handoff-19 / codex/e-release290-h
 evidence: actual authorized shell UTC command/raw /private/tmp/p19-0239-taken.raw; published original read at29255a4; initial worktree reflog02:42:12 UTC is later than Taken
 usage: null
 cost: null
+
+## End
+
+at: 2026-10-10 03:24:21 UTC
+state: done
+results:
+  - Exact PR287 head2caeda0 independently approved and merged06d932fec05dfbf4ea297ec532f0c76e73467740 at03:24:17 UTC; actual observed End03:24:21 UTC.
+  - Bounded Settings producers delivered; whole ITM290 remains open.
+usage: null
+cost: null
