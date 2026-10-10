@@ -17,6 +17,7 @@ import { exportSettings } from "../docs/assets/settings-store.mjs";
 import { GL, GL_ADDR, GL_TOKEN } from "./review-core.d/helpers.mjs";
 
 const API = "https://api.github.com";
+const canonicalKey = (name) => `agent-m:akmaier/agent-m:${name}`;
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
 const day = (days) => { const n = new Date(); return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()) + days * 864e5).toISOString().slice(0, 10); };
 const TODAY = day(0);
@@ -90,6 +91,10 @@ const publicControls = (root, name, out = []) => { for (const child of root?.chi
 const githubRow = (box) => publicControls(box(), "settings-repository").find((row) => /GitHub token/.test(row.textContent));
 const repositoryControl = (box, name) => publicControls(githubRow(box), `settings-repository-${name}`)[0];
 const canonicalToken = () => ({ ["agent-m:akmaier/agent-m:github-token"]: JSON.stringify({ value: TOKEN, name: "GitHub token", expires: day(90), stored: TODAY }) });
+const gitlabName = "gitlab-token:gitlab.example.org/grp/sub/proj";
+const canonicalGitlab = () => ({ [canonicalKey(gitlabName)]: JSON.stringify({ value: GL_TOKEN, name: "GitLab token: gitlab.example.org/grp/sub/proj", expires: day(60), stored: TODAY }) });
+const gitlabRow = (box) => publicControls(box(), "settings-repository").find((row) => /GitLab token: gitlab\.example\.org\/grp\/sub\/proj/.test(row.textContent));
+const gitlabControl = (box, name) => publicControls(gitlabRow(box), `settings-repository-${name}`)[0];
 
 // ---------------------------------------------------------------- the GitHub token
 
@@ -190,39 +195,35 @@ test("EVERY SETTING IS REACHED FROM ONE PAGE: after the tests, every entry Agent
 
 test("UC-042 step 1: a GitLab project token's last test — works, then refused — is shown after a reload", async () => {
   const world = await instanceWorld();
-  const entries = { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
-    "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }) };
-  const { box } = await settingsPage(world, entries);
-  assert.match(gitlabLine(box), /<span class="state">stored — not tested on this page yet<\/span>/);
-  await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
-  let again = await reload(world);
-  assert.match(gitlabLine(again.box), new RegExp(`<span class="state">✓ works — tested ${TODAY}</span>`), "works, after the reload");
+  const { box } = await settingsPage(world, canonicalGitlab());
+  await gitlabControl(box, "test").fire("click");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`))).outcome, "working");
+  let again = await settingsPage(world, agentEntries());
+  assert.match(gitlabControl(again.box, "status").textContent, /Last successful test:/, "works, after the reload");
   world.refuseGitLab = true;
-  await press(world.srv, among(again.box, "data-test-gitlab", GL_ADDR));
-  again = await reload(world);
-  assert.match(gitlabLine(again.box), /<span class="state">✗ refused — gitlab\.example\.org did not accept it at the last use<\/span>/,
-    "refused, after the reload");
+  await gitlabControl(again.box, "test").fire("click");
+  again = await settingsPage(world, agentEntries());
+  assert.match(gitlabControl(again.box, "status").textContent, /Refused/, "refused, after the reload");
 });
 
 test("UC-042 step 2: a GitLab project token changed or cleared takes its last test with it", async () => {
   const world = await instanceWorld();
-  const entries = { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
-    "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }) };
-  const { box, dom } = await settingsPage(world, entries);
-  await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
-  dom.byId("ack").checked = true;
-  await press(world.srv, among(box, "data-change-gitlab", GL_ADDR));
-  const form = among(box, "data-change-form", GL_ADDR);
-  form.querySelector("[data-gl-token]").value = "glpat-renewedTOKENvalue0123456789";
-  form.querySelector("[data-gl-expires]").value = day(80);
-  await press(world.srv, form.querySelector("[data-gl-store]"));
-  let again = await reload(world);
-  assert.match(gitlabLine(again.box), /<span class="state">stored — not tested on this page yet<\/span>/, "the new value starts untested");
-  await press(world.srv, among(again.box, "data-test-gitlab", GL_ADDR));
-  await press(world.srv, among(again.box, "data-clear-gitlab", GL_ADDR));
-  assert.ok(!Object.values(agentEntries()).some((v) => v.includes(TODAY)), "no date of a test is left");
-  again = await reload(world);
-  assert.equal(gitlabLine(again.box), "", "no line for a cleared token");
+  const prior = globalThis.confirm; globalThis.confirm = () => true;
+  try {
+    const { box } = await settingsPage(world, canonicalGitlab());
+    await gitlabControl(box, "test").fire("click");
+    await gitlabControl(box, "change").fire("click");
+    const ack = gitlabControl(box, "ack"), secret = gitlabControl(box, "secret"), expiry = gitlabControl(box, "expiry");
+    ack.checked = true; await ack.fire("change"); secret.value = "glpat-renewedTOKENvalue0123456789"; expiry.value = day(80);
+    await gitlabControl(box, "save").fire("click");
+    assert.equal(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`)), null, "Change removes the prior GitLab outcome");
+    let again = await settingsPage(world, agentEntries());
+    await gitlabControl(again.box, "clear").fire("click");
+    assert.equal(globalThis.localStorage.getItem(canonicalKey(gitlabName)), null);
+    assert.equal(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`)), null, "Clear removes its outcome");
+    again = await settingsPage(world, agentEntries());
+    assert.equal(gitlabRow(again.box), undefined, "no row for a cleared token");
+  } finally { globalThis.confirm = prior; }
 });
 
 // ---------------------------------------------------------------- a remote session
