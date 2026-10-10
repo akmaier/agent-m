@@ -653,6 +653,18 @@ test("UC-014 step 8 counter-proof: a text that is no GitHub token is refused, an
 const confirms = [];
 let confirmAnswer = true;
 globalThis.confirm = (text) => { confirms.push(text); return confirmAnswer; };
+const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
+const publicRepositoryRow = (box, label) => publicControls(box(), "settings-repository").find((row) => row.textContent.includes(label));
+const publicRepositoryControl = (box, label, name) => publicControls(publicRepositoryRow(box, label), `settings-repository-${name}`)[0];
+async function publicSettingsPage() {
+  const srv = await ucServer(), page = await openDashboard({ server: srv, hash: "#uc", token: null });
+  globalThis.localStorage.setItem("agent-m:akmaier/agent-m:github-token", JSON.stringify({ value: TOKEN, name: "GitHub token", expires: day(90), stored: day(0) }));
+  const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
+  return { srv, page, box: () => pane("Repositories"), general: () => pane("General"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
+}
 // The settings page of a dashboard whose browser holds `entries` beside the token (set after the first load, before the page).
 async function settingsPage({ server = null, entries = {}, token = TOKEN } = {}) {
   const srv = server ?? await ucServer();
