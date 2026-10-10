@@ -24,6 +24,7 @@
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 import builtFiles from "./dashboard/built.json" with { type: "json" };
+import { retireFileTexts } from "./settings-store.mjs";
 import { productStore } from "./product-store-adapter.mjs";
 import {
   REPO_RE, parseProductAddress, isGitLab, tokenRefusal, usedUpLimit,
@@ -610,13 +611,7 @@ async function start() {
   SERVER = GITLAB ? T.product.host : "GitHub";
   store = productStore(T.instance);
   currentHost();
-  // Retire the old CacheStorage store before a view can read it. A missing CacheStorage API cannot hold that store; an
-  // available API must confirm absence, so a failed deletion is never reported as successful.
-  const cacheStorage = globalThis.caches;
-  if (cacheStorage) {
-    await cacheStorage.delete("agent-m-file-texts");
-    if (await cacheStorage.has("agent-m-file-texts")) throw new Error("Could not remove retired CacheStorage agent-m-file-texts.");
-  }
+  await retireFileTexts();
   startNotifications(); // UC-047: the review pages start the checks, with MOD-browser-store's store of the instance
   app = context();
   available = renderTabs();
