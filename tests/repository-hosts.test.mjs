@@ -968,7 +968,8 @@ test("TST-296003: pull-request reads preserve refusal and read-only token bounda
 // expect: both hosts follow their next-page metadata, preserve server order, distinguish merged from closed, and retain only the named source branch
 test("TST-296004: both hosts page and filter open, merged, and closed pull requests", async () => {
   for (const [kind, address, token] of [["github", GH_WEB, GH_TOKEN], ["gitlab", GL_WEB, GL_TOKEN]]) {
-    const github = kind === "github", prefix = github ? "/repos/alice/thesis-tool/pulls" : "/api/v4/projects/grp%2Fsub%2Fthesis-tool/merge_requests";
+    const github = kind === "github", origin = github ? GH_API : GL_ORIGIN,
+      prefix = github ? "/repos/alice/thesis-tool/pulls" : "/api/v4/projects/grp%2Fsub%2Fthesis-tool/merge_requests";
     const row = (number, state, branch = PR.branch) => github ? { number, title: `#${number}`, state: state === "merged" ? "closed" : state,
       draft: false, html_url: `https://example.invalid/pulls/${number}`, created_at: PR.opened, merged_at: state === "merged" ? "2026-10-10T10:00:00Z" : null,
       closed_at: state === "closed" ? "2026-10-10T11:00:00Z" : null, head: { ref: branch, sha: PR_HEAD }, base: { ref: "main" } }
