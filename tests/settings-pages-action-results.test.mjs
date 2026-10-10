@@ -71,10 +71,11 @@ test("TST-290126: product Clear redraws the public managed-product list", async 
       [key("github-token:alice/thesis-tool")]: JSON.stringify({ value: token, name: "Product token", expires: "2027-02-01" }),
     } });
     const repositories = pane("Repositories");
-    const products = controls(repositories, "settings-repository").find((node) => /Managed products/.test(node.textContent));
-    assert.ok(products, "known positive: the public Repositories pane contains the populated Managed products section");
-    assert.equal(controls(repositories, "settings-product-list-item").length, 1, "known positive: the product row is mounted before Clear");
+    const products = controls(repositories, "settings-repository").find((node) => node.children?.find((child) => child?.localName === "h3")?.textContent === "Products");
+    assert.ok(products, "known positive: the public Repositories pane contains the Products settings row");
     const clear = controls(products, "settings-repository-clear")[0];
+    assert.ok(clear, "known positive: the Products settings row owns its public Clear control");
+    assert.equal(controls(repositories, "settings-product-list-item").length, 1, "known positive: the managed-product row is mounted before Clear");
     await press(server, clear);
     await settle(server);
     assert.equal(globalThis.localStorage.getItem(key("products")), null, "failure node: product list storage is cleared");
