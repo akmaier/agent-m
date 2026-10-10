@@ -69,7 +69,8 @@ Sources and resources is one service of ARC-037, the lowest among them: **regist
 say — sources in the instance, links and resources in each product —, and facts read from registries with their address
 and date**. Its registers are documents of the common shape: each module defines its formats as schemas, which the
 artifact model's MOD-documents reads and writes (ARC-048). What jobs need from it — the excerpt of a linked source
-version, the due diligence of a draft's reuse candidates — it offers as strategies to the job runner (ARC-046). It uses
+version, the book's chapters for a job's kind of work, the due diligence of a draft's reuse candidates — it offers as
+strategies to the job runner (ARC-046). It uses
 only Participants and jobs' types, Access and the artifact model.
 
 ### Responsibility within the system
@@ -91,7 +92,7 @@ due-diligence facts and judging a licence against the product's.
 
 | Module | Folder | Responsibility |
 |---|---|---|
-| MOD-source-register | `src/source-register/` | the schemas of `docs/sources/SRC-<slug>.md` of the instance, with each version's identifier, date and file hashes, and of a product's `docs/sources.md`; the content in the instance where its licence permits republishing and otherwise in a repository the person names; a version's content read only with its hashes checked; recognising an EU legal text by its CELEX number or ELI and fetching it from the EU's publication repository in the instance's workflow (ARC-039); the recipe that gives a job a linked version's excerpt |
+| MOD-source-register | `src/source-register/` | the schemas of `docs/sources/SRC-<slug>.md` of the instance, with each version's identifier, date and file hashes, and of a product's `docs/sources.md`; the content in the instance where its licence permits republishing and otherwise in a repository the person names; a version's content read only with its hashes checked; recognising an EU legal text by its CELEX number or ELI and fetching it from the EU's publication repository in the instance's workflow (ARC-039); the recipes that give a job a linked version's excerpt and the book's chapters for its kind of work |
 | MOD-resource-list | `src/resource-list/` | the schema of `docs/resources.md` of a product and of the instance, independent of each other: the closed set of kinds, the pin, licence, maintainer, route, processing place and the name of a secret; the checks a schema cannot express; how a resource is checked; whether a newer state exists upstream; which routes reach it; the recipe of a check job on a runner |
 | MOD-reuse-facts | `src/reuse-facts/` | the facts of a reuse candidate from its package registry (npm, PyPI, crates.io, Maven Central) and its source repository, and of a model or dataset from the Hugging Face Hub, each with the address it was read from and the date; whether a candidate's licence is known to be compatible with the product's; the step that adds the due diligence to a drafted architecture's reuse decisions |
 
