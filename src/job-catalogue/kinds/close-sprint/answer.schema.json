@@ -1,0 +1,116 @@
+{
+  "type": "object",
+  "properties": {
+    "review": {
+      "type": "object",
+      "properties": {
+        "feedback": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "line": {
+                "type": "string"
+              },
+              "goes": {
+                "type": "string",
+                "enum": [
+                  "new item",
+                  "change to an item",
+                  "noted"
+                ]
+              },
+              "item": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "line",
+              "goes"
+            ]
+          }
+        },
+        "tookPart": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "feedback",
+        "tookPart",
+        "sources"
+      ]
+    },
+    "unfinished": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "next sprint"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "to",
+          "reason"
+        ]
+      }
+    },
+    "retrospective": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "went well",
+              "did not go well",
+              "change"
+            ]
+          },
+          "goes": {
+            "type": "string",
+            "enum": [
+              "process model",
+              "Definition of Done",
+              "a participant's instructions",
+              "team agreement"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "kind"
+        ]
+      }
+    }
+  },
+  "required": [
+    "review",
+    "unfinished",
+    "retrospective"
+  ]
+}

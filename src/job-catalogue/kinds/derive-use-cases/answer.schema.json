@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "class": {
+            "type": "string",
+            "enum": [
+              "new",
+              "change",
+              "duplicate",
+              "conflict"
+            ]
+          },
+          "of": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "text",
+          "class"
+        ]
+      }
+    }
+  },
+  "required": [
+    "files"
+  ]
+}

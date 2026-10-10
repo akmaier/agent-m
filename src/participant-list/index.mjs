@@ -1,9 +1,9 @@
 // MOD-participant-list — the participants of an instance and who may do a job (docs/architecture/MOD-participant-list.md):
-// its interface. Of it, ITM-216 builds what UC-002 needs: the types Participant, Capability, Need and Eligibility;
-// participantSchema, the schema of the instance's register docs/participants.md; and eligible, which judges the
-// capabilities a role or a job needs and the processing places a restricted source or the mailbox allows
-// (eligibility.mjs). ITM-230 adds participantsOf, which turns the register, as its callers read it, into the participants
-// eligible takes. A Need's size and notLike are not judged yet, and differs is not built yet.
+// its interface: the types Participant, Capability, Need and Eligibility; participantSchema, the schema of the instance's
+// register docs/participants.md; participantsOf, which turns the register, as its callers read it, into participants;
+// eligible, which judges the capabilities a role or a job needs, the processing places a restricted source or the mailbox
+// allows, the size of the job a participant's context must hold and the participants it must differ from; and differs
+// (eligibility.mjs).
 //
 // Module: MOD-participant-list
 //
@@ -18,7 +18,7 @@
 // Schema and Document, in the types below, are MOD-documents' types of those names.
 import { loadSchema } from "../documents/index.mjs";
 
-export { eligible } from "./eligibility.mjs";
+export { differs, eligible } from "./eligibility.mjs";
 
 /**
  * One of the six things a participant declares it can do (A PARTICIPANT DECLARES ITS CAPABILITIES).
