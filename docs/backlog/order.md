@@ -112,5 +112,6 @@ select those use cases in the current sprint.
 | ITM-291 |
 | ITM-281 |
 | ITM-292 |
+| ITM-293 |
 | ITM-257 |
 | ITM-267 |
