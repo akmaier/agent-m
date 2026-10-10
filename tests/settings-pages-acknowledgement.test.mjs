@@ -103,6 +103,55 @@ test("TST-290128: shared-origin acknowledgement persists only for the explicit c
   assert.equal(globalThis.localStorage.getItem(key("acknowledged:shared-origin")), null, "unticking legacy setup clears the shared-origin acknowledgement");
 });
 
+// Whether `control` is shown within `row`: no node between the row and the control is hidden. The tab that holds the row is
+// judged apart, by the tab tests.
+const shownWithin = (row, control) => {
+  const path = (node, trail) => {
+    if (node === control) return [...trail, node];
+    for (const child of node?.children ?? []) {
+      if (typeof child !== "object") continue;
+      const found = path(child, [...trail, node]);
+      if (found) return found;
+    }
+    return null;
+  };
+  const found = path(row, []);
+  assert.ok(found, "the control is part of the row");
+  return found.every((node) => !node.hidden);
+};
+
+// Module: MOD-settings-pages
+// Level: component
+// Guards: UC-042 step 2; THE SHARED PAGES ORIGIN IS DISCLOSED; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// Given: the public Settings page with a stored token and no shared-origin acknowledgement in this browser.
+// Input: the person looks at the token's line, then presses Change.
+// Expected: before Change the line shows neither the shared-origin notice nor I have read this, nor Save: nothing the
+//           person cannot use yet. Change shows the notice, I have read this — enabled, focused, and ticked by the
+//           person's click — and Save, in place.
+test("UC-042 step 2: a token line shows its notice and I have read this only when Change opens them, and the box can be ticked", async () => {
+  const page = await settings({
+    [key("products")]: JSON.stringify(["https://github.com/fixture/product"]),
+    [key("github-token:fixture/product")]: JSON.stringify({ value: "github_pat_fixture0123456789abcdefghij", name: "Fixture product", expires: null }),
+  });
+  const row = page.github;
+  const acknowledgement = controls(row, "settings-repository-ack")[0];
+  const notice = controls(row, "settings-repository-shared-origin")[0];
+  const save = controls(row, "settings-repository-save")[0];
+  assert.equal(shownWithin(row, acknowledgement), false, "before Change, I have read this is not shown");
+  assert.equal(shownWithin(row, notice), false, "before Change, the notice of the form is not shown");
+  assert.equal(shownWithin(row, save), false, "before Change, Save is not shown");
+
+  await press(page.server, controls(row, "settings-repository-change")[0]);
+  assert.equal(shownWithin(row, notice), true, "Change shows the shared-origin notice in place");
+  assert.equal(shownWithin(row, acknowledgement), true, "Change shows I have read this in place");
+  assert.equal(shownWithin(row, save), true, "Change shows Save in place");
+  assert.equal(acknowledgement.disabled, false, "the shown box can be ticked");
+  assert.equal(page.dom.focused(), acknowledgement, "Change opens at the box while it is not ticked");
+  acknowledgement.checked = true;
+  await acknowledgement.fire("change");
+  assert.equal(controls(row, "settings-repository-secret")[0].disabled, false, "ticked, the paste field opens");
+});
+
 // TST-290129
 // Module: MOD-settings-pages · MOD-browser-store
 // Level: component

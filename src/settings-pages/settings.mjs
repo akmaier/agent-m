@@ -282,6 +282,10 @@ function repositoryLine(target, context, info) {
   value.disabled = true;
   expiry.disabled = true;
   save.disabled = true;
+  // UC-042 step 2: Change opens the form — the notice, I have read this and Save — in place; until then none of it is shown.
+  const notice = el("p", "notice settings-repository-shared-origin", sharedPagesNotice(context));
+  const acknowledgementLine = el("p", null, el("label", null, acknowledgement, " I have read this."));
+  notice.hidden = acknowledgementLine.hidden = save.hidden = true;
   show.addEventListener("click", () => {
     const hidden = value.type === "password";
     value.type = hidden ? "text" : "password";
@@ -294,6 +298,7 @@ function repositoryLine(target, context, info) {
     if (acknowledgement.checked) value.focus();
   });
   change.addEventListener("click", () => {
+    notice.hidden = acknowledgementLine.hidden = save.hidden = false;
     acknowledgement.disabled = false;
     const alreadyAcknowledged = Boolean(readSetting(context.store, "acknowledged:shared-origin"));
     acknowledgement.checked = alreadyAcknowledged;
@@ -346,8 +351,7 @@ function repositoryLine(target, context, info) {
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
     el("p", null, `Expires on `, expiry, " ", renewal),
     whatIsThis("This browser keeps this token so Agent M can read and write this repository. Any Pages site under the same owner domain can read it; give it only the minimum repository scope needed."),
-    el("p", "notice settings-repository-shared-origin", sharedPagesNotice(context)),
-    el("p", null, el("label", null, acknowledgement, " I have read this.")),
+    notice, acknowledgementLine,
     el("p", null, change, " ", save, " ", test, " ", clear), result,
   );
 }
