@@ -1640,6 +1640,28 @@ A job is handed only to a participant that the job's role assignment assigns to 
 job's participant with the job's role assignment. It checks that every job goes to a holder of its role in that
 assignment.
 
+**A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING** *(PO A. Maier)*
+The input Agent M sends with a job that writes or changes requirements or use cases contains chapter 8 of the book *Vibe
+Coding* in full.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
+the book's chapter files. It checks that a job on requirements or use cases receives chapter 8 complete.
+
+**A TEST JOB RECEIVES THE CHAPTER ON TESTING** *(PO A. Maier)*
+The input Agent M sends with a job that writes or changes tests contains chapter 13 of the book *Vibe Coding* in full.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
+the book's chapter files. It checks that a job on tests receives chapter 13 complete.
+
+**AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION** *(PO A. Maier)*
+The input Agent M sends with a job that writes or changes the architecture contains chapters 9, 10, 11 and 12 of the
+book *Vibe Coding* in full.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
+the book's chapter files. It checks that a job on the architecture receives chapters 9 to 12 complete.
+
+**AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING** *(PO A. Maier)*
+The input Agent M sends with an implementation job contains chapters 9, 11, 12 and 13 of the book *Vibe Coding* in full.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
+the book's chapter files. It checks that an implementation job receives chapters 9, 11, 12 and 13 complete.
+
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
 decision of that gate's decider is recorded.
