@@ -178,17 +178,22 @@ test("UC-042 step 6 · A CLEAR IS A REAL CLEAR: Clear everything removes every k
 
 test("EVERY SETTING IS REACHED FROM ONE PAGE: after the tests, every entry Agent M keeps in localStorage has its place on the settings page", async () => {
   const world = await instanceWorld();
-  world.up.add(20001);
-  const { box } = await settingsPage(world, { "agent-m.github-token": TOKEN, "agent-m.products": JSON.stringify([GL_ADDR]),
-    "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } }),
-    "agent-m.jump-host": JSON.stringify({ host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003, reverseKey: "", forwardKey: "" }),
-    "agent-m.remote-sessions": JSON.stringify([{ name: "lab-pc", port: 20001, bridgePort: 8765, token: "bridgeTOKEN-0123456789abcdef" }]) });
-  await press(world.srv, inBox(box, '[data-test="agent-m.github-token"]'));
-  await press(world.srv, among(box, "data-test-gitlab", GL_ADDR));
-  await press(world.srv, among(box, "data-test-session", "lab-pc"));
-  const again = await reload(world);
-  const html = again.box().innerHTML;
-  for (const k of Object.keys(agentEntries())) assert.ok(html.includes(`data-setting-key="${k}"`), `${k} has its place on the page`);
+  const entries = { ...canonicalToken(), ...canonicalGitlab(),
+    [canonicalKey("products")]: JSON.stringify([GL_ADDR]),
+    [canonicalKey("jump-host")]: JSON.stringify({ hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] }),
+    [canonicalKey("remote-session:lab-pc")]: JSON.stringify({ port: 20001, token: "bridgeTOKEN-0123456789abcdef" }) };
+  const { box, endpointBox } = await settingsPage(world, entries);
+  await repositoryControl(box, "test").fire("click");
+  await gitlabControl(box, "test").fire("click");
+  const remote = publicControls(endpointBox(), "settings-remote-session")[0];
+  assert.ok(remote, "remote session has its public Endpoints & Agents line");
+  const remoteTest = publicControls(remote, "settings-remote-session-test")[0];
+  await remoteTest.fire("click");
+  const again = await settingsPage(world, agentEntries());
+  assert.ok(repositoryControl(again.box, "status"), "GitHub token and its outcome remain reachable in Repositories");
+  assert.ok(gitlabControl(again.box, "status"), "GitLab token and its outcome remain reachable in Repositories");
+  const endpoints = again.endpointBox().textContent;
+  for (const visible of ["Managed products", "Jump host", "lab-pc"]) assert.match(endpoints, new RegExp(visible), `${visible} is not stranded from its public Endpoints & Agents pane`);
 });
 
 // ---------------------------------------------------------------- a GitLab project token
