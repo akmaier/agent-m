@@ -193,14 +193,19 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
+  let stage = "page";
   try {
     const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
+    stage = "browser";
     const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
+    stage = "main";
     const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
     return { browser, child, exited, folder, main, origin, page, port };
   } catch (failure) {
+    const diagnostic = { stage, exitCode: child.exitCode, signal: child.signalCode, stderr: scrub(stderr) };
     if (child.exitCode === null) child.kill();
     await within(exited, "Electron startup cleanup").catch(() => {});
+    failure.message = `${failure.message}; launch=${JSON.stringify(diagnostic)}`;
     throw failure;
   }
 }
