@@ -383,16 +383,21 @@ test("declarationSchema — a product's declaration read by its schema: front ma
 // expect: for the declaration without its model version, one error, on line 1 — a key that is missing stands on no line —,
 //         naming THE PROCESS MODEL IS DECLARED PER PRODUCT. For this instance's declaration, no finding; its front matter as
 //         it writes it — model scrum-wip, model_file docs/process-models/scrum-wip.md and a model_version of 40 hexadecimal
-//         digits, and no other key —; and its one branch, for Sprint, as it writes it: `sprint/<team>/<nn>`, in backticks
+//         digits, and no other key —; its three role names, and no participant: the role assignments under
+//         docs/role-assignments/ fill the roles; and its one branch, for Sprint, as it writes it: `sprint/<team>/<nn>`, in
+//         backticks
 test("declarationSchema — a declaration without its model's version is named; this instance's own docs/process.md is read without a finding", () => {
   const unversioned = declarationOf(removed(DECLARATION, 4, `model_version: ${VERSION}`));
   assert.deepEqual(documentFindings(declarationSchema, unversioned).map((f) => [f.line, f.kind, f.rule]), [[1, "error", DECLARED]]);
 
-  const agentM = declarationOf(readFileSync(AGENT_M_DECLARATION, "utf8"));
+  const processText = readFileSync(AGENT_M_DECLARATION, "utf8");
+  const agentM = declarationOf(processText);
   assert.deepEqual(documentFindings(declarationSchema, agentM), []);
   assert.deepEqual(Object.keys(agentM.fields), ["model", "model_file", "model_version"]);
   assert.deepEqual([agentM.fields.model, agentM.fields.model_file], ["scrum-wip", "docs/process-models/scrum-wip.md"]);
   assert.match(agentM.fields.model_version, /^[0-9a-f]{40}$/);
+  assert.deepEqual(rowsUnder(agentM, "## Roles"), [], "the declaration assigns no people to its roles");
+  assert.match(processText, /## Roles\n\n- Product Owner\n- Scrum Master\n- Developers\n/);
   assert.deepEqual(rowsUnder(agentM, "## Branches").map(([, cells]) => cells),
     [{ "Phase or time box": "Sprint", Branch: "`sprint/<team>/<nn>`" }]);
 });

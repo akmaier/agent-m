@@ -6,6 +6,7 @@
 // Route #setup. Every function gets `app`, the page's context (dashboard-app.mjs).
 
 import { canStore } from "../review-core.mjs";
+import { openStore, readSetting, writeSetting, clearSetting } from "../../../src/browser-store/index.mjs";
 import {
   h, sharedOriginNotice, tokenLinkUrl, repositoryChoiceSteps, defaultExpiry, TOKEN_DAYS, EXPIRY_WARN_DAYS, checkReach, reachLine,
   GITHUB_PERMISSIONS, githubTokenProblem,
@@ -25,6 +26,16 @@ const EXPLAIN = {
     does not have it — <em>Export settings</em> in Settings moves it there. Settings shows it, tests it and clears it.`,
 };
 
+const SHARED_ORIGIN_ACKNOWLEDGEMENT = "acknowledged:shared-origin";
+
+function acknowledgementStore(instance) {
+  return openStore(instance);
+}
+
+function acknowledged(instance) {
+  return Boolean(readSetting(acknowledgementStore(instance), SHARED_ORIGIN_ACKNOWLEDGEMENT));
+}
+
 // Step A of UC-014: create the instance's key.
 // createKeyStep(app, repos, title?, { dated, explain }?) — the prefilled token page and the repositories to pick on it; `dated`
 // dates the token's name, `explain` replaces the step's explanation.
@@ -40,14 +51,15 @@ export function createKeyStep(app, repos, title = "Step A · Create your key on 
 // Step B of UC-014: notice, paste, store, check the given repositories.
 export function storeKeyStep(app, title = "Step B · Give the key to Agent M") {
   const { T, stepHtml } = app;
+  const isAcknowledged = acknowledged(T.instance);
   return stepHtml({ title,
     body: `<p class="notice">${h(sharedOriginNotice(T.instance.split("/")[0]))}</p>
-      <p><label><input type="checkbox" id="key-ack"> I have read this.</label></p>
-      <p><input type="password" id="key-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" disabled aria-label="GitHub token"></p>
-      <p><label>Expires on <input type="date" id="key-expires" value="${h(defaultExpiry())}" disabled></label>
+      <p><label><input type="checkbox" id="key-ack" ${isAcknowledged ? "checked" : ""}> I have read this.</label></p>
+      <p><input type="password" id="key-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" ${isAcknowledged ? "" : "disabled"} aria-label="GitHub token"></p>
+      <p><label>Expires on <input type="date" id="key-expires" value="${h(defaultExpiry())}" ${isAcknowledged ? "" : "disabled"}></label>
         <span class="muted small">Preset to the ${TOKEN_DAYS} days of the prefilled link — correct it if you changed it on GitHub.
         Agent M warns ${EXPIRY_WARN_DAYS} days before.</span></p>
-      <p><button class="btn" id="key-store" disabled>Store and check</button></p>
+      <p><button class="btn" id="key-store" ${isAcknowledged ? "" : "disabled"}>Store and check</button></p>
       <p id="key-check" class="muted"></p>`,
     explain: EXPLAIN.store });
 }
@@ -59,7 +71,14 @@ export function wireStoreKey(app, reposToCheck, onStored, { save = (v, exp) => a
   const ack = document.getElementById("key-ack"), tok = document.getElementById("key-token");
   const btn = document.getElementById("key-store"), out = document.getElementById("key-check");
   const expires = document.getElementById("key-expires");
-  ack.addEventListener("change", () => { tok.disabled = expires.disabled = btn.disabled = !canStore(ack.checked); });
+  const browserStore = acknowledgementStore(app.T.instance);
+  ack.addEventListener("change", () => {
+    if (ack.checked) writeSetting(browserStore, SHARED_ORIGIN_ACKNOWLEDGEMENT, new Date().toISOString().slice(0, 10));
+    else clearSetting(browserStore, SHARED_ORIGIN_ACKNOWLEDGEMENT);
+    tok.disabled = expires.disabled = btn.disabled = !canStore(ack.checked);
+  });
+  // A restored acknowledgement opens directly at the first field it enables; otherwise the acknowledgement itself is first.
+  (ack.checked ? tok : ack).focus();
   btn.addEventListener("click", async () => {
     const v = tok.value.trim(), exp = expires.value;
     if (!canStore(ack.checked)) return;

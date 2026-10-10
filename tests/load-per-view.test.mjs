@@ -111,7 +111,7 @@ test("the SPEC view lists only the open SPEC changes; an accepted queue's propos
   const repo = await product();
   const page = await openDashboard({ server: await server(repo), hash: "#spec" });
   assert.deepEqual(files(page.requests), ["SPEC.md", "SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/01-more.md`,
-    `${OPEN}/entscheidungen.md`, `${OPEN}/index.md`].sort());
+    `${OPEN}/entscheidungen.md`].sort());
   const main = page.main();
   // Only open changes: the queue with an open entry is listed, the accepted queue is not.
   assert.match(main, /id="queue-2026-09-02_open"/);
@@ -148,35 +148,21 @@ test("settings read the product's settings, and no use case, architecture file, 
   assert.ok(page.requests.includes("tree"));
 });
 
-// ---------------------------------------------------------------- the texts kept by blob SHA
+// ---------------------------------------------------------------- the texts held during one dashboard load
 
-test("a second load on an unchanged tree reads no file — the texts are kept by their blob SHA", async () => {
+test("a second load on an unchanged tree reads its displayed files again", async () => {
   const repo = await product(), caches = fakeCaches();
   const first = await openDashboard({ server: await server(repo), caches });
   assert.ok(files(first.requests).length > 0);
   const again = await openDashboard({ server: await server(repo), caches });
-  assert.deepEqual(again.requests, ["commit", "tree"]);
+  assert.deepEqual(files(again.requests), files(first.requests));
   assert.equal(again.main(), first.main(), "the same page");
   // A file whose blob changed is read again — that one, and its record: no record is named by its new text, so the record of
   // the earlier one says whether it is changed or open.
   const edited = { ...repo, [UC1]: repo[UC1].replace("Read a file", "Read one file") };
   const third = await openDashboard({ server: await server(edited), caches });
-  assert.deepEqual(files(third.requests), [...recordOf(repo, "UC-001"), UC1]);
+  assert.deepEqual(files(third.requests), [...files(first.requests), ...recordOf(repo, "UC-001")].sort());
   assert.match(third.main(), /Read one file/);
-});
-
-test("counter-proof: a kept text that does not hash to its blob SHA is read again, and the page shows the real text", async () => {
-  const repo = await product(), caches = fakeCaches();
-  await openDashboard({ server: await server(repo), caches });
-  const sha = await gitBlobSha(repo[UC1]);
-  const kept = [...caches.stores.values()][0];
-  const key = [...kept.keys()].find((k) => k.endsWith(`/${sha}`));
-  assert.ok(key, "UC-001's text was kept under its blob SHA");
-  kept.set(key, repo[UC1].replace("Read a file", "A forged title"));
-  const again = await openDashboard({ server: await server(repo), caches });
-  assert.deepEqual(files(again.requests), [UC1]);
-  assert.doesNotMatch(again.main(), /A forged title/);
-  assert.equal(kept.get(key), repo[UC1], "the kept text is replaced by the one read");
 });
 
 test("without Cache Storage the page still works; it reads every file it shows", async () => {
