@@ -474,7 +474,9 @@ function remoteSessionLine(target, context, info) {
 }
 
 async function productControls(context) {
-  if (!context.product) return el("section", "settings-product", el("p", null, "Choose a product to edit its repository settings."));
+  if (!context.product) return el("section", "settings-product",
+    el("p", null, "Choose a product to edit its repository settings."),
+    whatIsThis("A chosen product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser reads them to show their current state."));
   const { settings, collaborators } = await settingsSchemas();
   const repository = await context.product.host.repositoryInfo();
   const { defaultBranch } = repository;

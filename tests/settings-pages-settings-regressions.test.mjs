@@ -193,6 +193,9 @@ test("TST-290123: every rendered Settings section states purpose, storage, and r
     assert.match(details[0].textContent, /browser|repository/i, `${section.className}: explanation names where the setting is kept`);
     assert.match(details[0].textContent, /read/i, `${section.className}: explanation names who can read it`);
   }
+  const unchosen = repositories(await render(store()));
+  assert.equal(descendants(byClass(unchosen, "settings-product")[0], (node) => node.localName === "details" && node.textContent.includes("What is this?")).length, 1,
+    "failure node: the product section explains its repository records before a product is chosen");
 });
 
 // TST-290121
