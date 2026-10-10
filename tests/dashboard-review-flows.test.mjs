@@ -662,12 +662,13 @@ globalThis.confirm = (text) => { confirms.push(text); return confirmAnswer; };
 const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
 const publicRepositoryRow = (box, label) => publicControls(box(), "settings-repository").find((row) => row.textContent.includes(label));
 const publicRepositoryControl = (box, label, name) => publicControls(publicRepositoryRow(box, label), `settings-repository-${name}`)[0];
-async function publicSettingsPage({ server = null, token = TOKEN, settings = {}, caches = null } = {}) {
+async function publicSettingsPage({ server = null, token = TOKEN, settings = {}, caches = null, writableProduct = false } = {}) {
   confirms.length = 0;
   confirmAnswer = true;
   const storedSettings = { "github-token": { value: TOKEN, name: "GitHub token", expires: day(90), stored: day(0) }, ...settings };
   const entries = Object.fromEntries(Object.entries(storedSettings).map(([key, value]) => [`agent-m:akmaier/agent-m:${key}`, JSON.stringify(value)]));
-  const srv = server ?? await ucServer(), page = await openDashboard({ server: srv, hash: "#uc", token, entries, ...(caches ? { caches } : {}) });
+  const writable = (url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined;
+  const srv = server ?? await ucServer({}, writableProduct ? [writable] : []), page = await openDashboard({ server: srv, hash: "#uc", token, entries, ...(caches ? { caches } : {}) });
   const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
@@ -926,7 +927,7 @@ test("UC-042 3a: without a token the product's settings are read-only, and link 
 
 test("UC-042 step 4: switching pseudonymisation off shows what follows — published for a public repository —, needs the tick, and one trusted click commits docs/settings.md", async () => {
   const originalSettings = "# Settings of akmaier/agent-m\n\nUnrelated introductory text stays.\n";
-  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": originalSettings }) });
+  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": originalSettings }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   const off = publicControls(product, "settings-pseudonymisation-off")[0];
   const acknowledgement = publicControls(product, "settings-pseudonymisation-ack")[0];
@@ -950,7 +951,7 @@ test("UC-042 step 4: switching pseudonymisation off shows what follows — publi
 });
 
 test("UC-042 step 4 counter-proofs: a click a script makes writes nothing; a Save without the tick writes nothing and says why", async () => {
-  const { srv, box } = await publicSettingsPage();
+  const { srv, box } = await publicSettingsPage({ writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   const off = publicControls(product, "settings-pseudonymisation-off")[0];
   const acknowledgement = publicControls(product, "settings-pseudonymisation-ack")[0];
@@ -966,7 +967,7 @@ test("UC-042 step 4 counter-proofs: a click a script makes writes nothing; a Sav
 
 test("UC-042 4a: switching pseudonymisation back on is saved without a notice — the page says data written meanwhile stays in the history", async () => {
   const off = "# Settings of akmaier/agent-m\n\nintro\n\n- pseudonymisation: off\n";
-  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": off }) });
+  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": off }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
   assert.ok(product.textContent.includes("Data written while pseudonymisation was off stays in the repository's history; removing it needs a rewrite of that history."));
@@ -982,7 +983,7 @@ const COLLABORATORS_HEAD = "# Collaborators of akmaier/agent-m\n\nPeople who agr
   "named only by their account. Changed on the Agent M dashboard (Settings).\n\n| Name | Account | Agreed on |\n|---|---|---|\n";
 
 test("UC-042 step 5: + Collaborator with the tick that the person agreed commits docs/collaborators.md with name, account and date", async () => {
-  const { srv, box } = await publicSettingsPage();
+  const { srv, box } = await publicSettingsPage({ writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   publicControls(product, "settings-collaborator-name")[0].value = "Jane Doe";
   publicControls(product, "settings-collaborator-account")[0].value = "jdoe";
@@ -998,7 +999,7 @@ test("UC-042 step 5: + Collaborator with the tick that the person agreed commits
 });
 
 test("UC-042 step 5 counter-proofs: without the tick nothing is written and the page says why; a click a script makes writes nothing", async () => {
-  const { srv, box } = await publicSettingsPage();
+  const { srv, box } = await publicSettingsPage({ writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   publicControls(product, "settings-collaborator-name")[0].value = "Jane Doe";
   publicControls(product, "settings-collaborator-account")[0].value = "jdoe";
@@ -1013,7 +1014,7 @@ test("UC-042 step 5 counter-proofs: without the tick nothing is written and the 
 
 test("UC-042 5a: Remove takes a collaborator off the list with one commit, and says that earlier commits keep the name", async () => {
   const two = `${COLLABORATORS_HEAD}| Jane Doe | @jdoe | 2026-09-30 |\n| Max Müller | @max-m | 2026-10-01 |\n`;
-  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/collaborators.md": two }) });
+  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/collaborators.md": two }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   publicControls(product, "settings-collaborator-remove-name")[0].value = "Jane Doe";
   publicControls(product, "settings-collaborator-remove-account")[0].value = "jdoe";
