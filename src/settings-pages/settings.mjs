@@ -309,10 +309,14 @@ function repositoryLine(context, info) {
     status.textContent = repositoryStatus({ ...info, lastTest }, setting);
   });
   clear.addEventListener("click", () => {
+    const consequence = info.key === "github-token"
+      ? "Without it, accepting and editing go through GitHub's own pages, products cannot be added, and private repositories cannot be read."
+      : "Without it, this product can be read only if it is public, and nothing can be accepted or saved in it.";
+    if (!globalThis.confirm(`Clear this token from this browser? ${consequence}`)) return;
     clearSetting(context.store, info.key);
     clearSetting(context.store, `last-test:${info.key}`);
     value.value = "";
-    status.textContent = "Cleared from this browser.";
+    status.textContent = `Cleared from this browser. ${consequence}`;
   });
   return el("section", "settings-repository",
     el("h3", null, info.label), status,
@@ -455,7 +459,11 @@ function remoteSessionLine(target, context, info) {
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product", el("p", null, "Choose a product to edit its repository settings."));
   const { settings, collaborators } = await settingsSchemas();
-  const { defaultBranch } = await context.product.host.repositoryInfo();
+  const repository = await context.product.host.repositoryInfo();
+  const { defaultBranch } = repository;
+  const address = parseAddress(context.product.address);
+  const credential = credentialsFor(context.store, address);
+  const canWrite = Boolean(credential?.token && repository.canWrite === true);
   const snapshot = await context.product.host.readSnapshot(defaultBranch);
   const settingsText = await snapshot.read(settings.path);
   const collaboratorsText = await snapshot.read(collaborators.path);
@@ -471,6 +479,19 @@ async function productControls(context) {
   const collaboratorRows = legacyCollaborators.length ? legacyCollaborators : (collaboratorsDocument.sections[0]?.rows ?? [])
     .map((row) => ({ name: row.cells.Name, account: String(row.cells.Account ?? "").replace(/^@/, ""), agreed: row.cells["Agreed on"] ?? row.cells.Agreed ?? "recorded" }));
   const state = el("p", "settings-pseudonymisation-state", `Pseudonymisation is ${settingState(settingsDocument, settingsBytes)}.`);
+  const access = repository.canWrite === true ? "writable" : repository.canWrite === false ? "read-only" : "not reported";
+  if (!canWrite) {
+    const tokenStep = el("button", "settings-product-token-step", "Open the token step of UC-001");
+    tokenStep.addEventListener("click", () => context.go("add-product", {}));
+    const reason = credential?.token ? "The repository reports this credential cannot write." : "This browser has no token that can write to this product.";
+    return el("section", "settings-product",
+      el("h3", null, `Product · ${context.product.address}`),
+      el("p", "settings-product-access", `Repository access: ${access}.`),
+      el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
+      state,
+      el("h4", null, "Collaborators"),
+      el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))));
+  }
   const off = el("input", "settings-pseudonymisation-off"); off.type = "checkbox"; off.checked = settingState(settingsDocument, settingsBytes) === "off";
   const acknowledgement = el("input", "settings-pseudonymisation-ack"); acknowledgement.type = "checkbox";
   const save = el("button", "settings-pseudonymisation-save", "Save pseudonymisation");

@@ -1,13 +1,10 @@
 // TST-290109
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE;
-//   A STORED SECRET IS HIDDEN UNTIL SHOWN
+// guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: the public Settings Route with representative browser settings, including an old unreadable GitLab token key
 // input: the person selects the four Settings tabs without submitting an action
-// expect: each named tab has accessible selected state, only its pane is shown, unreadable stored credentials retain
-//   Show, Clear and export access, endpoint and Bridge setup retain their public routes, and switching panes preserves
-//   an unfinished passphrase without a storage write, endpoint request, or permission request
+// expect: each named tab has accessible selected state, only its pane is shown, unreadable stored credentials retain Show, Clear and export access, endpoint and Bridge setup retain their public routes, and switching panes preserves an unfinished passphrase without a storage write, endpoint request, or permission request
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -85,13 +82,10 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
 // TST-290110
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR;
-//   A STORED SECRET IS HIDDEN UNTIL SHOWN
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: the public Settings Route with a stored remote Bridge session and browser-held settings
 // input: the person opens Endpoints & Agents, reveals the session token, removes a listed product, then acknowledges browser clear
-// expect: the session remains hidden until Show and routes to its existing Bridge setup, while Clear everything stays
-//   disabled until acknowledgement and then removes the actual browser-store entries; product removal also removes its own
-//   credential and test metadata
+// expect: the session remains hidden until Show and routes to its existing Bridge setup, while Clear everything stays disabled until acknowledgement and then removes the actual browser-store entries; product removal also removes its own credential and test metadata
 test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async () => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
@@ -147,13 +141,10 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
 // TST-290111
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-042; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT;
-//   AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+// guards: UC-042; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: an unset instance GitHub credential and constructed GitHub repository replies
-// input: the person opens Repositories, chooses Change, acknowledges the shared-origin notice, saves an expiring token,
-//   then tests it successfully and after a token refusal
-// expect: save creates the canonical token and expiry record only after acknowledgement; Test sends it only to GitHub's
-//   repository API and persists dated working/refused metadata, while the renewal link is GitHub's token page
+// input: the person opens Repositories, chooses Change, acknowledges the shared-origin notice, saves an expiring token, then tests it successfully and after a token refusal
+// expect: save creates the canonical token and expiry record only after acknowledgement; Test sends it only to GitHub's repository API and persists dated working/refused metadata, while the renewal link is GitHub's token page
 test("TST-290111: Settings saves, tests, and records an expiring repository token", async () => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
@@ -194,6 +185,18 @@ test("TST-290111: Settings saves, tests, and records an expiring repository toke
     await new Promise((resolve) => { click(testButton); setImmediate(resolve); });
     assert.equal(readSetting(store, "last-test:github-token").outcome, "refused", "failure node: a repository-host refusal is persisted with the token row");
     assert.match(byClass(line, "settings-repository-status")[0].textContent, /Refused/);
+    const priorConfirm = globalThis.confirm;
+    let confirmations = 0;
+    globalThis.confirm = () => { confirmations += 1; return false; };
+    click(byClass(line, "settings-repository-clear")[0]);
+    assert.equal(confirmations, 1, "failure node: Clear asks exactly one confirmation before any browser mutation");
+    assert.equal(readSetting(store, "github-token").value, "ghp_fixtureToken", "a cancelled confirmation retains the token");
+    globalThis.confirm = () => { confirmations += 1; return true; };
+    click(byClass(line, "settings-repository-clear")[0]);
+    assert.equal(confirmations, 2);
+    assert.equal(readSetting(store, "github-token"), null, "the confirmed Clear reaches the canonical token");
+    assert.match(byClass(line, "settings-repository-status")[0].textContent, /products cannot be added/i, "Clear states the actual consequence at its failure boundary");
+    globalThis.confirm = priorConfirm;
   } finally { globalThis.fetch = oldFetch; }
 });
 
@@ -235,12 +238,23 @@ test("TST-290113: Settings removes one legacy collaborator consent row without a
   const collaborators = "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n| Ada Example | @ada | 2026-09-01 |\n\nKeep this unrelated note.\n";
   const writes = [];
   const host = {
-    async repositoryInfo() { return { defaultBranch: "main" }; },
+    async repositoryInfo() { return { defaultBranch: "main", canWrite: true }; },
     async readSnapshot() { return { blob(path) { return path === "docs/collaborators.md" ? "collab-sha" : null; }, async read(path) { return path === "docs/collaborators.md" ? collaborators : null; } }; },
     async commitFiles(change) { writes.push(change); return { commit: "a".repeat(40) }; },
   };
+  const store = openStore("fixture/instance");
   const target = document.createElement("div");
-  await route().render(target, { instance: { repository: "fixture/instance" }, product: { address: "https://github.com/fixture/product", kind: "github", host }, store: openStore("fixture/instance"), go() {} }, {});
+  const navigations = [];
+  const context = { instance: { repository: "fixture/instance" }, product: { address: "https://github.com/fixture/product", kind: "github", host }, store, go(name, params) { navigations.push({ name, params }); } };
+  await route().render(target, context, {});
+  click(byClass(target, "settings-tab")[1]);
+  assert.match(byClass(target, "settings-product-read-only")[0].textContent, /no token that can write/i, "failure node: no browser token leaves the product form read-only");
+  assert.match(byClass(target, "settings-product-access")[0].textContent, /writable/i, "the repositoryInfo access state remains visible rather than discarded");
+  assert.equal(byClass(target, "settings-pseudonymisation-save").length, 0);
+  click(byClass(target, "settings-product-token-step")[0]);
+  assert.deepEqual(navigations, [{ name: "add-product", params: {} }], "read-only points to the existing UC-001 token step route");
+  writeSetting(store, "github-token:fixture/product", { value: "ghp_fixtureToken" });
+  await route().render(target, context, {});
   click(byClass(target, "settings-tab")[1]);
   assert.match(byClass(target, "settings-collaborator-records")[0].textContent, /Ada Example.*@ada.*2026-09-01/, "the selected product exposes the existing consent name, account, and date before any edit");
   byClass(target, "settings-collaborator-remove-name")[0].value = "Ada Example";
