@@ -91,10 +91,10 @@ export const route = {
     const model = el("input", "endpoint-model");
     const key = el("input", "endpoint-key");
     const throughBridge = el("input", "endpoint-through-bridge");
-    const show = el("button", "endpoint-show", "Show");
+    const show = el("button", "endpoint-show btn small", "Show");
     const disclosure = el("p", "endpoint-disclosure");
-    const test = el("button", "endpoint-test", "Save and test");
-    const clear = el("button", "endpoint-clear", "Clear");
+    const test = el("button", "endpoint-test btn primary", "Save and test");
+    const clear = el("button", "endpoint-clear btn", "Clear");
     const result = el("p", "endpoint-result");
     const fields = { name, url, kind, model, key, throughBridge };
 
@@ -136,7 +136,7 @@ export const route = {
       if (stored.throughBridge) {
         const settings = bridgeSettings(context.store);
         if (!settings) {
-          const setup = el("button", "endpoint-bridge-setup", "Set up the Bridge");
+          const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
           setup.addEventListener("click", () => context.go("bridge", {}));
           result.replaceChildren("This local model needs Bridge setup before it can be tested. Its endpoint setting remains stored. ", setup);
           return;
