@@ -9,7 +9,7 @@
 // adds (THE DEFAULT DEFINITION OF DONE IS THE JOB RULES).
 
 import { parseSpec } from "../spec-document/index.mjs";
-import { addedGatesOf, branchesOf, conditionsOf, practicesOf, rolesOf } from "./declaration.mjs";
+import { addedGatesOf, branchesOf, conditionsOf, practicesOf } from "./declaration.mjs";
 
 // The job rules, which every Definition of Done holds, as the module file states them.
 const JOB_RULES = [
@@ -69,9 +69,9 @@ function between(written) {
  * that the process requirements add, as the declaration's `## Gates added by requirements` names them, each named by its
  * requirement and marked with it and the source that requirement names in the instance's SPEC — a gate whose requirement
  * that SPEC does not hold stays, with the source null, and declarationFindings names it —; nothing else enters the workflow.
- * With them: the practices the declaration names, the model's roles with the participants `## Roles` assigns to each, the
- * branch `## Branches` sets for each phase or time box, and the Definition of Done — the job rules, then each condition the
- * declaration adds. A selected practice contributes only its explicit `### Phases`, `### Gates` and `### Roles` model tables
+ * With them: the practices the declaration names, the model's roles — each with who may fill it, how many fill it and the
+ * capabilities it needs; who fills it is the product's role assignment's —, the branch `## Branches` sets for each phase or
+ * time box, and the Definition of Done — the job rules, then each condition the declaration adds. A selected practice contributes only its explicit `### Phases`, `### Gates` and `### Roles` model tables
  * below `## Adds`; a phase's `Produces` is its artifact addition, and a practice gate names its practice.
  * @param {Document} declaration — the product's docs/process.md, as readDocument returns it with declarationSchema
  * @param {Model} model — the declared model, as the catalogue at the commit the declaration names gives it
@@ -81,7 +81,6 @@ function between(written) {
  */
 export function workflowOf(declaration, model, practices, instanceSpec) {
   const requirements = parseSpec(instanceSpec).requirements;
-  const roles = rolesOf(declaration);
   const selected = new Set(practicesOf(declaration).map((practice) => practice.name));
   const additions = additionsOf(practices.filter((practice) => selected.has(text(practice.fields.name))));
   return {
@@ -108,10 +107,9 @@ export function workflowOf(declaration, model, practices, instanceSpec) {
     ],
     roles: [
       ...model.roles.map(({ name, filledBy, howMany, capabilities }) => ({ name, filledBy, howMany,
-        capabilities: [...capabilities], holders: roles.find((row) => row.role === name)?.holders ?? [] })),
+        capabilities: [...capabilities] })),
       ...additions.flatMap(({ roles: added }) => added.map((role) => ({ name: role.Name, filledBy: role["Filled by"],
-        howMany: role["How many"], capabilities: namesOf(role.Capabilities),
-        holders: roles.find((row) => row.role === role.Name)?.holders ?? [] }))),
+        howMany: role["How many"], capabilities: namesOf(role.Capabilities) }))),
     ],
     branches: Object.fromEntries(branchesOf(declaration).map(({ at, branch }) => [at, branch])),
     done: [...JOB_RULES, ...conditionsOf(declaration)],

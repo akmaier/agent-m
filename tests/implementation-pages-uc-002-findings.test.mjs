@@ -395,10 +395,10 @@ Fixture text.
   return files;
 }
 
-// A declaration text declaring fixture-sprint-model, with the given rows under ## Roles, ## Branches and, when given,
-// ## Gates added by requirements.
-function declarationText({ roles = [], practices = ["none"], branches = [], requirementGates = [] } = {}) {
-  const roleRows = roles.map(({ role, holders = [] }) => `| ${role} | ${holders.join(", ")} |`).join("\n");
+// A declaration text declaring fixture-sprint-model and naming no participant — enough for the roles, phases and gates
+// panels to render, which `renderPanels` draws for a declared model —, with the given practices, rows under ## Branches
+// and, when given, ## Gates added by requirements.
+function declarationText({ practices = ["none"], branches = [], requirementGates = [] } = {}) {
   const branchRows = branches.map(({ at, branch }) => `| ${at} | ${branch} |`).join("\n");
   const requirementsSection = requirementGates.length
     ? `\n\n## Gates added by requirements\n\n| Requirement | Between | Artifacts | Condition | Decider |\n|---|---|---|---|---|\n${
@@ -411,12 +411,6 @@ model_file: ${FIXTURE_MODEL_PATH}
 model_version: ${INSTANCE_COMMIT}
 ---
 # How the fixture product is developed
-
-## Roles
-
-| Role | Participants |
-|---|---|
-${roleRows}
 
 ## Practices
 
@@ -452,10 +446,6 @@ function connectedTarget() {
   return target;
 }
 
-// A product declaring fixture-sprint-model with Owner (alice) and Developers (bot-a) — every test below but F1 and F4
-// needs at least this much declared, so that the roles, phases and gates panels render (`renderPanels` draws nothing
-// without a declared model).
-const BASE_ROLES = [{ role: "Owner", holders: ["alice"] }, { role: "Developers", holders: ["bot-a"] }];
 
 // ---------------------------------------------------------------- F1: the table opens unfolded the first time, folded later
 
@@ -495,7 +485,7 @@ test("process route — the process-model-vs-rules table opens unfolded the firs
 // expect: the phases panel names every transition, From, To and its kind, and the verification pair Build/Review
 test("process route — the phases panel shows the model's transitions and its verification pairs (F2)", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES }) }, sha1("f2-product-head"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("f2-product-head"));
   const target = connectedTarget();
 
   await route.render(target, contextOf(instanceHost, productHost));
@@ -528,7 +518,6 @@ test("process route — the phases panel shows the model's transitions and its v
 test("process route — beside a branch, the model's own gate at its end is shown (F3)", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText({
-    roles: BASE_ROLES,
     branches: [{ at: "Build", branch: "feature/build" }, { at: "Sprint", branch: "sprint/07" }],
   }) }, sha1("f3-product-head"));
   const target = connectedTarget();
@@ -558,7 +547,7 @@ test("process route — beside a branch, the model's own gate at its end is show
 // expect: the practices panel names devops beside the models it fits, and the fixture text of its "## Adds"
 test("process route — each practice is shown with what it adds, beside the models it fits (F4)", async () => {
   const instanceHost = fakeHost(instanceFiles({ practiceAdds: "- fixture addition: a continuous pipeline" }), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES }) }, sha1("f4-product-head"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("f4-product-head"));
   const target = connectedTarget();
 
   await route.render(target, contextOf(instanceHost, productHost));
@@ -598,7 +587,7 @@ test("process route — selected tabled practice additions enter the workflow an
 |---|---|---|---|
 | Evidence keeper | either | several | read the repository |`;
   const instanceHost = fakeHost(instanceFiles({ practiceAdds }), INSTANCE_COMMIT);
-  const selectedHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES, practices: ["devops"] }) },
+  const selectedHost = fakeHost({ "docs/process.md": declarationText({ practices: ["devops"] }) },
     sha1("practice-selected"));
   const selectedTarget = connectedTarget();
 
@@ -612,7 +601,7 @@ test("process route — selected tabled practice additions enter the workflow an
   assert.match(selected, /Design → Build/, "the model's own gate remains");
   selectedTarget.remove();
 
-  const unselectedHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES }) }, sha1("practice-unselected"));
+  const unselectedHost = fakeHost({ "docs/process.md": declarationText() }, sha1("practice-unselected"));
   const unselectedTarget = connectedTarget();
   await route.render(unselectedTarget, contextOf(instanceHost, unselectedHost));
   assert.doesNotMatch(byClass(unselectedTarget, "phases-panel")[0].textContent, /Evidence review/,
@@ -631,7 +620,6 @@ test("process route — selected tabled practice additions enter the workflow an
 test("process route — a gate a process requirement adds is shown with the two phases it stands between (F5)", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText({
-    roles: BASE_ROLES,
     requirementGates: [{ requirement: "A FIXTURE REQUIREMENT", between: "Design → Build", artifacts: "TST", condition: "documented", decider: "Owner" }],
   }) }, sha1("f5-product-head"));
   const target = connectedTarget();
@@ -655,7 +643,7 @@ test("process route — a gate a process requirement adds is shown with the two 
 // expect: Reviewer's missing-capability notice carries a link whose href is exactly #participants
 test("process route — the missing-capability notice links to the participants' page, #participants (F6)", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES }) }, sha1("f6-product-head"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("f6-product-head"));
   const target = connectedTarget();
 
   await route.render(target, contextOf(instanceHost, productHost));

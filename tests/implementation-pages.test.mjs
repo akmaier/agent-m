@@ -1,10 +1,11 @@
 // MOD-implementation-pages' route `process` — How this product is developed (UC-002), as docs/architecture/
 // MOD-implementation-pages.md states it and ITM-222 builds it: the five catalogue models with what their `about` holds
-// (step 2); the model's roles, each with the participants that hold every capability it needs and where they process
-// data, a role no participant can hold named by its missing capability (4b), a role that needs a person left without
-// one disabling Save (4a); the findings of declarationFindings beside the form's fields, among them a warning for a
-// holder at a place a linked source does not permit (4c); phases, gates and branches; practices; what the product's
-// process requirements add, or that it has none (7a); the Definition of Done; Save, which writes the product's
+// (step 2); the model's roles, each with how many fill it and the participants that hold every capability it needs and
+// where they process data, a role no participant can hold named by its missing capability; the findings of
+// declarationFindings beside the form's fields, among them a participant the declaration names, which disables Save — a
+// declaration names roles, never a participant, and the role assignments fill them (UC-048); phases, gates and branches;
+// practices; what the product's process requirements add, or that it has none (7a); the Definition of Done; Save, which
+// writes the product's
 // docs/process.md with saveFile as the person's own commit, naming model_version by the commit the catalogue's instance
 // was read at (step 9); selecting another model lists the kinds of artifact the declared model's phases produce that
 // the selected one's do not, deleting nothing (3b); and a refused save keeps the person's edit.
@@ -12,7 +13,7 @@
 // Run: node --test tests/implementation-pages.test.mjs
 //
 // Module: MOD-implementation-pages
-// Guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; A ROLE NAMES THE CAPABILITIES IT NEEDS
+// Guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; A ROLE NAMES THE CAPABILITIES IT NEEDS; THE PROCESS NAMES ROLES, NOT PARTICIPANTS
 // Level: unit
 //
 // Not part of ITM-222, and not tested here: the comparison of two versions of the declared model when the catalogue's
@@ -393,38 +394,10 @@ Fixture text for a test.
 *Check:* no automatic check.
 `;
 
-const SOURCE_PATH = "docs/sources/SRC-fixture.md";
-const SOURCE_ENTRY = `---
-id: SRC-fixture
-title: A fixture source
-kind: standard
-authority: normative
-licence: restricted — fixture terms
-designation: FIX 1:2026
-places:
-  - NHR@FAU, Erlangen
----
-# SRC-fixture A fixture source
-
-## Versions
-
-| Version | Date | Edition | Read from | Files |
-|---|---|---|---|---|
-| 1 | 2026-01-01 | — | — | fixture.txt |
-`;
-
-const LINKS = `# Fixture product's linked sources
-
-| Source | Version | Hash | Part |
-|---|---|---|---|
-| SRC-fixture | 1 | ${"a".repeat(64)} | |
-`;
-
-// An instance snapshot with the participants, the fixture model, the instance's SPEC, and, when `linked` is given, the
-// fixture source entry.
-function instanceFiles({ withSource = false, practiceAdds = null, participants = PARTICIPANTS } = {}) {
+// An instance snapshot with the participants, the fixture model, the instance's SPEC, and, when `practiceAdds` is given,
+// a devops practice that adds it.
+function instanceFiles({ practiceAdds = null, participants = PARTICIPANTS } = {}) {
   const files = { "docs/participants.md": participants, [FIXTURE_MODEL_PATH]: FIXTURE_MODEL, "SPEC.md": SPEC_TEXT };
-  if (withSource) files[SOURCE_PATH] = SOURCE_ENTRY;
   if (practiceAdds !== null) files["src/model-catalogue/practices/devops.md"] = `---
 name: devops
 fits:
@@ -444,9 +417,9 @@ Fixture practice.
   return files;
 }
 
-// A declaration text declaring fixture-model, with the given rows under ## Roles (each "Role | Participants").
-function declarationText({ roles = [], sources = false } = {}) {
-  const rows = roles.map(({ role, holders = [] }) => `| ${role} | ${holders.join(", ")} |`).join("\n");
+// A declaration text declaring fixture-model: it names the model's roles, never a participant; `done` is its Definition of
+// Done.
+function declarationText({ done = "The job rules hold; no condition is added." } = {}) {
   return `---
 model: fixture-model
 model_file: ${FIXTURE_MODEL_PATH}
@@ -456,9 +429,7 @@ model_version: ${INSTANCE_COMMIT}
 
 ## Roles
 
-| Role | Participants |
-|---|---|
-${rows}
+The roles of fixture-model — Owner, Reviewer and Developers —, filled in the product's role assignment.
 
 ## Practices
 
@@ -471,7 +442,7 @@ ${rows}
 
 ## Definition of Done
 
-The job rules hold; no condition is added.
+${done}
 `;
 }
 
@@ -555,18 +526,18 @@ test("process route — the page of a product without a declaration", async () =
   target.remove();
 });
 
-// guards: UC-002 (steps 1, 4, 5, 8: the page of a product that already declared its process shows the model, the
-//         roles' holders and the Definition of Done; the route inserts the form in the same turn schemaForm returns
-//         it, so that its first field is focused)
-// given: a product declaring fixture-model, Owner held by alice, Developers by bot-a
+// guards: UC-002 (steps 1, 4, 5, 8: the page of a product that already declared its process shows the model, its roles
+//         and the Definition of Done; the route inserts the form in the same turn schemaForm returns it, so that its
+//         first field is focused); THE PROCESS NAMES ROLES, NOT PARTICIPANTS
+// given: a product declaring fixture-model, its roles named and no participant
 // input: route.render(target, context), built and inserted in the one turn of its own microtask queue
-// expect: the model and model_file fields hold the declared model; the ## Roles editor holds the declared rows; once
-//         the turn in which render awaited is over, the page's first field has the focus — known positive: before
-//         render, the document's active element is its body, not a form field
+// expect: the model and model_file fields hold the declared model; the form has no field that assigns participants to
+//         roles; each role of the model is shown with how many fill it; once the turn in which render awaited is over,
+//         the page's first field has the focus — known positive: before render, the document's active element is its
+//         body, not a form field
 test("process route — the page of a product with a declaration, its first field focused", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({
-    roles: [{ role: "Owner", holders: ["alice"] }, { role: "Developers", holders: ["bot-a"] }] }) }, sha1("product-head-2"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-2"));
   const target = connectedTarget();
   assert.notEqual(document.activeElement.localName, "input", "known positive: nothing is focused before the page renders");
 
@@ -576,8 +547,11 @@ test("process route — the page of a product with a declaration, its first fiel
   const form = byClass(target, "schema-form")[0];
   assert.equal(inputOf(form, "model").value, "fixture-model");
   assert.equal(inputOf(form, "model_file").value, FIXTURE_MODEL_PATH);
-  assert.match(areaOf(form, "## Roles").value, /Owner \| alice/);
-  assert.match(areaOf(form, "## Roles").value, /Developers \| bot-a/);
+  assert.ok(!fieldOf(form, "sprint_close"), "the form has no field that names a participant");
+  assert.ok(!byTag(form, "textarea").some((area) => /\| Role \| Participants \|/.test(area.value)),
+    "no field of the form holds a table of roles and participants");
+  assert.match(byClass(byData(target, "data-role", "Owner")[0], "how-many")[0].textContent, /one participant fills it/);
+  assert.match(byClass(byData(target, "data-role", "Developers")[0], "how-many")[0].textContent, /several participants may fill it/);
   // assert.ok, not assert.equal: on a mismatch, formatting these DOM-like objects for a diff is not worth the cost.
   assert.ok(document.activeElement === inputOf(form, "model"), "the form's first field is focused");
 
@@ -586,15 +560,17 @@ test("process route — the page of a product with a declaration, its first fiel
 
 // ---------------------------------------------------------------- the page of a product with Agent M's own declaration
 //
-// This repository's own files, read as they stand on origin/sprint/06: docs/process.md and docs/participants.md, and,
-// at the commit docs/process.md's model_version names (4c60cfe5a8bc8c00dcf6705b5decb42823b73a63), docs/process-models/
-// scrum-wip.md — Agent M's own live declaration, not a fixture made for this suite. The instance SPEC is fixture text
+// This repository's own files as they stood on origin/sprint/06 — docs/participants.md, and, at the commit the
+// declaration's model_version names (4c60cfe5a8bc8c00dcf6705b5decb42823b73a63), docs/process-models/scrum-wip.md with the
+// column How many that the model schema now requires —, and its docs/process.md in the form a declaration has now: the
+// model, practices, branches and Definition of Done, its roles named and no participant. The instance SPEC is fixture text
 // (SPEC_TEXT, above): no test opens SPEC.md.
 
 const AGENT_M_MODEL_VERSION = "4c60cfe5a8bc8c00dcf6705b5decb42823b73a63";
 const AGENT_M_SCRUM_WIP_PATH = "docs/process-models/scrum-wip.md";
 
-// docs/process-models/scrum-wip.md at commit 4c60cfe5a8bc8c00dcf6705b5decb42823b73a63 (git show), unchanged since.
+// docs/process-models/scrum-wip.md as it stood at commit 4c60cfe5a8bc8c00dcf6705b5decb42823b73a63 (git show), with the
+// column How many of its roles.
 const AGENT_M_SCRUM_WIP = `---
 name: scrum-wip
 kind: pulled
@@ -669,12 +645,11 @@ retrospective are recorded, and then the Product Owner decides the merge of the 
 | Sprints | yes |
 `;
 
-// docs/process.md on origin/sprint/06 (akmaier, 2026-10-07).
+// docs/process.md of origin/sprint/06 in the form a declaration has now: its roles named, and no participant.
 const AGENT_M_PROCESS = `---
 model: scrum-wip
 model_file: ${AGENT_M_SCRUM_WIP_PATH}
 model_version: ${AGENT_M_MODEL_VERSION}
-sprint_close: scrum-master-session
 ---
 
 # How Agent M is developed
@@ -682,17 +657,15 @@ sprint_close: scrum-master-session
 **REGISTER**
 
 The declaration of Agent M's process (UC-002, ARC-019): the model by name and version — the commit of this instance that
-holds its file —, the role assignment by participant name (\`docs/participants.md\`), practices, branches, the
-Definition of Done and who closes a sprint.
+holds its file —, practices, branches and the Definition of Done. The role assignments under
+\`docs/role-assignments/\` fill its roles from the instance's participants (\`docs/participants.md\`).
 
 ## Roles
 
-| Role | Participants |
-|---|---|
-| Product Owner | po-opus |
-| Scrum Master | scrum-master-session |
-| Developers | developer-sonnet-a, developer-sonnet-b, developer-sonnet-c, developer-sonnet-d |
-| Release tester | tester-opus |
+- Product Owner
+- Scrum Master
+- Developers
+- Release tester
 
 ## Practices
 
@@ -739,7 +712,7 @@ the repository, run code and tests, use tools, reach the web.
 //        Flow control naming a WIP limit of 4 and a stated (not dashed) Time box of none
 // input: route.render(target, context)
 // expect: the model and model_file fields hold scrum-wip and its path; scrum-wip is offered beside the shipped five;
-//         its four roles are shown. Known positive, run directly against this same text: modelFindings names no
+//         its four roles are shown; no participant is named in the declaration. Known positive, run directly against this same text: modelFindings names no
 //         error — MOD-model-catalogue, as akmaier's accepted change states it, reads a kind's explanation in
 //         parentheses as the kind alone, so the gate Retrospective → Sprint planning finds the sprint record it
 //         checks produced, and reads a stated Time box of none as no time box, so Flow control names only the WIP
@@ -778,7 +751,7 @@ test("process route — the page of a product with Agent M's own declaration", a
 
 // ---------------------------------------------------------------- roles: eligible participants and a missing capability (4b)
 
-// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-002 (step 4, and 4b: the participants offered for a role are only
+// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-048 (step 3, and 3b: the participants offered for a role are only
 //         those with every capability it needs, each with its place; for a role none can hold, the missing capability)
 // given: fixture-model's Developers, needing "write to the repository" and "run code and tests" — alice and bot-a have
 //        both, bot-b only "draft text" —, and Reviewer, needing "use tools", which no fixture participant declares
@@ -787,8 +760,7 @@ test("process route — the page of a product with Agent M's own declaration", a
 //         is none, shown as "—"); bot-b is not offered; Reviewer names "use tools" as the capability no one has
 test("process route — a role's offered participants are those with every capability, each with its place; a role none can hold names the missing capability", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: [{ role: "Owner", holders: ["alice"] }] }) },
-    sha1("product-head-3"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-3"));
   const target = connectedTarget();
 
   await route.render(target, contextOf(instanceHost, productHost));
@@ -806,44 +778,23 @@ test("process route — a role's offered participants are those with every capab
   target.remove();
 });
 
-// ---------------------------------------------------------------- findings beside the fields, a disallowed place (4c)
+// ---------------------------------------------------------------- findings beside the fields: a participant named
 
-// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-002 (step 4c: a holder processing data where a linked source does
-//         not permit it is named, and the assignment stays possible)
-// given: fixture-model declared, Developers held by bot-a — who has every capability Developers needs —, the product
-//        linking SRC-fixture, whose entry permits only "NHR@FAU, Erlangen"; bot-a's processing place is "a lab"
-// input: route.render(target, context)
-// expect: among the findings shown before Save, a warning beside ## Roles naming bot-a, Developers and SRC-fixture
-test("process route — the declaration's findings are shown before Save, among them a holder at a place a linked source does not permit", async () => {
-  const instanceHost = fakeHost(instanceFiles({ withSource: true }), INSTANCE_COMMIT);
-  const productHost = fakeHost({
-    "docs/process.md": declarationText({ roles: [{ role: "Owner", holders: ["alice"] }, { role: "Developers", holders: ["bot-a"] }] }),
-    "docs/sources.md": LINKS,
-  }, sha1("product-head-4"));
-  const target = connectedTarget();
-
-  await route.render(target, contextOf(instanceHost, productHost));
-
-  const form = byClass(target, "schema-form")[0];
-  const marks = [...byClass(fieldOf(form, "## Roles"), "marks")[0]?.children ?? []].map((m) => m.textContent).join("\n");
-  assert.match(marks, /warning/);
-  assert.match(marks, /bot-a/);
-  assert.match(marks, /Developers/);
-  assert.match(marks, /SRC-fixture/);
-
-  target.remove();
-});
-
-// ---------------------------------------------------------------- Save disabled while a role needing a person has none (4a)
-
-// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-002 (4a: a role that needs a person has none, and Save stays
-//         disabled, the role named)
-// given: fixture-model declared, its Owner — filled by a person only — left without a holder
-// input: route.render(target, context)
-// expect: Save is disabled; a finding beside ## Roles names Owner and that it needs a person
-test("process route — Save is disabled while a role that needs a person has none, naming it", async () => {
+// guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; UC-002 (postcondition: the declaration names the roles that
+//         participants fill, never a participant)
+// given: known positive first — fixture-model declared, naming no participant; then the same declaration whose
+//        Definition of Done names bot-a, a participant of the instance's list
+// input: route.render(target, context) of each
+// expect: for the first, Save is offered; for the second, Save is disabled, and a finding beside ## Definition of Done
+//         names bot-a and THE PROCESS NAMES ROLES, NOT PARTICIPANTS
+test("process route — the declaration's findings are shown before Save: a participant it names disables Save and is named beside its field", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: [{ role: "Developers", holders: ["bot-a"] }] }) },
+  const clean = connectedTarget();
+  await route.render(clean, contextOf(instanceHost, fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-4"))));
+  assert.equal(saveOf(byClass(clean, "schema-form")[0]).disabled, false, "known positive: a declaration naming no participant can be saved");
+  clean.remove();
+
+  const productHost = fakeHost({ "docs/process.md": declarationText({ done: "The job rules hold; bot-a reviews every pull request." }) },
     sha1("product-head-5"));
   const target = connectedTarget();
 
@@ -851,10 +802,10 @@ test("process route — Save is disabled while a role that needs a person has no
 
   const form = byClass(target, "schema-form")[0];
   assert.equal(saveOf(form).disabled, true, "Save is disabled");
-  const marks = [...byClass(fieldOf(form, "## Roles"), "marks")[0]?.children ?? []].map((m) => m.textContent).join("\n");
-  const beside = besideOf(fieldOf(form, "## Roles")).join("\n");
-  assert.match(marks + beside, /Owner/);
-  assert.match(marks + beside, /person/);
+  const field = fieldOf(form, "## Definition of Done");
+  const shown = [...[...byClass(field, "marks")[0]?.children ?? []].map((m) => m.textContent), ...besideOf(field)].join("\n");
+  assert.match(shown, /bot-a/);
+  assert.match(shown, /THE PROCESS NAMES ROLES, NOT PARTICIPANTS/);
 
   target.remove();
 });
@@ -867,8 +818,7 @@ test("process route — Save is disabled while a role that needs a person has no
 // expect: the process-requirements panel says the product has none yet
 test("process route — a product without process requirements is told so", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: [{ role: "Owner", holders: ["alice"] }] }) },
-    sha1("product-head-6"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-6"));
   const target = connectedTarget();
 
   await route.render(target, contextOf(instanceHost, productHost));
@@ -891,8 +841,7 @@ test("process route — a product without process requirements is told so", asyn
 //         ARC, which both produce
 test("process route — selecting another model lists the kinds of artifact the declared model's phases produce and the selected one's do not", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: [{ role: "Owner", holders: ["alice"] }] }) },
-    sha1("product-head-7"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-7"));
   const target = connectedTarget();
 
   await route.render(target, contextOf(instanceHost, productHost));
@@ -913,7 +862,7 @@ test("process route — selecting another model lists the kinds of artifact the 
 // guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-002 (step 9: one click commits the
 //         declaration; the model's version is the commit the catalogue was read at)
 // given: a product without a declaration; the author picks fixture-model and fills in the required sections
-// input: typing the roles, practices, branches and Definition of Done, then one click on Save
+// input: typing the practices, branches and Definition of Done, then one click on Save
 // expect: nothing is committed before the click; after it, exactly one commit of docs/process.md, whose model_version
 //         is the instance commit the route read the catalogue at
 test("process route — Save commits docs/process.md once, naming model_version by the commit the catalogue was read at", async () => {
@@ -926,7 +875,6 @@ test("process route — Save commits docs/process.md once, naming model_version 
 
   const card = byClass(target, "model-card").find((c) => c.getAttribute("data-model") === "fixture-model");
   byTag(card, "button")[0].dispatchEvent(new Event("click"));
-  type(areaOf(form, "## Roles"), "\n| Role | Participants |\n|---|---|\n| Owner | alice |\n");
   type(areaOf(form, "## Practices"), "\n- none\n");
   type(areaOf(form, "## Branches"), "\n| Phase or time box | Branch |\n|---|---|\n");
   type(areaOf(form, "## Definition of Done"), "\nThe job rules hold; no condition is added.\n");
@@ -958,7 +906,6 @@ test("process route — changing a practice in one live form updates the workflo
   const practiceAdds = `| Between | Artifacts | Condition | Decider |
 |---|---|---|---|
 | Development → Evidence review | evidence TST | evidence is reviewed | Product Owner |`;
-  const participants = PARTICIPANTS.replace("draft text, write to the repository", "draft text, read the repository, write to the repository");
   const declaration = `---
 model: scrum
 model_file: src/model-catalogue/models/scrum.md
@@ -968,11 +915,7 @@ model_version: ${INSTANCE_COMMIT}
 
 ## Roles
 
-| Role | Participants |
-|---|---|
-| Product Owner | alice |
-| Scrum Master | alice |
-| Developers | alice |
+The roles of Scrum — Product Owner, Scrum Master and Developers —, filled in the product's role assignment.
 
 ## Practices
 
@@ -987,7 +930,7 @@ model_version: ${INSTANCE_COMMIT}
 
 The job rules hold; no condition is added.
 `;
-  const instanceHost = fakeHost(instanceFiles({ practiceAdds, participants }), INSTANCE_COMMIT);
+  const instanceHost = fakeHost(instanceFiles({ practiceAdds }), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declaration }, sha1("live-practice-selection"));
   const target = connectedTarget();
 
@@ -1017,26 +960,27 @@ The job rules hold; no condition is added.
 // guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY (a refused save keeps the person's edit, as the module file of
 //         MOD-artifact-edits states for saveFile)
 // given: a product declaring fixture-model; after the page opened, the file is changed elsewhere, outside this page
-// input: typing into sprint_close, then one click on Save
+// input: typing a condition into ## Definition of Done, then one click on Save
 // expect: nothing new is committed; the typed text stays in the field
 test("process route — a refused save keeps the person's edit", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText({ roles: [{ role: "Owner", holders: ["alice"] }] }) },
-    sha1("product-head-8"));
+  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-8"));
   const target = connectedTarget();
 
   await route.render(target, contextOf(instanceHost, productHost));
   const form = byClass(target, "schema-form")[0];
-  type(inputOf(form, "sprint_close"), "scrum-master-session");
+  const typed = "\nreview: 1 by participants other than the implementer\n";
+  type(areaOf(form, "## Definition of Done"), typed);
   await turn();
+  assert.equal(saveOf(form).disabled, false, "known positive: the edited declaration can be saved");
 
   // Changed elsewhere, after the page opened it.
-  productHost._setFile("docs/process.md", declarationText({ roles: [{ role: "Owner", holders: ["alice"] }, { role: "Developers", holders: ["bot-a"] }] }));
+  productHost._setFile("docs/process.md", declarationText({ done: "The job rules hold for every pull request." }));
 
   await click(saveOf(form));
 
   assert.equal(productHost.commits.length, 0, "nothing is committed on a refused save");
-  assert.equal(inputOf(form, "sprint_close").value, "scrum-master-session", "the person's edit stays in the field");
+  assert.equal(areaOf(form, "## Definition of Done").value, typed, "the person's edit stays in the field");
 
   target.remove();
 });

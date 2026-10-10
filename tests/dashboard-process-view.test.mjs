@@ -279,19 +279,14 @@ function fakeApp(target) {
   };
 }
 
-// docs/process.md, declaring the shipped waterfall model (src/model-catalogue/models/waterfall.md) with no role
-// assignment yet — enough for the route to render; its own declaration behaviour is tests/implementation-pages.test.mjs's.
+// docs/process.md, declaring the shipped waterfall model (src/model-catalogue/models/waterfall.md) and naming no
+// participant — enough for the route to render; its own declaration behaviour is tests/implementation-pages.test.mjs's.
 const PROCESS_MD = `---
 model: waterfall
 model_file: src/model-catalogue/models/waterfall.md
 model_version: ${"c0ffee".padEnd(40, "0")}
 ---
 # How this product is developed
-
-## Roles
-
-| Role | Participants |
-|---|---|
 
 ## Practices
 

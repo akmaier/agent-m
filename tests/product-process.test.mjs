@@ -8,25 +8,27 @@
 // Level: unit
 //
 // What ITM-218 builds, and these tests state:
-// - declarationSchema reads a declaration: its front matter `model`, `model_file`, `model_version`, `sprint_close`; its
-//   `## Roles` (Role, Participants), `## Practices`, `## Branches` (Phase or time box, Branch), `## Definition of Done`, and
-//   the optional `## Gates added by requirements` (Requirement, Between, Artifacts, Condition, Decider). The module reads the
+// - declarationSchema reads a declaration: its front matter `model`, `model_file`, `model_version`; its `## Practices`,
+//   `## Branches` (Phase or time box, Branch), `## Definition of Done`, and the optional `## Gates added by requirements`
+//   (Requirement, Between, Artifacts, Condition, Decider). It names roles and never a participant: the product's role
+//   assignments fill the roles (tests/product-process-role-assignments.test.mjs). The module reads the
 //   schema from its own declaration.schema.md once, when it is loaded: from the disk in Node, from its own address in a
 //   browser.
-// - declarationFindings(declaration, catalogue, participants, sources, instanceSpec) names, each as an error, against the
+// - declarationFindings(declaration, catalogue, participants, instanceSpec) names, each as an error, against the
 //   Catalogue at the commit the declaration's model_version names: a model that catalogue does not hold at model_file, or
-//   whose findings in it hold an error; a role that needs a person and has none; a practice the catalogue does not hold, or
+//   whose findings in it hold an error; a participant of the instance's list named in the declaration; a practice the catalogue does not hold, or
 //   whose `fits` does not name the model; a branch for a phase the model lacks; a gate under `## Gates added by
 //   requirements` whose requirement the instance's SPEC does not hold.
 // - workflowOf(declaration, model, practices, instanceSpec) gives the model's phases, transitions, verification pairs and
 //   gates and the gates the process requirements add, each with its requirement and the source that requirement names in
-//   the instance's SPEC, and nothing else; the roles with their holders, the branches, and the job rules as the Definition
+//   the instance's SPEC, and nothing else; the roles with how many fill each, the branches, and the job rules as the Definition
 //   of Done, with the conditions the declaration adds after them.
 //
-// Not tested here, since ITM-218 leaves them out: holdsRole, gateSchema, gateStates, mayDecide, recordGateDecision,
-// doneCheck and processStrategies; a holder lacking a capability its role needs, and the warning about a holder at a place a
-// linked source does not permit — both go through MOD-participant-list's eligible. Explicit practice tables are covered;
-// shipped practices whose Adds are prose still contribute no workflow data.
+// Not tested here: roleAssignmentSchema's documents, roleAssignmentFindings, holdsRole and mayDecide
+// (tests/product-process-role-assignments.test.mjs; a holder's capabilities and place,
+// tests/product-process-eligibility.test.mjs); gateSchema, gateStates, recordGateDecision, doneCheck and processStrategies,
+// which are not built yet. Explicit practice tables are covered; shipped practices whose Adds are prose still contribute no
+// workflow data.
 //
 // The fixture product declares an instance model, docs/process-models/team-scrum.md — Scrum adapted so that its Product
 // Owner must be a person —, at the commit VERSION. Its Catalogue is the one MOD-model-catalogue's catalogue gives over the
@@ -45,10 +47,11 @@ import { readFileSync } from "node:fs";
 import { documentFindings, readDocument } from "../src/documents/index.mjs";
 import { catalogue, modelSchema } from "../src/model-catalogue/index.mjs";
 import { participantSchema } from "../src/participant-list/index.mjs";
-import { declarationFindings, declarationSchema, workflowOf } from "../src/product-process/index.mjs";
+import { declarationFindings, declarationSchema, roleAssignmentSchema, workflowOf } from "../src/product-process/index.mjs";
 
 const MODULE = new URL("../src/product-process/index.mjs", import.meta.url);
 const SCHEMA_FILE = new URL("../src/product-process/declaration.schema.md", import.meta.url);
+const ASSIGNMENT_SCHEMA_FILE = new URL("../src/product-process/role-assignment.schema.md", import.meta.url);
 const AGENT_M_DECLARATION = new URL("../docs/process.md", import.meta.url);
 const DECLARATION_PATH = "docs/process.md";
 
@@ -58,6 +61,7 @@ const PEOPLE_AND_AGENTS = "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS";
 const PRACTICE = "A PRACTICE IS NOT A MODEL";
 const BRANCH = "A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN";
 const ADDS = "A PROCESS REQUIREMENT ADDS TO THE MODEL";
+const NAMES_ROLES = "THE PROCESS NAMES ROLES, NOT PARTICIPANTS";
 
 // The job rules, as the module file's Data states them: every Definition of Done holds them
 // (THE DEFAULT DEFINITION OF DONE IS THE JOB RULES).
@@ -221,19 +225,19 @@ const DECLARATION = [
   "model: team-scrum",                                                                                            // 2
   `model_file: ${MODEL_PATH}`,                                                                                    // 3
   `model_version: ${VERSION}`,                                                                                    // 4
-  "sprint_close: alice",                                                                                          // 5
-  "---",                                                                                                          // 6
+  "---",                                                                                                          // 5
+  "",                                                                                                             // 6
   "# How the fixture product is developed",                                                                      // 7
   "",                                                                                                             // 8
   "The fixture product's process, as its Author declared it.",                                                   // 9
   "",                                                                                                             // 10
   "## Roles",                                                                                                     // 11
   "",                                                                                                             // 12
-  "| Role | Participants |",                                                                                      // 13
-  "|---|---|",                                                                                                    // 14
-  "| Product Owner | alice |",                                                                                    // 15
-  "| Scrum Master | dev-b |",                                                                                     // 16
-  "| Developers | dev-a, dev-b |",                                                                                // 17
+  "- Product Owner",                                                                                              // 13
+  "- Scrum Master",                                                                                               // 14
+  "- Developers",                                                                                                 // 15
+  "",                                                                                                             // 16
+  "The product's role assignments under docs/role-assignments/ fill them.",                                      // 17
   "",                                                                                                             // 18
   "## Practices",                                                                                                 // 19
   "",                                                                                                             // 20
@@ -271,19 +275,20 @@ const declarationOf = (text) => readDocument(declarationSchema, DECLARATION_PATH
 // declarationFindings of a declaration's text against a catalogue, with the fixture participants, no linked source and the
 // instance's SPEC; every finding names the declaration's path, since the declaration has no identifier.
 function findingsOf(text, cat) {
-  const found = declarationFindings(declarationOf(text), cat, PARTICIPANTS, [], INSTANCE_SPEC);
+  const found = declarationFindings(declarationOf(text), cat, PARTICIPANTS, INSTANCE_SPEC);
   for (const f of found) assert.equal(f.artifact, DECLARATION_PATH, "a finding names the declaration's path");
   return found;
 }
 const brief = (found) => found.map((f) => [f.line, f.kind, f.rule]);
 
-// ---------------------------------------------------------------- declarationSchema: where the schema is read from
+// ---------------------------------------------------------------- declarationSchema: where the schemas are read from
 //
-// The module reads its own declaration.schema.md once, when it is loaded: from the disk where the platform offers
+// The module reads its own declaration.schema.md and role-assignment.schema.md once each, in that order, when it is
+// loaded: from the disk where the platform offers
 // `process.getBuiltinModule("node:fs")`, as Node does, and from its own address with `fetch` where it does not, as in a
 // browser. Each case sets these two for one load of the module, loads it anew from its own address with a query of its own,
 // `index.mjs?load=<n>`, and puts both back — as tests/participant-list.test.mjs loads MOD-participant-list. The real
-// declaration.schema.md is read, never changed.
+// schema files are read, never changed.
 
 // One load of the module, anew: `disk` is what process.getBuiltinModule("node:fs") gives it — undefined, as in a browser —,
 // `fetch` the browser's fetch. -> { module, error, reads } — the module's namespace, or the error its load failed with; and
@@ -310,23 +315,25 @@ const realDisk = (reads) => ({
   readFileSync: (url, encoding) => { reads.push(`disk ${url}`); return readFileSync(url, encoding); },
 });
 
-// guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT
+// guards: UC-002; UC-048; THE PROCESS MODEL IS DECLARED PER PRODUCT; A ROLE ASSIGNMENT FILLS THE ROLES
 // given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser,
-//        without a disk, whose fetch answers the module's own address with the text of the real declaration.schema.md;
+//        without a disk, whose fetch answers each of the module's own addresses with the text of the real file there;
 //        (c) as in a browser whose fetch answers 404 Not Found
-// input: (a), (b): declarationSchema, and the fixture product's declaration read with it
-// expect: (a) one read, of src/product-process/declaration.schema.md from the disk; (b) one read, of the same address with
-//         fetch; each gives a schema deep-equal to the one of the module as this file loaded it, which reads the
-//         declaration's model, team-scrum. (c) one read, of the same address; the module does not load — a schema that
-//         cannot be read stops its module (MOD-documents, loadSchema) — and the error names declaration.schema.md and 404
-test("declarationSchema — the declaration's schema is read from the module's own declaration.schema.md: from the disk in Node, from its own address in a browser", async () => {
-  const text = readFileSync(SCHEMA_FILE, "utf8");
+// input: (a), (b): declarationSchema and roleAssignmentSchema, and the fixture product's declaration read with the first
+// expect: (a) two reads, of src/product-process/declaration.schema.md and then of role-assignment.schema.md, from the
+//         disk; (b) two reads, of the same addresses with fetch; each gives schemas deep-equal to those of the module as
+//         this file loaded it, the first of which reads the declaration's model, team-scrum. (c) one read, of the
+//         declaration's schema; the module does not load — a schema that cannot be read stops its module (MOD-documents,
+//         loadSchema) — and the error names declaration.schema.md and 404
+test("declarationSchema — the module's schemas are read from its own declaration.schema.md and role-assignment.schema.md: from the disk in Node, from its own address in a browser", async () => {
   const onDisk = await load({ disk: realDisk });
-  const atAddress = await load({ disk: undefined, fetch: async () => new Response(text, { status: 200 }) });
+  const atAddress = await load({ disk: undefined,
+    fetch: async (url) => new Response(readFileSync(new URL(url), "utf8"), { status: 200 }) });
   for (const [where, loaded, read] of [["disk", onDisk, "disk"], ["address", atAddress, "fetch"]]) {
     assert.equal(loaded.error, null, `${where}: the module loads: ${loaded.error?.message}`);
-    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`], where);
+    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`, `${read} ${ASSIGNMENT_SCHEMA_FILE.href}`], where);
     assert.deepEqual(loaded.module.declarationSchema, declarationSchema, where);
+    assert.deepEqual(loaded.module.roleAssignmentSchema, roleAssignmentSchema, where);
     assert.equal(readDocument(loaded.module.declarationSchema, DECLARATION_PATH, DECLARATION).fields.model, "team-scrum", where);
   }
   const notServed = await load({ disk: undefined, fetch: async () => new Response("Not Found", { status: 404 }) });
@@ -347,22 +354,16 @@ const rowsUnder = (document, heading) =>
 // given: the fixture product's declaration DECLARATION
 // input: readDocument(declarationSchema, "docs/process.md", DECLARATION); documentFindings(declarationSchema, it)
 // expect: its front matter as written: model team-scrum, model_file docs/process-models/team-scrum.md, model_version VERSION,
-//         sprint_close alice; its sections in order — ## Roles, ## Practices, ## Branches, ## Definition of Done, ## Gates
-//         added by requirements —; the rows of ## Roles, each role with its participants as a list: Product Owner [alice]
-//         (line 15), Scrum Master [dev-b] (line 16), Developers [dev-a, dev-b] (line 17); of ## Branches: Sprint →
+//         and no other key; its sections in order — ## Roles, which names the roles as free text, ## Practices, ## Branches,
+//         ## Definition of Done, ## Gates added by requirements —; the rows of ## Branches: Sprint →
 //         sprint/<nn> (line 27), Development → develop (line 28); of ## Gates added by requirements, on line 38: UNIT
 //         VERIFICATION IS DOCUMENTED, between Development → Sprint Review, its artifacts, condition and decider Product
 //         Owner. And no finding of the schema
-test("declarationSchema — a product's declaration read by its schema: front matter, roles with their participants, branches and the gates requirements add", () => {
+test("declarationSchema — a product's declaration read by its schema: front matter, branches and the gates requirements add; its roles are named, never filled", () => {
   const document = declarationOf(DECLARATION);
-  assert.deepEqual(document.fields, { model: "team-scrum", model_file: MODEL_PATH, model_version: VERSION, sprint_close: "alice" });
+  assert.deepEqual(document.fields, { model: "team-scrum", model_file: MODEL_PATH, model_version: VERSION });
   assert.deepEqual(document.sections.map((section) => section.heading),
     ["## Roles", "## Practices", "## Branches", "## Definition of Done", "## Gates added by requirements"]);
-  assert.deepEqual(rowsUnder(document, "## Roles"), [
-    [15, { Role: "Product Owner", Participants: ["alice"] }],
-    [16, { Role: "Scrum Master", Participants: ["dev-b"] }],
-    [17, { Role: "Developers", Participants: ["dev-a", "dev-b"] }],
-  ]);
   assert.deepEqual(rowsUnder(document, "## Branches"), [
     [27, { "Phase or time box": "Sprint", Branch: "sprint/<nn>" }],
     [28, { "Phase or time box": "Development", Branch: "develop" }],
@@ -381,25 +382,19 @@ test("declarationSchema — a product's declaration read by its schema: front ma
 // input: readDocument(declarationSchema, "docs/process.md", the text); documentFindings(declarationSchema, it)
 // expect: for the declaration without its model version, one error, on line 1 — a key that is missing stands on no line —,
 //         naming THE PROCESS MODEL IS DECLARED PER PRODUCT. For this instance's declaration, no finding; its front matter as
-//         it writes it — model scrum-wip, model_file docs/process-models/scrum-wip.md, model_version
-//         ef33e2f501289930960f13b55936e9b557003993, sprint_close scrum-master-session —; its roles each with its
-//         participants: Product Owner [po-opus], Scrum Master [scrum-master-session], Developers [developer-sonnet-a to -e];
-//         and its one branch, for Sprint, as it writes it: `sprint/<nn>`, in backticks
+//         it writes it — model scrum-wip, model_file docs/process-models/scrum-wip.md and a model_version of 40 hexadecimal
+//         digits, and no other key —; and its one branch, for Sprint, as it writes it: `sprint/<team>/<nn>`, in backticks
 test("declarationSchema — a declaration without its model's version is named; this instance's own docs/process.md is read without a finding", () => {
   const unversioned = declarationOf(removed(DECLARATION, 4, `model_version: ${VERSION}`));
   assert.deepEqual(documentFindings(declarationSchema, unversioned).map((f) => [f.line, f.kind, f.rule]), [[1, "error", DECLARED]]);
 
   const agentM = declarationOf(readFileSync(AGENT_M_DECLARATION, "utf8"));
   assert.deepEqual(documentFindings(declarationSchema, agentM), []);
-  assert.deepEqual(agentM.fields, { model: "scrum-wip", model_file: "docs/process-models/scrum-wip.md",
-    model_version: "ef33e2f501289930960f13b55936e9b557003993", sprint_close: "scrum-master-session" });
-  assert.deepEqual(rowsUnder(agentM, "## Roles").map(([, cells]) => [cells.Role, cells.Participants]), [
-    ["Product Owner", ["po-opus"]],
-    ["Scrum Master", ["scrum-master-session"]],
-    ["Developers", ["developer-sonnet-a", "developer-sonnet-b", "developer-sonnet-c", "developer-sonnet-d",
-      "developer-sonnet-e"]],
-  ]);
-  assert.deepEqual(rowsUnder(agentM, "## Branches").map(([, cells]) => cells), [{ "Phase or time box": "Sprint", Branch: "`sprint/<nn>`" }]);
+  assert.deepEqual(Object.keys(agentM.fields), ["model", "model_file", "model_version"]);
+  assert.deepEqual([agentM.fields.model, agentM.fields.model_file], ["scrum-wip", "docs/process-models/scrum-wip.md"]);
+  assert.match(agentM.fields.model_version, /^[0-9a-f]{40}$/);
+  assert.deepEqual(rowsUnder(agentM, "## Branches").map(([, cells]) => cells),
+    [{ "Phase or time box": "Sprint", Branch: "`sprint/<team>/<nn>`" }]);
 });
 
 // ---------------------------------------------------------------- declarationFindings
@@ -411,7 +406,7 @@ test("declarationSchema — a declaration without its model's version is named; 
 //        its instance's SPEC, which holds UNIT VERIFICATION IS DOCUMENTED. The Product Owner, whom team-scrum fills by a
 //        person, is alice; it declares no practice; it sets a branch for its sprint — team-scrum works in sprints — and one
 //        for the phase Development
-// input: declarationFindings(declaration, that catalogue, the participants, [], the instance's SPEC)
+// input: declarationFindings(declaration, that catalogue, the participants, the instance's SPEC)
 // expect: no finding — the known positive of every test below, each of which changes one line and finds one
 test("declarationFindings — the fixture product's declaration, against the catalogue at the commit it names, has no finding", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
@@ -422,7 +417,7 @@ test("declarationFindings — the fixture product's declaration, against the cat
 // guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT
 // given: the fixture product's declaration, which names the model at docs/process-models/team-scrum.md at VERSION; the
 //        Catalogue at VERSION, whose instance does not hold that file yet: the named version lacks it
-// input: declarationFindings(declaration, that catalogue, the participants, [], the instance's SPEC)
+// input: declarationFindings(declaration, that catalogue, the participants, the instance's SPEC)
 // expect: one error, on the line of model_file (line 3), naming THE PROCESS MODEL IS DECLARED PER PRODUCT; its text names the
 //         file and the commit
 test("declarationFindings — a model that the catalogue at the declared commit does not hold at model_file is an error", async () => {
@@ -434,7 +429,7 @@ test("declarationFindings — a model that the catalogue at the declared commit 
 // guards: UC-002; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; THE PROCESS MODEL IS DECLARED PER PRODUCT
 // given: the fixture product's declaration; the Catalogue at VERSION, whose instance holds team-scrum as it stood then: its
 //        role Scrum Master without capabilities (line 47) — an error finding of the model in that catalogue
-// input: declarationFindings(declaration, that catalogue, the participants, [], the instance's SPEC)
+// input: declarationFindings(declaration, that catalogue, the participants, the instance's SPEC)
 // expect: one error, on the line of model_file (line 3), naming A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; its text
 //         names the model's file
 test("declarationFindings — a model whose findings in the catalogue at the declared commit hold an error is an error", async () => {
@@ -446,17 +441,23 @@ test("declarationFindings — a model whose findings in the catalogue at the dec
   assert.ok(found[0].what.includes(MODEL_PATH), found[0].what);
 });
 
-// guards: UC-002; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
-// given: the fixture product's declaration with its Product Owner, whom team-scrum fills by a person (line 15), held (a) by
-//        dev-a, a CLI agent, alone, and (b) by no participant
+// guards: UC-002; THE PROCESS NAMES ROLES, NOT PARTICIPANTS
+// given: known positive first — the fixture product's declaration, which names roles only; then the same declaration
+//        naming alice, a participant of the instance's list, (a) in its text (line 9) and (b) as a branch (line 28)
 // input: declarationFindings of each, against the Catalogue at VERSION
-// expect: for each, one error, on line 15, naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; its text names the role
-test("declarationFindings — a role that needs a person and has none is an error", async () => {
+// expect: no finding for the first; for each other, one error on the line that names the participant, naming THE
+//         PROCESS NAMES ROLES, NOT PARTICIPANTS; its text names alice
+test("declarationFindings — a declaration that names a participant is an error", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
-  for (const row of ["| Product Owner | dev-a |", "| Product Owner | — |"]) {
-    const found = findingsOf(replaced(DECLARATION, 15, "| Product Owner | alice |", row), cat);
-    assert.deepEqual(brief(found), [[15, "error", PEOPLE_AND_AGENTS]], row);
-    assert.ok(found[0].what.includes("Product Owner"), found[0].what);
+  assert.deepEqual(brief(findingsOf(DECLARATION, cat)), []);
+  const cases = [
+    [9, "The fixture product's process, as its Author declared it.", "The fixture product's process, as alice declared it."],
+    [28, "| Development | develop |", "| Development | alice |"],
+  ];
+  for (const [line, before, after] of cases) {
+    const found = findingsOf(replaced(DECLARATION, line, before, after), cat);
+    assert.deepEqual(brief(found), [[line, "error", NAMES_ROLES]], after);
+    assert.ok(found[0].what.includes("alice"), found[0].what);
   }
 });
 
@@ -529,8 +530,7 @@ test("declarationFindings — a gate whose requirement the instance's SPEC does 
 // The workflow of the fixture product, as the module file's Workflow states it: the model it was given; the practices the
 // declaration names; the model's phases, transitions and verification pairs; the model's gates, each named `<phase> →
 // <phase>`, then the gate the requirement adds, named by the requirement, with the source the instance's SPEC names for it;
-// the model's roles, each with who may fill it, how many fill it, its capabilities and its holders from ## Roles; the
-// branches of ## Branches;
+// the model's roles, each with who may fill it, how many fill it and its capabilities; the branches of ## Branches;
 // and the job rules as the Definition of Done.
 function expectedWorkflow(model) {
   return {
@@ -563,10 +563,10 @@ function expectedWorkflow(model) {
     ],
     roles: [
       { name: "Product Owner", filledBy: "person", howMany: "one", capabilities: ["read the repository",
-        "write to the repository"], holders: ["alice"] },
-      { name: "Scrum Master", filledBy: "either", howMany: "one", capabilities: ["read the repository"], holders: ["dev-b"] },
+        "write to the repository"] },
+      { name: "Scrum Master", filledBy: "either", howMany: "one", capabilities: ["read the repository"] },
       { name: "Developers", filledBy: "agent", howMany: "several", capabilities: ["read the repository",
-        "write to the repository", "run code and tests"], holders: ["dev-a", "dev-b"] },
+        "write to the repository", "run code and tests"] },
     ],
     branches: { Sprint: "sprint/<nn>", Development: "develop" },
     done: JOB_RULES,
@@ -587,7 +587,7 @@ async function teamScrum() {
 // expect: exactly expectedWorkflow(team-scrum): the model's four phases, four transitions, one verification pair and two
 //         gates, each named `<phase> → <phase>`, with no requirement and no practice; then the gate UNIT VERIFICATION IS
 //         DOCUMENTED adds, between Development and Sprint Review, named by its requirement and marked with it and its
-//         source in the instance's SPEC, `SRC-iec-62304, 5.5.5`; the model's three roles with their holders; the branches
+//         source in the instance's SPEC, `SRC-iec-62304, 5.5.5`; the model's three roles with how many fill each; the branches
 //         Sprint → sprint/<nn> and Development → develop; the five job rules as the Definition of Done — and nothing else.
 //         Without a row under ## Branches, the same workflow with no branch: work merges into the default branch
 test("workflowOf — the model's phases, transitions, pairs and gates, and the gates the process requirements add, each with its requirement and source", async () => {
@@ -668,7 +668,7 @@ Fixture practice.
 
   assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", roles: ["Evidence keeper"], produces: ["TST"] });
   assert.deepEqual(workflow.roles.at(-1), {
-    name: "Evidence keeper", filledBy: "either", howMany: "several", capabilities: ["read the repository"], holders: [],
+    name: "Evidence keeper", filledBy: "either", howMany: "several", capabilities: ["read the repository"],
   });
   assert.deepEqual(workflow.gates.at(-1), {
     name: "Development → Evidence review", from: "Development", to: "Evidence review", artifacts: "evidence TST",
@@ -794,7 +794,7 @@ Fixture practice.
   assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", roles: ["Evidence keeper"], produces: ["TST"] });
   assert.equal(workflow.phases.length, model.phases.length + 1, "only the phase table adds a phase");
   assert.deepEqual(workflow.roles.at(-1), {
-    name: "Evidence keeper", filledBy: "either", howMany: "several", capabilities: ["read the repository"], holders: [],
+    name: "Evidence keeper", filledBy: "either", howMany: "several", capabilities: ["read the repository"],
   });
   assert.equal(workflow.roles.length, model.roles.length + 1, "only the role table adds a role");
 });

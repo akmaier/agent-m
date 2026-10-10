@@ -1,16 +1,17 @@
 // The route `process` — How this product is developed (MOD-implementation-pages, docs/architecture/
 // MOD-implementation-pages.md; Interfaces: view, route process; UC-002). It shows the five catalogue models in their two
-// groups, each with what its `about` holds (step 2); the declared model's roles, each with the participants that hold
-// every capability it needs and where they process data — only those offered, through MOD-participant-list's `eligible`
-// —, a role no participant can hold named by its missing capability (4b); phases, transitions, verification pairs, gates
-// and branches; the available practices; what the product's process requirements add, or that it has none (7a); the
-// Definition of Done; all beside a form from the declaration's schema (`MOD-product-process.declarationSchema`), with
-// each finding of `declarationFindings` beside its field — among them a holder at a place a linked source does not
-// permit (4c), the linked sources read with `MOD-source-register.sourceSchemas` —; and *Save*, offered only without an
-// error, which writes the product's `docs/process.md` with `saveFile` as the person's own commit, naming the declared
-// model's version by the commit of the instance its catalogue was read at. When the author selects another model than
-// the declared one, the kinds of artifact the declared model's phases produce and the selected one's do not are listed,
-// none of them deleted (3b).
+// groups, each with what its `about` holds (step 2); the declared model's roles, each with who may hold it, whether one
+// participant fills it or several may, the capabilities it needs (step 4), and the participants that hold every one of
+// them and where they process data — only those offered, through MOD-participant-list's `eligible` —, a role no
+// participant can hold named by its missing capability; phases, each with the roles that work in it, transitions,
+// verification pairs, gates and branches; the available practices; what the product's process requirements add, or that
+// it has none (7a); the Definition of Done; all beside a form from the declaration's schema
+// (`MOD-product-process.declarationSchema`), with each finding of `declarationFindings` beside its field — among them a
+// participant the declaration names, which names roles only —; and *Save*, offered only without an error, which writes
+// the product's `docs/process.md` with `saveFile` as the person's own commit, naming the declared model's version by the
+// commit of the instance its catalogue was read at. Who fills the roles is the product's role assignment's (UC-048), not
+// this route's. When the author selects another model than the declared one, the kinds of artifact the declared model's
+// phases produce and the selected one's do not are listed, none of them deleted (3b).
 //
 // Two gaps ITM-221 left in `schemaForm` are closed here, at the caller: it hands over a document whose edited section
 // keeps the rows it was read with, not those of the text just typed — so, before `declarationFindings` judges the
@@ -35,13 +36,11 @@ import { explain, schemaForm } from "../site-frame/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
-import { sourceSchemas } from "../source-register/index.mjs";
 import { declarationSchema, declarationFindings, workflowOf } from "../product-process/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 
 const DECLARATION_PATH = "docs/process.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
-const SOURCES_PATH = "docs/sources.md";
 const SPEC_PATH = "SPEC.md";
 
 // F1 (UC-002 step 1): whether this module has already rendered the process-vs-rules table once before. A plain
@@ -113,9 +112,9 @@ export const route = {
     const [productSnapshot, instanceSnapshot] = await Promise.all([
       product.host.readSnapshot(productInfo.defaultBranch), instance.host.readSnapshot(instanceInfo.defaultBranch)]);
 
-    const [declarationText, participantsText, sourcesText, instanceSpecText, cat] = await Promise.all([
-      productSnapshot.read(DECLARATION_PATH), instanceSnapshot.read(PARTICIPANTS_PATH),
-      productSnapshot.read(SOURCES_PATH), instanceSnapshot.read(SPEC_PATH), catalogue(instanceSnapshot)]);
+    const [declarationText, participantsText, instanceSpecText, cat] = await Promise.all([
+      productSnapshot.read(DECLARATION_PATH), instanceSnapshot.read(PARTICIPANTS_PATH), instanceSnapshot.read(SPEC_PATH),
+      catalogue(instanceSnapshot)]);
 
     const openedDeclaration = declarationText != null ? readDocument(declarationSchema, DECLARATION_PATH, declarationText) : null;
     let openedBlob = declarationText != null ? productSnapshot.blob(DECLARATION_PATH) : null;
@@ -126,15 +125,6 @@ export const route = {
 
     const participants = readDocument(participantSchema(), PARTICIPANTS_PATH, participantsText ?? "");
     const allParticipants = participantsOf(participants);
-
-    const { entry: sourceEntrySchema, links: linksSchema } = sourceSchemas();
-    const linksDocument = sourcesText != null ? readDocument(linksSchema, SOURCES_PATH, sourcesText) : null;
-    const linkedRows = linksDocument?.sections[0]?.rows ?? [];
-    const sourceDocuments = (await Promise.all(linkedRows.map(async ({ cells }) => {
-      const path = `docs/sources/${cells.Source}.md`;
-      const text = await instanceSnapshot.read(path);
-      return text != null ? readDocument(sourceEntrySchema, path, text) : null;
-    }))).filter((entry) => entry !== null);
 
     const instanceSpec = instanceSpecText ?? "";
     const declaredModel = openedDeclaration ? modelAt(cat.models, String(openedDeclaration.fields.model_file ?? "")) : null;
@@ -201,7 +191,7 @@ export const route = {
             activeModel = modelAt(cat.models, String(workflowDeclaration.fields.model_file ?? "")) ?? activeModel;
             renderPanels(activeModel);
           }
-          return declarationFindings(workflowDeclaration, cat, participants, sourceDocuments, instanceSpec);
+          return declarationFindings(workflowDeclaration, cat, participants, instanceSpec);
         } catch {
           return [];
         }
@@ -245,7 +235,8 @@ export const route = {
     panelsReady = true;
     renderPanels(declaredModel);
 
-    // The panels beside the form that follow the live declaration's selected model and practices: the roles' eligible participants (step 4, 4b),
+    // The panels beside the form that follow the live declaration's selected model and practices: the roles, each with how
+    // many fill it and its eligible participants (step 4),
     // phases/transitions/pairs/gates and branches (step 5), the available practices (step 6), what the process
     // requirements add or that there are none (step 7, 7a), and the Definition of Done's preset rules (step 8).
     function renderPanels(model) {
@@ -305,11 +296,12 @@ export const route = {
       extra.append(donePanel);
     }
 
-    // A role's capabilities and who may hold it, and the participants `eligible` offers for it — each with its place
-    // (step 4) —, or, where none is eligible, the capabilities no participant has at all (4b), with a link to the
-    // instance's participants.
+    // A role, who may hold it, whether one participant fills it or several may, and its capabilities (step 4); the
+    // participants `eligible` offers for it — each with its place —, or, where none is eligible, the capabilities no
+    // participant has at all, with a link to the instance's participants.
     function roleInfo(role) {
       const block = el("div", "role-info", el("strong", null, `${role.name} (${role.filledBy})`),
+        el("p", "how-many", role.howMany === "one" ? "one participant fills it" : "several participants may fill it"),
         el("p", null, `needs: ${role.capabilities.join(", ")}`));
       block.setAttribute("data-role", role.name);
       const { eligible: offered } = eligible(allParticipants, { capabilities: role.capabilities });

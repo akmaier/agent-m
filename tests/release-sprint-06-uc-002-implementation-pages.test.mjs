@@ -446,14 +446,13 @@ const LINKS = `# The fixture product's linked sources
 // A product whose implementation starts: no declaration yet.
 const NEW_PRODUCT = { "README.md": "# The fixture product\n" };
 
-// A product's declaration docs/process.md (src/product-process/declaration.schema.md): roles as [role, holders],
+// A product's declaration docs/process.md (src/product-process/declaration.schema.md), which names no participant:
 // branches as [phase or time box, branch], added gates as [requirement, between, artifacts, condition, decider].
-function declaration({ model, file, roles = [], practices = ["none"], branches = [],
+function declaration({ model, file, practices = ["none"], branches = [],
   done = "The job rules hold; no condition is added.", added = [] }) {
   const table = (head, rows) => [`| ${head.join(" | ")} |`, `|${head.map(() => "---|").join("")}`,
     ...rows.map((row) => `| ${row.join(" | ")} |`)].join("\n");
   return [`---\nmodel: ${model}\nmodel_file: ${file}\nmodel_version: ${HEAD}\n---\n# How the fixture product is developed`,
-    `## Roles\n\n${table(["Role", "Participants"], roles)}`,
     `## Practices\n\n${practices.map((practice) => `- ${practice}`).join("\n")}`,
     `## Branches\n\n${table(["Phase or time box", "Branch"], branches)}`,
     `## Definition of Done\n\n${done}`,
@@ -526,9 +525,6 @@ const shownEntries = (target) => elements(target, (e) => ["li", "tr", "p"].inclu
 // Whether the phase `name` is shown in an entry of its own — one that names it and no other of the model's `phases` —, not
 // merely as an end of a gate.
 const phaseShown = (shown, name, phases) => shown.some((entry) => entry.includes(name) && phases.every((other) => other === name || !entry.includes(other)));
-// What the page says about the declaration — its findings beside the fields and its marks beside a section's lines.
-const messages = (target) => elements(target, (e) => e.localName === "li"
-  && within(e, target, (a) => hasClass(a, "findings") || hasClass(a, "marks"))).map(textOf).filter(Boolean);
 
 // The table that keeps the process model and the rules to be met apart (UC-002, before its main flow).
 const rulesTable = (target) => byTag(target, "table").find((table) => /process model/i.test(textOf(byTag(table, "thead")[0] ?? table))
@@ -601,9 +597,6 @@ function doneConditions(target) {
   return elements(heading.parentNode, (e) => e.localName === "li" && !within(e, heading.parentNode, (a) => a.localName === "details")).map(textOf);
 }
 
-// The declaration's sections as the author types them, below their headings.
-const ROLES_OF = (rows) => `\n| Role | Participants |\n|---|---|\n${rows.map(([role, holders]) => `| ${role} | ${holders} |`).join("\n")}\n`;
-
 // ---------------------------------------------------------------- 5. Process models and practices
 
 // Guards: THE PROCESS MODEL IS DECLARED PER PRODUCT
@@ -618,7 +611,6 @@ test("THE PROCESS MODEL IS DECLARED PER PRODUCT: no model is assumed; the produc
   assert.equal(saveOf(target).disabled, true, "nothing can be saved before a model is chosen");
 
   await choose(target, "kanban");
-  await typeSection(target, "## Roles", ROLES_OF([["Product owner", "alice"]]));
   await typeSection(target, "## Practices", "\n- none\n");
   await typeSection(target, "## Branches", "\n| Phase or time box | Branch |\n|---|---|\n");
   await typeSection(target, "## Definition of Done", "\nThe job rules hold; no condition is added.\n");
@@ -683,12 +675,12 @@ test("THE CATALOGUE IS DATA: a process model added as a data file is offered and
 
 // Guards: THE MODEL DETERMINES THE PHASES AND THE GATES
 // given: a product declaring lab-flow — four phases; its gates between Outline and Assemble and between Probe and
-//        Handover —, Steward held by alice
+//        Handover —, its roles named, and no participant
 // input: routes.process(app)
 // expect: the workflow shown is lab-flow's: its four phases, and each of its gates where it sits
 test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the model's phases, and its gates where they sit", async (t) => {
   const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW },
-    product: { "docs/process.md": labFlowDeclaration({ roles: [["Steward", "alice"]] }) } });
+    product: { "docs/process.md": labFlowDeclaration({}) } });
 
   const shown = shownEntries(target);
   const phases = rowsOf(LAB_FLOW, "## Phases").map(({ Name }) => Name);
@@ -707,7 +699,7 @@ test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the mode
 // expect: the workflow shows the transitions between the phases and which phases pair for verification
 test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the model's transitions and its verification pairs", async (t) => {
   const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW },
-    product: { "docs/process.md": labFlowDeclaration({ roles: [["Steward", "alice"]] }) } });
+    product: { "docs/process.md": labFlowDeclaration({}) } });
 
   const shown = shownEntries(target);
   for (const { From, To } of rowsOf(LAB_FLOW, "## Transitions")) {
@@ -725,7 +717,7 @@ test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the mode
 // expect: each gate is shown with the artifacts that must exist and the condition that must hold
 test("A GATE NAMES WHAT IT CHECKS: each gate is shown with its artifacts and its condition", async (t) => {
   const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW },
-    product: { "docs/process.md": labFlowDeclaration({ roles: [["Steward", "alice"]] }) } });
+    product: { "docs/process.md": labFlowDeclaration({}) } });
 
   const shown = shownEntries(target);
   for (const gate of rowsOf(LAB_FLOW, "## Gates")) {
@@ -745,7 +737,6 @@ test("A PRACTICE IS NOT A MODEL: no practice is offered instead of a model; one 
   for (const practice of PRACTICES) assert.ok(!modelsOffered(target).includes(practice), `${practice} is not offered as a model`);
 
   await choose(target, "scrum");
-  await typeSection(target, "## Roles", ROLES_OF([["Product Owner", "alice"]]));
   await typeSection(target, "## Practices", "\n- devops\n");
   await typeSection(target, "## Branches", "\n| Phase or time box | Branch |\n|---|---|\n");
   await typeSection(target, "## Definition of Done", "\nThe job rules hold; no condition is added.\n");
@@ -764,7 +755,7 @@ test("A PRACTICE IS NOT A MODEL: no practice is offered instead of a model; one 
 // expect: the workflow holds Kanban's own phases and its own gate, as kanban.md states them, and in addition the
 //         requirement's gate with its artifact; the model is still Kanban
 test("A PROCESS REQUIREMENT ADDS TO THE MODEL: the requirement's gate is added, the model's own phases and gate stay", async (t) => {
-  const { target } = await openPage(t, { product: { "docs/process.md": kanbanDeclaration({ roles: [["Product owner", "alice"]],
+  const { target } = await openPage(t, { product: { "docs/process.md": kanbanDeclaration({
     added: [[REQUIREMENT, "Review → Done", "the verification record of the item", "the verification is documented", "Reviewer"]] }) } });
 
   const kanban = catalogueFile("models/kanban.md");
@@ -780,18 +771,17 @@ test("A PROCESS REQUIREMENT ADDS TO THE MODEL: the requirement's gate is added, 
 
 // Guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: a product declaring Scrum, its default branch main; the author's own token
-// input: the author names who closes a sprint — alice — and presses Save
+// input: the author adds the condition "review: 1 by participants other than the implementer" to the Definition of Done
+//        and presses Save
 // expect: the declaration is committed straight onto the product's default branch, main — no other branch is made, no
 //         pull request opened —, each request that writes carrying the author's own token
 test("A PERSON'S OWN INPUT IS COMMITTED DIRECTLY: Save commits onto the product's default branch, under the author's own token", async (t) => {
-  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles: [["Product Owner", "alice"]] }) } });
-  const sprintClose = byTag(byData(page.target, "data-key", "sprint_close")[0], "input")[0];
-  sprintClose.value = "alice";
-  sprintClose.dispatchEvent(new Event("input"));
-  await turn();
+  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
+  await typeSection(page.target, "## Definition of Done", "\nreview: 1 by participants other than the implementer\n");
   await pressSave(page);
 
-  assert.match(page.product.files["docs/process.md"], /^sprint_close: alice$/m, "the default branch holds the author's input");
+  assert.match(page.product.files["docs/process.md"], /^review: 1 by participants other than the implementer$/m,
+    "the default branch holds the author's input");
   assert.ok(page.sent.some((request) => request.method === "PATCH" && request.path === `/repos/${PRODUCT}/git/refs/heads/main`), "the default branch moves on");
   assert.ok(!page.sent.some((request) => /\/pulls\b/.test(request.path) || (request.method === "POST" && /\/git\/refs$/.test(request.path))),
     "no branch is made and no pull request opened");
@@ -799,20 +789,17 @@ test("A PERSON'S OWN INPUT IS COMMITTED DIRECTLY: Save commits onto the product'
 });
 
 // Guards: ONE CLICK PER DECISION
-// given: a product declaring Scrum; the author's edit complete — who closes a sprint, alice
+// given: a product declaring Scrum; the author's edit complete — a condition added to the Definition of Done
 // input: one click on Save
 // expect: before the click nothing is written; the one click commits the declaration, and nothing more is asked
 test("ONE CLICK PER DECISION: one click on Save, once the declaration is complete, does all that follows", async (t) => {
-  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles: [["Product Owner", "alice"]] }) } });
-  const sprintClose = byTag(byData(page.target, "data-key", "sprint_close")[0], "input")[0];
-  sprintClose.value = "alice";
-  sprintClose.dispatchEvent(new Event("input"));
-  await turn();
+  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
+  await typeSection(page.target, "## Definition of Done", "\nreview: 1 by participants other than the implementer\n");
   assert.equal(page.product.writes.length, 0, "nothing is written before the click");
 
   await pressSave(page);
   assert.equal(page.product.writes.length, 1, "the one click commits");
-  assert.match(page.product.writes[0].files["docs/process.md"], /^sprint_close: alice$/m);
+  assert.match(page.product.writes[0].files["docs/process.md"], /^review: 1 by participants other than the implementer$/m);
 });
 
 // Guards: EVERY STEP EXPLAINS ITSELF
@@ -836,22 +823,17 @@ test("EVERY STEP EXPLAINS ITSELF: each step that asks something carries an expla
 // Guards: A ROLE NAMES THE CAPABILITIES IT NEEDS
 // given: Scrum's Developers, needing to read and to write the repository and to run code and tests; endpoint-x, a model
 //        endpoint, can neither write to the repository nor run code and tests
-// input: the author chooses Scrum; then assigns endpoint-x to the Developers
-// expect: the page shows what the Developers need; endpoint-x is not offered to them; assigned all the same, it is
-//         refused — Save is not offered, and the page names endpoint-x
-test("A ROLE NAMES THE CAPABILITIES IT NEEDS: only a participant with all of them is offered, and one without them cannot be assigned", async (t) => {
-  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles: [["Product Owner", "alice"]] }) } });
+// input: routes.process(app) of a product declaring Scrum
+// expect: the page shows what the Developers need; endpoint-x is not offered to them. Assigning it all the same is the
+//         role assignment's, and refused there (tests/product-process-eligibility.test.mjs)
+test("A ROLE NAMES THE CAPABILITIES IT NEEDS: the page shows what a role needs, and only a participant with all of them is offered", async (t) => {
+  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   const { target } = page;
   const developers = roleText(target, "Developers");
   for (const capability of rowsOf(catalogueFile("models/scrum.md"), "## Roles").find((r) => r.Name === "Developers").Capabilities.split(", ")) {
     assert.ok(developers.includes(capability), `the Developers need: ${capability}`);
   }
   assert.ok(!developers.includes("endpoint-x"), "endpoint-x is not offered");
-  assert.equal(saveOf(target).disabled, false, "known positive: before the assignment, Save is offered");
-
-  await typeSection(target, "## Roles", ROLES_OF([["Product Owner", "alice"], ["Developers", "endpoint-x"]]));
-  assert.equal(saveOf(target).disabled, true, "the assignment is refused");
-  assert.ok(messages(target).some((message) => message.includes("endpoint-x")), "the page names endpoint-x");
 });
 
 // Guards: A PARTICIPANT DECLARES ITS CAPABILITIES
@@ -890,7 +872,7 @@ test("A PARTICIPANT DECLARES WHERE IT PROCESSES DATA: each participant offered i
 // expect: the condition is in the product's own docs/process.md, under ## Definition of Done; opened again, the page shows
 //         it in the Definition of Done
 test("A PRODUCT DECLARES ITS DEFINITION OF DONE: a condition the author adds is declared in the product's own repository", async (t) => {
-  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles: [["Product Owner", "alice"]] }) } });
+  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   await typeSection(page.target, "## Definition of Done", "\nreview: 1 by participants other than the implementer\n");
   await pressSave(page);
 
@@ -938,7 +920,7 @@ test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, no
 // input: the author gives the sprint the branch sprint/<nn> and presses Save; the page is opened again
 // expect: the declaration gives the sprint its branch; opened again, the page shows the branch for the sprint
 test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: the sprint is given a branch of its own", async (t) => {
-  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles: [["Product Owner", "alice"]] }) } });
+  const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   await typeSection(page.target, "## Branches", "\n| Phase or time box | Branch |\n|---|---|\n| Sprint | sprint/<nn> |\n");
   await pressSave(page);
 
@@ -954,8 +936,7 @@ test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: the sprint is given a 
 // expect: merging the sprint's branch into the default branch is shown as the gate at the sprint's end, decided by the
 //         role Scrum names for it, the Product Owner, after the review of the increment
 test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: merging the branch into the default branch is the gate at its end, decided by the Product Owner after the review", async (t) => {
-  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({
-    roles: [["Product Owner", "alice"]], branches: [["Sprint", "sprint/<nn>"]] }) } });
+  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ branches: [["Sprint", "sprint/<nn>"]] }) } });
 
   const shown = shownEntries(target);
   assert.ok(shown.some((entry) => entry.includes("sprint/<nn>")), "known positive: the sprint's branch is shown");
@@ -970,11 +951,10 @@ test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: merging the branch int
 // expect: no branch is shown for the sprint, and the page says that the work of every job is merged into the default
 //         branch; known positive: once the sprint is given a branch, the page shows it
 test("WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET: without a branch, the page says the work merges into the default branch", async (t) => {
-  const roles = [["Product Owner", "alice"]];
-  const branched = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles, branches: [["Sprint", "sprint/<nn>"]] }) } });
+  const branched = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ branches: [["Sprint", "sprint/<nn>"]] }) } });
   assert.ok(shownEntries(branched.target).some((entry) => entry.includes("sprint/<nn>")), "known positive: a branch set is shown");
 
-  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles }) } });
+  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   assert.ok(!shownEntries(target).some((entry) => /sprint\//.test(entry)), "no branch is shown");
   assert.match(textOf(target), /the work of every job is merged into the default branch/);
 });
@@ -986,7 +966,7 @@ test("WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET: without a bran
 // expect: each gate is shown with its decider: the role Steward; the check lab-tests, whose result decides
 test("A GATE NAMES WHO DECIDES IT: each gate is shown with its decider, a role or an automated check", async (t) => {
   const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW },
-    product: { "docs/process.md": labFlowDeclaration({ roles: [["Steward", "alice"]] }) } });
+    product: { "docs/process.md": labFlowDeclaration({}) } });
 
   const shown = shownEntries(target);
   assert.ok(shown.some((entry) => entry.includes("Outline → Assemble") && entry.includes("Steward")), "Outline → Assemble, decided by Steward");

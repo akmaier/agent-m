@@ -29,10 +29,11 @@ for the plan-driven models, chapter 7 for the agile ones.
 
 ## roles-and-participants
 
-A model names its roles. For each role it says whether a person, an agent or either may hold it, and which capabilities
-its holder needs — for example *write to the repository* or *run code and tests*. You assign the holders from this
-instance's participants: people, model endpoints, CI agents, CLI agents and sandboxed agents, several to one role where
-the role allows it. Only participants with every capability the role needs are offered, each with the place where it
+A model names its roles. For each role it says whether a person, an agent or either may hold it, whether one participant
+fills it or several may, and which capabilities its holder needs — for example *write to the repository* or *run code and
+tests*. The process names the roles and no one: who holds them is set in the product's role assignment — one, or one per
+team in a model that works in sprints — from this instance's participants: people, model endpoints, CI agents, CLI agents
+and sandboxed agents. Only participants with every capability the role needs are offered, each with the place where it
 processes the data it is given. Where no participant has them all, the page names the missing capability; a participant
 who has it can be added under Settings.
 
@@ -40,7 +41,7 @@ In Scrum, for example: the *Product Owner* — a person or an agent — orders t
 *Scrum Master* — either — watches the process, removes obstacles and approves nothing; the *Developers* — either, able to
 write to the repository and to run code and tests — turn items into a done increment.
 
-A role that needs a person must have one before the declaration can be saved. A participant that processes data at a
+A role that needs a person must have one before a role assignment can be saved. A participant that processes data at a
 place a linked requirement source does not permit may still hold a role, but that source's content is never given to it.
 In the book *Vibe Coding*: chapter 7, section 5, for the roles of Scrum.
 

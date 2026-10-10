@@ -14,17 +14,14 @@
 
 import { finding } from "../text-tools/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { participantsOf, eligible } from "../participant-list/index.mjs";
-import { permittedPlaces } from "../source-register/index.mjs";
+import { participantsOf } from "../participant-list/index.mjs";
 
 const DECLARED = "THE PROCESS MODEL IS DECLARED PER PRODUCT";
 const VALIDATED = "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED";
-const PEOPLE_AND_AGENTS = "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS";
-const CAPABILITY = "A ROLE NAMES THE CAPABILITIES IT NEEDS";
+const NAMES_ROLES = "THE PROCESS NAMES ROLES, NOT PARTICIPANTS";
 const PRACTICE = "A PRACTICE IS NOT A MODEL";
 const BRANCH = "A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN";
 const ADDS = "A PROCESS REQUIREMENT ADDS TO THE MODEL";
-const PERMITTED = "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS";
 
 // How a row of ## Branches names the sprint, the time box of a model that works in sprints.
 const SPRINT = "Sprint";
@@ -33,7 +30,9 @@ const PRACTICE_LINE = /^-[ \t]+(.*\S)[ \t]*$/;
 const CONDITION_LINE = /^(?:review|check|gate):/;
 
 const text = (value) => (typeof value === "string" ? value : "");
-const list = (value) => (Array.isArray(value) ? [...value] : []);
+const escaped = (written) => written.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Whether a line names a participant: its name as a whole, not as a part of a longer name.
+const naming = (line, name) => new RegExp(`(?<![A-Za-z0-9_-])${escaped(name)}(?![A-Za-z0-9_-])`).test(line);
 
 // The section of a document whose heading line is `heading`, or undefined.
 const sectionOf = (document, heading) => document.sections.find((section) => section.heading === heading);
@@ -55,15 +54,30 @@ function keyLine(fields, key) {
   return 1;
 }
 
+/**
+ * bodyLine(document: Document) -> number — the line a document's body begins on: the line after its front matter, counted
+ * as keyLine counts it, or 1 for a document without front matter.
+ */
+export function bodyLine(document) {
+  const values = Object.values(document.fields);
+  return values.length ? 3 + values.reduce((lines, value) => lines + 1 + (Array.isArray(value) ? value.length : 0), 0) : 1;
+}
+
+// Every line of a declaration, each with its number in the file: each front matter value — a list's items each on a line
+// of its own —, then each line of its body.
+function linesOf(declaration) {
+  const front = Object.entries(declaration.fields).flatMap(([key, value]) => (Array.isArray(value)
+    ? value.map((item, i) => ({ text: String(item), line: keyLine(declaration.fields, key) + 1 + i }))
+    : [{ text: String(value), line: keyLine(declaration.fields, key) }]));
+  const first = bodyLine(declaration);
+  return [...front, ...declaration.body.split("\n").map((line, i) => ({ text: line.replace(/\r$/, ""), line: first + i }))];
+}
+
 // The two phases a gate stands between, written `<phase> → <phase>`; without the arrow, the whole text as the first.
 function between(written) {
   const at = written.indexOf("→");
   return at < 0 ? { from: written, to: "" } : { from: written.slice(0, at).trim(), to: written.slice(at + 1).trim() };
 }
-
-// The rows of ## Roles: each role with the participants the declaration assigns to it, and the line of its row.
-export const rolesOf = (declaration) => rowsOf(declaration, "## Roles")
-  .map(({ line, cells }) => ({ line, role: text(cells.Role), holders: list(cells.Participants) }));
 
 // The practices ## Practices names, each with its line.
 export const practicesOf = (declaration) => sectionLines(sectionOf(declaration, "## Practices"))
@@ -85,42 +99,33 @@ export const conditionsOf = (declaration) => sectionLines(sectionOf(declaration,
   .map(({ text: written }) => written.trim()).filter((written) => CONDITION_LINE.test(written));
 
 /**
- * declarationFindings(declaration: Document, catalogue: Catalogue, participants: Document, sources: Document[],
- * instanceSpec: string) -> Finding[] — the findings of a declaration against the version it declared, in the order of their
- * lines, each naming the declaration's path — it has no identifier — and the requirement it applies:
+ * declarationFindings(declaration: Document, catalogue: Catalogue, participants: Document, instanceSpec: string) ->
+ * Finding[] — the findings of a declaration against the version it declared, in the order of their lines, each an error
+ * naming the declaration's path — it has no identifier — and the requirement it applies:
  * - a model that `catalogue` does not hold at `model_file` — the named version lacks it —, on the line of `model_file`
  *   (THE PROCESS MODEL IS DECLARED PER PRODUCT); or one whose findings in it hold an error, on the same line (A MODEL
  *   DEFINITION IS VALIDATED BEFORE IT IS USED);
- * - a role of the model that needs a person, of which no holder is a person of the register, on its row of `## Roles`, or
- *   on that heading where no row names it (A PROCESS MODEL ORGANISES PEOPLE AND AGENTS);
- * - an error for a holder of a role — one of `participantsOf(participants)` named on the role's row — that lacks a
- *   capability the role needs, on that row, naming the holder, the role and the capability, decided by MOD-participant-list's
- *   `eligible` called once per capability the role needs (A ROLE NAMES THE CAPABILITIES IT NEEDS);
+ * - a participant of `participantsOf(participants)` named anywhere in the declaration — in its front matter or its body,
+ *   by its name as a whole —, on each line that names it (THE PROCESS NAMES ROLES, NOT PARTICIPANTS);
  * - a practice the catalogue does not hold, or whose `fits` does not name the declared model, on its line (A PRACTICE IS NOT
  *   A MODEL);
  * - a branch set for what is no phase of the model, nor its sprint where it works in sprints, on its row (A PHASE OR A TIME
  *   BOX MAY HAVE A BRANCH OF ITS OWN);
  * - a gate under `## Gates added by requirements` whose requirement `instanceSpec` does not hold, on its row (A PROCESS
- *   REQUIREMENT ADDS TO THE MODEL);
- * - a warning for a holder of a role, of those that declare a processing place, at a place one of `sources` does not
- *   permit, on the role's row, naming the holder, the role and the source, decided by `eligible` called once per source
- *   whose `permittedPlaces` is not `"any"` (RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS). A holder with no
- *   declared place — every person — is judged by its capabilities alone: it enters no call for this warning.
- * Where the catalogue holds no model at `model_file`, its roles and phases are not compared.
+ *   REQUIREMENT ADDS TO THE MODEL).
+ * Where the catalogue holds no model at `model_file`, its phases are not compared.
  * @param {Document} declaration — the product's docs/process.md, as readDocument returns it with declarationSchema
  * @param {Catalogue} catalogue — MOD-model-catalogue's catalogue over the instance's snapshot at the commit the
  *   declaration's model_version names
  * @param {Document} participants — the instance's docs/participants.md, as readDocument returns it with
  *   MOD-participant-list's participantSchema
- * @param {Document[]} sources — the register entries of the sources the product links
  * @param {string} instanceSpec — the text of the instance's SPEC.md, whose requirements are the process requirements
  * @returns {Finding[]}
  */
-export function declarationFindings(declaration, catalogue, participants, sources, instanceSpec) {
+export function declarationFindings(declaration, catalogue, participants, instanceSpec) {
   const artifact = declaration.id ?? declaration.path;
   const found = [];
   const add = (line, rule, what, fix) => found.push(finding({ artifact, line, kind: "error", rule, what, fix }));
-  const warn = (line, rule, what, fix) => found.push(finding({ artifact, line, kind: "warning", rule, what, fix }));
   const name = text(declaration.fields.model);
   const file = text(declaration.fields.model_file);
   const version = text(declaration.fields.model_version);
@@ -136,48 +141,6 @@ export function declarationFindings(declaration, catalogue, participants, source
       add(fileLine, VALIDATED, `the model at ${file} has ${errors.length} error finding(s) at the commit ${version}, so no `
         + "product may declare it", "correct the model, and declare the commit that holds it corrected");
     }
-    const persons = new Set(participants.sections.flatMap((section) => section.rows ?? [])
-      .filter((row) => row.cells.Type === "person").map((row) => row.cells.Name));
-    const roles = rolesOf(declaration);
-    for (const role of model.roles.filter((r) => r.filledBy === "person")) {
-      const row = roles.find((r) => r.role === role.name);
-      if (!row?.holders.some((holder) => persons.has(holder))) {
-        add(row?.line ?? sectionOf(declaration, "## Roles")?.line ?? 1, PEOPLE_AND_AGENTS,
-          `the role ${role.name} needs a person, and no person holds it`,
-          `assign to ${role.name} a participant of the type person`);
-      }
-    }
-    // A holder's capability and place (ITM-231): each role's holders, as `participantsOf` turns the register's rows into
-    // participants, judged by MOD-participant-list's `eligible` — once per capability the role needs, for the error; once
-    // per restricted linked source, for the warning, over only the holders that declare a place, so that a person (who
-    // never does) is judged by capabilities alone.
-    const allParticipants = participantsOf(participants);
-    for (const role of model.roles) {
-      const row = roles.find((r) => r.role === role.name);
-      const line = row?.line ?? sectionOf(declaration, "## Roles")?.line ?? 1;
-      const holderNames = row?.holders ?? [];
-      const holders = allParticipants.filter((p) => holderNames.includes(p.name));
-
-      for (const capability of role.capabilities) {
-        for (const { participant } of eligible(holders, { capabilities: [capability] }).leftOut) {
-          add(line, CAPABILITY, `the holder ${participant.name} of the role ${role.name} lacks the capability ${capability}`,
-            `give ${participant.name} the capability ${capability}, or assign ${role.name} a holder that has it`);
-        }
-      }
-
-      const placed = holders.filter((p) => p.place);
-      for (const source of sources) {
-        const allowed = permittedPlaces(source);
-        if (allowed === "any") continue;
-        const from = source.id ?? source.path;
-        for (const { participant } of eligible(placed, { capabilities: [], places: [{ from, allowed }] }).leftOut) {
-          warn(line, PERMITTED, `the holder ${participant.name} of the role ${role.name} processes data at `
-            + `${participant.place}, which the source ${from} does not permit`,
-            `move ${participant.name} to a place ${from} permits, or assign ${role.name} a different holder`);
-        }
-      }
-    }
-
     const phases = new Set(model.phases.map((phase) => phase.name));
     for (const { line, at, branch } of branchesOf(declaration)) {
       if (!phases.has(at) && !(at === SPRINT && model.flow?.sprints)) {
@@ -185,6 +148,14 @@ export function declarationFindings(declaration, catalogue, participants, source
           + (model.flow?.sprints ? "" : ", and the model works in no sprints"),
           "name a phase of the model, or remove the row");
       }
+    }
+  }
+
+  const names = participantsOf(participants).map((participant) => participant.name).filter(Boolean);
+  for (const { text: written, line } of linesOf(declaration)) {
+    for (const name of names.filter((candidate) => naming(written, candidate))) {
+      add(line, NAMES_ROLES, `the declaration names the participant ${name}; it names the roles of the process, never who `
+        + "fills them", `name the role instead, and give it ${name} in the product's role assignment under docs/role-assignments/`);
     }
   }
 

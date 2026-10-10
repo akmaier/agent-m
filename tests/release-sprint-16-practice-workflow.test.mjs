@@ -53,12 +53,6 @@ model_version: ${VERSION}
 ---
 # How this product is developed
 
-## Roles
-
-| Role | Participants |
-|---|---|
-| Product Owner | alice |
-
 ## Practices
 
 - none
@@ -188,6 +182,7 @@ test("ITM-281 — public process caller derives and clears only selected practic
   await choosePractice(page.target, "none");
   assert.ok(!shown(page.target).some((entry) => entry.includes("practice: devops") || entry.includes("Evidence review (Evidence keeper)")),
     "deselecting clears practice-derived workflow state before Save");
+  assert.equal(save(page.target).disabled, false, "known positive: the declaration, which names no participant, can be saved");
   save(page.target).dispatchEvent(new Event("click"));
   await settle(page.product);
   assert.match(page.product.files["docs/process.md"], /## Practices\n\n- none/, "one Save preserves the final deselected practice");

@@ -1,18 +1,17 @@
-// A holder's capabilities and place among a declaration's findings (ITM-231) — the two findings ITM-218 left out of
-// MOD-product-process' declarationFindings (tests/product-process.test.mjs says so, and leaves them to this file): an
-// error naming a holder that lacks a capability its role needs, and a warning naming a holder at a processing place a
-// linked source does not permit. Both go through MOD-participant-list's eligible, over the participants
-// MOD-participant-list's participantsOf gives (ITM-230). A person is judged by capabilities alone: a place is judged
-// only for a holder that declares one.
+// A holder's capabilities and place among a role assignment's findings (ITM-231, moved with the holders from the
+// declaration to the role assignments, UC-048): an error naming a holder that lacks a capability its role needs, and a
+// warning naming a holder at a processing place a linked source does not permit. Both go through MOD-participant-list's
+// eligible, over the participants MOD-participant-list's participantsOf gives (ITM-230). A person is judged by
+// capabilities alone: a place is judged only for a holder that declares one.
 // Run: node --test tests/product-process-eligibility.test.mjs
 //
 // Module: MOD-product-process
-// Guards: UC-002; A ROLE NAMES THE CAPABILITIES IT NEEDS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// Guards: UC-048; A ROLE NAMES THE CAPABILITIES IT NEEDS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // Level: unit
 //
 // The fixture product declares the same instance model as tests/product-process.test.mjs, docs/process-models/team-scrum.md
-// (team-scrum: Scrum adapted so that its Product Owner is a person), at the commit VERSION. Its declaration holds Product
-// Owner and Scrum Master by alice, a person, and Developers by dev-a alone, a CLI agent at "this machine" — so only dev-a's
+// (team-scrum: Scrum adapted so that its Product Owner is a person), at the commit VERSION. Its role assignment fills Product
+// Owner and Scrum Master with alice, a person, and Developers with dev-a alone, a CLI agent at "this machine" — so only dev-a's
 // capabilities and place are ever in question; alice's place is never judged. Nothing reaches the network. Each test states
 // its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull
 // request.
@@ -24,7 +23,7 @@ import { readDocument } from "../src/documents/index.mjs";
 import { catalogue } from "../src/model-catalogue/index.mjs";
 import { participantSchema } from "../src/participant-list/index.mjs";
 import { sourceSchemas } from "../src/source-register/index.mjs";
-import { declarationFindings, declarationSchema } from "../src/product-process/index.mjs";
+import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../src/product-process/index.mjs";
 
 const CAPABILITY = "A ROLE NAMES THE CAPABILITIES IT NEEDS";
 const PERMITTED = "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS";
@@ -138,19 +137,10 @@ const DECLARATION = [
   "model: team-scrum",
   `model_file: ${MODEL_PATH}`,
   `model_version: ${VERSION}`,
-  "sprint_close: alice",
   "---",
   "# How the fixture product is developed",
   "",
   "The fixture product's process, as its Author declared it.",
-  "",
-  "## Roles",
-  "",
-  "| Role | Participants |",
-  "|---|---|",
-  "| Product Owner | alice |",
-  "| Scrum Master | alice |",
-  "| Developers | dev-a |",
   "",
   "## Practices",
   "",
@@ -169,8 +159,24 @@ const DECLARATION = [
 
 const declarationOf = (text) => readDocument(declarationSchema, DECLARATION_PATH, text);
 
-// The row of ## Roles that assigns Developers to dev-a alone — found in the text itself, never counted by hand.
-const DEVELOPERS_LINE = lineOf(DECLARATION, "| Developers |");
+// The product's one role assignment: Product Owner and Scrum Master filled with alice, Developers with dev-a alone.
+const ASSIGNMENT_PATH = "docs/role-assignments/team.md";
+const ASSIGNMENT = [
+  "# Team",
+  "",
+  "## Roles",
+  "",
+  "| Role | Participants |",
+  "|---|---|",
+  "| Product Owner | alice |",
+  "| Scrum Master | alice |",
+  "| Developers | dev-a |",
+  "",
+].join("\n");
+const assignmentOf = (text) => readDocument(roleAssignmentSchema, ASSIGNMENT_PATH, text);
+
+// The row of ## Roles that fills Developers with dev-a alone — found in the text itself, never counted by hand.
+const DEVELOPERS_LINE = lineOf(ASSIGNMENT, "| Developers |");
 
 // The instance's own SPEC: no process requirement, so the declaration adds no row under ## Gates added by requirements.
 const INSTANCE_SPEC = [
@@ -230,45 +236,52 @@ const RESTRICTED_SOURCE = readDocument(sourceSchemas().entry, RESTRICTED_SOURCE_
   "",
 ].join("\n"));
 
-// ---------------------------------------------------------------- declarationFindings
+// ---------------------------------------------------------------- roleAssignmentFindings
 
 const brief = (found) => found.map((f) => [f.line, f.kind, f.rule]);
 
-// guards: UC-002 4b; A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: the fixture declaration — Developers held by dev-a alone; team-scrum at VERSION, without a finding of its own;
+// The product's workflow from its declaration and team-scrum, as the Catalogue at VERSION gives it.
+async function workflowAt(cat) {
+  return workflowOf(declarationOf(DECLARATION), cat.models.find((model) => model.path === MODEL_PATH), [], INSTANCE_SPEC);
+}
+
+// guards: UC-048 (step 3); A ROLE NAMES THE CAPABILITIES IT NEEDS
+// given: the fixture role assignment — Developers held by dev-a alone; team-scrum at VERSION, without a finding of its own;
 //        the fixture register with (a) dev-a having every capability Developers needs, (b) dev-a without "run code and
 //        tests", which Developers needs; no linked source
-// input: declarationFindings(declaration, that catalogue, that register, [], the instance's SPEC)
+// input: roleAssignmentFindings([the role assignment], the workflow, that register, [])
 // expect: (a) no finding; (b) one error, on the row of Developers, naming A ROLE NAMES THE CAPABILITIES IT NEEDS; its
 //         text names the holder dev-a, the role Developers and the capability run code and tests
-test("declarationFindings — a holder that lacks a capability its role needs is an error, naming the holder, the role and the capability", async () => {
+test("roleAssignmentFindings — a holder that lacks a capability its role needs is an error, naming the holder, the role and the capability", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   assert.deepEqual(cat.findings[MODEL_PATH], [], "team-scrum has no finding at VERSION");
-  const declaration = declarationOf(DECLARATION);
+  const workflow = await workflowAt(cat);
+  const assignment = assignmentOf(ASSIGNMENT);
 
-  const full = declarationFindings(declaration, cat, registerWith(FULL_CAPABILITIES), [], INSTANCE_SPEC);
+  const full = roleAssignmentFindings([assignment], workflow, registerWith(FULL_CAPABILITIES), []);
   assert.deepEqual(brief(full), [], "dev-a has every capability Developers needs");
 
   const short = "draft text, read the repository, write to the repository";
-  const found = declarationFindings(declaration, cat, registerWith(short), [], INSTANCE_SPEC);
+  const found = roleAssignmentFindings([assignment], workflow, registerWith(short), []);
   assert.deepEqual(brief(found), [[DEVELOPERS_LINE, "error", CAPABILITY]]);
   assert.ok(found[0].what.includes("dev-a") && found[0].what.includes("Developers")
     && found[0].what.includes("run code and tests"), found[0].what);
 });
 
-// guards: UC-002 4c; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the fixture declaration — Developers held by dev-a alone, at "this machine"; Product Owner and Scrum Master both
+// guards: UC-048 (3c); RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// given: the fixture role assignment — Developers held by dev-a alone, at "this machine"; Product Owner and Scrum Master both
 //        held by alice, a person; team-scrum at VERSION; the restricted source, which permits only NHR@FAU, Erlangen,
 //        linked; dev-a with every capability Developers needs, so only the place is in question
-// input: declarationFindings(declaration, that catalogue, the register, [the restricted source], the instance's SPEC)
+// input: roleAssignmentFindings([the role assignment], the workflow, the register, [the restricted source])
 // expect: one warning, on the row of Developers, naming RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; its text
 //         names the holder dev-a, the role Developers and the source SRC-restricted-test. No finding names alice, who
 //         holds two roles while the same source is linked: a person is judged by capabilities alone
-test("declarationFindings — a holder at a place a linked source does not permit is a warning naming the holder, the role and the source; a person holding a role is not warned of it", async () => {
+test("roleAssignmentFindings — a holder at a place a linked source does not permit is a warning naming the holder, the role and the source; a person holding a role is not warned of it", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
-  const declaration = declarationOf(DECLARATION);
+  const workflow = await workflowAt(cat);
 
-  const found = declarationFindings(declaration, cat, registerWith(FULL_CAPABILITIES), [RESTRICTED_SOURCE], INSTANCE_SPEC);
+  const found = roleAssignmentFindings([assignmentOf(ASSIGNMENT)], workflow, registerWith(FULL_CAPABILITIES),
+    [RESTRICTED_SOURCE]);
   assert.deepEqual(brief(found), [[DEVELOPERS_LINE, "warning", PERMITTED]]);
   assert.ok(found[0].what.includes("dev-a") && found[0].what.includes("Developers")
     && found[0].what.includes("SRC-restricted-test"), found[0].what);

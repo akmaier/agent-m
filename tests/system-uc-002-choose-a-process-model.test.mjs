@@ -417,46 +417,16 @@ chapter: 6, a fixture chapter
 | Prober | agent | several | run code and tests, use tools |
 `;
 
-// A restricted source of the instance's register that permits processing only at NHR@FAU, Erlangen, and the product's
-// link to it (UC-002 4c).
-const RESTRICTED = "SRC-restricted-fixture";
-const RESTRICTED_PATH = `docs/sources/${RESTRICTED}.md`;
-const RESTRICTED_ENTRY = `---
-id: ${RESTRICTED}
-title: A restricted fixture standard
-kind: standard
-authority: normative
-licence: restricted — fixture terms
-designation: FIX 1:2026
-places:
-  - NHR@FAU, Erlangen
----
-# ${RESTRICTED} A restricted fixture standard
-
-## Versions
-
-| Version | Date | Edition | Read from | Files |
-|---|---|---|---|---|
-| 1 | 2026-01-01 | — | — | fixture.txt |
-`;
-const LINKS = `# The fixture product's linked sources
-
-| Source | Version | Hash | Part |
-|---|---|---|---|
-| ${RESTRICTED} | 1 | ${"a".repeat(64)} | |
-`;
-
 // A product whose implementation starts: no declaration yet.
 const NEW_PRODUCT = { "README.md": "# The fixture product\n" };
 
-// A product's declaration docs/process.md (src/product-process/declaration.schema.md): roles as [role, holders],
+// A product's declaration docs/process.md (src/product-process/declaration.schema.md), which names no participant:
 // branches as [phase or time box, branch], added gates as [requirement, between, artifacts, condition, decider].
-function declaration({ model, file, roles = [], practices = ["none"], branches = [],
+function declaration({ model, file, practices = ["none"], branches = [],
   done = "The job rules hold; no condition is added.", added = [] }) {
   const table = (head, rows) => [`| ${head.join(" | ")} |`, `|${head.map(() => "---|").join("")}`,
     ...rows.map((row) => `| ${row.join(" | ")} |`)].join("\n");
   return [`---\nmodel: ${model}\nmodel_file: ${file}\nmodel_version: ${HEAD}\n---\n# How the fixture product is developed`,
-    `## Roles\n\n${table(["Role", "Participants"], roles)}`,
     `## Practices\n\n${practices.map((practice) => `- ${practice}`).join("\n")}`,
     `## Branches\n\n${table(["Phase or time box", "Branch"], branches)}`,
     `## Definition of Done\n\n${done}`,
@@ -529,9 +499,6 @@ const shownEntries = (target) => elements(target, (e) => ["li", "tr", "p"].inclu
 // Whether the phase `name` is shown in an entry of its own — one that names it and no other of the model's `phases` —, not
 // merely as an end of a gate.
 const phaseShown = (shown, name, phases) => shown.some((entry) => entry.includes(name) && phases.every((other) => other === name || !entry.includes(other)));
-// What the page says about the declaration — its findings beside the fields and its marks beside a section's lines.
-const messages = (target) => elements(target, (e) => e.localName === "li"
-  && within(e, target, (a) => hasClass(a, "findings") || hasClass(a, "marks"))).map(textOf).filter(Boolean);
 
 // The table that keeps the process model and the rules to be met apart (UC-002, before its main flow).
 const rulesTable = (target) => byTag(target, "table").find((table) => /process model/i.test(textOf(byTag(table, "thead")[0] ?? table))
@@ -712,8 +679,7 @@ test("UC-002 main flow, step 5: the transitions between the phases, and which ph
 // expect (step 5): the page shows the sprint's branch, and that merging it into the default branch is the gate at the
 //         sprint's end, decided by the Product Owner after the review of the increment
 test("UC-002 main flow, step 5: a sprint's branch of its own, and its merge into the default branch as the gate at its end, decided by the Product Owner after the review", async (t) => {
-  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({
-    roles: [["Product Owner", "alice"]], branches: [["Sprint", "sprint/<nn>"]] }) } });
+  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ branches: [["Sprint", "sprint/<nn>"]] }) } });
 
   const shown = shownEntries(target);
   assert.ok(shown.some((entry) => entry.includes("sprint/<nn>")), "known positive: the sprint's branch is shown");
@@ -766,8 +732,7 @@ test("UC-002 main flow, step 6: each practice says what it adds", async (t) => {
 // expect (step 7): the page shows the gate and the artifact the requirement adds, marked with the requirement and the
 //         source it comes from
 test("UC-002 main flow, step 7: what the product's process requirements add, each marked with its requirement and its source", async (t) => {
-  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({
-    roles: [["Product Owner", "alice"]], added: [ADDED_TO_SCRUM] }) } });
+  const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ added: [ADDED_TO_SCRUM] }) } });
 
   assert.ok(shownEntries(target).some((entry) => entry.includes(REQUIREMENT) && entry.includes(STANDARD) && entry.includes(ADDED_TO_SCRUM[2])),
     "the added gate's artifact, marked with its requirement and its source");
@@ -801,18 +766,16 @@ test("UC-002 main flow, step 8: the Definition of Done, preset to the job rules,
 
 // Guards: UC-002
 // given: a product without a declaration; the instance's participants, one of each type
-// input: the author chooses Scrum; assigns alice (a person) as Product Owner, endpoint-x (a model endpoint) as Scrum
-//        Master and ci-bot, cli-bot and box-bot (a CI, a CLI and a sandboxed agent) together as Developers; gives the
-//        sprint the branch sprint/<nn>; adds the practice devops; adds the condition "review: 1 by participants other
-//        than the implementer"; then presses Save, once
+// input: the author chooses Scrum; gives the sprint the branch sprint/<nn>; adds the practice devops; adds the condition
+//        "review: 1 by participants other than the implementer"; then presses Save, once
 // expect (steps 3–9): nothing is committed before Save; the one click commits docs/process.md to the product repository,
-//         once, with the author's token, and nothing to the instance — declaring exactly one model, Scrum, the role
-//         assignment, the practice, the branch and the added condition
+//         once, with the author's token, and nothing to the instance — declaring exactly one model, Scrum, the practice,
+//         the branch and the added condition, and naming no participant: who fills the roles is the product's role
+//         assignment (UC-048)
 test("UC-002 main flow, steps 3–9: the author's choices, then one click on Save commits the declaration to the product repository", async (t) => {
   const page = await openPage(t);
   const { target } = page;
   await choose(target, "scrum");
-  await typeSection(target, "## Roles", "\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Scrum Master | endpoint-x |\n| Developers | ci-bot, cli-bot, box-bot |\n");
   await typeSection(target, "## Practices", "\n- devops\n");
   await typeSection(target, "## Branches", "\n| Phase or time box | Branch |\n|---|---|\n| Sprint | sprint/<nn> |\n");
   await typeSection(target, "## Definition of Done", "\nreview: 1 by participants other than the implementer\n");
@@ -826,9 +789,7 @@ test("UC-002 main flow, steps 3–9: the author's choices, then one click on Sav
   const text = page.product.writes[0].files["docs/process.md"];
   assert.equal(text.match(/^model:/gm)?.length, 1, "exactly one model");
   assert.match(text, /^model: scrum$/m);
-  assert.match(text, /^\|\s*Product Owner\s*\|\s*alice\s*\|$/m);
-  assert.match(text, /^\|\s*Scrum Master\s*\|\s*endpoint-x\s*\|$/m);
-  assert.match(text, /^\|\s*Developers\s*\|\s*ci-bot, cli-bot, box-bot\s*\|$/m);
+  for (const name of ["alice", "endpoint-x", "ci-bot", "cli-bot", "box-bot"]) assert.ok(!text.includes(name), `${name} is not named`);
   assert.match(text, /^- devops$/m);
   assert.match(text, /^\|\s*Sprint\s*\|\s*sprint\/<nn>\s*\|$/m);
   assert.match(text, /^review: 1 by participants other than the implementer$/m);
@@ -882,7 +843,7 @@ test("UC-002 alternative flow 3a: the organisation's own process, a data file in
 });
 
 // Guards: UC-002
-// given: a product declaring lab-flow — whose phases produce requirements, ARC, ITM, MOD and TST —, Steward held by alice,
+// given: a product declaring lab-flow — whose phases produce requirements, ARC, ITM, MOD and TST —, naming no participant,
 //        its declaration naming the gate REQUIREMENT adds (Probe → Handover); in its repository an item and an
 //        architecture file; the instance also holds lab-lite, whose phases produce requirements, MOD and TST
 // input: the author chooses lab-lite, then presses Save
@@ -893,7 +854,7 @@ test("UC-002 alternative flow 3b: changing the model lists the artifacts the new
   const ITEM = "docs/backlog/ITM-001-a-fixture-item.md", ARCHITECTURE = "docs/architecture/ARC-001-a-fixture-decision.md";
   const added = [REQUIREMENT, "Probe → Handover", "TST", "the verification is documented", "Steward"];
   const page = await openPage(t, {
-    product: { "docs/process.md": labFlowDeclaration({ roles: [["Steward", "alice"]], added: [added] }), [ITEM]: "# ITM-001\n", [ARCHITECTURE]: "# ARC-001\n" },
+    product: { "docs/process.md": labFlowDeclaration({ added: [added] }), [ITEM]: "# ITM-001\n", [ARCHITECTURE]: "# ARC-001\n" },
     instance: { [LAB_FLOW_PATH]: LAB_FLOW, [LAB_LITE_PATH]: LAB_LITE } });
   const { target } = page;
   const listing = () => shownEntries(target).filter((entry) => /\bARC\b/.test(entry) && /\bITM\b/.test(entry));
@@ -912,21 +873,6 @@ test("UC-002 alternative flow 3b: changing the model lists the artifacts the new
   assert.match(text, new RegExp(`^\\|\\s*${REQUIREMENT}\\s*\\|\\s*Probe → Handover\\s*\\|`, "m"), "the requirement keeps its gate");
   assert.equal(page.product.files[ITEM], "# ITM-001\n", "the item stays");
   assert.equal(page.product.files[ARCHITECTURE], "# ARC-001\n", "the architecture file stays");
-});
-
-// Guards: UC-002
-// given: a product declaring lab-flow, whose role Steward must be held by a person, with no holder for Steward — and, as
-//        the known positive, the same declaration with alice holding Steward
-// input: routes.process(app)
-// expect (4a): Save stays disabled, and the page names the role Steward; with alice as Steward, Save is offered
-test("UC-002 alternative flow 4a: a role that needs a person has none — Save stays disabled, and the role is named", async (t) => {
-  const instance = { [LAB_FLOW_PATH]: LAB_FLOW };
-  const held = await openPage(t, { instance, product: { "docs/process.md": labFlowDeclaration({ roles: [["Steward", "alice"], ["Builders", "ci-bot"]] }) } });
-  assert.equal(saveOf(held.target).disabled, false, "known positive: with a person as Steward, Save is offered");
-
-  const { target } = await openPage(t, { instance, product: { "docs/process.md": labFlowDeclaration({ roles: [["Builders", "ci-bot"]] }) } });
-  assert.equal(saveOf(target).disabled, true, "Save stays disabled");
-  assert.ok(messages(target).some((message) => message.includes("Steward")), "the role Steward is named");
 });
 
 // Guards: UC-002
@@ -963,37 +909,16 @@ test("UC-002 alternative flow 4b: the missing capability links to UC-017, to add
 });
 
 // Guards: UC-002
-// given: a product declaring Scrum, linking the restricted source SRC-restricted-fixture, which permits processing only at
-//        NHR@FAU, Erlangen; alice as Product Owner
-// input: the author assigns ci-bot — which processes data at a provider in the USA — to the Developers, then presses Save
-// expect (4c): the page says which source and which role — SRC-restricted-fixture, the Developers —; the assignment stays
-//         possible: Save is offered, and one click commits the declaration with ci-bot among the Developers
-test("UC-002 alternative flow 4c: a participant processes data where a linked source does not permit it — the source and the role are named, and the assignment stays possible", async (t) => {
-  const page = await openPage(t, { instance: { [RESTRICTED_PATH]: RESTRICTED_ENTRY },
-    product: { "docs/process.md": scrumDeclaration({ roles: [["Product Owner", "alice"]] }), "docs/sources.md": LINKS } });
-  const { target } = page;
-  assert.ok(!messages(target).some((message) => message.includes(RESTRICTED)), "known positive: before the assignment, the source is not named");
-
-  await typeSection(target, "## Roles", "\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | ci-bot |\n");
-  assert.ok(messages(target).some((message) => message.includes(RESTRICTED) && message.includes("Developers")), "the source and the role are named");
-  assert.equal(saveOf(target).disabled, false, "the assignment stays possible");
-  await pressSave(page);
-  assert.equal(page.product.writes.length, 1);
-  assert.match(page.product.writes[0].files["docs/process.md"], /^\|\s*Developers\s*\|\s*ci-bot\s*\|$/m);
-});
-
-// Guards: UC-002
 // given: a product declaring Scrum, its declaration naming no gate a process requirement adds
 // input: routes.process(app); then REQUIREMENT, accepted, adds its gate — the declaration names it — and the page is
 //        opened again
 // expect (7a): first, the view says that the product has no process requirements yet; then the requirement's addition
 //         appears, and the model is still Scrum, its own gates shown
 test("UC-002 alternative flow 7a: no process requirements yet — the view says so; once one is accepted, its addition appears and the model stays", async (t) => {
-  const roles = [["Product Owner", "alice"]];
-  const before = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles }) } });
+  const before = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   assert.ok(shownEntries(before.target).some((entry) => /no process requirements/i.test(entry)), "the view says there are none yet");
 
-  const after = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ roles, added: [ADDED_TO_SCRUM] }) } });
+  const after = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ added: [ADDED_TO_SCRUM] }) } });
   const shown = shownEntries(after.target);
   assert.ok(shown.some((entry) => entry.includes(REQUIREMENT)), "the requirement's addition appears");
   assert.ok(!shown.some((entry) => /no process requirements/i.test(entry)), "and the view no longer says there are none");
@@ -1010,7 +935,7 @@ test("UC-002 alternative flow 7a: no process requirements yet — the view says 
 // expect (7b): the page shows the gate being added, marked with its requirement, and where — between Review and Done —;
 //         the model stays Kanban, its phases and its own gate shown
 test("UC-002 alternative flow 7b: a process requirement needs a gate the model does not have — the gate is shown being added, and where; the model stays Kanban", async (t) => {
-  const { target } = await openPage(t, { product: { "docs/process.md": kanbanDeclaration({ roles: [["Product owner", "alice"]],
+  const { target } = await openPage(t, { product: { "docs/process.md": kanbanDeclaration({
     added: [[REQUIREMENT, "Review → Done", "the verification record of the item", "the verification is documented", "Reviewer"]] }) } });
 
   const kanban = catalogueFile("models/kanban.md");
