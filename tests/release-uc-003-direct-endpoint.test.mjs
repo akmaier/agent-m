@@ -59,8 +59,8 @@ async function openEndpointDashboard({ entries = {}, handlers = [], pathname = n
   const configure = publicControl(endpoints, "settings-endpoint-configure");
   assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
   await press(server, configure);
-  assert.equal(globalThis.location.hash, "#endpoints", "Configure selects the dashboard's endpoint route");
-  await page.go("#endpoints");
+  assert.equal(globalThis.location.hash, "#settings", "Configure stays on the Settings page");
+  assert.ok(main.querySelector(".endpoint-name"), "Configure opens the endpoint form in place");
   return { server, page, main, browser: { document: globalThis.document, location: globalThis.location,
     storage: globalThis.localStorage, fetch: globalThis.fetch } };
 }

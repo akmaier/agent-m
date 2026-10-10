@@ -87,8 +87,8 @@ test("TST-266002: configured HTTPS forwarding keeps jump-host login separate fro
   const configure = endpoints?.querySelector("button.settings-endpoint-configure");
   assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
   await press(server, configure);
-  assert.equal(globalThis.location.hash, "#endpoints", "failure node: Settings Configure selected the public endpoint route");
-  await page.go("#endpoints");
+  assert.equal(globalThis.location.hash, "#settings", "failure node: Settings Configure stays on the Settings page");
+  assert.ok(main.querySelector(".endpoint-name"), "failure node: Settings Configure opens the endpoint form in place");
   const key = "release-local-key", endpointUrl = `http://127.0.0.1:${port}/v1`;
   main.querySelector(".endpoint-name").value = "https-local";
   main.querySelector(".endpoint-url").value = endpointUrl;

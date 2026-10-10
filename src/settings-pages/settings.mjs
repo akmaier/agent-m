@@ -10,6 +10,11 @@ import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { pair } from "../bridge-client/index.mjs";
+import { route as endpointsRoute } from "./endpoints.mjs";
+import { route as bridgeRoute } from "./bridge.mjs";
+
+// The Settings page's own context, held by the context of its tab Endpoints & Agents.
+const PAGE = Symbol("the Settings page's own context");
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -677,14 +682,29 @@ export const route = {
   name: "settings",
   entry: "settings",
   title: "Settings",
-  async render(target, context) {
+  async render(target, given) {
+    // A line that renders the page again hands back the context of the tab Endpoints & Agents; the page keeps its own.
+    const context = given[PAGE] ?? given;
+    // UC-042 step 2, UC-011 step 1, UC-044 step 4: the forms that set up a model endpoint or the Bridge open in place, in
+    // the tab Endpoints & Agents under its buttons, one at a time. Every other route, and these two from other pages, go
+    // through the page's own context.
+    const form = el("div", "settings-configure-form");
+    const inPlace = {
+      ...context,
+      [PAGE]: context,
+      async go(name, params = {}) {
+        const guided = { endpoints: endpointsRoute, bridge: bridgeRoute }[name];
+        if (!guided) return context.go(name, params);
+        await guided.render(form, inPlace, params);
+      },
+    };
     const endpoints = listSettings(context.store)
       .filter((setting) => setting.key.startsWith("endpoint:"))
-      .map((setting) => endpointLine(target, context, setting))
+      .map((setting) => endpointLine(target, inPlace, setting))
       .filter(Boolean);
-    const bridge = bridgeLine(target, context);
-    const jumpHost = jumpHostLine(target, context);
-    const remoteSessions = listSettings(context.store).map((info) => remoteSessionLine(target, context, info)).filter(Boolean);
+    const bridge = bridgeLine(target, inPlace);
+    const jumpHost = jumpHostLine(target, inPlace);
+    const remoteSessions = listSettings(context.store).map((info) => remoteSessionLine(target, inPlace, info)).filter(Boolean);
     const general = el("section", "settings-tab-panel",
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
@@ -698,7 +718,7 @@ export const route = {
       ...(productList ? [productList] : []), product);
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
-      configurationControls(context),
+      configurationControls(inPlace), form,
       ...(bridge ? [bridge] : []), ...(jumpHost ? [jumpHost] : []),
       ...remoteSessions,
       el("div", "settings-endpoints", ...endpoints));
