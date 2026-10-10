@@ -4,14 +4,17 @@
 // the values, the rows of a table and the sections (checks.mjs). ITM-226 adds the section under the title, and a section's
 // table found by its header row. ITM-252 adds appendSection, and, for a section's or an appended section's fields, a key
 // that is words of a front matter key's form separated by single spaces, such as `gate record` — a front matter key itself
-// stays as MOD-text-tools states it. classifyCandidates, artifactSchemas and the schemas this module owns are not built yet.
+// stays as MOD-text-tools states it. artifactSchemas gives the four schemas this module owns — the use case, the decision,
+// the module and the item —; and the schema language reads a path written { pattern, rule } and a condition on the path.
+// classifyCandidates is not built yet.
 //
 // Module: MOD-documents
 //
-// It belongs to the artifact model (ARC-048). It runs unchanged in a browser and in Node, keeps no state but the schemas it
-// was given to load, and performs no input or output: its callers give it the texts, and every schema data file is read by
-// the module that owns it. It uses MOD-text-tools' interface for front matter. Every other file of this folder is private
-// to it.
+// It belongs to the artifact model (ARC-048). It runs unchanged in a browser and in Node, and keeps no state but the schemas
+// it was given to load. Its one read is that of its own schema files under schemas/, once, when the module is loaded: from
+// the disk in Node, from the module's own address in a browser; a file that cannot be read, or a schema that breaks the
+// language, stops the module's load. Every other text its callers give it, and every other schema data file is read by the
+// module that owns it. It uses MOD-text-tools' interface for front matter. Every other file of this folder is private to it.
 //
 // A schema data file, `*.schema.md`, holds its schema as its one ```json block (schema-language.mjs). A section runs from its
 // heading line to the next heading of the same or a higher level, and a schema names it by its heading line as written, or
@@ -49,3 +52,32 @@
 export { loadSchema } from "./schema-language.mjs";
 export { readDocument, writeDocument, readRegister, appendSection } from "./read-write.mjs";
 export { documentFindings } from "./checks.mjs";
+
+import { loadSchema as load } from "./schema-language.mjs";
+
+const OWNER = "MOD-documents";
+const disk = globalThis.process?.getBuiltinModule?.("node:fs");
+
+// In a browser: the module's own file, from the address the module itself was loaded from. Throws an Error naming the file
+// and the server's status when it is not served.
+async function ownFile(url) {
+  const answer = await fetch(url);
+  if (!answer.ok) throw new Error(`${OWNER}: its ${url.pathname} was not served (${answer.status})`);
+  return answer.text();
+}
+
+const SCHEMA_FILES = { useCase: "use-case", decision: "decision", module: "module", item: "item" };
+const OWN = Object.freeze(Object.fromEntries(await Promise.all(Object.entries(SCHEMA_FILES).map(async ([key, name]) => {
+  const url = new URL(`./schemas/${name}.schema.md`, import.meta.url);
+  return [key, load(disk ? disk.readFileSync(url, "utf8") : await ownFile(url), OWNER)];
+}))));
+
+/**
+ * artifactSchemas() -> { useCase: Schema, decision: Schema, module: Schema, item: Schema } — the four schemas this module
+ * owns, loaded from its files under schemas/: a use case, an architecture decision, a module of the architecture, and an
+ * item — a step of the implementation plan and an item of the backlog alike.
+ * @returns {{ useCase: Schema, decision: Schema, module: Schema, item: Schema }}
+ */
+export function artifactSchemas() {
+  return OWN;
+}

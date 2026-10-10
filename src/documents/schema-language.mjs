@@ -111,12 +111,25 @@ export const textLines = (text) => text.split("\n").map((line) => (line.endsWith
 
 // ---------------------------------------------------------------- conditions and variants
 
+// PATH — the key under which a lookup gives the path of the document it reads, for a condition on the path.
+export const PATH = Symbol("the path of the document");
+
+// The regular expressions of a path condition's patterns, compiled once per condition.
+const CONDITION_PATTERNS = new WeakMap();
+
 // holds(condition, lookup) -> boolean — whether a condition holds, lookup(field) giving the text of a front matter key, a key
-// of a lines record or a column of the same row, or undefined for a value left out or a list. A condition on a value left
-// out holds neither with `in` nor with `notIn`.
+// of a lines record or a column of the same row, or undefined for a value left out or a list, and lookup(PATH) the path of
+// the document. A condition on a value left out holds neither with `in` nor with `notIn`; a condition on the path holds for
+// a document whose path matches one of its patterns, and never where no path is known.
 export function holds(condition, lookup) {
   if (condition.all) return condition.all.every((part) => holds(part, lookup));
   if (condition.any) return condition.any.some((part) => holds(part, lookup));
+  if (condition.path) {
+    const path = lookup(PATH);
+    if (typeof path !== "string") return false;
+    if (!CONDITION_PATTERNS.has(condition)) CONDITION_PATTERNS.set(condition, condition.path.map((p) => pathPattern(p, null).re));
+    return CONDITION_PATTERNS.get(condition).some((re) => re.test(path));
+  }
   const value = lookup(condition.field);
   if (typeof value !== "string") return false;
   return condition.in ? condition.in.includes(value) : !condition.notIn.includes(value);
@@ -144,6 +157,8 @@ export function effective(spec, lookup) {
 
 function checker(owner) {
   const fail = (key, why) => { throw schemaError(owner, key, why); };
+  // The patterns of the schema's own path, which a condition on the path may name; set when a schema is checked.
+  let ownPaths = new Set();
   const onlyKeys = (value, allowed, at, what) => {
     for (const key of Object.keys(value)) {
       if (!allowed.includes(key)) fail(at ? `${at}.${key}` : key, `${what} has no key ${key}; its keys are ${allowed.join(", ")}`);
@@ -159,11 +174,19 @@ function checker(owner) {
     }
   };
 
-  // A path pattern, or a list of them.
+  // A path pattern, or a list of them; a pattern written { pattern, rule } names the rule of a document at that path.
   function path(value) {
-    const patterns = typeof value === "string" ? [[value, "path"]]
+    const entries = typeof value === "string" || isObject(value) ? [[value, "path"]]
       : Array.isArray(value) && value.length ? value.map((p, i) => [p, `path[${i}]`]) : fail("path", "a pattern, or a list of them");
-    for (const [pattern, at] of patterns) {
+    for (const [entry, entryAt] of entries) {
+      let pattern = entry, at = entryAt;
+      if (isObject(entry)) {
+        onlyKeys(entry, ["pattern", "rule"], entryAt, "a path");
+        if (entry.rule === undefined) fail(`${entryAt}.rule`, "a path written { pattern, rule } names its rule");
+        requirementName(entry.rule, `${entryAt}.rule`);
+        pattern = entry.pattern;
+        at = `${entryAt}.pattern`;
+      }
       if (typeof pattern !== "string" || !pattern || pattern.startsWith("/") || /\s/.test(pattern)) {
         fail(at, "a path relative to the repository's root, with no blank");
       }
@@ -176,10 +199,10 @@ function checker(owner) {
     }
   }
 
-  // A condition — { field, in } or { field, notIn }, or { all } or { any } of conditions, each with its rule if it names
-  // one —, `fields` the names it may name.
+  // A condition — { field, in } or { field, notIn }, { path } with patterns of the schema's own path, or { all } or { any }
+  // of conditions, each with its rule if it names one —, `fields` the names it may name.
   function condition(value, at, fields) {
-    if (!isObject(value)) fail(at, "a condition is { field, in }, { field, notIn }, { all: [ … ] } or { any: [ … ] }");
+    if (!isObject(value)) fail(at, "a condition is { field, in }, { field, notIn }, { path: [ … ] }, { all: [ … ] } or { any: [ … ] }");
     const combined = ["all", "any"].filter((key) => key in value);
     if (combined.length) {
       if (Object.keys(value).filter((key) => key !== "rule").length !== 1) {
@@ -189,6 +212,14 @@ function checker(owner) {
       if (!Array.isArray(parts) || !parts.length) fail(`${at}.${combined[0]}`, "a list of conditions");
       parts.forEach((part, i) => condition(part, `${at}.${combined[0]}[${i}]`, fields));
       requirementName(value.rule, `${at}.rule`);
+      return;
+    }
+    if ("path" in value) {
+      onlyKeys(value, ["path", "rule"], at, "a condition on the path");
+      requirementName(value.rule, `${at}.rule`);
+      if (!Array.isArray(value.path) || !value.path.length || value.path.some((p) => typeof p !== "string" || !ownPaths.has(p))) {
+        fail(`${at}.path`, `a list of the schema's own path patterns: ${[...ownPaths].join(", ") || "none"}`);
+      }
       return;
     }
     onlyKeys(value, ["field", "in", "notIn", "rule"], at, "a condition");
@@ -337,6 +368,7 @@ function checker(owner) {
     if (!document) for (const key of DOCUMENT_ONLY) if (key in s) fail(key, `${key} belongs to the shape document, not to lines`);
     if (document && "lines" in s) fail("lines", "lines belong to the shape lines, not to document");
     if ("path" in s) path(s.path);
+    ownPaths = new Set(pathEntries(s.path).map(entryPattern));
 
     const keysAt = document ? "frontMatter" : "lines";
     const specs = s[keysAt];
@@ -415,6 +447,16 @@ function checker(owner) {
 
 // ---------------------------------------------------------------- compiling a schema
 
+// The entries of a schema's path — a pattern, or { pattern, rule } —, and the pattern of one.
+const pathEntries = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);
+const entryPattern = (entry) => (typeof entry === "string" ? entry : entry?.pattern);
+
+// pathRule(compiled, path) -> string | null — the rule the first of the schema's patterns that `path` matches names, where it
+// names one: a document at that path names it in place of the schema's own rule.
+export function pathRule(compiled, path) {
+  return compiled.patterns.find((pattern) => pattern.re.test(String(path ?? "")))?.rule ?? null;
+}
+
 const LOADED = new WeakMap();
 
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -449,7 +491,8 @@ function pathPattern(pattern, kind) {
 // schema's sections; its appended sections by heading; and the sections that hold a table.
 function compile(s) {
   const kind = s.identifier?.kind ?? null;
-  const patterns = s.path === undefined ? [] : (Array.isArray(s.path) ? s.path : [s.path]).map((p) => pathPattern(p, kind));
+  const patterns = pathEntries(s.path).map((entry) => ({ ...pathPattern(entryPattern(entry), kind),
+    rule: typeof entry === "string" ? null : entry.rule }));
   const sections = s.sections ?? [];
   const headed = sections.filter((spec) => !spec.underTitle);
   const levels = [...headed, ...(s.appended ?? [])].map((section) => HEADING_FORM.exec(section.heading)[1].length);

@@ -21,7 +21,7 @@
 // changed. The text a document was read from is its `body`: the rows that stand are found there, by their cells.
 
 import { formatFrontMatter, parseFrontMatter } from "../text-tools/index.mjs";
-import { compiledOf, effective, fences, sectionOf, textLines } from "./schema-language.mjs";
+import { PATH, compiledOf, effective, fences, sectionOf, textLines } from "./schema-language.mjs";
 import { leftOut, textOf, valueProblem } from "./checks.mjs";
 
 const HEADING = /^(#{1,6})[ \t]+\S/;
@@ -81,9 +81,10 @@ function typed(raw, spec, where) {
   return raw;
 }
 
-// The values of keys — front matter or lines — by their specifications, each typed by the variant that holds.
-function typedValues(raw, order, specs, where) {
-  const lookup = (name) => textOf(raw[name]);
+// The values of keys — front matter or lines — by their specifications, each typed by the variant that holds; `path` is the
+// document's, for a condition on it.
+function typedValues(raw, order, specs, where, path) {
+  const lookup = (name) => (name === PATH ? path : textOf(raw[name]));
   const out = {};
   for (const key of order) {
     const spec = specs?.[key];
@@ -231,13 +232,13 @@ export function readDocument(schema, path, text) {
       if (!Object.hasOwn(raw, m[1])) order.push(m[1]);
       raw[m[1]] = m[2].trim();
     }
-    const fields = typedValues(raw, order, schema.lines, "line");
+    const fields = typedValues(raw, order, schema.lines, "line", path);
     return { kind: schema.schema, path, id: identifierOf(schema, compiled, path, fields), title: null, fields, sections: [],
       appended: [], body: source };
   }
   const front = parseFrontMatter(source);
-  const fields = typedValues(front.fields, front.order, schema.frontMatter, "front matter");
-  const frontLookup = (name) => textOf(fields[name]);
+  const fields = typedValues(front.fields, front.order, schema.frontMatter, "front matter", path);
+  const frontLookup = (name) => (name === PATH ? path : textOf(fields[name]));
   const { title, chunks } = layout(compiled, front.body);
   const sections = [], appended = [];
   for (const [place, chunk] of chunks.entries()) {
@@ -286,7 +287,7 @@ function checkValues(schema, compiled, document) {
       throw fieldError(key, null, `is not a key of the format ${schema.schema}, whose schema lists ${Object.keys(specs).join(", ") || "none"}`);
     }
   }
-  const frontLookup = (name) => textOf(fields[name]);
+  const frontLookup = (name) => (name === PATH ? document.path : textOf(fields[name]));
   for (const [key, spec] of Object.entries(specs)) {
     const why = valueProblem(fields[key], spec, frontLookup, where);
     if (why) throw fieldError(key, null, why);
@@ -441,7 +442,7 @@ export function writeDocument(schema, document) {
   }
   const order = Object.keys(schema.frontMatter ?? {}).filter((key) => has(fields, key));
   const front = Object.fromEntries(order.map((key) => [key, Array.isArray(fields[key]) ? fields[key].map(String) : String(fields[key])]));
-  const frontLookup = (name) => textOf(fields[name]);
+  const frontLookup = (name) => (name === PATH ? document.path : textOf(fields[name]));
   const body = typeof document.body === "string" ? document.body : "";
   const { lead, chunks } = layout(compiled, body);
   const originals = new Map();
