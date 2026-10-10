@@ -1,6 +1,6 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, listTags, commitFiles, createTag and webLinks. Every function of a host that
-// reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
+// returns, with repositoryInfo, readSnapshot, listTags, commitFiles, createTag, createBranch and webLinks. Every function of a
+// host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
 //
 // Module: MOD-repository-hosts
 //
@@ -187,6 +187,19 @@ export function connect(address, credentials = {}) {
       if (typeof name !== "string" || !name.trim()) throw new TypeError("createTag names a tag");
       if (!HEAD.test(String(commit))) throw new TypeError(`createTag names the commit to tag: ${commit}`);
       return adapter.createTag(name, commit);
+    },
+
+    // createBranch(name, from) -> void — a branch at a commit; one that stands already is left where it stands, never moved.
+    // Crosses the network; fails with TokenRefused, PermissionMissing, RateLimited, Unreachable, and NotSupported without a
+    // token, before any request.
+    async createBranch(name, from) {
+      if (typeof name !== "string" || !name.trim()) throw new TypeError("createBranch names a branch");
+      if (!HEAD.test(String(from))) throw new TypeError(`createBranch names the commit the branch stands at: ${from}`);
+      if (!token) {
+        throw new HostError("NotSupported", { what: "creating a branch without a token" },
+          "A branch is created only with a token that may write to the repository; store one first.");
+      }
+      return adapter.createBranch(name, from);
     },
 
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.

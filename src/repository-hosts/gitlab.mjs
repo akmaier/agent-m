@@ -5,7 +5,8 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit) — and adds what both adapters share.
+// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit), createBranch(name, from) — and adds what
+// both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -151,6 +152,17 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
           const said = await a.clone().json().then((j) => String(j.message ?? j.error ?? ""), () => "");
           if (!/already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
           throw await tagExists(name);
+        } } });
+    },
+
+    // Creates a branch at a commit ("Create repository branch"). A branch that stands already — 400 "Branch already exists" —
+    // is left where it stands, never moved; any other 400 stays the failure it is.
+    async createBranch(name, from) {
+      await call("POST", `${api}/repository/branches`, { body: { branch: name, ref: from },
+        on: { 400: async (a) => {
+          const said = await a.clone().json().then((j) => String(j.message ?? j.error ?? ""), () => "");
+          if (!/already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
+          return null;
         } } });
     },
   };
