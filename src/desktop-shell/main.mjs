@@ -67,7 +67,7 @@ export async function start(electron, supplied = {}) {
       const taken = await takeExport(config.dataFolder, { instance: config.instance, ownComputer: Boolean(value?.ownComputer), session: value?.session, passphrase: value?.passphrase ?? "", name: value?.name }, value?.text ?? "");
       if (taken.pairingToken) await bridge.pairAnew(taken.pairingToken);
       paused = taken.paused;
-      return restart();
+      return { ...(await restart()), taken: { products: taken.products, jumpHost: taken.jumpHost, tunnels: taken.tunnels } };
     }
     throw new TypeError("Unknown Bridge window request.");
   });

@@ -27,14 +27,15 @@ test("TST-291001: MOD-desktop-shell saves bounded private settings", () => {
   try {
     const settings = saveSettings(dataFolder, {
       name: "lab", port: 4711, products: ["https://github.com/example/product"], every: 120,
-      paused: true, jumpHost,
-      tunnels: [{ direction: "reverse", jumpHost: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort, remotePort: 4111, bind: "127.0.0.1", bridgePort: 4711, keyFile: join(dataFolder, "ssh", "id_ed25519") }],
+      paused: true, jumpHost: { ...jumpHost, webServerLogin: "must-not-persist", password: "must-not-persist" },
+      tunnels: [{ direction: "reverse", jumpHost: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort, remotePort: 4111, bind: "127.0.0.1", bridgePort: 4711, keyFile: "foreign-key", password: "must-not-persist" }],
       repositoryToken: "must-not-persist", endpoint: "must-not-persist", mailbox: "must-not-persist", signIn: "must-not-persist",
     });
     const disk = JSON.parse(readFileSync(settingsFile(dataFolder), "utf8"));
     assert.deepEqual(settings, disk, "failure node: settings writer returns exactly the persisted private contract");
     assert.deepEqual(Object.keys(disk).sort(), ["agent-m-bridge-settings", "every", "jumpHost", "name", "paused", "port", "products", "tunnels"], "failure node: persisted settings exclude browser and mail secrets");
     assert.equal(disk["agent-m-bridge-settings"], 1);
+    assert.deepEqual(disk.jumpHost, jumpHost, "failure node: only the Bridge jump-host fields persist");
     assert.equal(disk.tunnels[0].keyFile, join(dataFolder, "ssh", "id_ed25519"));
     assert.deepEqual(loadSettings(dataFolder), disk, "failure node: restart reads the canonical persisted settings");
   } finally { rmSync(dataFolder, { recursive: true, force: true }); }
@@ -50,6 +51,7 @@ test("TST-291001: MOD-desktop-shell saves bounded private settings", () => {
 test("TST-291002: MOD-desktop-shell imports a named remote session as one reverse plan", async () => {
   const dataFolder = folder();
   try {
+    saveSettings(dataFolder, { name: "manual", port: 5511, products: [], every: 123, paused: true, jumpHost: null, tunnels: [] });
     const text = JSON.stringify({ "agent-m-settings": 1, instance: "example/agent-m", exported: "2026-10-10T00:00:00.000Z", locked: false, foreign: {}, settings: {
       products: ["https://github.com/example/product"], "jump-host": jumpHost, "remote-session:lab": remote,
       "github-token": { token: "must-not-persist" }, "endpoint:openai": { key: "must-not-persist" }, bridge: { token: "must-not-persist" },
@@ -57,9 +59,10 @@ test("TST-291002: MOD-desktop-shell imports a named remote session as one revers
     const taken = await takeExport(dataFolder, { instance: "example/agent-m", ownComputer: false, session: "lab" }, text);
     assert.deepEqual(taken.products, ["https://github.com/example/product"]);
     assert.equal(taken.name, "lab");
-    assert.equal(taken.port, 4711, "failure node: settings port remains the local Bridge API port");
+    assert.equal(taken.port, 5511, "failure node: import preserves the existing local Bridge API port");
+    assert.equal(taken.paused, true, "failure node: import preserves the current explicit pause state");
     assert.equal(taken.pairingToken, "paired-token");
-    assert.deepEqual(taken.tunnels, [{ direction: "reverse", jumpHost: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort, remotePort: 4111, bind: "127.0.0.1", bridgePort: 4711, keyFile: join(dataFolder, "ssh", "id_ed25519") }], "failure node: named remote-session choice takes its reverse plan only");
+    assert.deepEqual(taken.tunnels, [{ direction: "reverse", jumpHost: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort, remotePort: 4111, bind: "127.0.0.1", bridgePort: 5511, keyFile: join(dataFolder, "ssh", "id_ed25519") }], "failure node: named remote-session choice takes its reverse plan only");
     assert.deepEqual(Object.keys(JSON.parse(readFileSync(settingsFile(dataFolder), "utf8"))).sort(), ["agent-m-bridge-settings", "every", "jumpHost", "name", "paused", "port", "products", "tunnels"], "failure node: import persists only the Bridge contract");
   } finally { rmSync(dataFolder, { recursive: true, force: true }); }
 });
