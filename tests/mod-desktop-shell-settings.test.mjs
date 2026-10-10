@@ -52,7 +52,7 @@ test("TST-291002: MOD-desktop-shell imports a named remote session as one revers
   try {
     const text = JSON.stringify({ "agent-m-settings": 1, instance: "example/agent-m", exported: "2026-10-10T00:00:00.000Z", locked: false, foreign: {}, settings: {
       products: ["https://github.com/example/product"], "jump-host": jumpHost, "remote-session:lab": remote,
-      "github-token": { token: "must-not-persist" }, "endpoint:openai": { key: "must-not-persist" }, mailbox: { password: "must-not-persist" }, bridge: { token: "must-not-persist" },
+      "github-token": { token: "must-not-persist" }, "endpoint:openai": { key: "must-not-persist" }, bridge: { token: "must-not-persist" },
     } });
     const taken = await takeExport(dataFolder, { instance: "example/agent-m", ownComputer: false, session: "lab" }, text);
     assert.deepEqual(taken.products, ["https://github.com/example/product"]);

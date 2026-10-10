@@ -3,6 +3,7 @@ import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { compose } from "./compose.mjs";
+import { loadSettings, saveSettings, takeExport } from "./settings.mjs";
 
 let tray;
 
@@ -44,19 +45,40 @@ export async function start(electron, supplied = {}) {
   electron.protocol.registerSchemesAsPrivileged?.([{ scheme: "agent-m", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
   await electron.app.whenReady();
   const page = registerProtocol(electron, config.instance);
-  let bridge = null, paused = false, quitting = false, startupFailure = null;
+  const stored = loadSettings(config.dataFolder, { port: config.port });
+  let bridge = null, paused = stored.paused, quitting = false, startupFailure = null;
   const window = new electron.BrowserWindow({ webPreferences: { preload: new URL("./preload.cjs", import.meta.url).pathname, contextIsolation: true, nodeIntegration: false } });
   window.webContents.setWindowOpenHandler(({ url }) => { electron.shell.openExternal(url); return { action: "deny" }; });
   window.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("agent-m://")) { event.preventDefault(); electron.shell.openExternal(url); } });
-  electron.ipcMain.handle("bridge-state", () => startupFailure ? { failure: startupFailure } : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused }));
-  electron.ipcMain.handle("pair-anew", async () => { bridge.token = await bridge.pairAnew(); return bridge.token; });
-  electron.ipcMain.handle("copy", (_event, text) => electron.clipboard.writeText(String(text)));
-  electron.ipcMain.handle("pause", () => { paused = true; return paused; });
-  electron.ipcMain.handle("resume", () => { paused = false; return paused; });
-  electron.ipcMain.handle("retry-port", async (_event, port) => {
-    config.port = Number(port);
+  const bridgeState = async () => startupFailure ? { failure: startupFailure } : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused, settings: bridge.settings, publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() });
+  const restart = async () => {
+    if (bridge) await bridge.close();
     bridge = await compose({ instance: config.instance, origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused });
     startupFailure = null;
+    return bridgeState();
+  };
+  electron.ipcMain.handle("bridge-state", async (_event, action, value) => {
+    if (!action) return bridgeState();
+    if (startupFailure) return bridgeState();
+    if (action === "settings") return { settings: bridge.settings };
+    if (action === "tunnels") return { publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() };
+    if (action === "save-settings") { saveSettings(config.dataFolder, { ...bridge.settings, ...value, paused }); return restart(); }
+    if (action === "import-settings") {
+      const taken = await takeExport(config.dataFolder, { instance: config.instance, ownComputer: Boolean(value?.ownComputer), session: value?.session, passphrase: value?.passphrase ?? "", name: value?.name }, value?.text ?? "");
+      if (taken.pairingToken) await bridge.pairAnew(taken.pairingToken);
+      paused = taken.paused;
+      return restart();
+    }
+    throw new TypeError("Unknown Bridge window request.");
+  });
+  electron.ipcMain.handle("pair-anew", async () => { bridge.token = await bridge.pairAnew(); return bridge.token; });
+  electron.ipcMain.handle("copy", (_event, text) => electron.clipboard.writeText(String(text)));
+  electron.ipcMain.handle("pause", () => { paused = true; saveSettings(config.dataFolder, { ...bridge.settings, paused }); return paused; });
+  electron.ipcMain.handle("resume", () => { paused = false; saveSettings(config.dataFolder, { ...bridge.settings, paused }); return paused; });
+  electron.ipcMain.handle("retry-port", async (_event, port) => {
+    config.port = Number(port);
+    saveSettings(config.dataFolder, { ...loadSettings(config.dataFolder, { port: config.port }), port: config.port, paused });
+    return restart();
   });
   electron.ipcMain.handle("quit", () => electron.app.quit());
   electron.app.on("second-instance", () => show(window));
@@ -75,7 +97,7 @@ export async function start(electron, supplied = {}) {
     event.preventDefault();
     bridge.close().finally(() => electron.app.exit());
   });
-  try { bridge = await compose({ instance: config.instance, origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused }); }
+  try { await restart(); }
   catch (failure) { startupFailure = { name: failure.name, message: failure.message, folder: failure.folder ?? null }; }
   await window.loadURL(page);
   return bridge ?? { failure: startupFailure, close: async () => {} };
