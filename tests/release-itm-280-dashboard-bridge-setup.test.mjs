@@ -136,6 +136,7 @@ test("TST-280902: failures do not pair, while configured HTTPS storage stays sep
   assert.ok(change, "Settings names the jump-host configuration before action");
   await change.fire("click");
   await page.go("#bridge");
+  await page.go("#settings");
   const clear = publicControl(mounted(), "settings-jump-host-clear");
   assert.ok(clear, "Settings exposes jump-host Clear");
   await clear.fire("click");

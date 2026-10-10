@@ -85,6 +85,15 @@ function captureNotifications() {
   return shown;
 }
 
+const publicControls = (root, name, out = []) => {
+  for (const child of root?.children ?? []) {
+    if (typeof child !== "object") continue;
+    if (child.className?.split(" ").includes(name)) out.push(child);
+    publicControls(child, name, out);
+  }
+  return out;
+};
+
 async function usabilitySettings(page) {
   const main = globalThis.document.getElementById("main");
   const replace = main.replaceChildren.bind(main);

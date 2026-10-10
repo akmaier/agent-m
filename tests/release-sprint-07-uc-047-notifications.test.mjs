@@ -311,9 +311,9 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
     assert.equal(details.children[0].localName, "summary", "the public explanation keeps its What is this? summary");
     assert.equal(details.children[0].textContent, "What is this?");
     const explanation = details.textContent;
-    assert.match(explanation, /every five minutes while a page of this dashboard is open/, "how often, and while what");
-    assert.match(explanation, /this browser's own tokens and nowhere else/, "whose tokens, and nowhere else");
-    assert.match(explanation, /nothing is checked while no page is open/, "nothing while no page is open");
+    assert.match(explanation, /While a dashboard page is open, it checks every five minutes/, "how often, and while what");
+    assert.match(explanation, /repository servers with the tokens of this browser and nowhere else/, "whose tokens, and nowhere else");
+    assert.match(explanation, /Nothing is checked while no page is open/, "nothing while no page is open");
   } finally { browser.restore(); }
 });
 
