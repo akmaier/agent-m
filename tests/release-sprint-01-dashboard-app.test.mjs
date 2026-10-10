@@ -203,13 +203,16 @@ function gitlabServer({ files = { "README.md": "# Proj\n" }, visibility = "priva
 
 // Every request the page makes, with the credentials it carries (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT).
 // The text UC-003's record names is in the repository's history, readable by its blob SHA, as git keeps it.
-async function world({ files = instanceFiles(), history = [UC3_ACCEPTED], dates = {}, product = null, gitlab = null, refuse = null } = {}) {
+async function world({ files = instanceFiles(), history = [UC3_ACCEPTED], dates = {}, product = null, gitlab = null, refuse = null, writableProduct = false } = {}) {
   const log = [];
   let server;
   const handlers = [
     (u, init) => { log.push({ method: init.method, url: u.href, origin: u.origin, auth: header(init.headers, "authorization"),
       privateToken: header(init.headers, "private-token") }); return undefined; },
     (u, init) => (refuse ? refuse(u, init) : undefined),
+    (u) => (writableProduct && u.origin === API && u.pathname === `/repos/${INSTANCE}`
+      ? new Response(JSON.stringify({ private: false, default_branch: "main", permissions: { push: true } }), { headers: { "Content-Type": "application/json" } })
+      : undefined),
     (u, init) => (product && ((u.origin === API && u.pathname.startsWith(`/repos/${PRODUCT}`))
       || (u.origin === "https://raw.githubusercontent.com" && u.pathname.startsWith(`/${PRODUCT}/`))) ? product.fetch(u, init) : undefined),
     (u, init) => (gitlab && u.origin === GL_ORIGIN ? gitlab.fetch(u, init) : undefined),
@@ -785,9 +788,9 @@ test("release · UC-014 8–9: Store and check keeps token and expiry after the 
   await page.tick("key-ack");
   page.byId("key-token").value = TOKEN;
   await page.fire("key-store");
-  const kept = Object.values(page.storage());
-  assert.ok(kept.includes(TOKEN), "the token in localStorage");
-  assert.ok(kept.includes(daysFromToday(90)), "its expiry date in localStorage");
+  const kept = storedSetting(page, "github-token");
+  assert.equal(kept.value, TOKEN, "the token in its canonical browser-store record");
+  assert.equal(kept.expires, daysFromToday(90), "its expiry date in that canonical record");
   assert.ok(w.log.some((r) => r.url === `${API}/repos/${INSTANCE}` && r.auth === `Bearer ${TOKEN}`), "the instance is read with it");
   assert.match(stripTags(page.html("key-check")), new RegExp(`✓ ${INSTANCE}`));
   const done = page.html("setup-done");
@@ -876,7 +879,7 @@ test("release · UC-042 2: Change stores a new token with its expiry date, prese
   await pressPublic(w, repositoryControl(row, "change"));
   const ack = repositoryControl(row, "ack"), expiry = repositoryControl(row, "expiry"), secret = repositoryControl(row, "secret");
   assert.equal(ack.disabled, false, "the fields open in place");
-  assert.match(stripTags(page.main()), /every other GitHub Pages site of akmaier/i, "the same notice");
+  assert.match(stripTags(page.main()), /every GitHub Pages site under that same akmaier\.github\.io domain/i, "the same notice");
   assert.equal(expiry.value, daysFromToday(90), "the expiry is preset to 90 days");
   ack.checked = true; await ack.fire("change");
   secret.value = NEW_TOKEN; expiry.value = daysFromToday(90);
@@ -947,14 +950,16 @@ test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a Git
     ? new Response('{"message":"Bad credentials"}', { status: 401 }) : undefined) });
   const page = await open(w, { hash: "#add" });
   await storeGitLabProductToken(w, page, GL_ADDRESS, { add: true });
-  const panes = await settingsPanes(page);
+  let panes = await settingsPanes(page);
   refused = true;
   gitlab.refuseToken = true;
   await pressPublic(w, repositoryControl(githubRow(panes), "test"));
   assert.match(statusOf(githubRow(panes)), /Refused/);
+  await page.go("#uc");
   const banner = page.el("token-banner");
   assert.match(stripTags(banner), /GitHub token/);
   assert.ok(hrefs(banner).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "Renew");
+  panes = await settingsPanes(page);
   const line = gitlabRow(panes);
   await pressPublic(w, repositoryControl(line, "test"));
   assert.match(statusOf(line), /Refused/);
@@ -970,7 +975,8 @@ test("release · UC-042 3a: without a token the product section is read-only and
   assert.equal(productControl(panes, "pseudonymisation-off"), undefined);
   assert.equal(productControl(panes, "collaborator-save"), undefined);
   await pressPublic(w, productControl(panes, "product-token-step"));
-  assert.equal(location.hash, "#add", "a control opens the token step");
+  assert.equal(location.hash, `#add/${encodeURIComponent(`https://github.com/${INSTANCE}`)}`,
+    "the public token step receives the selected product address for its prefilled route");
 });
 
 // UC-042 step 4 · PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF · SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS ·
@@ -981,7 +987,7 @@ test("release · UC-042 3a: without a token the product section is read-only and
 // public — that the data will be published; Save is refused until "I have read this" is ticked, and then commits
 // docs/settings.md to the product, after which it shows off.
 test("release · UC-042 4: pseudonymisation is on by default; switching it off states what follows, then commits docs/settings.md", async () => {
-  const w = await world();
+  const w = await world({ writableProduct: true });
   const page = await open(w), panes = await settingsPanes(page);
   let box = productControls(panes).textContent;
   assert.match(box, /Pseudonymisation is on/);
@@ -1009,7 +1015,7 @@ test("release · UC-042 4: pseudonymisation is on by default; switching it off s
 // UC-042 4a — switching pseudonymisation back on. Expected: it is saved without a notice; the page says that data written while
 // it was off stays in the repository's history and that removing it needs a rewrite of that history.
 test("release · UC-042 4a: switching back on is saved without a notice; the page says earlier data stays in the history", async () => {
-  const w = await world();
+  const w = await world({ writableProduct: true });
   const page = await open(w), panes = await settingsPanes(page);
   const off = productControl(panes, "pseudonymisation-off"), ack = productControl(panes, "pseudonymisation-ack");
   off.checked = true; ack.checked = true;
@@ -1028,7 +1034,7 @@ test("release · UC-042 4a: switching back on is saved without a notice; the pag
 // a tick "this person has agreed to be named"; Save commits docs/collaborators.md. Expected: without the tick nothing is
 // committed; with it, one commit of docs/collaborators.md naming the person, the account and the date; the list then shows them.
 test("release · UC-042 5: + Collaborator with the person's consent commits docs/collaborators.md, without it nothing", async () => {
-  const w = await world();
+  const w = await world({ writableProduct: true });
   const page = await open(w), panes = await settingsPanes(page);
   productControl(panes, "collaborator-name").value = "Ada Lovelace";
   productControl(panes, "collaborator-account").value = "ada";
@@ -1068,16 +1074,18 @@ test("release · UC-042: every line and section of the settings page explains it
   const folded = (root, name) => {
     const details = detailsOf(root);
     assert.ok(details.length, `${name} explains itself`);
-    for (const details of details) {
-      assert.equal(details.localName, "details");
-      assert.equal(Boolean(details.open), false, "folded by default");
-      assert.equal(details.children[0]?.localName, "summary");
-      assert.equal(details.children[0]?.textContent, "What is this?");
+    for (const detail of details) {
+      assert.equal(detail.localName, "details");
+      assert.equal(Boolean(detail.open), false, "folded by default");
+      assert.equal(detail.children[0]?.localName, "summary");
+      assert.equal(detail.children[0]?.textContent, "What is this?");
     }
   };
   for (const row of publicControls(panes.repositories(), "settings-repository")) folded(row, row.textContent.split("\n")[0] || "repository row");
-  folded(productControl(panes, "pseudonymisation-state").parentElement, "pseudonymisation");
-  folded(productControl(panes, "collaborator-save").parentElement, "collaborators");
+  const product = productControls(panes);
+  folded(product, "product settings");
+  assert.match(detailsOf(product)[0].textContent, /pseudonymisation[\s\S]*collaborator consent/i,
+    "the product setting explanation covers both pseudonymisation and collaborator consent");
   folded(publicControls(panes.general(), "settings-export-import")[0], "Export and import");
   folded(publicControls(panes.general(), "settings-clear")[0], "Clear everything");
   for (const details of detailsOf(panes.usability())) {
@@ -1098,7 +1106,7 @@ test("release · A TOKEN IS SCOPED TO WHAT IT WRITES: the settings page states t
   assert.match(step, /Only select repositories/);
   assert.match(step, new RegExp(INSTANCE));
   for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
-    assert.match(step, new RegExp(`${p}: (?:read and write|read) — \\w[^.—]{8,}`), `${p} with why`);
+    assert.match(step, new RegExp(`${p} \\((?:read and write|read)\\): \\w[^.:]{8,}`), `${p} with why`);
   }
 });
 

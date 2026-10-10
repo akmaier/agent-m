@@ -83,7 +83,10 @@ test("the adapter discovers token-only GitLab products and preserves imported pu
   });
   assert.deepEqual(dashboard.getProducts(), [first, second]);
   const entries = dashboard.entries();
-  assert.deepEqual(Object.keys(JSON.parse(entries["agent-m.gitlab-tokens"])).sort(), [first, second]);
+  assert.equal(entries["agent-m.gitlab-tokens"], undefined,
+    "the adapter removes the legacy duplicate credential export after canonical migration");
+  assert.deepEqual(readSetting(store, "products"), [first, second],
+    "both discovered and imported product addresses remain in the canonical catalogue");
   const canonicalSecond = readSetting(store, "gitlab-token:gitlab.example.org/team/second");
   assert.equal(canonicalSecond?.value, "glpat_SECOND012345678", "the imported token reaches MOD-browser-store's canonical record");
   assert.equal(canonicalSecond?.expires, "2027-02-01", "the imported expiry reaches MOD-browser-store's canonical record");
