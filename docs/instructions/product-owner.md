@@ -7,8 +7,9 @@ drives the sprint; its task names the sprint, the folder of the Product Owner's 
 `CLAUDE.md` and the lines that end each commit.
 
 ## Read first — in the original, never a summary
-The process's `CLAUDE.md`; `docs/process.md` in full; `docs/process-models/scrum-wip.md`; `docs/backlog/order.md`; the
-record of the last sprint under `docs/backlog/sprints/` for the form of a record; each item your task concerns; and of
+The process's `CLAUDE.md`; `docs/process.md` in full; `docs/process-models/scrum-wip.md`; your team's role assignment
+under `docs/role-assignments/`; the record of your team's last sprint under `docs/backlog/sprints/<team>/` for the form
+of a record; each item your task concerns; and of
 `SPEC.md` the requirements those items name, each in full (find them by name with `grep -n`). `SOFTWARE_MAINTENANCE.md`
 §0 Nr. 13 binds you: YAGNI and KISS, and the sprint is driven to a quick finish.
 

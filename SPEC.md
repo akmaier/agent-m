@@ -1652,8 +1652,8 @@ The input Agent M sends with a job that writes or changes tests contains chapter
 the book's chapter files. It checks that a job on tests receives chapter 13 complete.
 
 **AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION** *(PO A. Maier)*
-The input Agent M sends with a job that writes or changes the architecture contains chapters 9, 10, 11 and 12 of the
-book *Vibe Coding* in full.
+The input Agent M sends with a job that writes, changes or reviews the architecture contains chapters 9, 10, 11 and 12
+of the book *Vibe Coding* in full.
 *Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
 the book's chapter files. It checks that a job on the architecture receives chapters 9 to 12 complete.
 
