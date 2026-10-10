@@ -64,6 +64,7 @@ function settingDescription(key) {
   if (key.startsWith("endpoint:")) return { label: `Endpoint: ${key.slice("endpoint:".length)}`, secret: true, grants: "access to a model endpoint", setUpIn: "endpoints" };
   if (key.startsWith("remote-session:")) return { label: `Remote session: ${key.slice("remote-session:".length)}`, secret: true, grants: "access to a remote Bridge session", setUpIn: "bridge" };
   if (key.startsWith("last-test:")) return { label: `Last test: ${key.slice("last-test:".length)}`, secret: false, grants: "the recorded result of a setting test", setUpIn: "settings" };
+  if (key.startsWith("acknowledged:")) return { label: `Acknowledged: ${key.slice("acknowledged:".length)}`, secret: false, grants: "the recorded acknowledgement date", setUpIn: "settings" };
   return null;
 }
 
