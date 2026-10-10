@@ -1,7 +1,7 @@
 ---
 model: scrum-wip
 model_file: docs/process-models/scrum-wip.md
-model_version: ef33e2f501289930960f13b55936e9b557003993
+model_version: 36818d739a20b7bd0dbfec7f13a86f46ebd29e05
 ---
 
 # How Agent M is developed
