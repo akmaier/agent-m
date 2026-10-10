@@ -39,7 +39,7 @@ function activate(browser) {
 }
 
 async function openEndpointDashboard({ entries = {}, handlers = [], pathname = null, storage = null } = {}) {
-  const server = await repoServer({ files: {}, handlers });
+  const server = await repoServer({ repo: pathname ? "akmaier/other" : INSTANCE, files: {}, handlers });
   const page = await openDashboard({ server, hash: "#uc", entries });
   if (storage) globalThis.localStorage = storage;
   const dom = richDocument();
@@ -47,8 +47,14 @@ async function openEndpointDashboard({ entries = {}, handlers = [], pathname = n
   let mounted = [];
   const replace = main.replaceChildren.bind(main);
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
-  if (pathname) globalThis.location.pathname = pathname;
-  await page.go("#settings");
+  if (pathname) {
+    // dashboard-app derives its instance/store once during import.  The second controlled Pages address must therefore
+    // exist before its own dashboard module starts, and its repoServer must answer for that derived instance.
+    globalThis.location.pathname = pathname;
+    globalThis.location.hash = "#settings";
+    await import(`../docs/assets/dashboard-app.mjs?itm270-instance=${encodeURIComponent(pathname)}`);
+    await settle(server);
+  } else await page.go("#settings");
   const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
   const configure = publicControl(endpoints, "settings-endpoint-configure");
   assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
