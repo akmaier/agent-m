@@ -108,7 +108,7 @@ of work are given once, by four recipes:
 |---|---|---|
 | `chapters-for-requirements` | writing or changing requirements or use cases | 8 |
 | `chapters-for-tests` | writing or changing tests | 13 |
-| `chapters-for-architecture` | writing or changing the architecture | 9, 10, 11, 12 |
+| `chapters-for-architecture` | writing, changing or reviewing the architecture | 9, 10, 11, 12 |
 | `chapters-for-implementation` | implementing | 9, 11, 12, 13 |
 
 A chapter is the file of the version whose name begins with the chapter's number in two digits and `_`, such as
