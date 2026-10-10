@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "answered": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "answered"
+  ]
+}

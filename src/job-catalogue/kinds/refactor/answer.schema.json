@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "branch": {
+      "type": "string"
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pullRequest": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "branch",
+    "commits",
+    "pullRequest"
+  ]
+}

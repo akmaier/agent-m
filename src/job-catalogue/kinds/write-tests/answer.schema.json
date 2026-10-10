@@ -1,0 +1,50 @@
+{
+  "type": "object",
+  "properties": {
+    "branch": {
+      "type": "string"
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pullRequest": {
+      "type": "string"
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ]
+          },
+          "counterProof": {
+            "type": "string"
+          },
+          "notWritten": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "identifier"
+        ]
+      }
+    }
+  },
+  "required": [
+    "branch",
+    "commits",
+    "pullRequest",
+    "tests"
+  ]
+}
