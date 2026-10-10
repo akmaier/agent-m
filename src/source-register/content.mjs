@@ -14,7 +14,7 @@ const encoder = new TextEncoder();
 // A failure of its own, by name, with the fields MOD-source-register's Interfaces give it.
 export const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
 
-const unquoted = (text) => String(text ?? "").replace(/^`|`$/g, "");
+export const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, "");
 
 // The files of a version and their SHA-256, as the table under `### Files of <version>` in the entry's `## Versions` lists
 // them — the version written with or without backticks.
@@ -40,9 +40,23 @@ async function versionHash(files) {
 }
 
 /**
+ * versionRecord(entry: Document, version: string, hash: string) -> SourceVersion | null — the version of a register entry
+ * that its `## Versions` names `version`, with its files and their SHA-256 from the table under `### Files of <version>`,
+ * and `hash` as the version's hash; null when the entry records no such version.
+ * @param {Document} entry
+ */
+export function versionRecord(entry, version, hash) {
+  const versions = entry.sections.find((section) => section.heading === "## Versions");
+  const row = versions?.rows?.find((each) => unquoted(each.cells.Version) === version);
+  if (!row) return null;
+  return { source: entry.id, version, date: String(row.cells.Date ?? ""), retrieved: null, repositoryVersion: null,
+    commit: null, files: filesOf(versions, version), hash };
+}
+
+/**
  * newestVersion(entry: Document) -> Promise<SourceVersion | null> — the newest version of a register entry: the last row of
- * its `## Versions`, with its files and their SHA-256 from the table under `### Files of <version>`, and its version's
- * hash; null when the entry records no version.
+ * its `## Versions`, with its files and their SHA-256, and its version's hash computed from them; null when the entry
+ * records no version.
  * @param {Document} entry
  */
 export async function newestVersion(entry) {
@@ -50,9 +64,7 @@ export async function newestVersion(entry) {
   const row = versions?.rows?.at(-1);
   if (!row) return null;
   const version = unquoted(row.cells.Version);
-  const files = filesOf(versions, version);
-  return { source: entry.id, version, date: String(row.cells.Date ?? ""), retrieved: null, repositoryVersion: null,
-    commit: null, files, hash: await versionHash(files) };
+  return versionRecord(entry, version, await versionHash(filesOf(versions, version)));
 }
 
 /**
