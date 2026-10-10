@@ -505,6 +505,8 @@ async function route() {
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
     await available;
+    loadProducts();
+    renderProductSelector();
     if (kind === "settings") {
       const settings = settingsPages.routes.find((r) => r.name === "settings");
       const settingsStore = openStore(T.instance);
@@ -517,7 +519,7 @@ async function route() {
         product: { address: T.product.address, kind: address.server, host: connect(address, { token: store.tokenFor(T.product) }) },
         store: settingsStore,
         go(route, params = {}) {
-          if (route === "add-product") location.hash = "#add";
+          if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
           if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
           if (route === "bridge") location.hash = "#bridge";
         },
