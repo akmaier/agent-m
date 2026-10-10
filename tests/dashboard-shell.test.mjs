@@ -93,7 +93,7 @@ test("a view or settings section whose file is not there yet is not shown, and i
   assert.doesNotMatch(page.main(), new RegExp(`data-settings-section="${section.section}"`));
   // Counter-proof: a view whose file is there is linked from its stage, and the public Settings route is on the page.
   assert.match(page.el("tabs"), /<a href="#uc" role="tab" id="tab-uc"/);
-  assert.match(page.main(), /General.*Repositories.*Endpoints &amp; Agents.*Usability/s);
+  assert.match(page.main(), /General.*Repositories.*Endpoints &(?:amp; )?Agents.*Usability/s);
 });
 
 // Guards: UC-024

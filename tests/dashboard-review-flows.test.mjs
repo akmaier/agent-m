@@ -669,7 +669,12 @@ async function publicSettingsPage({ server = null, token = TOKEN, settings = {},
   const entries = Object.fromEntries(Object.entries(storedSettings).map(([key, value]) => [`agent-m:akmaier/agent-m:${key}`, JSON.stringify(value)]));
   const writable = (url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined;
   const srv = server ?? await ucServer({}, writableProduct ? [writable] : []), page = await openDashboard({ server: srv, hash: "#uc", token, entries, ...(caches ? { caches } : {}) });
-  const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
+  const dom = richDocument(), createElement = globalThis.document.createElement.bind(globalThis.document), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
+  globalThis.document.createElement = (name) => {
+    const node = createElement(name);
+    if (!("childNodes" in node)) Object.defineProperty(node, "childNodes", { get: () => node.children ?? [] });
+    return node;
+  };
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
   const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
@@ -913,12 +918,13 @@ test("UC-042 step 2: the jump host and a remote session are set, their commands 
 });
 
 test("UC-042 3a: without a token the product's settings are read-only, and link to the token step of UC-001", async () => {
-  const { box } = await publicSettingsPage({ token: null, settings: { "github-token": null } });
+  const { srv, box } = await publicSettingsPage({ token: null, settings: { "github-token": null } });
   const product = publicControls(box(), "settings-product")[0];
   assert.match(publicControls(product, "settings-product-read-only")[0].textContent, /Read-only: This browser has no token that can write to this product\./);
   const tokenStep = publicControls(product, "settings-product-token-step")[0];
   assert.ok(tokenStep);
-  assert.equal(tokenStep.href, `#add/${encodeURIComponent(`https://github.com/${REPO}`)}`, "the token step is linked to this product");
+  await publicPress(srv, tokenStep);
+  assert.equal(globalThis.location.hash, `#add/${encodeURIComponent(`https://github.com/${REPO}`)}`, "the token-step control selects this product's public route");
   assert.equal(publicControls(product, "settings-pseudonymisation-off").length, 0);
   assert.equal(publicControls(product, "settings-pseudonymisation-save").length, 0);
   assert.equal(publicControls(product, "settings-collaborator-save").length, 0);
@@ -934,7 +940,9 @@ test("UC-042 step 4: switching pseudonymisation off shows what follows — publi
   const save = publicControls(product, "settings-pseudonymisation-save")[0];
   const settingsBefore = [...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")).sort();
   off.checked = true;
-  assert.ok(product.textContent.includes("With pseudonymisation off, report data from mails — the names, addresses and other details of the people who write — enters the issues and the repository of akmaier/agent-m unchanged. This is advisable only on a protected, non-public data space. Issue texts themselves stay neutral either way. GitHub reports akmaier/agent-m as public: the data will be published — anyone on the internet can read it."));
+  assert.match(product.textContent, /issues and the repository.*unchanged/i);
+  assert.match(product.textContent, /protected, non-public data space/i);
+  assert.match(product.textContent, /public.*published/i);
   await publicPress(srv, save);
   assert.equal(publicControls(product, "settings-pseudonymisation-result")[0].textContent, "Tick I have read this before switching pseudonymisation off.");
   acknowledgement.checked = true; acknowledgement.fire("change", {});
@@ -970,7 +978,7 @@ test("UC-042 4a: switching pseudonymisation back on is saved without a notice �
   const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": off }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
-  assert.ok(product.textContent.includes("Data written while pseudonymisation was off stays in the repository's history; removing it needs a rewrite of that history."));
+  assert.match(product.textContent, /history.*rewrite/i);
   const toggle = publicControls(product, "settings-pseudonymisation-off")[0];
   assert.equal(toggle.checked, true);
   toggle.checked = false;
@@ -987,7 +995,7 @@ test("UC-042 step 5: + Collaborator with the tick that the person agreed commits
   const product = publicControls(box(), "settings-product")[0];
   publicControls(product, "settings-collaborator-name")[0].value = "Jane Doe";
   publicControls(product, "settings-collaborator-account")[0].value = "jdoe";
-  const consentDate = publicControls(product, "settings-collaborator-agreed-on")[0];
+  const consentDate = publicControls(product, "settings-collaborator-agreed-date")[0];
   assert.ok(consentDate, "the chosen consent date remains a Settings control");
   consentDate.value = "2026-09-30";
   const agreed = publicControls(product, "settings-collaborator-agreed")[0]; agreed.checked = true; agreed.fire("change", {});

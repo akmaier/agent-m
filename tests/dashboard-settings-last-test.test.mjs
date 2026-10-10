@@ -61,9 +61,13 @@ async function instanceWorld() {
 
 // One page load of the settings page on a browser that holds `entries` (a reload keeps every entry of the page before it).
 async function settingsPage(world, entries = { "agent-m.github-token": TOKEN }) {
-  const page = await openDashboard({ server: world.srv, hash: "#uc", token: null });
-  for (const [k, v] of Object.entries(entries)) globalThis.localStorage.setItem(k, v);
-  const dom = richDocument();
+  const page = await openDashboard({ server: world.srv, hash: "#uc", token: null, entries });
+  const dom = richDocument(), createElement = globalThis.document.createElement.bind(globalThis.document);
+  globalThis.document.createElement = (name) => {
+    const node = createElement(name);
+    if (!("childNodes" in node)) Object.defineProperty(node, "childNodes", { get: () => node.children ?? [] });
+    return node;
+  };
   const main = dom.byId("main"), replace = main.replaceChildren.bind(main);
   let mounted = [];
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
