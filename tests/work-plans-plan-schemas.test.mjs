@@ -31,7 +31,7 @@ const planOrderOf = (...rows) => [
 ].join("\n");
 
 const sprintOf = ({ selection = ["ITM-297", "ITM-298"], start = "2026-10-10", end = "", branch = "sprint/19" } = {}) => [
-  "---", "sprint: 19", "goal: Give plans and sprints their schemas", `start: ${start}`, `end: ${end}`,
+  "---", "sprint: 19", "goal: Give plans and sprints their schemas", `start: ${start}`, end ? `end: ${end}` : "end:",
   "closer: scrum-master-session", `branch: ${branch}`, "selection:", ...selection.map((item) => `  - ${item}`), "---",
   "# Sprint 19", "", "**REGISTER**", "", "The selected backlog work.", "",
 ].join("\n");
@@ -99,7 +99,7 @@ test("TST-297013: malformed identifiers, paths, and sprint dates are findings af
   const [badStep] = findingsOf(planSchemas.planOrder, PLAN_PATH, planOrderOf(["NOT-297", "Planning"]));
   assert.deepEqual(findingShape(badStep), {
     artifact: PLAN_PATH, line: 11, kind: "error", rule: "THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY",
-    what: 'the cell Step "NOT-297" is not an identifier ITM',
+    what: 'the column Step does not fit: "NOT-297" is not an identifier ITM',
   });
   for (const path of ["docs/backlog/other/19.md", "docs/backlog/sprints/19.txt"]) {
     const [badPath] = findingsOf(planSchemas.sprint, path, sprintOf());
@@ -126,7 +126,7 @@ test("TST-297014: repeated Selection decisions append without changing earlier s
   assert.ok(first.startsWith(sprintOf()));
   assert.ok(second.startsWith(first));
   const document = readDocument(planSchemas.sprint, SPRINT_PATH, second);
-  assert.deepEqual(document.appended.filter((section) => section.heading === "## Selection").map((section) => section.text), ["", ""]);
+  assert.deepEqual(document.appended.filter((section) => section.heading === "## Selection").map((section) => section.text), ["\n", "\n\n"]);
   assert.equal(second.includes("state:"), false);
 });
 
