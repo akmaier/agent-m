@@ -846,3 +846,137 @@ test("NO SECRET IN THE REPOSITORY — a commit holding a configured secret or th
     assert.equal(fake.made(), 1, `${address.server}: known positive, written without the secret`);
   }
 });
+
+// ---------------------------------------------------------------- ITM-296 pull-request facts
+
+// Recorded GitHub and GitLab responses. Each remains behind public connect(); no product request leaves this test.
+const PR_HEAD = "a".repeat(40), PR_BASE = "b".repeat(40), PR_OLDER = "c".repeat(40);
+const PR = { number: 17, title: "Keep pull-request facts read-only", branch: "feature/pull-facts", base: "main", head: PR_HEAD,
+  state: "open", draft: false, url: "https://example.invalid/pulls/17", opened: "2026-10-10T08:00:00Z", merged: null, closed: null };
+
+function pullFactsServer(kind, { refused = false } = {}) {
+  const requests = [], github = kind === "github", origin = github ? GH_API : GL_ORIGIN;
+  const prefix = github ? "/repos/alice/thesis-tool" : "/api/v4/projects/grp%2Fsub%2Fthesis-tool";
+  const token = github ? GH_TOKEN : GL_TOKEN;
+  const pull = github ? { number: 17, title: PR.title, state: "open", draft: false, html_url: PR.url, created_at: PR.opened,
+    merged_at: null, closed_at: null, head: { ref: PR.branch, sha: PR_HEAD }, base: { ref: PR.base, sha: PR_BASE } }
+    : { iid: 17, title: PR.title, state: "opened", draft: false, web_url: PR.url, created_at: PR.opened, merged_at: null,
+      closed_at: null, source_branch: PR.branch, target_branch: PR.base, sha: PR_HEAD, diff_refs: { base_sha: PR_BASE } };
+  const reply = (r) => {
+    const path = r.path.slice(prefix.length), ref = r.url.searchParams.get("ref");
+    if (path === "/pulls" || path === "/merge_requests" || path === "/pulls/17" || path === "/merge_requests/17") return json(200, /\/17$/.test(path) ? pull : [pull]);
+    if (path === "/pulls/17/commits") return json(200, [{ sha: PR_OLDER, commit: { message: "first\n\nbody" } }, { sha: PR_HEAD, commit: { message: "second" } }]);
+    if (path === "/merge_requests/17/commits") return json(200, [{ id: PR_OLDER, message: "first\n\nbody" }, { id: PR_HEAD, message: "second" }]);
+    if (path === `/commits/${PR_OLDER}`) return json(200, { files: [{ filename: "old.md", status: "modified" }] });
+    if (path === `/commits/${PR_HEAD}`) return json(200, { files: [{ filename: "new.md", status: "added" }] });
+    if (path === `/repository/commits/${PR_OLDER}/diff`) return json(200, [{ old_path: "old.md", new_path: "old.md", new_file: false, deleted_file: false, renamed_file: false }]);
+    if (path === `/repository/commits/${PR_HEAD}/diff`) return json(200, [{ old_path: "new.md", new_path: "new.md", new_file: true, deleted_file: false, renamed_file: false }]);
+    if (path === "/pulls/17/files") return json(200, [{ filename: "old.md", status: "modified" }, { filename: "new.md", status: "added" }]);
+    if (path === "/merge_requests/17/changes") return json(200, { changes: [{ old_path: "old.md", new_path: "old.md", new_file: false, deleted_file: false, renamed_file: false }, { old_path: "new.md", new_path: "new.md", new_file: true, deleted_file: false, renamed_file: false }] });
+    if (path === "/pulls/17/reviews") return json(200, [{ user: { login: "reviewer" }, state: "APPROVED", commit_id: PR_HEAD, submitted_at: "2026-10-10T09:00:00Z" }]);
+    if (path === "/merge_requests/17/approvals") return json(200, { approved_by: [{ user: { username: "reviewer" } }], approved_at: "2026-10-10T09:00:00Z" });
+    if (path === `/commits/${PR_HEAD}/check-runs`) return json(200, { check_runs: [{ name: "build", status: "completed", conclusion: "success", details_url: "https://ci.example/build" }] });
+    if (path === `/commits/${PR_HEAD}/status`) return json(200, { statuses: [{ context: "lint", state: "success", target_url: "https://ci.example/lint" }] });
+    if (path === "/merge_requests/17/pipelines") return json(200, [{ id: 99, sha: PR_HEAD }]);
+    if (path === "/pipelines/99/jobs") return json(200, [{ name: "build", status: "success", web_url: "https://ci.example/build" }, { name: "lint", status: "success", web_url: "https://ci.example/lint" }]);
+    if (path === "/actions/runs") return json(200, { workflow_runs: [{ status: "completed", conclusion: "success" }] });
+    if (/^\/repository\/commits\/[a-f]+\/statuses$/.test(path)) return json(200, [{ name: "pipeline", status: "success", target_url: "https://ci.example/pipeline" }]);
+    if (github && /^\/contents\//.test(path)) return /absent/.test(path) ? json(404, { message: "not found" }) : text(200, ref === PR_BASE ? "base text\n" : "head text\n");
+    if (!github && /^\/repository\/files\/.*\/raw$/.test(path)) return /absent/.test(path) ? json(404, { message: "not found" }) : text(200, ref === PR_BASE ? "base text\n" : "head text\n");
+    return json(404, { message: "not found" });
+  };
+  return { requests, fetch: async (input, init = {}) => {
+    const r = seen(input, init); requests.push(r);
+    const credential = github ? r.headers.authorization : r.headers["private-token"];
+    if (r.origin !== origin || !(r.path === prefix || r.path.startsWith(`${prefix}/`))) return json(404, { message: "wrong host" });
+    if (refused || credential !== (github ? `Bearer ${token}` : token)) return json(401, { message: "refused" });
+    return reply(r);
+  } };
+}
+
+// 296.1 | unit | MOD-repository-hosts | Given recorded GitHub REST answers through public connect, input an open-state/branch
+// filter and pull request 17; expected the complete public records, ordered commits, per-commit and aggregate files, review,
+// named head checks, and immutable base/head reads; actual guard: UC-002, UC-032, ITM-296.
+test("296.1 unit MOD-repository-hosts: GitHub lists and reads immutable pull-request facts", async () => {
+  const server = pullFactsServer("github");
+  await using(server.fetch, async () => {
+    const host = connect(parseAddress(GH_WEB), { token: GH_TOKEN, tokenName: "GitHub token" });
+    assert.deepEqual(await host.listPullRequests({ state: "open", branch: PR.branch }), [PR]);
+    const facts = await host.pullRequestFacts(17);
+    assert.deepEqual(facts.pullRequest, PR);
+    assert.deepEqual(facts.commits, [{ sha: PR_OLDER, message: "first\n\nbody", files: ["old.md"], ci: "success" }, { sha: PR_HEAD, message: "second", files: ["new.md"], ci: "success" }]);
+    assert.deepEqual(facts.files, [{ path: "old.md", change: "modified" }, { path: "new.md", change: "added" }]);
+    assert.deepEqual(facts.reviews, [{ reviewer: "reviewer", verdict: "approved", commit: PR_HEAD, date: "2026-10-10T09:00:00Z" }]);
+    assert.deepEqual(facts.checks, [{ name: "build", state: "success", url: "https://ci.example/build" }, { name: "lint", state: "success", url: "https://ci.example/lint" }]);
+    assert.equal(await facts.read("changed.md", "base"), "base text\n"); assert.equal(await facts.read("changed.md", "head"), "head text\n"); assert.equal(await facts.read("absent.md", "base"), null);
+  });
+});
+
+// 296.2 | unit | MOD-repository-hosts | Given equivalent recorded GitLab REST answers through public connect, input the same
+// pull request; expected exactly the public facts shape of 296.1 including approvals and pipeline jobs; actual guard: UC-002,
+// UC-032, ITM-296.
+test("296.2 unit MOD-repository-hosts: GitLab maps merge-request facts to the public shape", async () => {
+  const server = pullFactsServer("gitlab");
+  await using(server.fetch, async () => {
+    const host = connect(parseAddress(GL_WEB), { token: GL_TOKEN, tokenName: "GitLab token" });
+    assert.deepEqual(await host.listPullRequests({ state: "open", branch: PR.branch }), [PR]);
+    const facts = await host.pullRequestFacts(17);
+    assert.deepEqual(facts.pullRequest, PR);
+    assert.deepEqual(facts.commits, [{ sha: PR_OLDER, message: "first\n\nbody", files: ["old.md"], ci: "success" }, { sha: PR_HEAD, message: "second", files: ["new.md"], ci: "success" }]);
+    assert.deepEqual(facts.files, [{ path: "old.md", change: "modified" }, { path: "new.md", change: "added" }]);
+    assert.deepEqual(facts.reviews, [{ reviewer: "reviewer", verdict: "approved", commit: PR_HEAD, date: "2026-10-10T09:00:00Z" }]);
+    assert.deepEqual(facts.checks, [{ name: "build", state: "success", url: "https://ci.example/build" }, { name: "lint", state: "success", url: "https://ci.example/lint" }]);
+    assert.equal(await facts.read("changed.md", "base"), "base text\n"); assert.equal(await facts.read("changed.md", "head"), "head text\n"); assert.equal(await facts.read("absent.md", "base"), null);
+  });
+});
+
+// 296.3 | unit | MOD-repository-hosts | Given a known-positive list on each host then a refused token, input both reads;
+// expected TokenRefused rather than an empty success, GET-only traffic, and no token at another host; actual guard: A TOKEN
+// GOES ONLY TO THE SERVER THAT ISSUED IT, UC-002, UC-032, ITM-296.
+test("296.3 unit MOD-repository-hosts: pull-request reads preserve refusal and read-only token boundaries", async () => {
+  for (const [kind, address, token] of [["github", GH_WEB, GH_TOKEN], ["gitlab", GL_WEB, GL_TOKEN]]) {
+    const positive = pullFactsServer(kind);
+    await using(positive.fetch, () => connect(parseAddress(address), { token }).listPullRequests({ state: "open" }));
+    assert.ok(positive.requests.length, `${kind}: known positive before refusal`);
+    for (const r of positive.requests) assert.equal(r.method, "GET", `${kind}: ${r.href}`);
+    const denied = pullFactsServer(kind, { refused: true });
+    await using(denied.fetch, async () => {
+      const host = connect(parseAddress(address), { token, tokenName: `${kind} token` });
+      for (const read of [host.listPullRequests({ state: "open" }), host.pullRequestFacts(17)]) assert.equal((await failure(read))?.name, "TokenRefused", kind);
+    });
+  }
+});
+
+// 296.4 | unit | MOD-repository-hosts | Given recorded two-page GitHub/GitLab lists containing open, merged and closed
+// requests, input every accepted state and source-branch filter; expected all pages in server order with merged distinguished
+// from closed and only the named source branch; actual guard: STATUS IS DERIVED FROM THE RECORDS, UC-002, UC-032, ITM-296.
+test("296.4 unit MOD-repository-hosts: both hosts page and filter open, merged, and closed pull requests", async () => {
+  for (const [kind, address, token] of [["github", GH_WEB, GH_TOKEN], ["gitlab", GL_WEB, GL_TOKEN]]) {
+    const github = kind === "github", prefix = github ? "/repos/alice/thesis-tool/pulls" : "/api/v4/projects/grp%2Fsub%2Fthesis-tool/merge_requests";
+    const row = (number, state, branch = PR.branch) => github ? { number, title: `#${number}`, state: state === "merged" ? "closed" : state,
+      draft: false, html_url: `https://example.invalid/pulls/${number}`, created_at: PR.opened, merged_at: state === "merged" ? "2026-10-10T10:00:00Z" : null,
+      closed_at: state === "closed" ? "2026-10-10T11:00:00Z" : null, head: { ref: branch, sha: PR_HEAD }, base: { ref: "main" } }
+      : { iid: number, title: `#${number}`, state: state === "open" ? "opened" : state, draft: false, web_url: `https://example.invalid/pulls/${number}`,
+        created_at: PR.opened, merged_at: state === "merged" ? "2026-10-10T10:00:00Z" : null, closed_at: state === "closed" ? "2026-10-10T11:00:00Z" : null,
+        source_branch: branch, target_branch: "main", sha: PR_HEAD };
+    const pages = [[row(3, "open"), row(2, "merged")], [row(1, "closed", "other")]], requests = [];
+    const fetch = async (input, init = {}) => {
+      const r = seen(input, init); requests.push(r);
+      const supplied = github ? r.headers.authorization : r.headers["private-token"];
+      if (r.path !== prefix || supplied !== (github ? `Bearer ${token}` : token)) return json(404, { message: "wrong request" });
+      const branch = github ? r.url.searchParams.get("head") : r.url.searchParams.get("source_branch"), state = r.url.searchParams.get("state");
+      const all = pages.flat(), selected = state && state !== "all" ? all.filter((x) => github ? (state === "open" ? x.state === "open" : x.state === "closed") : x.state === state) : null;
+      const rows = branch ? all.filter((x) => github ? x.head.ref === branch.replace(/^alice:/, "") : x.source_branch === branch) : selected ?? pages[Number(r.url.searchParams.get("page") ?? 1) - 1] ?? [];
+      return json(200, rows);
+    };
+    await using(fetch, async () => {
+      const host = connect(parseAddress(address), { token });
+      assert.deepEqual((await host.listPullRequests({ state: "all" })).map((p) => [p.number, p.state]), [[3, "open"], [2, "merged"], [1, "closed"]], kind);
+      assert.deepEqual((await host.listPullRequests({ state: "open" })).map((p) => p.number), [3], `${kind} open`);
+      assert.deepEqual((await host.listPullRequests({ state: "merged" })).map((p) => p.number), [2], `${kind} merged`);
+      assert.deepEqual((await host.listPullRequests({ state: "closed" })).map((p) => p.number), [1], `${kind} closed`);
+      assert.deepEqual((await host.listPullRequests({ branch: PR.branch, state: "all" })).map((p) => p.number), [3, 2], `${kind} branch`);
+    });
+    assert.ok(requests.some((r) => Number(r.url.searchParams.get("page")) === 2), `${kind}: second page read`);
+  }
+});
