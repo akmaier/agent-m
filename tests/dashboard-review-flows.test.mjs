@@ -21,6 +21,8 @@ import { exportSettings } from "../docs/assets/settings-store.mjs";
 import { B_SPEC, B_P05, B_P06, B_INDEX, QD, GL, GL_ADDR, GL_TOKEN, fakeGitLab } from "./review-core.d/helpers.mjs";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 import { reviewLayoutCommit } from "../src/artifact-edits/index.mjs";
+import { readDocument } from "../src/documents/index.mjs";
+import { settingsSchemas } from "../src/personal-data/index.mjs";
 
 const TRUSTED = { isTrusted: true }, SCRIPTED = { isTrusted: false };
 const API = "https://api.github.com";
@@ -924,7 +926,8 @@ test("UC-042 3a: without a token the product's settings are read-only, and link 
 });
 
 test("UC-042 step 4: switching pseudonymisation off shows what follows — published for a public repository —, needs the tick, and one trusted click commits docs/settings.md", async () => {
-  const { srv, box } = await publicSettingsPage();
+  const originalSettings = "# Settings of akmaier/agent-m\n\nUnrelated introductory text stays.\n";
+  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": originalSettings }) });
   const product = publicControls(box(), "settings-product")[0];
   const off = publicControls(product, "settings-pseudonymisation-off")[0];
   const acknowledgement = publicControls(product, "settings-pseudonymisation-ack")[0];
@@ -938,7 +941,10 @@ test("UC-042 step 4: switching pseudonymisation off shows what follows — publi
   await publicPress(srv, save);
   assert.equal(srv.writes.length, 1);
   assert.deepEqual(Object.keys(srv.writes[0].files), ["docs/settings.md"]);
-  assert.match(srv.writes[0].files["docs/settings.md"], /pseudonymisation: off/);
+  const writtenSettings = srv.writes[0].files["docs/settings.md"];
+  const { settings } = await settingsSchemas();
+  assert.equal(readDocument(settings, settings.path, writtenSettings).fields.pseudonymisation, "off", "the parsed Settings value is off");
+  assert.match(writtenSettings, /Unrelated introductory text stays\./, "unrelated Settings text is retained");
   assert.equal(srv.writes[0].message, "settings: pseudonymisation off (Agent M dashboard)");
   assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")).sort(), settingsBefore, "no product or Settings record is written in this browser");
   assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
@@ -1014,7 +1020,11 @@ test("UC-042 5a: Remove takes a collaborator off the list with one commit, and s
   publicControls(product, "settings-collaborator-remove-account")[0].value = "jdoe";
   await publicPress(srv, publicControls(product, "settings-collaborator-remove")[0]);
   assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${COLLABORATORS_HEAD}| Max Müller | @max-m | 2026-10-01 |\n` }]);
-  assert.match(product.textContent, /Removed @jdoe; earlier commits keep the name in the history — commit [0-9a-f]{7}\./);
+  const committed = await connect(parseAddress(`https://github.com/${REPO}`), { token: TOKEN }).readSnapshot("main");
+  const historyLink = publicControls(product, "settings-collaborator-history")[0];
+  assert.ok(historyLink, "the removal names the returned commit in a history link");
+  assert.equal(historyLink.href, `https://github.com/${REPO}/commit/${committed.commit}`);
+  assert.equal(historyLink.textContent, `commit ${committed.commit.slice(0, 7)}`);
   assert.match(product.textContent, /Max Müller · @max-m · agreed on 2026-10-01/);
 });
 
