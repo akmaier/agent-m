@@ -29,6 +29,7 @@ realises:
   - THE CORRECTION LOOP HAS A FIXED LIMIT
   - THE ROUNDS ARE COUNTED AND SHOWN
   - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
+  - A TEST JOB RECEIVES THE CHAPTER ON TESTING
 ---
 # UC-026 Generate a multi-level test battery
 
@@ -75,9 +76,9 @@ its own.
    levels. A folded **What is this?** explains each level with the table above and names the book
    chapter.
 3. Agent M collects the input for the job: the text of each selected requirement, use case and
-   module; **every existing test that guards any of them**, with its description and code; and the
-   product's list of external services, marked paid or free. It checks that all of it fits into the
-   participant's context.
+   module; **every existing test that guards any of them**, with its description and code; the
+   product's list of external services, marked paid or free; and chapter 13 of the book *Vibe Coding*.
+   It checks that all of it fits into the participant's context.
 4. Agent M offers the participants that fill the test-writing role. For the *release* level it
    leaves out the participant recorded as implementer of the behaviour under test, and says so. The
    run panel names the participant, where it processes data, and what is sent; the author presses

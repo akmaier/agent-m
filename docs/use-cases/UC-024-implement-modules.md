@@ -52,6 +52,7 @@ realises:
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
   - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
   - A RUN FOLLOWS THE MODULES' INTERFACES
+  - AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
 ---
 # UC-024 Implement the architecture
 
@@ -118,8 +119,9 @@ it is one job per step the author picks; in a run (UC-043), the steps' jobs star
      interfaces); the code in its folder and the tests that name it;
    - **a subsystem's integration:** its decision, the files of its modules, and their code and tests;
    - **the system:** the decision that states it, the subsystems' decisions and the use cases;
-   - for every step: the product's coding standards file, if it has one (ch. 12 §1), and the job instruction from the
-     single definition — the test-first cycle, the tests of the step's level, and the folders the job may change.
+   - for every step: the product's coding standards file, if it has one (ch. 12 §1), chapters 9, 11, 12 and 13 of the
+     book *Vibe Coding*, and the job instruction from the single definition — the test-first cycle, the tests of the
+     step's level, and the folders the job may change.
 5. Agent M offers, for each step, the holders of the implementing role that declare *write to the repository* and *run
    code and tests*, each with where it processes data. A folded **What is this?** explains the three kinds and what each
    costs in setup, speed and isolation.
