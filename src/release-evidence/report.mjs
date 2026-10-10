@@ -125,7 +125,7 @@ function outcomeCell(entry) {
   return entry.runs ?? entry.outcome;
 }
 
-function rateFindingText({ test, now, then }) {
+function rateFindingText({ test, now, then }, guards) {
   const match = /^(\d+) of (\d+)$/.exec(now);
   if (!match) return null;
   const successes = Number(match[1]);
@@ -137,12 +137,13 @@ function rateFindingText({ test, now, then }) {
   const centre = (rate + (z ** 2) / (2 * trials)) / denominator;
   const margin = z * Math.sqrt((rate * (1 - rate)) / trials + (z ** 2) / (4 * trials ** 2)) / denominator;
   const percent = (value) => `${(value * 100).toFixed(1)}%`;
-  return `- ${test}: finding; current ${now}; running version ${then}; two-sided 95% Wilson score interval for current rate: ${percent(centre - margin)}–${percent(centre + margin)}.`;
+  return `- ${test}: ${guards.join(", ")}; finding; current ${now}; running version ${then}; two-sided 95% Wilson score interval for current rate: ${percent(centre - margin)}–${percent(centre + margin)}.`;
 }
 
 function limitationsText(ids, declarations, worseRows) {
   if (!ids.length) return "\n";
-  const rateFindings = new Map(worseRows.filter((row) => row.worse).map((row) => [row.test, rateFindingText(row)]));
+  const rateFindings = new Map(worseRows.filter((row) => row.worse)
+    .map((row) => [row.test, rateFindingText(row, declarations.get(row.test)?.guards ?? [])]));
   const lines = ids.map((id) => rateFindings.get(id) ?? `- ${id}: ${(declarations.get(id)?.guards ?? []).join(", ")}`);
   return `\n${lines.join("\n")}\n\n`;
 }

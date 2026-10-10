@@ -389,8 +389,8 @@ test("releaseReport — a worse model-dependent rate is read against the last re
 // guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // given: the running version recorded 8 of 10 for TST-010 and the candidate records 6 of 10
 // input: releaseReport(at, results, candidate)
-// expect: the public Limitations text calls this a finding and names TST-010, both rates, and the current rate's
-//         two-sided 95% Wilson score interval, 31.3%–83.2%; the interval's method and confidence level are stated
+// expect: the public Limitations text preserves TST-010's guard, calls this a finding, names both rates, and names the
+//         current rate's two-sided 95% Wilson score interval, 31.3%–83.2%; its method and confidence level are stated
 // counter-proof: planting `return "";` in report.mjs's rateFindingText makes this same case fail because its displayed
 //                finding and numeric evidence disappear
 test("TST-293003: releaseReport shows worse 6 of 10 versus 8 of 10 as a 95% Wilson finding with its 31.3%–83.2% interval", async () => {
@@ -410,7 +410,7 @@ test("TST-293003: releaseReport shows worse 6 of 10 versus 8 of 10 as a 95% Wils
   const { text, worse } = await releaseReport(at, results, candidate);
   const limitations = text.slice(text.indexOf("## Limitations"), text.indexOf("## Levels"));
   assert.deepEqual(worse, ["TST-010"]);
-  assert.match(limitations, /TST-010: finding; current 6 of 10; running version 8 of 10/);
+  assert.match(limitations, /TST-010: A SAMPLE REQUIREMENT; finding; current 6 of 10; running version 8 of 10/);
   assert.match(limitations, /95% Wilson score interval.*31\.3%.*83\.2%/);
 });
 
