@@ -50,7 +50,7 @@ function repositories(target) { click(byClass(target, "settings-tab")[1]); retur
 function writableProduct(writes) {
   const blob = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0${text}`).digest("hex");
   const files = new Map([
-    ["docs/collaborators.md", "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n| Ada Example | @ada | 2026-09-01 |\n"],
+    ["docs/collaborators.md", "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n| Ada Example | @ada | 2026-09-01 |\n| A Bea Example | @bea | 2026-09-02 |\n"],
     ["docs/settings.md", "# Settings of this product\n\n- pseudonymisation: on\n"],
   ]);
   let commit = "0".repeat(40);
@@ -196,6 +196,8 @@ test("TST-290121: collaborator consent preserves the chosen date, readback, and 
   assert.match(withdrawal.textContent, /earlier commits.*history/i, "withdrawal names its immutable-history consequence");
   const link = descendants(withdrawal, (node) => node.localName === "a")[0];
   assert.ok(link?.href?.startsWith("https://github.com/fixture/product/commit/"), "withdrawal exposes the actual resulting commit link");
+  assert.match(writes[1].files[0].text, /A Bea Example \| @bea \| 2026-09-02/, "the similarly suffixed collaborator remains in committed text");
+  assert.match(byClass(target, "settings-collaborator-records")[0].textContent, /A Bea Example.*@bea.*2026-09-02/, "the similarly suffixed collaborator remains visible after withdrawal");
 });
 
 // TST-290122
