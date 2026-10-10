@@ -8,6 +8,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { repoServer, openDashboard, richDocument, TOKEN } from "./app-harness.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 
@@ -269,4 +274,31 @@ test("TST-257022: public Release walks one selected product from candidate start
   await redFlow();
   await rateFlow();
   await immutableAndMovedFlow();
+});
+
+// TST-257901
+// level: release
+// module: MOD-test-pages, MOD-release-evidence
+// guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// given: the isolated production Release source and the public 3b fixture of TST-257006
+// input: in controlled Ubuntu CI, remove the Wilson finding text, run that same public case, restore exact bytes, and rerun it
+// expect: the fault reaches TST-257006's numeric Wilson assertion and byte restoration passes the same case
+test("TST-257901: CI counter-proof restores the public 3b Wilson finding", () => {
+  if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_257_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-257-fault-")), copied = join(temporary, "repo");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    const source = join(copied, "src", "release-evidence", "report.mjs"), original = readFileSync(source), text = original.toString();
+    const mutation = Buffer.from(text.replace("two-sided 95% Wilson score interval", "rate interval"));
+    assert.notDeepEqual(mutation, original, "fault text exists in the guarded production finding");
+    const testPath = join(copied, "tests", "release-itm-257-public-flow.test.mjs"), argv = [process.execPath, "--test", "--test-name-pattern", "TST-257006", testPath];
+    const invoke = () => { const env = { ...process.env, AGENT_M_257_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 40_000, env }); };
+    const originalHash = createHash("sha256").update(original).digest("hex");
+    const faultStarted = new Date().toISOString(); writeFileSync(source, mutation); const failed = invoke(); const faultEnded = new Date().toISOString();
+    const restoreStarted = new Date().toISOString(); writeFileSync(source, original); const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), passed = invoke(); const restoreEnded = new Date().toISOString();
+    process.stdout.write(`TST-257901-counterproof ${JSON.stringify({ argv, cwd: copied, originalHash, restoredHash, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoreStarted, restoreEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr })}\n`);
+    assert.equal(restoredHash, originalHash, "byte-exact source restoration precedes the same-case positive");
+    assert.notEqual(failed.status, 0, "faulted same public case fails"); assert.match(`${failed.stdout}\n${failed.stderr}`, /Wilson|confidence interval/i);
+    assert.equal(passed.status, 0, "restored same public case passes");
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
