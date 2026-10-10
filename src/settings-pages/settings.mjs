@@ -7,13 +7,13 @@ import { explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
-import { checkProduct, credentialsFor, tokenSettingKey } from "./products.mjs";
+import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { pair } from "../bridge-client/index.mjs";
 import { route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 
-// The Settings page's own context, held by the context of its tab Endpoints & Agents.
+// The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");
 
 function el(name, className, ...children) {
@@ -683,19 +683,21 @@ export const route = {
   entry: "settings",
   title: "Settings",
   async render(target, given) {
-    // A line that renders the page again hands back the context of the tab Endpoints & Agents; the page keeps its own.
+    // A line that renders the page again hands back the context of its tab; the page keeps its own.
     const context = given[PAGE] ?? given;
-    // UC-042 step 2, UC-011 step 1, UC-044 step 4: the forms that set up a model endpoint or the Bridge open in place, in
-    // the tab Endpoints & Agents under its buttons, one at a time. Every other route, and these two from other pages, go
-    // through the page's own context.
+    // UC-042 steps 2 and 3, UC-011 step 1, UC-044 step 4: the forms that set up a model endpoint or the Bridge open in
+    // place, in the tab Endpoints & Agents under its buttons, one at a time; Add a product opens in the tab Repositories,
+    // under the product list. Every other route, and these from other pages, go through the page's own context.
     const form = el("div", "settings-configure-form");
+    const productForm = el("div", "settings-product-form");
     const inPlace = {
       ...context,
       [PAGE]: context,
       async go(name, params = {}) {
-        const guided = { endpoints: endpointsRoute, bridge: bridgeRoute }[name];
+        const [guided, place] = { endpoints: [endpointsRoute, form], bridge: [bridgeRoute, form],
+          "add-product": [addProductRoute, productForm] }[name] ?? [];
         if (!guided) return context.go(name, params);
-        await guided.render(form, inPlace, params);
+        await guided.render(place, inPlace, params);
       },
     };
     const endpoints = listSettings(context.store)
@@ -714,7 +716,10 @@ export const route = {
     const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
-      ...listSettings(context.store).map((info) => repositoryLine(target, context, info)).filter(Boolean),
+      ...listSettings(context.store).flatMap((info) => {
+        const line = repositoryLine(target, inPlace, info);
+        return !line ? [] : info.key === "products" ? [line, productForm] : [line];
+      }),
       ...(productList ? [productList] : []), product);
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
