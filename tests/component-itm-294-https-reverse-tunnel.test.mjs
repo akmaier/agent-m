@@ -216,7 +216,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     try {
       for (const kind of ["apache", "nginx"]) {
         const proxy = await runServer(kind), base = proxy.base; proxyProcesses.add(proxy.process);
-        const beforeRejected = tunnelReceipts.length, basic = "Basic " + btoa(login.user + ":" + login.password);
+        const beforeRejected = tunnelReceipts.length, modelsBeforeRejected = modelReceipts.length, basic = "Basic " + btoa(login.user + ":" + login.password);
         const foreign = await nativeFetch(base + "/v1/probes/endpoint-test", { method: "OPTIONS", headers: { Origin: "https://foreign.example", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,x-agent-m-bridge-token" } });
         assert.equal(foreign.status, 403, kind + " refuses foreign preflight before its tunnel");
         const allowed = await nativeFetch(base + "/v1/probes/endpoint-test", { method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,x-agent-m-bridge-token" } });
@@ -224,7 +224,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         const noLogin = await nativeFetch(base + "/v1/probes/endpoint-test", { method: "POST", headers: { Origin: origin, "content-type": "application/json", "x-agent-m-bridge-token": bridge.token }, body: JSON.stringify({ args: {} }) });
         assert.equal(noLogin.status, 401, kind + " refuses its own missing web login"); assert.equal(tunnelReceipts.length, beforeRejected, kind + " did not forward missing login");
         const badToken = await nativeFetch(base + "/v1/probes/endpoint-test", { method: "POST", headers: { Origin: origin, Authorization: basic, "content-type": "application/json", "x-agent-m-bridge-token": "wrong-token" }, body: JSON.stringify({ args: { name: "wrong", kind: "openai-compatible", baseUrl: "http://127.0.0.1:" + modelPort + "/v1", model: "controlled", key: "endpoint-key" } }) });
-        assert.equal(badToken.status, 401, kind + " carries a refused Bridge token to the Bridge"); assert.equal(modelReceipts.length, 0, kind + " refuses the Bridge token before the model");
+        assert.equal(badToken.status, 401, kind + " carries a refused Bridge token to the Bridge"); assert.equal(modelReceipts.length, modelsBeforeRejected, kind + " refuses the Bridge token before another model call");
         const server = await repoServer({ files: {}, handlers: [async (url, init) => url.origin === new URL(base).origin ? nativeFetch(url.href, { ...init, headers: { ...init.headers, Origin: origin } }) : null, async (url, init) => url.origin === "http://127.0.0.1:" + modelPort ? nativeFetch(url.href, init) : null] });
         const entries = { [prefix + "bridge"]: JSON.stringify({ address: base, token: "wrong-token" }), [prefix + "jump-host"]: JSON.stringify({ hostname: "localhost", user: "fixture", sshPort, portRange: [tunnelPort, tunnelPort], httpsAddress: base, login }) };
         const page = await openDashboard({ server, hash: "#uc", entries }); const dom = richDocument(), main = dom.byId("main"), original = main.querySelector.bind(main); let section = []; globalThis.document.cookie = "";
