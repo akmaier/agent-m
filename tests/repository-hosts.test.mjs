@@ -935,7 +935,7 @@ test("TST-296001: GitHub lists and reads immutable pull-request facts", async ()
 // guards: UC-002; UC-032; STATUS IS DERIVED FROM THE RECORDS; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: equivalent recorded GitLab REST answers through public connect
 // input: an open-state/source-branch filter and merge request 17
-// expect: the public facts shape preserves commits, files, approvals, pipeline jobs, and immutable base/head reads including a missing path
+// expect: the public facts shape preserves commits, files, only commit-proven reviews, pipeline jobs, and immutable base/head reads including a missing path
 test("TST-296002: GitLab maps merge-request facts to the public shape", async () => {
   const server = pullFactsServer("gitlab");
   await using(server.fetch, async () => {
@@ -945,7 +945,9 @@ test("TST-296002: GitLab maps merge-request facts to the public shape", async ()
     assert.deepEqual(facts.pullRequest, PR);
     assert.deepEqual(facts.commits, [{ sha: PR_OLDER, message: "first\n\nbody", files: ["old.md"], ci: "success" }, { sha: PR_HEAD, message: "second", files: ["new.md"], ci: "success" }]);
     assert.deepEqual(facts.files, [{ path: "old.md", change: "modified" }, { path: "new.md", change: "added" }]);
-    assert.deepEqual(facts.reviews, [{ reviewer: "reviewer", verdict: "approved", commit: PR_OLDER, date: "2026-10-10T09:00:00Z" }]);
+    assert.deepEqual(facts.reviews, [], "an MR-wide approval has no actual commit provenance");
+    assert.ok(!server.requests.some((r) => /\/merge_requests\/17\/(approvals|versions)$/.test(r.path)),
+      "GitLab approval and diff-version timestamps are not a commit-review association");
     assert.deepEqual(facts.checks, [{ name: "build", state: "success", url: "https://ci.example/build" }, { name: "lint", state: "success", url: "https://ci.example/lint" }]);
     assert.equal(await facts.read("changed.md", "base"), "base text\n"); assert.equal(await facts.read("changed.md", "head"), "head text\n"); assert.equal(await facts.read("absent.md", "base"), null);
   });

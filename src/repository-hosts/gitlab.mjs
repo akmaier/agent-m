@@ -136,13 +136,9 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         facts.push({ sha: c.id, message: c.message ?? "", files: diff.map((f) => change(f).path), ci: ci(states) });
       }
       const files = (await read(`${api}/merge_requests/${number}/changes`)).changes.map(change);
-      const approval = await read(`${api}/merge_requests/${number}/approvals`);
-      const versions = await pages(`${api}/merge_requests/${number}/versions?per_page=${PAGE}`);
-      const reviews = (approval.approved_by ?? []).flatMap((a) => {
-        const date = a.approved_at;
-        const version = date && versions.filter((v) => v.created_at && v.created_at <= date).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
-        return version?.head_commit_sha ? [{ reviewer: a.user?.username ?? a.user?.name ?? "", verdict: "approved", commit: version.head_commit_sha, date }] : [];
-      });
+      // GitLab's merge-request approvals name the merge request and approval time, but no commit the approval was given on.
+      // PullRequestFacts reviews require that actual commit, so an unassociated merge-request approval is not a review record.
+      const reviews = [];
       const pipelines = await pages(`${api}/merge_requests/${number}/pipelines?per_page=${PAGE}`), checks = [];
       for (const pipeline of pipelines.filter((p) => p.sha === head)) {
         for (const job of await pages(`${api}/pipelines/${pipeline.id}/jobs?per_page=${PAGE}`)) checks.push({ name: job.name, state: ({ success: "success", failed: "failure", running: "running", pending: "queued", canceled: "cancelled", skipped: "skipped" }[job.status] ?? "neutral"), url: job.web_url ?? "" });
