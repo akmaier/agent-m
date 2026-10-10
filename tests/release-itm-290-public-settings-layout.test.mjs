@@ -89,7 +89,7 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
   const debug = await port(), inspect = await port(), address = `http://127.0.0.1:${server.address().port}/docs/#settings`;
   entryFolder = mkdtempSync(join(tmpdir(), "agent-m-290-electron-entry-"));
   const entry = join(entryFolder, "main.mjs");
-  writeFileSync(entry, `import electron from "electron"; const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); const window = new electron.BrowserWindow({ webPreferences: { contextIsolation: true, nodeIntegration: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url);`);
+  writeFileSync(entry, `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); const window = new electron.BrowserWindow({ webPreferences: { contextIsolation: true, nodeIntegration: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`);
   const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
   child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "linux", stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "", spawnError = null;
