@@ -668,6 +668,11 @@ async function publicSettingsPage({ server = null, token = null, settings = {} }
   const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
   return { srv, page, dom, tabs: () => mounted.find((node) => node.className === "settings-tabs"), box: () => pane("Repositories"), general: () => pane("General"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
 }
+async function publicBridgePage(options = {}) {
+  const settings = await publicSettingsPage(options);
+  await settings.page.go("#bridge");
+  return { ...settings, main: () => settings.dom.byId("main") };
+}
 // The settings page of a dashboard whose browser holds `entries` beside the token (set after the first load, before the page).
 async function settingsPage({ server = null, entries = {}, token = TOKEN } = {}) {
   const srv = server ?? await ucServer();
@@ -862,59 +867,56 @@ test("UC-042 step 2: products — Remove takes one off this browser's list after
 });
 
 test("UC-042 step 2: a GitLab project token — hidden until Show, changed after the notice, cleared after a confirmation", async () => {
-  const gitlab = JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } });
-  const { srv, box, dom } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([GL_ADDR]), "agent-m.gitlab-tokens": gitlab } });
-  assert.ok(box().innerHTML.includes(`<input class="secret" type="password" readonly value="${GL_TOKEN}"`));
-  await press(srv, among(box(), "data-change-gitlab", GL_ADDR));
-  assert.equal(among(box(), "data-result-gitlab", GL_ADDR).textContent, "Tick “I have read this” at the top of the page first.");
-  await tick(srv, dom.byId("ack"));
-  await press(srv, among(box(), "data-change-gitlab", GL_ADDR));
-  const form = among(box(), "data-change-form", GL_ADDR);
+  const { srv, box } = await publicSettingsPage({ settings: { products: [GL_ADDR], "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  const label = "GitLab token: gitlab.example/group/project";
+  const secret = publicRepositoryControl(box, label, "secret");
+  assert.equal(secret.type, "password");
+  await publicPress(srv, publicRepositoryControl(box, label, "show"));
+  assert.equal(secret.type, "text");
+  assert.equal(secret.value, GL_TOKEN);
+  await publicPress(srv, publicRepositoryControl(box, label, "change"));
+  assert.equal(publicRepositoryControl(box, label, "result").textContent, "Read the shared-browser notice, then acknowledge it before saving a replacement token.");
+  const acknowledgement = publicRepositoryControl(box, label, "ack");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
   const renewed = "glpat-renewedTOKENvalue0123456789";
-  form.querySelector("[data-gl-token]").value = renewed;
-  form.querySelector("[data-gl-expires]").value = day(80);
-  await press(srv, form.querySelector("[data-gl-store]"));
-  assert.deepEqual(JSON.parse(stored("agent-m.gitlab-tokens")), { [GL_ADDR]: { token: renewed, expires: day(80) } });
-  await press(srv, among(box(), "data-clear-gitlab", GL_ADDR));
-  assert.equal(stored("agent-m.gitlab-tokens"), null);
-  assert.deepEqual(JSON.parse(stored("agent-m.products")), [GL_ADDR], "the product stays in the list");
+  secret.value = renewed;
+  publicRepositoryControl(box, label, "expiry").value = day(80);
+  await publicPress(srv, publicRepositoryControl(box, label, "save"));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project")), { value: renewed, name: "Agent M", expires: day(80), stored: day(0) });
+  await publicPress(srv, publicRepositoryControl(box, label, "clear"));
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project"), null);
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products")), [GL_ADDR], "the product stays in the list");
 });
 
 test("UC-042 step 2: the jump host and a remote session are set, their commands written, and each is cleared — all in this browser", async () => {
-  const { srv, box, dom } = await settingsPage();
-  await press(srv, inBox(box(), '[data-change="agent-m.jump-host"]'));
-  const form = inBox(box(), "[data-jump-form]");
-  for (const [k, v] of Object.entries({ host: "jump.example.org", user: "agentm", portFrom: "20001", portTo: "20003", reverseKey: "", forwardKey: "" })) {
-    form.querySelector(`[data-j="${k}"]`).value = v;
-  }
-  await press(srv, form.querySelector("[data-jump-save]"));
-  assert.deepEqual(JSON.parse(stored("agent-m.jump-host")),
-    { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003, reverseKey: "", forwardKey: "" });
-  assert.match(box().innerHTML, /agentm@jump\.example\.org — ports 20001–20003/);
-  await tick(srv, dom.byId("ack"));
-  await press(srv, inBox(box(), "[data-add-session]"));
-  const s = inBox(box(), "[data-session-form]");
-  assert.equal(s.querySelector('[data-s="port"]').value, "20001", "the lowest free port of the range");
-  s.querySelector('[data-s="name"]').value = "lab-pc";
-  s.querySelector('[data-s="bridgePort"]').value = "8765";
-  s.querySelector('[data-s="token"]').value = "bridgeTOKEN-0123456789abcdef";
-  await press(srv, s.querySelector("[data-session-save]"));
-  assert.deepEqual(JSON.parse(stored("agent-m.remote-sessions")).map((x) => [x.name, x.port, x.bridgePort, x.token]),
-    [["lab-pc", 20001, 8765, "bridgeTOKEN-0123456789abcdef"]]);
-  assert.match(box().innerHTML, /<pre class="cmd">[^<]*127\.0\.0\.1:20001[^<]*<\/pre>/, "the commands, written from the settings");
-  assert.doesNotMatch(box().innerHTML.replace(/value="bridgeTOKEN-[^"]*"/, ""), /bridgeTOKEN/, "the bridge token is in no command");
-  await press(srv, among(box(), "data-clear-session", "lab-pc"));
-  assert.equal(stored("agent-m.remote-sessions"), null);
-  await press(srv, inBox(box(), '[data-clear="agent-m.jump-host"]'));
-  assert.equal(stored("agent-m.jump-host"), null);
+  const { srv, page, main } = await publicBridgePage();
+  const control = (name) => publicControls(main(), name)[0];
+  for (const [name, value] of Object.entries({ "jump-host-name": "jump.example.org", "jump-host-user": "agentm", "jump-host-ssh-port": "22", "jump-host-port-first": "20001", "jump-host-port-last": "20003" })) control(name).value = value;
+  await publicPress(srv, control("jump-host-save"));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:jump-host")), { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] });
+  assert.equal(control("remote-session-name").value, "");
+  control("remote-session-name").value = "lab-pc";
+  control("remote-session-token").value = "bridgeTOKEN-0123456789abcdef";
+  await publicPress(srv, control("remote-session-save"));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:remote-session:lab-pc")), { port: 20001, token: "bridgeTOKEN-0123456789abcdef" });
+  assert.match(control("remote-session-commands").textContent, /127\.0\.0\.1:20001/, "the commands are written from the settings");
+  assert.doesNotMatch(control("remote-session-commands").textContent, /bridgeTOKEN/, "the bridge token is in no command");
+  await page.go("#settings");
+  const endpoints = () => publicControls(main(), "settings-tab-panel").find((pane) => pane.textContent.includes("Endpoints & Agents"));
+  await publicPress(srv, publicControls(endpoints(), "settings-remote-session-clear")[0]);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:remote-session:lab-pc"), null);
+  await publicPress(srv, publicControls(endpoints(), "settings-jump-host-clear")[0]);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:jump-host"), null);
   assert.deepEqual(srv.writes, []);
 });
 
 test("UC-042 3a: without a token the product's settings are read-only, and link to the token step of UC-001", async () => {
-  const { product } = await settingsPage({ token: null });
-  const html = product().innerHTML;
-  assert.ok(html.includes(`Read-only: this browser has no token. <a href="#add/${encodeURIComponent(`https://github.com/${REPO}`)}">Give your token access to it</a> (UC-001).`));
-  assert.doesNotMatch(html, /id="pseudo-off"|id="pseudo-on"|id="coll-add"|data-remove-collaborator/);
+  const { box } = await publicSettingsPage({ token: null, settings: { "github-token": null } });
+  const product = publicControls(box(), "settings-product")[0];
+  assert.match(publicControls(product, "settings-product-read-only")[0].textContent, /Read-only: This browser has no token that can write to this product\./);
+  assert.ok(publicControls(product, "settings-product-token-step")[0]);
+  assert.equal(publicControls(product, "settings-pseudonymisation-off").length, 0);
+  assert.equal(publicControls(product, "settings-collaborator-save").length, 0);
 });
 
 test("UC-042 step 4: switching pseudonymisation off shows what follows — published for a public repository —, needs the tick, and one trusted click commits docs/settings.md", async () => {
