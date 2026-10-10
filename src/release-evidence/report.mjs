@@ -125,9 +125,25 @@ function outcomeCell(entry) {
   return entry.runs ?? entry.outcome;
 }
 
-function limitationsText(ids, declarations) {
+function rateFindingText({ test, now, then }) {
+  const match = /^(\d+) of (\d+)$/.exec(now);
+  if (!match) return null;
+  const successes = Number(match[1]);
+  const trials = Number(match[2]);
+  if (!trials) return null;
+  const z = 1.959963984540054;
+  const rate = successes / trials;
+  const denominator = 1 + (z ** 2) / trials;
+  const centre = (rate + (z ** 2) / (2 * trials)) / denominator;
+  const margin = z * Math.sqrt((rate * (1 - rate)) / trials + (z ** 2) / (4 * trials ** 2)) / denominator;
+  const percent = (value) => `${(value * 100).toFixed(1)}%`;
+  return `- ${test}: finding; current ${now}; running version ${then}; two-sided 95% Wilson score interval for current rate: ${percent(centre - margin)}–${percent(centre + margin)}.`;
+}
+
+function limitationsText(ids, declarations, worseRows) {
   if (!ids.length) return "\n";
-  const lines = ids.map((id) => `- ${id}: ${(declarations.get(id)?.guards ?? []).join(", ")}`);
+  const rateFindings = new Map(worseRows.filter((row) => row.worse).map((row) => [row.test, rateFindingText(row)]));
+  const lines = ids.map((id) => rateFindings.get(id) ?? `- ${id}: ${(declarations.get(id)?.guards ?? []).join(", ")}`);
   return `\n${lines.join("\n")}\n\n`;
 }
 
@@ -225,7 +241,7 @@ export async function releaseReport(at, results, candidate) {
     fields: { version: candidate.version, candidate: candidate.tag, commit: candidate.commit,
       date: new Date().toISOString().slice(0, 10) },
     sections: [
-      { heading: "## Limitations", text: limitationsText(limitationIds, declarations) },
+      { heading: "## Limitations", text: limitationsText(limitationIds, declarations, worseRows) },
       { heading: "## Levels", text: "\n", rows: levelsRows.map((cells) => ({ cells })) },
       { heading: "## Tests", text: "\n", rows: testsRows.map((cells) => ({ cells })) },
       { heading: "## Requirements", text: "\n", rows: requirements.map((cells) => ({ cells })) },
