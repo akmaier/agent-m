@@ -61,7 +61,10 @@ of the two named modules: Documents for the prerequisite, then Workplans for the
 - Both schemas load from their owned data files in Node and in the browser's existing own-file pattern. Broken/unserved
   schema data stops the module as the accepted loadSchema contract states. Existing backlog-order and state/startability
   cases retain their expectations; no fixed current backlog/sprint selection is baked into a test.
-- The prerequisite job changes only src/documents/ and new tests naming MOD-documents. Known-valid paths precede a
+- The prerequisite job changes only src/documents/ and tests naming the actually exercised MOD-documents. Its
+  [bounded compatibility assignment](../measurements/2026-10-10-sprint19-documents297-fixture-compatibility.md) also permits
+  the three demonstrated practice-path inputs and the explicit valid record path in TST-292017, with necessary truthful
+  module declarations; all existing workflow, gate and round-trip expectations remain. Known-valid paths precede a
   nonmatching folder or extension; string patterns, alternative patterns and an absent pattern retain their accepted
   meanings. Its error names the path/artifact, line 1 and the schema rule through the existing Finding interface.
   Existing field, date, table, section, reading/writing and append guards retain their expected results.
