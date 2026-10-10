@@ -7,8 +7,10 @@
 // that a participant whose context is too small is named before anything is sent rather than after. A destination's size
 // is its kind's prompt and every part it receives, so estimated. The drafter receives the parts of the kind's recipes; each
 // reviewing participant those of the reviewer kind's recipes as they stand before a draft exists, the draft being added
-// in the correction loop. Each reviewing participant differs from the drafter and from every other one, as the catalogue's
-// `reviewers` says.
+// in the correction loop. Each part names the recipe that gave it, so that the loop puts it in that recipe's named place
+// of the prompt; the job's parts are the drafter's and the reviewers', each once. A recipe whose part may be left out, and
+// that fails, is left out with the failure's words as its reason; any other recipe's failure is thrown. Each reviewing
+// participant differs from the drafter and from every other one, as the catalogue's `reviewers` says.
 
 import { eligible } from "../participant-list/index.mjs";
 import { finding } from "../text-tools/index.mjs";
@@ -27,13 +29,20 @@ const named = (kind) => [
   ["writers", kind.writer],
 ];
 
-// The parts a kind's recipes build, each sized; a part of a recipe whose part may be left out is not required.
-async function partsOf(kind, context) {
+// The parts a kind's recipes build, each sized and naming its recipe; a part of a recipe whose part may be left out is not
+// required, and such a recipe that fails is added to `leftOut` with its reason.
+async function partsOf(kind, context, leftOut) {
   const parts = [];
   for (const { name, optional } of kind.recipes) {
-    for (const part of await strategyOf("recipes", name)(context, context.params)) {
-      parts.push({ ...part, size: estimate(part.text), required: !optional });
+    let given;
+    try {
+      given = await strategyOf("recipes", name)(context, context.params);
+    } catch (error) {
+      if (!optional || error.name === "UnknownStrategy") throw error;
+      if (!leftOut.some((left) => left.part === name)) leftOut.push({ part: name, reason: error.message });
+      continue;
     }
+    for (const part of given) parts.push({ ...part, size: estimate(part.text), required: !optional, recipe: name });
   }
   return parts;
 }
@@ -89,8 +98,10 @@ export async function prepareJob(name, context, choice) {
     const found = await strategyOf("preconditions", precondition)(context);
     if (found) blocking.push(found);
   }
-  const parts = await partsOf(kind, context);
-  const reviewerParts = reviewing && choice.reviewers.length ? await partsOf(reviewing, context) : [];
+  const leftOut = [];
+  const parts = await partsOf(kind, context, leftOut);
+  const reviewerParts = reviewing && choice.reviewers.length ? await partsOf(reviewing, context, leftOut) : [];
+  const shared = (part, among) => among.some((other) => other.recipe === part.recipe && other.name === part.name);
 
   const destinations = [];
   if (choice.drafter) {
@@ -109,6 +120,7 @@ export async function prepareJob(name, context, choice) {
     .filter((destination) => eligible([destination.participant], { capabilities: [], size: destination.size }).leftOut.length)
     .map(({ participant, size }) => ({ participant, size, context: participant.context }));
 
-  return { kind, params: context.params, drafter: choice.drafter, reviewers: choice.reviewers, parts, destinations,
-    fits: notFitting.length === 0, notFitting, leftOut: [], blocking, limit: choice.limit ?? kind.limit };
+  return { kind, params: context.params, drafter: choice.drafter, reviewers: choice.reviewers,
+    parts: [...parts, ...reviewerParts.filter((part) => !shared(part, parts))], destinations,
+    fits: notFitting.length === 0, notFitting, leftOut, blocking, limit: choice.limit ?? kind.limit };
 }
