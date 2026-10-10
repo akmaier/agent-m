@@ -166,7 +166,7 @@ class TestAgentMsOwnBacklog(unittest.TestCase):
     def test_the_backlog_is_markdown_under_docs_backlog(self):
         names = sorted(p.relative_to(self.OWN).as_posix() for p in self.OWN.rglob("*") if p.is_file())
         items = [n for n in names if ITEM_FILE.match(n)]
-        sprints = [n for n in names if re.match(r"^sprints/[a-z0-9-]+\.md$", n)]
+        sprints = [n for n in names if re.match(r"^sprints/(?:[a-z0-9-]+/)?[a-z0-9-]+\.md$", n)]
         self.assertTrue(items)
         self.assertTrue(sprints, "a model with sprints keeps its sprint records under docs/backlog/sprints/")
         self.assertEqual(sorted(set(names) - set(items) - set(sprints)), ["order.md"])
