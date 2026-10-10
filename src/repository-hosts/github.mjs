@@ -57,7 +57,7 @@ export function githubAdapter(address, { token, tokenName }, links) {
     head: p.head?.sha ?? "", state: p.state === "open" ? "open" : p.merged_at ? "merged" : "closed", draft: p.draft === true,
     url: p.html_url ?? "", opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null });
   const ci = (runs) => runs.some((r) => r.status !== "completed") ? "running" : runs.some((r) => r.conclusion === "failure" || r.conclusion === "timed_out") ? "failure" : runs.some((r) => r.conclusion === "success") ? "success" : "none";
-  const check = (r) => ({ name: r.name, state: r.status !== "completed" ? "running" : ({ success: "success", failure: "failure", neutral: "neutral", cancelled: "cancelled", skipped: "skipped", timed_out: "timed out" }[r.conclusion] ?? "failure"), url: r.details_url ?? "" });
+  const check = (r) => ({ name: r.name, state: r.status === "queued" ? "queued" : r.status !== "completed" ? "running" : ({ success: "success", failure: "failure", neutral: "neutral", cancelled: "cancelled", skipped: "skipped", timed_out: "timed out" }[r.conclusion] ?? "failure"), url: r.details_url ?? "" });
 
   // An empty repository: GitHub's Git database answers 409 "Git Repository is empty." while a repository has no commit ("Using
   // the REST API to interact with your Git database", read 2026-10-06). Any other 409 — a repository GitHub is still creating —
@@ -140,8 +140,11 @@ export function githubAdapter(address, { token, tokenName }, links) {
       const commits = await pages(`${repo}/pulls/${number}/commits?per_page=${PAGE}`);
       const facts = [];
       for (const c of commits) {
-        const detail = await read(`${repo}/commits/${c.sha}`), runs = await pages(`${repo}/actions/runs?head_sha=${c.sha}&per_page=${PAGE}`, (r) => r.workflow_runs ?? []);
-        facts.push({ sha: c.sha, message: c.commit?.message ?? "", files: (detail.files ?? []).map((f) => f.filename), ci: ci(runs) });
+        let url = `${repo}/commits/${c.sha}?per_page=${PAGE}`;
+        const details = [];
+        for (let i = 0; url && i < MAX_PAGES; i += 1) { const p = await page(url); details.push(p.items); url = nextLink(p.link); }
+        const runs = await pages(`${repo}/actions/runs?head_sha=${c.sha}&per_page=${PAGE}`, (r) => r.workflow_runs ?? []);
+        facts.push({ sha: c.sha, message: c.commit?.message ?? "", files: details.flatMap((detail) => detail.files ?? []).map((f) => f.filename), ci: ci(runs) });
       }
       const files = (await pages(`${repo}/pulls/${number}/files?per_page=${PAGE}`)).map((f) => ({ path: f.filename, change: f.status }));
       const reviews = (await pages(`${repo}/pulls/${number}/reviews?per_page=${PAGE}`)).map((r) => ({ reviewer: r.user?.login ?? "", verdict: ({ APPROVED: "approved", CHANGES_REQUESTED: "changes requested", COMMENTED: "commented", DISMISSED: "dismissed" }[r.state] ?? "commented"), commit: r.commit_id ?? head, date: r.submitted_at }));

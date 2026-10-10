@@ -871,7 +871,8 @@ function pullFactsServer(kind, { refused = false } = {}) {
     if (path === "/pulls" || path === "/merge_requests" || path === "/pulls/17" || path === "/merge_requests/17") return json(200, /\/17$/.test(path) ? pull : [pull]);
     if (path === "/pulls/17/commits") return json(200, [{ sha: PR_OLDER, commit: { message: "first\n\nbody" } }, { sha: PR_HEAD, commit: { message: "second" } }]);
     if (path === "/merge_requests/17/commits") return json(200, [{ id: PR_OLDER, message: "first\n\nbody" }, { id: PR_HEAD, message: "second" }]);
-    if (path === `/commits/${PR_OLDER}`) return json(200, { files: [{ filename: "old.md", status: "modified" }] });
+    if (path === `/commits/${PR_OLDER}` && r.url.searchParams.get("page") === "2") return json(200, { files: [{ filename: "old-extra.md", status: "modified" }] });
+    if (path === `/commits/${PR_OLDER}`) return json(200, { files: [{ filename: "old.md", status: "modified" }] }, { Link: `<${origin}${prefix}/commits/${PR_OLDER}?page=2>; rel="next"` });
     if (path === `/commits/${PR_BASE}`) return json(200, { sha: PR_BASE, commit: { tree: { sha: "tree-base" } } });
     if (path === `/commits/${PR_HEAD}`) return json(200, { sha: PR_HEAD, commit: { tree: { sha: "tree-head" } }, files: [{ filename: "new.md", status: "added" }] });
     // snapshot resolves a ref to its commit SHA, then reads that SHA through GitHub's Git database tree endpoint.
@@ -885,10 +886,11 @@ function pullFactsServer(kind, { refused = false } = {}) {
     if (path === "/pulls/17/files") return json(200, [{ filename: "old.md", status: "modified" }, { filename: "new.md", status: "added" }]);
     if (path === "/merge_requests/17/changes") return json(200, { changes: [{ old_path: "old.md", new_path: "old.md", new_file: false, deleted_file: false, renamed_file: false }, { old_path: "new.md", new_path: "new.md", new_file: true, deleted_file: false, renamed_file: false }] });
     if (path === "/pulls/17/reviews") return json(200, [{ user: { login: "reviewer" }, state: "APPROVED", commit_id: PR_HEAD, submitted_at: "2026-10-10T09:00:00Z" }]);
-    if (path === "/merge_requests/17/approvals") return json(200, { approved_by: [{ user: { username: "reviewer" } }], approved_at: "2026-10-10T09:00:00Z" });
-    if (path === `/commits/${PR_HEAD}/check-runs`) return json(200, { check_runs: [{ name: "build", status: "completed", conclusion: "success", details_url: "https://ci.example/build" }] });
+    if (path === "/merge_requests/17/approvals") return json(200, { approved_by: [{ user: { username: "reviewer" }, approved_at: "2026-10-10T09:00:00Z" }] });
+    if (path === "/merge_requests/17/versions") return json(200, [{ head_commit_sha: PR_OLDER, created_at: "2026-10-10T08:30:00Z" }, { head_commit_sha: PR_HEAD, created_at: "2026-10-10T09:30:00Z" }]);
+    if (path === `/commits/${PR_HEAD}/check-runs`) return json(200, { check_runs: [{ name: "build", status: "completed", conclusion: "success", details_url: "https://ci.example/build" }, { name: "queued", status: "queued", details_url: "https://ci.example/queued" }] });
     if (path === `/commits/${PR_HEAD}/status`) return json(200, { statuses: [{ context: "lint", state: "success", target_url: "https://ci.example/lint" }] });
-    if (path === "/merge_requests/17/pipelines") return json(200, [{ id: 99, sha: PR_HEAD }]);
+    if (path === "/merge_requests/17/pipelines") return json(200, r.url.searchParams.get("page") === "2" ? [{ id: 99, sha: PR_HEAD }] : [{ id: 98, sha: PR_OLDER }], r.url.searchParams.get("page") === "2" ? {} : { "X-Next-Page": "2" });
     if (path === "/pipelines/99/jobs") return json(200, [{ name: "build", status: "success", web_url: "https://ci.example/build" }, { name: "lint", status: "success", web_url: "https://ci.example/lint" }]);
     if (path === "/actions/runs") return json(200, { workflow_runs: [{ status: "completed", conclusion: "success" }] });
     if (/^\/repository\/commits\/[a-f]+\/statuses$/.test(path)) return json(200, [{ name: "pipeline", status: "success", target_url: "https://ci.example/pipeline" }]);
@@ -919,10 +921,10 @@ test("TST-296001: GitHub lists and reads immutable pull-request facts", async ()
     assert.deepEqual(await host.listPullRequests({ state: "open", branch: PR.branch }), [PR]);
     const facts = await host.pullRequestFacts(17);
     assert.deepEqual(facts.pullRequest, PR);
-    assert.deepEqual(facts.commits, [{ sha: PR_OLDER, message: "first\n\nbody", files: ["old.md"], ci: "success" }, { sha: PR_HEAD, message: "second", files: ["new.md"], ci: "success" }]);
+    assert.deepEqual(facts.commits, [{ sha: PR_OLDER, message: "first\n\nbody", files: ["old.md", "old-extra.md"], ci: "success" }, { sha: PR_HEAD, message: "second", files: ["new.md"], ci: "success" }]);
     assert.deepEqual(facts.files, [{ path: "old.md", change: "modified" }, { path: "new.md", change: "added" }]);
     assert.deepEqual(facts.reviews, [{ reviewer: "reviewer", verdict: "approved", commit: PR_HEAD, date: "2026-10-10T09:00:00Z" }]);
-    assert.deepEqual(facts.checks, [{ name: "build", state: "success", url: "https://ci.example/build" }, { name: "lint", state: "success", url: "https://ci.example/lint" }]);
+    assert.deepEqual(facts.checks, [{ name: "build", state: "success", url: "https://ci.example/build" }, { name: "queued", state: "queued", url: "https://ci.example/queued" }, { name: "lint", state: "success", url: "https://ci.example/lint" }]);
     assert.equal(await facts.read("changed.md", "base"), "base text\n"); assert.equal(await facts.read("changed.md", "head"), "head text\n"); assert.equal(await facts.read("absent.md", "base"), null);
   });
 });
@@ -943,7 +945,7 @@ test("TST-296002: GitLab maps merge-request facts to the public shape", async ()
     assert.deepEqual(facts.pullRequest, PR);
     assert.deepEqual(facts.commits, [{ sha: PR_OLDER, message: "first\n\nbody", files: ["old.md"], ci: "success" }, { sha: PR_HEAD, message: "second", files: ["new.md"], ci: "success" }]);
     assert.deepEqual(facts.files, [{ path: "old.md", change: "modified" }, { path: "new.md", change: "added" }]);
-    assert.deepEqual(facts.reviews, [{ reviewer: "reviewer", verdict: "approved", commit: PR_HEAD, date: "2026-10-10T09:00:00Z" }]);
+    assert.deepEqual(facts.reviews, [{ reviewer: "reviewer", verdict: "approved", commit: PR_OLDER, date: "2026-10-10T09:00:00Z" }]);
     assert.deepEqual(facts.checks, [{ name: "build", state: "success", url: "https://ci.example/build" }, { name: "lint", state: "success", url: "https://ci.example/lint" }]);
     assert.equal(await facts.read("changed.md", "base"), "base text\n"); assert.equal(await facts.read("changed.md", "head"), "head text\n"); assert.equal(await facts.read("absent.md", "base"), null);
   });
