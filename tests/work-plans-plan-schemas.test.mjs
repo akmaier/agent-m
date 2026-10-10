@@ -10,7 +10,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { appendSection, documentFindings, readDocument, readRegister, writeDocument } from "../src/documents/index.mjs";
 import { planSchemas } from "../src/work-plans/index.mjs";
 
@@ -174,4 +178,49 @@ test("TST-297016: planSchemas loads each owned schema from its module boundary",
   assert.equal(notServed.module, null, "a refused own schema stops the module");
   assert.ok(notServed.error instanceof Error && notServed.error.message.includes("backlog-order.schema.md")
     && notServed.error.message.includes("404"), `the error names the refused own schema: ${notServed.error?.message}`);
+
+  // CI-only source-copy proof: omit the two new schema initializers, run the same public and loader-boundary cases,
+  // restore the original bytes, and run that identical child selection again. The child marker prevents recursion.
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_297_WORKPLANS_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-297-workplans-fault-")), copied = join(temporary, "repo");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    const source = join(copied, "src", "work-plans", "index.mjs");
+    const testPath = join(copied, "tests", "work-plans-plan-schemas.test.mjs");
+    const original = readFileSync(source);
+    const faultLines = [
+      '  planOrder: loadSchema(disk ? disk.readFileSync(PLAN_ORDER_SCHEMA_FILE, "utf8") : await ownFile(PLAN_ORDER_SCHEMA_FILE), OWNER),\n',
+      '  sprint: loadSchema(disk ? disk.readFileSync(SPRINT_SCHEMA_FILE, "utf8") : await ownFile(SPRINT_SCHEMA_FILE), OWNER),\n',
+    ];
+    for (const line of faultLines) assert.equal(original.toString().split(line).length - 1, 1, "each new schema initializer is a unique fault target");
+    const ids = ["TST-297011", "TST-297012", "TST-297013", "TST-297014", "TST-297015", "TST-297016"];
+    const argv = [process.execPath, "--test", "--test-name-pattern", "TST-29701[1-6]", testPath];
+    const invoke = () => {
+      const env = { ...process.env, AGENT_M_297_WORKPLANS_FAULT_CHILD: "1" };
+      delete env.NODE_TEST_CONTEXT;
+      return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 40_000, env });
+    };
+    const originalHash = createHash("sha256").update(original).digest("hex");
+    const testHash = createHash("sha256").update(readFileSync(testPath)).digest("hex");
+    const faultStarted = new Date().toISOString();
+    writeFileSync(source, faultLines.reduce((text, line) => text.replace(line, ""), original.toString()));
+    const faultHash = createHash("sha256").update(readFileSync(source)).digest("hex");
+    const failed = invoke();
+    const faultEnded = new Date().toISOString();
+    const restoreStarted = new Date().toISOString();
+    writeFileSync(source, original);
+    const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex");
+    const passed = invoke();
+    const restoreEnded = new Date().toISOString();
+    process.stdout.write(`TST-297016-counterproof ${JSON.stringify({ argv, cwd: copied, ids, source, testPath, originalHash, faultHash, restoredHash, testHash, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoreStarted, restoreEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr })}\n`);
+    assert.equal(restoredHash, originalHash, "byte-exact source restoration precedes the same-case pass");
+    assert.equal(failed.status, 1, "faulted child has normal Node test failure status");
+    assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
+    for (const id of ids) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${id}:`), `${id} fails with the missing public schema`);
+    assert.equal(passed.status, 0, "restored same-case child passes");
+    assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
+    for (const id of ids) assert.match(passed.stdout, new RegExp(`ok \\d+ - ${id}:`), `${id} passes after restoration`);
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
 });
