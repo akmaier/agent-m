@@ -279,26 +279,29 @@ test("TST-257022: public Release walks one selected product from candidate start
 // TST-257901
 // level: release
 // module: MOD-test-pages, MOD-release-evidence
-// guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
-// given: the isolated production Release source and the public 3b fixture of TST-257006
-// input: in controlled Ubuntu CI, remove the Wilson finding text, run that same public case, restore exact bytes, and rerun it
-// expect: the fault reaches TST-257006's numeric Wilson assertion and byte restoration passes the same case
-test("TST-257901: CI counter-proof restores the public 3b Wilson finding", () => {
+// guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; ACCEPTING THE RELEASE TEST REPORT RELEASES
+// given: the isolated public Release caller and every original TST-257 public-flow case.
+// input: in controlled Ubuntu CI, fault the public Release render, run those same cases, restore exact bytes, and rerun them.
+// expect: every named original case fails at the public render fault with normal test status, then every same case passes after byte restoration.
+test("TST-257901: CI counter-proof restores the public Release render for every original flow case", () => {
   if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_257_FAULT_CHILD) return;
   const temporary = mkdtempSync(join(tmpdir(), "agent-m-257-fault-")), copied = join(temporary, "repo");
   try {
     cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
-    const source = join(copied, "src", "release-evidence", "report.mjs"), original = readFileSync(source), text = original.toString();
-    const mutation = Buffer.from(text.replace("two-sided 95% Wilson score interval", "rate interval"));
-    assert.notDeepEqual(mutation, original, "fault text exists in the guarded production finding");
-    const testPath = join(copied, "tests", "release-itm-257-public-flow.test.mjs"), argv = [process.execPath, "--test", "--test-name-pattern", "TST-257006", testPath];
+    const source = join(copied, "docs", "assets", "dashboard", "release-view.mjs"), original = readFileSync(source), text = original.toString();
+    const mutation = Buffer.from(text.replace('async release(app) {', 'async release(app) { throw new Error("TST-257 public Release render fault");'));
+    assert.notDeepEqual(mutation, original, "fault text exists in the guarded public Release caller");
+    const ids = ["TST-257001", "TST-257002", "TST-257003", "TST-257004", "TST-257005", "TST-257006", "TST-257007", "TST-257022"];
+    const testPath = join(copied, "tests", "release-itm-257-public-flow.test.mjs"), argv = [process.execPath, "--test", "--test-name-pattern", ids.join("|"), testPath];
     const invoke = () => { const env = { ...process.env, AGENT_M_257_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 40_000, env }); };
-    const originalHash = createHash("sha256").update(original).digest("hex");
-    const faultStarted = new Date().toISOString(); writeFileSync(source, mutation); const failed = invoke(); const faultEnded = new Date().toISOString();
+    const originalHash = createHash("sha256").update(original).digest("hex"), testHash = createHash("sha256").update(readFileSync(testPath)).digest("hex");
+    const faultStarted = new Date().toISOString(); writeFileSync(source, mutation); const faultHash = createHash("sha256").update(readFileSync(source)).digest("hex"), failed = invoke(); const faultEnded = new Date().toISOString();
     const restoreStarted = new Date().toISOString(); writeFileSync(source, original); const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), passed = invoke(); const restoreEnded = new Date().toISOString();
-    process.stdout.write(`TST-257901-counterproof ${JSON.stringify({ argv, cwd: copied, originalHash, restoredHash, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoreStarted, restoreEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr })}\n`);
-    assert.equal(restoredHash, originalHash, "byte-exact source restoration precedes the same-case positive");
-    assert.notEqual(failed.status, 0, "faulted same public case fails"); assert.match(`${failed.stdout}\n${failed.stderr}`, /Wilson|confidence interval/i);
-    assert.equal(passed.status, 0, "restored same public case passes");
+    process.stdout.write(`TST-257901-counterproof ${JSON.stringify({ argv, cwd: copied, ids, originalHash, faultHash, restoredHash, testHash, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoreStarted, restoreEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr })}\n`);
+    assert.equal(restoredHash, originalHash, "byte-exact public-caller restoration precedes the same-case positive");
+    assert.equal(failed.status, 1, "faulted child ends with the normal Node test failure status"); assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
+    for (const id of ids) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${id}:[\\s\\S]*TST-257 public Release render fault`), `${id} fails at the named public-render fault`);
+    assert.equal(passed.status, 0, "restored same-case child passes"); assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
+    for (const id of ids) assert.match(passed.stdout, new RegExp(`ok \\d+ - ${id}:`), `${id} passes after exact restoration`);
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
