@@ -49,6 +49,7 @@ import { declarationFindings, declarationSchema, workflowOf } from "../src/produ
 
 const MODULE = new URL("../src/product-process/index.mjs", import.meta.url);
 const SCHEMA_FILE = new URL("../src/product-process/declaration.schema.md", import.meta.url);
+const GATE_SCHEMA_FILE = new URL("../src/product-process/gate-record.schema.md", import.meta.url);
 const AGENT_M_DECLARATION = new URL("../docs/process.md", import.meta.url);
 const DECLARATION_PATH = "docs/process.md";
 
@@ -279,11 +280,11 @@ const brief = (found) => found.map((f) => [f.line, f.kind, f.rule]);
 
 // ---------------------------------------------------------------- declarationSchema: where the schema is read from
 //
-// The module reads its own declaration.schema.md once, when it is loaded: from the disk where the platform offers
+// The module reads its own declaration.schema.md and gate-record.schema.md once, when it is loaded: from the disk where the platform offers
 // `process.getBuiltinModule("node:fs")`, as Node does, and from its own address with `fetch` where it does not, as in a
 // browser. Each case sets these two for one load of the module, loads it anew from its own address with a query of its own,
 // `index.mjs?load=<n>`, and puts both back — as tests/participant-list.test.mjs loads MOD-participant-list. The real
-// declaration.schema.md is read, never changed.
+// owned schema files are read, never changed.
 
 // One load of the module, anew: `disk` is what process.getBuiltinModule("node:fs") gives it — undefined, as in a browser —,
 // `fetch` the browser's fetch. -> { module, error, reads } — the module's namespace, or the error its load failed with; and
@@ -312,20 +313,23 @@ const realDisk = (reads) => ({
 
 // guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT
 // given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser,
-//        without a disk, whose fetch answers the module's own address with the text of the real declaration.schema.md;
+//        without a disk, whose fetch answers each own schema address with that schema's real text;
 //        (c) as in a browser whose fetch answers 404 Not Found
 // input: (a), (b): declarationSchema, and the fixture product's declaration read with it
-// expect: (a) one read, of src/product-process/declaration.schema.md from the disk; (b) one read, of the same address with
-//         fetch; each gives a schema deep-equal to the one of the module as this file loaded it, which reads the
-//         declaration's model, team-scrum. (c) one read, of the same address; the module does not load — a schema that
+// expect: (a) both owned schemas are read from disk; (b) both are fetched from their own addresses; declarationSchema remains
+//         deep-equal to the one of the module as this file loaded it and reads the declaration's model, team-scrum. (c) the
+//         first declaration read is unchanged: the module does not load — a schema that
 //         cannot be read stops its module (MOD-documents, loadSchema) — and the error names declaration.schema.md and 404
-test("declarationSchema — the declaration's schema is read from the module's own declaration.schema.md: from the disk in Node, from its own address in a browser", async () => {
+test("declarationSchema — the module reads each owned schema from disk in Node and its own address in a browser", async () => {
   const text = readFileSync(SCHEMA_FILE, "utf8");
+  const gateText = readFileSync(GATE_SCHEMA_FILE, "utf8");
   const onDisk = await load({ disk: realDisk });
-  const atAddress = await load({ disk: undefined, fetch: async () => new Response(text, { status: 200 }) });
+  const atAddress = await load({ disk: undefined, fetch: async (url) => new Response(
+    new URL(url).href === SCHEMA_FILE.href ? text : new URL(url).href === GATE_SCHEMA_FILE.href ? gateText : "Not Found",
+    { status: new URL(url).href === SCHEMA_FILE.href || new URL(url).href === GATE_SCHEMA_FILE.href ? 200 : 404 }) });
   for (const [where, loaded, read] of [["disk", onDisk, "disk"], ["address", atAddress, "fetch"]]) {
     assert.equal(loaded.error, null, `${where}: the module loads: ${loaded.error?.message}`);
-    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`], where);
+    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`, `${read} ${GATE_SCHEMA_FILE.href}`], where);
     assert.deepEqual(loaded.module.declarationSchema, declarationSchema, where);
     assert.equal(readDocument(loaded.module.declarationSchema, DECLARATION_PATH, DECLARATION).fields.model, "team-scrum", where);
   }
