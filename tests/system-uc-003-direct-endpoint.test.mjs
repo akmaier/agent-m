@@ -26,14 +26,13 @@ async function mountedDashboard(handlers = []) {
   const server = await repoServer({ files: {}, handlers });
   const page = await openDashboard({ server, hash: "#uc" });
   const dom = richDocument();
-  const main = dom.byId("main"), original = main.querySelector.bind(main);
-  let section = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]'
-    ? { replaceChildren(...children) { section = children; } }
-    : original(selector);
+  const main = dom.byId("main"); let mounted = [];
+  const replace = main.replaceChildren.bind(main); main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  assert.equal(section.length, 2, "the public endpoint Settings adapter mounted its Configure control and endpoint slice");
-  return { server, page, main, configure: section[0] };
+  const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  const configure = pane?.querySelector("button.settings-endpoint-configure");
+  assert.ok(configure, "the public Endpoints & Agents pane mounted Configure");
+  return { server, page, main, configure };
 }
 
 async function configure(page, server, main, endpoint) {
@@ -167,11 +166,11 @@ test("TST-292011: Settings Change opens the stored endpoint's named public route
   const entries = { [`${prefix}endpoint:${OPENAI.name}`]: JSON.stringify({ url: OPENAI.url, kind: OPENAI.kind, model: OPENAI.model, key: OPENAI.key, throughBridge: false }) };
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries });
-  const dom = richDocument(), main = dom.byId("main"), original = main.querySelector.bind(main);
-  let section = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]' ? { replaceChildren(...children) { section = children; } } : original(selector);
+  const dom = richDocument(), main = dom.byId("main"); let mounted = [];
+  const replace = main.replaceChildren.bind(main); main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  await press(server, section[1].querySelector("button.settings-endpoint-change"));
+  const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  await press(server, pane.querySelector("button.settings-endpoint-change"));
   assert.equal(globalThis.location.hash, "#endpoints/campus");
   await page.go("#endpoints/campus");
   assert.equal(main.querySelector(".endpoint-name").value, OPENAI.name);
