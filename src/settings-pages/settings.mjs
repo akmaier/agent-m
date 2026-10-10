@@ -23,6 +23,10 @@ function attribute(node, name, value) {
   else node[name] = String(value);
 }
 
+function whatIsThis(text) {
+  return el("details", "settings-what-is-this", el("summary", null, "What is this?"), el("p", null, text));
+}
+
 function endpointName(key) {
   return key.slice("endpoint:".length);
 }
@@ -126,6 +130,7 @@ function bridgeLine(target, context) {
     el("h3", null, "Bridge"),
     el("p", null, `Address: ${setting.address}`),
     el("p", null, el("label", null, "Pairing token ", token, " ", show)),
+    whatIsThis("This browser keeps the Bridge address and pairing token so it can reach the Bridge. Anyone able to read this browser's Pages storage can read them."),
     el("p", null, change, " ", clear),
   );
 }
@@ -144,6 +149,7 @@ function jumpHostLine(target, context) {
     el("h3", null, "Jump host"),
     el("p", null, `Host: ${setting.hostname}`),
     el("p", null, `HTTPS address: ${setting.httpsAddress ?? "Not configured."}`),
+    whatIsThis("This browser keeps the jump-host connection details so the Bridge can prepare remote sessions. Anyone able to read this browser's Pages storage can read them."),
     el("p", null, change, " ", clear),
   );
 }
@@ -201,6 +207,7 @@ function exportImportControls(context) {
     download,
     el("p", null, el("label", null, "Import settings file ", file)),
     el("p", null, el("label", null, "Import passphrase ", importPassphrase)),
+    whatIsThis("Export copies this browser's settings, including secrets, into a file for this person to keep or move. Import reads that file into this browser; whoever holds an unlocked export can read its settings."),
     result,
   );
 }
@@ -221,6 +228,7 @@ function browserClearControls(context) {
   return el("section", "settings-clear",
     el("h3", null, "Clear this browser"),
     el("p", null, "This removes this instance's stored settings from localStorage and does not change a repository."),
+    whatIsThis("This removes every Agent M setting held in this browser. It changes no repository, and any Pages site under the same owner domain that can read this storage loses access too."),
     el("p", null, el("label", null, acknowledgement, " I understand this clears every Agent M setting in this browser.")),
     clear, result,
   );
@@ -240,7 +248,9 @@ function repositoryLine(context, info) {
       clearSetting(context.store, info.key);
       status.textContent = "Cleared from this browser with every product's own token.";
     });
-    return el("section", "settings-repository", el("h3", null, info.label), status, el("p", null, change, " ", clear));
+    return el("section", "settings-repository", el("h3", null, info.label), status,
+      whatIsThis("This browser keeps the list of managed product addresses so it can open their repository settings. Any Pages site under the same owner domain can read that browser storage."),
+      el("p", null, change, " ", clear));
   }
   const stored = readSetting(context.store, info.key);
   const value = el("input", "settings-repository-secret");
@@ -323,7 +333,7 @@ function repositoryLine(context, info) {
     el("h3", null, info.label), status,
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
     el("p", null, `Expires on `, expiry, " ", renewal),
-    el("details", "settings-repository-explanation", el("summary", null, "Why this token is needed"), el("p", null, "This token is used only to read and write this repository. Give it the minimum repository scope needed for that purpose.")),
+    whatIsThis("This browser keeps this token so Agent M can read and write this repository. Any Pages site under the same owner domain can read it; give it only the minimum repository scope needed."),
     el("p", "notice settings-repository-shared-origin", sharedPagesNotice(context)),
     el("p", null, el("label", null, acknowledgement, " I have read this.")),
     el("p", null, change, " ", save, " ", test, " ", clear), result,
@@ -369,9 +379,12 @@ function productListControls(target, context) {
       writeSetting(context.store, "products", products.filter((candidate) => candidate !== web));
       await route.render(target, context, {});
     });
-    return el("section", "settings-product-list-item", el("h4", null, web), el("p", null, test, " ", remove), result);
+    return el("section", "settings-product-list-item", el("h4", null, web),
+      whatIsThis("This browser keeps this product address and its optional token so it can test and open the repository. Any Pages site under the same owner domain can read that browser storage."),
+      el("p", null, test, " ", remove), result);
   });
-  return el("section", "settings-product-list", el("h3", null, "Managed products"), ...lines);
+  return el("section", "settings-product-list", el("h3", null, "Managed products"),
+    whatIsThis("This browser keeps the managed product list so it can show each repository's settings. Any Pages site under the same owner domain can read that browser storage."), ...lines);
 }
 
 function clearProductToken(store, web) {
@@ -455,6 +468,7 @@ function remoteSessionLine(target, context, info) {
     el("p", null, `Forwarded port: ${session.port ?? "Not configured."}`),
     el("p", null, el("label", null, "Copied Bridge token ", token, " ", show)),
     el("p", null, "Tunnel commands and proxy configuration are prepared on the Bridge page; no tunnel is started here."),
+    whatIsThis("This browser keeps the forwarded port and copied Bridge token for this remote session. Any Pages site under the same owner domain can read them; the Bridge reads its own tunnel settings."),
     el("p", null, test, " ", change, " ", clear), result,
   );
 }
@@ -493,6 +507,7 @@ async function productControls(context) {
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
       state,
+      whatIsThis("This product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser only reads them to show their current state."),
       el("h4", null, "Collaborators"),
       el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))));
   }
@@ -565,6 +580,7 @@ async function productControls(context) {
   });
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
+    whatIsThis("This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click."),
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
     el("p", "notice", "When off, report data enters issues and the repository unchanged. In a public product it is published; use only a protected, non-public data space. Data already written remains in history; removing that data requires a history rewrite."),
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,

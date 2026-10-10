@@ -169,6 +169,32 @@ test("TST-290120: repository token controls retain folded scope and purpose expl
   assert.match(line.textContent, /minimum.*scope|only.*repository/i, "failure node: the explanation states why the token needs its limited repository scope");
 });
 
+// TST-290123
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042; EVERY STEP EXPLAINS ITSELF
+// given: the public Settings Route with one repository token, Bridge, jump host, remote session, and writable product
+// input: the person opens each Settings tab
+// expect: every rendered settings section has a folded What is this? that names purpose, storage, and readers
+test("TST-290123: every rendered Settings section states purpose, storage, and readers in a folded explanation", async () => {
+  const browserStore = store();
+  writeSetting(browserStore, "github-token", { value: "ghp_fixture" });
+  writeSetting(browserStore, "bridge", { address: "http://127.0.0.1:8787", token: "bridge_fixture" });
+  writeSetting(browserStore, "jump-host", { hostname: "jump.example.test" });
+  writeSetting(browserStore, "remote-session:fixture", { port: 8788, token: "remote_fixture" });
+  writeSetting(browserStore, "github-token:fixture/product", { value: "ghp_product" });
+  const target = await render(browserStore, writableProduct([]));
+  for (const tab of byClass(target, "settings-tab")) click(tab);
+  const sections = descendants(target, (node) => node.localName === "section" && /^settings-(repository|product|bridge|jump-host|remote-session|export-import|clear)/.test(node.className));
+  assert.ok(sections.length >= 7, "known positive: the fixture renders every Settings section under test");
+  for (const section of sections) {
+    const details = descendants(section, (node) => node.localName === "details" && node.textContent.includes("What is this?"));
+    assert.equal(details.length, 1, `failure node: ${section.className} has exactly one folded What is this?`);
+    assert.match(details[0].textContent, /browser|repository/i, `${section.className}: explanation names where the setting is kept`);
+    assert.match(details[0].textContent, /read/i, `${section.className}: explanation names who can read it`);
+  }
+});
+
 // TST-290121
 // level: unit
 // module: MOD-settings-pages
@@ -211,11 +237,11 @@ test("TST-290121: collaborator consent preserves the chosen date, readback, and 
 // level: unit
 // module: MOD-settings-pages
 // guards: UC-042; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CLEAR IS A REAL CLEAR; EVERY STEP EXPLAINS ITSELF; A TOKEN IS SCOPED TO WHAT IT WRITES; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
-// covered cases: TST-290116; TST-290117; TST-290118; TST-290119; TST-290120; TST-290121
+// covered cases: TST-290116; TST-290117; TST-290118; TST-290119; TST-290120; TST-290121; TST-290123
 // given: GitHub Ubuntu CI and an isolated source copy
 // input: a unique public Settings-route fault is planted, then byte-exactly restored
-// expect: all six guarded cases fail in the child and pass after restoration
-test("TST-290122: CI counter-proof restores the Settings route for TST-290116 through TST-290121", () => {
+// expect: all seven guarded cases fail in the child and pass after restoration
+test("TST-290122: CI counter-proof restores the Settings route for TST-290116 through TST-290123", () => {
   if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_290_SETTINGS_FAULT_CHILD) return;
   const temporary = mkdtempSync(join(tmpdir(), "agent-m-290-settings-fault-")), copied = join(temporary, "repo");
   try {
@@ -223,7 +249,7 @@ test("TST-290122: CI counter-proof restores the Settings route for TST-290116 th
     const source = join(copied, "src/settings-pages/settings.mjs"), testPath = "tests/settings-pages-settings-regressions.test.mjs";
     const original = readFileSync(source), needle = "function repositoryLine(context, info) {";
     assert.equal(original.toString().split(needle).length - 1, 1, "the Settings-route fault target is unique");
-    const argv = [process.execPath, "--test", "--test-name-pattern", "TST-29011[6-9]|TST-290120|TST-290121", testPath];
+    const argv = [process.execPath, "--test", "--test-name-pattern", "TST-29011[6-9]|TST-290120|TST-290121|TST-290123", testPath];
     const invoke = () => { const env = { ...process.env, AGENT_M_290_SETTINGS_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 60_000, env }); };
     const originalHash = createHash("sha256").update(original).digest("hex"), testHash = createHash("sha256").update(readFileSync(join(copied, testPath))).digest("hex");
     const faultStarted = new Date().toISOString(); writeFileSync(source, original.toString().replace(needle, "function repositoryLineFault(context, info) {"));
@@ -232,10 +258,10 @@ test("TST-290122: CI counter-proof restores the Settings route for TST-290116 th
     const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), passed = invoke(), restoreEnded = new Date().toISOString();
     console.log(`TST-290122-counterproof ${JSON.stringify({ argv, cwd: copied, childEnv: { AGENT_M_290_SETTINGS_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null }, source, testPath, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoreEnded, failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } })}`);
     assert.equal(failed.status, 1); assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
-    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121"]) assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}:`));
+    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121", "TST-290123"]) assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}:`));
     assert.equal(restoredHash, originalHash, "source bytes are restored exactly");
     assert.equal(passed.status, 0); assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
-    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121"]) assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}:`));
+    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121", "TST-290123"]) assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}:`));
     assert.ok(faultHash !== originalHash);
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
