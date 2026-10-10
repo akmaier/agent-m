@@ -29,7 +29,7 @@ const sprintOf = ({ selection = ["ITM-297", "ITM-298"], start = "2026-10-10", en
 
 const findingsOf = (schema, path, text) => documentFindings(schema, readDocument(schema, path, text));
 
-const findingShape = ({ artifact, line, rule, what }) => ({ artifact, line, kind: "error", rule, what });
+const findingShape = ({ artifact, line, kind, rule, what }) => ({ artifact, line, kind, rule, what });
 
 // TST-297011
 // given: an implementation-plan order with three ITM steps in two model phases
@@ -74,13 +74,13 @@ test("TST-297013: malformed identifiers, paths, and sprint dates are findings af
   for (const path of ["docs/backlog/other/19.md", "docs/backlog/sprints/19.txt"]) {
     const [badPath] = findingsOf(planSchemas.sprint, path, sprintOf());
     assert.deepEqual(findingShape(badPath), {
-      artifact: "19", line: 1, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
+      artifact: SPRINT_PATH, line: 1, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
       what: `the path ${path} does not match a path of the format sprint`,
     });
   }
   const [badDate] = findingsOf(planSchemas.sprint, SPRINT_PATH, sprintOf({ start: "2026-99-10" }));
   assert.deepEqual(findingShape(badDate), {
-    artifact: "19", line: 4, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
+    artifact: SPRINT_PATH, line: 4, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
     what: 'the key start "2026-99-10" is not a date YYYY-MM-DD',
   });
 });
@@ -113,6 +113,6 @@ test("TST-297015: sprint appended records preserve review, unfinished-item, and 
   assert.deepEqual(appended.map((section) => section.heading), ["## Ended", "## Review", "## Unfinished items", "## Retrospective"]);
   assert.match(appended[1].text, /Feedback, each with where it goes/);
   assert.match(appended[1].text, /gate records under docs\/gates/);
-  assert.match(appended[2].text, /stays in the backlog/);
+  assert.match(appended[2].text, /stay in the backlog/);
   assert.match(appended[3].text, /Proposed, team agreement/);
 });
