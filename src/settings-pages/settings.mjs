@@ -8,7 +8,7 @@ import { readDocument, readRegister, writeDocument } from "../documents/index.mj
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor } from "./products.mjs";
-import { parseAddress } from "../repository-hosts/index.mjs";
+import { connect, parseAddress } from "../repository-hosts/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -228,33 +228,109 @@ function browserClearControls(context) {
 function repositoryLine(context, info) {
   if (info.key !== "github-token" && info.key !== "products" &&
     !info.key.startsWith("github-token:") && !info.key.startsWith("gitlab-token:")) return null;
+  if (info.key === "products") {
+    const change = el("button", "settings-repository-change", "Add or remove products");
+    const clear = el("button", "settings-repository-clear", "Clear");
+    const status = el("p", "settings-repository-status", "Product addresses are stored in this browser.");
+    change.addEventListener("click", () => context.go("add-product", {}));
+    clear.addEventListener("click", () => { clearSetting(context.store, info.key); status.textContent = "Cleared from this browser."; });
+    return el("section", "settings-repository", el("h3", null, info.label), status, el("p", null, change, " ", clear));
+  }
   const stored = readSetting(context.store, info.key);
   const value = el("input", "settings-repository-secret");
   const show = el("button", "settings-repository-show", "Show");
+  const acknowledgement = el("input", "settings-repository-ack");
+  const expiry = el("input", "settings-repository-expiry");
+  const save = el("button", "settings-repository-save", "Save");
+  const test = el("button", "settings-repository-test", "Test");
   const clear = el("button", "settings-repository-clear", "Clear");
-  const change = el("button", "settings-repository-change", info.key === "products" ? "Add or remove products" : "Change");
-  const status = el("p", "settings-repository-status", stored ? (info.expires ? `Expires on ${info.expires}.` : "Stored in this browser.") : "Not set.");
+  const change = el("button", "settings-repository-change", "Change");
+  const result = el("p", "settings-repository-result");
+  const address = repositoryAddress(context, info.key);
+  const links = connect(address, {}).webLinks();
+  const renewal = el("a", "settings-repository-renew", "Renew token ↗");
+  renewal.href = links.projectTokens ?? links.tokens;
+  const status = el("p", "settings-repository-status", repositoryStatus(info, stored));
   const secret = stored?.value ?? "";
   value.type = "password";
   value.value = secret;
   value.autocomplete = "off";
   value.spellcheck = false;
+  expiry.type = "date";
+  expiry.value = stored?.expires ?? "";
+  acknowledgement.type = "checkbox";
+  acknowledgement.disabled = true;
+  value.disabled = true;
+  expiry.disabled = true;
+  save.disabled = true;
   show.addEventListener("click", () => {
     const hidden = value.type === "password";
     value.type = hidden ? "text" : "password";
     show.textContent = hidden ? "Hide" : "Show";
   });
+  acknowledgement.addEventListener("change", () => {
+    value.disabled = expiry.disabled = save.disabled = !acknowledgement.checked;
+    if (acknowledgement.checked) value.focus();
+  });
+  change.addEventListener("click", () => {
+    acknowledgement.disabled = false;
+    result.textContent = "Read the shared-browser notice, then acknowledge it before saving a replacement token.";
+    acknowledgement.focus();
+  });
+  save.addEventListener("click", () => {
+    const next = value.value.trim();
+    if (!acknowledgement.checked || !next || !expiry.value) { result.textContent = "Acknowledge the notice, paste the token, and enter its expiry date first."; return; }
+    writeSetting(context.store, info.key, { ...stored, value: next, name: stored?.name ?? info.label, expires: expiry.value, stored: new Date().toISOString().slice(0, 10) });
+    clearSetting(context.store, `last-test:${info.key}`);
+    status.textContent = repositoryStatus({ ...info, expires: expiry.value, lastTest: null }, readSetting(context.store, info.key));
+    result.textContent = "Saved in this browser. Test it before using it.";
+  });
+  test.addEventListener("click", async () => {
+    const setting = readSetting(context.store, info.key);
+    if (!setting?.value) { result.textContent = "Save a token before testing it."; return; }
+    result.textContent = "Testing the repository token…";
+    let lastTest;
+    try {
+      await connect(address, { token: setting.value, tokenName: setting.name ?? info.label }).repositoryInfo();
+      lastTest = { at: new Date().toISOString(), outcome: "working" };
+      result.textContent = "✓ The repository token is working.";
+    } catch (error) {
+      lastTest = { at: new Date().toISOString(), outcome: "refused" };
+      result.textContent = `✗ ${error.message}`;
+    }
+    writeSetting(context.store, `last-test:${info.key}`, lastTest);
+    status.textContent = repositoryStatus({ ...info, lastTest }, setting);
+  });
   clear.addEventListener("click", () => {
     clearSetting(context.store, info.key);
+    clearSetting(context.store, `last-test:${info.key}`);
     value.value = "";
     status.textContent = "Cleared from this browser.";
   });
-  change.addEventListener("click", () => context.go("add-product", {}));
   return el("section", "settings-repository",
     el("h3", null, info.label), status,
-    ...(info.secret ? [el("p", null, el("label", null, "Stored token ", value, " ", show))] : [el("p", null, "Product addresses are stored in this browser.")]),
-    el("p", null, change, " ", clear),
+    el("p", null, el("label", null, "Stored token ", value, " ", show)),
+    el("p", null, `Expires on `, expiry, " ", renewal),
+    el("p", "notice settings-repository-shared-origin", sharedPagesNotice(context)),
+    el("p", null, el("label", null, acknowledgement, " I have read this.")),
+    el("p", null, change, " ", save, " ", test, " ", clear), result,
   );
+}
+
+function repositoryAddress(context, key) {
+  if (key === "github-token") return parseAddress(`https://github.com/${context.instance.repository}`);
+  if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
+  return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
+}
+
+function repositoryStatus(info, stored) {
+  if (!stored?.value) return "Not set.";
+  const test = info.lastTest;
+  const tested = test?.outcome === "working" ? ` Works. Last successful test: ${test.at}.` : test?.outcome === "refused" ? " Refused." : "";
+  if (!info.expires) return `Stored in this browser.${tested}`;
+  const days = Math.ceil((Date.parse(info.expires) - Date.now()) / 86400000);
+  const expiry = days <= 14 ? `Expires on ${info.expires}; renew soon.` : `Expires on ${info.expires}.`;
+  return `${expiry}${tested}`;
 }
 
 function productListControls(target, context) {

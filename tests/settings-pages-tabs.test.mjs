@@ -116,3 +116,53 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   assert.equal(readSetting(store, "remote-session:lab"), null, "clear reaches the canonical remote-session record");
   assert.equal(readSetting(store, "endpoint:main"), null, "clear reaches every current-instance browser setting");
 });
+
+// TST-290111
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT;
+//   AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+// given: an unset instance GitHub credential and constructed GitHub repository replies
+// input: the person opens Repositories, chooses Change, acknowledges the shared-origin notice, saves an expiring token,
+//   then tests it successfully and after a token refusal
+// expect: save creates the canonical token and expiry record only after acknowledgement; Test sends it only to GitHub's
+//   repository API and persists dated working/refused metadata, while the renewal link is GitHub's token page
+test("TST-290111: Settings saves, tests, and records an expiring repository token", async () => {
+  const storage = new Storage();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const store = openStore("fixture/instance");
+  const target = document.createElement("div");
+  const oldFetch = globalThis.fetch;
+  let reply = 200, request;
+  globalThis.fetch = async (url, init) => {
+    request = { url: String(url), init };
+    return new Response(JSON.stringify(reply === 200 ? { default_branch: "main", private: true, permissions: { push: true } } : { message: "Bad credentials" }), { status: reply });
+  };
+  try {
+    await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
+    click(byClass(target, "settings-tab")[1]);
+    const line = byClass(target, "settings-repository").find((node) => /GitHub token/.test(node.textContent));
+    const change = byClass(line, "settings-repository-change")[0];
+    const acknowledgement = byClass(line, "settings-repository-ack")[0];
+    const secret = byClass(line, "settings-repository-secret")[0];
+    const expiry = byClass(line, "settings-repository-expiry")[0];
+    const save = byClass(line, "settings-repository-save")[0];
+    const testButton = byClass(line, "settings-repository-test")[0];
+    const expires = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    assert.equal(save.disabled, true, "failure node: a replacement cannot be stored before Change and acknowledgement");
+    click(change); acknowledgement.checked = true; acknowledgement.dispatchEvent(new Event("change"));
+    secret.value = "ghp_fixtureToken"; expiry.value = expires; click(save);
+    assert.deepEqual(readSetting(store, "github-token"), { value: "ghp_fixtureToken", name: "GitHub token", expires, stored: new Date().toISOString().slice(0, 10) });
+    assert.match(byClass(line, "settings-repository-status")[0].textContent, /renew soon/i, "expiry within fourteen days is named at the Settings failure node");
+    await new Promise((resolve) => { click(testButton); setImmediate(resolve); });
+    assert.equal(request.url, "https://api.github.com/repos/fixture/instance");
+    assert.equal(request.init.headers.Authorization, "Bearer ghp_fixtureToken", "the stored token reaches only its GitHub API request");
+    assert.equal(readSetting(store, "last-test:github-token").outcome, "working");
+    assert.match(byClass(line, "settings-repository-status")[0].textContent, /Last successful test:/);
+    assert.equal(byClass(line, "settings-repository-renew")[0].href, "https://github.com/settings/personal-access-tokens");
+    reply = 401;
+    await new Promise((resolve) => { click(testButton); setImmediate(resolve); });
+    assert.equal(readSetting(store, "last-test:github-token").outcome, "refused", "failure node: a repository-host refusal is persisted with the token row");
+    assert.match(byClass(line, "settings-repository-status")[0].textContent, /Refused/);
+  } finally { globalThis.fetch = oldFetch; }
+});
