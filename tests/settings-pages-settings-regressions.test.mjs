@@ -177,9 +177,15 @@ test("TST-290120: repository token controls retain folded scope and purpose expl
 // input: the person chooses a consent date, saves the collaborator, then removes that collaborator
 // expect: the chosen date is committed and read back beside name/account; removal names immutable history and links its commit
 test("TST-290121: collaborator consent preserves the chosen date, readback, and withdrawal history commit link", async () => {
+  const fixtures = [
+    { address: "https://github.com/fixture/product/tree/main", key: "github-token:fixture/product", token: "ghp_fixture", prefix: "https://github.com/fixture/product/commit/" },
+    { address: "https://gitlab.example.test/group/subgroup/product/-/tree/main", key: "gitlab-token:gitlab.example.test/group/subgroup/product", token: "glpat_fixture", prefix: "https://gitlab.example.test/group/subgroup/product/-/commit/" },
+  ];
+  for (const fixture of fixtures) {
   const writes = [], browserStore = store();
-  writeSetting(browserStore, "github-token:fixture/product", { value: "ghp_fixture" });
-  const target = repositories(await render(browserStore, writableProduct(writes)));
+  writeSetting(browserStore, fixture.key, { value: fixture.token });
+  const product = writableProduct(writes); product.address = fixture.address;
+  const target = repositories(await render(browserStore, product));
   const chosen = byClass(target, "settings-collaborator-agreed-date")[0];
   assert.ok(chosen, "failure node: the public collaborator form lets the person choose the consent date");
   chosen.value = "2026-09-15";
@@ -195,9 +201,10 @@ test("TST-290121: collaborator consent preserves the chosen date, readback, and 
   const withdrawal = byClass(target, "settings-collaborator-result")[0];
   assert.match(withdrawal.textContent, /earlier commits.*history/i, "withdrawal names its immutable-history consequence");
   const link = descendants(withdrawal, (node) => node.localName === "a")[0];
-  assert.ok(link?.href?.startsWith("https://github.com/fixture/product/commit/"), "withdrawal exposes the actual resulting commit link");
+  assert.equal(link?.href, `${fixture.prefix}${"2".padStart(40, "0")}`, "withdrawal exposes the normalized host commit link");
   assert.match(writes[1].files[0].text, /A Bea Example \| @bea \| 2026-09-02/, "the similarly suffixed collaborator remains in committed text");
   assert.match(byClass(target, "settings-collaborator-records")[0].textContent, /A Bea Example.*@bea.*2026-09-02/, "the similarly suffixed collaborator remains visible after withdrawal");
+  }
 });
 
 // TST-290122
