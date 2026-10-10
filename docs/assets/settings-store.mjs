@@ -48,6 +48,15 @@ export const REMOTE_SESSIONS_KEY = PREFIX + "remote-sessions";
 export const KEYS = [TOKEN_KEY, TOKEN_EXPIRY_KEY, TOKEN_TEST_KEY, PRODUCTS_KEY, GITLAB_TOKENS_KEY, GITHUB_PRODUCT_TOKENS_KEY, JUMP_HOST_KEY,
   REMOTE_SESSIONS_KEY];
 
+// The retired file-text CacheStorage is not configuration. Remove only that named old store, and refuse startup if an
+// available CacheStorage still holds it; other caches remain untouched.
+export async function retireFileTexts() {
+  const cacheStorage = globalThis.caches;
+  if (!cacheStorage) return;
+  await cacheStorage.delete("agent-m-file-texts");
+  if (await cacheStorage.has("agent-m-file-texts")) throw new Error("Could not remove retired CacheStorage agent-m-file-texts.");
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // A token's last test: { ok: "YYYY-MM-DD" } — the server accepted it that day —, { refused: true } — the server refused it at the
 // last use —, or null; anything else reads as null.
