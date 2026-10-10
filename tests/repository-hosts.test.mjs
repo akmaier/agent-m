@@ -17,6 +17,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { parseAddress, connect, HostError } from "../src/repository-hosts/index.mjs";
 
 // ---------------------------------------------------------------- the fake servers
@@ -956,6 +960,24 @@ test("TST-296003: pull-request reads preserve refusal and read-only token bounda
       const host = connect(parseAddress(address), { token, tokenName: `${kind} token` });
       for (const read of [host.listPullRequests({ state: "open" }), host.pullRequestFacts(17)]) assert.equal((await failure(read))?.name, "TokenRefused", kind);
     });
+  }
+  // CI-only same-case proof: the exact copied source loses the public forwarding line, the copied TST-296 cases fail;
+  // restoring the saved bytes makes that same copied test stream pass. The child marks itself to prevent recursion.
+  if (process.env.GITHUB_ACTIONS === "true" && process.env.ITM296_SOURCE_COPY !== "1") {
+    const folder = mkdtempSync(join(tmpdir(), "itm296-source-copy-")), src = join(folder, "src", "repository-hosts"), tests = join(folder, "tests");
+    try {
+      cpSync(new URL("../src/repository-hosts", import.meta.url), src, { recursive: true });
+      cpSync(new URL("repository-hosts.test.mjs", import.meta.url), join(tests, "repository-hosts.test.mjs"), { recursive: true });
+      const index = join(src, "index.mjs"), original = readFileSync(index, "utf8"), line = "    listPullRequests: (filter = {}) => adapter.listPullRequests(filter),\n";
+      assert.equal(original.split(line).length - 1, 1, "the fault target is unique in the source copy");
+      writeFileSync(index, original.replace(line, ""));
+      const failed = spawnSync(process.execPath, ["--test", join(tests, "repository-hosts.test.mjs")], { encoding: "utf8", env: { ...process.env, ITM296_SOURCE_COPY: "1" } });
+      assert.notEqual(failed.status, 0, "the same copied TST-296 stream fails when Host forwarding is absent");
+      writeFileSync(index, original);
+      assert.equal(readFileSync(index, "utf8"), original, "the source copy is restored byte-for-byte");
+      const passed = spawnSync(process.execPath, ["--test", join(tests, "repository-hosts.test.mjs")], { encoding: "utf8", env: { ...process.env, ITM296_SOURCE_COPY: "1" } });
+      assert.equal(passed.status, 0, `the same copied stream passes after restoration: ${passed.stderr}`);
+    } finally { rmSync(folder, { recursive: true, force: true }); }
   }
 });
 
