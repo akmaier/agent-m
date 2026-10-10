@@ -75,15 +75,15 @@ async function loadArchContext(app, files) {
 
 // ---------------------------------------------------------------- the last accepted text (UC-008 2a)
 
-// A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT (UC-008 2a): read once per identifier and pinned commit, then kept
-// in memory for this page — the text a record names never changes — and kept in this browser by its blob SHA. The records are
+// A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT (UC-008 2a): read once per identifier and pinned commit in memory for
+// this page — the text a record names never changes. The records are
 // those of the identifier, read here: their content, not their names, says which text was accepted.
 function lastAcceptedOf(app, id) {
   const { acceptedCache, state, GITLAB, T } = app;
   const key = `${id}@${state.commit}`;
   if (!acceptedCache.has(key)) {
     acceptedCache.set(key, app.recordsOf(id).then((records) => lastAccepted({ ...(GITLAB ? { product: T.product } : { repo: T.repo }),
-      commit: state.commit, token: app.token(), records, id, cache: app.kept, repoKey: app.REPO_KEY }))
+      commit: state.commit, token: app.token(), records, id }))
       .catch((e) => { acceptedCache.delete(key); throw e; }));
   }
   return acceptedCache.get(key);
@@ -225,10 +225,9 @@ export function editPanel(app, path, text, blob) {
 const changedMeanwhile = (e, path) => String(e?.message ?? "").startsWith(`${path} changed since you opened it`);
 
 // The newer version beside the edit, which stays in the editor: read once, at the branch (readAt — the dashboard's reader of a
-// file at a commit or branch), and kept in this browser by its blob SHA, where the next page that shows this commit's file finds
-// it without reading it again (fileText, readByBlob). Shown in full beside the edit as saved, with the difference between them.
+// file at a commit or branch). Shown in full beside the edit as saved, with the difference between them.
 async function showNewer(app, ed, path, edited) {
-  const { T, SERVER, kept, REPO_KEY, diffHtml } = app;
+  const { T, SERVER, diffHtml } = app;
   const box = ed.querySelector(".edit-newer");
   if (!box) return;
   box.innerHTML = `<p class="muted">Reading the newer version on ${h(T.ref)}…</p>`;
@@ -240,7 +239,6 @@ async function showNewer(app, ed, path, edited) {
       return;
     }
     const blob = await gitBlobSha(text);
-    try { await kept.put(`${REPO_KEY}/${blob}`, text); } catch { /* not kept: the next page reads it again */ }
     box.innerHTML = `<h4>Newer version on ${h(T.ref)}</h4>
       <p class="muted small">Nothing was saved: <code>${h(path)}</code> was changed on ${h(T.ref)} after you opened the editor —
         it is now blob <code>${h(blob.slice(0, 12))}</code>. Your edit stays in the editor; the newer text is beside it.</p>
