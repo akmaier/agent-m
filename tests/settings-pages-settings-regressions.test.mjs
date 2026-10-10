@@ -15,7 +15,7 @@ class Element {
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
   addEventListener(type, listener) { this.listeners.push([type, listener]); }
-  fire(type, event = {}) { for (const [kind, listener] of this.listeners) if (kind === type) listener({ type, target: this, currentTarget: this, ...event }); }
+  fire(type, event = {}) { return Promise.all(this.listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ type, target: this, currentTarget: this, ...event }))); }
   focus() {}
   get textContent() { return this.childNodes.map((child) => child.textContent).join(""); }
   set textContent(value) { this.replaceChildren(String(value)); }
@@ -186,14 +186,12 @@ test("TST-290121: collaborator consent preserves the chosen date, readback, and 
   byClass(target, "settings-collaborator-name")[0].value = "Bea Example";
   byClass(target, "settings-collaborator-account")[0].value = "@bea";
   byClass(target, "settings-collaborator-agreed")[0].checked = true;
-  click(byClass(target, "settings-collaborator-save")[0], true);
-  await new Promise((resolve) => setImmediate(resolve));
+  await click(byClass(target, "settings-collaborator-save")[0], true);
   assert.match(writes[0].files[0].text, /\| Bea Example \| @bea \| 2026-09-15 \|/, "the selected consent date reaches the one-file commit");
   assert.match(byClass(target, "settings-collaborator-records")[0].textContent, /Bea Example.*@bea.*2026-09-15/, "readback retains the selected consent date");
   byClass(target, "settings-collaborator-remove-name")[0].value = "Bea Example";
   byClass(target, "settings-collaborator-remove-account")[0].value = "@bea";
-  click(byClass(target, "settings-collaborator-remove")[0], true);
-  await new Promise((resolve) => setImmediate(resolve));
+  await click(byClass(target, "settings-collaborator-remove")[0], true);
   const withdrawal = byClass(target, "settings-collaborator-result")[0];
   assert.match(withdrawal.textContent, /earlier commits.*history/i, "withdrawal names its immutable-history consequence");
   const link = descendants(withdrawal, (node) => node.localName === "a")[0];
