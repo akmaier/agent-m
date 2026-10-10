@@ -51,15 +51,14 @@ const pull = (branch, state, number = 1) => ({ number, title: branch, branch, ba
 // level: unit
 // module: MOD-work-plans
 // guards: STATUS IS DERIVED FROM THE RECORDS; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
-// given: ordered backlog Documents with accepted, open, changed and withdrawn realised artifacts
+// given: ordered backlog Documents with accepted, open and changed realised artifacts, plus an item that still names a withdrawn artifact absent from current statuses
 // input: itemStates with their public status Map and the accepted empty Queue list
-// expect: the accepted item is ready; each open, changed or withdrawn artifact yields waiting for acceptance with that artifact named
+// expect: the accepted item is ready; each open, changed or absent withdrawn artifact yields waiting for acceptance with that artifact named
 test("TST-295001: itemStates derives acceptance and changed-or-withdrawn waits from supplied records", () => {
   const items = [item("ITM-295-a"), item("ITM-295-b", { realises: ["REQ-OPEN"] }), item("ITM-295-c", { realises: ["REQ-CHANGED"] }), item("ITM-295-d", { realises: ["REQ-WITHDRAWN"] })];
   const statuses = accepted(["UC-032"]);
   statuses.set("REQ-OPEN", { id: "REQ-OPEN", kind: "requirement", status: "open" });
   statuses.set("REQ-CHANGED", { id: "REQ-CHANGED", kind: "requirement", status: "changed" });
-  statuses.set("REQ-WITHDRAWN", { id: "REQ-WITHDRAWN", kind: "requirement", status: "withdrawn" });
   const states = itemStates(items, order(items.map((entry) => entry.id)), facts({ statuses, queues: [] }));
   assert.equal(stateOf(states, "ITM-295-a").state, "ready", "known positive: accepted inputs are ready");
   for (const id of ["ITM-295-b", "ITM-295-c", "ITM-295-d"]) {
