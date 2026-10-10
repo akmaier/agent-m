@@ -3,7 +3,7 @@
 // Level: component
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, statSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, rmdirSync, statSync, symlinkSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -14,7 +14,11 @@ const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-component-electron-44");
 const ssh2Cache = join(tmpdir(), "agent-m-291-desktop-native-ssh2-1.17.0");
 const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
+const electronModules = join(root, "node_modules");
+const electronSsh2 = join(electronModules, "ssh2");
 let nativeFixtureLockHeld = false;
+let electronModulesCreated = false;
+let electronSsh2Owned = false;
 let runtimeFailure;
 let sshRuntimeFailure;
 let virtualDisplayFailure;
@@ -35,7 +39,11 @@ const acquireNativeFixtureLock = async () => {
   }
   throw new Error("Timed out waiting for the native Electron fixture lock.");
 };
-const releaseNativeFixtureLock = () => { if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; } };
+const releaseNativeFixtureLock = () => {
+  if (electronSsh2Owned) { unlinkSync(electronSsh2); electronSsh2Owned = false; }
+  if (electronModulesCreated) { rmdirSync(electronModules); electronModulesCreated = false; }
+  if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; }
+};
 const commandEvidence = (stage, result) => {
   const evidence = { stage, status: result.status, signal: result.signal, error: result.error?.code ?? null, stdout: scrub(result.stdout), stderr: scrub(result.stderr) };
   process.stdout.write(`native-fixture ${JSON.stringify(evidence)}\n`);
@@ -87,6 +95,12 @@ const prepareNativeFixture = async () => {
   electronCommand(executable, []);
   await acquireNativeFixtureLock();
   try {
+    const target = join(sshRuntime(), "ssh2");
+    if (!existsSync(electronModules)) { mkdirSync(electronModules); electronModulesCreated = true; }
+    if (existsSync(electronSsh2)) {
+      assert.equal(lstatSync(electronSsh2).isSymbolicLink(), true, "existing Electron ssh2 dependency link is not a link");
+      assert.equal(readlinkSync(electronSsh2), target, "existing Electron ssh2 dependency link has another target");
+    } else { symlinkSync(target, electronSsh2); electronSsh2Owned = true; }
     process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
   } catch (failure) { releaseNativeFixtureLock(); throw failure; }
 };
@@ -194,7 +208,7 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
   const launched = electronCommand(executable, args);
-  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment, NODE_PATH: sshRuntime() }, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "";
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
@@ -332,7 +346,7 @@ test("TST-276005: native close behavior and a second source start restore the fi
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
     const startSecond = async () => {
       const launched = electronCommand(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`]);
-      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", env: { ...process.env, NODE_PATH: sshRuntime() }, stdio: "ignore" });
+      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", env: { ...process.env }, stdio: "ignore" });
       child.unref(); second.push(child); return { child, exited: new Promise((resolve) => child.once("exit", resolve)) };
     };
     const observeSecond = async () => await evaluate(app.main, "(() => { globalThis.__agentMSecondInstanceCount ??= 0; process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.once('second-instance', () => { globalThis.__agentMSecondInstanceCount += 1; }); return globalThis.__agentMSecondInstanceCount; })()");
