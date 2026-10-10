@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -966,17 +966,22 @@ test("TST-296003: pull-request reads preserve refusal and read-only token bounda
   if (process.env.GITHUB_ACTIONS === "true" && process.env.ITM296_SOURCE_COPY !== "1") {
     const folder = mkdtempSync(join(tmpdir(), "itm296-source-copy-")), src = join(folder, "src", "repository-hosts"), tests = join(folder, "tests");
     try {
+      mkdirSync(tests, { recursive: true });
       cpSync(new URL("../src/repository-hosts", import.meta.url), src, { recursive: true });
       cpSync(new URL("repository-hosts.test.mjs", import.meta.url), join(tests, "repository-hosts.test.mjs"), { recursive: true });
       const index = join(src, "index.mjs"), original = readFileSync(index, "utf8"), line = "    listPullRequests: (filter = {}) => adapter.listPullRequests(filter),\n";
       assert.equal(original.split(line).length - 1, 1, "the fault target is unique in the source copy");
       writeFileSync(index, original.replace(line, ""));
-      const failed = spawnSync(process.execPath, ["--test", join(tests, "repository-hosts.test.mjs")], { encoding: "utf8", env: { ...process.env, ITM296_SOURCE_COPY: "1" } });
-      assert.notEqual(failed.status, 0, "the same copied TST-296 stream fails when Host forwarding is absent");
+      const childEnv = { ...process.env, ITM296_SOURCE_COPY: "1" }; delete childEnv.NODE_TEST_CONTEXT;
+      const argv = ["--test", "--test-name-pattern", "TST-29600[1-4]", join(tests, "repository-hosts.test.mjs")];
+      const run = (node) => ({ started: new Date().toISOString(), cwd: folder, argv: [process.execPath, ...argv], sourceSha256: createHash("sha256").update(readFileSync(index)).digest("hex"), testSha256: createHash("sha256").update(readFileSync(join(tests, "repository-hosts.test.mjs"))).digest("hex"), child: spawnSync(process.execPath, argv, { cwd: folder, encoding: "utf8", env: childEnv }), ended: new Date().toISOString(), node });
+      const failed = run("fault");
+      assert.notEqual(failed.child.status, 0, "the same copied TST-296 stream fails when Host forwarding is absent");
       writeFileSync(index, original);
       assert.equal(readFileSync(index, "utf8"), original, "the source copy is restored byte-for-byte");
-      const passed = spawnSync(process.execPath, ["--test", join(tests, "repository-hosts.test.mjs")], { encoding: "utf8", env: { ...process.env, ITM296_SOURCE_COPY: "1" } });
-      assert.equal(passed.status, 0, `the same copied stream passes after restoration: ${passed.stderr}`);
+      const passed = run("restored");
+      assert.equal(passed.child.status, 0, `the same copied stream passes after restoration: ${passed.child.stderr}`);
+      console.log(JSON.stringify({ kind: "ITM-296-source-copy-proof", failure: { ...failed, child: { status: failed.child.status, signal: failed.child.signal, error: failed.child.error?.message ?? null, stdout: failed.child.stdout, stderr: failed.child.stderr }, namedNode: "TST-296001 Host.listPullRequests absent" }, restoration: { bytesEqual: true, restoredSha256: createHash("sha256").update(readFileSync(index)).digest("hex") }, pass: { ...passed, child: { status: passed.child.status, signal: passed.child.signal, error: passed.child.error?.message ?? null, stdout: passed.child.stdout, stderr: passed.child.stderr }, namedNodes: ["TST-296001", "TST-296002", "TST-296003", "TST-296004"] } }));
     } finally { rmSync(folder, { recursive: true, force: true }); }
   }
 });
