@@ -68,36 +68,47 @@ The same item can be started after an approval record names the proposal's text.
 **NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT** *(Vibe Coding, ch. 7 §4)*
 When a product's model sets a work-in-progress limit, no implementation job starts while the number
 of items in progress under the job's role assignment has reached that limit.
-*Check:* `tests/test_wip_limit.py`
+*Check:* `tests/test_wip_limit.py` — starts implementation jobs while items are in progress and counts those items per
+role assignment. It checks that a start is refused, naming the limit, while the count has reached the limit, and
+succeeds once the count is below it.
 
 **A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT** *(Vibe Coding, ch. 7 §5; PO A. Maier)*
 When a product's model works in sprints, a team's implementation jobs start only for items selected for
 that team's current sprint.
-*Check:* `tests/test_time_box_selection.py`
+*Check:* `tests/test_time_box_selection.py` — starts implementation jobs while several teams run sprints and compares
+each job's item with its team's current sprint. It checks that a job starts only for an item selected for that sprint.
 
 **EVERY TEAM RUNS SPRINTS OF ITS OWN** *(PO A. Maier)*
 Each team of a product plans, starts and closes sprints of its own, which may run at the same time as the sprints of the
 product's other teams.
-*Check:* `tests/test_parallel_sprints.py`
+*Check:* `tests/test_parallel_sprints.py` — runs sprints of several teams of one product at the same time. It checks
+that each team plans, starts and closes its sprints without affecting the other teams' sprints.
 
 **A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH** *(PO A. Maier)*
 An item selected for a team's sprint is held by that sprint until its change is merged into the default branch or the
 item returns to the backlog.
-*Check:* `tests/test_parallel_sprints.py`
+*Check:* `tests/test_parallel_sprints.py` — follows held items through their sprint's close and the merges into the
+default branch. It checks that an item stays held until its change is merged there or it returns to the backlog.
 
 **SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES** *(PO A. Maier)*
 Of two items held by sprints of different teams, neither changes a module that the other changes or uses through the
 interfaces its modules' files name.
-*Check:* `tests/test_parallel_sprints.py`
+*Check:* `tests/test_parallel_sprints.py` — plans a sprint while other teams' sprints hold items, and compares the
+modules each selected item changes and uses with those of the held items. It checks that no selection shares a module
+with a held item, and that a refusal names the holding sprint, the item and the module.
 
 **SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD** *(PO A. Maier)*
 When a team plans or changes a sprint, every item held by another team's sprint is listed with that sprint, the modules
 the item changes and the modules they use.
-*Check:* `tests/test_parallel_sprints.py`
+*Check:* `tests/test_parallel_sprints.py` — opens a team's sprint planning while other teams' sprints hold items, and
+compares the listing with those items. It checks that each held item is listed with its sprint, the modules it changes
+and the modules they use.
 
 **A JOB GOES ONLY TO A HOLDER OF ITS ROLE** *(PO A. Maier)*
 A job is handed only to a participant that the job's role assignment assigns to the role the job belongs to.
-*Check:* `tests/test_job_assignment.py`
+*Check:* `tests/test_job_assignment.py` — hands out jobs while a product has several role assignments, and compares each
+job's participant with the job's role assignment. It checks that every job goes to a holder of its role in that
+assignment.
 
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
@@ -114,7 +125,9 @@ decided by a role and one decided by a named CI check both pass validation.
 
 **A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT** *(PO A. Maier)*
 A gate that a job reaches is passed only by a decision of a holder of the deciding role in the job's role assignment.
-*Check:* `tests/test_job_gate.py`
+*Check:* `tests/test_job_gate.py` — records gate decisions from holders of the deciding role across several role
+assignments, and compares each decider with the job's role assignment. It checks that only a decision from within that
+assignment passes the gate.
 
 **A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS** *(PO A. Maier; Vibe Coding, ch. 12 §2, ch. 13 §6)*
 A gate's decision recorded by the participant that did the work the gate checks does not pass it.

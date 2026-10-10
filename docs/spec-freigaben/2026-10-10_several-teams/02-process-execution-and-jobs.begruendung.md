@@ -2,18 +2,17 @@
 
 **The change.** `NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT` counts the items in progress under the job's role
 assignment, `A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT` reads the team's current sprint, and `A JOB GOES ONLY TO A
-HOLDER OF ITS ROLE` the job's role assignment. They keep their names and their test files; the check of the first, which
-described a test case, now names only its test. Five new requirements: every team runs sprints of its own; a sprint holds
-its items until their change is merged into the default branch or they return to the backlog; of two items held by sprints
-of different teams, neither changes a module that the other changes or uses; sprint planning lists what the other teams'
-sprints hold; a gate is decided within the job's role assignment.
+HOLDER OF ITS ROLE` the job's role assignment. They keep their names and their test files. Five new requirements: every
+team runs sprints of its own; a sprint holds its items until their change is merged into the default branch or they
+return to the backlog; of two items held by sprints of different teams, neither changes a module that the other changes
+or uses; sprint planning lists what the other teams' sprints hold; a gate is decided within the job's role assignment.
 
-**A check names its test, not its cases.** Every check of this queue names the test file that guards its rule, and nothing
-more. What the test shows is the rule above it; which cases show it is the test's design, chosen in the test file by
-partitions and boundary values (Vibe Coding, ch. 13: requirements-based testing "translates each requirement into one or
-more executable tests and maintains traceability between requirements and test evidence"; "The test designer identifies
-key partitions, selects representative values from each partition, and includes boundary values"). PO, 2026-10-10: "The
-spec is not the place to define test cases."
+**A check says how and what, not which values.** Each check of this queue names its test, says how the test works and
+says what it checks. It names no values to test for: the test chooses its cases and values (Vibe Coding, ch. 13: "The
+test designer identifies key partitions, selects representative values from each partition, and includes boundary
+values"). The accepted check of `NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT` named values; it now says the same
+without them. PO, 2026-10-10: "The spec is not the place to define test cases." — "You want to tell how it is tested
+and what is tested, but not which values to test for."
 
 **One wording for every model.** A product has one role assignment, or one per team in a model that works in sprints. The
 rules on jobs, gates and the work-in-progress limit name the job's role assignment: in Kanban and the V-model the product's

@@ -36,7 +36,8 @@ either may fill it.
 
 **A ROLE NAMES HOW MANY FILL IT** *(PO A. Maier)*
 A process model names for each role whether it is filled by one participant or may be filled by several.
-*Check:* `tests/test_model_roles.py`
+*Check:* `tests/test_model_roles.py` — validates every shipped and instance model definition against the model schema.
+It checks that each role states how many participants fill it.
 
 **A PRACTICE IS NOT A MODEL** *(PO A. Maier)*
 A practice — DevOps, prototyping, incremental delivery, a scaling layer — is added to a declared
@@ -51,7 +52,9 @@ hold before the next phase opens.
 **PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE** *(PO A. Maier)*
 An instance lists all its participants — people and agents — in the one list `docs/participants.md` of its own
 repository, and a product assigns its roles from that list.
-*Check:* `tests/test_participants.py`
+*Check:* `tests/test_participants.py` — scans the instance repository for participant lists and resolves every name in
+the product's role assignments against `docs/participants.md`. It checks that this is the instance's only participant
+list and that it holds every assigned name.
 
 **A PARTICIPANT HAS ONE OF FIVE TYPES** *(PO A. Maier)*
 A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
@@ -86,17 +89,21 @@ the source's register entry permits.
 
 **THE PROCESS NAMES ROLES, NOT PARTICIPANTS** *(PO A. Maier)*
 A product's process declaration names the roles that participants fill, never a participant.
-*Check:* `tests/test_role_assignment.py`
+*Check:* `tests/test_role_assignment.py` — compares the product's process declaration with the instance's participant
+list. It checks that the declaration names no participant.
 
 **A ROLE ASSIGNMENT FILLS THE ROLES** *(PO A. Maier)*
 A product's roles are filled in a role assignment, a file `docs/role-assignments/<name>.md` of the product's repository
 that only assigns participants to the roles of its process.
-*Check:* `tests/test_role_assignment.py`
+*Check:* `tests/test_role_assignment.py` — validates each role assignment against the roles of the product's process. It
+checks that the assignment gives participants to those roles and holds nothing else.
 
 **A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM** *(PO A. Maier)*
 A product has one role assignment, or, in a model that works in sprints, one for each of its teams.
-*Check:* `tests/test_role_assignment.py`
+*Check:* `tests/test_role_assignment.py` — compares the number of a product's role assignments with its teams and with
+whether its model works in sprints. It checks for one assignment per product, or one per team.
 
 **A PARTICIPANT MAY SERVE SEVERAL TEAMS** *(PO A. Maier)*
 A participant may hold roles in several teams of a product at the same time.
-*Check:* `tests/test_role_assignment.py`
+*Check:* `tests/test_role_assignment.py` — validates the role assignments of a product's teams together. It checks that
+a participant may hold roles in several of them.
