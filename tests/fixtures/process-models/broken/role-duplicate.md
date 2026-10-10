@@ -45,12 +45,12 @@ role of the model, one by a named CI check. The copies under broken/ each break 
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Owner | person | read the repository, write to the repository |
-| Builders | agent | read the repository, write to the repository, run code and tests, use tools |
-| Checker | either | read the repository, run code and tests |
-| Owner | agent | read the repository |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Owner | person | one | read the repository, write to the repository |
+| Builders | agent | several | read the repository, write to the repository, run code and tests, use tools |
+| Checker | either | several | read the repository, run code and tests |
+| Owner | agent | one | read the repository |
 
 ## Flow control
 

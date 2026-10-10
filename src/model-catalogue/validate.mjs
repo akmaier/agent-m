@@ -36,8 +36,8 @@ const names = (text, kind) => new RegExp(`(?<![A-Za-z0-9])${escaped(kind)}(?![A-
  * - a transition naming a phase that is not defined, and a phase that no transition reaches from the first phase, along
  *   transitions of any kind (THE MODEL DETERMINES THE PHASES AND THE GATES);
  * - a verification pair naming a phase that is not defined (THE MODEL DETERMINES THE PHASES AND THE GATES);
- * - a phase naming a role the model does not define, which leaves it without a role (A PROCESS MODEL ORGANISES PEOPLE AND
- *   AGENTS);
+ * - a phase naming a role the model does not define, one finding for each such role it names (A PROCESS MODEL ORGANISES
+ *   PEOPLE AND AGENTS);
  * - a phase producing a word that is no kind of artifact the module knows, an explanation in parentheses after it already
  *   dropped by index.mjs (THE MODEL DETERMINES THE PHASES AND THE GATES);
  * - a gate whose decider is neither a role of the model nor `check: <CI check name>`, which leaves it without a decider
@@ -47,7 +47,7 @@ const names = (text, kind) => new RegExp(`(?<![A-Za-z0-9])${escaped(kind)}(?![A-
  * - pulled work that names neither a time box nor a work-in-progress limit, or both (A MODEL DEFINITION IS VALIDATED
  *   BEFORE IT IS USED), on the line of its ## Flow control, or on line 1 without one.
  * @param {{ artifact: string, kind: string,
- *   phases: Array<{ line: number, name: string, role: string, produces: string[] }>,
+ *   phases: Array<{ line: number, name: string, roles: string[], produces: string[] }>,
  *   transitions: Array<{ line: number, from: string, to: string, kind: string }>,
  *   pairs: Array<{ line: number, phase: string, checkedBy: string }>,
  *   gates: Array<{ line: number, from: string, to: string, artifacts: string, decider: string }>,
@@ -105,9 +105,9 @@ export function validate(parts, kinds) {
   }
 
   for (const phase of parts.phases) {
-    if (given(phase.role) && !roles.has(phase.role)) {
-      add(phase.line, PEOPLE_AND_AGENTS, `the phase ${phase.name} names the role ${phase.role}, which the model does not define`,
-        `name a role of ## Roles, or add ${phase.role} there`);
+    for (const role of phase.roles.filter((named) => given(named) && !roles.has(named))) {
+      add(phase.line, PEOPLE_AND_AGENTS, `the phase ${phase.name} names the role ${role}, which the model does not define`,
+        `name a role of ## Roles, or add ${role} there`);
     }
   }
 

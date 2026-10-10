@@ -13,7 +13,8 @@ board — Backlog, Doing, Review, Done —, and "work is selected, pulled into e
 then considered finished". New work is pulled only while the work in progress is below the limit, and there are no
 sprints. The board of Figure 7.2 holds three cards in progress — one in Doing, two in Review —: the limit is three. The
 chapter names no role for a column: the roles are those of the Geek Box *Artifacts, roles, and traceability* of chapter 6
-— product owner, developer and reviewer —, the product owner placing the work in the backlog and accepting it as done.
+— product owner, developer, reviewer and tester —, the product owner placing the work in the backlog and accepting it as
+done, the tester working in Review beside the reviewer, whose review alone decides that an item is done.
 
 ## About
 
@@ -28,7 +29,7 @@ chapter: 7, Kanban as Flow-Oriented Synchronization
 |---|---|---|
 | Backlog | Product owner | ITM |
 | Doing | Developer | MOD, TST |
-| Review | Reviewer | — |
+| Review | Reviewer, Tester | — |
 | Done | Product owner | — |
 
 ## Transitions
@@ -53,11 +54,12 @@ chapter: 7, Kanban as Flow-Oriented Synchronization
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Product owner | either | read the repository, write to the repository |
-| Developer | either | read the repository, write to the repository, run code and tests |
-| Reviewer | either | read the repository |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Product owner | either | one | read the repository, write to the repository |
+| Developer | either | several | read the repository, write to the repository, run code and tests |
+| Reviewer | either | several | read the repository |
+| Tester | either | several | read the repository, write to the repository, run code and tests |
 
 ## Flow control
 

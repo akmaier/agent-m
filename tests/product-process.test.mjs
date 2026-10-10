@@ -145,11 +145,11 @@ const MODEL = [
   "",                                                                                                             // 41
   "## Roles",                                                                                                     // 42
   "",                                                                                                             // 43
-  "| Name | Filled by | Capabilities |",                                                                         // 44
-  "|---|---|---|",                                                                                                // 45
-  "| Product Owner | person | read the repository, write to the repository |",                                   // 46
-  "| Scrum Master | either | read the repository |",                                                              // 47
-  "| Developers | agent | read the repository, write to the repository, run code and tests |",                    // 48
+  "| Name | Filled by | How many | Capabilities |",                                                               // 44
+  "|---|---|---|---|",                                                                                            // 45
+  "| Product Owner | person | one | read the repository, write to the repository |",                              // 46
+  "| Scrum Master | either | one | read the repository |",                                                        // 47
+  "| Developers | agent | several | read the repository, write to the repository, run code and tests |",          // 48
   "",                                                                                                             // 49
   "## Flow control",                                                                                              // 50
   "",                                                                                                             // 51
@@ -438,7 +438,7 @@ test("declarationFindings — a model that the catalogue at the declared commit 
 // expect: one error, on the line of model_file (line 3), naming A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; its text
 //         names the model's file
 test("declarationFindings — a model whose findings in the catalogue at the declared commit hold an error is an error", async () => {
-  const broken = replaced(MODEL, 47, "| Scrum Master | either | read the repository |", "| Scrum Master | either | — |");
+  const broken = replaced(MODEL, 47, "| Scrum Master | either | one | read the repository |", "| Scrum Master | either | one | — |");
   const cat = await catalogueAt({ [MODEL_PATH]: broken });
   assert.deepEqual(cat.findings[MODEL_PATH].map((f) => f.kind), ["error"], "the model has an error at VERSION");
   const found = findingsOf(DECLARATION, cat);
@@ -529,17 +529,18 @@ test("declarationFindings — a gate whose requirement the instance's SPEC does 
 // The workflow of the fixture product, as the module file's Workflow states it: the model it was given; the practices the
 // declaration names; the model's phases, transitions and verification pairs; the model's gates, each named `<phase> →
 // <phase>`, then the gate the requirement adds, named by the requirement, with the source the instance's SPEC names for it;
-// the model's roles, each with who may fill it, its capabilities and its holders from ## Roles; the branches of ## Branches;
+// the model's roles, each with who may fill it, how many fill it, its capabilities and its holders from ## Roles; the
+// branches of ## Branches;
 // and the job rules as the Definition of Done.
 function expectedWorkflow(model) {
   return {
     model,
     practices: [],
     phases: [
-      { name: "Sprint Planning", role: "Product Owner", produces: ["ITM"] },
-      { name: "Development", role: "Developers", produces: ["MOD", "TST"] },
-      { name: "Sprint Review", role: "Product Owner", produces: ["sprint record"] },
-      { name: "Sprint Retrospective", role: "Scrum Master", produces: ["sprint record"] },
+      { name: "Sprint Planning", roles: ["Product Owner"], produces: ["ITM"] },
+      { name: "Development", roles: ["Developers"], produces: ["MOD", "TST"] },
+      { name: "Sprint Review", roles: ["Product Owner"], produces: ["sprint record"] },
+      { name: "Sprint Retrospective", roles: ["Scrum Master"], produces: ["sprint record"] },
     ],
     transitions: [
       { from: "Sprint Planning", to: "Development", kind: "sequence" },
@@ -561,11 +562,11 @@ function expectedWorkflow(model) {
         addedBy: { requirement: "UNIT VERIFICATION IS DOCUMENTED", source: "SRC-iec-62304, 5.5.5" }, practice: null },
     ],
     roles: [
-      { name: "Product Owner", filledBy: "person", capabilities: ["read the repository", "write to the repository"],
-        holders: ["alice"] },
-      { name: "Scrum Master", filledBy: "either", capabilities: ["read the repository"], holders: ["dev-b"] },
-      { name: "Developers", filledBy: "agent", capabilities: ["read the repository", "write to the repository",
-        "run code and tests"], holders: ["dev-a", "dev-b"] },
+      { name: "Product Owner", filledBy: "person", howMany: "one", capabilities: ["read the repository",
+        "write to the repository"], holders: ["alice"] },
+      { name: "Scrum Master", filledBy: "either", howMany: "one", capabilities: ["read the repository"], holders: ["dev-b"] },
+      { name: "Developers", filledBy: "agent", howMany: "several", capabilities: ["read the repository",
+        "write to the repository", "run code and tests"], holders: ["dev-a", "dev-b"] },
     ],
     branches: { Sprint: "sprint/<nn>", Development: "develop" },
     done: JOB_RULES,
@@ -653,9 +654,9 @@ fits:
 
 ### Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Evidence keeper | either | read the repository |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Evidence keeper | either | several | read the repository |
 
 ## What it is
 
@@ -665,9 +666,9 @@ Fixture practice.
 
   const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
 
-  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", role: "Evidence keeper", produces: ["TST"] });
+  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", roles: ["Evidence keeper"], produces: ["TST"] });
   assert.deepEqual(workflow.roles.at(-1), {
-    name: "Evidence keeper", filledBy: "either", capabilities: ["read the repository"], holders: [],
+    name: "Evidence keeper", filledBy: "either", howMany: "several", capabilities: ["read the repository"], holders: [],
   });
   assert.deepEqual(workflow.gates.at(-1), {
     name: "Development → Evidence review", from: "Development", to: "Evidence review", artifacts: "evidence TST",
@@ -756,7 +757,7 @@ Fixture practice.
   assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the practice document is valid");
   const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- evidence-kind"));
   assert.deepEqual(workflowOf(declaration, model, [practice], INSTANCE_SPEC).phases.at(-1), {
-    name: "Evidence review", role: "Evidence keeper", produces: ["TST"],
+    name: "Evidence review", roles: ["Evidence keeper"], produces: ["TST"],
   });
 });
 
@@ -779,9 +780,9 @@ fits:
 |---|---|---|
 | Evidence review | Evidence keeper | TST |
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Evidence keeper | either | read the repository |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Evidence keeper | either | several | read the repository |
 
 ## What it is
 
@@ -790,10 +791,10 @@ Fixture practice.
   assert.deepEqual(documentFindings(modelSchema.practice, practice), [], "known positive: the practice document is valid");
   const declaration = declarationOf(replaced(DECLARATION, 21, PRACTICES_NONE, "- bare-tables"));
   const workflow = workflowOf(declaration, model, [practice], INSTANCE_SPEC);
-  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", role: "Evidence keeper", produces: ["TST"] });
+  assert.deepEqual(workflow.phases.at(-1), { name: "Evidence review", roles: ["Evidence keeper"], produces: ["TST"] });
   assert.equal(workflow.phases.length, model.phases.length + 1, "only the phase table adds a phase");
   assert.deepEqual(workflow.roles.at(-1), {
-    name: "Evidence keeper", filledBy: "either", capabilities: ["read the repository"], holders: [],
+    name: "Evidence keeper", filledBy: "either", howMany: "several", capabilities: ["read the repository"], holders: [],
   });
   assert.equal(workflow.roles.length, model.roles.length + 1, "only the role table adds a role");
 });

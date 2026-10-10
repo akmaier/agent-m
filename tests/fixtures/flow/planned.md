@@ -44,9 +44,9 @@ from its plan, not from a backlog, so a job without a backlog item is not refuse
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Owner | person | read the repository, write to the repository |
-| Architect | either | draft text, read the repository, write to the repository |
-| Builders | agent | read the repository, write to the repository, run code and tests |
-| Tester | either | read the repository, run code and tests |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Owner | person | one | read the repository, write to the repository |
+| Architect | either | several | draft text, read the repository, write to the repository |
+| Builders | agent | several | read the repository, write to the repository, run code and tests |
+| Tester | either | several | read the repository, run code and tests |

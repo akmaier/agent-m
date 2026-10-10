@@ -94,7 +94,7 @@ const BROKEN = {
     { ...breakLine("| Development → Release testing | the item's pull request into the sprint branch, with its code and TST | CI is green on it and the Definition of Done holds | Product Owner |",
       "| Development → Release testing | the item's pull request into the sprint branch, with its code and TST |  | Product Owner |"), rule: GATE_WHAT, field: /^Gates/ },
   "a role without capabilities":
-    { ...breakLine("| Scrum Master | either | read the repository |", "| Scrum Master | either |  |"), rule: CAPABILITIES, field: /^Roles/ },
+    { ...breakLine("| Scrum Master | either | one | read the repository |", "| Scrum Master | either | one |  |"), rule: CAPABILITIES, field: /^Roles/ },
   "a phase without a role":
     { ...breakLine("| Release testing | Developers | TST (release tests of the selected items) |", "| Release testing |  | TST (release tests of the selected items) |"),
       rule: null, field: /^Phases/ },
@@ -154,7 +154,7 @@ test("release · process model: a gate decided by a role and one decided by a na
 
 // UC-031 step 4 and 4a: validation names every error, and the definition it checks is not changed by it.
 test("release · process model: validation leaves the definition as it was, and names every error of a definition with two", () => {
-  const two = breakLine("| Scrum Master | either | read the repository |", "| Scrum Master | either |  |").text
+  const two = breakLine("| Scrum Master | either | one | read the repository |", "| Scrum Master | either | one |  |").text
     .replace("| Release testing | Development | back |", "| Release testing | Hotfix | back |");
   const m = parseModel(two);
   const before = JSON.stringify(m);

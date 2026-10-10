@@ -350,11 +350,11 @@ chapter: 6, a fixture chapter
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Steward | person | draft text |
-| Builders | either | write to the repository, run code and tests |
-| Prober | agent | run code and tests, use tools |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Steward | person | several | draft text |
+| Builders | either | several | write to the repository, run code and tests |
+| Prober | agent | several | run code and tests, use tools |
 `;
 
 // A second process of the instance, with lab-flow's phases and roles, whose phases produce requirements, MOD and TST —
@@ -407,11 +407,11 @@ chapter: 6, a fixture chapter
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Steward | person | draft text |
-| Builders | either | write to the repository, run code and tests |
-| Prober | agent | run code and tests, use tools |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Steward | person | several | draft text |
+| Builders | either | several | write to the repository, run code and tests |
+| Prober | agent | several | run code and tests, use tools |
 `;
 
 // A restricted source of the instance's register that permits processing only at NHR@FAU, Erlangen, and the product's

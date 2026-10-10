@@ -8,12 +8,14 @@
 // A definition is front matter — name, kind (planned | pulled), adapted_from, measure — and one table per part under a
 // fixed heading:
 //
-//   ## Phases               | Name | Role | Produces |
+//   ## Phases               | Name | Role | Produces |                    Role: a role of the model, or several separated
+//                                                                          by commas
 //   ## Transitions          | From | To | Kind |                         Kind: sequence, alternative or back
 //   ## Verification pairs   | Phase | Checked by |
 //   ## Gates                | Between | Artifacts | Condition | Decider |   Between: "From → To"; Decider: a role of the
 //                                                                          model, or a named check: CI check `<name>`
-//   ## Roles                | Name | Filled by | Capabilities |           Filled by: person, agent or either
+//   ## Roles                | Name | Filled by | How many | Capabilities |   Filled by: person, agent or either; How many:
+//                                                                          one, or several where several may fill it
 //   ## Flow control         | Kind | Value |                              rows: WIP limit, Time box ("none" for absent),
 //                                                                          Sprints (yes or no)
 //
@@ -28,11 +30,13 @@ const GATE_WHAT = "A GATE NAMES WHAT IT CHECKS";
 const GATE_WHO = "A GATE NAMES WHO DECIDES IT";
 const PEOPLE = "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS";
 const CAPABILITIES = "A ROLE NAMES THE CAPABILITIES IT NEEDS";
+const HOW_MANY_FILL = "A ROLE NAMES HOW MANY FILL IT";
 const MEASURE = "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE";
 
 export const KINDS_OF_WORK = ["planned", "pulled"];
 export const TRANSITION_KINDS = ["sequence", "alternative", "back"];
 export const FILLED_BY = ["person", "agent", "either"];
+export const HOW_MANY = ["one", "several"];
 // The progress measures of PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE, each with the kind of work it fits.
 export const MEASURES = {
   "plan entries per phase": "planned",
@@ -45,7 +49,7 @@ const TABLES = {
   transitions: { heading: "Transitions", columns: ["From", "To", "Kind"] },
   pairs: { heading: "Verification pairs", columns: ["Phase", "Checked by"] },
   gates: { heading: "Gates", columns: ["Between", "Artifacts", "Condition", "Decider"] },
-  roles: { heading: "Roles", columns: ["Name", "Filled by", "Capabilities"] },
+  roles: { heading: "Roles", columns: ["Name", "Filled by", "How many", "Capabilities"] },
   flow: { heading: "Flow control", columns: ["Kind", "Value"] },
 };
 const FLOW_ROWS = { "wip limit": "wipLimit", "time box": "timeBox", "sprints": "sprints" };
@@ -60,6 +64,8 @@ const finding = (artifact, line, rule, field, what, fix) => ({ artifact, line, k
 const empty = (cell) => /^[-—–]?$/.test(cell.trim());
 const value = (cell) => (empty(cell) ? "" : cell.trim());
 const cellsOf = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+// The names a cell lists, separated by commas.
+const names = (cell) => value(cell).split(",").map((c) => c.trim()).filter(Boolean);
 
 // The kinds of artifact a text names, prefixes first, in the order they appear.
 export function artifactKinds(text) {
@@ -135,7 +141,7 @@ export function parseModel(text) {
   const rows = (key) => t[key]?.rows ?? [];
 
   const phases = rows("phases").map(({ cells: [name, role, produces], line }) =>
-    ({ name: value(name), role: value(role), produces: value(produces), kinds: artifactKinds(value(produces)), line }));
+    ({ name: value(name), roles: names(role), produces: value(produces), kinds: artifactKinds(value(produces)), line }));
   const transitions = rows("transitions").map(({ cells: [from, to, kind], line }) =>
     ({ from: value(from), to: value(to), kind: value(kind), line }));
   const pairs = rows("pairs").map(({ cells: [phase, checkedBy], line }) => ({ phase: value(phase), checkedBy: value(checkedBy), line }));
@@ -149,9 +155,8 @@ export function parseModel(text) {
       decider: !d ? null : check ? { check: check[1] } : { role: d }, line,
     };
   });
-  const roles = rows("roles").map(({ cells: [name, filledBy, capabilities], line }) => ({
-    name: value(name), filledBy: value(filledBy),
-    capabilities: value(capabilities).split(",").map((c) => c.trim()).filter(Boolean), line,
+  const roles = rows("roles").map(({ cells: [name, filledBy, howMany, capabilities], line }) => ({
+    name: value(name), filledBy: value(filledBy), howMany: value(howMany), capabilities: names(capabilities), line,
   }));
 
   const flow = { wipLimit: null, timeBox: null, sprints: null };
@@ -221,17 +226,24 @@ export function validateModel(model) {
       err(r.line, PEOPLE, "Roles/Filled by", `the role ${r.name} is filled by "${r.filledBy}", not by person, agent or either`,
         "write person, agent or either.");
     }
+    if (!HOW_MANY.includes(r.howMany)) {
+      err(r.line, HOW_MANY_FILL, "Roles/How many", r.howMany
+        ? `the role ${r.name} says "${r.howMany}", not one or several`
+        : `the role ${r.name} does not say whether one participant fills it or several may`,
+        "write one, where one participant fills the role, or several, where several may.");
+    }
     if (!r.capabilities.length) {
       err(r.line, CAPABILITIES, "Roles/Capabilities", `the role ${r.name} names no capabilities`,
         "name the capabilities its holder needs, such as read the repository, run code and tests.");
     }
   }
   for (const p of phases) {
-    if (!p.role) {
+    if (!p.roles.length) {
       err(p.line, PEOPLE, "Phases/Role", `the phase ${p.name} names no role`, "name the role of the model that does the phase.");
-    } else if (!roleAt.has(p.role)) {
-      err(p.line, PEOPLE, "Phases/Role", `the phase ${p.name} names the role ${p.role}, which the model does not define`,
-        `define the role ${p.role} under ## Roles, or name one that is defined.`);
+    }
+    for (const role of p.roles.filter((named) => !roleAt.has(named))) {
+      err(p.line, PEOPLE, "Phases/Role", `the phase ${p.name} names the role ${role}, which the model does not define`,
+        `define the role ${role} under ## Roles, or name one that is defined.`);
     }
   }
 

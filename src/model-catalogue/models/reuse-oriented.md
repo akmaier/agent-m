@@ -70,8 +70,8 @@ The reuse-oriented model pairs no phases.
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Product owner | either | read the repository, write to the repository |
-| Developer | either | read the repository, write to the repository, run code and tests, reach the web |
-| Reviewer | either | read the repository |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Product owner | either | one | read the repository, write to the repository |
+| Developer | either | several | read the repository, write to the repository, run code and tests, reach the web |
+| Reviewer | either | several | read the repository |

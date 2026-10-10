@@ -24,22 +24,23 @@ import { validate } from "./validate.mjs";
 /**
  * A process model read by its schema: its name; its kind of work, planned or pulled; the model it was adapted from, or null;
  * the measure of its progress; what its `## About` says — the risk it manages well, the risk it accepts, an example project
- * it suits and the chapter of the book that explains it —, or null for a model without one; its phases, each with the role
- * that does it and the kinds of artifact it produces — a kind's explanation in parentheses in its file dropped —; the
+ * it suits and the chapter of the book that explains it —, or null for a model without one; its phases, each with the roles
+ * that work in it and the kinds of artifact it produces — a kind's explanation in parentheses in its file dropped —; the
  * transitions between them; its verification pairs; its gates, each with the two phases it stands between, the artifacts
  * it checks, the condition that must hold and its decider — a role of the model, or `check: <CI check name>`; its roles,
- * each with who may fill it — person, agent or either — and the capabilities it needs; its flow control — the
+ * each with who may fill it — person, agent or either —, whether one participant fills it or several may, and the
+ * capabilities it needs; its flow control — the
  * work-in-progress limit, the time box, null also for a file's stated `none`, whether the work runs in sprints —, or null
  * where it has none; its version, the blob that the instance's snapshot names for the path of its file, or null where the
  * snapshot does not hold that path; and that path in the instance repository. A value its file leaves out, or writes in a
  * form the schema does not read, is "" — [] for a list, null for a value of the flow control.
  * @typedef {{ name: string, kind: string, adaptedFrom: string | null, measure: string,
  *   about: { manages: string, accepts: string, example: string, chapter: string } | null,
- *   phases: Array<{ name: string, role: string, produces: string[] }>,
+ *   phases: Array<{ name: string, roles: string[], produces: string[] }>,
  *   transitions: Array<{ from: string, to: string, kind: string }>,
  *   pairs: Array<{ phase: string, checkedBy: string }>,
  *   gates: Array<{ from: string, to: string, artifacts: string, condition: string, decider: string }>,
- *   roles: Array<{ name: string, filledBy: string, capabilities: string[] }>,
+ *   roles: Array<{ name: string, filledBy: string, howMany: string, capabilities: string[] }>,
  *   flow: { wip: number | null, timeBox: string | null, sprints: boolean } | null,
  *   version: string | null, path: string }} Model
  */
@@ -126,7 +127,7 @@ function partsOf(document) {
     adaptedFrom: text(document.fields.adapted_from) || null,
     measure: text(document.fields.measure),
     phases: rows("## Phases").map(({ line, cells }) =>
-      ({ line, name: text(cells.Name), role: text(cells.Role), produces: list(cells.Produces).map(kindOf) })),
+      ({ line, name: text(cells.Name), roles: list(cells.Role), produces: list(cells.Produces).map(kindOf) })),
     transitions: rows("## Transitions").map(({ line, cells }) =>
       ({ line, from: text(cells.From), to: text(cells.To), kind: text(cells.Kind) })),
     pairs: rows("## Verification pairs").map(({ line, cells }) =>
@@ -134,7 +135,8 @@ function partsOf(document) {
     gates: rows("## Gates").map(({ line, cells }) => ({ line, ...between(text(cells.Between)), artifacts: text(cells.Artifacts),
       condition: text(cells.Condition), decider: text(cells.Decider) })),
     roles: rows("## Roles").map(({ line, cells }) =>
-      ({ line, name: text(cells.Name), filledBy: text(cells["Filled by"]), capabilities: list(cells.Capabilities) })),
+      ({ line, name: text(cells.Name), filledBy: text(cells["Filled by"]), howMany: text(cells["How many"]),
+        capabilities: list(cells.Capabilities) })),
     flow: flow ? { line: flow.line, wip: flowValue("WIP limit"), timeBox: timeBoxOf(flowValue("Time box")),
       sprints: flowValue("Sprints") === "yes" } : null,
   };
@@ -178,10 +180,11 @@ export const modelSchema = Object.freeze({ model: MODEL, practice: PRACTICE });
  * modelFindings(model: Document) -> Finding[] — every rule a definition must keep, in the order of their lines, each an
  * error on the line of the part that causes it and naming the requirement it applies: what the model's schema decides,
  * through MOD-documents' documentFindings — no declaration of planned or pulled; a measure that does not fit the kind of
- * work; a gate without artifacts, without a condition or without a decider; a role without capabilities; a phase without a
- * role; every other value left out where required, or not of its type —, and what it cannot, in validate.mjs — a transition
- * naming a phase that is not defined, or a phase no transition reaches from the first phase; a verification pair naming a
- * missing phase; a phase naming a role, or a gate a decider, that the model does not define; a gate that checks a kind of
+ * work; a gate without artifacts, without a condition or without a decider; a role without capabilities, or without how
+ * many fill it; a phase without a role; every other value left out where required, or not of its type —, and what it
+ * cannot, in validate.mjs — a transition naming a phase that is not defined, or a phase no transition reaches from the first
+ * phase; a verification pair naming a missing phase; a phase naming a role, or a gate a decider, that the model does not
+ * define; a gate that checks a kind of
  * artifact no earlier phase produces; for pulled work, neither a time box nor a work-in-progress limit, or both. A finding
  * names the file of the model, which has no identifier. A definition with an error finding can be declared by no product.
  * @param {Document} model — a definition, as readDocument returns it with modelSchema.model

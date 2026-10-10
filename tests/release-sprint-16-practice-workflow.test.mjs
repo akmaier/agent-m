@@ -103,9 +103,9 @@ The next table is a gate, not a continuation of the phase table.
 |---|---|---|---|
 | Development → Evidence review | evidence TST | evidence is reviewed | Product Owner |
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Evidence keeper | either | read the repository |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Evidence keeper | either | several | read the repository |
 
 ## What it is
 

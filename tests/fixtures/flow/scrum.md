@@ -45,11 +45,11 @@ Only its front matter and its flow control matter to them; the tables are those 
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Owner | person | read the repository, write to the repository |
-| Builders | agent | read the repository, write to the repository, run code and tests, use tools |
-| Checker | either | read the repository, run code and tests |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Owner | person | one | read the repository, write to the repository |
+| Builders | agent | several | read the repository, write to the repository, run code and tests, use tools |
+| Checker | either | several | read the repository, run code and tests |
 
 ## Flow control
 

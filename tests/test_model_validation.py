@@ -1,5 +1,5 @@
 # Module: MOD-process-model
-# Guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A GATE NAMES WHO DECIDES IT
+# Guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A GATE NAMES WHO DECIDES IT; A ROLE NAMES HOW MANY FILL IT
 # Level: unit
 """SPEC §13 — a process model definition is read and validated before any product may declare it
 (docs/assets/process-model.mjs: parseModel, validateModel; ARC-019 decisions 1 and 2; UC-031 step 4).
@@ -50,9 +50,9 @@ class TestReading(unittest.TestCase):
         m = parse(PULLED)
         self.assertEqual((m["name"], m["kind"], m["adaptedFrom"], m["measure"]),
                          ("fixture-pulled", "pulled", "fixture-base", "items per state over time"))
-        self.assertEqual([(p["name"], p["role"], p["line"]) for p in m["phases"]],
-                         [("Planning", "Owner", 17), ("Building", "Builders", 18), ("Checking", "Checker", 19),
-                          ("Closing", "Owner", 20)])
+        self.assertEqual([(p["name"], p["roles"], p["line"]) for p in m["phases"]],
+                         [("Planning", ["Owner"], 17), ("Building", ["Builders"], 18), ("Checking", ["Checker"], 19),
+                          ("Closing", ["Owner"], 20)])
         self.assertEqual(m["phases"][1]["produces"], "MOD (code of the item's modules), TST")
         self.assertEqual([(t["from"], t["to"], t["kind"]) for t in m["transitions"]],
                          [("Planning", "Building", "sequence"), ("Building", "Checking", "sequence"),
@@ -63,11 +63,11 @@ class TestReading(unittest.TestCase):
         self.assertEqual([(g["from"], g["to"], g["condition"], g["decider"], g["line"]) for g in m["gates"]],
                          [("Building", "Checking", "CI is green on it", {"role": "Owner"}, 43),
                           ("Checking", "Closing", "green on the branch", {"check": "release-tests"}, 44)])
-        self.assertEqual([(r["name"], r["filledBy"], r["capabilities"]) for r in m["roles"]],
-                         [("Owner", "person", ["read the repository", "write to the repository"]),
-                          ("Builders", "agent", ["read the repository", "write to the repository", "run code and tests",
-                                                 "use tools"]),
-                          ("Checker", "either", ["read the repository", "run code and tests"])])
+        self.assertEqual([(r["name"], r["filledBy"], r["howMany"], r["capabilities"]) for r in m["roles"]],
+                         [("Owner", "person", "one", ["read the repository", "write to the repository"]),
+                          ("Builders", "agent", "several", ["read the repository", "write to the repository",
+                                                            "run code and tests", "use tools"]),
+                          ("Checker", "either", "several", ["read the repository", "run code and tests"])])
         self.assertEqual(m["flow"], {"wipLimit": 3, "timeBox": None, "sprints": True})
         self.assertEqual(m["problems"], [])
 
@@ -112,6 +112,7 @@ class TestValidation(unittest.TestCase):
             "a gate without artifacts": "gate-without-artifacts.md",
             "a gate without condition": "gate-without-condition.md",
             "a role without capabilities": "role-without-capabilities.md",
+            "a role that does not say how many fill it": "role-how-many-invalid.md",
             "a phase without a role": "phase-without-role.md",
             "a missing declaration of whether work is planned or pulled": "no-kind.md",
             "a phase no transition reaches": "phase-unreached.md",
@@ -128,6 +129,7 @@ class TestValidation(unittest.TestCase):
         fields = {"transition-unknown-phase.md": "Transitions/To", "pair-unknown-phase.md": "Verification pairs/Checked by",
                   "gate-without-artifacts.md": "Gates/Artifacts", "gate-without-condition.md": "Gates/Condition",
                   "gate-without-decider.md": "Gates/Decider", "role-without-capabilities.md": "Roles/Capabilities",
+                  "role-how-many-invalid.md": "Roles/How many",
                   "phase-without-role.md": "Phases/Role", "no-kind.md": "kind", "measure-not-fitting.md": "measure",
                   "pulled-with-both.md": "Flow control", "row-malformed.md": "Transitions"}
         for name, field in fields.items():

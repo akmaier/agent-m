@@ -377,11 +377,11 @@ chapter: 9, Fixtures
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Owner | person | draft text |
-| Reviewer | either | use tools |
-| Developers | either | write to the repository, run code and tests |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Owner | person | one | draft text |
+| Reviewer | either | several | use tools |
+| Developers | either | several | write to the repository, run code and tests |
 `;
 
 const SPEC_TEXT = `# SPEC
@@ -653,12 +653,12 @@ retrospective are recorded, and then the Product Owner decides the merge of the 
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Product Owner | either | read the repository, write to the repository |
-| Scrum Master | either | read the repository |
-| Developers | either | read the repository, write to the repository, run code and tests, use tools |
-| Release tester | either | read the repository, write to the repository, run code and tests |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Product Owner | either | one | read the repository, write to the repository |
+| Scrum Master | either | one | read the repository |
+| Developers | either | several | read the repository, write to the repository, run code and tests, use tools |
+| Release tester | either | several | read the repository, write to the repository, run code and tests |
 
 ## Flow control
 

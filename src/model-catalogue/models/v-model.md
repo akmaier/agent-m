@@ -66,9 +66,9 @@ chapter: 6, The V-Model as Structured Verification Strategy
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Product owner | either | read the repository, write to the repository |
-| Developer | either | read the repository, write to the repository, run code and tests |
-| Tester | either | read the repository, write to the repository, run code and tests |
-| Reviewer | either | read the repository |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Product owner | either | one | read the repository, write to the repository |
+| Developer | either | several | read the repository, write to the repository, run code and tests |
+| Tester | either | several | read the repository, write to the repository, run code and tests |
+| Reviewer | either | several | read the repository |

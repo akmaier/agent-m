@@ -263,7 +263,7 @@ export const route = {
       const phasesPanel = el("section", "phases-panel", el("h3", null, "Phases and gates"),
         explain("phases-and-gates"), explain("branch-of-its-own"),
         el("ul", "phases", ...workflow.phases.map((phase) =>
-          el("li", null, `${phase.name} (${phase.role}) → ${phase.produces.join(", ")}`))),
+          el("li", null, `${phase.name} (${phase.roles.join(", ")}) → ${phase.produces.join(", ")}`))),
         // F2: the transitions between the phases, and which phases pair for verification, beside the phases and gates.
         el("ul", "transitions", ...workflow.transitions.map((transition) =>
           el("li", null, `${transition.from} → ${transition.to} (${transition.kind})`))),

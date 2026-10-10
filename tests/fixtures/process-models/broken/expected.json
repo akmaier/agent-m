@@ -35,6 +35,9 @@
   "gate-between-malformed.md": [
     [43, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the gate \"Building to Checking\" does not name two phases as \"From → To\""]
   ],
+  "role-how-many-invalid.md": [
+    [52, "A ROLE NAMES HOW MANY FILL IT", "the role Checker says \"many\", not one or several"]
+  ],
   "role-without-capabilities.md": [
     [52, "A ROLE NAMES THE CAPABILITIES IT NEEDS", "the role Checker names no capabilities"]
   ],

@@ -12,8 +12,9 @@ What the language cannot say is written where it applies, and `validate.mjs` dec
   produced by the phase the gate follows or by one before it, along the transitions that are not `back`.
 - `From`, `To`, `Phase` and `Checked by` name phases of the model, and every phase is reached from the first one along the
   transitions. `Between` names the two phases a gate stands between, as `<phase> → <phase>`.
-- A phase's `Role` is a role of the model. A gate's `Decider` is a role of the model, or `check: <CI check name>`: a check
-  whose result decides.
+- A phase's `Role` names the role that works in it, or several, separated by commas; each is a role of the model. A
+  gate's `Decider` is a role of the model, or `check: <CI check name>`: a check whose result decides.
+- A role's `How many` says whether one participant fills it, `one`, or several may, `several`.
 - `## Flow control` is for pulled work, with the rows `WIP limit`, a number, `Time box`, its length or `none` for no time
   box, and `Sprints`, `yes` or `no`; a value left out is `—`, read the same as a `Time box` of `none`. Pulled work names
   exactly one of a time box and a work-in-progress limit.
@@ -47,7 +48,8 @@ state over time` pulled work —, as the variants of `measure` say.
     } },
     { "heading": "## Phases", "required": true, "rule": "THE MODEL DETERMINES THE PHASES AND THE GATES", "table": { "columns": [
       { "name": "Name", "value": { "type": "text", "required": true } },
-      { "name": "Role", "value": { "type": "text", "required": true, "rule": "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS" } },
+      { "name": "Role", "value": { "type": "list", "item": { "type": "text" }, "required": true, "nonEmpty": true,
+        "rule": "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS" } },
       { "name": "Produces", "value": { "type": "list", "item": { "type": "text" } } }
     ] } },
     { "heading": "## Transitions", "required": true, "rule": "THE MODEL DETERMINES THE PHASES AND THE GATES", "table": { "columns": [
@@ -68,6 +70,8 @@ state over time` pulled work —, as the variants of `measure` say.
     { "heading": "## Roles", "required": true, "rule": "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "table": { "columns": [
       { "name": "Name", "value": { "type": "text", "required": true } },
       { "name": "Filled by", "value": { "type": "enum", "values": ["person", "agent", "either"], "required": true } },
+      { "name": "How many", "value": { "type": "enum", "values": ["one", "several"], "required": true,
+        "rule": "A ROLE NAMES HOW MANY FILL IT" } },
       { "name": "Capabilities", "value": { "type": "list", "item": { "type": "text" }, "required": true, "nonEmpty": true,
         "rule": "A ROLE NAMES THE CAPABILITIES IT NEEDS" } }
     ] } },

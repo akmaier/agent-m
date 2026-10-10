@@ -342,11 +342,11 @@ measure: remaining items per time box
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Owner | person | draft text |
-| Developers | either | write to the repository, run code and tests |
-| Reviewer | either | use tools |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Owner | person | one | draft text |
+| Developers | either | several | write to the repository, run code and tests |
+| Reviewer | either | several | use tools |
 
 ## Flow control
 
@@ -594,9 +594,9 @@ test("process route — selected tabled practice additions enter the workflow an
 
 ### Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Evidence keeper | either | read the repository |`;
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Evidence keeper | either | several | read the repository |`;
   const instanceHost = fakeHost(instanceFiles({ practiceAdds }), INSTANCE_COMMIT);
   const selectedHost = fakeHost({ "docs/process.md": declarationText({ roles: BASE_ROLES, practices: ["devops"] }) },
     sha1("practice-selected"));

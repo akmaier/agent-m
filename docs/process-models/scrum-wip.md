@@ -56,11 +56,11 @@ retrospective are recorded, and then the Product Owner decides the merge of the 
 
 ## Roles
 
-| Name | Filled by | Capabilities |
-|---|---|---|
-| Product Owner | either | read the repository, write to the repository |
-| Scrum Master | either | read the repository |
-| Developers | either | read the repository, write to the repository, run code and tests, use tools |
+| Name | Filled by | How many | Capabilities |
+|---|---|---|---|
+| Product Owner | either | one | read the repository, write to the repository |
+| Scrum Master | either | one | read the repository |
+| Developers | either | several | read the repository, write to the repository, run code and tests, use tools |
 
 ## Flow control
 

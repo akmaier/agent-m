@@ -29,14 +29,14 @@ export { workflowOf } from "./workflow.mjs";
  * between them and its verification pairs; its gates — the model's, each named `<phase> → <phase>`, then those the product's
  * process requirements add, each named by its requirement and marked with that requirement and the source the instance's
  * SPEC names for it —, each with the phases it stands between, the artifacts it checks, its condition, its decider, and the
- * practice that added it, null for every gate here; the model's roles, each with who may fill it, the capabilities it needs
- * and the participants the declaration assigns to it; the branch of each phase or time box that has one; and the Definition
- * of Done: the job rules, then the conditions the declaration adds.
- * @typedef {{ model: Model, practices: string[], phases: Array<{ name: string, role: string, produces: string[] }>,
+ * practice that added it, null for every gate here; the model's roles, each with who may fill it, whether one participant
+ * fills it or several may, the capabilities it needs and the participants the declaration assigns to it; the branch of each
+ * phase or time box that has one; and the Definition of Done: the job rules, then the conditions the declaration adds.
+ * @typedef {{ model: Model, practices: string[], phases: Array<{ name: string, roles: string[], produces: string[] }>,
  *   transitions: Array<{ from: string, to: string, kind: string }>, pairs: Array<{ phase: string, checkedBy: string }>,
  *   gates: Array<{ name: string, from: string, to: string, artifacts: string, condition: string, decider: string,
  *     addedBy: { requirement: string, source: string | null } | null, practice: string | null }>,
- *   roles: Array<{ name: string, filledBy: string, capabilities: string[], holders: string[] }>,
+ *   roles: Array<{ name: string, filledBy: string, howMany: string, capabilities: string[], holders: string[] }>,
  *   branches: Record<string, string>, done: string[] }} Workflow
  */
 

@@ -24,6 +24,8 @@ const JOB_RULES = [
 const text = (value) => (typeof value === "string" ? value : "");
 const EXPLAINED = /[ \t]*\([^()]*\)\s*$/;
 const kindOf = (produced) => produced.replace(EXPLAINED, "").trim();
+// The names a cell lists, separated by commas.
+const namesOf = (cell) => text(cell).split(",").map((name) => name.trim()).filter(Boolean);
 
 // The explicit model-table data in a practice's ## Adds, optionally under its matching level-three heading. Its explanation
 // is otherwise free text, so only a table with exactly the model-table columns becomes workflow data.
@@ -52,7 +54,7 @@ function additionsOf(practices) {
     practice: text(document.fields.name),
     phases: additionsTable(document, "Phases", ["Name", "Role", "Produces"]),
     gates: additionsTable(document, "Gates", ["Between", "Artifacts", "Condition", "Decider"]),
-    roles: additionsTable(document, "Roles", ["Name", "Filled by", "Capabilities"]),
+    roles: additionsTable(document, "Roles", ["Name", "Filled by", "How many", "Capabilities"]),
   }));
 }
 
@@ -86,9 +88,9 @@ export function workflowOf(declaration, model, practices, instanceSpec) {
     model,
     practices: [...selected],
     phases: [
-      ...model.phases.map(({ name, role, produces }) => ({ name, role, produces: [...produces] })),
+      ...model.phases.map(({ name, roles: working, produces }) => ({ name, roles: [...working], produces: [...produces] })),
       ...additions.flatMap(({ phases }) => phases.map((phase) =>
-        ({ name: phase.Name, role: phase.Role, produces: phase.Produces.split(",").map(kindOf).filter(Boolean) }))),
+        ({ name: phase.Name, roles: namesOf(phase.Role), produces: phase.Produces.split(",").map(kindOf).filter(Boolean) }))),
     ],
     transitions: model.transitions.map(({ from, to, kind }) => ({ from, to, kind })),
     pairs: model.pairs.map(({ phase, checkedBy }) => ({ phase, checkedBy })),
@@ -105,10 +107,10 @@ export function workflowOf(declaration, model, practices, instanceSpec) {
       })),
     ],
     roles: [
-      ...model.roles.map(({ name, filledBy, capabilities }) => ({ name, filledBy, capabilities: [...capabilities],
-        holders: roles.find((row) => row.role === name)?.holders ?? [] })),
+      ...model.roles.map(({ name, filledBy, howMany, capabilities }) => ({ name, filledBy, howMany,
+        capabilities: [...capabilities], holders: roles.find((row) => row.role === name)?.holders ?? [] })),
       ...additions.flatMap(({ roles: added }) => added.map((role) => ({ name: role.Name, filledBy: role["Filled by"],
-        capabilities: role.Capabilities.split(",").map((capability) => capability.trim()).filter(Boolean),
+        howMany: role["How many"], capabilities: namesOf(role.Capabilities),
         holders: roles.find((row) => row.role === role.Name)?.holders ?? [] }))),
     ],
     branches: Object.fromEntries(branchesOf(declaration).map(({ at, branch }) => [at, branch])),

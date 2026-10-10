@@ -4,7 +4,7 @@
 // Run: node --test tests/model-catalogue.test.mjs
 //
 // Module: MOD-model-catalogue
-// Guards: UC-002; AGENT M CARRIES THE BOOK'S CATALOGUE; THE CATALOGUE IS DATA; THE MODEL DETERMINES THE PHASES AND THE GATES; A GATE NAMES WHAT IT CHECKS; A GATE NAMES WHO DECIDES IT; A PRACTICE IS NOT A MODEL; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
+// Guards: UC-002; AGENT M CARRIES THE BOOK'S CATALOGUE; THE CATALOGUE IS DATA; THE MODEL DETERMINES THE PHASES AND THE GATES; A GATE NAMES WHAT IT CHECKS; A GATE NAMES WHO DECIDES IT; A PRACTICE IS NOT A MODEL; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A ROLE NAMES HOW MANY FILL IT
 // Level: unit
 //
 // What ITM-215 builds, and these tests state:
@@ -52,6 +52,7 @@ const PEOPLE_AND_AGENTS = "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS";
 const WHAT_IT_CHECKS = "A GATE NAMES WHAT IT CHECKS";
 const WHO_DECIDES = "A GATE NAMES WHO DECIDES IT";
 const CAPABILITIES = "A ROLE NAMES THE CAPABILITIES IT NEEDS";
+const HOW_MANY = "A ROLE NAMES HOW MANY FILL IT";
 const MEASURE = "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE";
 
 // The book's catalogue as the item names it: the models in UC-002's two groups, and the practices.
@@ -137,11 +138,11 @@ const FIXTURE = [
   "",                                                                                                 // 42
   "## Roles",                                                                                         // 43
   "",                                                                                                 // 44
-  "| Name | Filled by | Capabilities |",                                                             // 45
-  "|---|---|---|",                                                                                    // 46
-  "| Owner | person | read the repository, write to the repository |",                               // 47
-  "| Builders | agent | read the repository, write to the repository, run code and tests |",         // 48
-  "| Checker | either | read the repository, run code and tests |",                                  // 49
+  "| Name | Filled by | How many | Capabilities |",                                                   // 45
+  "|---|---|---|---|",                                                                                // 46
+  "| Owner | person | one | read the repository, write to the repository |",                          // 47
+  "| Builders | agent | several | read the repository, write to the repository, run code and tests |", // 48
+  "| Checker | either | several | read the repository, run code and tests |",                         // 49
   "",                                                                                                 // 50
   "## Flow control",                                                                                  // 51
   "",                                                                                                 // 52
@@ -161,10 +162,10 @@ const FIXTURE_MODEL = {
   measure: "items per state over time",
   about: null,
   phases: [
-    { name: "Planning", role: "Owner", produces: ["ITM"] },
-    { name: "Building", role: "Builders", produces: ["MOD", "TST"] },
-    { name: "Checking", role: "Checker", produces: ["TST"] },
-    { name: "Closing", role: "Owner", produces: ["sprint record"] },
+    { name: "Planning", roles: ["Owner"], produces: ["ITM"] },
+    { name: "Building", roles: ["Builders"], produces: ["MOD", "TST"] },
+    { name: "Checking", roles: ["Checker"], produces: ["TST"] },
+    { name: "Closing", roles: ["Owner"], produces: ["sprint record"] },
   ],
   transitions: [
     { from: "Planning", to: "Building", kind: "sequence" },
@@ -181,9 +182,10 @@ const FIXTURE_MODEL = {
       decider: "check: release-tests" },
   ],
   roles: [
-    { name: "Owner", filledBy: "person", capabilities: ["read the repository", "write to the repository"] },
-    { name: "Builders", filledBy: "agent", capabilities: ["read the repository", "write to the repository", "run code and tests"] },
-    { name: "Checker", filledBy: "either", capabilities: ["read the repository", "run code and tests"] },
+    { name: "Owner", filledBy: "person", howMany: "one", capabilities: ["read the repository", "write to the repository"] },
+    { name: "Builders", filledBy: "agent", howMany: "several", capabilities: ["read the repository", "write to the repository",
+      "run code and tests"] },
+    { name: "Checker", filledBy: "either", howMany: "several", capabilities: ["read the repository", "run code and tests"] },
   ],
   flow: { wip: 3, timeBox: null, sprints: true },
   version: blobOf(FIXTURE_PATH),
@@ -269,7 +271,7 @@ test("catalogue — an instance's own model is read as a Model, listed after the
   assert.deepEqual(got.models.at(-1), FIXTURE_MODEL);
   assert.deepEqual(got.findings[FIXTURE_PATH], []);
 
-  const broken = replaced(49, "| Checker | either | read the repository, run code and tests |", "| Checker | either | — |");
+  const broken = replaced(49, "| Checker | either | several | read the repository, run code and tests |", "| Checker | either | several | — |");
   const withFinding = await catalogue(snapshotOf({ ...shippedFiles(), [FIXTURE_PATH]: broken }));
   assert.deepEqual(withFinding.models.map((m) => m.name), [...MODELS, "fixture-pulled"]);
   assert.deepEqual(withFinding.findings[FIXTURE_PATH].map((f) => [f.line, f.kind, f.rule]), [[49, "error", CAPABILITIES]]);
@@ -370,7 +372,7 @@ test("modelFindings — a gate without a decider is an error: none named, or one
 // given: FIXTURE with the capabilities of its role Checker (line 49) left out
 // expect: one error, on line 49, naming A ROLE NAMES THE CAPABILITIES IT NEEDS
 test("modelFindings — a role without capabilities is an error", () => {
-  const text = replaced(49, "| Checker | either | read the repository, run code and tests |", "| Checker | either | — |");
+  const text = replaced(49, "| Checker | either | several | read the repository, run code and tests |", "| Checker | either | several | — |");
   assert.deepEqual(findingsOf(text), [[49, "error", CAPABILITIES]]);
 });
 
@@ -383,6 +385,31 @@ test("modelFindings — a phase without a role is an error: none named, or one t
   assert.deepEqual(findingsOf(without), [[17, "error", PEOPLE_AND_AGENTS]]);
   const undefinedRole = replaced(17, "| Checking | Checker | TST |", "| Checking | Inspector | TST |");
   assert.deepEqual(findingsOf(undefinedRole), [[17, "error", PEOPLE_AND_AGENTS]]);
+});
+
+// guards: A ROLE NAMES HOW MANY FILL IT; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
+// given: FIXTURE with the How many of its role Checker (line 49) left out; and once more with it "many"
+// expect: for each, one error, on line 49, naming A ROLE NAMES HOW MANY FILL IT
+test("modelFindings — a role that does not say whether one participant fills it or several may is an error", () => {
+  const row = "| Checker | either | several | read the repository, run code and tests |";
+  const without = replaced(49, row, "| Checker | either | — | read the repository, run code and tests |");
+  assert.deepEqual(findingsOf(without), [[49, "error", HOW_MANY]]);
+  const other = replaced(49, row, "| Checker | either | many | read the repository, run code and tests |");
+  assert.deepEqual(findingsOf(other), [[49, "error", HOW_MANY]]);
+});
+
+// guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
+// given: FIXTURE with its phase Checking (line 17) done by Checker and Owner; once more by Checker and Inspector, which the
+//        model's roles do not define
+// expect: the first without a finding, and read by catalogue with both roles in the order they stand; the second with one
+//         error, on line 17, naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
+test("modelFindings and catalogue — a phase names one role or several, each a role of the model", async () => {
+  const both = replaced(17, "| Checking | Checker | TST |", "| Checking | Checker, Owner | TST |");
+  assert.deepEqual(findingsOf(both), []);
+  const read = await catalogue(snapshotOf({ ...shippedFiles(), [FIXTURE_PATH]: both }));
+  assert.deepEqual(read.models.at(-1).phases.find((phase) => phase.name === "Checking").roles, ["Checker", "Owner"]);
+  const unknown = replaced(17, "| Checking | Checker | TST |", "| Checking | Checker, Inspector | TST |");
+  assert.deepEqual(findingsOf(unknown), [[17, "error", PEOPLE_AND_AGENTS]]);
 });
 
 // guards: A GATE NAMES WHAT IT CHECKS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
