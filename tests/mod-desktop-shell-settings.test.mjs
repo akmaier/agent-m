@@ -3,11 +3,28 @@
 // Level: unit
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import Module from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { loadSettings, saveSettings, takeExport } from "../src/desktop-shell/settings.mjs";
+
+const ssh2Cache = join(tmpdir(), "agent-m-284-ssh2-1.17.0");
+async function composeForTest() {
+  if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
+    const installed = spawnSync("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"], { encoding: "utf8", timeout: 40_000 });
+    assert.equal(installed.status, 0, `ssh2 staging failed: ${installed.stderr}`);
+  }
+  const nodePath = join(ssh2Cache, "node_modules");
+  const positive = spawnSync(process.execPath, ["-e", "const ssh2=require('ssh2');if(require('ssh2/package.json').version!=='1.17.0'||typeof ssh2.utils.generateKeyPairSync!=='function')throw Error('ssh2 known positive');console.log('ssh2-known-positive')"], { encoding: "utf8", timeout: 40_000, env: { ...process.env, NODE_PATH: nodePath } });
+  assert.equal(positive.status, 0, `ssh2 known positive failed: ${positive.stderr}`);
+  assert.match(positive.stdout, /ssh2-known-positive/);
+  process.env.NODE_PATH = nodePath;
+  Module._initPaths();
+  return import("../src/desktop-shell/compose.mjs");
+}
 
 const folder = () => mkdtempSync(join(tmpdir(), "agent-m-291-settings-"));
 const settingsFile = (dataFolder) => join(dataFolder, "settings.json");
@@ -101,6 +118,26 @@ test("TST-291004: MOD-desktop-shell reads a locked own-computer export as one fo
     const taken = await takeExport(dataFolder, { instance: "example/agent-m", ownComputer: true, passphrase: "correct passphrase" }, encrypted);
     assert.deepEqual(taken.tunnels, [{ direction: "forward", jumpHost: jumpHost.hostname, user: jumpHost.user, sshPort: jumpHost.sshPort, remotePort: 4111, bind: "127.0.0.1", bridgePort: 4711, keyFile: join(dataFolder, "ssh", "id_ed25519") }], "failure node: own-computer choice takes each remote session's forward plan only");
     await assert.rejects(takeExport(dataFolder, { instance: "example/agent-m", ownComputer: true, passphrase: "wrong passphrase" }, encrypted), { name: "WrongPassphrase" });
+  } finally { rmSync(dataFolder, { recursive: true, force: true }); }
+});
+
+// TST-291006
+// level: unit
+// module: MOD-desktop-shell
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
+// given: a fresh controlled Bridge folder, a real pinned ssh2 runtime, and the production composition entry
+// input: compose requests its established ephemeral listener port 0, then persisted settings are asked to save port 0
+// expect: compose listens on an assigned loopback port while persisted settings still reject port 0 as invalid
+test("TST-291006: MOD-desktop-shell keeps ephemeral compose port separate from persisted settings", async () => {
+  const dataFolder = folder();
+  try {
+    const { compose } = await composeForTest();
+    const bridge = await compose({ instance: "example/agent-m", origin: "https://example.github.io", dataFolder, port: 0 });
+    try {
+      assert.match(bridge.address, /^http:\/\/127\.0\.0\.1:(?!4711$)\d+$/, "failure node: composition gives port 0 only to the loopback listener");
+      assert.equal(bridge.settings.port, 4711, "composition retains the validated persisted default");
+      assert.throws(() => saveSettings(dataFolder, { ...bridge.settings, port: 0 }), { name: "InvalidSettings" }, "persisted port 0 remains invalid");
+    } finally { await bridge.close(); }
   } finally { rmSync(dataFolder, { recursive: true, force: true }); }
 });
 
