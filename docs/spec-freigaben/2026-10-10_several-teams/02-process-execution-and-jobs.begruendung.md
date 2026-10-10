@@ -44,6 +44,5 @@ that conflict).
   UC-034, UC-036, UC-043 and the fixtures of sprint 02.
 
 Once the use cases are accepted — not before (`ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES`) — ARC-042,
-MOD-product-process, MOD-work-plans and MOD-participant-list are changed: team declarations, held items, startable per
-team, further participant lists; MOD-work-plans' `backlog-order` schema and `saveOrder`, and `docs/backlog/order.md`, go.
+MOD-product-process and MOD-work-plans are changed: team declarations, held items, startable per team; MOD-work-plans' `backlog-order` schema and `saveOrder`, and `docs/backlog/order.md`, go.
 The measurement and the sprint records are records and stay as written.

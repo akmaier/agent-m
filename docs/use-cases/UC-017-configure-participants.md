@@ -21,7 +21,6 @@ realises:
   - A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY
   - A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
   - THE BRIDGE FINDS THE INSTALLED AGENTS
-  - A PARTICIPANT'S NAME NAMES ONE PARTICIPANT
 ---
 # UC-017 Configure the participants of the instance
 
@@ -84,7 +83,7 @@ to roles (UC-002).
 6. For a CLI or sandboxed agent, the author presses **Test**; Agent M sends a harmless request through
    the bridge and shows what answered.
 7. The author presses **Save** — one click. Agent M commits the participant to
-   `docs/participants.md` of the instance, or to the further list `docs/participants_<name>.md` the author chose: name, type, model, context and price where it has them, capabilities,
+   `docs/participants.md` of the instance: name, type, model, context and price where it has them, capabilities,
    processing place — no key.
 
 ```mermaid
@@ -100,16 +99,13 @@ sequenceDiagram
     D->>B: harmless request with bridge token
     B-->>D: agent answered
     A->>D: Save
-    D->>I: commit docs/participants.md or a further list (no key)
+    D->>I: commit docs/participants.md (no key)
 ```
 
 ## Alternative flows
 
 - **3a. The endpoint is not configured yet.** The endpoint's fields of UC-003 — address, model, key —
   open in place, with UC-003's test request; the author does not leave this page.
-- **3c. Another list holds the name with a different entry.** Agent M names that list and the difference, and saves
-  nothing until the entries agree or the author chooses another name. The same participant with the same entry may
-  stand in several lists.
 - **6a. The bridge does not answer.** Agent M names the reason — not running, wrong address, token
   missing — and saves nothing until the author decides to save untested.
 - **5a. A participant processes data outside places that some sources permit.** Agent M lists those
