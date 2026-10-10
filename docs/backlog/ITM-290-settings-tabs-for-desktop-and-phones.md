@@ -12,6 +12,8 @@ realises:
   - A STORED SECRET IS HIDDEN UNTIL SHOWN
 modules:
   - MOD-settings-pages
+  - MOD-personal-data
+  - MOD-browser-store
 builds_on:
   - ITM-288
 tests:
@@ -59,6 +61,20 @@ duplicate settings store or additional UI framework is needed for this organizat
 sections within the tab organization. The accepted public caller currently composes canonical and legacy sections;
 any necessary unowned caller/style change is separately scoped and reviewed between jobs under SPEC §11, after its
 owned prerequisite is delivered. The actual public page, rather than an isolated unused tab widget, is the outcome.
+
+The minimum accepted producer foundation is part of this selected item: MOD-personal-data delivers only
+`settingsSchemas()` and `pseudonymisationOf()` with its two schemas through MOD-documents; MOD-browser-store delivers
+only `clearEverything()` and `secretValues()` for whole browser clear and the Host's commit refusal. These are separate
+owned source jobs before the Settings consumer, with fresh published Starts and tests-only first red CI. They add no
+privacy strategy, people search, mailbox setup, participant editor or general expiry scanner. Existing public
+ViewContext already includes instance and product Hosts; the later caller supplies that context rather than inventing
+another cross-module interface.
+
+The existing product controls read legacy settings bullets and collaborator agreement dates. Their current off state,
+names/accounts/consent dates and unrelated document content must survive the public-module replacement. Accepted
+schemas own canonical formats. Source delivery demonstrates the supported reading/writing boundary against existing
+bytes before the caller removes legacy code; it cannot silently turn off into on or discard consent records. A finding
+that cannot be resolved against the accepted originals is returned before implementation changes those contracts.
 
 Source work starts only after PO selection in a sprint and the required tests-only first red CI. Every new case has
 readable canonical declarations and its own relevant guarded-code fault/failing result/exact restoration. Independent
