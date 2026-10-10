@@ -877,6 +877,7 @@ test("release · UC-042 2: Change stores a new token with its expiry date, prese
   const ack = repositoryControl(row, "ack"), expiry = repositoryControl(row, "expiry"), secret = repositoryControl(row, "secret");
   assert.equal(ack.disabled, false, "the fields open in place");
   assert.match(stripTags(page.main()), /every other GitHub Pages site of akmaier/i, "the same notice");
+  assert.equal(expiry.value, daysFromToday(90), "the expiry is preset to 90 days");
   ack.checked = true; await ack.fire("change");
   secret.value = NEW_TOKEN; expiry.value = daysFromToday(90);
   await pressPublic(w, repositoryControl(row, "save"));
@@ -986,10 +987,15 @@ test("release · UC-042 4: pseudonymisation is on by default; switching it off s
   assert.match(box, /Pseudonymisation is on/);
   const off = productControl(panes, "pseudonymisation-off"), ack = productControl(panes, "pseudonymisation-ack");
   assert.equal(off.checked, false, "on is the default");
+  assert.match(box, /default/);
+  assert.match(box, /rewrit/i);
+  assert.match(box, /mentions no person|without persons/i);
+  assert.match(box, /technical content/i);
   off.checked = true;
   const notice = box;
   assert.match(notice, /unchanged/);
   assert.match(notice, /protected, non-public data space/);
+  assert.match(notice, /public[\s\S]*published/);
   await pressPublic(w, productControl(panes, "pseudonymisation-save"));
   assert.deepEqual(w.server.writes, [], "nothing before I have read this");
   ack.checked = true;
@@ -1010,6 +1016,8 @@ test("release · UC-042 4a: switching back on is saved without a notice; the pag
   await pressPublic(w, productControl(panes, "pseudonymisation-save"));
   const box = productControls(panes).textContent;
   assert.match(box, /Pseudonymisation is off/);
+  assert.match(box, /history/);
+  assert.match(box, /rewrite/);
   off.checked = false;
   await pressPublic(w, productControl(panes, "pseudonymisation-save"));
   assert.equal(w.server.writes.length, 2, "saved without a further tick");
@@ -1034,7 +1042,7 @@ test("release · UC-042 5: + Collaborator with the person's consent commits docs
   const file = w.server.writes[0].files["docs/collaborators.md"];
   assert.ok(file, "docs/collaborators.md is committed");
   for (const x of ["Ada Lovelace", "ada", daysFromToday(0)]) assert.ok(file.includes(x), x);
-  assert.match(productControl(panes, "collaborator-result").textContent, /Saved in the product repository/);
+  assert.match(productControls(panes).textContent, /Ada Lovelace/);
 });
 
 // UC-042 step 6 · A CLEAR IS A REAL CLEAR — Clear everything in this browser. Expected: after one confirmation, every entry Agent M
@@ -1043,9 +1051,11 @@ test("release · UC-042 6: Clear everything removes every entry from localStorag
   const w = await world();
   const page = await open(w), panes = await settingsPanes(page);
   assert.ok(Object.keys(page.storage()).length > 0);
-  const ack = publicControls(panes.general(), "settings-clear-ack")[0];
+  const ack = publicControls(panes.general(), "settings-clear-ack")[0], clear = publicControls(panes.general(), "settings-clear-everything")[0];
+  assert.equal(clear.disabled, true, "nothing is cleared before one acknowledgement");
   ack.checked = true; await ack.fire("change");
-  await pressPublic(w, publicControls(panes.general(), "settings-clear-everything")[0]);
+  assert.equal(clear.disabled, false, "one acknowledgement enables Clear");
+  await pressPublic(w, clear);
   assert.deepEqual(page.storage(), {});
 });
 
@@ -1054,10 +1064,23 @@ test("release · UC-042 6: Clear everything removes every entry from localStorag
 test("release · UC-042: every line and section of the settings page explains itself", async () => {
   const w = await world();
   const page = await open(w), panes = await settingsPanes(page);
-  const explanations = [...publicControls(panes.general(), "settings-browser-explanation"), ...publicControls(panes.usability(), "settings-notifications")]
-    .flatMap((section) => [...section.children].filter((child) => child.localName === "details"));
-  assert.ok(explanations.length >= 2, "the public browser and notification sections explain themselves");
-  for (const details of explanations) {
+  const detailsOf = (root, out = []) => { for (const child of root?.children ?? []) { if (child.localName === "details") out.push(child); detailsOf(child, out); } return out; };
+  const folded = (root, name) => {
+    const details = detailsOf(root);
+    assert.ok(details.length, `${name} explains itself`);
+    for (const details of details) {
+      assert.equal(details.localName, "details");
+      assert.equal(Boolean(details.open), false, "folded by default");
+      assert.equal(details.children[0]?.localName, "summary");
+      assert.equal(details.children[0]?.textContent, "What is this?");
+    }
+  };
+  for (const row of publicControls(panes.repositories(), "settings-repository")) folded(row, row.textContent.split("\n")[0] || "repository row");
+  folded(productControl(panes, "pseudonymisation-state").parentElement, "pseudonymisation");
+  folded(productControl(panes, "collaborator-save").parentElement, "collaborators");
+  folded(publicControls(panes.general(), "settings-export-import")[0], "Export and import");
+  folded(publicControls(panes.general(), "settings-clear")[0], "Clear everything");
+  for (const details of detailsOf(panes.usability())) {
     assert.equal(details.localName, "details");
     assert.equal(Boolean(details.open), false, "folded by default");
     assert.equal(details.children[0]?.localName, "summary");
