@@ -19,6 +19,16 @@ const BRIDGED = { name: "local", url: "http://127.0.0.1:11434", kind: "openai-co
 const type = (control, value) => { control.value = value; };
 const setting = (name) => globalThis.localStorage.getItem(`${prefix}endpoint:${name}`);
 
+const publicControl = (root, className) => {
+  for (const child of root?.children ?? []) {
+    if (typeof child !== "object") continue;
+    if (child.className?.split(" ").includes(className)) return child;
+    const found = publicControl(child, className);
+    if (found) return found;
+  }
+  return null;
+};
+
 function activate(browser) {
   Object.defineProperties(globalThis, {
     document: { value: browser.document, configurable: true, writable: true },
@@ -44,7 +54,7 @@ async function openEndpointDashboard({ entries = {}, handlers = [], pathname = n
     await settle(server);
   } else await page.go("#settings");
   const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
-  const configure = endpoints?.querySelector("button.settings-endpoint-configure");
+  const configure = publicControl(endpoints, "settings-endpoint-configure");
   assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
   await press(server, configure);
   assert.equal(globalThis.location.hash, "#endpoints", "Configure selects the dashboard's endpoint route");

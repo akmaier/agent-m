@@ -264,7 +264,7 @@ test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page, the main page amo
     assert.equal(browser.calls.requestPermission, 0, "the review page alone does not ask either");
     const box = await usabilitySettings(page);
     assert.equal(browser.calls.requestPermission, 0, "opening settings alone does not ask either");
-    const switchOn = [...box.children].flatMap((n) => n.children ?? []).find((n) => n.className === "settings-notifications-on");
+    const switchOn = publicControls(box, "settings-notifications-on")[0];
     assert.ok(switchOn, "the public Usability pane offers Switch on");
     await press(server, switchOn);
     assert.equal(browser.calls.requestPermission, 1, "the click asks the permission, once");

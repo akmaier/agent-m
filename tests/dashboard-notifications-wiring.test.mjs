@@ -64,6 +64,15 @@ function installBrowser() {
 
 // MOD-settings-pages owns the public Settings DOM.  Capture its actual tab panel
 // from the dashboard mount instead of reaching the retired dashboard-owned id.
+const publicControls = (root, name, out = []) => {
+  for (const child of root?.children ?? []) {
+    if (typeof child !== "object") continue;
+    if (child.className?.split(" ").includes(name)) out.push(child);
+    publicControls(child, name, out);
+  }
+  return out;
+};
+
 async function usabilitySettings(page) {
   const main = globalThis.document.getElementById("main");
   const replace = main.replaceChildren.bind(main);
@@ -93,7 +102,7 @@ test("the settings page's line Notifications reaches MOD-notifications: off, the
     assert.match(box.textContent, /off/, "notificationState: off before anything is stored");
     assert.equal(globalThis.localStorage.getItem(`${PREFIX}notifications`), null);
 
-    const switchOn = [...box.children].flatMap((n) => n.children ?? []).find((n) => n.className === "settings-notifications-on");
+    const switchOn = publicControls(box, "settings-notifications-on")[0];
     assert.ok(switchOn, "Switch on is offered while off");
     await press(server, switchOn);
 
@@ -101,7 +110,7 @@ test("the settings page's line Notifications reaches MOD-notifications: off, the
     assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notifications`)), { checked: null },
       "switchOn stored the switch under MOD-browser-store's own key of the instance");
     assert.match(box.textContent, /on/, "notificationState now reads on");
-    assert.ok([...box.children].flatMap((n) => n.children ?? []).some((n) => n.className === "settings-notifications-off"), "Switch off is offered once on");
+    assert.ok(publicControls(box, "settings-notifications-off").length, "Switch off is offered once on");
   } finally { browser.restore(); }
 });
 
