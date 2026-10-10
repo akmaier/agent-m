@@ -355,6 +355,11 @@ A process model names the roles of the work and, for each role, whether a person
 either may fill it.
 *Check:* `tests/test_model_roles.py`
 
+**A ROLE NAMES HOW MANY FILL IT** *(PO A. Maier)*
+A process model names for each role whether it is filled by one participant or may be filled by several.
+*Check:* `tests/test_model_roles.py` — validates every shipped and instance model definition against the model schema.
+It checks that each role states how many participants fill it.
+
 **A PRACTICE IS NOT A MODEL** *(PO A. Maier)*
 A practice — DevOps, prototyping, incremental delivery, a scaling layer — is added to a declared
 process model and is never chosen instead of one.
@@ -366,9 +371,11 @@ hold before the next phase opens.
 *Check:* `tests/test_gate_definition.py`
 
 **PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE** *(PO A. Maier)*
-An instance lists its participants — people and agents — in `docs/participants.md` of its own
+An instance lists all its participants — people and agents — in the one list `docs/participants.md` of its own
 repository, and a product assigns its roles from that list.
-*Check:* `tests/test_participants.py`
+*Check:* `tests/test_participants.py` — scans the instance repository for participant lists and resolves every name in
+the product's role assignments against `docs/participants.md`. It checks that this is the instance's only participant
+list and that it holds every assigned name.
 
 **A PARTICIPANT HAS ONE OF FIVE TYPES** *(PO A. Maier)*
 A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
@@ -400,6 +407,27 @@ same entry naming its model is accepted, and a person needs none.
 Content of a source whose licence is restricted is given only to participants whose processing place
 the source's register entry permits.
 *Check:* `tests/review-core.test.mjs`
+
+**THE PROCESS NAMES ROLES, NOT PARTICIPANTS** *(PO A. Maier)*
+A product's process declaration names the roles that participants fill, never a participant.
+*Check:* `tests/test_role_assignment.py` — compares the product's process declaration with the instance's participant
+list. It checks that the declaration names no participant.
+
+**A ROLE ASSIGNMENT FILLS THE ROLES** *(PO A. Maier)*
+A product's roles are filled in a role assignment, a file `docs/role-assignments/<name>.md` of the product's repository
+that only assigns participants to the roles of its process.
+*Check:* `tests/test_role_assignment.py` — validates each role assignment against the roles of the product's process. It
+checks that the assignment gives participants to those roles and holds nothing else.
+
+**A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM** *(PO A. Maier)*
+A product has one role assignment, or, in a model that works in sprints, one for each of its teams.
+*Check:* `tests/test_role_assignment.py` — compares the number of a product's role assignments with its teams and with
+whether its model works in sprints. It checks for one assignment per product, or one per team.
+
+**A PARTICIPANT MAY SERVE SEVERAL TEAMS** *(PO A. Maier)*
+A participant may hold roles in several teams of a product at the same time.
+*Check:* `tests/test_role_assignment.py` — validates the role assignments of a product's teams together. It checks that
+a participant may hold roles in several of them.
 ## 6. Runtimes
 
 **ONE DEFINITION, THREE DRIVERS** *(PO A. Maier)*
@@ -1569,18 +1597,48 @@ The same item can be started after an approval record names the proposal's text.
 
 **NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT** *(Vibe Coding, ch. 7 §4)*
 When a product's model sets a work-in-progress limit, no implementation job starts while the number
-of the product's items in progress has reached that limit.
-*Check:* `tests/test_wip_limit.py`. With limit 2 and two items in progress, a third start is refused
-with the limit named. With one of the two done, the start succeeds.
+of items in progress under the job's role assignment has reached that limit.
+*Check:* `tests/test_wip_limit.py` — starts implementation jobs while items are in progress and counts those items per
+role assignment. It checks that a start is refused, naming the limit, while the count has reached the limit, and
+succeeds once the count is below it.
 
 **A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT** *(Vibe Coding, ch. 7 §5; PO A. Maier)*
-When a product's model works in sprints, implementation jobs start only for items selected for
-the current sprint.
-*Check:* `tests/test_time_box_selection.py`
+When a product's model works in sprints, a team's implementation jobs start only for items selected for
+that team's current sprint.
+*Check:* `tests/test_time_box_selection.py` — starts implementation jobs while several teams run sprints and compares
+each job's item with its team's current sprint. It checks that a job starts only for an item selected for that sprint.
+
+**EVERY TEAM RUNS SPRINTS OF ITS OWN** *(PO A. Maier)*
+Each team of a product plans, starts and closes sprints of its own, which may run at the same time as the sprints of the
+product's other teams.
+*Check:* `tests/test_parallel_sprints.py` — runs sprints of several teams of one product at the same time. It checks
+that each team plans, starts and closes its sprints without affecting the other teams' sprints.
+
+**A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH** *(PO A. Maier)*
+An item selected for a team's sprint is held by that sprint until its change is merged into the default branch or the
+item returns to the backlog.
+*Check:* `tests/test_parallel_sprints.py` — follows held items through their sprint's close and the merges into the
+default branch. It checks that an item stays held until its change is merged there or it returns to the backlog.
+
+**SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES** *(PO A. Maier)*
+Of two items held by sprints of different teams, neither changes a module that the other changes or uses through the
+interfaces its modules' files name.
+*Check:* `tests/test_parallel_sprints.py` — plans a sprint while other teams' sprints hold items, and compares the
+modules each selected item changes and uses with those of the held items. It checks that no selection shares a module
+with a held item, and that a refusal names the holding sprint, the item and the module.
+
+**SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD** *(PO A. Maier)*
+When a team plans or changes a sprint, every item held by another team's sprint is listed with that sprint, the modules
+the item changes and the modules they use.
+*Check:* `tests/test_parallel_sprints.py` — opens a team's sprint planning while other teams' sprints hold items, and
+compares the listing with those items. It checks that each held item is listed with its sprint, the modules it changes
+and the modules they use.
 
 **A JOB GOES ONLY TO A HOLDER OF ITS ROLE** *(PO A. Maier)*
-A job is handed only to a participant that the product has assigned to the role the job belongs to.
-*Check:* `tests/test_job_assignment.py`
+A job is handed only to a participant that the job's role assignment assigns to the role the job belongs to.
+*Check:* `tests/test_job_assignment.py` — hands out jobs while a product has several role assignments, and compares each
+job's participant with the job's role assignment. It checks that every job goes to a holder of its role in that
+assignment.
 
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
@@ -1594,6 +1652,12 @@ Every gate names its decider: a role of the model, held by a person or an agent 
 an automated check whose result decides.
 *Check:* `tests/test_model_validation.py` — a gate without a decider is rejected; counter-proof: a gate
 decided by a role and one decided by a named CI check both pass validation.
+
+**A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT** *(PO A. Maier)*
+A gate that a job reaches is passed only by a decision of a holder of the deciding role in the job's role assignment.
+*Check:* `tests/test_job_gate.py` — records gate decisions from holders of the deciding role across several role
+assignments, and compares each decider with the job's role assignment. It checks that only a decision from within that
+assignment passes the gate.
 
 **A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS** *(PO A. Maier; Vibe Coding, ch. 12 §2, ch. 13 §6)*
 A gate's decision recorded by the participant that did the work the gate checks does not pass it.
