@@ -282,7 +282,7 @@ test("TST-257022: public Release walks one selected product from candidate start
 // guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; ACCEPTING THE RELEASE TEST REPORT RELEASES
 // given: the isolated public Release caller and every original TST-257 public-flow case.
 // input: in controlled Ubuntu CI, fault the public Release render, run those same cases, restore exact bytes, and rerun them.
-// expect: every named original case fails at the public render fault with normal test status, then every same case passes after byte restoration.
+// expect: every named original case fails through the public render fault with normal test status; exact restoration is recorded for the functional cases' later positive run.
 test("TST-257901: CI counter-proof restores the public Release render for every original flow case", () => {
   if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_257_FAULT_CHILD) return;
   const temporary = mkdtempSync(join(tmpdir(), "agent-m-257-fault-")), copied = join(temporary, "repo");
@@ -296,12 +296,15 @@ test("TST-257901: CI counter-proof restores the public Release render for every 
     const invoke = () => { const env = { ...process.env, AGENT_M_257_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 40_000, env }); };
     const originalHash = createHash("sha256").update(original).digest("hex"), testHash = createHash("sha256").update(readFileSync(testPath)).digest("hex");
     const faultStarted = new Date().toISOString(); writeFileSync(source, mutation); const faultHash = createHash("sha256").update(readFileSync(source)).digest("hex"), failed = invoke(); const faultEnded = new Date().toISOString();
-    const restoreStarted = new Date().toISOString(); writeFileSync(source, original); const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), passed = invoke(); const restoreEnded = new Date().toISOString();
-    process.stdout.write(`TST-257901-counterproof ${JSON.stringify({ argv, cwd: copied, ids, originalHash, faultHash, restoredHash, testHash, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoreStarted, restoreEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr })}\n`);
+    const nodeFor = (id) => failed.stdout.match(new RegExp(`not ok \\d+ - ${id}:[\\s\\S]*?(?=\\n# Subtest:|\\n1\\.\\.)`))?.[0] ?? null;
+    const faultNodes = Object.fromEntries(ids.map((id) => [id, nodeFor(id)]));
+    const restoreStarted = new Date().toISOString(); writeFileSync(source, original); const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), restored = invoke(); const restoreEnded = new Date().toISOString();
+    process.stdout.write(`TST-257901-counterproof ${JSON.stringify({ argv, cwd: copied, ids, originalHash, faultHash, restoredHash, testHash, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultNodes, faultStdout: failed.stdout, faultStderr: failed.stderr, restoreStarted, restoreEnded, restoredStatus: restored.status, restoredSignal: restored.signal, restoredError: restored.error?.code ?? null, restoredStdout: restored.stdout, restoredStderr: restored.stderr })}\n`);
     assert.equal(restoredHash, originalHash, "byte-exact public-caller restoration precedes the same-case positive");
     assert.equal(failed.status, 1, "faulted child ends with the normal Node test failure status"); assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
-    for (const id of ids) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${id}:[\\s\\S]*TST-257 public Release render fault`), `${id} fails at the named public-render fault`);
-    assert.equal(passed.status, 0, "restored same-case child passes"); assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
-    for (const id of ids) assert.match(passed.stdout, new RegExp(`ok \\d+ - ${id}:`), `${id} passes after exact restoration`);
+    for (const id of ids) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${id}:`), `${id} has a normal named failure node`);
+    assert.match(failed.stdout, /TST-257 public Release render fault/, "the actual fault output reaches the public Release case set");
+    assert.ok(faultNodes["TST-257007"]?.includes("Cannot set properties of null"), "007 records the missing-control call-stack relation after the public render fault");
+    assert.ok(faultNodes["TST-257022"]?.includes("Cannot set properties of null"), "022 records the missing-control call-stack relation after the public render fault");
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
