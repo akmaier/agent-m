@@ -46,9 +46,10 @@ teams, which work in parallel (UC-032).
 
 ## Main flow
 
-1. The author opens **Roles** for the product. Agent M shows the roles of the product's process model; for each, whether a
-   person, an agent or either may fill it, which capabilities it needs, and whether one participant fills it or several may
-   (UC-002, step 4).
+1. The author opens **Roles** for the product. Agent M shows the product's role assignments — in a model that works in
+   sprints, its teams —, each with who fills which role, and the roles of the product's process model; for each role,
+   whether a person, an agent or either may fill it, which capabilities it needs, and whether one participant fills it or
+   several may (UC-002, step 4).
 2. The author names the role assignment — in a model that works in sprints, the team, for example `team1`.
 3. The author assigns participants from the instance's list (UC-017) to each role: people, model endpoints, CI agents,
    CLI agents or sandboxed agents — one to a role that one fills, as many as the work needs to a role that several may
@@ -70,7 +71,7 @@ sequenceDiagram
     A->>M: Roles
     M->>G: read the process declaration and the role assignments
     M->>I: read the participants
-    M-->>A: roles of the model, the capabilities they need, how many fill each
+    M-->>A: role assignments with their holders; roles of the model, the capabilities they need, how many fill each
     A->>M: name, participants for each role
     M-->>A: only participants with the capabilities, and where each processes data
     A->>M: Save
@@ -92,8 +93,8 @@ sequenceDiagram
   which role; the assignment stays possible, and that source's content is never given to that participant.
 - **3d. The author gives a role that one participant fills a second one.** Agent M says that the model lets one fill it,
   and saves nothing.
-- **4a. The author changes a role assignment.** They open it, change who fills which role and press **Save**; Agent M
-  commits the file. Jobs already running keep their participant.
+- **4a. The author changes a role assignment.** They open it from the list of step 1, change who fills which role and
+  press **Save**; Agent M commits the file. Jobs already running keep their participant.
 - **4b. The author removes a team.** While one of its sprints holds items (UC-032), the team cannot be removed, and Agent M
   names them; otherwise Agent M removes its role assignment.
 

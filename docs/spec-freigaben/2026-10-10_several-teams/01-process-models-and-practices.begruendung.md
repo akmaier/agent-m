@@ -40,7 +40,8 @@ catalogue names no machine-readable mark by which a practice could permit teams 
 working on the code in parallel; "we have to be able to set up multiple teams". — "Participants have one file. Teams have
 one file each. The process itself is not affected by who is doing it." — On a draft that gave every product teams: "This
 is not true. It only applies to SCRUM." — "it names roles that are to be filled by participants. This is true for all
-software processes." — "Kanban should have a variable number of testers, reviewers and developers. Same for v-model."
+software processes." — "Kanban should have a variable number of testers, reviewers and developers. Same for v-model." —
+"Testers work in review."
 Team 2 was set up with a participant list and a process declaration of its own, `docs/participants_team2.md` and
 `docs/process_team2.md`, under the rule's present wording; setting it up kept the name `scrum-master-session` and gave it
 another agent (commits `4a246fa`, `60e71af`). PO: "We have to be clear in the spec."
@@ -49,8 +50,10 @@ another agent (commits `4a246fa`, `60e71af`). PO: "We have to be clear in the sp
 MOD-participant-list, ITM-216, ITM-230, UC-017, `src/participant-list/participants.schema.md`,
 `tests/documents-findings.test.mjs`, `tests/participant-list-reader.test.mjs`, `tests/participant-list.test.mjs` and the
 fixtures of sprint 02. The other five names are new. Once accepted: the model schema gains how many fill a role, and the
-catalogue says it for each role of its models — Kanban gains testers; MOD-product-process reads the roles' holders from
-the role assignments instead of the declaration's `## Roles`. In this instance, `docs/participants_team2.md` goes into
+catalogue says it for each role of its models. Kanban gains testers, who work in its Review beside the reviewers; a phase
+of the model schema names one role (`model.schema.md`: "A phase's `Role` is a role of the model"), so the schema lets a
+phase name several. MOD-product-process reads the roles' holders from the role assignments instead of the declaration's
+`## Roles`. In this instance, `docs/participants_team2.md` goes into
 `docs/participants.md`, where `akmaier` stands once and the two agents now named `scrum-master-session` need a name each;
 the role tables of `docs/process.md` and `docs/process_team2.md` become `docs/role-assignments/team1.md` and
 `docs/role-assignments/team2.md`, and `docs/process_team2.md` goes.
