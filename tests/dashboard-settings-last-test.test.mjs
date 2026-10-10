@@ -103,7 +103,9 @@ test("UC-042 step 1: a successful Test of the GitHub token is shown after a relo
   const { box } = await settingsPage(world, canonicalToken());
   assert.match(repositoryControl(box, "status").textContent, /Expires on/);
   await repositoryControl(box, "test").fire("click");
-  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token")).outcome, "working");
+  const stored = JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"));
+  assert.equal(stored.outcome, "working");
+  assert.equal(repositoryControl(box, "status").textContent, `Works. Last successful test: ${stored.at}.`, "the public row shows the exact persisted successful-test date");
   assert.match(repositoryControl(box, "status").textContent, /Last successful test:/);
   const again = await settingsPage(world, agentEntries());
   assert.match(repositoryControl(again.box, "status").textContent, /Last successful test:/, "after the reload");
@@ -223,12 +225,35 @@ test("UC-042 step 2: a GitLab project token changed or cleared takes its last te
     await gitlabControl(box, "save").fire("click");
     assert.equal(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`)), null, "Change removes the prior GitLab outcome");
     let again = await settingsPage(world, agentEntries());
+    assert.doesNotMatch(gitlabControl(again.box, "status").textContent, /Last successful test|Refused/, "the replacement starts untested after reload");
+    await gitlabControl(again.box, "test").fire("click");
+    const replacementTest = JSON.parse(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`)));
+    assert.equal(replacementTest.outcome, "working", "the replacement is tested through the public control before Clear");
+    again = await settingsPage(world, agentEntries());
+    assert.equal(gitlabControl(again.box, "status").textContent, `Works. Last successful test: ${replacementTest.at}.`, "the replacement's own test persists after reload");
     await gitlabControl(again.box, "clear").fire("click");
     assert.equal(globalThis.localStorage.getItem(canonicalKey(gitlabName)), null);
     assert.equal(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`)), null, "Clear removes its outcome");
     again = await settingsPage(world, agentEntries());
     assert.equal(gitlabRow(again.box), undefined, "no row for a cleared token");
   } finally { globalThis.confirm = prior; }
+});
+
+test("UC-042 step 2: a cleared GitHub token re-added with the same value starts untested", async () => {
+  const world = await instanceWorld();
+  const { box } = await settingsPage(world, canonicalToken());
+  await repositoryControl(box, "test").fire("click");
+  assert.match(repositoryControl(box, "status").textContent, /Last successful test:/, "known positive: the original value was tested");
+  await repositoryControl(box, "clear").fire("click");
+  const again = await settingsPage(world, agentEntries());
+  await repositoryControl(again.box, "change").fire("click");
+  const ack = repositoryControl(again.box, "ack");
+  ack.checked = true; await ack.fire("change");
+  repositoryControl(again.box, "secret").value = TOKEN;
+  repositoryControl(again.box, "expiry").value = day(90);
+  await repositoryControl(again.box, "save").fire("click");
+  const reloaded = await settingsPage(world, agentEntries());
+  assert.doesNotMatch(repositoryControl(reloaded.box, "status").textContent, /Last successful test|Refused/, "identical credentials do not recover a cleared test result");
 });
 
 // ---------------------------------------------------------------- a remote session
