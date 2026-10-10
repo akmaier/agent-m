@@ -141,9 +141,11 @@ names no source.
   link names, or `null` when it names no register entry, the product links none, or the entry records no version the link
   names. The version carries the hash the product's link records, since a hash is not computed synchronously; `readContent`
   checks each of its files against its own SHA-256 when the version is read.
-- `readContent(version: SourceVersion, open: (repository: string) => Promise<Host>) -> Promise<{ name: string, bytes:
-  Uint8Array }[]>` — reads every stored file of the version, across the network through the host that holds it, and checks
-  each against its recorded SHA-256. Throws `HashMismatch { file, expected, actual }`, so that a changed file is caught
+- `readContent(version: SourceVersion, open: (source: string) => Promise<Host>) -> Promise<{ name: string, bytes:
+  Uint8Array }[]>` — reads every stored file of the version from `docs/sources/<source>/<version>/` of the repository that
+  holds it, at its default branch, across the network through the host `open` gives for the version's source — its
+  caller holds the register entry, and with it where the content lies: the instance, or the entry's content repository —,
+  and checks each against its recorded SHA-256. Throws `HashMismatch { file, expected, actual }`, so that a changed file is caught
   before anything is derived from it (UC-005), `ContentUnreadable { repository, reason }` when the holder cannot be read
   with the credentials at hand, and what the host names.
 - `affectedRequirements(spec: string, source: string) -> string[]` — the names of the requirements one of whose source

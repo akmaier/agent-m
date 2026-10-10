@@ -162,11 +162,14 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   restricted source and for the mailbox, the places they allow; `gates` the gates of the product's workflow at this job's
   points, with whether their decisions are recorded.
 - `Part` — `{ name: string, text: string, size: number, sources: string[], required: boolean, recipe: string }`: one piece
-  of a job's input; `size` in tokens as estimated; `sources` the identifiers of the requirement sources whose content it
+  of a job's input; `size` in tokens as estimated: its characters divided by three, rounded up — more than most texts
+  take, so that a participant whose context is too small is named before anything is sent rather than after —; `sources`
+  the identifiers of the requirement sources whose content it
   carries; `required` false only where the kind says the part may be left out, and then only with the reason shown;
   `recipe` the recipe that gave it, whose named place of the prompt it fills — set by the runner, not by the recipe.
 - `Destination` — `{ participant: Participant, role: "drafter" | "reviewer" | "checker", place: string, parts: string[],
-  size: number }`: one participant that will receive something, and what.
+  size: number }`: one participant that will receive something, and what; `size` is the kind's prompt and every part
+  it receives, each estimated as a part's size is.
 - `Prepared` — `{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers:
   Participant[], parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
   number, context: number | null }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
@@ -187,7 +190,8 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
 - `WriteOutcome` — `{ commits: string[], files: string[], pullRequest: string | null, shown: unknown }`: what a writer did;
   `shown` is what `return-draft` hands back.
 - `registerStrategies(owner: string, strategies: Partial<Strategies>) -> void` — adds the named strategies a module
-  offers. Throws `DuplicateStrategy { name, owners }` when a name is registered twice; a program registers each owner
+  offers. Throws `DuplicateStrategy { strategy, owners }` when a name is registered twice — the strategy's name in
+  `strategy`, since an error's own `name` is its type —, and then adds none of them; a program registers each owner
   once, before its first job.
 - `prepareJob(kind: string, context: JobContext, choice: { drafter: Participant | null, reviewers: Participant[], limit?:
   number }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, builds the parts from
@@ -197,7 +201,7 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   what does not fit is named in `notFitting` (`NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`, `NOTHING IS LEFT OUT
   OF AN ARCHITECTURE PROMPT SILENTLY`, `NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY`). The limit is fixed here, before
   the first round: the caller's, else the kind's (`THE CORRECTION LOOP HAS A FIXED LIMIT`). Throws `UnknownKind`,
-  `UnknownStrategy { name }` for a strategy no module registered, and whatever a recipe throws by name — except a recipe
+  `UnknownStrategy { strategy }` for a strategy no module registered, and whatever a recipe throws by name — except a recipe
   whose part may be left out: its part is left out, in `leftOut`.
 - `runJob(prepared: Prepared, drivers: { drafter: Driver | null, reviewers: Driver[] }, options: { attended: boolean,
   context: JobContext, from?: unknown, onRound?: (round: Round) => void, onOutput?: (chunk: string) => void, onGate?:
