@@ -130,7 +130,7 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     async pullRequestFacts(number) {
       if (!Number.isInteger(number) || number < 1) throw new TypeError("pullRequestFacts names a pull request number");
       const raw = await read(`${api}/merge_requests/${number}`), request = pull(raw), base = raw.diff_refs?.base_sha, head = raw.sha;
-      const commits = await pages(`${api}/merge_requests/${number}/commits?per_page=${PAGE}`), facts = [], texts = new Map();
+      const commits = await pages(`${api}/merge_requests/${number}/commits?per_page=${PAGE}`), facts = [];
       for (const c of commits) {
         const diff = await pages(`${api}/repository/commits/${c.id}/diff?per_page=${PAGE}`), states = await pages(`${api}/repository/commits/${c.id}/statuses?per_page=${PAGE}`);
         facts.push({ sha: c.id, message: c.message ?? "", files: diff.map((f) => change(f).path), ci: ci(states) });
@@ -142,12 +142,7 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       for (const pipeline of pipelines.filter((p) => p.sha === head)) {
         for (const job of await pages(`${api}/pipelines/${pipeline.id}/jobs?per_page=${PAGE}`)) checks.push({ name: job.name, state: ({ success: "success", failed: "failure", running: "running", pending: "queued", canceled: "cancelled", skipped: "skipped" }[job.status] ?? "neutral"), url: job.web_url ?? "" });
       }
-      return { pullRequest: request, commits: facts, files, reviews, checks, read: (path, side) => {
-        if (side !== "base" && side !== "head") throw new TypeError("side is base or head");
-        const key = `${side === "base" ? base : head}:${path}`;
-        if (!texts.has(key)) texts.set(key, this.readFile(side === "base" ? base : head, path));
-        return texts.get(key);
-      } };
+      return { pullRequest: request, commits: facts, files, reviews, checks, base, head };
     },
 
     // One file's text at a commit, or null where the commit does not hold it.

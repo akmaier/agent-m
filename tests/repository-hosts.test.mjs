@@ -872,7 +872,13 @@ function pullFactsServer(kind, { refused = false } = {}) {
     if (path === "/pulls/17/commits") return json(200, [{ sha: PR_OLDER, commit: { message: "first\n\nbody" } }, { sha: PR_HEAD, commit: { message: "second" } }]);
     if (path === "/merge_requests/17/commits") return json(200, [{ id: PR_OLDER, message: "first\n\nbody" }, { id: PR_HEAD, message: "second" }]);
     if (path === `/commits/${PR_OLDER}`) return json(200, { files: [{ filename: "old.md", status: "modified" }] });
-    if (path === `/commits/${PR_HEAD}`) return json(200, { files: [{ filename: "new.md", status: "added" }] });
+    if (path === `/commits/${PR_BASE}`) return json(200, { sha: PR_BASE, commit: { tree: { sha: "tree-base" } } });
+    if (path === `/commits/${PR_HEAD}`) return json(200, { sha: PR_HEAD, commit: { tree: { sha: "tree-head" } }, files: [{ filename: "new.md", status: "added" }] });
+    if (path === "/git/trees/tree-base") return json(200, { tree: [{ path: "changed.md", type: "blob", sha: "blob-base" }] });
+    if (path === "/git/trees/tree-head") return json(200, { tree: [{ path: "changed.md", type: "blob", sha: "blob-head" }] });
+    if (path === `/repository/commits/${PR_BASE}`) return json(200, { id: PR_BASE });
+    if (path === `/repository/commits/${PR_HEAD}`) return json(200, { id: PR_HEAD });
+    if (path === "/repository/tree") return json(200, [{ path: "changed.md", type: "blob", id: ref === PR_BASE ? "blob-base" : "blob-head" }]);
     if (path === `/repository/commits/${PR_OLDER}/diff`) return json(200, [{ old_path: "old.md", new_path: "old.md", new_file: false, deleted_file: false, renamed_file: false }]);
     if (path === `/repository/commits/${PR_HEAD}/diff`) return json(200, [{ old_path: "new.md", new_path: "new.md", new_file: true, deleted_file: false, renamed_file: false }]);
     if (path === "/pulls/17/files") return json(200, [{ filename: "old.md", status: "modified" }, { filename: "new.md", status: "added" }]);

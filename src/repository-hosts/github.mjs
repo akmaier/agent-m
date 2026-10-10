@@ -48,9 +48,9 @@ export function githubAdapter(address, { token, tokenName }, links) {
     return { items: await json(answer, API), link: answer.headers.get("link") ?? "" };
   };
   const nextLink = (link) => /<([^>]+)>;\s*rel="?next"?/i.exec(link)?.[1] ?? null;
-  const pages = async (url) => {
+  const pages = async (url, values = (items) => items) => {
     const all = [];
-    for (let i = 0; url && i < MAX_PAGES; i += 1) { const p = await page(url); all.push(...p.items); url = nextLink(p.link); }
+    for (let i = 0; url && i < MAX_PAGES; i += 1) { const p = await page(url); all.push(...values(p.items)); url = nextLink(p.link); }
     return all;
   };
   const pull = (p) => ({ number: p.number, title: p.title ?? "", branch: p.head?.ref ?? "", base: p.base?.ref ?? "",
@@ -137,21 +137,16 @@ export function githubAdapter(address, { token, tokenName }, links) {
     async pullRequestFacts(number) {
       if (!Number.isInteger(number) || number < 1) throw new TypeError("pullRequestFacts names a pull request number");
       const raw = await read(`${repo}/pulls/${number}`), request = pull(raw), base = raw.base?.sha, head = raw.head?.sha;
-      const commits = await pages(`${repo}/pulls/${number}/commits?per_page=${PAGE}`), texts = new Map();
+      const commits = await pages(`${repo}/pulls/${number}/commits?per_page=${PAGE}`);
       const facts = [];
       for (const c of commits) {
-        const detail = await read(`${repo}/commits/${c.sha}`), runs = (await pages(`${repo}/actions/runs?head_sha=${c.sha}&per_page=${PAGE}`)).flatMap((r) => r.workflow_runs ?? []);
+        const detail = await read(`${repo}/commits/${c.sha}`), runs = await pages(`${repo}/actions/runs?head_sha=${c.sha}&per_page=${PAGE}`, (r) => r.workflow_runs ?? []);
         facts.push({ sha: c.sha, message: c.commit?.message ?? "", files: (detail.files ?? []).map((f) => f.filename), ci: ci(runs) });
       }
       const files = (await pages(`${repo}/pulls/${number}/files?per_page=${PAGE}`)).map((f) => ({ path: f.filename, change: f.status }));
       const reviews = (await pages(`${repo}/pulls/${number}/reviews?per_page=${PAGE}`)).map((r) => ({ reviewer: r.user?.login ?? "", verdict: ({ APPROVED: "approved", CHANGES_REQUESTED: "changes requested", COMMENTED: "commented", DISMISSED: "dismissed" }[r.state] ?? "commented"), commit: r.commit_id ?? head, date: r.submitted_at }));
-      const checks = [...(await pages(`${repo}/commits/${head}/check-runs?per_page=${PAGE}`)).flatMap((r) => r.check_runs ?? []).map(check), ...(await pages(`${repo}/commits/${head}/status?per_page=${PAGE}`)).flatMap((r) => r.statuses ?? []).map((s) => ({ name: s.context, state: s.state === "success" ? "success" : s.state === "pending" ? "queued" : s.state === "failure" || s.state === "error" ? "failure" : "neutral", url: s.target_url ?? "" }))];
-      return { pullRequest: request, commits: facts, files, reviews, checks, read: (path, side) => {
-        if (side !== "base" && side !== "head") throw new TypeError("side is base or head");
-        const key = `${side === "base" ? base : head}:${path}`;
-        if (!texts.has(key)) texts.set(key, this.readFile(side === "base" ? base : head, path));
-        return texts.get(key);
-      } };
+      const checks = [...(await pages(`${repo}/commits/${head}/check-runs?per_page=${PAGE}`, (r) => r.check_runs ?? [])).map(check), ...(await pages(`${repo}/commits/${head}/status?per_page=${PAGE}`, (r) => r.statuses ?? [])).map((s) => ({ name: s.context, state: s.state === "success" ? "success" : s.state === "pending" ? "queued" : s.state === "failure" || s.state === "error" ? "failure" : "neutral", url: s.target_url ?? "" }))];
+      return { pullRequest: request, commits: facts, files, reviews, checks, base, head };
     },
 
     // One file's text at a commit, or null where the commit does not hold it: with a token through the API — the only place
