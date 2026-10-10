@@ -1,6 +1,8 @@
-// MOD-implementation-pages' route `process` — the six gaps ITM-223's system and release tests of UC-002 found missing
-// (ITM-223-F1 to ITM-223-F6; F7 is ITM-241's, on MOD-site-frame, and F8 and where the process requirements stand are
-// change requests to akmaier — none of the three is built here, per the backlog commit that split the findings):
+// MOD-implementation-pages' route `process` — five of the gaps ITM-223's system and release tests of UC-002 found missing
+// (ITM-223-F1 to ITM-223-F5; F6, the missing capability's link to the participants, stands on the Roles page, UC-048 3b,
+// and is tested with it in tests/dashboard-roles.test.mjs; F7 is ITM-241's, on MOD-site-frame, and F8 and where the process
+// requirements stand are change requests to akmaier — none of the three is built here, per the backlog commit that split
+// the findings):
 // - F1: the table that keeps the process model and the rules to be met apart opens unfolded the first time this route's
 //   module renders, and folded at every later opening — kept in memory only, never the browser's storage, so it is no
 //   setting (step 1);
@@ -9,8 +11,7 @@
 //   back to the model's first phase (step 5);
 // - F4: for each practice, what it adds, read from the practice's file in the instance's snapshot with the catalogue's
 //   practice schema, beside the models it fits (step 6);
-// - F5: for a gate a process requirement adds, the two phases it stands between (step 7, 7b);
-// - F6: the missing-capability notice of 4b links to the participants' page, `#participants` (UC-017).
+// - F5: for a gate a process requirement adds, the two phases it stands between (step 7, 7b).
 //
 // Run: node --test tests/implementation-pages-uc-002-findings.test.mjs
 //
@@ -260,7 +261,6 @@ function elements(root, match) {
 }
 const byTag = (root, name) => elements(root, (e) => e.localName === name);
 const byClass = (root, name) => elements(root, (e) => e.className.split(" ").includes(name));
-const byData = (root, attr, value) => elements(root, (e) => e.getAttribute(attr) === value);
 
 const sha1 = (text) => createHash("sha1").update(text).digest("hex");
 
@@ -633,6 +633,3 @@ test("process route — a gate a process requirement adds is shown with the two 
 
   target.remove();
 });
-
-// ---------------------------------------------------------------- F6: the missing-capability link
-

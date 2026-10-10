@@ -22,7 +22,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { repoServer, settle, TOKEN } from "./app-harness.mjs";
-import { DASHBOARD } from "../src/site/views.mjs";
 
 // ---------------------------------------------------------------- a small DOM, copied unchanged from tests/dashboard-
 // ---------------------------------------------------------------- process-view.test.mjs (itself copied from tests/

@@ -228,13 +228,23 @@ test("#roles — every step explains itself: what a role is, why only Scrum has 
 // guards: EVERY STEP EXPLAINS ITSELF; the user's layout of the pages
 // given: the fixture product, team1's assignment open for a change
 // input: open #roles, Change team1
-// expect: no style attribute, and no class docs/assets/style.css — the stylesheet of #uc and #arc — does not define, outside
-//         the folded explanations, whose inside is MOD-site-frame's and its Markdown renderer's (in this harness, which cannot
+// expect: the title in a section.head, every button a btn and every folded explanation a details.explain; no style
+//         attribute, and no class docs/assets/style.css — the stylesheet of #uc and #arc — does not define, outside the
+//         folded explanations, whose inside is MOD-site-frame's and its Markdown renderer's (in this harness, which cannot
 //         sanitise HTML, the renderer shows each as its source); every panel explains itself
 test("#roles — the page is laid out as #uc and #arc are: panels with their explanations, list tables, buttons, no style of its own", async () => {
   const { page } = await rolesPage();
   await page.click('[data-edit="team1"]');
   const html = page.main();
+  // The shared layout of #uc and #arc, as tests/dashboard-shared-layout.test.mjs reads it: the title in a section.head, every
+  // button a btn, every folded explanation a details.explain.
+  const tags = (name) => html.match(new RegExp(`<${name}\\b[^>]*>`, "g")) ?? [];
+  const classesOf = (tag) => (/\sclass="([^"]*)"/.exec(tag)?.[1] ?? "").split(/\s+/).filter(Boolean);
+  const head = html.slice(0, html.indexOf("<h2")).match(/<section\b[^>]*>/g)?.at(-1) ?? "";
+  assert.ok(classesOf(head).includes("head"), `the title stands in a section.head: ${head}`);
+  assert.ok(tags("button").length > 0 && tags("details").length > 0, "known positive: the page has buttons and explanations");
+  assert.deepEqual(tags("button").filter((tag) => !classesOf(tag).includes("btn")), [], "every button is a btn");
+  assert.deepEqual(tags("details").filter((tag) => !classesOf(tag).includes("explain")), [], "every details is an explain");
   assert.doesNotMatch(html, /\sstyle="/);
   const style = read("docs/assets/style.css");
   const defined = (name) => new RegExp(`\\.${name}(?![\\w-])`).test(style);

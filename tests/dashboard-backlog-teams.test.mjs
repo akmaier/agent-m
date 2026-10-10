@@ -246,13 +246,23 @@ test("#backlog — Plan sprint for a team: kept items cannot be selected; Start 
 // guards: EVERY STEP EXPLAINS ITSELF; the user's layout of the pages
 // given: the fixture product, its plan for team2 open
 // input: open #backlog, click Plan sprint for team2
-// expect: the page holds no style attribute, none of the old board's classes, and no class docs/assets/style.css — the
+// expect: the title in a section.head, every button a btn and every folded explanation a details.explain; the page holds
+//         no style attribute, none of the old board's classes, and no class docs/assets/style.css — the
 //         stylesheet of #uc and #arc — does not define, but for the language of the burn-down's diagram, which the Markdown
 //         renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
 test("#backlog — the page is laid out as #uc and #arc are: panels, list tables, buttons and badges, no style of its own", async () => {
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
   const html = page.main();
+  // The shared layout of #uc and #arc, as tests/dashboard-shared-layout.test.mjs reads it: the title in a section.head, every
+  // button a btn, every folded explanation a details.explain.
+  const tags = (name) => html.match(new RegExp(`<${name}\\b[^>]*>`, "g")) ?? [];
+  const classesOf = (tag) => (/\sclass="([^"]*)"/.exec(tag)?.[1] ?? "").split(/\s+/).filter(Boolean);
+  const head = html.slice(0, html.indexOf("<h2")).match(/<section\b[^>]*>/g)?.at(-1) ?? "";
+  assert.ok(classesOf(head).includes("head"), `the title stands in a section.head: ${head}`);
+  assert.ok(tags("button").length > 0 && tags("details").length > 0, "known positive: the page has buttons and explanations");
+  assert.deepEqual(tags("button").filter((tag) => !classesOf(tag).includes("btn")), [], "every button is a btn");
+  assert.deepEqual(tags("details").filter((tag) => !classesOf(tag).includes("explain")), [], "every details is an explain");
   assert.doesNotMatch(html, /\sstyle="/);
   assert.doesNotMatch(html, /class="(board|column|card|cards|step)\b/);
   const style = read("docs/assets/style.css");
