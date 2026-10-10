@@ -1,8 +1,8 @@
 // MOD-work-plans — implementation plans, backlogs and sprints, and the state of each item
 // (docs/architecture/MOD-work-plans.md): its interface. Of it, ITM-209 builds planSchemas, and planSchemas itself gives
-// only backlogOrder, the schema of docs/backlog/order.md; planOrder and sprint are not built yet. ItemState, itemStates,
-// startable, planFindings, backlogFindings, sprintFacts, savePlan, saveItems, saveOrder, startSprint, endSprint,
-// closeSprint and workStrategies are not built yet either.
+// only backlogOrder, the schema of docs/backlog/order.md; planOrder and sprint are not built yet. ItemState,
+// itemStates and startable are built in states.mjs; planFindings, backlogFindings, sprintFacts, savePlan, saveItems,
+// saveOrder, startSprint, endSprint, closeSprint and workStrategies are not built yet.
 //
 // Module: MOD-work-plans
 //
