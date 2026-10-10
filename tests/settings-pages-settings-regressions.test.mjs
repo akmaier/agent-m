@@ -182,19 +182,20 @@ test("TST-290123: every rendered Settings section states purpose, storage, and r
   writeSetting(browserStore, "bridge", { address: "http://127.0.0.1:8787", token: "bridge_fixture" });
   writeSetting(browserStore, "jump-host", { hostname: "jump.example.test" });
   writeSetting(browserStore, "remote-session:fixture", { port: 8788, token: "remote_fixture" });
+  writeSetting(browserStore, "products", ["https://github.com/fixture/product"]);
   writeSetting(browserStore, "github-token:fixture/product", { value: "ghp_product" });
   const target = await render(browserStore, writableProduct([]));
   for (const tab of byClass(target, "settings-tab")) click(tab);
   const sections = descendants(target, (node) => node.localName === "section" && /^settings-(repository|product|bridge|jump-host|remote-session|export-import|clear)/.test(node.className));
   assert.ok(sections.length >= 7, "known positive: the fixture renders every Settings section under test");
   for (const section of sections) {
-    const details = descendants(section, (node) => node.localName === "details" && node.textContent.includes("What is this?"));
+    const details = section.childNodes.filter((node) => node.localName === "details" && node.textContent.includes("What is this?"));
     assert.equal(details.length, 1, `failure node: ${section.className} has exactly one folded What is this?`);
     assert.match(details[0].textContent, /browser|repository/i, `${section.className}: explanation names where the setting is kept`);
     assert.match(details[0].textContent, /read/i, `${section.className}: explanation names who can read it`);
   }
   const unchosen = repositories(await render(store()));
-  assert.equal(descendants(byClass(unchosen, "settings-product")[0], (node) => node.localName === "details" && node.textContent.includes("What is this?")).length, 1,
+  assert.equal(byClass(unchosen, "settings-product")[0].childNodes.filter((node) => node.localName === "details" && node.textContent.includes("What is this?")).length, 1,
     "failure node: the product section explains its repository records before a product is chosen");
 });
 
