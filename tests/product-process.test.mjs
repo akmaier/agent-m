@@ -392,7 +392,7 @@ test("declarationSchema — a declaration without its model's version is named; 
   const agentM = declarationOf(readFileSync(AGENT_M_DECLARATION, "utf8"));
   assert.deepEqual(documentFindings(declarationSchema, agentM), []);
   assert.deepEqual(agentM.fields, { model: "scrum-wip", model_file: "docs/process-models/scrum-wip.md",
-    model_version: "ef33e2f501289930960f13b55936e9b557003993", sprint_close: "scrum-master-session" });
+    model_version: "ef33e2f501289930960f13b55936e9b557003993", sprint_close: "Scrum Master" });
   assert.deepEqual(rowsUnder(agentM, "## Roles").map(([, cells]) => [cells.Role, cells.Participants]), [
     ["Product Owner", ["po-opus"]],
     ["Scrum Master", ["scrum-master-session"]],
