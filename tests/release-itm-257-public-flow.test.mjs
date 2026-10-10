@@ -176,7 +176,7 @@ async function redFlow() {
 // guards: UC-013; A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // given: the candidate contains the prior release report and controlled result records show its model-dependent rate fell from 8 of 10 to 6 of 10.
 // input: the author opens public #release and supplies the rate's reason.
-// expect: the panel shows the worse rate as a finding and records its reason with the acceptance.
+// expect: the panel shows the worse rate with its confidence interval as a finding, and records the author's reason with the acceptance.
 test("TST-257006: public Release presents and records the 3b worse-rate finding", rateFlow);
 
 async function rateFlow() {
@@ -189,6 +189,8 @@ async function rateFlow() {
   const page = await openDashboard({ server: fixture, hash: "#uc", search: `?repo=${product}` });
   richDocument(); await page.go("#release");
   assert.match(page.main(), /TST-257005.*6 of 10/s, "the public report exposes the lower rate");
+  assert.match(page.main(), /TST-257005.*6 of 10.*confidence interval/is,
+    "UC-013 3b shows the lower rate with its confidence interval as a finding");
   const main = globalThis.document.getElementById("main"), reason = main.querySelectorAll("input.reason").at(-1), person = main.querySelector("input.person");
   person.value = "akmaier"; reason.value = "Model drift accepted."; await main.querySelector("button.accept").fire("click");
   assert.match(Object.values(fixture.writes[0].files).join("\n"), /TST-257005 — Model drift accepted\./);
