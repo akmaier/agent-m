@@ -44,6 +44,7 @@ realises:
   - EVERY TEAM RUNS SPRINTS OF ITS OWN
   - A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT
   - SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
+  - AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
 ---
 # UC-034 Implement backlog items with a coding agent
 
@@ -98,8 +99,8 @@ names a person.
    - where the participant processes data;
    - what is sent: the item; the requirements and use cases it realises, and their existing tests; the
      files of the modules it changes, the decisions of their subsystems and of the system, and the
-     interfaces — not the code — of the modules they use (ch. 10 §3: develop against interfaces); and
-     the process requirements that apply;
+     interfaces — not the code — of the modules they use (ch. 10 §3: develop against interfaces); the
+     process requirements that apply; and chapters 9, 11, 12 and 13 of the book *Vibe Coding*;
    - the gates the job will meet.
 
    The author may pick another holder of the role. They press **Start jobs**: one click.

@@ -71,26 +71,26 @@ built into MOD-job-runner.
 
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
-| `derive-requirements` | UC-005 | draft text | | `source-excerpt`, `spec-with-queues` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage, class |
-| `change-requirements` | UC-019, UC-012 | draft text | | `instruction`, `named-requirements`, `spec-with-queues` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
-| `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `chosen-requirements`, `use-cases` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
-| `change-use-case` | UC-019 | draft text | | `instruction`, `use-case-with-neighbours` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
-| `derive-architecture` | UC-022 | draft text | `architecture-ready` | `whole-spec`, `accepted-use-cases` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
-| `change-architecture` | UC-023 | draft text | `rests-on-accepted` | `instruction`, `whole-spec`, `use-cases`, `whole-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
+| `derive-requirements` | UC-005 | draft text | | `source-excerpt`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage, class |
+| `change-requirements` | UC-019, UC-012 | draft text | | `instruction`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
+| `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
+| `change-use-case` | UC-019 | draft text | | `instruction`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
+| `derive-architecture` | UC-022 | draft text | `architecture-ready` | `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
+| `change-architecture` | UC-023 | draft text | `rests-on-accepted` | `instruction`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `review-architecture` | UC-022, UC-023 | draft text | | `whole-spec`, `accepted-use-cases`, `draft` | | | | `none` · `return-draft` | findings, each a warning |
 | `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves |
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
 | `propose-items` | UC-032 | draft text | `rests-on-accepted` | `backlog-inputs` | `backlog-checks`, `candidate-classes` | | | `person` · `backlog-items` | items |
 | `close-sprint` | UC-041 | draft text, read the repository, write to the repository | | `sprint-facts` | `sprint-record-checks` | | | `none` · `sprint-record` | the review, the retrospective, the proposed changes |
-| `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `implementation-inputs` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request |
+| `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `implementation-inputs`, `chapters-for-implementation` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request |
 | `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `implementation-inputs` | | | | `none` · `branch-and-pull-request` | the same |
 | `decide-gate` | UC-034, UC-036 | read the repository | | `gate-inputs` | | | | `none` · `gate-record` | the decision and its reasoning |
 | `set-up-ci` | UC-043, UC-027 | — | | | | | | `none` · `ci-configuration` | — |
-| `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `test-selection` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
-| `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `draft`, `test-selection` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
+| `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `test-selection`, `chapters-for-tests` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
+| `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `draft`, `test-selection`, `chapters-for-tests` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
 | `run-tests` | UC-028, UC-013 | run code and tests | | `commit-and-levels` | | | | `none` · `result-record` | the outcomes |
 | `analyse-issue` | UC-012 | draft text | | `issue-context` | | | | `none` · `return-draft` | the class and its reasoning |
-| `fix-bug` | UC-012 | write to the repository, run code and tests | | `fix-inputs` | | | | `none` · `branch-and-pull-request` | the agent's report |
+| `fix-bug` | UC-012 | write to the repository, run code and tests | | `fix-inputs`, `chapters-for-tests` | | | | `none` · `branch-and-pull-request` | the agent's report |
 | `propose-issues` | UC-038 | draft text | | `mail-batch` | `people-search` | | | `none` · `return-draft` | one proposal per mail |
 | `rewrite-without-persons` | UC-038 | draft text | | `report-data` | `people-search` | `check-for-persons` × 3 | | `none` · `return-draft` | the rewritten text |
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
@@ -111,6 +111,10 @@ DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` n
 latter for tests that pass before any code exists (UC-024, UC-034); for `write-tests`, `before-merge`. `implement`,
 `refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`.
 
+A kind whose jobs write or change requirements or use cases, tests or the architecture, or implement, names among its
+recipes the one of MOD-source-register that gives the chapters of the book *Vibe Coding* for that kind of work. `fix-bug`
+names the one for tests: its job writes a regression test before it fixes anything (UC-012).
+
 **An example definition**, `kinds/derive-architecture/kind.md`:
 
 ```markdown
@@ -127,6 +131,7 @@ preconditions:
 recipes:
   - whole-spec
   - accepted-use-cases
+  - chapters-for-architecture
 checks:
   - document-schema
   - graph-checks

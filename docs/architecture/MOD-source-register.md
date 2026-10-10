@@ -51,8 +51,12 @@ overwritten —; where a version's content lies, in the instance only where its 
 (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`); a product's links to the versions and parts that apply to it
 (`A PRODUCT LINKS THE SOURCES THAT APPLY`); a version's content read only with its hashes checked; the places a
 restricted source's content may go; EU legal texts recognised by their CELEX number or ELI and fetched from the EU's
-publication repository; and the recipe that gives a job the excerpt of a linked version. It runs in a browser and in
-Node; fetching a legal text runs in Node, in the instance's workflow (ARC-039).
+publication repository; the recipe that gives a job the excerpt of a linked version; and the recipes that give a job the
+chapters of the book *Vibe Coding* for its kind of work (`A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS
+ENGINEERING`, `A TEST JOB RECEIVES THE CHAPTER ON TESTING`, `AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING,
+ARCHITECTURE, DESIGN AND IMPLEMENTATION`, `AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN,
+IMPLEMENTATION AND TESTING`). It runs in a browser and in Node; fetching a legal text runs in Node, in the instance's
+workflow (ARC-039).
 
 ## Parts
 
@@ -61,7 +65,8 @@ Node; fetching a legal text runs in Node, in the instance's workflow (ARC-039).
 - `links.schema.md` — the schema of a product's links file.
 - `content.mjs` — where a version's files lie, and reading them with their hashes checked.
 - `legal-text.mjs` — recognising an EU legal text, and fetching it.
-- `strategies.mjs` — the recipe `source-excerpt`.
+- `strategies.mjs` — the recipe `source-excerpt`, and the four recipes of the book's chapters, each with the chapters
+  of its kind of work.
 
 ## Data
 
@@ -94,6 +99,20 @@ value a product's link records.
 
 **A product's links file** `docs/sources.md`: a table with one row per linked source — Source (`SRC-` identifier),
 Version, Hash (the version's hash), Part (free text, or empty) (`A LINK NAMES THE PART THAT APPLIES`).
+
+**The book's chapters for a kind of work.** Every instance holds the register entry `SRC-vibe-coding`, being a fork of
+Agent M (UC-014), with the chapters of the book as the files of each version. The chapters a job receives for its kind
+of work are given once, by four recipes:
+
+| Recipe | Kind of work | Chapters |
+|---|---|---|
+| `chapters-for-requirements` | writing or changing requirements or use cases | 8 |
+| `chapters-for-tests` | writing or changing tests | 13 |
+| `chapters-for-architecture` | writing or changing the architecture | 9, 10, 11, 12 |
+| `chapters-for-implementation` | implementing | 9, 11, 12, 13 |
+
+A chapter is the file of the version whose name begins with the chapter's number in two digits and `_`, such as
+`08_requirements-engineering.md`.
 
 **How a requirement names a source.** Each item of a requirement's source (MOD-spec-document's `Requirement.sources`)
 names the register entry whose identifier, title or — for a standard — designation the item begins with, the longest
@@ -145,6 +164,14 @@ names no source.
   the version the product links, through `readContent`, and returns its text as one part that names the source, so that
   the runner gives it only to participants at the places the source permits (`RESTRICTED CONTENT GOES ONLY WHERE ITS
   SOURCE PERMITS`). Throws as `readContent` throws, and `NotLinked { source }` for a source the product does not link.
+  And the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`,
+  `chapters-for-architecture` and `chapters-for-implementation`: each reads the instance's register entry
+  `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through
+  `readContent`, and returns one part per chapter of its row above, in the order of their numbers: the whole file,
+  naming `SRC-vibe-coding` as its source and the version with its hash as its pin. None of these parts may be left out:
+  a participant whose context cannot hold them is named as not fitting, and nothing is cut. Throws as `readContent`
+  throws, `NotRegistered { source }` when the instance has no entry `SRC-vibe-coding`, and `ChapterMissing { chapter,
+  version }` when the version holds no file for a chapter.
 
 ## Files
 

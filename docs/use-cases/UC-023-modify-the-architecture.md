@@ -43,6 +43,7 @@ realises:
   - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION
 ---
 # UC-023 Modify the architecture
 
@@ -75,7 +76,8 @@ after.
    - **Describe the change** — a text field, for example *"Split MOD-sync into a reader and a writer"*
      or *"Replace the charting library; it has had no release in two years"*.
 2. **Describe the change:** the author chooses a deriving and a reviewing participant and presses **Run**. Agent M
-   sends the description with the entire project — the whole SPEC, every use case and the whole architecture. The
+   sends the description with the entire project — the whole SPEC, every use case and the whole architecture — and
+   chapters 9 to 12 of the book *Vibe Coding*. The
    participant returns changes under the existing identifiers, and new decisions or modules only where something new
    is needed. Once the change is complete, it is checked as in UC-022 step 6 before the author sees it — a change that
    concerns more than one module together with the whole architecture; every finding is weighed before anything is

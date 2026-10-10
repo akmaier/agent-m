@@ -273,5 +273,6 @@ export const route = {
       el("h4", null, "Apache HTTPS proxy configuration"), remoteApache,
       el("h4", null, "nginx HTTPS proxy configuration"), remoteNginx,
     );
+    address.focus();
   },
 };

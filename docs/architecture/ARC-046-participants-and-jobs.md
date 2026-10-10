@@ -41,6 +41,10 @@ forced_by:
   - ONE DASHBOARD SHOWS EVERY JOB
   - A CANCELLED JOB WRITES NOTHING MORE
   - NO COST IS GUESSED
+  - A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
+  - A TEST JOB RECEIVES THE CHAPTER ON TESTING
+  - AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION
+  - AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
   - A JOB STOPS AT EVERY GATE
   - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
   - DERIVATION SEES THE EXISTING REQUIREMENTS
@@ -110,7 +114,8 @@ every subsystem and both programs, that interprets every kind of job from data**
   existing steps is a new folder, and no code changes (`THE CATALOGUE IS DATA`, `OPEN FOR EXTENSION, CLOSED FOR CHANGE`).
 - **The steps that need knowledge are strategies.** A definition names its recipes, checks and writers; each is a
   strategy provided by the module that owns the knowledge — the SPEC with its open queues by MOD-spec-changes, a source
-  version's excerpt by MOD-source-register, the inputs of an implementation step by MOD-run-planner, the queue-entry
+  version's excerpt and the book's chapters for a job's kind of work by MOD-source-register, the inputs of an
+  implementation step by MOD-run-planner, the queue-entry
   writer by MOD-spec-changes, the open-file writer by MOD-artifact-edits, the search for a mail's people by
   MOD-personal-data, and so on. Each such module offers its strategies under names; the drivers register those of the
   modules they include. The runner itself knows none of them.

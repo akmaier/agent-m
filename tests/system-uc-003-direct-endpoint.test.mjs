@@ -40,11 +40,10 @@ async function configure(page, server, main, endpoint) {
   return main.querySelector(".endpoint-result");
 }
 
-async function enterEndpoint(page, server, start) {
+async function enterEndpoint(server, start, main) {
   await press(server, start);
-  assert.equal(globalThis.location.hash, "#endpoints", "Configure selects the owned public endpoint route");
-  // The harness's hash listener starts an async render; page.go waits for its mounted DOM just as a browser route load does.
-  await page.go("#endpoints");
+  assert.equal(globalThis.location.hash, "#settings", "Configure stays on the Settings page");
+  assert.ok(main.querySelector(".endpoint-name"), "Configure opens the endpoint form in place");
 }
 
 function fill(main, endpoint) {
@@ -73,12 +72,12 @@ test("TST-292001: Settings Configure saves an OpenAI-compatible endpoint before 
     assert.deepEqual(JSON.parse(init.body), { model: OPENAI.model, messages: [{ role: "user", content: "Reply with one word: ok." }], max_tokens: 1 });
     return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
   }]);
-  await enterEndpoint(page, server, start);
+  await enterEndpoint(server, start, main);
   fill(main, OPENAI);
   const result = await configure(null, server, main, OPENAI);
   assert.equal(calls, 1, "one Save and test sends exactly one request");
   assert.match(result.textContent, /tiny-model is working/);
-  assert.equal(globalThis.location.hash, "#endpoints", "Settings owns the public configuration route");
+  assert.equal(globalThis.location.hash, "#settings", "the endpoint is configured on the Settings page");
 });
 
 // TST-292002
@@ -96,7 +95,7 @@ test("TST-292002: the dashboard sends Anthropic's one short Messages request", a
     observed = { url: url.href, init };
     return new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }] }), { status: 200 });
   }]);
-  await enterEndpoint(page, server, start);
+  await enterEndpoint(server, start, main);
   fill(main, ANTHROPIC);
   const result = await configure(null, server, main, ANTHROPIC);
   assert.ok(observed, "failure node: endpoint-calls selected Anthropic's actual /messages destination");
@@ -119,7 +118,7 @@ test("TST-292003: a browser refusal is actionable through CI and Bridge", async 
     if (url.href === `${OPENAI.url}/chat/completions`) throw new TypeError("Blocked by CORS policy");
     return null;
   }]);
-  await enterEndpoint(page, server, start);
+  await enterEndpoint(server, start, main);
   fill(main, OPENAI);
   const result = await configure(null, server, main, OPENAI);
   assert.match(result.textContent, /Blocked by CORS policy/);
@@ -140,7 +139,7 @@ test("TST-292004: refused key persists through reload until Clear removes the st
     if (url.href === `${OPENAI.url}/chat/completions`) return new Response(JSON.stringify({ error: { message: "Invalid API key." } }), { status: 401 });
     return null;
   }]);
-  await enterEndpoint(page, server, start);
+  await enterEndpoint(server, start, main);
   fill(main, OPENAI);
   let result = await configure(null, server, main, OPENAI);
   assert.match(result.textContent, /Invalid API key\./);
@@ -160,9 +159,9 @@ test("TST-292004: refused key persists through reload until Clear removes the st
 // Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
 // Precondition: Settings lists a stored named endpoint.
 // Input: the author presses that endpoint's Change control.
-// Expected: the dashboard selects only the named public endpoint route, whose form reads that record.
-// Planted fault: removing context.go from Change in src/settings-pages/settings.mjs leaves the named-route assertion failing.
-test("TST-292011: Settings Change opens the stored endpoint's named public route", async () => {
+// Expected: the named endpoint's form opens in place on the Settings page, reading that record.
+// Planted fault: removing context.go from Change in src/settings-pages/settings.mjs leaves the in-place form assertion failing.
+test("TST-292011: Settings Change opens the stored endpoint's form in place", async () => {
   const entries = { [`${prefix}endpoint:${OPENAI.name}`]: JSON.stringify({ url: OPENAI.url, kind: OPENAI.kind, model: OPENAI.model, key: OPENAI.key, throughBridge: false }) };
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries });
@@ -171,8 +170,7 @@ test("TST-292011: Settings Change opens the stored endpoint's named public route
   await page.go("#settings");
   const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
   await press(server, pane.querySelector("button.settings-endpoint-change"));
-  assert.equal(globalThis.location.hash, "#endpoints/campus");
-  await page.go("#endpoints/campus");
+  assert.equal(globalThis.location.hash, "#settings", "Change stays on the Settings page");
   assert.equal(main.querySelector(".endpoint-name").value, OPENAI.name);
   assert.equal(main.querySelector(".endpoint-model").value, OPENAI.model);
 });

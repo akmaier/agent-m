@@ -42,7 +42,8 @@ async function renderSettings(store, navigations = []) { const target = document
 // A CLEAR IS A REAL CLEAR; THE SHARED PAGES ORIGIN IS DISCLOSED.
 // input/precondition: an empty browser store and a successful copied-token pair response.
 // expected: the public Bridge Route discloses the shared Pages origin before pairing, stores only pair's returned
-// BridgeSettings, reloads them for Change, hides the token until Show, and Clear removes the actual store entry.
+// BridgeSettings, reloads them for Change — in place, on the Settings page —, hides the token until Show, and Clear removes
+// the actual store entry.
 test("the public Bridge route pairs, reloads, hides and really clears Bridge settings", async () => {
   const store = freshStore();
   const calls = [];
@@ -61,7 +62,8 @@ test("the public Bridge route pairs, reloads, hides and really clears Bridge set
   const navigations = [];
   const settings = await renderSettings(store, navigations);
   await click(byClass(settings, "settings-bridge-change")[0]);
-  assert.deepEqual(navigations, [{ route: "bridge", params: {} }], "Change returns to the Bridge Route");
+  assert.deepEqual(navigations, [], "Change stays on the Settings page");
+  assert.equal(byClass(settings, "bridge-address")[0]?.value, "http://127.0.0.1:4711", "Change opens the stored Bridge settings in place");
   const reloaded = await renderBridge(store);
   assert.equal(byClass(reloaded, "bridge-address")[0].value, "http://127.0.0.1:4711", "the Bridge Route reloads stored settings after Change");
   const show = byClass(reloaded, "bridge-show")[0];
@@ -118,7 +120,8 @@ test("the Bridge route names a refused pair and saves HTTPS jump-host access wit
   const navigations = [];
   const settings = await renderSettings(store, navigations);
   await click(byClass(settings, "settings-jump-host-change")[0]);
-  assert.deepEqual(navigations, [{ route: "bridge", params: {} }], "Change reopens the saved jump-host configuration");
+  assert.deepEqual(navigations, [], "Change stays on the Settings page");
+  assert.equal(byClass(settings, "jump-host-name")[0]?.value, "jump.example.test", "Change reopens the saved jump-host configuration in place");
   await click(byClass(settings, "settings-jump-host-clear")[0]);
   assert.equal(readSetting(store, "jump-host"), null, "Jump-host Clear removes the login-bearing store entry");
 });

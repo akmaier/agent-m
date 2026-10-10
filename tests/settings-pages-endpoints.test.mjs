@@ -252,7 +252,7 @@ test("TST-265010: Settings lists its stored endpoint with a hidden key and Show"
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a stored direct endpoint and a constructed successful endpoint answer
 // input: the person presses Test, then Change on the public settings Route
-// expect: Test makes one mapped direct request without changing the stored record, and Change opens its exact named endpoint route
+// expect: Test makes one mapped direct request without changing the stored record, and Change opens that named endpoint's form in place
 test("TST-265011: Settings tests a stored direct endpoint and changes its named route", async () => {
   const store = freshStore(), calls = [], navigations = [], oldFetch = globalThis.fetch;
   writeSetting(store, "endpoint:campus", ENDPOINT);
@@ -265,7 +265,9 @@ test("TST-265011: Settings tests a stored direct endpoint and changes its named 
     assert.equal(calls[0].init.headers.Authorization, `Bearer ${ENDPOINT.key}`);
     assert.match(target.textContent, /working|tiny-model/i);
     await click(byClass(target, "settings-endpoint-change")[0]);
-    assert.deepEqual(navigations, [{ route: "endpoints", params: { name: "campus" } }]);
+    assert.deepEqual(navigations, [], "Change stays on the Settings page");
+    assert.equal(byClass(target, "endpoint-name")[0]?.value, "campus", "Change opens the form of the endpoint campus in place");
+    assert.equal(byClass(target, "endpoint-url")[0]?.value, ENDPOINT.url, "with its stored address");
   } finally { globalThis.fetch = oldFetch; }
 });
 

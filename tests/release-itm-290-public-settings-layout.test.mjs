@@ -92,7 +92,7 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
   const debug = await port(), inspect = await port(), address = `http://127.0.0.1:${server.address().port}/docs/#settings`;
   entryFolder = mkdtempSync(join(tmpdir(), "agent-m-290-electron-entry-"));
   const entry = join(entryFolder, "main.mjs");
-  writeFileSync(entry, `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); const window = new electron.BrowserWindow({ webPreferences: { contextIsolation: true, nodeIntegration: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`);
+  writeFileSync(entry, `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); electron.app.dock?.hide(); const window = new electron.BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`);
   const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
   child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "linux", stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "", spawnError = null;
@@ -108,6 +108,15 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
       return targets.find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl;
     } catch (error) { debugTargets = `${error.name}: ${error.message}`; throw error; }
   }, stopped, () => ` argv=${JSON.stringify([launched.command, ...launched.arguments_])}; cwd=${root}; exit=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}; debugTargets=${debugTargets}`);
+  // The controlled Electron lays the page out without showing it: no window and no Dock icon appear on the screen of the
+  // computer that runs the test, as the main process itself reports through its inspector.
+  const mainProcess = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
+  const mainSession = await cdpSession(mainProcess);
+  let shown;
+  try {
+    shown = await evaluate(mainSession, "(() => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); return { windows: electron.BrowserWindow.getAllWindows().map((window) => window.isVisible()), dock: electron.app.dock ? electron.app.dock.isVisible() : false }; })()");
+  } finally { mainSession.close(); }
+  assert.deepEqual(shown, { windows: [false], dock: false }, "the controlled Electron shows no window and no Dock icon");
   for (const width of [390, 1280]) {
     const session = await cdpSession(target);
     let cdpLayout, result;

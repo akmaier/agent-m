@@ -60,8 +60,8 @@ async function dashboardFor(t, bridge, endpointOrigin) {
   const configure = pane?.querySelector("button.settings-endpoint-configure");
   assert.ok(configure, "known positive: public Endpoints & Agents mounts Configure");
   await press(server, configure);
-  assert.equal(globalThis.location.hash, "#endpoints", "failure node: Settings Configure selected the public endpoint route");
-  await page.go("#endpoints");
+  assert.equal(globalThis.location.hash, "#settings", "failure node: Settings Configure stays on the Settings page");
+  assert.ok(main.querySelector(".endpoint-name"), "failure node: Settings Configure opens the endpoint form in place");
   return { server, page, main };
 }
 

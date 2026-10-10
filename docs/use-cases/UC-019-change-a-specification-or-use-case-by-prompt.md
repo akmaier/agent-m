@@ -39,6 +39,7 @@ realises:
   - WHAT A PERSON DECIDES IS NOT SENT BACK
   - THE CORRECTION LOOP HAS A FIXED LIMIT
   - THE ROUNDS ARE COUNTED AND SHOWN
+  - A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
 ---
 # UC-019 Change a specification or a use case by prompt
 
@@ -75,7 +76,8 @@ same Markdown the author does.
    - **requirements:** the requirements to change, and every requirement of the product — in its
      SPEC and in its open queues;
    - **use case:** the use case, every requirement it realises, and every other use case of the
-     product.
+     product;
+   - **for both:** chapter 8 of the book *Vibe Coding*.
 
    It checks that the instruction and all of this fit into the participant's context.
 5. The run panel shows the destination, what exactly is sent and how many requirements and use cases

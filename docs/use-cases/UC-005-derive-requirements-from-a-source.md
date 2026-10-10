@@ -35,6 +35,7 @@ realises:
   - WHAT A PERSON DECIDES IS NOT SENT BACK
   - THE CORRECTION LOOP HAS A FIXED LIMIT
   - THE ROUNDS ARE COUNTED AND SHOWN
+  - A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
 ---
 # UC-005 Derive requirements from a source
 
@@ -59,12 +60,12 @@ four-field form, for the author to approve or reject one by one.
 1. The author selects one of the product's linked sources and, optionally, the part to work on. Agent M
    reads exactly the linked version, and checks its hash.
 2. Agent M collects **every existing requirement of the product** — its SPEC and its open change
-   queues — and checks that source excerpt and requirements together fit into the chosen
-   participant's context.
+   queues — and checks that source excerpt, requirements and chapter 8 of the book *Vibe Coding* together
+   fit into the chosen participant's context.
 3. The run panel shows the destination, what exactly is sent (the excerpt *and* the existing
-   requirements), and how many requirements are included; the author presses **Run** — that click is
-   the decision.
-4. Agent M sends both with the requirement prompt from the repository's single definition. The prompt
+   requirements, with the chapter), and how many requirements are included; the author presses **Run** —
+   that click is the decision.
+4. Agent M sends them with the requirement prompt from the repository's single definition. The prompt
    asks for candidates *against* the existing requirements, not beside them.
 5. The participant returns candidates, each with name, source passage, rule, check,
    whether it constrains the **product** or the **process** — and a class:

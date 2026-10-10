@@ -4,7 +4,7 @@
 // guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: the public Settings Route with representative browser settings, including an old unreadable GitLab token key
 // input: the person selects the four Settings tabs without submitting an action
-// expect: each named tab has accessible selected state, only its pane is shown, unreadable stored credentials retain Show, Clear and export access, endpoint and Bridge setup retain their public routes, and switching panes preserves an unfinished passphrase without a storage write, endpoint request, or permission request
+// expect: each named tab has accessible selected state, only its pane is shown, unreadable stored credentials retain Show, Clear and export access, endpoint and Bridge setup open in place in their tab, and switching panes preserves an unfinished passphrase without a storage write, endpoint request, or permission request
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -73,9 +73,15 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
   assert.equal(secret.type, "text", "Show remains available for the stored token");
   assert.ok(byClass(unreadable, "settings-repository-clear")[0], "Clear remains available for the stored token");
   click(tabs[2]);
-  click(byClass(target, "settings-endpoint-configure")[0]);
-  click(byClass(target, "settings-bridge-configure")[0]);
-  assert.deepEqual(navigations, [{ name: "endpoints", params: {} }, { name: "bridge", params: {} }], "the pane keeps the existing public endpoint and Bridge routes");
+  const pane = byClass(target, "settings-tab-panel").find((node) => /Endpoints & Agents/.test(node.textContent));
+  click(byClass(pane, "settings-endpoint-configure")[0]);
+  assert.equal(byClass(pane, "endpoint-url").length, 1, "Configure a model endpoint opens its form in the Endpoints & Agents tab");
+  assert.equal(byClass(pane, "endpoint-name")[0].focused, true, "the endpoint form opens with its first field focused");
+  click(byClass(pane, "settings-bridge-configure")[0]);
+  assert.equal(byClass(pane, "bridge-address").length, 1, "Configure the Agent M Bridge opens its form in the same place");
+  assert.equal(byClass(pane, "bridge-address")[0].focused, true, "the Bridge form opens with its first field focused");
+  assert.equal(byClass(pane, "endpoint-url").length, 0, "one form is open at a time");
+  assert.deepEqual(navigations, [], "neither button leaves the Settings page");
   click(tabs[0]);
   assert.equal(passphrase.value, "unfinished passphrase", "failure node: switching must retain the same General DOM input");
   assert.deepEqual(storage.snapshot(), before, "failure node: tab selection writes no browser setting");
@@ -88,7 +94,7 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
 // guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: the public Settings Route with a stored remote Bridge session and browser-held settings
 // input: the person opens Endpoints & Agents, reveals the session token, removes a listed product, then acknowledges browser clear
-// expect: the session remains hidden until Show and routes to its existing Bridge setup, while Clear everything stays disabled until acknowledgement and then removes the actual browser-store entries; product removal also removes its own credential and test metadata
+// expect: the session remains hidden until Show and Change opens its Bridge setup in place, in the tab, while Clear everything stays disabled until acknowledgement and then removes the actual browser-store entries; product removal also removes its own credential and test metadata
 test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async (t) => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
@@ -118,7 +124,9 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   assert.equal(calls[0].init.headers["x-agent-m-bridge-token"], "remote-token");
   assert.match(byClass(remote, "settings-remote-session-result")[0].textContent, /answers at localhost:40101/);
   click(byClass(remote, "settings-remote-session-change")[0]);
-  assert.deepEqual(navigations, [{ name: "bridge", params: { name: "lab" } }], "Change enters the existing public Bridge setup route");
+  const pane = byClass(target, "settings-tab-panel").find((node) => /Endpoints & Agents/.test(node.textContent));
+  assert.equal(byClass(pane, "remote-session-name")[0]?.value, "lab", "Change opens the Bridge setup at the session lab, in place");
+  assert.deepEqual(navigations, [], "Change does not leave the Settings page");
 
   click(tabs[1]);
   const product = byClass(target, "settings-product-list-item")[0];
