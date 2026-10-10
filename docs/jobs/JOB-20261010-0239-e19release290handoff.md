@@ -33,3 +33,12 @@ Read the full original scope and binding rules of0232, which also govern this jo
 Complete the necessary selected four-case suite with actual retained argv/cwd/start/end/status/full stdout/stderr and source/test pins. Complete the immutable inventory with all original/fault/restored source hashes and actual guarded paths, every adjacent stream, final suite and actual current canonical declaration/trace results. The four existing relevant source faults/same-case failures/exact restoration/passes may be retained only with exact source/test/raw-byte verification and truthful original metadata; impose no redundant fault or per-assertion quota. If an actual required receipt is unsupported, identify precisely what is missing instead of fabricating it. Clearly mark0232's old Taken as withdrawn/unknown in the NEW inventory without altering the old one.
 
 Return clean exact tests-only commit, full diff against the actual approved base, current PR body and complete immutable provenance/evidence inventory. Root obtains own complete changed Ubuntu CI and independent exact PO release gate before producer delivery. No full Settings/legacy consumer/public layout/mailbox/MSAL/strategies/expiry scanner completion claim. No source/helper/workflow/accepted artifact/process/model/participants/DoD/backlog/selection changes, own publication/merge or children. All original safety boundaries hold: NO local full/glob/native/Electron/browser/CUA/MacUI/device/system settings/accessibility/clipboard/focus/typing/personal folders/systemSSH/externalSSH/paid execution; explicitly selected necessary nonnative schema/storage/document/declaration checks only; full/native/layout on controlled GitHub Ubuntu. Preserve notifications and browser-direct general endpoints except accepted own-model2a.
+
+## Taken
+
+at: 2026-10-10 02:42:06 UTC
+participant: developer-terra-e
+context: before fresh agent-terra-e-release290-handoff-19 / codex/e-release290-handoff-19 from approved sprint6bb3b456
+evidence: actual authorized shell UTC command/raw /private/tmp/p19-0239-taken.raw; published original read at29255a4; initial worktree reflog02:42:12 UTC is later than Taken
+usage: null
+cost: null
