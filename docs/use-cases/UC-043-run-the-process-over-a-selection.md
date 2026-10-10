@@ -34,13 +34,14 @@ realises:
   - THE PAGE STATES WHAT IT SENDS WHERE
   - ONE CLICK PER DECISION
   - EVERY STEP EXPLAINS ITSELF
+  - EVERY TEAM RUNS SPRINTS OF ITS OWN
 ---
 # UC-043 Run the process over a selection
 
 **Goal.** The author selects what to build — steps of the implementation plan in a model that plans its
 work (UC-045), backlog items in Scrum or Kanban (UC-032) — and starts one **run**. Agent M carries it out
 the way the product's process model (UC-002, UC-031) prescribes: the CI configuration if it is missing, the
-steps in the plan's order or the items in the backlog's, the test battery, and at the end the validation of
+steps in the plan's order or the items after those they build on, the test battery, and at the end the validation of
 what was built. The author is asked only where the model puts a gate that a person decides, or when a limit
 fixed at the start is reached. For a critical step, the single parts remain: UC-024, UC-026 and UC-027 can
 each be started on their own.
@@ -129,7 +130,8 @@ sequenceDiagram
 ## Alternative flows
 
 - **1a. The product works from a backlog (Scrum, Kanban).** The selection is backlog items, not modules:
-  the ready items of the current sprint, or as many as the work-in-progress limit allows. Each item's job
+  the ready items of the current sprint of the author's team, or as many as its work-in-progress limit allows; each
+  team starts runs of its own. Each item's job
   is that of UC-034, including its tests; the rest of this use case applies unchanged.
 - **1b. A selected step's module file or decision is not accepted.** It cannot be selected; Agent M names
   what is open and links to UC-022 or UC-023.

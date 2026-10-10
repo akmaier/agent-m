@@ -23,6 +23,9 @@ realises:
   - A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF
   - AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
   - AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
+  - EVERY TEAM RUNS SPRINTS OF ITS OWN
+  - A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+  - A TEAM'S GATES ARE DECIDED WITHIN THE TEAM
 ---
 # UC-041 Close a sprint with review and retrospective
 
@@ -46,13 +49,14 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
 - **Product Owner** — leads the review, decides what happens with unfinished items and, if the sprint
   has a branch of its own, whether its increment is merged into the default branch.
 - **Scrum team** — the Developers (people and agents) and the Scrum Master, who keeps both events
-  happening and their results precise; the Scrum Master approves nothing.
+  happening and their results precise; the Scrum Master approves nothing. In a product with several teams,
+  each team closes its own sprints, and its own Product Owner decides.
 - **Stakeholder** — anyone the Product Owner invites to the review; needs no write access.
 - **Product repository** — holds the sprint selection, the items, the pull requests and the records.
 
 ## Precondition
 
-- The product's model works in sprints — with or without a time box —, and a sprint is running
+- The product's model works in sprints — with or without a time box —, and a sprint of the team is running
   (UC-032, step 6).
 
 ## Main flow
@@ -78,11 +82,13 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
    Agent M offers, as material, the numbers of the sprint: jobs failed or retried, time items waited
    for a person, flaky tests, cost where known — derived, not typed.
 6. The Product Owner presses **Close sprint** — one click. Agent M commits, as the Product Owner's own
-   input, the review and the retrospective as one Markdown file under `docs/backlog/sprints/`, the new
-   backlog items from the feedback, and the moved items.
+   input, the review and the retrospective as one Markdown file with the sprint under `docs/backlog/sprints/`
+   (UC-032, step 6), the new backlog items from the feedback, and the moved items. Items that go back to the backlog are
+   no longer held by the sprint; its done items stay held until its increment is merged into the default branch.
 7. If the sprint has a branch of its own, the panel then offers **Merge increment** — the Product
    Owner's release decision (`A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN`). It merges the
-   sprint branch into the default branch, one click, through a pull request whose CI must be green.
+   sprint branch into the default branch, one click, through a pull request whose CI must be green. Its done items
+   are then no longer held, and other teams can select what changes or uses their modules (UC-032, 6d).
 
 ```mermaid
 sequenceDiagram
@@ -138,7 +144,13 @@ sequenceDiagram
 - **7a. CI on the merge of the sprint branch is red.** The increment is not merged; the dashboard shows
   the failing tests (UC-028). The Product Owner decides whether the next sprint repairs it first.
 - **7b. The Product Owner does not merge the increment now.** The sprint branch stays; the next sprint
-  may continue on it or start a new one from the default branch.
+  may continue on it or start a new one from the default branch. Its done items stay held, so no other team changes or
+  uses their modules meanwhile. If the Product Owner gives the increment up, its done items go back to the backlog and
+  are no longer held.
+- **7c. Another team's increment was merged into the default branch first.** The pull request of this sprint's
+  branch is brought up to date with the default branch. The two sprints held disjoint modules, and neither changed a
+  module the other used, so only files that no module owns can conflict; on such a conflict the increment is not merged,
+  and the dashboard names the files.
 
 ## Postcondition
 

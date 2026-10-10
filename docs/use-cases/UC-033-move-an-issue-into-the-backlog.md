@@ -20,7 +20,7 @@ realises:
 # UC-033 Move an issue into the backlog
 
 **Goal.** An issue that UC-012 has classified becomes a backlog item, with links in both directions,
-so that the work is ordered and planned like every other item.
+so that the work is planned like every other item.
 
 - A **bug** can be started at once. Its item realises the requirement that the code currently
   violates.
@@ -30,7 +30,7 @@ so that the work is ordered and planned like every other item.
 
 ## Actors
 
-- **Product Owner**: orders the backlog (UC-032).
+- **Product Owner**: fills the backlog and plans from it (UC-032).
 - **Contributor**: filed the issue and follows it.
 - **GitHub**: hosts the issue and the product repository (or the product's GitLab server).
 
@@ -53,10 +53,10 @@ so that the work is ordered and planned like every other item.
        this issue, by requirement name;
    - **modules**: the modules of the architecture the fix or the change will touch, as UC-012's analysis
      and the architecture name them; the Product Owner confirms or corrects them.
-3. Agent M shows where the item will enter the order. By default this is the top for a bug, and the
-   bottom for a change. The Product Owner may move it.
+3. Agent M checks the item as it checks a drafted item (UC-032, step 3) and names what fails; the Product Owner
+   corrects it.
 4. The Product Owner presses **Add**: one click. Agent M:
-   - commits the item file under `docs/backlog/`, and the new order;
+   - commits the item file under `docs/backlog/`;
    - adds a comment to the issue with the item's identifier and a link to it on the dashboard;
    - adds the label `backlog` to the issue.
 5. The item appears in the backlog (UC-032):
@@ -76,7 +76,7 @@ sequenceDiagram
     M->>G: read issue, UC-012 class and queue
     M-->>O: item prefilled, origin and what it realises
     O->>M: Add
-    M->>G: commit item and order
+    M->>G: commit item
     M->>G: comment and label on the issue
     G-->>C: notification with the item link
     M-->>O: item ready, or waiting for acceptance

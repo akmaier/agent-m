@@ -41,6 +41,12 @@ realises:
   - A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
   - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
   - A RUN HAS LIMITS FIXED AT ITS START
+  - EVERY TEAM RUNS SPRINTS OF ITS OWN
+  - AN ITEM STARTS ONLY WHERE WHAT IT BUILDS ON IS MERGED
+  - A TEAM'S GATES ARE DECIDED WITHIN THE TEAM
+  - A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES
+  - A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT USES
+  - A SPRINT USES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES
 ---
 # UC-034 Implement backlog items with a coding agent
 
@@ -56,7 +62,7 @@ names a person.
 
 ## Actors
 
-- **Author**: starts the jobs.
+- **Author**: starts the jobs — in a product with several teams, those of their own team (UC-002).
 - **Coding agent**: a participant assigned to the role that implements, typically *Developers*
   (UC-002). It needs *read the repository*, *write to the repository* and *run code and tests*. It
   is one of these (UC-017):
@@ -82,15 +88,16 @@ names a person.
 1. The author opens **Backlog** and selects one or more *ready* items, or presses **Start sprint
    work** to select every ready item of the sprint.
 2. Agent M checks each item. It starts no job for an item when:
-   - the item is not selected for the current sprint;
+   - the item is not selected for the current sprint of the author's team;
    - a requirement or use case the item names is not accepted;
    - an item it builds on — one that implements an interface its modules use, or, for an integration, one of
-     its subsystem's modules — is not done (UC-032);
-   - the WIP limit would be exceeded.
+     its subsystem's modules — is not done (UC-032), or is not merged into the branch the job starts from, as an
+     item done in another team's sprint whose increment is not yet in the default branch;
+   - the team's WIP limit would be exceeded.
 
    For each item it cannot start, Agent M names the reason.
 3. For the startable items, Agent M proposes one participant each from the holders of the
-   implementing role. The run panel shows, per item:
+   implementing role in the item's team. The run panel shows, per item:
    - the participant;
    - where the participant processes data;
    - what is sent: the item; the requirements and use cases it realises, and their existing tests; the
@@ -122,6 +129,7 @@ names a person.
    - a **person** sees the gate on the job dashboard (UC-036), with what it checks and the artifacts to
      look at, and presses **Pass gate**: one click.
 
+   The deciding role is the one held in the job's team; a holder of it in another team does not decide.
    Agent M commits the gate record — who or what decided, when, on which text — and the job continues.
 8. When the product's Definition of Done holds — CI green, no gate left, and whatever the product
    added (UC-002, step 8) — the pull request is merged: by the coding agent, or by a person, as the
@@ -176,10 +184,14 @@ sequenceDiagram
   to *waiting for acceptance*.
 - **5c. The item needs a change to a module it does not name.** The agent stops and names the module and
   why — it does not work around the other module in its own code (ch. 10 §3). The Product Owner adds the
-  module to the item, or the architecture is changed first (UC-023).
+  module to the item, or the architecture is changed first (UC-023). Adding the module changes the sprint's
+  selection, which is checked against what the other teams' sprints hold (UC-032, 6a): while another team's sprint
+  holds an item that changes or uses that module, the item waits, and Agent M names that sprint.
 - **6a. CI stays red after the retry limit.** The job ends as *failed*, with the last CI log linked.
   The item is *blocked*, and the author may retry with the same or another participant (UC-036).
-- **6b. Two jobs touch the same files.** The later push is rebased onto the default branch. On a
+- **6b. Two jobs touch the same files.** Items held by different teams' sprints change disjoint modules (UC-032,
+  step 5), so this happens within one team, or in a file that no module owns. The later push is rebased onto the
+  default branch, or onto the team's sprint branch. On a
   conflict the job stops in *waiting at a gate* for the author and names the other item (book ch. 7, Brooks's
   law: more agents add coordination work).
 - **7a. The gate's decider rejects.** The gate record states the rejection and its reason. The job ends,

@@ -33,7 +33,7 @@ inspection (ch. 7 §5).
 | Model kind | Progress measure | What the dashboard draws |
 |---|---|---|
 | planned (V-model, waterfall) | plan entries per phase | a grid of requirements × phases, each cell open, in progress or done; phases on a timeline with their gates as milestones (ch. 15 §3); beside it, the steps of the implementation plan with their states (UC-045) |
-| pulled, time boxes (Scrum) | remaining items per time box | the sprint's items, and a burn-down of remaining items per day of the sprint |
+| pulled, time boxes (Scrum) | remaining items per time box | the sprint's items, and a burn-down of remaining items per day of the sprint — one for each team's running sprint, named by its team |
 | pulled, WIP limit (Kanban) | items per state over time | the board with its columns and WIP limit, and a cumulative flow chart |
 
 A planned model has two plans, and they answer different questions. The grid of requirements × phases
@@ -73,9 +73,11 @@ its steps are what implementation jobs start for (UC-024).
    - a failed job;
    - a job waiting at a gate, with the role or check that decides it;
    - a requirement not yet accepted;
-   - the WIP limit.
-5. A panel **Who works on what** lists each participant of the product with its role and its current
-   jobs, linked to the job dashboard (UC-036).
+   - the WIP limit of its team;
+   - another team's sprint that holds what it needs, named with the module (UC-032, step 5).
+5. A panel **Who works on what** lists each participant of the product with its role — and its team, in a
+   product with several teams — and its current jobs, linked to the job dashboard (UC-036). With several teams, it
+   also lists what each team's sprint holds, with the modules its items change and use.
 6. The reader clicks a cell, a card or a point on the chart. Agent M shows the items or requirements
    behind it and their traceability: requirement → use case → item or plan entry → pull request →
    tests (UC-020).
@@ -112,6 +114,8 @@ sequenceDiagram
   burn-down and a link to plan the next one (UC-032).
 - **2c. The product changed its model** (UC-002, 3b). The chart starts at the change. Earlier
   progress stays readable in the model it was made under.
+- **2d. Only some teams of a Scrum product have a running sprint.** Each running sprint is drawn; a team without
+  one shows its last sprint's final burn-down and a link to plan the next one (UC-032).
 - **3a. A gate record names a text that has changed since.** The gate is shown as *passed on an
   earlier text*, with the difference. It does not count as passed for the current text
   (`STATUS IS DERIVED FROM THE RECORDS`).
