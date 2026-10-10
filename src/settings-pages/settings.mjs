@@ -252,9 +252,10 @@ function repositoryLine(context, info) {
   const change = el("button", "settings-repository-change", "Change");
   const result = el("p", "settings-repository-result");
   const address = repositoryAddress(context, info.key);
-  const links = connect(address, {}).webLinks();
+  const links = address ? connect(address, {}).webLinks() : null;
   const renewal = el("a", "settings-repository-renew", "Renew token ↗");
-  renewal.href = links.projectTokens ?? links.tokens;
+  if (links) renewal.href = links.projectTokens ?? links.tokens;
+  else renewal.textContent = "Renewal link needs a repository address.";
   const status = el("p", "settings-repository-status", repositoryStatus(info, stored));
   const secret = stored?.value ?? "";
   value.type = "password";
@@ -293,6 +294,7 @@ function repositoryLine(context, info) {
   test.addEventListener("click", async () => {
     const setting = readSetting(context.store, info.key);
     if (!setting?.value) { result.textContent = "Save a token before testing it."; return; }
+    if (!address) { result.textContent = "This stored token has no readable repository address to test. Change or clear it in this browser."; return; }
     result.textContent = "Testing the repository token…";
     let lastTest;
     try {
@@ -323,9 +325,11 @@ function repositoryLine(context, info) {
 }
 
 function repositoryAddress(context, key) {
-  if (key === "github-token") return parseAddress(`https://github.com/${context.instance.repository}`);
-  if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
-  return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
+  try {
+    if (key === "github-token") return parseAddress(`https://github.com/${context.instance.repository}`);
+    if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
+    return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
+  } catch { return null; }
 }
 
 function repositoryStatus(info, stored) {
@@ -572,6 +576,14 @@ function tabbedSettings(panes) {
   return { tabs, panels: panes.map((pane) => pane.node) };
 }
 
+function configurationControls(context) {
+  const endpoint = el("button", "settings-endpoint-configure", "Configure a model endpoint");
+  const bridge = el("button", "settings-bridge-configure", "Configure the Agent M Bridge");
+  endpoint.addEventListener("click", () => context.go("endpoints", {}));
+  bridge.addEventListener("click", () => context.go("bridge", {}));
+  return el("p", "settings-configure", endpoint, " ", bridge);
+}
+
 export const route = {
   name: "settings",
   entry: "settings",
@@ -597,6 +609,7 @@ export const route = {
       ...(productList ? [productList] : []), product);
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
+      configurationControls(context),
       ...(bridge ? [bridge] : []), ...(jumpHost ? [jumpHost] : []),
       ...remoteSessions,
       el("div", "settings-endpoints", ...endpoints));

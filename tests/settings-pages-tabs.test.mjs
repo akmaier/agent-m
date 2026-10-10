@@ -3,9 +3,10 @@
 // module: MOD-settings-pages
 // guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE;
 //   A STORED SECRET IS HIDDEN UNTIL SHOWN
-// given: the public Settings Route with representative browser settings
+// given: the public Settings Route with representative browser settings, including an old unreadable GitLab token key
 // input: the person selects the four Settings tabs without submitting an action
-// expect: each named tab has accessible selected state, only its pane is shown, and switching panes preserves
+// expect: each named tab has accessible selected state, only its pane is shown, unreadable stored credentials retain
+//   Show, Clear and export access, endpoint and Bridge setup retain their public routes, and switching panes preserves
 //   an unfinished passphrase without a storage write, endpoint request, or permission request
 
 import test from "node:test";
@@ -51,9 +52,11 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
   const store = openStore("fixture/instance");
   writeSetting(store, "endpoint:main", { url: "https://models.example.test/v1", kind: "openai-compatible", model: "small", key: "stored-key", throughBridge: false });
   writeSetting(store, "bridge", { address: "https://bridge.example.test", token: "bridge-token" });
+  writeSetting(store, "gitlab-token:g/p", { value: "glpat_fixtureToken" });
   const before = storage.snapshot();
   const target = document.createElement("div");
-  await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
+  const navigations = [];
+  await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go(name, params) { navigations.push({ name, params }); } }, {});
 
   const tabs = byClass(target, "settings-tab");
   assert.deepEqual(tabs.map((tab) => tab.textContent), ["General", "Repositories", "Endpoints & Agents", "Usability"]);
@@ -61,7 +64,18 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
   assert.equal(tabs[0].getAttribute("aria-selected"), "true");
   const passphrase = byClass(target, "settings-export-passphrase")[0];
   passphrase.value = "unfinished passphrase";
+  click(tabs[1]);
+  const unreadable = byClass(target, "settings-repository").find((line) => /GitLab token: g\/p/.test(line.textContent));
+  assert.ok(unreadable, "failure node: an unreadable legacy address cannot remove the whole Settings page");
+  const secret = byClass(unreadable, "settings-repository-secret")[0];
+  assert.equal(secret.type, "password");
+  click(byClass(unreadable, "settings-repository-show")[0]);
+  assert.equal(secret.type, "text", "Show remains available for the stored token");
+  assert.ok(byClass(unreadable, "settings-repository-clear")[0], "Clear remains available for the stored token");
   click(tabs[2]);
+  click(byClass(target, "settings-endpoint-configure")[0]);
+  click(byClass(target, "settings-bridge-configure")[0]);
+  assert.deepEqual(navigations, [{ name: "endpoints", params: {} }, { name: "bridge", params: {} }], "the pane keeps the existing public endpoint and Bridge routes");
   click(tabs[0]);
   assert.equal(passphrase.value, "unfinished passphrase", "failure node: switching must retain the same General DOM input");
   assert.deepEqual(storage.snapshot(), before, "failure node: tab selection writes no browser setting");
