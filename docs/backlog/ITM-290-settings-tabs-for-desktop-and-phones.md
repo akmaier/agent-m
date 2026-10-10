@@ -70,6 +70,8 @@ privacy strategy, people search, mailbox setup, participant editor or general ex
 ViewContext already includes instance and product Hosts; the later caller supplies that context rather than inventing
 another cross-module interface.
 
+The shared-origin notice records its acknowledgement using the accepted browser-store catalogue entry `acknowledged:<notice>`. The Settings checkbox reflects that stored date after a reload; clearing it removes the acknowledgement. The same accepted key participates in export, import and whole-browser clear.
+
 The existing product controls read legacy settings bullets and collaborator agreement dates. Their current off state,
 names/accounts/consent dates and unrelated document content must survive the public-module replacement. Accepted
 schemas own canonical formats. Source delivery demonstrates the supported reading/writing boundary against existing
