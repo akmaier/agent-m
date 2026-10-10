@@ -3,7 +3,7 @@
 // docs/process.md, read from the module's own declaration.schema.md; declarationFindings; and workflowOf.
 // Run: node --test tests/product-process.test.mjs
 //
-// Module: MOD-product-process
+// Module: MOD-product-process; MOD-documents
 // Guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; THE MODEL DETERMINES THE PHASES AND THE GATES; A PROCESS REQUIREMENT ADDS TO THE MODEL; A PRACTICE IS NOT A MODEL; A ROLE NAMES THE CAPABILITIES IT NEEDS; A PRODUCT DECLARES ITS DEFINITION OF DONE; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // Level: unit
 //
@@ -681,13 +681,13 @@ Fixture practice.
   assert.deepEqual(workflow.gates[2].addedBy, { requirement: "UNIT VERIFICATION IS DOCUMENTED", source: "SRC-iec-62304, 5.5.5" });
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process; MOD-documents
 // given: the same selected practice, but its valid ## Adds holds the model's gate table directly, with no extra heading
 // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
 // expect: the exact model-schema table still adds its marked gate; prose and unrecognised text stay outside the workflow
 test("workflowOf — a valid practice gate table directly under Adds enters the workflow without an invented heading", async () => {
   const model = await teamScrum();
-  const practice = readDocument(modelSchema.practice, "docs/practices/bare-gate.md", `---
+  const practice = readDocument(modelSchema.practice, "src/model-catalogue/practices/bare-gate.md", `---
 name: bare-gate
 fits:
   - team-scrum
@@ -734,13 +734,13 @@ test("workflowOf — the job rules are the Definition of Done when the declarati
   assert.deepEqual(workflowOf(declarationOf(DECLARATION), model, [], INSTANCE_SPEC).done, JOB_RULES);
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process; MOD-documents
 // given: a schema-valid selected practice whose bare ## Adds phase table names a documented artifact kind
 // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
 // expect: the phase produces the kind TST, without the explanatory parenthesis
  test("workflowOf — a practice phase drops its Produces explanation as the model reader does", async () => {
   const model = await teamScrum();
-  const practice = readDocument(modelSchema.practice, "docs/practices/evidence-kind.md", `---
+  const practice = readDocument(modelSchema.practice, "src/model-catalogue/practices/evidence-kind.md", `---
 name: evidence-kind
 fits:
   - team-scrum
@@ -764,13 +764,13 @@ Fixture practice.
   });
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process; MOD-documents
 // given: a schema-valid selected practice whose bare ## Adds holds consecutive Phases and Roles model tables
 // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
 // expect: each contiguous table contributes only to its matching workflow collection
  test("workflowOf — consecutive bare phase and role tables do not cross into each other", async () => {
   const model = await teamScrum();
-  const practice = readDocument(modelSchema.practice, "docs/practices/bare-tables.md", `---
+  const practice = readDocument(modelSchema.practice, "src/model-catalogue/practices/bare-tables.md", `---
 name: bare-tables
 fits:
   - team-scrum
