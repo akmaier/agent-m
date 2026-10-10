@@ -1,4 +1,4 @@
-// Release tests of sprint 02, strand B — backlog items and their order, sprints, item states, the work-in-progress limit and the
+// Release tests of sprint 02, strand B — backlog items and the order they are listed in, sprints, item states, the work-in-progress limit and the
 // sprint's selection (ITM-143, testing ITM-033 and ITM-034). Written by tester-opus (claude-opus-5-5), the Release tester of
 // docs/process.md, who implemented nothing of the strand, from the SPEC rules, UC-032 and UC-033 alone; started on sprint/02 at
 // 58b7fe4, 2026-10-01.
@@ -7,19 +7,21 @@
 // Guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; A BACKLOG ITEM NAMES WHAT IT REALISES; EVERY ARTIFACT NAMES ITS ORIGIN; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; AGILE IMPLEMENTATION STARTS FROM THE BACKLOG; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032; UC-033
 // Level: release
 //
-// Two kinds of input. This very repository — its docs/backlog/ with order.md and the sprint files frozen as they were while
+// Two kinds of input. This very repository — its docs/backlog/ and the sprint files frozen as they were while
 // sprint 02 ran (the copy tests/fixtures/sprint-02-running/docs/backlog/, from sprint/02 at 87b3268, sprint-02.md's end empty;
 // the live backlog changes at every close), and its docs/use-cases/, read with fs because there are more of them than a
 // command line holds; Agent M's own SPEC.md is not read (its requirement names are not needed: an item's
-// form is checked with `requirements: null`). And fixtures written from the use cases: an item that realises nothing, an order
-// that names an item twice, an issue classified as a bug or a change, a Scrum product with limit 2, a Kanban product.
+// form is checked with `requirements: null`). And fixtures written from the use cases: an item that realises nothing, items
+// that build on each other, an issue classified as a bug or a change, a Scrum product with limit 2, a Kanban product. The
+// backlog keeps no order of its own (UC-032): its items are listed each after the items they build on, so the frozen copy's
+// order.md is not read.
 // Whether a start is allowed is read as itemState says it (its interface, MOD-work-items): allowed exactly when the state is
 // "ready" and no reason stands. Each expectation is stated before its case runs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { parseItem, itemProblems, backlogOrder, itemFromIssue } from "../docs/assets/work-items.mjs";
+import { parseItem, itemProblems, buildOrder, itemFromIssue } from "../docs/assets/work-items.mjs";
 import { sprint, itemState } from "../docs/assets/work-items/flow.mjs";
 
 const ROOT = new URL("../", import.meta.url);
@@ -40,7 +42,6 @@ const ITEM_FILES = readdirSync(new URL("docs/backlog/", FROZEN)).filter((f) => /
   .map((f) => `docs/backlog/${f}`);
 const ITEMS = ITEM_FILES.map((p) => parseItem(p, read(p)));
 const USE_CASES = readdirSync(new URL("docs/use-cases/", ROOT)).map((f) => /^(UC-\d{3})-/.exec(f)?.[1]).filter(Boolean);
-const ORDER_TEXT = read("docs/backlog/order.md");
 const SPRINT_02 = read("docs/backlog/sprints/sprint-02.md");
 
 const isStartAllowed = (st) => st.state === "ready" && st.reasons.length === 0;
@@ -134,34 +135,27 @@ test("release · work items: an item kept outside docs/backlog/ is an error", ()
   assert.deepEqual(parseItem("docs/backlog/ITM-900-export-a-thesis-as-pdf.md", text).problems, []);
 });
 
-// The order of this backlog (UC-032 step 5; docs/backlog/order.md: "One item per line, by its identifier; an item file this list
-// does not name is appended at the bottom"). Expected, from reading order.md's list lines independently: no problem; the order
-// places every item of docs/backlog/ exactly once; it begins with the list's items in the list's order and ends with the items
-// the list does not name, in the order of their identifiers.
-test("release · work items: this backlog's order places every item once, and appends the unnamed at the bottom", () => {
-  const listed = [...ORDER_TEXT.matchAll(/^\s*\d+\.\s+(ITM-\d{3})\b/gm)].map((m) => m[1]);
+// The order this backlog is listed in (UC-032 step 1: "Agent M shows the items, each after the items it builds on"; the backlog
+// keeps no order of its own). Expected: every item of docs/backlog/ exactly once, and every item it builds on that the backlog
+// holds stands before it.
+test("release · work items: this backlog is listed with every item once, each after the items it builds on", () => {
   const ids = ITEMS.map((i) => i.id);
-  const { order, unplaced, problems } = backlogOrder(ORDER_TEXT, ITEMS);
-  assert.deepEqual(problems, []);
+  const order = buildOrder(ITEMS);
   assert.equal(order.length, ids.length, "every item once");
   assert.deepEqual([...order].sort(), [...ids].sort(), "exactly the items of docs/backlog/");
-  const expectedUnplaced = ids.filter((id) => !listed.includes(id)).sort();
-  assert.deepEqual(unplaced, expectedUnplaced);
-  assert.deepEqual(order, [...listed, ...expectedUnplaced]);
+  for (const item of ITEMS) {
+    for (const before of item.dependsOn.filter((d) => ids.includes(d))) {
+      assert.ok(order.indexOf(before) < order.indexOf(item.id), `${before} before ${item.id}`);
+    }
+  }
 });
 
-// The order's own faults (UC-032 step 5 commits an order of the backlog's items). Expected: a line naming an item the backlog
-// does not have is a problem, so is an item named twice; an item no line names is appended at the bottom; the numbers of the
-// list are not read — the order is the order of the lines.
-test("release · work items: an order that names an unknown item or one twice is a problem; the unnamed are appended", () => {
-  const items = ["ITM-003", "ITM-001", "ITM-002", "ITM-004"].map((id) => ({ id }));
-  const text = "# Order\n\n3. ITM-002\n1. ITM-001\n2. ITM-099\n4. ITM-001\n";
-  const { order, unplaced, problems } = backlogOrder(text, items);
-  assert.deepEqual(order, ["ITM-002", "ITM-001", "ITM-003", "ITM-004"]);
-  assert.deepEqual(unplaced, ["ITM-003", "ITM-004"]);
-  assert.equal(problems.length, 2, "two problems");
-  assert.ok(problems.some((f) => f.line === 5 && /ITM-099/.test(f.what)), "the unknown item, on its line");
-  assert.ok(problems.some((f) => f.line === 6 && /ITM-001/.test(f.what)), "the second ITM-001, on its line");
+// Which item comes next (UC-032 step 1). Expected: of the items whose building blocks all stand before them, the one with the
+// smallest identifier; an item built on that the backlog lacks holds nothing back.
+test("release · work items: the next item listed is the smallest identifier whose building blocks stand before it", () => {
+  const items = [{ id: "ITM-001", dependsOn: ["ITM-004"] }, { id: "ITM-002", dependsOn: [] },
+    { id: "ITM-003", dependsOn: ["ITM-099"] }, { id: "ITM-004", dependsOn: [] }];
+  assert.deepEqual(buildOrder(items), ["ITM-002", "ITM-003", "ITM-004", "ITM-001"]);
 });
 
 // UC-033 steps 2 and postcondition — an item from an issue: title from the issue, outcome from its description, origin the

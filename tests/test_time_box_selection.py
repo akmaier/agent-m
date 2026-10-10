@@ -1,7 +1,11 @@
-# Module: MOD-work-items
+# Module: MOD-work-items; MOD-work-plans
 # Guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
 # Level: unit
-"""SPEC §13 A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT — when a product's model works in sprints, implementation
+"""SPEC §13 A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT — when a product's model works in sprints, a team's
+implementation jobs start only for items selected for that team's current sprint. With several teams running sprints at
+once, TestSeveralTeamsRunSprints asks MOD-work-plans' startable to start a job for every item under each team, and compares
+each answer with the team's current sprint (the fixture product of tests/parallel_sprints_fixture.py). The rest of this file
+asks the dashboard's kernel, for one team: implementation
 jobs start only for items selected for the current sprint (UC-032 step 6, 6a, 6b, and step 7: in a model with sprints
 and a WIP limit, both hold).
 
@@ -20,6 +24,7 @@ import unittest
 
 from artifact_checks import DOCS
 from flow_fixture import FIX, SELECTED, WIP, item_state, js, kinds, pr, starts
+from parallel_sprints_fixture import CURRENT, ITEMS, SELECTIONS, all_ready, start
 
 SPRINTS = FIX / "sprints"
 OPEN = (SPRINTS / "open.md").read_text(encoding="utf-8")
@@ -186,6 +191,25 @@ class TestSprintsAndALimitBothHold(unittest.TestCase):
 
     def test_a_selected_item_below_the_limit_starts(self):
         self.assertTrue(starts(item_state("ITM-017", "scrum-wip", sprint="open", prs=[pr(1, "ITM-014")])))
+
+
+
+class TestSeveralTeamsRunSprints(unittest.TestCase):
+    """team1 runs its sprint 01 and team2 its sprint 02 at the same time; every item is ready, and each team's Developers
+    have what the role needs."""
+
+    def test_a_job_starts_only_for_an_item_selected_for_its_own_teams_current_sprint(self):
+        started = 0
+        for team, path in CURRENT.items():
+            sprint = path.split("sprints/")[1][:-3]
+            for item in ITEMS:
+                got = start(item, team, all_ready())
+                with self.subTest(team=team, item=item):
+                    self.assertEqual(got["startable"], item in SELECTIONS[path])
+                    if not got["startable"]:
+                        self.assertTrue(any(item in r and sprint in r for r in got["reasons"]), got["reasons"])
+                    started += got["startable"]
+        self.assertTrue(started, "known positive: an item starts")
 
 
 if __name__ == "__main__":

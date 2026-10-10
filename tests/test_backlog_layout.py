@@ -2,13 +2,13 @@
 # Guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; UC-032
 # Level: unit
 """SPEC §13 THE BACKLOG LIVES IN THE PRODUCT REPOSITORY — a product's backlog is kept as Markdown under docs/backlog/ of
-the product's own repository: one file docs/backlog/ITM-<nnn>-<slug>.md per item, the order docs/backlog/order.md and,
-in a model with sprints, the sprint records under docs/backlog/sprints/ (UC-032, postcondition). No state is stored in
-them.
+the product's own repository: one file docs/backlog/ITM-<nnn>-<slug>.md per item and, in a model with sprints, each
+team's sprint records under docs/backlog/sprints/<team>/ (UC-032, postcondition). No state is stored in them, and no
+order: the backlog keeps none of its own (UC-032).
 
 docs/assets/work-items.mjs (MOD-work-items) reads them: parseItem(path, text) an item into its parts, with a problem for
-a file that is not where and what an item must be; backlogOrder(text, items) the order and the items it does not name
-yet, appended at the bottom. The fixtures are the backlog of a small product under tests/fixtures/backlog/docs/backlog/;
+a file that is not where and what an item must be; buildOrder(items) lists the items, each after the items it builds
+on. The fixtures are the backlog of a small product under tests/fixtures/backlog/docs/backlog/;
 Agent M's own backlog is read as it stands — it is the backlog of the instance's own product, not its SPEC, which no test
 reads (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). The module is asked through node (tests/jsrun.py).
 Counter-proofs: docs/measurements/2026-10-01_backlog-items.md.
@@ -49,9 +49,9 @@ def parse(path: str, text: str) -> dict:
     return js(f"return workItems.parseItem({json.dumps(path)}, {json.dumps(text)});")
 
 
-def order(text: str, items: dict) -> dict:
+def build_order(items: dict) -> list:
     return js(f"const items = Object.entries({json.dumps(items)}).map(([p, t]) => workItems.parseItem(p, t));"
-              f"return workItems.backlogOrder({json.dumps(text)}, items);")
+              "return workItems.buildOrder(items);")
 
 
 def edited(text: str, old: str, new: str) -> str:
@@ -120,41 +120,33 @@ class TestWhereAnItemLives(unittest.TestCase):
         self.assertEqual([(f["rule"], f["line"], f["what"]) for f in found], [(LIVES, 1, "the item has no front matter")])
 
 
-class TestTheOrder(unittest.TestCase):
-    ORDER = read(BACKLOG / "order.md")
+class TestTheBuildOrder(unittest.TestCase):
+    """The fixture backlog: ITM-014 builds on ITM-016, ITM-017 on ITM-014; ITM-015 and ITM-016 build on nothing."""
 
-    def test_the_order_names_items_and_the_rest_is_appended_at_the_bottom(self):
-        got = order(self.ORDER, files(BACKLOG))
-        self.assertEqual(got["order"], ["ITM-016", "ITM-014", "ITM-015", "ITM-017"])
-        self.assertEqual(got["unplaced"], ["ITM-015", "ITM-017"])
-        self.assertEqual(got["problems"], [])
+    def test_each_item_comes_after_the_items_it_builds_on_and_the_next_is_the_smallest_identifier_that_may_come(self):
+        self.assertEqual(build_order(files(BACKLOG)), ["ITM-015", "ITM-016", "ITM-014", "ITM-017"])
 
-    def test_the_order_follows_the_lines_not_their_numbers(self):
-        text = edited(edited(self.ORDER, "1. ITM-016", "2. ITM-016"), "2. ITM-014", "1. ITM-014")
-        self.assertEqual(order(text, files(BACKLOG))["order"][:2], ["ITM-016", "ITM-014"])
+    def test_without_an_item_built_on_the_items_stand_in_the_order_of_their_identifiers(self):
+        backlog = files(BACKLOG)
+        backlog[ITEM] = edited(backlog[ITEM], "depends_on:\n  - ITM-016", "depends_on: []")
+        backlog["docs/backlog/ITM-017-measure-the-export-time.md"] = edited(
+            backlog["docs/backlog/ITM-017-measure-the-export-time.md"], "depends_on:\n  - ITM-014", "depends_on: []")
+        self.assertEqual(build_order(backlog), ["ITM-014", "ITM-015", "ITM-016", "ITM-017"])
 
-    def test_an_order_naming_every_item_leaves_nothing_unplaced(self):
-        text = edited(self.ORDER, "2. ITM-014\n", "2. ITM-014\n3. ITM-017\n4. ITM-015\n")
-        got = order(text, files(BACKLOG))
-        self.assertEqual((got["order"], got["unplaced"]), (["ITM-016", "ITM-014", "ITM-017", "ITM-015"], []))
+    def test_an_item_built_on_that_the_backlog_lacks_holds_nothing_back(self):
+        backlog = files(BACKLOG)
+        backlog[ITEM] = edited(backlog[ITEM], "  - ITM-016", "  - ITM-099")
+        self.assertEqual(build_order(backlog), ["ITM-014", "ITM-015", "ITM-016", "ITM-017"])
 
-    def test_without_an_order_file_every_item_is_unplaced_in_the_order_of_its_identifier(self):
-        got = order("", files(BACKLOG))
-        self.assertEqual(got["order"], ["ITM-014", "ITM-015", "ITM-016", "ITM-017"])
-        self.assertEqual(got["unplaced"], got["order"])
-
-    def test_counter_proof_a_line_naming_no_item_or_an_item_twice_is_a_problem(self):
-        text = edited(self.ORDER, "2. ITM-014\n", "2. ITM-014\n3. ITM-099\n4. ITM-016\n")
-        got = order(text, files(BACKLOG))
-        self.assertEqual(got["order"], ["ITM-016", "ITM-014", "ITM-015", "ITM-017"])
-        self.assertEqual([(f["line"], f["rule"], f["what"]) for f in got["problems"]],
-                         [(11, LIVES, "the order names ITM-099, which is no item of the backlog"),
-                          (12, LIVES, "the order names ITM-016 a second time")])
-        self.assertTrue(all(f["artifact"] == "docs/backlog/order.md" and f["kind"] == "error" for f in got["problems"]))
-
-    def test_prose_and_other_lists_of_the_order_file_are_not_read_as_items(self):
-        text = self.ORDER + "\nSee ITM-017 for the measurement.\n\n- **ITM-015** waits for a decision.\n"
-        self.assertEqual(order(text, files(BACKLOG))["unplaced"], ["ITM-015", "ITM-017"])
+    def test_items_that_build_on_each_other_in_a_circle_come_last_each_once_in_the_order_of_their_identifiers(self):
+        backlog = files(BACKLOG)
+        backlog[ITEM] = edited(backlog[ITEM], "  - ITM-016", "  - ITM-017")
+        self.assertEqual(build_order(backlog), ["ITM-015", "ITM-016", "ITM-014", "ITM-017"])
+        backlog["docs/backlog/ITM-016-read-the-chapters.md"] = edited(
+            backlog["docs/backlog/ITM-016-read-the-chapters.md"], "depends_on: []", "depends_on:\n  - ITM-015")
+        backlog["docs/backlog/ITM-015-title-page.md"] = edited(
+            backlog["docs/backlog/ITM-015-title-page.md"], "depends_on: []", "depends_on:\n  - ITM-016")
+        self.assertEqual(build_order(backlog), ["ITM-014", "ITM-015", "ITM-016", "ITM-017"])
 
 
 @unittest.skipUnless(any((DOCS / "backlog").glob("ITM-*.md")), "this repository has no backlog items")
@@ -166,10 +158,12 @@ class TestAgentMsOwnBacklog(unittest.TestCase):
     def test_the_backlog_is_markdown_under_docs_backlog(self):
         names = sorted(p.relative_to(self.OWN).as_posix() for p in self.OWN.rglob("*") if p.is_file())
         items = [n for n in names if ITEM_FILE.match(n)]
-        sprints = [n for n in names if re.match(r"^sprints/(?:[a-z0-9-]+/)?[a-z0-9-]+\.md$", n)]
+        sprints = [n for n in names if re.match(r"^sprints/[a-z0-9-]+/\d+\.md$", n)]
         self.assertTrue(items)
-        self.assertTrue(sprints, "a model with sprints keeps its sprint records under docs/backlog/sprints/")
-        self.assertEqual(sorted(set(names) - set(items) - set(sprints)), ["order.md"])
+        self.assertTrue(sprints, "a model with sprints keeps each team's sprint records under docs/backlog/sprints/<team>/")
+        self.assertEqual(sorted(set(names) - set(items) - set(sprints)), [],
+                         "the backlog holds its items and the teams' sprints, and nothing else: no order, no sprint "
+                         "outside a team's folder")
 
     def test_every_item_of_this_repository_is_read_without_a_problem(self):
         own = files(self.OWN)
@@ -179,16 +173,11 @@ class TestAgentMsOwnBacklog(unittest.TestCase):
         self.assertEqual(found, [])
         self.assertEqual(count, len(own), "node read every item file Python sees")
 
-    @unittest.expectedFailure
-    def test_the_order_of_this_repository_places_every_item_once(self):
-        # FINDING B1: MOD-work-plans states docs/backlog/order.md as a table `Item`; backlogOrder
-        # (docs/assets/work-items.mjs) still reads the numbered list of the purged backlog, so it places none of the
-        # table's items (backlog item to be added by the Product Owner).
+    def test_the_build_order_of_this_repository_lists_every_item_once(self):
         own = files(self.OWN)
-        got = js(items_js(self.OWN) + f"return workItems.backlogOrder({json.dumps(read(self.OWN / 'order.md'))}, items);")
-        self.assertEqual((got["unplaced"], got["problems"]), ([], []))
-        self.assertEqual(sorted(got["order"]), sorted(re.match(r"ITM-\d{3}", Path(p).name).group(0) for p in own))
-
+        got = js(items_js(self.OWN) + "return workItems.buildOrder(items);")
+        self.assertEqual(sorted(got), sorted(re.match(r"ITM-\d{3}", Path(p).name).group(0) for p in own))
+        self.assertEqual(len(got), len(set(got)))
 
 if __name__ == "__main__":
     unittest.main()

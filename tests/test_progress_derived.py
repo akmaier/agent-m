@@ -5,7 +5,7 @@
 are checked here by ITM-085.
 
 Everything the process dashboard shows is computed from the repositories and the runtimes. In the app harness
-(tests/app-harness.mjs), the real dashboard shows the Backlog tab of a fixture product with a sprint, an order, three items
+(tests/app-harness.mjs), the real dashboard shows the Backlog tab of a fixture product with a sprint, three items
 and a fake of GitHub's pulls API; then all local storage and the cached file texts are deleted and the page is loaded again:
 it shows the same board and the same item states. Counter-proof: a state planted into local storage changes nothing shown.
 
@@ -29,7 +29,6 @@ const files = {
   "SPEC.md": "# SPEC\n\n## 1. Rules\n\n**RULE ONE** *(PO, 2026-09-01)*\nA rule.\n*Check:* no automatic check; at review.\n",
   "docs/process.md": "---\nmodel: fixture-scrum-wip\nmodel_file: docs/process-models/fixture.md\n---\n# How\n",
   "docs/process-models/fixture.md": MODEL,
-  "docs/backlog/order.md": "# Order\n\n1. ITM-001\n2. ITM-002\n3. ITM-003\n",
   "docs/backlog/sprints/sprint-01.md": "---\nid: sprint-01\ngoal: Derive the board\nstart: 2026-10-01\nend:\nselection:\n" +
     "  - ITM-001\n  - ITM-002\n  - ITM-003\ncloser: closer\nbranch: sprint/01\nmodel: fixture-scrum-wip\nplanned_by: owner\n---\n# Sprint\n",
   "docs/backlog/ITM-001-one.md": item("ITM-001", ["RULE ONE"]),

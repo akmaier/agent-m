@@ -31,7 +31,7 @@ PRELUDE = (
     "const read = (p) => fs.readFileSync(p, 'utf8');"
     "const items = Object.fromEntries(fs.readdirSync(BACKLOG).filter((n) => /^ITM-.*\\.md$/.test(n)).sort()"
     ".map((n) => workItems.parseItem('docs/backlog/' + n, read(BACKLOG + '/' + n))).map((i) => [i.id, i]));"
-    "const order = workItems.backlogOrder(read(BACKLOG + '/order.md'), Object.values(items)).order;"
+    "const order = workItems.buildOrder(Object.values(items));"
     "const model = (name) => processModel.parseModel(read(FIX + '/' + name + '.md'));"
     "const sprintOf = (name) => flow.sprint(read(FIX + '/sprints/' + name + '.md'));"
 )
