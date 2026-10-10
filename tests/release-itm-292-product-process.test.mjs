@@ -1,5 +1,5 @@
 // Independent release coverage for ITM-292's delivered role and gate readers. It uses the public
-// MOD-product-process interface with declared-process, workflow, and gate-record document snapshots.
+// MOD-product-process and MOD-documents interfaces with declared-process, workflow, and gate-record document snapshots.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -98,13 +98,13 @@ test("TST-292016: declared roles and workflow gates resolve through the public p
 
 // TST-292017
 // level: release
-// module: MOD-product-process
-// guards: THE GATE IS RECORDED
+// module: MOD-product-process; MOD-documents
+// guards: THE GATE IS RECORDED; MOD-documents
 // given: a release-review gate record snapshot with its required gate, decider, role, decision, checked text, and reason
 // input: public gateSchema through MOD-documents validates, writes, and reads the record
 // expect: the complete record has no finding and preserves every field and its recorded reason after the document round trip
 test("TST-292017: a complete declared gate record is preserved by the public gate schema", () => {
-  const original = record({ name: namedGate("Development → Review").name, on: [`src/product-process/gates.mjs@${TEXTS["src/product-process/gates.mjs"]}`] });
+  const original = record({ name: namedGate("Development → Review").name, path: "docs/gates/20261010-0211-development-review-a001.md", on: [`src/product-process/gates.mjs@${TEXTS["src/product-process/gates.mjs"]}`] });
   assert.deepEqual(documentFindings(gateSchema, original), []);
   const reread = readDocument(gateSchema, original.path, writeDocument(gateSchema, original));
   assert.deepEqual(reread.fields, original.fields);
