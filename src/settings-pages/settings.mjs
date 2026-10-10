@@ -1,14 +1,23 @@
 // MOD-settings-pages' implemented Settings slice: the endpoint settings MOD-browser-store already enumerates.
 
-import { clearSetting, exportSettings, importSettings, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
+import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
+import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
+import { saveFile } from "../artifact-edits/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
   node.append(...children);
   return node;
+}
+
+function attribute(node, name, value) {
+  if (typeof node.setAttribute === "function") node.setAttribute(name, value);
+  else node[name] = String(value);
 }
 
 function endpointName(key) {
@@ -193,6 +202,177 @@ function exportImportControls(context) {
   );
 }
 
+function browserClearControls(context) {
+  const clear = el("button", "settings-clear-everything", "Clear everything in this browser");
+  const result = el("p", "settings-clear-result");
+  clear.addEventListener("click", () => {
+    clearEverything(context.store);
+    result.textContent = "Every Agent M setting for this instance is cleared from this browser.";
+  });
+  return el("section", "settings-clear",
+    el("h3", null, "Clear this browser"),
+    el("p", null, "This removes this instance's stored settings from localStorage and does not change a repository."),
+    clear, result,
+  );
+}
+
+function repositoryLine(context, info) {
+  if (info.key !== "github-token" && info.key !== "products" &&
+    !info.key.startsWith("github-token:") && !info.key.startsWith("gitlab-token:")) return null;
+  const stored = readSetting(context.store, info.key);
+  const value = el("input", "settings-repository-secret");
+  const show = el("button", "settings-repository-show", "Show");
+  const clear = el("button", "settings-repository-clear", "Clear");
+  const change = el("button", "settings-repository-change", info.key === "products" ? "Add or remove products" : "Change");
+  const status = el("p", "settings-repository-status", stored ? (info.expires ? `Expires on ${info.expires}.` : "Stored in this browser.") : "Not set.");
+  const secret = stored?.value ?? "";
+  value.type = "password";
+  value.value = secret;
+  value.autocomplete = "off";
+  value.spellcheck = false;
+  show.addEventListener("click", () => {
+    const hidden = value.type === "password";
+    value.type = hidden ? "text" : "password";
+    show.textContent = hidden ? "Hide" : "Show";
+  });
+  clear.addEventListener("click", () => {
+    clearSetting(context.store, info.key);
+    value.value = "";
+    status.textContent = "Cleared from this browser.";
+  });
+  change.addEventListener("click", () => context.go("add-product", {}));
+  return el("section", "settings-repository",
+    el("h3", null, info.label), status,
+    ...(info.secret ? [el("p", null, el("label", null, "Stored token ", value, " ", show))] : [el("p", null, "Product addresses are stored in this browser.")]),
+    el("p", null, change, " ", clear),
+  );
+}
+
+function notificationsControls(context) {
+  const result = el("p", "settings-notifications-result");
+  const state = notificationState(context.store);
+  const status = el("p", "settings-notifications-status", state.on ? "On." : "Off.");
+  const on = el("button", "settings-notifications-on", "Switch on");
+  const test = el("button", "settings-notifications-test", "Test");
+  const off = el("button", "settings-notifications-off", "Switch off");
+  on.disabled = state.on || state.permission === "denied";
+  test.disabled = !state.on;
+  off.disabled = !state.on;
+  on.addEventListener("click", async () => {
+    try { const next = await switchOn(context.store); status.textContent = next.on ? "On." : "Blocked."; }
+    catch (error) { result.textContent = error.message; }
+  });
+  test.addEventListener("click", async () => {
+    try { await testNotification(); result.textContent = "Test notification sent."; }
+    catch (error) { result.textContent = error.message; }
+  });
+  off.addEventListener("click", async () => {
+    await switchOff(context.store);
+    status.textContent = "Off. Browser permission remains until you remove it in browser settings.";
+  });
+  return el("section", "settings-notifications",
+    el("h3", null, "Notifications"), status,
+    el("p", null, on, " ", test, " ", off),
+    explain("notifications"), result,
+  );
+}
+
+async function productControls(context) {
+  if (!context.product) return el("section", "settings-product", el("p", null, "Choose a product to edit its repository settings."));
+  const { settings, collaborators } = await settingsSchemas();
+  const { defaultBranch } = await context.product.host.repositoryInfo();
+  const snapshot = await context.product.host.readSnapshot(defaultBranch);
+  const settingsText = await snapshot.read(settings.path);
+  const collaboratorsText = await snapshot.read(collaborators.path);
+  const legacyOff = (text) => /(^|\n)- pseudonymisation: off(?:\n|$)/.test(text ?? "");
+  const settingState = (document, text) => legacyOff(text) ? "off" : pseudonymisationOf(document);
+  let settingsDocument = readDocument(settings, settings.path, settingsText ?? "# Settings of this product\n");
+  let collaboratorsBytes = collaboratorsText ?? "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n";
+  let collaboratorsDocument = readDocument(collaborators, collaborators.path, collaboratorsBytes);
+  let settingsBlob = snapshot.blob(settings.path), collaboratorsBlob = snapshot.blob(collaborators.path);
+  let settingsBytes = settingsText ?? "# Settings of this product\n";
+  const state = el("p", "settings-pseudonymisation-state", `Pseudonymisation is ${settingState(settingsDocument, settingsBytes)}.`);
+  const off = el("input", "settings-pseudonymisation-off"); off.type = "checkbox"; off.checked = settingState(settingsDocument, settingsBytes) === "off";
+  const acknowledgement = el("input", "settings-pseudonymisation-ack"); acknowledgement.type = "checkbox";
+  const save = el("button", "settings-pseudonymisation-save", "Save pseudonymisation");
+  const pseudoResult = el("p", "settings-pseudonymisation-result");
+  save.addEventListener("click", async () => {
+    if (off.checked && !acknowledgement.checked) { pseudoResult.textContent = "Tick I have read this before switching pseudonymisation off."; return; }
+    const legacy = /(^|\n)- pseudonymisation: (?:on|off)(?=\n|$)/;
+    const edited = { ...settingsDocument, fields: { ...settingsDocument.fields, pseudonymisation: off.checked ? "off" : "on" } };
+    const text = legacy.test(settingsBytes) ? (off.checked ? settingsBytes.replace(legacy, "$1- pseudonymisation: off") : settingsBytes.replace(legacy, "$1"))
+      : (writeDocument(settings, edited) || `---\npseudonymisation: ${off.checked ? "off" : "on"}\n---\n# Settings of this product\n`);
+    const result = await saveFile(context.product.host, { path: settings.path, text, openedBlob: settingsBlob });
+    if (result.refused) { pseudoResult.textContent = "Product settings changed meanwhile; nothing was written."; return; }
+    settingsBlob = result.blob; settingsBytes = text; settingsDocument = readDocument(settings, settings.path, text);
+    state.textContent = `Pseudonymisation is ${settingState(settingsDocument, settingsBytes)}.`;
+    pseudoResult.textContent = "Saved in the product repository.";
+  });
+  const name = el("input", "settings-collaborator-name"), account = el("input", "settings-collaborator-account");
+  const agreed = el("input", "settings-collaborator-agreed"); agreed.type = "checkbox";
+  const add = el("button", "settings-collaborator-save", "Save collaborator"); const collabResult = el("p", "settings-collaborator-result");
+  add.addEventListener("click", async () => {
+    if (!agreed.checked) { collabResult.textContent = "Tick that this person has agreed to be named."; return; }
+    const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
+    if (legacyRows.length || /\| Name \| Account \| Agreed on \|/.test(collaboratorsBytes)) {
+      const date = new Date().toISOString().slice(0, 10);
+      const text = `${collaboratorsBytes}${collaboratorsBytes.endsWith("\n") ? "" : "\n"}| ${name.value.trim()} | @${account.value.trim().replace(/^@/, "")} | ${date} |\n`;
+      const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
+      if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
+      collaboratorsBlob = result.blob; collaboratorsBytes = text; collabResult.textContent = "Saved in the product repository."; return;
+    }
+    const rows = collaboratorsDocument.sections[0]?.rows ?? [];
+    const edited = { ...collaboratorsDocument, sections: [{ ...(collaboratorsDocument.sections[0] ?? { heading: "# Collaborators of this product", line: 1, text: "", rows: [] }), rows: [...rows, { line: null, cells: { Name: name.value.trim(), Account: account.value.trim(), Agreed: "yes" } }] }] };
+    const text = writeDocument(collaborators, edited) || `# Collaborators of this product\n\n| Name | Account | Agreed |\n|---|---|---|\n| ${name.value.trim()} | ${account.value.trim()} | yes |\n`;
+    const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
+    if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
+    collaboratorsBlob = result.blob; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
+    collabResult.textContent = "Saved in the product repository.";
+  });
+  return el("section", "settings-product",
+    el("h3", null, `Product · ${context.product.address}`), state,
+    el("p", null, el("label", null, off, " Switch pseudonymisation off")),
+    el("p", "notice", "When off, report data enters this product unchanged; use only a protected, non-public data space."),
+    el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
+    el("h4", null, "Collaborators"),
+    el("p", null, el("label", null, "Name ", name)), el("p", null, el("label", null, "Account ", account)),
+    el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", add), collabResult);
+}
+
+function tabbedSettings(panes) {
+  const tabs = el("div", "settings-tabs");
+  attribute(tabs, "role", "tablist");
+  const buttons = [];
+  const select = (selected) => {
+    for (const { button, pane } of buttons) {
+      const chosen = button === selected;
+      attribute(button, "aria-selected", String(chosen));
+      button.tabIndex = chosen ? 0 : -1;
+      pane.hidden = !chosen;
+    }
+    selected.focus();
+  };
+  for (const pane of panes) {
+    attribute(pane.node, "role", "tabpanel");
+    attribute(pane.node, "aria-label", pane.name);
+    const button = el("button", "settings-tab", pane.name);
+    attribute(button, "role", "tab");
+    attribute(button, "aria-controls", pane.id);
+    pane.node.id = pane.id;
+    button.addEventListener("click", () => select(button));
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const index = buttons.findIndex((candidate) => candidate.button === button);
+      select(buttons[(index + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length].button);
+    });
+    buttons.push({ button, pane: pane.node });
+    tabs.append(button);
+  }
+  select(buttons[0].button);
+  return { tabs, panels: panes.map((pane) => pane.node) };
+}
+
 export const route = {
   name: "settings",
   entry: "settings",
@@ -204,15 +384,27 @@ export const route = {
       .filter(Boolean);
     const bridge = bridgeLine(target, context);
     const jumpHost = jumpHostLine(target, context);
-    target.replaceChildren(
-      el("h2", null, "Settings"),
-      el("h3", null, "This browser"),
+    const general = el("section", "settings-tab-panel",
+      el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
-      ...(bridge ? [bridge] : []),
-      ...(jumpHost ? [jumpHost] : []),
-      el("div", "settings-endpoints", ...endpoints),
-      exportImportControls(context),
-    );
+      exportImportControls(context), browserClearControls(context));
+    const product = await productControls(context);
+    const repositories = el("section", "settings-tab-panel",
+      el("h3", null, "Repositories · browser credentials and product records"),
+      ...listSettings(context.store).map((info) => repositoryLine(context, info)).filter(Boolean), product);
+    const endpointPane = el("section", "settings-tab-panel",
+      el("h3", null, "Endpoints & Agents · this browser"),
+      ...(bridge ? [bridge] : []), ...(jumpHost ? [jumpHost] : []),
+      el("div", "settings-endpoints", ...endpoints));
+    const usability = el("section", "settings-tab-panel",
+      el("h3", null, "Usability · this browser"), notificationsControls(context));
+    const tabbed = tabbedSettings([
+      { name: "General", id: "settings-general", node: general },
+      { name: "Repositories", id: "settings-repositories", node: repositories },
+      { name: "Endpoints & Agents", id: "settings-endpoints-agents", node: endpointPane },
+      { name: "Usability", id: "settings-usability", node: usability },
+    ]);
+    target.replaceChildren(el("h2", null, "Settings"), tabbed.tabs, ...tabbed.panels);
   },
 };
