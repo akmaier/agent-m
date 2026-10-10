@@ -235,6 +235,7 @@ function repositoryLine(context, info) {
     const status = el("p", "settings-repository-status", "Product addresses are stored in this browser.");
     change.addEventListener("click", () => context.go("add-product", {}));
     clear.addEventListener("click", () => {
+      if (!globalThis.confirm("Clear all managed products and their stored tokens from this browser?")) return;
       for (const web of readSetting(context.store, "products") ?? []) clearProductToken(context.store, web);
       clearSetting(context.store, info.key);
       status.textContent = "Cleared from this browser with every product's own token.";
@@ -263,7 +264,7 @@ function repositoryLine(context, info) {
   value.autocomplete = "off";
   value.spellcheck = false;
   expiry.type = "date";
-  expiry.value = stored?.expires ?? "";
+  expiry.value = stored?.expires ?? new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
   acknowledgement.type = "checkbox";
   acknowledgement.disabled = true;
   value.disabled = true;
@@ -322,6 +323,7 @@ function repositoryLine(context, info) {
     el("h3", null, info.label), status,
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
     el("p", null, `Expires on `, expiry, " ", renewal),
+    el("details", "settings-repository-explanation", el("summary", null, "Why this token is needed"), el("p", null, "This token is used only to read and write this repository. Give it the minimum repository scope needed for that purpose.")),
     el("p", "notice settings-repository-shared-origin", sharedPagesNotice(context)),
     el("p", null, el("label", null, acknowledgement, " I have read this.")),
     el("p", null, change, " ", save, " ", test, " ", clear), result,
@@ -362,6 +364,7 @@ function productListControls(target, context) {
       } catch (error) { result.textContent = `✗ ${error.message}`; }
     });
     remove.addEventListener("click", async () => {
+      if (!globalThis.confirm(`Remove ${web} and its stored token from this browser?`)) return;
       clearProductToken(context.store, web);
       writeSetting(context.store, "products", products.filter((candidate) => candidate !== web));
       await route.render(target, context, {});
@@ -496,7 +499,8 @@ async function productControls(context) {
   const acknowledgement = el("input", "settings-pseudonymisation-ack"); acknowledgement.type = "checkbox";
   const save = el("button", "settings-pseudonymisation-save", "Save pseudonymisation");
   const pseudoResult = el("p", "settings-pseudonymisation-result");
-  save.addEventListener("click", async () => {
+  save.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
     if (off.checked && !acknowledgement.checked) { pseudoResult.textContent = "Tick I have read this before switching pseudonymisation off."; return; }
     const legacy = /(^|\n)- pseudonymisation: (?:on|off)(?=\n|$)/;
     const edited = { ...settingsDocument, fields: { ...settingsDocument.fields, pseudonymisation: off.checked ? "off" : "on" } };
@@ -510,18 +514,24 @@ async function productControls(context) {
   });
   const name = el("input", "settings-collaborator-name"), account = el("input", "settings-collaborator-account");
   const agreed = el("input", "settings-collaborator-agreed"); agreed.type = "checkbox";
+  const agreedDate = el("input", "settings-collaborator-agreed-date"); agreedDate.type = "date"; agreedDate.value = new Date().toISOString().slice(0, 10);
   const add = el("button", "settings-collaborator-save", "Save collaborator"); const collabResult = el("p", "settings-collaborator-result");
   const removeName = el("input", "settings-collaborator-remove-name"), removeAccount = el("input", "settings-collaborator-remove-account");
   const remove = el("button", "settings-collaborator-remove", "Remove collaborator consent");
-  add.addEventListener("click", async () => {
+  add.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
     if (!agreed.checked) { collabResult.textContent = "Tick that this person has agreed to be named."; return; }
     const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
     if (legacyRows.length || /\| Name \| Account \| Agreed on \|/.test(collaboratorsBytes)) {
-      const date = new Date().toISOString().slice(0, 10);
+      const date = agreedDate.value;
       const text = `${collaboratorsBytes}${collaboratorsBytes.endsWith("\n") ? "" : "\n"}| ${name.value.trim()} | @${account.value.trim().replace(/^@/, "")} | ${date} |\n`;
       const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
       if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
-      collaboratorsBlob = result.blob; collaboratorsBytes = text; collabResult.textContent = "Saved in the product repository."; return;
+      collaboratorsBlob = result.blob; collaboratorsBytes = text;
+      const records = el("li", null, `${name.value.trim()} · @${account.value.trim().replace(/^@/, "")} · agreed on ${date}`);
+      const list = collabResult.parentNode?.childNodes?.find?.((node) => node.className === "settings-collaborator-records");
+      if (list) list.append(records);
+      collabResult.textContent = "Saved in the product repository."; return;
     }
     const rows = collaboratorsDocument.sections[0]?.rows ?? [];
     const edited = { ...collaboratorsDocument, sections: [{ ...(collaboratorsDocument.sections[0] ?? { heading: "# Collaborators of this product", line: 1, text: "", rows: [] }), rows: [...rows, { line: null, cells: { Name: name.value.trim(), Account: account.value.trim(), Agreed: "yes" } }] }] };
@@ -531,7 +541,8 @@ async function productControls(context) {
     collaboratorsBlob = result.blob; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
     collabResult.textContent = "Saved in the product repository.";
   });
-  remove.addEventListener("click", async () => {
+  remove.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
     const wantedName = removeName.value.trim(), wantedAccount = removeAccount.value.trim().replace(/^@/, "");
     if (!wantedName || !wantedAccount) { collabResult.textContent = "Enter the collaborator name and account to remove consent."; return; }
     const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
@@ -547,20 +558,21 @@ async function productControls(context) {
     const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsBytes = text; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
-    collabResult.textContent = "Removed this collaborator's consent record from the product repository.";
+    collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
+    if (result.url) { const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = result.url; collabResult.append(link); }
   });
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
-    el("p", "notice", "When off, report data enters this product unchanged; use only a protected, non-public data space."),
+    el("p", "notice", "When off, report data enters issues and the repository unchanged. In a public product it is published; switching back on requires a history rewrite."),
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
     el("h4", null, "Collaborators"),
     el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))),
     el("p", null, el("label", null, "Name ", name)), el("p", null, el("label", null, "Account ", account)),
-    el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", add),
+    el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", el("label", null, "Consent date ", agreedDate), " ", add),
     el("h4", null, "Remove collaborator consent"),
     el("p", null, el("label", null, "Name ", removeName)), el("p", null, el("label", null, "Account ", removeAccount)),
-    el("p", null, remove), collabResult);
+    el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
 }
 
 function tabbedSettings(panes) {
