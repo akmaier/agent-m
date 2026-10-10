@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { gitBlobSha } from "../docs/assets/review-core.mjs";
-import { repoServer, openDashboard, richDocument, press, settle, REPO, TOKEN } from "./app-harness.mjs";
+import { repoServer, openDashboard, press, settle, REPO, TOKEN } from "./app-harness.mjs";
 
 const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the instance (store.mjs prefixOf)
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
@@ -95,10 +95,20 @@ async function withProduct(instanceFiles, productFiles) {
   return { instance, product, productAuthorizations };
 }
 
-// What a person reads: tags stripped, entities decoded, runs of whitespace (including a template literal's own line
-// wraps) collapsed to one space — as tests/release-sprint-04-uc-001-repository-hosts.test.mjs's own textOf does.
-const unesc = (s) => String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-const textOf = (html) => unesc(String(html).replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
+
+// MOD-settings-pages owns the Settings DOM. Capture the mounted public Usability tab rather than reaching the retired
+// dashboard-owned notifications-settings box.
+async function usabilitySettings(page) {
+  const main = globalThis.document.getElementById("main");
+  const replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Usability/.test(node.textContent));
+  assert.ok(pane, "the dashboard mounts MOD-settings-pages' public Usability tab");
+  return pane;
+}
 
 const PRODUCT_ENTRIES = {
   [`${PREFIX}products`]: JSON.stringify([`https://github.com/${PRODUCT}`]),
@@ -139,12 +149,9 @@ test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page asks before the cl
   try {
     const page = await openDashboard({ server, hash: "#uc" });
     assert.equal(browser.calls.requestPermission, 0, "the review page alone does not ask");
-    await page.go("#settings");
+    const box = await usabilitySettings(page);
     assert.equal(browser.calls.requestPermission, 0, "opening settings alone does not ask either");
-
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    await press(server, box.querySelector("[data-notifications-switch-on]"));
+    await press(server, publicControls(box, "settings-notifications-on")[0]);
     assert.equal(browser.calls.requestPermission, 1, "the click asks the permission, once");
   } finally { browser.restore(); }
 });
@@ -212,10 +219,9 @@ test("CONFIGURATION LIVES IN THE BROWSER — Switch on is kept in this browser's
   });
   const browser = installBrowser();
   try {
-    const page = await openDashboard({ server, hash: "#settings" });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    await press(server, box.querySelector("[data-notifications-switch-on]"));
+    const page = await openDashboard({ server, hash: "#uc" });
+    const box = await usabilitySettings(page);
+    await press(server, publicControls(box, "settings-notifications-on")[0]);
 
     assert.notEqual(globalThis.localStorage.getItem(`${PREFIX}notifications`), null, "kept in this browser's own storage");
     assert.deepEqual(written, [], "Agent M has no other store for it: no write request was made");
@@ -230,13 +236,12 @@ test("EVERY SETTING IS REACHED FROM ONE PAGE — the \"notifications\" key the d
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
   try {
-    await openDashboard({
-      server, hash: "#settings",
+    const page = await openDashboard({
+      server, hash: "#uc",
       entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: minutesAgo(6) }) },
     });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    assert.match(box.innerHTML, /<h3>Notifications<\/h3>/, "the key this browser keeps has a place on the settings page");
+    const box = await usabilitySettings(page);
+    assert.match(box.textContent, /Notifications/, "the key this browser keeps has a place on the settings page");
   } finally { browser.restore(); }
 });
 
@@ -248,20 +253,19 @@ test("A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN — Test and Swi
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
   try {
-    await openDashboard({
-      server, hash: "#settings",
+    const page = await openDashboard({
+      server, hash: "#uc",
       entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: minutesAgo(6) }) },
     });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    assert.match(box.innerHTML, /<p class="state">✓ on<\/p>/, "the setting is shown");
-    const testBtn = box.querySelector("[data-notifications-test]");
-    const offBtn = box.querySelector("[data-notifications-switch-off]");
+    const box = await usabilitySettings(page);
+    assert.match(box.textContent, /On\./, "the setting is shown");
+    const testBtn = publicControls(box, "settings-notifications-test")[0];
+    const offBtn = publicControls(box, "settings-notifications-off")[0];
     assert.ok(testBtn, "tested, where the setting is shown");
     assert.ok(offBtn, "cleared, where the setting is shown");
 
     await press(server, testBtn);
-    assert.match(box.querySelector('[data-result="notifications"]').textContent, /Test notification shown/);
+    assert.match(publicControls(box, "settings-notifications-result")[0].textContent, /Test notification shown/);
 
     await press(server, offBtn);
     assert.equal(globalThis.localStorage.getItem(`${PREFIX}notifications`), null, "Switch off is a real clear");
@@ -297,11 +301,9 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
   try {
-    await openDashboard({ server, hash: "#settings" });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    const explanationHtml = /<details class="explain"><summary>What is this\?<\/summary><div>([\s\S]*)<\/div><\/details>/.exec(box.innerHTML)?.[1] ?? "";
-    const explanation = textOf(explanationHtml);
+    const page = await openDashboard({ server, hash: "#uc" });
+    const box = await usabilitySettings(page);
+    const explanation = box.textContent;
     assert.match(explanation, /every five minutes while a page of this dashboard is open/, "how often, and while what");
     assert.match(explanation, /this browser's own tokens and nowhere else/, "whose tokens, and nowhere else");
     assert.match(explanation, /nothing is checked while no page is open/, "nothing while no page is open");
