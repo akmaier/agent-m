@@ -228,6 +228,7 @@ test("TST-290113: Settings removes one legacy collaborator consent row without a
   const target = document.createElement("div");
   await route().render(target, { instance: { repository: "fixture/instance" }, product: { address: "https://github.com/fixture/product", kind: "github", host }, store: openStore("fixture/instance"), go() {} }, {});
   click(byClass(target, "settings-tab")[1]);
+  assert.match(byClass(target, "settings-collaborator-records")[0].textContent, /Ada Example.*@ada.*2026-09-01/, "the selected product exposes the existing consent name, account, and date before any edit");
   byClass(target, "settings-collaborator-remove-name")[0].value = "Ada Example";
   byClass(target, "settings-collaborator-remove-account")[0].value = "@ada";
   await new Promise((resolve) => { click(byClass(target, "settings-collaborator-remove")[0]); setImmediate(resolve); });

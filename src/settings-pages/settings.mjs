@@ -462,6 +462,10 @@ async function productControls(context) {
   let collaboratorsDocument = readDocument(collaborators, collaborators.path, collaboratorsBytes);
   let settingsBlob = snapshot.blob(settings.path), collaboratorsBlob = snapshot.blob(collaborators.path);
   let settingsBytes = settingsText ?? "# Settings of this product\n";
+  const legacyCollaborators = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)]
+    .map((row) => ({ name: row[1].trim(), account: row[2].trim().replace(/^@/, ""), agreed: row[3] }));
+  const collaboratorRows = legacyCollaborators.length ? legacyCollaborators : (collaboratorsDocument.sections[0]?.rows ?? [])
+    .map((row) => ({ name: row.cells.Name, account: String(row.cells.Account ?? "").replace(/^@/, ""), agreed: row.cells["Agreed on"] ?? row.cells.Agreed ?? "recorded" }));
   const state = el("p", "settings-pseudonymisation-state", `Pseudonymisation is ${settingState(settingsDocument, settingsBytes)}.`);
   const off = el("input", "settings-pseudonymisation-off"); off.type = "checkbox"; off.checked = settingState(settingsDocument, settingsBytes) === "off";
   const acknowledgement = el("input", "settings-pseudonymisation-ack"); acknowledgement.type = "checkbox";
@@ -526,6 +530,7 @@ async function productControls(context) {
     el("p", "notice", "When off, report data enters this product unchanged; use only a protected, non-public data space."),
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
     el("h4", null, "Collaborators"),
+    el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))),
     el("p", null, el("label", null, "Name ", name)), el("p", null, el("label", null, "Account ", account)),
     el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", add),
     el("h4", null, "Remove collaborator consent"),
