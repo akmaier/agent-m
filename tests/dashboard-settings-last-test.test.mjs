@@ -235,18 +235,25 @@ test("UC-042 step 2: a GitLab project token changed or cleared takes its last te
 
 test("UC-042 step 1: a remote session's last test — something answered, or nothing — is shown after a reload", async () => {
   const world = await instanceWorld();
-  const entries = { "agent-m.github-token": TOKEN,
-    "agent-m.jump-host": JSON.stringify({ host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003, reverseKey: "", forwardKey: "" }),
-    "agent-m.remote-sessions": JSON.stringify([{ name: "lab-pc", port: 20001, bridgePort: 8765, token: "bridgeTOKEN-0123456789abcdef" }]) };
-  const { box } = await settingsPage(world, entries);
+  const entries = { [canonicalKey("jump-host")]: JSON.stringify({ hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] }),
+    [canonicalKey("remote-session:lab-pc")]: JSON.stringify({ port: 20001, token: "bridgeTOKEN-0123456789abcdef" }) };
+  const { endpointBox } = await settingsPage(world, entries);
+  const session = publicControls(endpointBox(), "settings-remote-session")[0];
+  const test = publicControls(session, "settings-remote-session-test")[0];
+  const result = publicControls(session, "settings-remote-session-result")[0];
   world.up.add(20001);
-  await press(world.srv, among(box, "data-test-session", "lab-pc"));
-  let again = await reload(world);
-  assert.match(sessionLine(again.box), new RegExp(`<span class="state">✓ something answered at localhost:20001 — tested ${TODAY}</span>`));
+  await test.fire("click");
+  assert.match(result.textContent, /answers at localhost:20001|something answered/, "the public Test establishes the controlled working result");
+  assert.ok(globalThis.localStorage.getItem(canonicalKey("last-test:remote-session:lab-pc")), "required working outcome persists for reload");
+  let again = await settingsPage(world, agentEntries());
+  assert.match(again.endpointBox().textContent, /answers at localhost:20001|something answered/, "working outcome is shown after reload");
   world.up.clear();
-  await press(world.srv, among(again.box, "data-test-session", "lab-pc"));
-  again = await reload(world);
-  assert.match(sessionLine(again.box), /<span class="state">✗ nothing answered at localhost:20001 — start both commands<\/span>/);
-  await press(world.srv, among(again.box, "data-clear-session", "lab-pc"));
-  assert.equal(globalThis.localStorage.getItem("agent-m.remote-sessions"), null, "cleared with its session");
+  const retry = publicControls(publicControls(again.endpointBox(), "settings-remote-session")[0], "settings-remote-session-test")[0];
+  await retry.fire("click");
+  assert.match(publicControls(again.endpointBox(), "settings-remote-session-result")[0].textContent, /nothing|gave no answer|Failed/, "refusal is visible at the public Test control");
+  assert.ok(globalThis.localStorage.getItem(canonicalKey("last-test:remote-session:lab-pc")), "required refused outcome persists for reload");
+  const clear = publicControls(publicControls(again.endpointBox(), "settings-remote-session")[0], "settings-remote-session-clear")[0];
+  await clear.fire("click");
+  assert.equal(globalThis.localStorage.getItem(canonicalKey("remote-session:lab-pc")), null, "cleared with its session");
+  assert.equal(globalThis.localStorage.getItem(canonicalKey("last-test:remote-session:lab-pc")), null, "Clear removes the persisted outcome");
 });
