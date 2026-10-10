@@ -10,12 +10,36 @@
 
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
+import { existsSync, lstatSync, mkdirSync, readlinkSync, rmdirSync, symlinkSync, unlinkSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import { spawnSync } from "node:child_process";
+import test, { after } from "node:test";
 import { openDashboard, press, repoServer, richDocument } from "./app-harness.mjs";
-import { compose } from "../src/desktop-shell/compose.mjs";
+
+const fixtureRoot = new URL("..", import.meta.url).pathname;
+const ssh2Cache = join(tmpdir(), "agent-m-291-release-ssh2-1.17.0");
+const fixtureModules = join(fixtureRoot, "node_modules"), fixtureSsh2 = join(fixtureModules, "ssh2");
+let fixtureModulesCreated = false, fixtureSsh2Owned = false;
+function ssh2Runtime() {
+  if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
+    const installed = spawnSync("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"], { encoding: "utf8", timeout: 40_000 });
+    if (installed.status !== 0) throw new Error(`ssh2 staging failed: ${installed.stderr}`);
+  }
+  return join(ssh2Cache, "node_modules");
+}
+function stageSsh2() {
+  const target = join(ssh2Runtime(), "ssh2");
+  if (!existsSync(fixtureModules)) { mkdirSync(fixtureModules); fixtureModulesCreated = true; }
+  if (existsSync(fixtureSsh2)) {
+    if (!lstatSync(fixtureSsh2).isSymbolicLink() || readlinkSync(fixtureSsh2) !== target) throw new Error("existing fixture ssh2 link differs");
+  } else { symlinkSync(target, fixtureSsh2); fixtureSsh2Owned = true; }
+}
+stageSsh2();
+after(() => { if (fixtureSsh2Owned) unlinkSync(fixtureSsh2); if (fixtureModulesCreated) rmdirSync(fixtureModules); });
+
+const { compose } = await import("../src/desktop-shell/compose.mjs");
 
 const ORIGIN = "https://akmaier.github.io", PREFIX = "agent-m:akmaier/agent-m:";
 const HTTPS = "https://jump.example.test/bridge/local", LOGIN = { user: "web-user", password: "web-password" };
