@@ -99,7 +99,8 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     const [folder, ca, certificate, certificateKey] = process.argv.slice(1);
     const origin = "https://akmaier.github.io", prefix = "agent-m:akmaier/agent-m:", nativeFetch = globalThis.fetch;
     const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const listen = server => new Promise((resolve, reject) => server.listen(0, "127.0.0.1", error => error ? reject(error) : resolve(server.address().port)));
+    const listen = server => new Promise((resolve, reject) => { const onError = error => reject(error); server.once("error", onError); server.listen(0, "127.0.0.1", () => { server.off("error", onError); resolve(server.address().port); }); });
+    const listenAt = (server, port, host) => new Promise((resolve, reject) => { const onError = error => reject(error); server.once("error", onError); server.listen(port, host, () => { server.off("error", onError); resolve(); }); });
     const close = server => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     const hash = value => "{SHA}" + createHash("sha1").update(value).digest("base64");
     const reservePort = async () => { const server = net.createServer(); const port = await listen(server); await close(server); return port; };
@@ -133,7 +134,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         const receipt = { order: ++receiptOrder, signedAuthenticationOrder: signedAuthentication.order, bind: info.bindAddr, port: info.bindPort }; sshForwarding.push(receipt);
         assert.ok(receipt.signedAuthenticationOrder < receipt.order, "the signed Bridge-key authentication precedes reverse forwarding");
         remote = net.createServer(socket => client.forwardOut(info.bindAddr, info.bindPort, socket.remoteAddress, socket.remotePort, (error, stream) => { if (error) return socket.destroy(error); tunnelReceipts.push({ bind: info.bindAddr, port: info.bindPort, signedAuthenticationOrder: signedAuthentication.order }); socket.pipe(stream).pipe(socket); }));
-        try { await new Promise((resolve, rejectListen) => remote.listen(info.bindPort, info.bindAddr, error => error ? rejectListen(error) : resolve())); accept(); } catch (error) { reject(); }
+        try { await listenAt(remote, info.bindPort, info.bindAddr); accept(); } catch (error) { reject(); }
       });
     });
     const sshPort = await listen(ssh), tunnelPort = await reservePort(), persistedPort = await reservePort();
