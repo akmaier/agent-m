@@ -170,6 +170,14 @@ export function connect(address, credentials = {}) {
       return pattern === undefined ? tags : tags.filter((t) => globPattern(pattern).test(t.name));
     },
 
+    // listPullRequests({ state, branch }) -> PullRequest[] — the repository's pull or merge requests, through its server.
+    // Crosses the network and fails as readSnapshot.
+    listPullRequests: (filter = {}) => adapter.listPullRequests(filter),
+
+    // pullRequestFacts(number) -> PullRequestFacts — immutable base/head files and the server's recorded review and CI facts.
+    // Crosses the network and fails as readSnapshot.
+    pullRequestFacts: (number) => adapter.pullRequestFacts(number),
+
     // commitFiles({ branch, expectedHead, files, message }) -> { commit, url } — one commit of all the files, made only if the
     // branch still stands at expectedHead; expectedHead null makes an empty repository's first commit — on GitHub two, the first
     // file and then the others —; the message is written as given. Crosses the network; fails with Moved,

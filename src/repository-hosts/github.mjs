@@ -43,6 +43,16 @@ export function githubAdapter(address, { token, tokenName }, links) {
     const answer = await call("GET", url, options);
     return answer instanceof Response ? json(answer, API) : answer;
   };
+  const page = async (url, options) => {
+    const answer = await call("GET", url, options);
+    return { items: await json(answer, API), link: answer.headers.get("link") ?? "" };
+  };
+  const nextLink = (link) => /<([^>]+)>;\s*rel="?next"?/i.exec(link)?.[1] ?? null;
+  const pull = (p) => ({ number: p.number, title: p.title ?? "", branch: p.head?.ref ?? "", base: p.base?.ref ?? "",
+    head: p.head?.sha ?? "", state: p.state === "open" ? "open" : p.merged_at ? "merged" : "closed", draft: p.draft === true,
+    url: p.html_url ?? "", opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null });
+  const ci = (runs) => runs.some((r) => r.status !== "completed") ? "running" : runs.some((r) => r.conclusion === "failure" || r.conclusion === "timed_out") ? "failure" : runs.some((r) => r.conclusion === "success") ? "success" : "none";
+  const check = (r) => ({ name: r.name, state: r.status !== "completed" ? "running" : ({ success: "success", failure: "failure", neutral: "neutral", cancelled: "cancelled", skipped: "skipped", timed_out: "timed out" }[r.conclusion] ?? "failure"), url: r.details_url ?? "" });
 
   // An empty repository: GitHub's Git database answers 409 "Git Repository is empty." while a repository has no commit ("Using
   // the REST API to interact with your Git database", read 2026-10-06). Any other 409 — a repository GitHub is still creating —
@@ -105,6 +115,36 @@ export function githubAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       return tags;
+    },
+
+    async listPullRequests({ state = "all", branch } = {}) {
+      if (!["open", "merged", "closed", "all"].includes(state)) throw new TypeError("state is open, merged, closed or all");
+      if (branch !== undefined && (typeof branch !== "string" || !branch)) throw new TypeError("branch is a text");
+      const owner = address.path.split("/")[0];
+      let url = `${repo}/pulls?state=${state === "open" ? "open" : state === "all" ? "all" : "closed"}&per_page=${PAGE}` + (branch ? `&head=${encodeURIComponent(`${owner}:${branch}`)}` : "");
+      const pulls = [];
+      for (let i = 0; url && i < MAX_PAGES; i += 1) {
+        const p = await page(url); pulls.push(...p.items.map(pull)); url = nextLink(p.link);
+      }
+      return pulls.filter((p) => state === "all" || p.state === state);
+    },
+
+    async pullRequestFacts(number) {
+      if (!Number.isInteger(number) || number < 1) throw new TypeError("pullRequestFacts names a pull request number");
+      const raw = await read(`${repo}/pulls/${number}`), request = pull(raw), base = raw.base?.sha, head = raw.head?.sha;
+      const commits = await read(`${repo}/pulls/${number}/commits?per_page=${PAGE}`);
+      const facts = [];
+      for (const c of commits) {
+        const detail = await read(`${repo}/commits/${c.sha}`), runs = (await read(`${repo}/actions/runs?head_sha=${c.sha}&per_page=${PAGE}`)).workflow_runs ?? [];
+        facts.push({ sha: c.sha, message: c.commit?.message ?? "", files: (detail.files ?? []).map((f) => f.filename), ci: ci(runs) });
+      }
+      const files = (await read(`${repo}/pulls/${number}/files?per_page=${PAGE}`)).map((f) => ({ path: f.filename, change: f.status }));
+      const reviews = (await read(`${repo}/pulls/${number}/reviews?per_page=${PAGE}`)).map((r) => ({ reviewer: r.user?.login ?? "", verdict: ({ APPROVED: "approved", CHANGES_REQUESTED: "changes requested", COMMENTED: "commented", DISMISSED: "dismissed" }[r.state] ?? "commented"), commit: r.commit_id ?? head, date: r.submitted_at }));
+      const checks = [...((await read(`${repo}/commits/${head}/check-runs?per_page=${PAGE}`)).check_runs ?? []).map(check), ...((await read(`${repo}/commits/${head}/status`)).statuses ?? []).map((s) => ({ name: s.context, state: s.state === "success" ? "success" : s.state === "pending" ? "queued" : s.state === "failure" || s.state === "error" ? "failure" : "neutral", url: s.target_url ?? "" }))];
+      return { pullRequest: request, commits: facts, files, reviews, checks, read: (path, side) => {
+        if (side !== "base" && side !== "head") throw new TypeError("side is base or head");
+        return this.readFile(side === "base" ? base : head, path);
+      } };
     },
 
     // One file's text at a commit, or null where the commit does not hold it: with a token through the API — the only place
