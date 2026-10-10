@@ -43,7 +43,7 @@ async function versionHash(files) {
  * newestVersion(entry: Document) -> Promise<SourceVersion | null> — the newest version of a register entry: the last row of
  * its `## Versions`, with its files and their SHA-256 from the table under `### Files of <version>`, and its version's
  * hash; null when the entry records no version.
- * @param {import("../documents/index.mjs").Document} entry
+ * @param {Document} entry
  */
 export async function newestVersion(entry) {
   const versions = entry.sections.find((section) => section.heading === "## Versions");
