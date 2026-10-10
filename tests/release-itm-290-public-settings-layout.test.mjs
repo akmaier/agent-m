@@ -62,7 +62,7 @@ const fixture = () => {
     const file = normalize(join(root, relative));
     if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) { response.writeHead(404); response.end(); return; }
     if (relative === "docs/index.html") { response.setHeader("content-type", "text/html"); response.end(readFileSync(file, "utf8").replace("<head>", `<head><script>${api}</script>`)); return; }
-    response.writeHead(200, { "content-type": relative.endsWith(".mjs") ? "text/javascript" : relative.endsWith(".css") ? "text/css" : relative.endsWith(".json") ? "application/json" : "application/octet-stream" }); createReadStream(file).pipe(response);
+    response.writeHead(200, { "content-type": relative.endsWith(".mjs") || relative.endsWith(".js") ? "text/javascript" : relative.endsWith(".css") ? "text/css" : relative.endsWith(".json") ? "application/json" : "application/octet-stream" }); createReadStream(file).pipe(response);
   });
 };
 
