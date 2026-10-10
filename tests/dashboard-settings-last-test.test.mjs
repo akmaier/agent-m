@@ -105,7 +105,7 @@ test("UC-042 step 1: a successful Test of the GitHub token is shown after a relo
   await repositoryControl(box, "test").fire("click");
   const stored = JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"));
   assert.equal(stored.outcome, "working");
-  assert.equal(repositoryControl(box, "status").textContent, `Works. Last successful test: ${stored.at}.`, "the public row shows the exact persisted successful-test date");
+  assert.match(repositoryControl(box, "status").textContent, new RegExp(`Expires on ${day(90)}\\. Works\\. Last successful test: ${stored.at}\\.$`), "the public row preserves both expiry and the exact persisted successful-test date");
   assert.match(repositoryControl(box, "status").textContent, /Last successful test:/);
   const again = await settingsPage(world, agentEntries());
   assert.match(repositoryControl(again.box, "status").textContent, /Last successful test:/, "after the reload");
@@ -166,6 +166,8 @@ test("UC-042 step 2 · A CLEAR IS A REAL CLEAR: Clear removes the kept date and 
     await repositoryControl(box, "clear").fire("click");
     assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token"), null);
     assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"), null, "token Clear removes its outcome");
+    const again = await settingsPage(world, canonicalToken());
+    assert.doesNotMatch(repositoryControl(again.box, "status").textContent, /Last successful test|Refused/, "the same token added again starts untested");
   } finally { globalThis.confirm = prior; }
 });
 
@@ -230,30 +232,13 @@ test("UC-042 step 2: a GitLab project token changed or cleared takes its last te
     const replacementTest = JSON.parse(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`)));
     assert.equal(replacementTest.outcome, "working", "the replacement is tested through the public control before Clear");
     again = await settingsPage(world, agentEntries());
-    assert.equal(gitlabControl(again.box, "status").textContent, `Works. Last successful test: ${replacementTest.at}.`, "the replacement's own test persists after reload");
+    assert.match(gitlabControl(again.box, "status").textContent, new RegExp(`Expires on ${day(80)}\\. Works\\. Last successful test: ${replacementTest.at}\\.$`), "the replacement's expiry and own test persist after reload");
     await gitlabControl(again.box, "clear").fire("click");
     assert.equal(globalThis.localStorage.getItem(canonicalKey(gitlabName)), null);
     assert.equal(globalThis.localStorage.getItem(canonicalKey(`last-test:${gitlabName}`)), null, "Clear removes its outcome");
     again = await settingsPage(world, agentEntries());
     assert.equal(gitlabRow(again.box), undefined, "no row for a cleared token");
   } finally { globalThis.confirm = prior; }
-});
-
-test("UC-042 step 2: a cleared GitHub token re-added with the same value starts untested", async () => {
-  const world = await instanceWorld();
-  const { box } = await settingsPage(world, canonicalToken());
-  await repositoryControl(box, "test").fire("click");
-  assert.match(repositoryControl(box, "status").textContent, /Last successful test:/, "known positive: the original value was tested");
-  await repositoryControl(box, "clear").fire("click");
-  const again = await settingsPage(world, agentEntries());
-  await repositoryControl(again.box, "change").fire("click");
-  const ack = repositoryControl(again.box, "ack");
-  ack.checked = true; await ack.fire("change");
-  repositoryControl(again.box, "secret").value = TOKEN;
-  repositoryControl(again.box, "expiry").value = day(90);
-  await repositoryControl(again.box, "save").fire("click");
-  const reloaded = await settingsPage(world, agentEntries());
-  assert.doesNotMatch(repositoryControl(reloaded.box, "status").textContent, /Last successful test|Refused/, "identical credentials do not recover a cleared test result");
 });
 
 // ---------------------------------------------------------------- a remote session

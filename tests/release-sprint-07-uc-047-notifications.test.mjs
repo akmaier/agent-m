@@ -303,7 +303,12 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
   try {
     const page = await openDashboard({ server, hash: "#uc" });
     const box = await usabilitySettings(page);
-    const explanation = box.textContent;
+    const notification = publicControls(box, "settings-notifications")[0];
+    const details = notification.children.find((node) => node.className === "explain");
+    assert.ok(details, "the public Notifications control carries its folded explanation");
+    assert.equal(details.children[0].localName, "summary", "the public explanation keeps its What is this? summary");
+    assert.equal(details.children[0].textContent, "What is this?");
+    const explanation = details.textContent;
     assert.match(explanation, /every five minutes while a page of this dashboard is open/, "how often, and while what");
     assert.match(explanation, /this browser's own tokens and nowhere else/, "whose tokens, and nowhere else");
     assert.match(explanation, /nothing is checked while no page is open/, "nothing while no page is open");
