@@ -21,7 +21,7 @@
 //     one belongs to an item when its head branch or its title names the item's identifier;
 //   jobs — job records: { id, item, state, start, waitsForPerson }, state one of the seven of ONE DASHBOARD SHOWS EVERY JOB;
 //   wip — the model's flow control as parseModel reads it ({ wipLimit, timeBox, sprints }) with the model's `kind`, the
-//     running `sprint` (as sprint() gives it, or null), the `backlog` (the identifiers of backlogOrder's order) and `today`
+//     running `sprint` (as sprint() gives it, or null), the `backlog` (the identifiers of the backlog's items) and `today`
 //     (YYYY-MM-DD).
 // A reason is data, never a sentence (ARC-003 decision 5): { kind, rule, … }. The sentence a person reads is the dashboard's.
 

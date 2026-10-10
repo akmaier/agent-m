@@ -9,7 +9,7 @@
 //
 // The page is the real docs/assets/dashboard-app.mjs in tests/app-harness.mjs, served this very repository: its docs/process.md,
 // docs/process-models/scrum-wip.md, docs/use-cases/ and docs/approvals/ — read with fs, there are more files than a command line
-// holds —, and its docs/backlog/ with order.md and the sprint files frozen as they were while sprint 02 ran: the copy
+// holds —, and its docs/backlog/ with the sprint files frozen as they were while sprint 02 ran: the copy
 // tests/fixtures/sprint-02-running/docs/backlog/, taken from sprint/02 at 87b3268 (sprint-02.md's end empty), served at the
 // same paths. The live backlog changes at every close (the close of sprint 02 sets its end), as the recorded pull requests below
 // would not; the board this file tests is the one of the running sprint, so its backlog is frozen as the pull requests are. Agent M's own SPEC.md is not read: the page is served a SPEC whose
@@ -37,7 +37,7 @@ const blobSha = (t) => createHash("sha1").update(`blob ${Buffer.byteLength(t)}\0
 // ---------------------------------------------------------------- this repository, as the page is served it
 
 const REPO_FILES = [
-  "docs/process.md", "docs/process-models/scrum-wip.md", "docs/backlog/order.md",
+  "docs/process.md", "docs/process-models/scrum-wip.md",
   // The sprint files of sprint 01 and sprint 02: the recording below is of sprint 02; a later sprint's file is left out, because
   // its pull requests are not recorded and it would be the running sprint.
   ...list("docs/backlog/", /^ITM-\d{3}-.+\.md$/), ...list("docs/backlog/sprints/", /^sprint-0[12]\.md$/),
@@ -54,7 +54,7 @@ function itemOf(path) {
     return m ? m[1].split("\n").map((l) => l.replace(/^\s+-\s+/, "").trim()).filter(Boolean) : [];
   };
   return { id: /ITM-\d{3}/.exec(path)[0], path, title: field("title"), realises: listOf("realises"),
-    origin: listOf("origin").length ? listOf("origin") : [field("origin")] };
+    origin: listOf("origin").length ? listOf("origin") : [field("origin")], builtOn: listOf("depends_on") };
 }
 const ITEMS = new Map(REPO_FILES.filter((p) => /^docs\/backlog\/ITM-/.test(p)).map((p) => [itemOf(p).id, itemOf(p)]));
 const isRequirementName = (s) => /[A-Z]/.test(s) && !/[a-z]/.test(s) && !/^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-/.test(s);
@@ -75,9 +75,15 @@ for (const p of REPO_FILES.filter((x) => x.startsWith("docs/approvals/"))) {
 }
 const FILES = { ...TEXTS, "SPEC.md": SPEC };
 
-// The order of the backlog as order.md writes it, the items it does not name appended in the order of their identifiers.
-const LISTED = [...TEXTS["docs/backlog/order.md"].matchAll(/^\s*\d+\.\s+(ITM-\d{3})\b/gm)].map((m) => m[1]);
-const ORDER = [...LISTED, ...[...ITEMS.keys()].filter((id) => !LISTED.includes(id)).sort()];
+// The order the backlog is listed in (UC-032 step 1; it keeps no order of its own): each item after the items it builds on —
+// of the items whose building blocks the backlog holds all stand before them, the smallest identifier next —, items in a
+// circle last, in the order of their identifiers. Read here without the code under test.
+const ORDER = (() => {
+  const waiting = [...ITEMS.keys()].sort(), placed = [];
+  const free = (id) => ITEMS.get(id).builtOn.every((d) => placed.includes(d) || !ITEMS.has(d));
+  for (let next = waiting.find(free); next; next = waiting.find(free)) { placed.push(next); waiting.splice(waiting.indexOf(next), 1); }
+  return [...placed, ...waiting];
+})();
 const SELECTION = [...TEXTS["docs/backlog/sprints/sprint-02.md"].split("\n---")[0].matchAll(/^ {2}- (ITM-\d{3})$/gm)].map((m) => m[1]);
 
 // ---------------------------------------------------------------- the pull requests of sprint 02, as recorded
@@ -235,7 +241,7 @@ test("release · Backlog tab: an item realising a use case changed since its acc
   for (const id of waits) assert.match(text(card(html, id)), new RegExp(uc), `${id}: names ${uc}`);
 });
 
-// UC-032 step 1: "Agent M shows the items in their order … The top of the page shows accepted requirements and use cases that no
+// UC-032 step 1: "Agent M shows the items, each after the items it builds on … The top of the page shows accepted requirements and use cases that no
 // item realises yet." Expected: the uncovered names stand above the sprint's board and the backlog below it.
 test("release · Backlog tab: the uncovered names above, the board, then the backlog below", async () => {
   const { page } = await backlogPage();
@@ -263,18 +269,19 @@ test("release · Backlog tab: no request for an unselected item before the backl
   assert.equal(server.writes.length, 0);
 });
 
-// UC-032 step 1, unfolded: "the items in their order. Each item has its identifier, title, what it realises, where it came from,
-// and a derived state"; "The top of the page shows accepted requirements and use cases that no item realises yet." Expected: one
-// row per item in the order of order.md, the unnamed appended; ITM-143's row shows its title, the names it realises, its origin
+// UC-032 step 1, unfolded: "Agent M shows the items, each after the items it builds on. Each item has its identifier, title, what
+// it realises, where it came from, and a derived state"; "The top of the page shows accepted requirements and use cases that no
+// item realises yet." Expected: one row per item, each after the items it builds on; ITM-143's row shows its title, the names it
+// realises, its origin
 // and its state; the selected items' rows carry the board's states; an unselected item that is ready says it is not selected for
 // sprint-02 (A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT). The uncovered names are exactly the two requirements no item
 // realises — not the withdrawn one — and the accepted use cases no item names.
-test("release · Backlog tab: unfolded, the backlog in its order with derived states, and the uncovered names", async () => {
+test("release · Backlog tab: unfolded, the backlog with each item after the items it builds on, its derived states, and the uncovered names", async () => {
   const { page } = await backlogPage();
   await page.click('[data-unfold="backlog"]');
   const html = page.main();
   const backlog = part(html, "backlog");
-  assert.deepEqual([...backlog.matchAll(/data-backlog-item="(ITM-\d{3})"/g)].map((m) => m[1]), ORDER, "the backlog in its order");
+  assert.deepEqual([...backlog.matchAll(/data-backlog-item="(ITM-\d{3})"/g)].map((m) => m[1]), ORDER, "each item after the items it builds on");
 
   const mine = text(row(backlog, "ITM-143")), item = ITEMS.get("ITM-143");
   assert.ok(mine.includes(item.title), "ITM-143: its title");

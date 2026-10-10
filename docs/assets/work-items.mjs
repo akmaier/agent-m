@@ -1,4 +1,4 @@
-// Backlog items and their order — an item file read into its parts, its findings, the order of the backlog, and an item
+// Backlog items — an item file read into its parts, its findings, the items each after the items it builds on, and an item
 // from a classified issue (UC-032, UC-033; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY, A BACKLOG ITEM NAMES WHAT IT
 // REALISES). Kernel (ARC-003): pure functions over the texts and data they are given; nothing is read, written or committed
 // here, and no state is kept in or derived into these files (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED).
@@ -12,8 +12,8 @@
 //   modules:, depends_on:    — lists, `[]` for none
 //   origin:                  — where it came from: one line, or a list (an issue's address, several for UC-033 4a)
 //
-// and a body whose `## Outcome` and `## Acceptance criteria` sections are read as text. The order is
-// `docs/backlog/order.md`: list items, each an item's identifier. A finding is { artifact, line, kind, rule, what, fix } —
+// and a body whose `## Outcome` and `## Acceptance criteria` sections are read as text. The backlog keeps no order of its own
+// (UC-032): its items are listed each after the items it builds on. A finding is { artifact, line, kind, rule, what, fix } —
 // the compiler form of ARC-007, `line` counting from 1 in the text read; the sentence a person reads is the dashboard's
 // (ARC-003 decision 5).
 
@@ -27,14 +27,12 @@ const RESTATES = "UC-032";
 
 const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
 const ITEM_PATH = new RegExp(`^docs/backlog/(ITM-\\d{3})-${SLUG}\\.md$`);
-const ORDER_PATH = "docs/backlog/order.md";
 const ITEM_ID = /^ITM-\d{3}$/;
 const USE_CASE = /^UC-\d{3}$/;
 // A requirement is named by its name in capitals; other identifiers are not names (as MOD-artifacts reads them).
 const isRequirementName = (s) => /[A-Z]/.test(s) && !/[a-z]/.test(s) && !/^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-/.test(s);
 // An issue named by its address: on GitHub …/issues/<n>, on GitLab …/-/issues/<n>.
 const ISSUE = /^https?:\/\/[^\s/]+\/\S+\/issues\/\d+$/;
-const ORDER_LINE = /^\s*(?:\d+[.)]|[-*+])\s+(ITM-\d{3})\b/;
 
 const finding = (artifact, line, kind, rule, what, fix) => ({ artifact, line, kind, rule, what, fix });
 
@@ -181,27 +179,21 @@ export function itemProblems(item, known = {}) {
   return out;
 }
 
-// backlogOrder(text, items) -> { order, unplaced, problems } — the identifiers of the items in the order the order file
-// names them, list item by list item (the numbers are not read), then the items it does not name yet, appended at the
-// bottom in the order of their identifiers. A list item naming no item of the backlog, or one named before, is a problem.
-export function backlogOrder(text, items) {
-  const ids = new Set((items ?? []).map((i) => i?.id).filter(Boolean));
-  const order = [], problems = [];
-  String(text ?? "").replace(/\r\n/g, "\n").split("\n").forEach((l, i) => {
-    const m = l.match(ORDER_LINE);
-    if (!m) return;
-    if (!ids.has(m[1])) {
-      problems.push(finding(ORDER_PATH, i + 1, "error", LIVES, `the order names ${m[1]}, which is no item of the backlog`,
-        `remove the line, or add the item docs/backlog/${m[1]}-<slug>.md.`));
-    } else if (order.includes(m[1])) {
-      problems.push(finding(ORDER_PATH, i + 1, "error", LIVES, `the order names ${m[1]} a second time`,
-        "keep one line per item; remove the second."));
-    } else {
-      order.push(m[1]);
-    }
-  });
-  const unplaced = [...ids].filter((id) => !order.includes(id)).sort();
-  return { order: [...order, ...unplaced], unplaced, problems };
+// buildOrder(items) -> string[] — the identifiers of the items, each after the items it builds on (its depends_on): of the
+// items whose building blocks all stand before them, the one with the smallest identifier comes next. An item built on that
+// the backlog lacks holds nothing back; items that build on each other in a circle, and those after them, come last, each
+// once, in the order of their identifiers — the circle is a finding of the item, not of the order (UC-032 step 1).
+export function buildOrder(items) {
+  const byId = new Map((items ?? []).filter((i) => i?.id).map((i) => [i.id, i]));
+  const waiting = [...byId.keys()].sort();
+  const placed = [], done = new Set();
+  const free = (id) => (byId.get(id).dependsOn ?? []).every((d) => done.has(d) || !byId.has(d));
+  for (let next = waiting.find(free); next; next = waiting.find(free)) {
+    placed.push(next);
+    done.add(next);
+    waiting.splice(waiting.indexOf(next), 1);
+  }
+  return [...placed, ...waiting];
 }
 
 // itemFromIssue(issue, classification, queue) -> item | null — UC-033 step 2: the title and the outcome from the issue

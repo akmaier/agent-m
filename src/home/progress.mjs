@@ -19,7 +19,7 @@
 import { recordIndex, statusByNames, parseRecord, parseDecisions } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE, kindOfPath, reviewedId } from "../../docs/assets/artifacts.mjs";
 import { parseRequirements } from "../../docs/assets/artifacts/requirements.mjs";
-import { parseItem, frontMatter, backlogOrder } from "../../docs/assets/work-items.mjs";
+import { parseItem, frontMatter, buildOrder } from "../../docs/assets/work-items.mjs";
 import { itemState } from "../../docs/assets/work-items/flow.mjs";
 import { parseProductAddress } from "../../docs/assets/git-host.mjs";
 
@@ -81,7 +81,7 @@ export async function productFacts({ tree, text, pullRequests = async () => [], 
 
   const from = ["plan", "backlog"].find((k) => paths.some((p) => ITEM_FILE[k].test(p))) ?? null;
   const items = from ? await Promise.all(paths.filter((p) => ITEM_FILE[from].test(p)).map(async (p) => parseItem(p, await text(p)))) : [];
-  const order = from ? backlogOrder(await text(`docs/${from}/order.md`), items).order : [];
+  const order = from ? buildOrder(items) : [];
   const ordered = order.map((id) => items.find((i) => i.id === id)).filter(Boolean);
   const jobs = (await Promise.all(paths.filter((p) => JOB_RECORD.test(p)).map(async (p) => jobOf(p, await text(p))))).filter(Boolean);
   const pulls = ordered.length ? await pullRequests() : [];

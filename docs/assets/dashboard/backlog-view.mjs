@@ -1,4 +1,5 @@
-// Backlog — the running sprint's board under the model's work-in-progress limit, the backlog in its order with each item's
+// Backlog — the running sprint's board under the model's work-in-progress limit, the backlog — each item after the items it
+// builds on — with each item's
 // derived state, and the accepted requirements and use cases that no item realises yet (UC-032 step 1, and the board of
 // step 7, read; ITM-147). Read from the product's repository and derived when shown; nothing is stored and nothing written
 // (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains itself (EVERY STEP EXPLAINS ITSELF).
@@ -7,25 +8,24 @@
 //
 // Route #backlog. It gets `app`, the page's context (dashboard-app.mjs). What a load reads, through the git host and the texts
 // this browser keeps by blob SHA (app.fileText): the declaration docs/process.md and the model file it names, the sprint
-// records, the order, the SPEC (which names the accepted requirements), the items the sprint selects, and one list of the pull
+// records, the SPEC (which names the accepted requirements), the items the sprint selects, and one list of the pull
 // requests into the sprint's branch opened since its start (MOD-git-host pullRequests). Which use cases are accepted is read
 // from the names of the approval records in the tree (app.statusOf). The rest of the backlog — and with it the names no item
 // realises yet — is read only when the reader unfolds it, together with the pull requests into the branches of the earlier
 // sprints and into the default branch. No job writes a record yet, so `jobs` is empty.
 //
-// The kernel decides — parseModel (MOD-process-model), parseItem, backlogOrder, sprint and itemState (MOD-work-items),
+// The kernel decides — parseModel (MOD-process-model), parseItem, buildOrder, sprint and itemState (MOD-work-items),
 // parseRequirements and parseFrontMatter (MOD-artifacts) —; this view writes the sentences a person reads (ARC-003 decision 5).
 
 import { parseFrontMatter, reviewedId } from "../artifacts.mjs";
 import { parseRequirements } from "../artifacts/requirements.mjs";
 import { parseModel } from "../process-model.mjs";
-import { parseItem, backlogOrder } from "../work-items.mjs";
+import { parseItem, buildOrder } from "../work-items.mjs";
 import { sprint as parseSprint, itemState } from "../work-items/flow.mjs";
 import { pullRequests } from "../git-host/pull-requests.mjs";
 import { isGitLab, webFileUrl } from "../git-host.mjs";
 
 const DECLARATION = "docs/process.md";
-const ORDER = "docs/backlog/order.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_FILE = /^docs\/backlog\/sprints\/(?!README\.md$)[^/]+\.md$/;
 const USE_CASE_FILE = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
@@ -63,7 +63,7 @@ function pullsInto(app, base, since) {
   });
 }
 
-// The declaration, the model, the sprint records, the order and what is accepted — what the board needs besides its items.
+// The declaration, the model, the sprint records and what is accepted — what the board needs besides its items.
 function context(app) {
   return app.once("backlog:context", async () => {
     const has = (p) => app.state.byPath.has(p);
@@ -72,37 +72,40 @@ function context(app) {
     const model = modelFile && has(modelFile) ? parseModel(await app.fileText(modelFile)) : null;
     const items = new Map(app.paths(ITEM_FILE).map((e) => [ITEM_FILE.exec(e.path)[1], e.path]));
     const sprintPaths = app.paths(SPRINT_FILE).map((e) => e.path);
-    const [sprints, orderText, specText, useCases] = await Promise.all([
+    const [sprints, specText, useCases] = await Promise.all([
       Promise.all(sprintPaths.map(async (path) => ({ path, ...parseSprint(await app.fileText(path)) }))),
-      has(ORDER) ? app.fileText(ORDER) : Promise.resolve(""),
       app.fileText("SPEC.md"),
       Promise.all(app.paths(USE_CASE_FILE).map(async (e) => ({ id: reviewedId(e.path), status: (await app.statusOf(e.path, e.sha)).status }))),
     ]);
-    const order = backlogOrder(orderText, [...items.keys()].map((id) => ({ id }))).order;
+    const ids = [...items.keys()].sort();
     const requirements = [...parseRequirements(specText).values()].filter((r) => !r.withdrawn).map((r) => r.name);
     const accepted = useCases.filter((u) => u.status === "accepted").map((u) => u.id);
     const valid = sprints.filter((s) => s.frontMatter && s.id);
     const byStart = (a, b) => String(b.start ?? "").localeCompare(String(a.start ?? "")) || String(b.id).localeCompare(String(a.id));
     const running = valid.filter((s) => !s.end).sort(byStart)[0] ?? null;
     const last = running ?? [...valid].sort((a, b) => String(b.end ?? "").localeCompare(String(a.end ?? "")) || byStart(a, b))[0] ?? null;
-    return { declaration, modelFile, model, items, order, requirements, useCases: accepted, sprints: valid, sprint: last,
+    return { declaration, modelFile, model, items, ids, requirements, useCases: accepted, sprints: valid, sprint: last,
       running: Boolean(running) };
   });
 }
 
 const readItem = (app, id, path) => app.once(`backlog:item:${id}`, async () => parseItem(path, await app.fileText(path)));
 
-// The whole backlog, with the pull requests of every sprint's branch and of the default branch — read when it is unfolded.
+// The whole backlog, each item after the items it builds on, with the pull requests of every sprint's branch and of the
+// default branch — read when it is unfolded.
 function wholeBacklog(app, ctx) {
   return app.once("backlog:whole", async () => {
-    const [items, ...lists] = await Promise.all([
-      Promise.all(ctx.order.map((id) => readItem(app, id, ctx.items.get(id)))),
+    const [read, ...lists] = await Promise.all([
+      Promise.all(ctx.ids.map((id) => readItem(app, id, ctx.items.get(id)))),
       ...ctx.sprints.filter((s) => s.branch).map((s) => pullsInto(app, s.branch, s.start)),
       pullsInto(app, app.T.ref, ctx.sprints.map((s) => s.start).filter(validDate).sort()[0] ?? null),
     ]);
     const seen = new Set();
     const prs = lists.flat().filter((p) => !seen.has(`${p.base}#${p.number}`) && seen.add(`${p.base}#${p.number}`));
-    return { items, prs };
+    // Each item by the identifier its file is named with, as the board names it.
+    const keyed = read.map((item, i) => ({ ...item, id: ctx.ids[i] }));
+    const byId = new Map(keyed.map((item) => [item.id, item]));
+    return { items: buildOrder(keyed).map((id) => byId.get(id)), prs };
   });
 }
 
@@ -118,7 +121,7 @@ function reasonText(app, r) {
     }
     case "job": return `job ${h(r.job.id)}: ${h(r.job.state)}`;
     case "not-accepted": return `<b>${h(r.name)}</b> is not accepted yet`;
-    case "not-in-backlog": return "not in the backlog's order";
+    case "not-in-backlog": return "not in the backlog";
     case "no-sprint": return "no sprint is running";
     case "sprint-ended": return `sprint ${h(r.sprint)} has ended (${h(r.end)})`;
     case "sprint-not-started": return `sprint ${h(r.sprint)} starts on ${h(r.start)}`;
@@ -145,7 +148,7 @@ function uncoveredBody(app, ctx, whole) {
   const { h } = app;
   if (!whole) {
     return `<p class="muted">Which accepted requirements and use cases no item realises yet is known once every item has been read.</p>
-      <p><button class="btn small" data-unfold="backlog">Show them, with the whole backlog (${h(ctx.order.length)} items)</button></p>`;
+      <p><button class="btn small" data-unfold="backlog">Show them, with the whole backlog (${h(ctx.ids.length)} items)</button></p>`;
   }
   const realised = new Set(whole.items.flatMap((i) => i.realises));
   const reqs = ctx.requirements.filter((n) => !realised.has(n)).sort();
@@ -183,7 +186,7 @@ function boardHtml(app, ctx, selected, states) {
 function backlogTable(app, ctx, whole, states) {
   const { h } = app;
   const rows = whole.items.map((item, i) => {
-    const id = ctx.order[i], st = states.get(id);
+    const id = item.id, st = states.get(id);
     return `<tr data-backlog-item="${h(id)}"><td>${h(i + 1)}</td><td>${fileLink(app, item.path, h(id))}</td><td>${h(item.title ?? "")}</td>
       <td>${h(item.kind ?? "")}</td><td>${h(item.level ?? "")}</td><td class="small">${item.realises.map((n) => `<code>${h(n)}</code>`).join(" ")}</td>
       <td class="small">${item.origins.map((o) => h(o)).join("<br>")}</td><td>${badge(app, st.state)}${st.reasons.length
@@ -212,7 +215,7 @@ async function viewBacklog(app) {
   const whole = isOpen ? await wholeBacklog(app, ctx) : null;
   if (seq !== app.seq()) return;
 
-  const wip = { ...flow, kind: model?.kind ?? null, sprint: s, backlog: ctx.order, today: today() };
+  const wip = { ...flow, kind: model?.kind ?? null, sprint: s, backlog: ctx.ids, today: today() };
   const known = { requirements: ctx.requirements, useCases: ctx.useCases, jobs: [] };
   const selected = selection.map((id, i) => ({ id, item: selectedItems[i],
     st: selectedItems[i] ? itemState(selectedItems[i], { ...known, pullRequests: sprintPrs, wip }) : null }));
@@ -226,9 +229,7 @@ async function viewBacklog(app) {
 
   const wholeStates = new Map();
   if (whole) {
-    for (const [i, item] of whole.items.entries()) {
-      wholeStates.set(ctx.order[i], itemState(item, { ...known, pullRequests: whole.prs, wip }));
-    }
+    for (const item of whole.items) wholeStates.set(item.id, itemState(item, { ...known, pullRequests: whole.prs, wip }));
   }
 
   const noModel = !ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it
@@ -240,10 +241,10 @@ async function viewBacklog(app) {
 
   const sprintPart = !s
     ? (flow.sprints === true ? `<p class="muted">No sprint is planned yet: a sprint record under <code>docs/backlog/sprints/</code> holds its
-        selection (UC-032 step 6).</p>` : `<p class="muted">The model works without sprints: items are pulled from the top of the backlog
-        while the limit allows.</p>`)
+        selection (UC-032 step 6).</p>` : `<p class="muted">The model works without sprints: a ready item is pulled while the limit
+        allows (UC-032 step 7).</p>`)
     : `${ctx.running ? "" : `<p class="warn" data-no-running-sprint>No sprint is running: this is the board of the last sprint,
-        <b>${h(s.id)}</b>, which ended on ${h(s.end)}. The next one is planned from the top of the backlog (UC-032 step 6).</p>`}
+        <b>${h(s.id)}</b>, which ended on ${h(s.end)}. The next one is planned at sprint planning (UC-032 step 6).</p>`}
       <dl class="meta">
         <dt>Sprint</dt><dd>${fileLink(app, s.path, `<b>${h(s.id)}</b>`)}${s.start ? `, started ${h(s.start)}` : ""}${s.end ? `, ended ${h(s.end)}` : ""}</dd>
         <dt>Goal</dt><dd>${h(s.goal ?? "—")}</dd>
@@ -263,8 +264,9 @@ async function viewBacklog(app) {
 
   const backlogPart = whole
     ? backlogTable(app, ctx, whole, wholeStates)
-    : `<p class="muted">${h(ctx.order.length)} items in the order of <code>${h(ORDER)}</code>. Their files are read only when you unfold them.</p>
-      <p><button class="btn small" data-unfold="backlog">Show the whole backlog (${h(ctx.order.length)} items)</button></p>`;
+    : `<p class="muted">${h(ctx.ids.length)} items. Their files are read only when you unfold them; each item is then listed after
+      the items it builds on.</p>
+      <p><button class="btn small" data-unfold="backlog">Show the whole backlog (${h(ctx.ids.length)} items)</button></p>`;
 
   main().innerHTML = `
     <section class="head"><h2>Backlog</h2>
@@ -276,8 +278,8 @@ async function viewBacklog(app) {
         "current text. Each of them should be realised by at least one backlog item, or nobody will build it. The names listed here " +
         "are the ones no item names under <i>realises</i> yet; the Product Owner adds items for them (UC-032 steps 2–4).</p>" }) }</div>
     <div data-part="sprint">${stepHtml({ title: s ? `The sprint: ${s.id}` : "The sprint", body: sprintPart,
-      explain: "<p>A sprint is a stretch of work on a selection the Product Owner made from the top of the ordered backlog at " +
-        "sprint planning; only selected items are worked on, and an item added meanwhile goes to the backlog, not into the " +
+      explain: "<p>A sprint is a stretch of work on a selection the Product Owner made from the backlog at sprint planning; " +
+        "only selected items are worked on, and an item added meanwhile goes to the backlog, not into the " +
         "sprint (book ch. 7 §5; UC-032 steps 6 and 6a). The board shows each selected item in its state, in the order of the " +
         "selection. A state is never stored: it is derived now from the pull requests into the sprint's branch and from the " +
         "approval records — a pull request belongs to an item when its branch or its title names the item. Jobs would count too, " +
@@ -288,9 +290,10 @@ async function viewBacklog(app) {
         "its team starts it until its pull request is merged into the sprint's branch — one waiting for review included. With " +
         "agents, starting more work is cheap; the limit protects the capacity to review it.</p>" }) }</div>
     <div data-part="backlog">${stepHtml({ title: "The backlog", body: backlogPart,
-      explain: "<p>The backlog is the ordered list of everything the product is meant to do next, one Markdown file per item " +
-        "under <code>docs/backlog/</code> and their order in <code>docs/backlog/order.md</code> (UC-032). Its order matters: " +
-        "sprint planning takes from the top. Each item names what it realises and where it came from; its state is derived " +
+      explain: "<p>The backlog is everything the product is meant to do, one Markdown file per item under " +
+        "<code>docs/backlog/</code> (UC-032). It keeps no order of its own: each item is listed after the items it builds on, " +
+        "and what is worth doing next is decided at sprint planning, or when an item is pulled. Each item names what it " +
+        "realises and where it came from; its state is derived " +
         "like the board's, from the pull requests into the branches of the sprints and into the default branch.</p>" }) }</div>`;
 
   main().querySelectorAll('[data-unfold="backlog"]').forEach((b) => b.addEventListener("click", () => {

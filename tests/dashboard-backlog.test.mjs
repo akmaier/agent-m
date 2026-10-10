@@ -1,4 +1,5 @@
-// The Backlog tab — the running sprint's board under the model's work-in-progress limit, the backlog in its order with each
+// The Backlog tab — the running sprint's board under the model's work-in-progress limit, the backlog — each item after the items
+// it builds on — with each
 // item's derived state, and the accepted names no item realises yet (UC-032 step 1, the board of step 7, read; ITM-147).
 // Run: node --test tests/
 //
@@ -70,7 +71,6 @@ const sprintText = ({ name = "sprint-07", start = "2026-10-01", end = "", select
   `---\nid: ${name}\ngoal: The fixture's goal for ${name}\nstart: ${start}\nend: ${end}\nselection:\n` +
   `${selection.map((s) => `  - ${s}`).join("\n")}\ncloser: closer-agent\nbranch: ${branch}\nmodel: fixture-scrum-wip\n` +
   `planned_by: owner-agent\n---\n# ${name}\n\n**REGISTER**\n`;
-const orderText = (ns) => `# Backlog order\n\n**REGISTER**\n\n## Order\n\n${ns.map((n, i) => `${i + 1}. ${id(n)}`).join("\n")}\n`;
 
 // The product of the behaviour tests: six selected items and two more, under a WIP limit of 2.
 //   ITM-001 an open pull request — in progress, with who opened it;   ITM-002 a merged one — done, with when;
@@ -81,7 +81,6 @@ async function fixtureProduct(over = {}) {
   const f = {
     "SPEC.md": SPEC, "docs/process.md": DECL, "docs/process-models/fixture.md": MODEL,
     [UC1]: useCase("UC-001", "Plan the work"), [UC2]: useCase("UC-002", "Watch the work"), [UC3]: useCase("UC-003", "Change the work"),
-    "docs/backlog/order.md": orderText([1, 2, 3, 4, 5, 6, 7, 8]),
     "docs/backlog/sprints/sprint-06.md": sprintText({ name: "sprint-06", start: "2026-09-01", end: "2026-09-20", selection: ["ITM-007"],
       branch: "sprint/01" }),
     "docs/backlog/sprints/sprint-07.md": sprintText({ selection: ["ITM-001", "ITM-002", "ITM-003", "ITM-004", "ITM-005", "ITM-006"] }),
@@ -202,7 +201,7 @@ test("with no running sprint, the last sprint's board is shown and the page says
 
 // ---------------------------------------------------------------- the backlog and the uncovered names, folded
 
-test("the backlog is folded: its unselected items are read only when the reader unfolds it — then in its order, each with its derived state", async () => {
+test("the backlog is folded: its unselected items are read only when the reader unfolds it — then each after the items it builds on, with its derived state", async () => {
   const server = await repoServer({ files: await fixtureProduct(), handlers: [pullsApi(FIXTURE_PRS)] });
   const page = await openDashboard({ server, hash: "#backlog" });
   assert.ok(!files(page.requests).includes(itemPath(7)) && !files(page.requests).includes(itemPath(8)), "no unselected item before the fold");
@@ -211,7 +210,8 @@ test("the backlog is folded: its unselected items are read only when the reader 
   const unfolded = await page.click('[data-unfold="backlog"]');
   assert.deepEqual(files(unfolded), [itemPath(7), itemPath(8)], "the unselected items, and nothing read before again");
   const html = page.main();
-  // In the order of docs/backlog/order.md, each with identifier, title, kind, level, what it realises and where it came from.
+  // Each after the items it builds on — ITM-004 after ITM-003 —, the next the smallest identifier that may come, each with
+  // identifier, title, kind, level, what it realises and where it came from.
   const rows = [...html.matchAll(/<tr data-backlog-item="(ITM-\d{3})"/g)].map((m) => m[1]);
   assert.deepEqual(rows, ["ITM-001", "ITM-002", "ITM-003", "ITM-004", "ITM-005", "ITM-006", "ITM-007", "ITM-008"]);
   const row = (i) => { const at = html.indexOf(`data-backlog-item="${i}"`); return html.slice(at, html.indexOf("</tr>", at)); };
@@ -301,11 +301,11 @@ test("PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — deleting local storage 
 
 // ---------------------------------------------------------------- what a load costs
 
-test("API economy: each dashboard load reads the sprint, the order, the selected items and one page of pull requests", async (t) => {
+test("API economy: each dashboard load reads the sprint, the selected items and one page of pull requests", async (t) => {
   // 140 items in the backlog, the first 25 selected.
   const all = Array.from({ length: 140 }, (_, i) => i + 1), selected = all.slice(0, 25).map(id);
   const repo = { "SPEC.md": SPEC, "docs/process.md": DECL, "docs/process-models/fixture.md": MODEL, [UC1]: useCase("UC-001", "Plan the work"),
-    "docs/backlog/order.md": orderText(all), "docs/backlog/sprints/sprint-07.md": sprintText({ selection: selected }) };
+    "docs/backlog/sprints/sprint-07.md": sprintText({ selection: selected }) };
   for (const n of all) repo[itemPath(n)] = itemText(n);
   repo[approvalPath("UC-001", await gitBlobSha(repo[UC1]))] = recordText(useCaseRecord(UC1, await gitBlobSha(repo[UC1])));
   const prs = [pr({ number: 1, item: "ITM-001" }), pr({ number: 2, item: "ITM-002", open: false, merged: "2026-10-01T12:00:00Z" })];
@@ -313,7 +313,7 @@ test("API economy: each dashboard load reads the sprint, the order, the selected
   const server = await repoServer({ files: repo, handlers: [pullsApi(prs)] });
   const cold = await openDashboard({ server, hash: "#backlog", caches });
   assert.equal(columns(cold.main()).ready.length + columns(cold.main())["in progress"].length + columns(cold.main()).done.length, 25);
-  const want = ["SPEC.md", "docs/backlog/order.md", "docs/backlog/sprints/sprint-07.md", "docs/process-models/fixture.md", "docs/process.md",
+  const want = ["SPEC.md", "docs/backlog/sprints/sprint-07.md", "docs/process-models/fixture.md", "docs/process.md",
     ...all.slice(0, 25).map(itemPath)].sort();
   assert.deepEqual(files(cold.requests), want, "no unselected item, no use case, no record");
   assert.deepEqual(cold.requests.filter((r) => !r.startsWith("file ")).map((r) => (r.startsWith("handler") ? "pulls" : r)), ["commit", "tree", "pulls"]);
