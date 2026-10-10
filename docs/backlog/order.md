@@ -15,8 +15,8 @@ goes to the item that first needs it.
 
 Browser notifications (UC-047) are implemented and tested. ITM-236 names the delivered implementation and automated guards; ITM-237 links [akmaier's browser-test confirmation](../measurements/2026-10-09_notifications-confirmed-by-akmaier.md).
 
-The current goals are complete UC-003, UC-002 and UC-047, with UC-003 first, together with the mobile-compatible Settings
-tabs of ITM-290. Sprints continue through those outcomes. After the Settings tabs are implemented, the Product Owner
+The current goals are complete UC-003, UC-002 and UC-047, with UC-003 first. The mobile-compatible Settings tabs of
+ITM-290 are delivered in Sprint 19. Team 2 pauses after closing Sprint 19 at the person's request. On resumption, the Product Owner
 assesses the actual implementation against the full accepted UC-004, UC-005 and UC-006 and fills this backlog with the
 necessary remaining work, ordered by delivered interfaces. Existing items and working behavior are considered before
 adding items. Sprint implementation retains the current goals' priority; filling the later backlog does not implicitly
