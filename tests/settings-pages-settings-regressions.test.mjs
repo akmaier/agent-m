@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { view } from "../src/settings-pages/index.mjs";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
 
@@ -194,4 +198,34 @@ test("TST-290121: collaborator consent preserves the chosen date, readback, and 
   assert.match(withdrawal.textContent, /earlier commits.*history/i, "withdrawal names its immutable-history consequence");
   const link = descendants(withdrawal, (node) => node.localName === "a")[0];
   assert.ok(link?.href?.startsWith("https://github.com/fixture/product/commit/"), "withdrawal exposes the actual resulting commit link");
+});
+
+// TST-290122
+// level: unit
+// module: MOD-settings-pages
+// guards: TST-290116; TST-290117; TST-290118; TST-290119; TST-290120; TST-290121
+// given: GitHub Ubuntu CI and an isolated source copy
+// input: a unique public Settings-route fault is planted, then byte-exactly restored
+// expect: all six guarded cases fail in the child and pass after restoration
+test("TST-290122: CI counter-proof restores the Settings route for TST-290116 through TST-290121", () => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_290_SETTINGS_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-290-settings-fault-")), copied = join(temporary, "repo");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    const source = join(copied, "src/settings-pages/settings.mjs"), testPath = "tests/settings-pages-settings-regressions.test.mjs";
+    const original = readFileSync(source), needle = "function repositoryLine(context, info) {";
+    assert.equal(original.toString().split(needle).length - 1, 1, "the Settings-route fault target is unique");
+    const argv = [process.execPath, "--test", "--test-name-pattern", "TST-29011[6-9]|TST-290120|TST-290121", testPath];
+    const invoke = () => { const env = { ...process.env, AGENT_M_290_SETTINGS_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 60_000, env }); };
+    const originalHash = createHash("sha256").update(original).digest("hex");
+    writeFileSync(source, original.toString().replace(needle, "function repositoryLineFault(context, info) {"));
+    const faultHash = createHash("sha256").update(readFileSync(source)).digest("hex"), failed = invoke();
+    writeFileSync(source, original);
+    const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), passed = invoke();
+    assert.notEqual(failed.status, 0, `fault argv=${argv.join(" ")} stdout=${failed.stdout} stderr=${failed.stderr}`);
+    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121"]) assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(id));
+    assert.equal(restoredHash, originalHash, "source bytes are restored exactly");
+    assert.equal(passed.status, 0, `restored argv=${argv.join(" ")} stdout=${passed.stdout} stderr=${passed.stderr}`);
+    assert.ok(faultHash !== originalHash);
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
