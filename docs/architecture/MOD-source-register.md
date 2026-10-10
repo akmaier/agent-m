@@ -137,8 +137,10 @@ names no source.
   string, date: string }) -> Promise<CommitPlan>` — a new version appended to the entry, with its files. Throws
   `SameBytes { version }` when its files' hashes equal those of an existing version, and nothing is recorded.
 - `linkedVersion(links: Document, register: Document[], source: string) -> LinkedVersion | null` — the version a product
-  links of the source that `source` names — an identifier, or an item of a requirement's source —, or `null` when it
-  names no register entry or the product links none.
+  links of the source that `source` names — an identifier, or an item of a requirement's source —, with the part its
+  link names, or `null` when it names no register entry, the product links none, or the entry records no version the link
+  names. The version carries the hash the product's link records, since a hash is not computed synchronously; `readContent`
+  checks each of its files against its own SHA-256 when the version is read.
 - `readContent(version: SourceVersion, open: (repository: string) => Promise<Host>) -> Promise<{ name: string, bytes:
   Uint8Array }[]>` — reads every stored file of the version, across the network through the host that holds it, and checks
   each against its recorded SHA-256. Throws `HashMismatch { file, expected, actual }`, so that a changed file is caught
@@ -160,10 +162,13 @@ names no source.
   `Unreachable { reason }`; nothing is guessed.
 - `permittedPlaces(entry: Document) -> string[] | "any"` — the places a source's content may be given to: any for content
   that may be republished, its declared places otherwise, none when it declares none.
-- `sourceStrategies` — `Partial<Strategies>` with the recipe `source-excerpt`: for the source and part a job names, reads
-  the version the product links, through `readContent`, and returns its text as one part that names the source, so that
-  the runner gives it only to participants at the places the source permits (`RESTRICTED CONTENT GOES ONLY WHERE ITS
-  SOURCE PERMITS`). Throws as `readContent` throws, and `NotLinked { source }` for a source the product does not link.
+- `sourceStrategies` — `Partial<Strategies>` with the recipe `source-excerpt`: for the source and part a job's parameters
+  `source` and `part` name, reads the version the product links, through `readContent`, where its content lies, and
+  returns the version's whole text — its files' texts in their order, a blank line between them — as one part that names
+  the source, so that the runner gives it only to participants at the places the source permits (`RESTRICTED CONTENT GOES
+  ONLY WHERE ITS SOURCE PERMITS`); the part's name names the version and the part that applies, the job's or else the
+  link's. Nothing defines how a text is cut to a part, so none is cut. Throws as `readContent` throws, and `NotLinked
+  { source }` for a source the product does not link.
   And the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`,
   `chapters-for-architecture` and `chapters-for-implementation`: each reads the instance's register entry
   `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through

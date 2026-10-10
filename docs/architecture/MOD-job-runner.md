@@ -105,8 +105,20 @@ Left: none · stopped because: passed · limit: 5
 ```
 
 Each finding stands in MOD-text-tools' one form; under it, how the drafter answered — `fixed`, `justified:` with its one
-line, or, for a reviewer's finding, `answered:` with the reason it does not hold. Findings a person decides are listed
-under `For a person:` and were never sent back.
+line, or, for a reviewer's finding, `answered:` with the reason it does not hold. A round's heading counts its findings —
+`no finding`, `1 finding`, `<n> findings` —, and the last line counts what is left the same way, or says `none`.
+Findings a person decides follow that line, one per line under `For a person:`, and were never sent back.
+
+**Reading an answer.** An answer is read as the envelope MOD-job-catalogue states, its draft by the kind's schema of its
+draft — `type`, `properties`, `required`, `items`, `enum` —; a property that is not required may be left out or be
+`null`, and a text fenced as JSON is read inside its fence. An answer that cannot be read is a finding of the loop:
+
+```text
+answer:1: error: the answer cannot be read: it is not JSON [A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT] — answer with one JSON object of the form the output schema gives.
+```
+
+A reviewing kind's draft is a list of findings, each with `artifact`, `line`, `rule`, `what` and `fix`; the runner reads
+each as a warning, whatever kind the reviewer gave it.
 
 **Provenance lines.** The lines every commit a job makes carries at the end of its message, as git trailers; the
 artifacts it writes name none of them (`AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT`):
@@ -135,8 +147,10 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   throws the failure of its route by name — the endpoint's refusal, a browser that blocked the call, an agent that is
   missing or ended with an error, a cancel — and never retries until an answer pleases.
 - `DriverInput` — `{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
-  workdir: string | null }`: the kind's prompt, the parts, the output schema the answer must follow, the findings of the
-  last round with the draft they concern, and for an agent that works in a folder, that folder.
+  workdir: string | null }`: the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
+  and `(none)` where a recipe gave no part — a driver sends this prompt as it is and does not add the parts again —; the
+  parts; the output schema the answer must follow; the findings of the last round with the draft they concern; and for an
+  agent that works in a folder, that folder.
 - `Usage` — `{ inputTokens: number | null, outputTokens: number | null, minutes: number | null, cost: { amount: number,
   currency: string } | null }`: exactly what a runtime reported; nothing is estimated.
 - `JobContext` — `{ kind: KindDefinition, params: Record<string, unknown>, product: { address: string, snapshot: Snapshot,
@@ -147,16 +161,19 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   the program — the token in a browser, the CI secret in CI, the computer's login on a Bridge; `places` gives, for every
   restricted source and for the mailbox, the places they allow; `gates` the gates of the product's workflow at this job's
   points, with whether their decisions are recorded.
-- `Part` — `{ name: string, text: string, size: number, sources: string[], required: boolean }`: one piece of a job's
-  input; `size` in tokens as estimated; `sources` the identifiers of the requirement sources whose content it carries;
-  `required` false only where the kind says the part may be left out, and then only with the reason shown.
+- `Part` — `{ name: string, text: string, size: number, sources: string[], required: boolean, recipe: string }`: one piece
+  of a job's input; `size` in tokens as estimated; `sources` the identifiers of the requirement sources whose content it
+  carries; `required` false only where the kind says the part may be left out, and then only with the reason shown;
+  `recipe` the recipe that gave it, whose named place of the prompt it fills — set by the runner, not by the recipe.
 - `Destination` — `{ participant: Participant, role: "drafter" | "reviewer" | "checker", place: string, parts: string[],
   size: number }`: one participant that will receive something, and what.
 - `Prepared` — `{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers:
   Participant[], parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
   number, context: number | null }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
-  what a run panel shows before the person's click (`THE PAGE STATES WHAT IT SENDS WHERE`); `blocking` holds the findings
-  of preconditions and of eligibility that keep the job from starting.
+  what a run panel shows before the person's click (`THE PAGE STATES WHAT IT SENDS WHERE`); `parts` holds the parts of
+  the drafter's and the reviewers' recipes, each once; `leftOut` the parts a recipe whose part may be left out could not
+  give, each with the failure's words as its reason; `blocking` the findings of preconditions and of eligibility that keep
+  the job from starting.
 - `Round` — `{ number: number, findings: Finding[], answers: { finding: Finding, how: "fixed" | "justified" | "answered",
   text: string | null }[], changed: boolean }`.
 - `JobResult` — `{ draft: unknown, raw: string | null, drafter: Participant | null, rounds: Round[], remaining: Finding[],
@@ -180,25 +197,34 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   what does not fit is named in `notFitting` (`NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`, `NOTHING IS LEFT OUT
   OF AN ARCHITECTURE PROMPT SILENTLY`, `NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY`). The limit is fixed here, before
   the first round: the caller's, else the kind's (`THE CORRECTION LOOP HAS A FIXED LIMIT`). Throws `UnknownKind`,
-  `UnknownStrategy { name }` for a strategy no module registered, and whatever a recipe throws by name.
+  `UnknownStrategy { name }` for a strategy no module registered, and whatever a recipe throws by name — except a recipe
+  whose part may be left out: its part is left out, in `leftOut`.
 - `runJob(prepared: Prepared, drivers: { drafter: Driver | null, reviewers: Driver[] }, options: { attended: boolean,
   context: JobContext, from?: unknown, onRound?: (round: Round) => void, onOutput?: (chunk: string) => void, onGate?:
   (gate: string) => Promise<void>, signal?: AbortSignal }) -> Promise<JobResult>` — refuses to start while
   `prepared.blocking` or `prepared.notFitting` is not empty (`NotStartable`). It sends the input to the drafter — or, with
   `from`, begins with that draft, one a person changed and wants checked again as a whole (UC-022, UC-023), and without a
-  drafter only returns the findings on it —, reads the answer by the output schema — an answer that cannot be read is a
+  drafter only checks it once and returns the findings on it, stopped `passed` when nothing is found, `limit` when a
+  finding is left, and `not checked` when a reviewer's answer cannot be read —, reads the answer by the output schema —
+  an answer that cannot be read is a
   finding of the loop, and if it still cannot be read after the last round the result is `unusable` —, runs the kind's
   checks and then its reviewing participants, whose findings are warnings
   whatever they say (`A REVIEWER'S FINDING IS A WARNING`); an answer of a reviewer that cannot be read is a check not done,
   asked again within the limit, and the result is `not checked` if it never can be read. Findings whose rule the kind
   leaves to a person go to `forPerson` and are never sent back (`WHAT A PERSON DECIDES IS NOT SENT BACK`); errors and
   warnings go back to the drafter, which must fix every error and fix or justify each warning in one line, and answer a
-  reviewer's finding that does not hold with its reason (`A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON`). The loop
-  stops when nothing is left, at the limit, or when a round leaves the findings unchanged; then the kind's steps run, so
+  reviewer's finding that does not hold with its reason (`A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON`): a warning
+  it justified, or a reviewer's finding it answered, is settled and not sent back again, while an error stays open until
+  a check no longer finds it. The loop stops when nothing is left open, at the limit, or when a round leaves the same
+  findings open as the round before; after a round in which only a reviewer's answer could not be read, the next round
+  checks the same draft again — its checks and its reviewing participants — without sending the drafter anything. Then
+  the kind's steps run, so
   that a person sees what they add, such as the due diligence (UC-022), and what they find goes into `stepFindings`,
-  never back to the drafter. At a point of the kind where a gate of
-  `context.gates` is not passed, it calls `onGate` — the route appends the gate to the job's record — and stops with
-  `gate`. What follows depends on the kind's `review` and on `attended`, which the caller sets when a person started the
+  never back to the drafter. At a gate point of the kind whose gate in `context.gates` is not passed, it calls `onGate`
+  — the route appends the gate to the job's record — and stops with `gate`: at `before-write` before the writer runs, so
+  that nothing is written, and at `before-merge` after it, once the pull request exists. The point `question` is not
+  handled: an answer's envelope has no field in which a participant asks a question, so the runner cannot see one. What
+  follows depends on the kind's `review` and on `attended`, which the caller sets when a person started the
   job on the page and waits for its result, outside a run:
   - a kind of `review: person`, attended: the job ends with the draft, its rounds and the findings left, and writes
     nothing; `writeResult` writes it on the person's click;
