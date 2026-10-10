@@ -84,6 +84,9 @@ test("the adapter discovers token-only GitLab products and preserves imported pu
   assert.deepEqual(dashboard.getProducts(), [first, second]);
   const entries = dashboard.entries();
   assert.deepEqual(Object.keys(JSON.parse(entries["agent-m.gitlab-tokens"])).sort(), [first, second]);
+  const canonicalSecond = readSetting(store, "gitlab-token:gitlab.example.org/team/second");
+  assert.equal(canonicalSecond?.value, "glpat_SECOND012345678", "the imported token reaches MOD-browser-store's canonical record");
+  assert.equal(canonicalSecond?.expires, "2027-02-01", "the imported expiry reaches MOD-browser-store's canonical record");
   const imported = dashboard.getGitLabToken(second);
   assert.equal(imported.token, "glpat_SECOND012345678", "the imported token remains visible through the established adapter");
   assert.equal(imported.expires, "2027-02-01", "the imported expiry remains visible through the established adapter");
