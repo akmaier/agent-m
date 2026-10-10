@@ -166,7 +166,8 @@ test("TST-286 UC-001 release transaction guards product writes and browser state
   assert.ok(tokenRequests.length > 0 && tokenRequests.every((request) => request.url.startsWith(`${API}/repos/${PRODUCT}`)), "every GitHub product-token request stays at its issuing product API");
   assert.ok(!trusted.requests.some((request) => request.authorization === `Bearer ${TOKEN}` && request.url.includes(`/repos/${PRODUCT}`)), "the instance key is absent from product requests");
   assert.deepEqual(trusted.instance.writes, [], "the instance repository is never named or written during Add product");
-  assert.equal(globalThis.localStorage.getItem("agent-m.github-token"), TOKEN, "the instance credential remains distinct from the product credential");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token`)).value, TOKEN,
+    "the canonical instance credential remains distinct from the product credential");
 });
 
 // TST-287
