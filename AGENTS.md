@@ -47,6 +47,16 @@ EVERY SPEC CHANGE MUST BE COORDINATED WITH THE USER. NO UNILATERAL ACTIONS!!!!!
 
 **The user is the human `akmaier`.** Acceptance of SPEC changes, use cases and architecture stays with that person. An agent Product Owner decides only the gates assigned to it by the declared process; it does not accept those artifacts on the human’s behalf.
 
+**Designing.** Before proposing any design — a SPEC change, a use case, an architecture, a file layout, a data structure — read the book's design principles in the original: ch. 10 *Principles for Robust Architecture Under AI Acceleration* (`docs/sources/SRC-vibe-coding/2026-10-05/10_architectural-design.md`) and ch. 12 *Design Guidelines: One Thing at a Time* and *KISS: Keep It Simple* (`docs/sources/SRC-vibe-coding/2026-10-05/12_implementation-and-version-control.md`). Check the design against them, and name for each decision the principle it rests on:
+
+1. **One responsibility per file, rule and use case.** Two concerns never share a file.
+2. **Nothing twice.** A rule that keeps two copies equal shows a duplicate: remove the copy instead of adding the rule.
+3. **Nothing the SPEC already says.** Before adding a requirement, check whether an existing one already gives it.
+4. **Adding one of a kind changes nothing of another kind.** A new team changes neither the process nor another team.
+5. **No special first case.** The first of a kind follows the same convention as every later one.
+
+When the user rejects a design, derive the next one from these principles again; do not patch the rejected one.
+
 ## 3. Process
 
 - **All requests are handled according to the [`SPEC.md`](SPEC.md) process.** The agent follows the processes and requirements defined there.
@@ -101,6 +111,10 @@ EVERY SPEC CHANGE MUST BE COORDINATED WITH THE USER. NO UNILATERAL ACTIONS!!!!!
    the repository’s textbook first, the relevant original documents, available evidence and current practice.
    **Whatever remains unresolved is asked — but together with a sentence explaining why it could not be clarified.**
    A question without that sentence has not been properly checked.
+
+7. **Read what a rule says, not what it might mean.** A reading that adds a word the text does not contain —
+   *only*, *every*, *the same as* — is an open question, quoted with the sentence it reads, never a finding.
+   A message from the user that can refer to more than one thing is the same: ask which before acting.
 
 ## 7. Separate data and code (test cases)
 
