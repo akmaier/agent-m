@@ -682,8 +682,11 @@ async function publicSettingsPage({ server = null, token = TOKEN, settings = {},
 }
 async function publicBridgePage(options = {}) {
   const settings = await publicSettingsPage(options);
+  const main = settings.dom.byId("main"), replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await settings.page.go("#bridge");
-  return { ...settings, main: () => settings.dom.byId("main") };
+  return { ...settings, mounted: () => ({ children: mounted }) };
 }
 // Until `cond` holds — for work that waits on the browser's cryptography rather than on a request.
 async function until(cond, what) {
@@ -896,8 +899,8 @@ test("UC-042 step 2: a GitLab project token — hidden until Show, changed after
 });
 
 test("UC-042 step 2: the jump host and a remote session are set, their commands written, and each is cleared — all in this browser", async () => {
-  const { srv, page, main } = await publicBridgePage();
-  const control = (name) => publicControls(main(), name)[0];
+  const { srv, page, mounted } = await publicBridgePage();
+  const control = (name) => publicControls(mounted(), name)[0];
   for (const [name, value] of Object.entries({ "jump-host-name": "jump.example.org", "jump-host-user": "agentm", "jump-host-ssh-port": "22", "jump-host-port-first": "20001", "jump-host-port-last": "20003" })) control(name).value = value;
   await publicPress(srv, control("jump-host-save"));
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:jump-host")), { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] });
@@ -909,7 +912,7 @@ test("UC-042 step 2: the jump host and a remote session are set, their commands 
   assert.match(control("remote-session-commands").textContent, /127\.0\.0\.1:20001/, "the commands are written from the settings");
   assert.doesNotMatch(control("remote-session-commands").textContent, /bridgeTOKEN/, "the bridge token is in no command");
   await page.go("#settings");
-  const endpoints = () => publicControls(main(), "settings-tab-panel").find((pane) => pane.textContent.includes("Endpoints & Agents"));
+  const endpoints = () => publicControls(mounted(), "settings-tab-panel").find((pane) => pane.textContent.includes("Endpoints & Agents"));
   await publicPress(srv, publicControls(endpoints(), "settings-remote-session-clear")[0]);
   assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:remote-session:lab-pc"), null);
   await publicPress(srv, publicControls(endpoints(), "settings-jump-host-clear")[0]);

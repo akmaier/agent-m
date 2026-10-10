@@ -72,14 +72,14 @@ async function settingsPage(world, entries = { "agent-m.github-token": TOKEN }) 
   let mounted = [];
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
+  const pane = (name) => mounted.find((node) => node.className?.split(" ").includes("settings-tab-panel") && node.textContent.includes(name));
   assert.ok(pane("Repositories"), "the dashboard mounts the public Repositories pane");
   assert.ok(pane("Endpoints & Agents"), "the dashboard mounts the public Endpoints & Agents pane");
   // Cases below are retained one-for-one from b099.  Their selectors still need
   // explicit per-control mapping; this route capture prevents any return to the
   // retired dashboard-owned browser-settings mount.
   const box = () => pane("Repositories");
-  return { page, dom, box, endpointBox: () => pane("Endpoints & Agents") };
+  return { page, dom, box, general: () => pane("General"), endpointBox: () => pane("Endpoints & Agents") };
 }
 const reload = (world) => settingsPage(world, agentEntries());
 
@@ -177,8 +177,8 @@ test("UC-042 step 2 · A CLEAR IS A REAL CLEAR: Clear removes the kept date and 
 
 test("UC-042 step 6 · A CLEAR IS A REAL CLEAR: Clear everything removes every kept test result", async () => {
   const world = await instanceWorld();
-  const { main } = await settingsPage(world, { ...canonicalToken(), ["agent-m:akmaier/agent-m:last-test:github-token"]: JSON.stringify({ at: new Date().toISOString(), outcome: "working" }), ["agent-m:akmaier/agent-m:last-test:endpoint:campus"]: JSON.stringify({ at: new Date().toISOString(), outcome: "refused" }) });
-  const clear = publicControls(main, "settings-clear-everything")[0], acknowledgement = publicControls(main, "settings-clear-ack")[0];
+  const { general } = await settingsPage(world, { ...canonicalToken(), ["agent-m:akmaier/agent-m:last-test:github-token"]: JSON.stringify({ at: new Date().toISOString(), outcome: "working" }), ["agent-m:akmaier/agent-m:last-test:endpoint:campus"]: JSON.stringify({ at: new Date().toISOString(), outcome: "refused" }) });
+  const clear = publicControls(general(), "settings-clear-everything")[0], acknowledgement = publicControls(general(), "settings-clear-ack")[0];
   acknowledgement.checked = true; await acknowledgement.fire("change"); await clear.fire("click");
   assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"), null);
   assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:endpoint:campus"), null, "Clear everything removes every outcome");
@@ -200,8 +200,9 @@ test("EVERY SETTING IS REACHED FROM ONE PAGE: after the tests, every entry Agent
   const again = await settingsPage(world, agentEntries());
   assert.ok(repositoryControl(again.box, "status"), "GitHub token and its outcome remain reachable in Repositories");
   assert.ok(gitlabControl(again.box, "status"), "GitLab token and its outcome remain reachable in Repositories");
+  assert.match(again.box().textContent, /Managed products/, "Managed products is reached from its public Repositories pane");
   const endpoints = again.endpointBox().textContent;
-  for (const visible of ["Managed products", "Jump host", "lab-pc"]) assert.match(endpoints, new RegExp(visible), `${visible} is not stranded from its public Endpoints & Agents pane`);
+  for (const visible of ["Jump host", "lab-pc"]) assert.match(endpoints, new RegExp(visible), `${visible} is not stranded from its public Endpoints & Agents pane`);
 });
 
 // ---------------------------------------------------------------- a GitLab project token
