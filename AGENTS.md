@@ -18,6 +18,15 @@ Applies to **every** agent working on this repository — the main agent **and**
 
 **What an agent reads before starting work:** this `AGENTS.md` and the repository’s `SPEC.md`, in the original. Read the use cases and architecture affected by the changes at hand, and read them **before editing them**. Read originals, never another agent’s summary.
 
+**What an agent reads for its work.** Before it starts, an agent reads at least these chapters of the book, in full and in the original (`docs/sources/SRC-vibe-coding/2026-10-05/`):
+
+| Work | Chapters |
+|---|---|
+| the SPEC or a use case | 8 *Requirements Engineering in Practice* |
+| tests | 13 *Software Testing in the Age of Coding Agents* |
+| the architecture | 9 *System Modeling*, 10 *Architectural Design*, 11 *Agentic Design and Control Patterns*, 12 *Implementation and Version Control* |
+| code, as a developer | 9, 11, 12 and 13 |
+
 **What belongs in the SPEC:** invariants, not implementation instructions. A sentence belongs there if violating it would constitute an error. Every sentence states the required target state, is testable, and contains **no** justification, ticket number, date, or measurement value — at most two pointers: `[→ Detail document §x]` and `[Verification: tests/…]`. **The justification belongs in the approval package**
 (`docs/spec-freigaben/<package>/NN-*.begruendung.md`), where it is stored together with the decision that made the sentence binding.
 
