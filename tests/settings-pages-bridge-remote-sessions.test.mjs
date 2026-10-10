@@ -72,7 +72,11 @@ test("TST-287001: the public Bridge route persists a distinct remote session and
   assert.equal(byClass(reopened, "remote-session-token")[0].type, "text", "Show alone reveals the selected session token");
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: priorNavigator });
   const path = "tests/settings-pages-bridge-remote-sessions.test.mjs";
-  const source = { paths: ["SPEC.md", path], read: (file) => readFile(file, "utf8") };
+  // A SPEC.md of its own, holding the one requirement both cases guard: no test opens Agent M's own SPEC.
+  const spec = ["# Fixture product — Specification", "", "## Settings", "",
+    "**EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE** *(Product Owner)*",
+    "A sample rule both remote-session cases guard.", `*Check:* \`${path}\``, ""].join("\n");
+  const source = { paths: ["SPEC.md", path], read: (file) => (file === "SPEC.md" ? spec : readFile(file, "utf8")) };
   const declarations = testDeclarations(path, await readFile(new URL(import.meta.url), "utf8"));
   assert.ok(declarations.every((declaration) => declaration.level && declaration.module && declaration.guards?.length && declaration.given && declaration.input && declaration.expect), "the final cases have readable canonical declarations");
   assert.deepEqual(tracesTo(await traceGraph(source), "EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE").tests.sort(), ["TST-287001", "TST-287002"], "the graph traces both final remote-session guards");
