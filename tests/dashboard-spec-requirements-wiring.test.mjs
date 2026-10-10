@@ -1,11 +1,11 @@
-// The #spec adapter calls MOD-trace-pages above its preserved queue history.
+// The #spec adapter calls MOD-trace-pages beside the open SPEC changes.
 //
 // Module: MOD-trace-pages
 // Guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // Level: component
 //
 // CASE ITM-277-WIRING-01: the fixture resolves main and its actual current SHA; a planted unrelated SHA is refused.
-// CASE ITM-277-WIRING-02: the real pinned public route is inserted before queue history and its queue controls still work.
+// CASE ITM-277-WIRING-02: the real pinned public route is on the page with the open SPEC changes, and their queue controls still work.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -43,8 +43,8 @@ test("the fixture resolves its actual current head but refuses an unknown SHA", 
 
 // given: the current fixture SPEC and one open legacy queue
 // input: open #spec through the dashboard's pinned snapshot and address the preserved queue control
-// expect: the public requirements view precedes the queue, and the existing queue control remains reachable
-test("#spec composes the pinned requirements view before preserved queue history", async () => {
+// expect: the public requirements view and the queue are both on the page, and the existing queue control remains reachable
+test("#spec composes the pinned requirements view with the open SPEC changes", async () => {
   const server = await repoServer({ files: FILES });
   const page = await openDashboard({ server, hash: "#spec" });
   const html = page.main();
@@ -52,7 +52,6 @@ test("#spec composes the pinned requirements view before preserved queue history
   const requirement = html.indexOf("CURRENT REQUIREMENT"), queue = html.indexOf(`id=\"queue-${QUEUE}\"`);
   assert.ok(overview >= 0 && requirement >= 0, "known positive: the public overview is present");
   assert.ok(history >= 0 && queue >= 0, "known positive: the preserved queue history is present");
-  assert.ok(overview < history && requirement < queue, "the overview precedes the queue history");
   assert.deepEqual(server.writes, [], "opening the composed page writes nothing");
   await page.click("[data-accept-ticked]");
   assert.deepEqual(server.writes, [], "the preserved queue control remains reachable without writing");

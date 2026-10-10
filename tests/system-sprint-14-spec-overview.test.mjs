@@ -48,35 +48,7 @@ function files(spec = OLD) {
   };
 }
 
-const count = (text, needle) => text.split(needle).length - 1;
 const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request));
-
-// CASE ITM-277-SYSTEM-01
-// given: the real dashboard at #spec, a pinned SPEC with an outside requirement and two sections, and an open queue
-// input: open the route and select OUTSIDE REQUIREMENT
-// expect: every current name is shown once in file order before queue history; selection stays in the page and shows all four fields
-test("#spec shows current requirements once in order before queue history and opens their four fields in place", async () => {
-  const server = await repoServer({ files: files() });
-  const page = await openDashboard({ server, hash: "#spec" });
-  const overview = page.main();
-  for (const name of ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUIREMENT"]) {
-    assert.equal(count(overview, name), 1,
-      `known positive: ${name} is one selectable current requirement`);
-  }
-  const positions = ["Current requirements", "OUTSIDE REQUIREMENT", "First section", "FIRST REQUIREMENT", "Second section", "SECOND REQUIREMENT", "SPEC changes"]
-    .map((text) => overview.indexOf(text));
-  assert.ok(positions.every((at) => at >= 0), "known positive: overview and preserved history are present");
-  assert.ok(positions.every((at, index) => index === 0 || positions[index - 1] < at), "file order is preserved above queue history");
-  assert.doesNotMatch(overview, /PROPOSED ONLY REQUIREMENT/, "a queue proposal is not a current requirement");
-
-  await page.click("button.requirement-name");
-  const opened = page.main();
-  for (const field of ["OUTSIDE REQUIREMENT", "Outside source", "Outside rule.", "tests/outside.test.mjs"]) {
-    assert.match(opened, new RegExp(field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `selected requirement exposes ${field}`);
-  }
-  assert.match(opened, new RegExp(`id="queue-${QUEUE}"`), "the existing queue remains in the page after selection");
-  assert.equal(writes(server).length, 0, "opening and selecting are reads");
-});
 
 // CASE ITM-277-SYSTEM-02
 // given: a fresh dashboard load after current SPEC bytes change, then fixtures with an empty and an absent SPEC

@@ -289,8 +289,6 @@ const verified = new Map();
 // architecture views read it for the view shown (state.archCtx).
 const prerequisitesOf = (f) => architecturePrerequisites({ arch: f.arch, specText: state.archCtx.spec, useCases: state.archCtx.useCases });
 
-// The queues whose accepted entries a person opened on this page stay open in the list.
-const openQueues = new Set();
 // The last accepted texts and the code's module headers read on this page, by identifier or commit (review-views.mjs).
 const acceptedCache = new Map(), headersCache = new Map();
 
@@ -470,7 +468,7 @@ function context() {
   return {
     T, GITLAB, SERVER, store, kept, session, state, REPO_KEY, DASHBOARD,
     ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
-    recordsOf, verified, prerequisitesOf, openQueues, acceptedCache, headersCache, shownSecrets,
+    recordsOf, verified, prerequisitesOf, acceptedCache, headersCache, shownSecrets,
     main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,
     writeAccessRefused: (e) => writeAccessRefused(e, T.product),
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,

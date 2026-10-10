@@ -72,38 +72,30 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const specItem = (q, e) => ({ kind: "spec", queue: e.dir, qname: q.name, nr: e.nr, nn: e.nn, proposalPath: e.proposalPath,
   proposalBlob: e.proposalBlob, sectionBlob: e.sectionBlob, targetPath: e.targetPath, anchor: e.anchor, bis: e.bis, needs: e.needs });
-const specAcceptable = (e) => Boolean(!e.error && e.proposalPath && ["open", "stale"].includes(e.status));
+// An open entry is not accepted yet, or changed since its approval (stale).
+const isOpen = (e) => ["open", "stale"].includes(e.status);
+const specAcceptable = (e) => Boolean(!e.error && e.proposalPath && isOpen(e));
 
-// Every queue with its index and decisions; the entries of a queue with an entry still undecided, and of each queue opened on this
-// page. A queue whose entries are all accepted is named with their number and opened on request: only then are its proposals
-// read, to show whether each still stands in the SPEC.
-async function viewSpec(app, open = null) {
-  const { GITLAB, session, openQueues, main } = app;
+// The open SPEC changes, above the SPEC. A queue whose entries are all accepted is not listed, and its proposals are not read;
+// an accepted entry of a queue that is still open is not listed either.
+async function viewSpec(app) {
+  const { GITLAB, session, main } = app;
   const seq = app.seq();
   const requirements = document.createElement("div");
-  if (open) openQueues.add(open);
   const [heads] = await Promise.all([queueHeads(app), currentRequirements(app, requirements)]);
-  const queues = await Promise.all(heads.map(async (q) =>
-    ({ ...q, entries: q.accepted && !openQueues.has(q.name) ? null : await queueEntries(app, q) })));
-  const all = queues.flatMap((q) => q.entries || []);
-  const folded = queues.filter((q) => !q.entries), foldedEntries = folded.reduce((n, q) => n + q.idx.entries.length, 0);
+  const queues = (await Promise.all(heads.filter((q) => !q.accepted).map(async (q) =>
+    ({ ...q, entries: (await queueEntries(app, q)).filter(isOpen) })))).filter((q) => q.entries.length);
+  const all = queues.flatMap((q) => q.entries);
   if (seq !== app.seq()) return;
   const history = document.createElement("div");
   history.innerHTML = `
-    <section class="head"><h2>SPEC changes</h2><p>${counts(all)}${folded.length ? ` · ${foldedEntries} accepted
-      ${foldedEntries === 1 ? "entry" : "entries"} in ${folded.length} closed ${folded.length === 1 ? "queue" : "queues"}` : ""}</p>
+    <section class="head"><h2>SPEC changes</h2><p>${all.length ? counts(all) : "No open SPEC changes."}</p>
     <p class="muted">Each entry proposes the text of one SPEC section. ${app.token()
       ? "Accepting it commits the approval and writes the proposal into the SPEC byte for byte, in one commit."
       : GITLAB ? `Accepting on GitLab needs this project's token — <a href="${h(app.tokenStepLink())}">store it</a>.`
       : "Accept it here; the workflow writes it into <code>SPEC.md</code> byte for byte once your approval commit arrives."}</p></section>
     ${batchBar(app)}
-    ${queues.map((q) => !q.entries ? `
-      <section class="queue closed" id="queue-${h(q.name)}">
-        <h3>${h(q.name)}</h3>
-        <p class="muted">All ${q.idx.entries.length} ${q.idx.entries.length === 1 ? "entry is" : "entries are"} accepted, by the decisions
-          of this queue. Their proposals are read when you open the queue, which shows whether each still stands in the SPEC.
-          <a class="btn small" href="#spec/${h(q.name)}">Open the queue</a></p>
-      </section>` : `
+    ${queues.map((q) => `
       <section class="queue" id="queue-${h(q.name)}">
         <h3>${h(q.name)}</h3>
         <table class="list"><thead><tr>${app.token() ? "<th>Tick</th>" : ""}<th>Nr</th><th>Section</th><th>Status</th></tr></thead><tbody>
@@ -114,7 +106,7 @@ async function viewSpec(app, open = null) {
         </tbody></table>
       </section>`).join("")}`;
   const page = main();
-  page.replaceChildren(requirements, history);
+  page.replaceChildren(history, requirements);
   wireAccept(app, history);
 }
 
@@ -184,14 +176,13 @@ function specImpactHtml(impact) {
 
 // One entry: its queue's entries (an entry may need another of its queue), and its rationale.
 async function viewSpecEntry(app, qname, nn) {
-  const { session, openQueues, main, md, renderMermaid, diffHtml } = app;
+  const { session, main, md, renderMermaid, diffHtml } = app;
   const seq = app.seq();
   const q = (await queueHeads(app)).find((x) => x.name === qname);
   const entries = q ? await queueEntries(app, q) : [];
   const e = entries.find((x) => x.nn === nn);
   if (seq !== app.seq()) return;
   if (!e) { main().innerHTML = `<p class="warn">No entry ${h(qname)}/${h(nn)}.</p>`; return; }
-  openQueues.add(q.name);
   const [rationale, impact] = await Promise.all([e.rationalePath ? app.fileText(e.rationalePath) : "",
     entryImpact(app, e, entries).then((list) => ({ list }), (err) => { app.noteRefusal(err); return { list: [], error: app.errorText(err) }; })]);
   if (seq !== app.seq()) return;
@@ -235,5 +226,5 @@ async function viewSpecEntry(app, qname, nn) {
 }
 
 export const routes = {
-  spec: (app, a, b) => (a && b ? viewSpecEntry(app, decodeURIComponent(a), b) : viewSpec(app, a ? decodeURIComponent(a) : null)),
+  spec: (app, a, b) => (a && b ? viewSpecEntry(app, decodeURIComponent(a), b) : viewSpec(app)),
 };

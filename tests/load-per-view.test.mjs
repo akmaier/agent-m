@@ -107,18 +107,16 @@ test("the architecture view reads no use case and no queue file", async () => {
   assert.match(page.main(), /waits for UC-002/);
 });
 
-test("the SPEC view reads SPEC.md and every queue's index and decisions; an accepted queue's proposals only when it is opened", async () => {
+test("the SPEC view lists only the open SPEC changes; an accepted queue's proposals are not read", async () => {
   const repo = await product();
   const page = await openDashboard({ server: await server(repo), hash: "#spec" });
   assert.deepEqual(files(page.requests), ["SPEC.md", "SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/01-more.md`,
     `${OPEN}/entscheidungen.md`, `${OPEN}/index.md`].sort());
-  // The accepted queue is named, not left out: its entries are counted and it can be opened.
-  assert.match(page.main(), /2026-09-01_done/);
-  assert.match(page.main(), /href="#spec\/2026-09-01_done"/);
-  assert.match(page.main(), /1 accepted\s+entry in 1 closed queue/);
-  const opened = await page.go("#spec/2026-09-01_done");
-  assert.deepEqual(files(opened), ["SPEC.md", `${DONE}/01-rules.md`], "its current requirements and proposal, and nothing read before again");
-  assert.match(page.main(), /b-applied/);
+  const main = page.main();
+  // Only open changes: the queue with an open entry is listed, the accepted queue is not.
+  assert.match(main, /id="queue-2026-09-02_open"/);
+  assert.doesNotMatch(main, /id="queue-2026-09-01_done"/);
+  assert.doesNotMatch(main, /closed queue/);
 });
 
 test("opening one use case reads that use case and its records — no other file", async () => {
