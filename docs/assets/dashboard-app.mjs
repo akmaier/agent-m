@@ -543,6 +543,7 @@ async function route() {
           if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
           if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
           if (route === "bridge") location.hash = "#bridge";
+          if (route === "main") location.search = productHref(parseProductAddress(params.product)).slice(1);
         },
       }, {});
     } else if (kind === "add") {

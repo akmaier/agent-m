@@ -280,3 +280,63 @@ test("TST-290113: Settings removes one legacy collaborator consent row without a
   assert.match(text, /Keep this unrelated note\.\n$/, "failure node: legacy unrelated bytes survive the targeted row removal");
   assert.equal(writes[0].files[0].path, "docs/collaborators.md");
 });
+
+// TST-290130
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042 (step 3); UC-001; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// given: the public Settings Route with a stored product list and a product's own token; the page's go records every route
+//        it is asked for; GitHub's replies for that product are constructed, its review layout complete
+// input: the person opens Repositories, presses the product list's Change, Add or remove products, types the product's
+//        address, presses Add product, then Switch to the new product
+// expect: Add a product opens in place, in the Repositories tab, with its address field focused, and the page asks for no
+//         route; Switch to the new product, a route that is no form of the tab, still reaches the page's go with the product
+test("TST-290130: the product list's Change opens Add a product in place, in the Repositories tab", async (t) => {
+  const storage = new Storage();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const store = openStore("fixture/instance");
+  const web = "https://github.com/alice/thesis-tool";
+  writeSetting(store, "products", ["https://github.com/alice/other-tool"]);
+  writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT", name: "Agent M", expires: "2027-06-01" });
+  const head = "a".repeat(40);
+  const layout = ["docs/use-cases/README.md", "docs/architecture/README.md", "docs/approvals/README.md",
+    "docs/spec-freigaben/README.md", "SPEC.md", "CHANGELOG.md"];
+  const replies = {
+    "/repos/alice/thesis-tool": { default_branch: "main", visibility: "private", private: true, archived: false, description: "",
+      permissions: { push: true } },
+    "/repos/alice/thesis-tool/commits/main": { sha: head, commit: { tree: { sha: "b".repeat(40) } } },
+    [`/repos/alice/thesis-tool/git/trees/${head}`]: { sha: head, truncated: false,
+      tree: layout.map((path) => ({ path, type: "blob", sha: "e".repeat(40) })) },
+  };
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+    return path in replies
+      ? new Response(JSON.stringify(replies[path]), { status: 200, headers: { "content-type": "application/json" } })
+      : new Response(JSON.stringify({ message: "Not Found" }), { status: 404 });
+  };
+  t.after(() => { globalThis.fetch = oldFetch; });
+  const target = document.createElement("div");
+  const navigations = [];
+  await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store,
+    go(name, params) { navigations.push({ name, params }); } }, {});
+
+  click(byClass(target, "settings-tab")[1]);
+  const pane = byClass(target, "settings-tab-panel").find((node) => node.textContent.startsWith("Repositories ·"));
+  const products = byClass(pane, "settings-repository").find((line) => /Add or remove products/.test(line.textContent));
+  await trustedClick(byClass(products, "settings-repository-change")[0]);
+  assert.deepEqual(navigations, [], "failure node: Add or remove products does not leave the Settings page");
+  const address = byClass(pane, "address")[0];
+  assert.ok(address, "Add a product opens in place, in the Repositories tab");
+  assert.equal(address.focused, true, "Add a product opens with its address field focused");
+
+  address.value = web;
+  address.dispatchEvent(new Event("input"));
+  const add = byClass(pane, "add")[0];
+  assert.equal(add.disabled, false, "the product's own token is stored, so Add product is offered");
+  await add.fire("click", true);
+  const switchProduct = byClass(pane, "switch")[0];
+  assert.ok(switchProduct, "after the add, the form in the tab offers the new product");
+  click(switchProduct);
+  assert.deepEqual(navigations, [{ name: "main", params: { product: web } }], "Switch to the new product reaches the page's go");
+});
