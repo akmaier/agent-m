@@ -137,7 +137,7 @@ function rateFindingText({ test, now, then }, guards) {
   const centre = (rate + (z ** 2) / (2 * trials)) / denominator;
   const margin = z * Math.sqrt((rate * (1 - rate)) / trials + (z ** 2) / (4 * trials ** 2)) / denominator;
   const percent = (value) => `${(value * 100).toFixed(1)}%`;
-  return `- ${test}: ${guards.join(", ")}; finding; current ${now}; running version ${then}; two-sided 95% Wilson score interval for current rate: ${percent(centre - margin)}–${percent(centre + margin)}.`;
+  return `- ${test}: ${guards.join(", ")}; finding; current ${now}; running version ${then}; two-sided 95% Wilson score interval (confidence interval) for current rate: ${percent(centre - margin)}–${percent(centre + margin)}.`;
 }
 
 function limitationsText(ids, declarations, worseRows) {
