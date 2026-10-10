@@ -257,7 +257,8 @@ test("TST-290113: Settings removes one legacy collaborator consent row without a
   assert.match(byClass(target, "settings-product-access")[0].textContent, /writable/i, "the repositoryInfo access state remains visible rather than discarded");
   assert.equal(byClass(target, "settings-pseudonymisation-save").length, 0);
   click(byClass(target, "settings-product-token-step")[0]);
-  assert.deepEqual(navigations, [{ name: "add-product", params: {} }], "read-only points to the existing UC-001 token step route");
+  assert.deepEqual(navigations, [{ name: "add-product", params: { address: "https://github.com/fixture/product" } }],
+    "read-only identifies the selected product for the existing UC-001 token step route");
   writeSetting(store, "github-token:fixture/product", { value: "ghp_fixtureToken" });
   await route().render(target, context, {});
   click(byClass(target, "settings-tab")[1]);
