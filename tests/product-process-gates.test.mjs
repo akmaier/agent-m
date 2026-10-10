@@ -87,7 +87,7 @@ const WORKFLOW = workflowOf(declarationOf(DECLARATION), MODEL, [], "# Fixture SP
 const gate = (name) => WORKFLOW.gates.find((candidate) => candidate.name === name);
 
 function record(fields, reason = "") {
-  return readDocument(gateSchema, GATE_PATH, [
+  return readDocument(gateSchema, fields.path ?? GATE_PATH, [
     "---",
     `gate: ${fields.gate}`,
     `job: ${fields.job ?? ""}`,
@@ -147,9 +147,9 @@ test("TST-292013: gateSchema reads and writes every gate-record field", async ()
 // level: unit
 // module: MOD-product-process
 // guards: STATUS IS DERIVED FROM THE RECORDS; A GATE NAMES WHO DECIDES IT
-// given: a workflow from workflowOf; passed, stale, rejected, and wrong-decider records; and current artifact blobs
+// given: a workflow from workflowOf; current, stale, rejected, and wrong-decider records; and current artifact blobs
 // input: gateStates with those records and the current checked blobs
-// expect: the valid current record passes, a changed checked text is passed on an earlier text with a difference, a valid rejection is rejected, an undecided reachable gate is pending, a later blocked gate is not reached, and a wrong-decider pass establishes no pass
+// expect: a valid current record passes; a changed checked text is passed on an earlier text with a difference; a later current record passes despite an earlier stale record; a valid rejection is rejected; an undecided reachable gate is pending; a later blocked gate is not reached; and a wrong-decider pass establishes no pass
 test("TST-292014: gateStates derives current, stale, rejected, pending, and not-reached gates", () => {
   const texts = {
     "docs/plan.md": BLOBS.plan,
@@ -179,6 +179,18 @@ test("TST-292014: gateStates derives current, stale, rejected, pending, and not-
   ]);
   assert.match(states[1].difference, /src\/product-process\/index\.mjs/);
   assert.equal(states[4].record, null, "a wrong-decider record never establishes a pass");
+
+  const currentReview = record({ gate: gate("Development → Review").name, decider: "alice", role: "Product Owner",
+    decision: "passed", on: [`src/product-process/index.mjs@${BLOBS.implementationNow}`],
+    path: "docs/gates/20261010-0001-development-review-current.md" });
+  const currentOnly = gateStates(WORKFLOW, [currentReview], texts);
+  assert.deepEqual(currentOnly[1], {
+    gate: "Development → Review", state: "passed", record: currentReview.path, needs: null, difference: null,
+  }, "known positive: a deciding record on the current checked blob passes the gate");
+  const mixed = gateStates(WORKFLOW, [...records, currentReview], texts);
+  assert.deepEqual(mixed[1], {
+    gate: "Development → Review", state: "passed", record: currentReview.path, needs: null, difference: null,
+  }, "a later current deciding pass is not hidden by the earlier stale record");
 });
 
 // TST-292015
