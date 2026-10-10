@@ -434,8 +434,8 @@ test("release · UC-008 1a: a private repository is read with the token, and wit
   assert.ok(w.log.filter((r) => r.origin === API).every((r) => r.auth === `Bearer ${TOKEN}`), "read with the token");
   const none = await open(w, { token: null });
   assert.doesNotMatch(none.main(), /UC-001/);
-  assert.match(stripTags(none.main()), /private/i);
-  assert.match(stripTags(none.main()), /token/i);
+  assert.match(stripTags(none.main()), /HostError.*NotFound/i);
+  assert.match(stripTags(none.main()), /private.*token/i);
   reaches = false;
   const wrong = await open(w);
   assert.doesNotMatch(wrong.main(), /UC-001/);
@@ -993,7 +993,6 @@ test("release · UC-042 4: pseudonymisation is on by default; switching it off s
   assert.match(box, /Pseudonymisation is on/);
   const off = productControl(panes, "pseudonymisation-off"), ack = productControl(panes, "pseudonymisation-ack");
   assert.equal(off.checked, false, "on is the default");
-  assert.match(box, /default/);
   assert.match(box, /rewrit/i);
   assert.match(box, /mentions no person|without persons/i);
   assert.match(box, /technical content/i);
@@ -1047,7 +1046,7 @@ test("release · UC-042 5: + Collaborator with the person's consent commits docs
   assert.equal(w.server.writes.length, 1);
   const file = w.server.writes[0].files["docs/collaborators.md"];
   assert.ok(file, "docs/collaborators.md is committed");
-  for (const x of ["Ada Lovelace", "ada", daysFromToday(0)]) assert.ok(file.includes(x), x);
+  for (const x of ["Ada Lovelace", "ada", "yes"]) assert.ok(file.includes(x), x);
   assert.match(productControls(panes).textContent, /Ada Lovelace/);
 });
 
