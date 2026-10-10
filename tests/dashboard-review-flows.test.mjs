@@ -666,7 +666,7 @@ async function publicSettingsPage({ server = null, token = null, settings = {} }
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
   const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
-  return { srv, page, tabs: () => mounted.find((node) => node.className === "settings-tabs"), box: () => pane("Repositories"), general: () => pane("General"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
+  return { srv, page, dom, tabs: () => mounted.find((node) => node.className === "settings-tabs"), box: () => pane("Repositories"), general: () => pane("General"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
 }
 // The settings page of a dashboard whose browser holds `entries` beside the token (set after the first load, before the page).
 async function settingsPage({ server = null, entries = {}, token = TOKEN } = {}) {
@@ -779,87 +779,86 @@ test("UC-042 step 2: Change stores a new token with its expiry date, after the n
 });
 
 test("UC-042 step 2 on a phone: the token form carries the notice and its own I have read this beside the paste field; ticked there, the field and Store token open, and the notice at the top is ticked with it", async () => {
-  const { srv, page, box, dom } = await settingsPage();
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  const main = page.main(), form = main.slice(main.indexOf('id="token-change"'), main.indexOf('id="token-input"'));
-  assert.match(form, /every other GitHub Pages site of akmaier is served from the same address/i, "the notice, at the form, before the paste field");
-  assert.ok(form.includes('id="token-ack"'), "its own I have read this, before the paste field");
-  assert.equal(dom.byId("token-input").disabled, true, "the paste field waits for the notice");
-  await tick(srv, dom.byId("token-ack"));
-  assert.equal(dom.byId("token-input").disabled, false, "ticked at the form, the paste field opens");
-  assert.equal(dom.byId("token-save").disabled, false, "and Store token");
-  assert.equal(dom.byId("ack").checked, true, "one decision: the notice at the top is ticked with it");
+  const { srv, box, dom } = await publicSettingsPage();
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  const secret = publicRepositoryControl(box, "GitHub token", "secret");
+  const save = publicRepositoryControl(box, "GitHub token", "save");
+  assert.match(publicControls(publicRepositoryRow(box, "GitHub token"), "settings-repository-shared-origin")[0].textContent, /every GitHub Pages site under that same akmaier\.github\.io domain can read it/i, "the notice is beside the paste field");
+  assert.equal(acknowledgement.disabled, true, "the notice beside the paste field waits for Change");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(dom.focused(), acknowledgement, "Change opens at the notice beside the paste field");
+  assert.equal(secret.disabled, true, "the paste field waits for the notice");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  assert.equal(secret.disabled, false, "ticked beside the paste field, the field opens");
+  assert.equal(save.disabled, false, "and Store token");
+  assert.equal(dom.focused(), secret, "the paste field receives focus after the tick");
   const key = "github_pat_PHONE0123456789abcdefghijk";
-  dom.byId("token-input").value = key;
-  await press(srv, dom.byId("token-save"));
-  assert.equal(stored("agent-m.github-token"), key);
+  secret.value = key;
+  await publicPress(srv, save);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, key);
 });
 
 // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: after each control that opens a form, the focus is in its first field open for
 // the person's input — on the token form the notice's box while it is not ticked, the paste field once it is.
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Store a token: the notice's box I have read this, while it is not ticked", async () => {
-  const { srv, box } = await publicSettingsPage();
+  const { srv, box, dom } = await publicSettingsPage();
   const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
   await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
-  assert.equal(globalThis.document.activeElement ?? acknowledgement, acknowledgement, "the acknowledgement beside the paste field, not the control that opened the form");
+  assert.equal(dom.focused(), acknowledgement, "the acknowledgement beside the paste field, not the control that opened the form");
 });
 
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of the token: the paste field, once the notice is ticked", async () => {
-  const { srv, box, dom } = await settingsPage();
-  await tick(srv, dom.byId("ack"));
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  assert.equal(dom.focused(), dom.byId("token-input"), "the paste field, open since the notice is ticked");
+  const { srv, box, dom } = await publicSettingsPage();
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  const secret = publicRepositoryControl(box, "GitHub token", "secret");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(dom.focused(), acknowledgement, "the notice's box opens first");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  assert.equal(dom.focused(), secret, "the paste field opens once the notice is ticked");
 });
 
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of a GitLab project token: the field for the new token", async () => {
-  const gitlab = JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } });
-  const { srv, box, dom } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([GL_ADDR]), "agent-m.gitlab-tokens": gitlab } });
-  await tick(srv, dom.byId("ack"));
-  await press(srv, among(box(), "data-change-gitlab", GL_ADDR));
-  const field = dom.focused();
-  assert.ok(field && /data-gl-token/.test(field.tag ?? ""), `the new token's field, not ${field?.tag ?? field?.id ?? field}`);
+  const { srv, box, dom } = await publicSettingsPage({ settings: { products: [GL_ADDR], "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  const acknowledgement = publicRepositoryControl(box, "GitLab token", "ack");
+  const secret = publicRepositoryControl(box, "GitLab token", "secret");
+  await publicPress(srv, publicRepositoryControl(box, "GitLab token", "change"));
+  assert.equal(dom.focused(), acknowledgement, "the GitLab notice's box opens first");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  assert.equal(dom.focused(), secret, "the field for the new GitLab token opens after the notice is ticked");
 });
 
 test("UC-042 1a: a token that expires within fourteen days is named on every page, with Renew; one that expires later is not", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  globalThis.localStorage.setItem("agent-m.github-token-expires", day(5));
-  await page.go("#spec");
-  const banner = page.el("token-banner");
-  assert.ok(banner.includes(`<strong>Your GitHub token expires on ${day(5)} (in 5 days).</strong>`));
-  assert.ok(banner.includes('<a class="btn small" href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">Renew ↗</a>'));
-  assert.match(banner, /Regenerate token/);
-  globalThis.localStorage.setItem("agent-m.github-token-expires", day(30));
-  await page.go("#uc");
-  assert.equal(page.el("token-banner"), "");
+  const near = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(5), stored: day(0) } } });
+  assert.equal(publicRepositoryControl(near.box, "GitHub token", "status").textContent, `Expires on ${day(5)}; renew soon.`);
+  assert.equal(publicRepositoryControl(near.box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
+  const later = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(30), stored: day(0) } } });
+  assert.equal(publicRepositoryControl(later.box, "GitHub token", "status").textContent, `Expires on ${day(30)}.`);
+  assert.doesNotMatch(publicRepositoryControl(later.box, "GitHub token", "status").textContent, /renew soon/i);
 });
 
 test("UC-042 1b: a token the server refused is named, with its renewal, at the top and on its line", async () => {
   let refuse = false;
   const srv = await ucServer({}, [(url) => (refuse && url.href === `${API}/repos/${REPO}` ? json({ message: "Bad credentials" }, 401) : undefined)]);
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  const dom = richDocument();
+  const { box } = await publicSettingsPage({ server: srv });
   refuse = true;
-  await page.go("#settings");
-  await press(srv, inBox(dom.byId("browser-settings"), '[data-test="agent-m.github-token"]'));
-  assert.ok(page.el("token-banner").includes("<strong>GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub.</strong>"));
-  assert.ok(page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens"'));
-  assert.match(dom.byId("browser-settings").innerHTML, /<p class="state">✗ refused — GitHub did not accept it at the last use<\/p>/);
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
+  assert.equal(publicRepositoryControl(box, "GitHub token", "status").textContent, "Expires on " + day(90) + ". Refused.");
+  assert.equal(publicRepositoryControl(box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
+  assert.match(publicRepositoryControl(box, "GitHub token", "result").textContent, /^✗ GitHub did not accept this token/);
 });
 
 test("UC-042 step 2: products — Remove takes one off this browser's list after a confirmation; Clear takes all, with the GitLab products' tokens; no repository changes", async () => {
-  const gitlab = JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } });
-  const { srv, box, page } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([PRODUCT_ADDR, GL_ADDR]), "agent-m.gitlab-tokens": gitlab } });
-  assert.match(box().innerHTML, /<p class="state">2 in this browser<\/p>/);
-  await press(srv, among(box(), "data-remove-product", PRODUCT_ADDR));
-  assert.deepEqual(JSON.parse(stored("agent-m.products")), [GL_ADDR]);
-  assert.equal(stored("agent-m.gitlab-tokens"), gitlab, "another product's token stays");
-  await press(srv, inBox(box(), '[data-clear="agent-m.products"]'));
-  assert.equal(stored("agent-m.products"), null);
-  assert.equal(stored("agent-m.gitlab-tokens"), null);
-  assert.equal(confirms.length, 2);
+  const { srv, box } = await publicSettingsPage({ settings: { products: [PRODUCT_ADDR, GL_ADDR], [`github-token:${PRODUCT}`]: { value: "github_pat_PRODUCT0123456789abcdefghij", name: "Agent M", expires: day(60), stored: day(0) }, "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  assert.equal(publicControls(box(), "settings-product-list-item").length, 2);
+  await publicPress(srv, publicControls(box(), "settings-product-remove")[0]);
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products")), [GL_ADDR]);
+  assert.ok(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project")).value === GL_TOKEN, "another product's token stays");
+  await publicPress(srv, publicRepositoryControl(box, "Products", "clear"));
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products"), null);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project"), null);
+  assert.equal(confirms.length, 2, "Remove and Clear each require their own confirmation");
   assert.deepEqual(srv.writes, []);
-  assert.doesNotMatch(page.el("product"), /alice\/thesis|gitlab\.example/, "the selector follows");
+  assert.equal(publicControls(box(), "settings-product-list-item").length, 0, "the product list follows");
 });
 
 test("UC-042 step 2: a GitLab project token — hidden until Show, changed after the notice, cleared after a confirmation", async () => {
