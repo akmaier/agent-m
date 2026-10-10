@@ -23,7 +23,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repoServer, openDashboard, richDocument, press, settle, REPO, TOKEN } from "./app-harness.mjs";
+import { repoServer, openDashboard, press, settle, REPO, TOKEN } from "./app-harness.mjs";
 
 const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the instance (store.mjs prefixOf)
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
@@ -112,6 +112,18 @@ function captureNotifications() {
 
 // What a person reads: HTML entities decoded, as tests/release-sprint-04-uc-001-repository-hosts.test.mjs's own unesc does.
 const unesc = (s) => String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
+
+async function usabilitySettings(page) {
+  const main = globalThis.document.getElementById("main");
+  const replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Usability/.test(node.textContent));
+  assert.ok(pane, "the dashboard mounts MOD-settings-pages' public Usability tab");
+  return pane;
+}
 
 // This browser's canonical MOD-browser-store product list and the product's own GitHub token, given directly as a
 // fixture entry the way every test of this file gives "notifications"/"notified" directly, never driving the
@@ -133,19 +145,10 @@ test("step 1: the line Notifications sits in the section *this browser*, and say
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
   try {
-    const page = await openDashboard({ server, hash: "#settings" });
-    const html = page.main();
-    const h3At = html.indexOf("<h3>This browser</h3>");
-    assert.ok(h3At >= 0, "the section This browser is on the page");
-    const sectionCloseAt = html.indexOf("</section>", h3At);
-    const notificationsAt = html.indexOf('id="notifications-settings"');
-    assert.ok(notificationsAt >= 0, "the Notifications panel is on the page");
-    assert.ok(notificationsAt < sectionCloseAt,
-      "UC-047 step 1 places Notifications in the section This browser, before that section's own closing tag");
-
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    assert.match(box.innerHTML, /<p class="state">off<\/p>/);
+    const page = await openDashboard({ server, hash: "#uc" });
+    const box = await usabilitySettings(page);
+    assert.match(box.textContent, /Usability · this browser/, "the public Usability section is this browser's settings");
+    assert.match(publicControls(box, "settings-notifications-status")[0].textContent, /Off\./);
   } finally { browser.restore(); }
 });
 
@@ -158,18 +161,17 @@ test("step 1: Switch on asks the browser's permission once, directly on the clic
   const server = await repoServer({ files: {} });
   const browser = installBrowser({ permission: "default" });
   try {
-    const page = await openDashboard({ server, hash: "#settings" });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
+    const page = await openDashboard({ server, hash: "#uc" });
+    const box = await usabilitySettings(page);
     assert.equal(browser.calls.requestPermission, 0, "no page asks the permission before the click");
 
-    const switchOn = box.querySelector("[data-notifications-switch-on]");
+    const switchOn = publicControls(box, "settings-notifications-on")[0];
     await press(server, switchOn);
 
     assert.equal(browser.calls.requestPermission, 1, "Switch on asks the permission, once, on the click");
-    assert.match(box.innerHTML, /<p class="state">✓ on<\/p>/);
-    assert.ok(box.querySelector("[data-notifications-test]"), "Test is offered once on");
-    assert.ok(box.querySelector("[data-notifications-switch-off]"), "Switch off is offered once on");
+    assert.match(publicControls(box, "settings-notifications-status")[0].textContent, /On\./);
+    assert.ok(publicControls(box, "settings-notifications-test")[0], "Test is offered once on");
+    assert.ok(publicControls(box, "settings-notifications-off")[0], "Switch off is offered once on");
   } finally { browser.restore(); }
 });
 
@@ -332,13 +334,12 @@ test("1a: the person, or the browser, refuses — the line says blocked, and whe
   const browser = installBrowser({ permission: "default" });
   browser.setRequestResult("denied");
   try {
-    const page = await openDashboard({ server, hash: "#settings" });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    await press(server, box.querySelector("[data-notifications-switch-on]"));
+    const page = await openDashboard({ server, hash: "#uc" });
+    const box = await usabilitySettings(page);
+    await press(server, publicControls(box, "settings-notifications-on")[0]);
 
-    assert.match(unesc(box.innerHTML), /blocked — notifications are refused for this site; allow them in the browser's own site settings/);
-    assert.equal(box.querySelector("[data-notifications-switch-on]").disabled, true, "refused: Switch on is disabled");
+    assert.match(unesc(publicControls(box, "settings-notifications-status")[0].textContent), /Blocked\. Allow notifications for this site in the browser's own site settings/);
+    assert.equal(publicControls(box, "settings-notifications-on")[0].disabled, true, "refused: Switch on is disabled");
     assert.equal(globalThis.localStorage.getItem(`${PREFIX}notifications`), null, "nothing is stored");
     void page;
   } finally { browser.restore(); }
@@ -352,11 +353,10 @@ test("1b: on an iPhone or iPad not opened from the Home Screen, the line says so
   const server = await repoServer({ files: {} });
   const browser = installBrowser({ permission: "default", userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari" });
   try {
-    await openDashboard({ server, hash: "#settings" });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    assert.match(box.innerHTML, /Safari shows notifications only for a site added to the Home Screen/);
-    assert.match(box.innerHTML, /add this page to the Home Screen, open it from there, then press Switch on/);
+    const page = await openDashboard({ server, hash: "#uc" });
+    const box = await usabilitySettings(page);
+    assert.match(publicControls(box, "settings-notifications-status")[0].textContent, /Home Screen/);
+    assert.match(publicControls(box, "settings-notifications-status")[0].textContent, /add this site to the Home Screen before switching notifications on/);
   } finally { browser.restore(); }
 });
 
@@ -429,19 +429,18 @@ test("4a: Switch off stops the checks and forgets what was notified", async () =
   const browser = installBrowser();
   try {
     const page = await openDashboard({
-      server, hash: "#settings",
+      server, hash: "#uc",
       entries: {
         [`${PREFIX}notifications`]: JSON.stringify({ checked: minutesAgo(6) }),
         [`${PREFIX}notified`]: JSON.stringify({ [REPO]: { "docs/use-cases/UC-620-sample.md": "f".repeat(40) } }),
       },
     });
-    const dom = richDocument();
-    const box = dom.byId("notifications-settings");
-    await press(server, box.querySelector("[data-notifications-switch-off]"));
+    const box = await usabilitySettings(page);
+    await press(server, publicControls(box, "settings-notifications-off")[0]);
 
     assert.equal(globalThis.localStorage.getItem(`${PREFIX}notifications`), null, "notifications is gone from the store itself");
     assert.equal(globalThis.localStorage.getItem(`${PREFIX}notified`), null, "notified is gone from the store itself");
-    assert.match(box.innerHTML, /<p class="state">off<\/p>/);
+    assert.match(publicControls(box, "settings-notifications-status")[0].textContent, /Off\./);
     void page;
   } finally { browser.restore(); }
 });

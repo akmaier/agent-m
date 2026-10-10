@@ -5,7 +5,7 @@
 // every request; every write is started by a click on the button that names it, with the event a person's click carries
 // (isTrusted), and each write test has a counter-proof with a click a script makes. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-settings-pages
 // Guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // Level: component
 //
@@ -14,17 +14,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  repoServer, fakeCaches, openDashboard, REPO, TOKEN, richDocument, press, settle, reEsc, unesc, attrOf,
+  repoServer, fakeCaches, openDashboard, REPO, TOKEN, richDocument, press, settle, reEsc, unesc,
 } from "./app-harness.mjs";
 import { gitBlobSha, recordText, useCaseRecord, approvalPath, specRecord } from "../docs/assets/review-core.mjs";
 import { exportSettings } from "../docs/assets/settings-store.mjs";
 import { B_SPEC, B_P05, B_P06, B_INDEX, QD, GL, GL_ADDR, GL_TOKEN, fakeGitLab } from "./review-core.d/helpers.mjs";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 import { reviewLayoutCommit } from "../src/artifact-edits/index.mjs";
+import { readDocument } from "../src/documents/index.mjs";
+import { settingsSchemas } from "../src/personal-data/index.mjs";
 
 const TRUSTED = { isTrusted: true }, SCRIPTED = { isTrusted: false };
 const API = "https://api.github.com";
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
+const GL_TOKEN_KEY = `gitlab-token:${new URL(GL_ADDR).host}${new URL(GL_ADDR).pathname}`;
 
 // richDocument and press — what the harness's document lacks for these flows, and a person's click on what it adds — are in
 // tests/app-harness.mjs, beside the harness, so that other tests of the dashboard's editor use them too.
@@ -554,32 +557,35 @@ test("A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a product's own key that expi
 test("UC-042 · A GITHUB PRODUCT USES A TOKEN OF ITS OWN — Settings lists each GitHub product's own key: hidden until shown, its expiry, Test reads the product with it, Change opens with its field focused and stores a new value, Clear removes it after a confirmation; Remove takes it with the product", async () => {
   const key = "github_pat_PRODUCT0123456789abcdefghij";
   const own = await withProduct({ "README.md": "# Thesis\n" });
-  const { srv, page, box, dom } = await settingsPage({ server: own.srv, entries: ownKey(key, "2026-12-29") });
-  let html = box().innerHTML;
-  assert.ok(html.includes('data-setting-key="agent-m.github-product-tokens"'), "its place on the page");
-  assert.ok(html.includes(`<strong>${PRODUCT_ADDR}</strong>`) && html.includes("Expires on: <strong>2026-12-29</strong>"), "the product and its key's expiry");
-  assert.ok(html.includes(`type="password" readonly value="${key}"`), "hidden until shown");
-  await press(srv, among(box(), "data-test-github-product", PRODUCT_ADDR));
+  const { srv, box, dom } = await publicSettingsPage({ server: own.srv, settings: { products: [PRODUCT_ADDR], [`github-token:${PRODUCT}`]: { value: key, name: "Agent M", expires: "2026-12-29", stored: day(0) } } });
+  const label = `GitHub token: ${PRODUCT}`;
+  const secret = publicRepositoryControl(box, label, "secret");
+  assert.equal(secret.type, "password", "hidden until shown");
+  assert.equal(publicRepositoryControl(box, label, "expiry").value, "2026-12-29", "the product key's expiry");
+  await publicPress(srv, publicRepositoryControl(box, label, "test"));
   assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${PRODUCT}` && r.auth === `Bearer ${key}`), "Test reads the product with its own key");
-  assert.equal(JSON.parse(stored("agent-m.github-product-tokens"))[PRODUCT_ADDR].tested?.ok?.length, 10, "its last test, kept beside it");
-  await tick(srv, dom.byId("ack"));
-  await press(srv, among(box(), "data-change-github-product", PRODUCT_ADDR));
-  const field = dom.focused();
-  assert.ok(field && /data-gh-token/.test(field.tag ?? ""), "A FORM OPENS WITH ITS FIRST FIELD FOCUSED: the new key's field");
+  assert.match(publicRepositoryControl(box, label, "status").textContent, /Last successful test/);
+  const productLastTest = JSON.parse(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:last-test:github-token:${PRODUCT}`));
+  assert.equal(productLastTest.outcome, "working", "its successful test result is stored beside this product key");
+  assert.match(productLastTest.at, new RegExp(`^${day(0)}`), "its successful test date is stored beside this product key");
+  await publicPress(srv, publicRepositoryControl(box, label, "change"));
+  const acknowledgement = publicRepositoryControl(box, label, "ack");
+  assert.equal(dom.focused(), acknowledgement, "Change opens with the notice focused");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  assert.equal(dom.focused(), secret, "the new key's field is focused after the notice");
   const newer = "github_pat_NEWER0123456789abcdefghij";
-  field.value = newer;
-  await press(srv, inBox(among(box(), "data-change-form-github", PRODUCT_ADDR), "[data-gh-store]"));
-  assert.equal(JSON.parse(stored("agent-m.github-product-tokens"))[PRODUCT_ADDR].token, newer, "the new value, for the product");
-  assert.equal(stored("agent-m.github-token"), TOKEN, "the instance's key is untouched");
-  await press(srv, among(box(), "data-clear-github-product", PRODUCT_ADDR));
+  secret.value = newer;
+  await publicPress(srv, publicRepositoryControl(box, label, "save"));
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:github-token:${PRODUCT}`)).value, newer, "the new value, for the product");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, TOKEN, "the instance's key is untouched");
+  await publicPress(srv, publicRepositoryControl(box, label, "clear"));
   assert.ok(confirms.length >= 1, "Clear asks first");
-  assert.equal(stored("agent-m.github-product-tokens"), null, "the key is gone from this browser");
+  assert.equal(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:github-token:${PRODUCT}`), null, "the key is gone from this browser");
   // Remove: the product leaves the list with its key.
-  globalThis.localStorage.setItem("agent-m.github-product-tokens", JSON.stringify({ [PRODUCT_ADDR]: { token: key, expires: null } }));
-  await page.go("#settings");
-  await press(srv, among(box(), "data-remove-product", PRODUCT_ADDR));
-  assert.equal(stored("agent-m.github-product-tokens"), null, "removed with the product");
-  assert.equal(stored("agent-m.products"), JSON.stringify([]));
+  globalThis.localStorage.setItem(`agent-m:akmaier/agent-m:github-token:${PRODUCT}`, JSON.stringify({ value: key, name: "Agent M", expires: null }));
+  await publicPress(srv, publicControls(box(), "settings-product-remove")[0]);
+  assert.equal(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:github-token:${PRODUCT}`), null, "removed with the product");
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products")), []);
 });
 
 // A GitLab server behind the instance's: requests to its origin go to it.
@@ -625,9 +631,9 @@ test("UC-014 steps 8–9: after the notice is ticked, the pasted token and its e
   dom.byId("key-token").value = key;
   dom.byId("key-expires").value = "2027-01-15";
   await press(srv, dom.byId("key-store"));
-  assert.deepEqual(agentKeys(), ["agent-m.github-token", "agent-m.github-token-expires"], "one token, in this browser, and nothing else");
-  assert.equal(stored("agent-m.github-token"), key);
-  assert.equal(stored("agent-m.github-token-expires"), "2027-01-15", "the date as entered");
+  assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((storedKey) => storedKey.startsWith("agent-m:akmaier/agent-m:")).sort(), ["agent-m:akmaier/agent-m:github-token"], "one canonical token, in this browser, and nothing else");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, key);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).expires, "2027-01-15", "the date as entered");
   assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${REPO}` && r.auth === `Bearer ${key}`), "the instance is read with it");
   assert.equal(dom.byId("key-check").innerHTML, "✓ akmaier/agent-m reachable — public, so write access is confirmed only by the first write");
   assert.equal(dom.byId("setup-done").innerHTML, `<a class="btn primary" href="#uc">Your instance is ready →</a> <a class="btn" href="#add">+ Add a product</a>`);
@@ -653,331 +659,397 @@ test("UC-014 step 8 counter-proof: a text that is no GitHub token is refused, an
 const confirms = [];
 let confirmAnswer = true;
 globalThis.confirm = (text) => { confirms.push(text); return confirmAnswer; };
-// The settings page of a dashboard whose browser holds `entries` beside the token (set after the first load, before the page).
-async function settingsPage({ server = null, entries = {}, token = TOKEN } = {}) {
-  const srv = server ?? await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc", token });
-  for (const [k, v] of Object.entries(entries)) globalThis.localStorage.setItem(k, v);
-  const dom = richDocument();
+const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
+const publicRepositoryRow = (box, label) => publicControls(box(), "settings-repository").find((row) => row.textContent.includes(label));
+const publicRepositoryControl = (box, label, name) => publicControls(publicRepositoryRow(box, label), `settings-repository-${name}`)[0];
+async function publicSettingsPage({ server = null, token = TOKEN, settings = {}, caches = null, writableProduct = false } = {}) {
   confirms.length = 0;
   confirmAnswer = true;
+  const storedSettings = { "github-token": { value: TOKEN, name: "GitHub token", expires: day(90), stored: day(0) }, ...settings };
+  const entries = Object.fromEntries(Object.entries(storedSettings).map(([key, value]) => [`agent-m:akmaier/agent-m:${key}`, JSON.stringify(value)]));
+  const writable = (url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined;
+  const srv = server ?? await ucServer({}, writableProduct ? [writable] : []), page = await openDashboard({ server: srv, hash: "#uc", token, entries, ...(caches ? { caches } : {}) });
+  const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  return { srv, page, dom, box: () => dom.byId("browser-settings"), product: () => dom.byId("product-settings") };
+  const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
+  return { srv, page, dom, tabs: () => mounted.find((node) => node.className === "settings-tabs"), box: () => pane("Repositories"), general: () => pane("General"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
 }
-// A control of a part of the page, found as the view finds it: by the exact selector the view asks for (inBox), or — where the
-// view takes every control of one attribute and picks one by its value — among those (among). The harness keeps one control per
-// selector, so a listener sits on the control of the selector the view used; in a browser both are the same element.
-const inBox = (el, sel) => el.querySelector(sel);
-const among = (el, attr, value) => el.querySelectorAll(`[${attr}]`).find((c) => attrOf(c.tag, attr) === value) ?? null;
+async function publicBridgePage(options = {}) {
+  const settings = await publicSettingsPage(options);
+  await settings.page.go("#bridge");
+  return { ...settings, main: () => settings.dom.byId("main") };
+}
 // Until `cond` holds — for work that waits on the browser's cryptography rather than on a request.
 async function until(cond, what) {
   for (let i = 0; i < 4000; i++) { if (cond()) return; await new Promise((r) => setTimeout(r, 5)); }
   throw new Error(`waited in vain for ${what}`);
 }
 
-test("UC-042 step 1: one page — each browser setting is a line with its state, the token in a password field; the product's settings; export and import; clear everything", async () => {
-  const { page, dom } = await settingsPage();
-  const html = page.main(), browser = dom.byId("browser-settings").innerHTML;
-  assert.match(html, /<h2>Settings<\/h2>/);
-  assert.match(html, /<h3>Before you store anything<\/h3>[^]*every other GitHub Pages site of akmaier is served from the same address/i);
-  assert.deepEqual([...browser.matchAll(/data-setting-row="([^"]+)"/g)].map((m) => m[1]),
-    ["github-token", "products", "github-product-tokens", "gitlab-tokens", "jump-host", "remote-sessions"]);
-  assert.match(browser, /<p class="state">stored — not tested on this page yet<\/p>/);
-  assert.match(browser, /<input class="secret" type="password" readonly value="github_pat_HARNESS0123456789abcdefghij"/);
-  assert.match(browser, /data-show="agent-m\.github-token">Show</);
-  for (const b of ["data-test", "data-change", "data-clear"]) assert.ok(browser.includes(`${b}="agent-m.github-token"`), b);
-  assert.match(html, /<h3>Clear everything in this browser<\/h3>/);
-  assert.match(dom.byId("product-settings").innerHTML, /<h3>Product · https:\/\/github\.com\/akmaier\/agent-m<\/h3>[^]*Pseudonymisation — <span class="state">on \(the default\)<\/span>[^]*Collaborators — none named/);
-  assert.equal((browser.match(/<summary>What is this\?<\/summary>/g) || []).length, 6, "every line explains itself");
+test("UC-042 step 1: public component tabs keep every settings scope and existing control reachable", async () => {
+  const { page, tabs, box, general, endpoints, usability } = await publicSettingsPage({ settings: {
+    products: [PRODUCT_ADDR, GL_ADDR], [`github-token:${PRODUCT}`]: { value: "github_pat_PRODUCT0123456789abcdefghij", name: "Agent M", expires: day(60), stored: day(0) },
+    [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) },
+    "jump-host": { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] },
+    "remote-session:lab-pc": { port: 20001, token: "bridgeTOKEN-0123456789abcdef" }, "endpoint:main": { url: "https://models.example.test/v1", model: "small", key: "endpoint-key" },
+  } });
+  assert.match(page.main(), /<h2>Settings<\/h2>/);
+  assert.deepEqual(tabs().children.map((tab) => tab.textContent), ["General", "Repositories", "Endpoints & Agents", "Usability"]);
+  assert.match(general().textContent, /every GitHub Pages site under that same akmaier\.github\.io domain can read it/i);
+  assert.equal(publicRepositoryControl(box, "GitHub token", "secret").type, "password");
+  assert.equal(publicControls(box(), "settings-repository").length, 4, "instance, product list, GitHub product, GitLab product");
+  for (const control of ["show", "test", "change", "clear", "renew"]) assert.ok(publicRepositoryControl(box, "GitHub token", control), control);
+  assert.ok(publicControls(general(), "settings-export-download")[0]);
+  assert.ok(publicControls(general(), "settings-import-file")[0]);
+  assert.ok(publicControls(general(), "settings-clear-everything")[0]);
+  assert.match(publicControls(box(), "settings-product")[0].textContent, /Pseudonymisation is on\.[\s\S]*Collaborators/);
+  assert.doesNotMatch(publicControls(box(), "settings-collaborator-records")[0].textContent, /@/, "no collaborator is named by default");
+  assert.ok(publicControls(endpoints(), "settings-endpoint-configure")[0]);
+  assert.ok(publicControls(endpoints(), "settings-bridge-configure")[0]);
+  assert.ok(publicControls(endpoints(), "settings-endpoint")[0]);
+  assert.ok(publicControls(endpoints(), "settings-jump-host")[0]);
+  assert.ok(publicControls(endpoints(), "settings-remote-session")[0]);
+  assert.ok(publicControls(general(), "settings-browser-explanation")[0]);
+  assert.ok(publicControls(box(), "settings-repository-shared-origin").length >= 3);
+  assert.ok(publicControls(endpoints(), "settings-endpoint-explanation")[0]);
+  assert.ok(publicControls(usability(), "settings-notifications-on")[0]);
 });
 
 test("UC-042 step 1: a stored secret is hidden until Show, which reveals it in full; Hide hides it again", async () => {
-  const { srv, box } = await settingsPage();
-  await press(srv, among(box(), "data-show", "agent-m.github-token"));
-  assert.match(box().innerHTML, /<input class="secret" type="text" readonly value="github_pat_HARNESS0123456789abcdefghij"[^>]*> <button class="btn small" data-show="agent-m\.github-token">Hide</);
-  await press(srv, among(box(), "data-show", "agent-m.github-token"));
-  assert.match(box().innerHTML, /<input class="secret" type="password"/);
+  const { srv, box } = await publicSettingsPage();
+  const secret = publicRepositoryControl(box, "GitHub token", "secret");
+  const show = publicRepositoryControl(box, "GitHub token", "show");
+  await publicPress(srv, show);
+  assert.equal(secret.type, "text");
+  assert.equal(secret.value, TOKEN, "Show reveals the complete stored token");
+  assert.equal(show.textContent, "Hide");
+  await publicPress(srv, show);
+  assert.equal(secret.type, "password");
+  assert.equal(show.textContent, "Show");
 });
 
 test("UC-042 step 2: Test sends one harmless request with the token to its own server and shows that it works", async () => {
-  const { srv, box } = await settingsPage();
+  const { srv, box } = await publicSettingsPage();
   const from = srv.seen.length;
-  await press(srv, inBox(box(), '[data-test="agent-m.github-token"]'));
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
   assert.deepEqual(srv.seen.slice(from).map((r) => [r.method, r.url, r.auth]), [["GET", `${API}/repos/${REPO}`, `Bearer ${TOKEN}`]]);
-  assert.match(box().innerHTML, new RegExp(`<p class="state">✓ works — tested ${day(0)}</p>`));
-  assert.equal(inBox(box(), '[data-result="agent-m.github-token"]').textContent, "GitHub accepted the token: it can read akmaier/agent-m.");
+  assert.match(publicRepositoryControl(box, "GitHub token", "status").textContent, new RegExp(`Last successful test: ${day(0)}`));
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✓ The repository token is working.");
 });
 
 test("UC-042 step 2: Clear removes the token from localStorage after one confirmation that says what no longer works", async () => {
-  const { srv, box, dom } = await settingsPage({ entries: { "agent-m.github-token-expires": day(60) } });
-  await press(srv, inBox(box(), '[data-clear="agent-m.github-token"]'));
-  assert.deepEqual(confirms, ["Clear the GitHub token from this browser? Without it, accepting and editing go through GitHub's own pages, " +
+  const { srv, box } = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(60), stored: day(0) } } });
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "clear"));
+  assert.deepEqual(confirms, ["Clear this token from this browser? Without it, accepting and editing go through GitHub's own pages, " +
     "products cannot be added, and private repositories cannot be read."]);
-  assert.equal(stored("agent-m.github-token"), null);
-  assert.equal(stored("agent-m.github-token-expires"), null, "its date with it");
-  assert.equal(dom.byId("token-msg").textContent, "The token is gone from this browser.");
-  assert.match(box().innerHTML, /<p class="state">— not set<\/p>/);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token"), null);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token"), null, "its test date with it");
+  assert.match(publicRepositoryControl(box, "GitHub token", "status").textContent, /Cleared from this browser/);
 });
 
 test("UC-042 step 2 counter-proof: a Clear that is not confirmed keeps the token", async () => {
-  const { srv, box } = await settingsPage();
+  const { srv, box } = await publicSettingsPage();
   confirmAnswer = false;
-  await press(srv, inBox(box(), '[data-clear="agent-m.github-token"]'));
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "clear"));
   assert.equal(confirms.length, 1);
-  assert.equal(stored("agent-m.github-token"), TOKEN);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, TOKEN);
 });
 
 test("UC-042 step 2: Change stores a new token with its expiry date, after the notice at the top is ticked", async () => {
-  const { srv, box, dom } = await settingsPage();
-  assert.equal(dom.byId("token-change").hidden, true);
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  assert.equal(dom.byId("token-change").hidden, false, "the same fields as in the setup, in place");
-  assert.equal(dom.byId("token-save").disabled, true, "storing waits for the notice");
-  assert.equal(dom.byId("token-expires").value, day(90), "preset to the 90 days of the prefilled link");
-  await tick(srv, dom.byId("ack"));
+  const { srv, box } = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: null, stored: day(0) } } });
+  const row = publicRepositoryRow(box, "GitHub token");
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  const save = publicRepositoryControl(box, "GitHub token", "save");
+  assert.equal(acknowledgement.disabled, true, "acknowledgement stays hidden until Change");
+  assert.equal(save.disabled, true, "storing waits for Change and the notice");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(acknowledgement.disabled, false);
+  assert.equal(publicRepositoryControl(box, "GitHub token", "expiry").value, day(90), "preset to the 90 days of the prefilled link");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
   const key = "github_pat_RENEWED0123456789abcdefghij";
-  dom.byId("token-input").value = key;
-  await press(srv, dom.byId("token-save"));
-  assert.equal(stored("agent-m.github-token"), key);
-  assert.equal(stored("agent-m.github-token-expires"), day(90));
-  assert.equal(dom.byId("token-msg").textContent, "Stored. Press Test to check it; reload to read with it.");
+  publicRepositoryControl(box, "GitHub token", "secret").value = key;
+  await publicPress(srv, save);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, key);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).expires, day(90));
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "Saved in this browser. Test it before using it.");
 });
 
 test("UC-042 step 2 on a phone: the token form carries the notice and its own I have read this beside the paste field; ticked there, the field and Store token open, and the notice at the top is ticked with it", async () => {
-  const { srv, page, box, dom } = await settingsPage();
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  const main = page.main(), form = main.slice(main.indexOf('id="token-change"'), main.indexOf('id="token-input"'));
-  assert.match(form, /every other GitHub Pages site of akmaier is served from the same address/i, "the notice, at the form, before the paste field");
-  assert.ok(form.includes('id="token-ack"'), "its own I have read this, before the paste field");
-  assert.equal(dom.byId("token-input").disabled, true, "the paste field waits for the notice");
-  await tick(srv, dom.byId("token-ack"));
-  assert.equal(dom.byId("token-input").disabled, false, "ticked at the form, the paste field opens");
-  assert.equal(dom.byId("token-save").disabled, false, "and Store token");
-  assert.equal(dom.byId("ack").checked, true, "one decision: the notice at the top is ticked with it");
+  const { srv, box, dom } = await publicSettingsPage();
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  const secret = publicRepositoryControl(box, "GitHub token", "secret");
+  const save = publicRepositoryControl(box, "GitHub token", "save");
+  assert.match(publicControls(publicRepositoryRow(box, "GitHub token"), "settings-repository-shared-origin")[0].textContent, /every GitHub Pages site under that same akmaier\.github\.io domain can read it/i, "the notice is beside the paste field");
+  assert.equal(acknowledgement.disabled, true, "the notice beside the paste field waits for Change");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(dom.focused(), acknowledgement, "Change opens at the notice beside the paste field");
+  assert.equal(secret.disabled, true, "the paste field waits for the notice");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  assert.equal(secret.disabled, false, "ticked beside the paste field, the field opens");
+  assert.equal(save.disabled, false, "and Store token");
+  assert.equal(dom.focused(), secret, "the paste field receives focus after the tick");
   const key = "github_pat_PHONE0123456789abcdefghijk";
-  dom.byId("token-input").value = key;
-  await press(srv, dom.byId("token-save"));
-  assert.equal(stored("agent-m.github-token"), key);
+  secret.value = key;
+  await publicPress(srv, save);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, key);
 });
 
 // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: after each control that opens a form, the focus is in its first field open for
 // the person's input — on the token form the notice's box while it is not ticked, the paste field once it is.
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Store a token: the notice's box I have read this, while it is not ticked", async () => {
-  const { srv, box, dom } = await settingsPage({ token: null });
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  assert.equal(dom.focused(), dom.byId("token-ack"), "the box beside the paste field, not the control that opened the form");
+  const { srv, box, dom } = await publicSettingsPage();
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(dom.focused(), acknowledgement, "the acknowledgement beside the paste field, not the control that opened the form");
 });
 
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of the token: the paste field, once the notice is ticked", async () => {
-  const { srv, box, dom } = await settingsPage();
-  await tick(srv, dom.byId("ack"));
-  await press(srv, inBox(box(), '[data-change="agent-m.github-token"]'));
-  assert.equal(dom.focused(), dom.byId("token-input"), "the paste field, open since the notice is ticked");
+  const { srv, box, dom } = await publicSettingsPage();
+  const acknowledgement = publicRepositoryControl(box, "GitHub token", "ack");
+  const secret = publicRepositoryControl(box, "GitHub token", "secret");
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "change"));
+  assert.equal(dom.focused(), acknowledgement, "the notice's box opens first");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  assert.equal(dom.focused(), secret, "the paste field opens once the notice is ticked");
 });
 
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of a GitLab project token: the field for the new token", async () => {
-  const gitlab = JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } });
-  const { srv, box, dom } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([GL_ADDR]), "agent-m.gitlab-tokens": gitlab } });
-  await tick(srv, dom.byId("ack"));
-  await press(srv, among(box(), "data-change-gitlab", GL_ADDR));
-  const field = dom.focused();
-  assert.ok(field && /data-gl-token/.test(field.tag ?? ""), `the new token's field, not ${field?.tag ?? field?.id ?? field}`);
+  const { srv, box, dom } = await publicSettingsPage({ settings: { products: [GL_ADDR], [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  const acknowledgement = publicRepositoryControl(box, "GitLab token", "ack");
+  const secret = publicRepositoryControl(box, "GitLab token", "secret");
+  await publicPress(srv, publicRepositoryControl(box, "GitLab token", "change"));
+  assert.equal(dom.focused(), acknowledgement, "the GitLab notice's box opens first");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  assert.equal(dom.focused(), secret, "the field for the new GitLab token opens after the notice is ticked");
 });
 
 test("UC-042 1a: a token that expires within fourteen days is named on every page, with Renew; one that expires later is not", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  globalThis.localStorage.setItem("agent-m.github-token-expires", day(5));
-  await page.go("#spec");
-  const banner = page.el("token-banner");
-  assert.ok(banner.includes(`<strong>Your GitHub token expires on ${day(5)} (in 5 days).</strong>`));
-  assert.ok(banner.includes('<a class="btn small" href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">Renew ↗</a>'));
-  assert.match(banner, /Regenerate token/);
-  globalThis.localStorage.setItem("agent-m.github-token-expires", day(30));
-  await page.go("#uc");
-  assert.equal(page.el("token-banner"), "");
+  const near = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(5), stored: day(0) } } });
+  assert.equal(publicRepositoryControl(near.box, "GitHub token", "status").textContent, `Expires on ${day(5)}; renew soon.`);
+  assert.equal(publicRepositoryControl(near.box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
+  await near.page.go("#spec");
+  assert.ok(near.page.el("token-banner").includes(`<strong>Your GitHub token expires on ${day(5)} (in 5 days).</strong>`), "the expiry is named at the top of every dashboard page");
+  assert.ok(near.page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens"'));
+  assert.match(near.page.el("token-banner"), /Regenerate token/);
+  const later = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(30), stored: day(0) } } });
+  assert.equal(publicRepositoryControl(later.box, "GitHub token", "status").textContent, `Expires on ${day(30)}.`);
+  assert.doesNotMatch(publicRepositoryControl(later.box, "GitHub token", "status").textContent, /renew soon/i);
+  await later.page.go("#uc");
+  assert.equal(later.page.el("token-banner"), "", "a later expiry is not named on other dashboard pages");
 });
 
 test("UC-042 1b: a token the server refused is named, with its renewal, at the top and on its line", async () => {
   let refuse = false;
   const srv = await ucServer({}, [(url) => (refuse && url.href === `${API}/repos/${REPO}` ? json({ message: "Bad credentials" }, 401) : undefined)]);
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  const dom = richDocument();
+  const { page, box } = await publicSettingsPage({ server: srv });
   refuse = true;
-  await page.go("#settings");
-  await press(srv, inBox(dom.byId("browser-settings"), '[data-test="agent-m.github-token"]'));
+  await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
+  assert.equal(publicRepositoryControl(box, "GitHub token", "status").textContent, "Expires on " + day(90) + ". Refused.");
+  assert.equal(publicRepositoryControl(box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub. Renew it on https://github.com/settings/personal-access-tokens.");
+  await page.go("#uc");
   assert.ok(page.el("token-banner").includes("<strong>GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub.</strong>"));
   assert.ok(page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens"'));
-  assert.match(dom.byId("browser-settings").innerHTML, /<p class="state">✗ refused — GitHub did not accept it at the last use<\/p>/);
 });
 
 test("UC-042 step 2: products — Remove takes one off this browser's list after a confirmation; Clear takes all, with the GitLab products' tokens; no repository changes", async () => {
-  const gitlab = JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } });
-  const { srv, box, page } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([PRODUCT_ADDR, GL_ADDR]), "agent-m.gitlab-tokens": gitlab } });
-  assert.match(box().innerHTML, /<p class="state">2 in this browser<\/p>/);
-  await press(srv, among(box(), "data-remove-product", PRODUCT_ADDR));
-  assert.deepEqual(JSON.parse(stored("agent-m.products")), [GL_ADDR]);
-  assert.equal(stored("agent-m.gitlab-tokens"), gitlab, "another product's token stays");
-  await press(srv, inBox(box(), '[data-clear="agent-m.products"]'));
-  assert.equal(stored("agent-m.products"), null);
-  assert.equal(stored("agent-m.gitlab-tokens"), null);
-  assert.equal(confirms.length, 2);
+  const { srv, page, box } = await publicSettingsPage({ settings: { products: [PRODUCT_ADDR, GL_ADDR], [`github-token:${PRODUCT}`]: { value: "github_pat_PRODUCT0123456789abcdefghij", name: "Agent M", expires: day(60), stored: day(0) }, [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  assert.equal(publicControls(box(), "settings-product-list-item").length, 2);
+  await publicPress(srv, publicControls(box(), "settings-product-remove")[0]);
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products")), [GL_ADDR]);
+  assert.ok(JSON.parse(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`)).value === GL_TOKEN, "another product's token stays");
+  await publicPress(srv, publicRepositoryControl(box, "Products", "clear"));
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products"), null);
+  assert.equal(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`), null);
+  assert.equal(confirms.length, 2, "Remove and Clear each require their own confirmation");
   assert.deepEqual(srv.writes, []);
-  assert.doesNotMatch(page.el("product"), /alice\/thesis|gitlab\.example/, "the selector follows");
+  assert.equal(publicControls(box(), "settings-product-list-item").length, 0, "the product list follows");
+  await page.go("#uc");
+  assert.doesNotMatch(page.el("product"), /alice\/thesis|gitlab\.example/, "the global product selector follows");
 });
 
 test("UC-042 step 2: a GitLab project token — hidden until Show, changed after the notice, cleared after a confirmation", async () => {
-  const gitlab = JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: day(60) } });
-  const { srv, box, dom } = await settingsPage({ entries: { "agent-m.products": JSON.stringify([GL_ADDR]), "agent-m.gitlab-tokens": gitlab } });
-  assert.ok(box().innerHTML.includes(`<input class="secret" type="password" readonly value="${GL_TOKEN}"`));
-  await press(srv, among(box(), "data-change-gitlab", GL_ADDR));
-  assert.equal(among(box(), "data-result-gitlab", GL_ADDR).textContent, "Tick “I have read this” at the top of the page first.");
-  await tick(srv, dom.byId("ack"));
-  await press(srv, among(box(), "data-change-gitlab", GL_ADDR));
-  const form = among(box(), "data-change-form", GL_ADDR);
+  const { srv, box } = await publicSettingsPage({ settings: { products: [GL_ADDR], [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  const label = `GitLab token: ${GL_TOKEN_KEY.slice("gitlab-token:".length)}`;
+  const secret = publicRepositoryControl(box, label, "secret");
+  assert.equal(secret.type, "password");
+  await publicPress(srv, publicRepositoryControl(box, label, "show"));
+  assert.equal(secret.type, "text");
+  assert.equal(secret.value, GL_TOKEN);
+  await publicPress(srv, publicRepositoryControl(box, label, "change"));
+  assert.equal(publicRepositoryControl(box, label, "result").textContent, "Read the shared-browser notice, then acknowledge it before saving a replacement token.");
+  const acknowledgement = publicRepositoryControl(box, label, "ack");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
   const renewed = "glpat-renewedTOKENvalue0123456789";
-  form.querySelector("[data-gl-token]").value = renewed;
-  form.querySelector("[data-gl-expires]").value = day(80);
-  await press(srv, form.querySelector("[data-gl-store]"));
-  assert.deepEqual(JSON.parse(stored("agent-m.gitlab-tokens")), { [GL_ADDR]: { token: renewed, expires: day(80) } });
-  await press(srv, among(box(), "data-clear-gitlab", GL_ADDR));
-  assert.equal(stored("agent-m.gitlab-tokens"), null);
-  assert.deepEqual(JSON.parse(stored("agent-m.products")), [GL_ADDR], "the product stays in the list");
+  secret.value = renewed;
+  publicRepositoryControl(box, label, "expiry").value = day(80);
+  await publicPress(srv, publicRepositoryControl(box, label, "save"));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`)), { value: renewed, name: "Agent M", expires: day(80), stored: day(0) });
+  await publicPress(srv, publicRepositoryControl(box, label, "clear"));
+  assert.equal(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`), null);
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products")), [GL_ADDR], "the product stays in the list");
 });
 
 test("UC-042 step 2: the jump host and a remote session are set, their commands written, and each is cleared — all in this browser", async () => {
-  const { srv, box, dom } = await settingsPage();
-  await press(srv, inBox(box(), '[data-change="agent-m.jump-host"]'));
-  const form = inBox(box(), "[data-jump-form]");
-  for (const [k, v] of Object.entries({ host: "jump.example.org", user: "agentm", portFrom: "20001", portTo: "20003", reverseKey: "", forwardKey: "" })) {
-    form.querySelector(`[data-j="${k}"]`).value = v;
-  }
-  await press(srv, form.querySelector("[data-jump-save]"));
-  assert.deepEqual(JSON.parse(stored("agent-m.jump-host")),
-    { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003, reverseKey: "", forwardKey: "" });
-  assert.match(box().innerHTML, /agentm@jump\.example\.org — ports 20001–20003/);
-  await tick(srv, dom.byId("ack"));
-  await press(srv, inBox(box(), "[data-add-session]"));
-  const s = inBox(box(), "[data-session-form]");
-  assert.equal(s.querySelector('[data-s="port"]').value, "20001", "the lowest free port of the range");
-  s.querySelector('[data-s="name"]').value = "lab-pc";
-  s.querySelector('[data-s="bridgePort"]').value = "8765";
-  s.querySelector('[data-s="token"]').value = "bridgeTOKEN-0123456789abcdef";
-  await press(srv, s.querySelector("[data-session-save]"));
-  assert.deepEqual(JSON.parse(stored("agent-m.remote-sessions")).map((x) => [x.name, x.port, x.bridgePort, x.token]),
-    [["lab-pc", 20001, 8765, "bridgeTOKEN-0123456789abcdef"]]);
-  assert.match(box().innerHTML, /<pre class="cmd">[^<]*127\.0\.0\.1:20001[^<]*<\/pre>/, "the commands, written from the settings");
-  assert.doesNotMatch(box().innerHTML.replace(/value="bridgeTOKEN-[^"]*"/, ""), /bridgeTOKEN/, "the bridge token is in no command");
-  await press(srv, among(box(), "data-clear-session", "lab-pc"));
-  assert.equal(stored("agent-m.remote-sessions"), null);
-  await press(srv, inBox(box(), '[data-clear="agent-m.jump-host"]'));
-  assert.equal(stored("agent-m.jump-host"), null);
+  const { srv, page, main } = await publicBridgePage();
+  const control = (name) => publicControls(main(), name)[0];
+  for (const [name, value] of Object.entries({ "jump-host-name": "jump.example.org", "jump-host-user": "agentm", "jump-host-ssh-port": "22", "jump-host-port-first": "20001", "jump-host-port-last": "20003" })) control(name).value = value;
+  await publicPress(srv, control("jump-host-save"));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:jump-host")), { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] });
+  assert.equal(control("remote-session-name").value, "");
+  control("remote-session-name").value = "lab-pc";
+  control("remote-session-token").value = "bridgeTOKEN-0123456789abcdef";
+  await publicPress(srv, control("remote-session-save"));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:remote-session:lab-pc")), { port: 20001, token: "bridgeTOKEN-0123456789abcdef" });
+  assert.match(control("remote-session-commands").textContent, /127\.0\.0\.1:20001/, "the commands are written from the settings");
+  assert.doesNotMatch(control("remote-session-commands").textContent, /bridgeTOKEN/, "the bridge token is in no command");
+  await page.go("#settings");
+  const endpoints = () => publicControls(main(), "settings-tab-panel").find((pane) => pane.textContent.includes("Endpoints & Agents"));
+  await publicPress(srv, publicControls(endpoints(), "settings-remote-session-clear")[0]);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:remote-session:lab-pc"), null);
+  await publicPress(srv, publicControls(endpoints(), "settings-jump-host-clear")[0]);
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:jump-host"), null);
   assert.deepEqual(srv.writes, []);
 });
 
 test("UC-042 3a: without a token the product's settings are read-only, and link to the token step of UC-001", async () => {
-  const { product } = await settingsPage({ token: null });
-  const html = product().innerHTML;
-  assert.ok(html.includes(`Read-only: this browser has no token. <a href="#add/${encodeURIComponent(`https://github.com/${REPO}`)}">Give your token access to it</a> (UC-001).`));
-  assert.doesNotMatch(html, /id="pseudo-off"|id="pseudo-on"|id="coll-add"|data-remove-collaborator/);
+  const { box } = await publicSettingsPage({ token: null, settings: { "github-token": null } });
+  const product = publicControls(box(), "settings-product")[0];
+  assert.match(publicControls(product, "settings-product-read-only")[0].textContent, /Read-only: This browser has no token that can write to this product\./);
+  const tokenStep = publicControls(product, "settings-product-token-step")[0];
+  assert.ok(tokenStep);
+  assert.equal(tokenStep.href, `#add/${encodeURIComponent(`https://github.com/${REPO}`)}`, "the token step is linked to this product");
+  assert.equal(publicControls(product, "settings-pseudonymisation-off").length, 0);
+  assert.equal(publicControls(product, "settings-pseudonymisation-save").length, 0);
+  assert.equal(publicControls(product, "settings-collaborator-save").length, 0);
+  assert.equal(publicControls(product, "settings-collaborator-remove").length, 0);
 });
 
 test("UC-042 step 4: switching pseudonymisation off shows what follows — published for a public repository —, needs the tick, and one trusted click commits docs/settings.md", async () => {
-  const { srv, dom, product } = await settingsPage();
-  await press(srv, dom.byId("pseudo-off"));
-  assert.equal(dom.byId("pseudo-confirm").hidden, false);
-  assert.ok(product().innerHTML.includes("With pseudonymisation off, report data from mails — the names, addresses and other details of the people " +
-    "who write — enters the issues and the repository of akmaier/agent-m unchanged. This is advisable only on a protected, non-public data space. " +
-    "Issue texts themselves stay neutral either way. GitHub reports akmaier/agent-m as public: the data will be published — anyone on the internet can read it."));
-  assert.equal(dom.byId("pseudo-save").disabled, true, "Save waits for the tick");
-  await tick(srv, dom.byId("pseudo-ack"));
-  await press(srv, dom.byId("pseudo-save"));
+  const originalSettings = "# Settings of akmaier/agent-m\n\nUnrelated introductory text stays.\n";
+  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": originalSettings }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
+  const product = publicControls(box(), "settings-product")[0];
+  const off = publicControls(product, "settings-pseudonymisation-off")[0];
+  const acknowledgement = publicControls(product, "settings-pseudonymisation-ack")[0];
+  const save = publicControls(product, "settings-pseudonymisation-save")[0];
+  const settingsBefore = [...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")).sort();
+  off.checked = true;
+  assert.ok(product.textContent.includes("With pseudonymisation off, report data from mails — the names, addresses and other details of the people who write — enters the issues and the repository of akmaier/agent-m unchanged. This is advisable only on a protected, non-public data space. Issue texts themselves stay neutral either way. GitHub reports akmaier/agent-m as public: the data will be published — anyone on the internet can read it."));
+  await publicPress(srv, save);
+  assert.equal(publicControls(product, "settings-pseudonymisation-result")[0].textContent, "Tick I have read this before switching pseudonymisation off.");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  await publicPress(srv, save);
   assert.equal(srv.writes.length, 1);
   assert.deepEqual(Object.keys(srv.writes[0].files), ["docs/settings.md"]);
-  assert.match(srv.writes[0].files["docs/settings.md"], /^# Settings of akmaier\/agent-m\n[^]*\n- pseudonymisation: off\n$/);
+  const writtenSettings = srv.writes[0].files["docs/settings.md"];
+  const { settings } = await settingsSchemas();
+  assert.equal(readDocument(settings, settings.path, writtenSettings).fields.pseudonymisation, "off", "the parsed Settings value is off");
+  assert.match(writtenSettings, /Unrelated introductory text stays\./, "unrelated Settings text is retained");
   assert.equal(srv.writes[0].message, "settings: pseudonymisation off (Agent M dashboard)");
-  assert.deepEqual(agentKeys(), ["agent-m.github-token"], "no product setting in this browser");
-  assert.match(product().innerHTML, /Pseudonymisation — <span class="state">off<\/span>/);
+  assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")).sort(), settingsBefore, "no product or Settings record is written in this browser");
+  assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
 });
 
 test("UC-042 step 4 counter-proofs: a click a script makes writes nothing; a Save without the tick writes nothing and says why", async () => {
-  const { srv, dom } = await settingsPage();
-  await press(srv, dom.byId("pseudo-off"));
-  await tick(srv, dom.byId("pseudo-ack"));
-  await press(srv, dom.byId("pseudo-save"), SCRIPTED);
+  const { srv, box } = await publicSettingsPage({ writableProduct: true });
+  const product = publicControls(box(), "settings-product")[0];
+  const off = publicControls(product, "settings-pseudonymisation-off")[0];
+  const acknowledgement = publicControls(product, "settings-pseudonymisation-ack")[0];
+  const save = publicControls(product, "settings-pseudonymisation-save")[0];
+  off.checked = true; acknowledgement.checked = true; acknowledgement.fire("change", {});
+  await publicPress(srv, save, SCRIPTED);
   assert.deepEqual(srv.writes, []);
-  await tick(srv, dom.byId("pseudo-ack"), false);
-  dom.byId("pseudo-save").fire("click", TRUSTED);   // as if the disabled button were pressed anyway
-  await settle(srv);
+  acknowledgement.checked = false; acknowledgement.fire("change", {});
+  await publicPress(srv, save);
   assert.deepEqual(srv.writes, []);
-  assert.equal(dom.byId("pseudo-msg").textContent, "Tick “I have read this” under the notice first.");
+  assert.equal(publicControls(product, "settings-pseudonymisation-result")[0].textContent, "Tick I have read this before switching pseudonymisation off.");
 });
 
 test("UC-042 4a: switching pseudonymisation back on is saved without a notice — the page says data written meanwhile stays in the history", async () => {
   const off = "# Settings of akmaier/agent-m\n\nintro\n\n- pseudonymisation: off\n";
-  const { srv, dom, product } = await settingsPage({ server: await ucServer({ "docs/settings.md": off }) });
-  assert.match(product().innerHTML, /Pseudonymisation — <span class="state">off<\/span>/);
-  assert.ok(product().innerHTML.includes("Data written while pseudonymisation was off stays in the repository&#39;s history; removing it needs a rewrite of that history."));
-  await press(srv, dom.byId("pseudo-on"));
+  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": off }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
+  const product = publicControls(box(), "settings-product")[0];
+  assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
+  assert.ok(product.textContent.includes("Data written while pseudonymisation was off stays in the repository's history; removing it needs a rewrite of that history."));
+  const toggle = publicControls(product, "settings-pseudonymisation-off")[0];
+  assert.equal(toggle.checked, true);
+  toggle.checked = false;
+  await publicPress(srv, publicControls(product, "settings-pseudonymisation-save")[0]);
   assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/settings.md": "# Settings of akmaier/agent-m\n\nintro\n\n" }]);
-  assert.match(product().innerHTML, /Pseudonymisation — <span class="state">on \(the default\)<\/span>/);
+  assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is on.");
 });
 
 const COLLABORATORS_HEAD = "# Collaborators of akmaier/agent-m\n\nPeople who agreed to be named in this repository, with the date they agreed. Anyone else is\n" +
   "named only by their account. Changed on the Agent M dashboard (Settings).\n\n| Name | Account | Agreed on |\n|---|---|---|\n";
 
 test("UC-042 step 5: + Collaborator with the tick that the person agreed commits docs/collaborators.md with name, account and date", async () => {
-  const { srv, dom, product } = await settingsPage();
-  dom.byId("coll-name").value = "Jane Doe";
-  dom.byId("coll-account").value = "jdoe";
-  dom.byId("coll-agreed").value = "2026-09-30";
-  dom.byId("coll-consent").checked = true;
-  await press(srv, dom.byId("coll-add"));
+  const { srv, box } = await publicSettingsPage({ writableProduct: true });
+  const product = publicControls(box(), "settings-product")[0];
+  publicControls(product, "settings-collaborator-name")[0].value = "Jane Doe";
+  publicControls(product, "settings-collaborator-account")[0].value = "jdoe";
+  const consentDate = publicControls(product, "settings-collaborator-agreed-on")[0];
+  assert.ok(consentDate, "the chosen consent date remains a Settings control");
+  consentDate.value = "2026-09-30";
+  const agreed = publicControls(product, "settings-collaborator-agreed")[0]; agreed.checked = true; agreed.fire("change", {});
+  await publicPress(srv, publicControls(product, "settings-collaborator-save")[0]);
   assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${COLLABORATORS_HEAD}| Jane Doe | @jdoe | 2026-09-30 |\n` }]);
   assert.equal(srv.writes[0].message, "collaborators: update (Agent M dashboard)");
-  assert.match(product().innerHTML, /Collaborators — 1 named/);
+  assert.match(publicControls(product, "settings-collaborator-records")[0].textContent, /Jane Doe · @jdoe · agreed on 2026-09-30/);
+  assert.match(product.textContent, /Collaborators — 1 named/);
 });
 
 test("UC-042 step 5 counter-proofs: without the tick nothing is written and the page says why; a click a script makes writes nothing", async () => {
-  const { srv, dom } = await settingsPage();
-  dom.byId("coll-name").value = "Jane Doe";
-  dom.byId("coll-account").value = "jdoe";
-  await press(srv, dom.byId("coll-add"));
+  const { srv, box } = await publicSettingsPage({ writableProduct: true });
+  const product = publicControls(box(), "settings-product")[0];
+  publicControls(product, "settings-collaborator-name")[0].value = "Jane Doe";
+  publicControls(product, "settings-collaborator-account")[0].value = "jdoe";
+  const save = publicControls(product, "settings-collaborator-save")[0];
+  await publicPress(srv, save);
   assert.deepEqual(srv.writes, []);
-  assert.equal(dom.byId("coll-msg").textContent, "Tick “this person has agreed to be named” — without it, a person is named only by account.");
-  dom.byId("coll-consent").checked = true;
-  await press(srv, dom.byId("coll-add"), SCRIPTED);
+  assert.equal(publicControls(product, "settings-collaborator-result")[0].textContent, "Tick that this person has agreed to be named.");
+  const agreed = publicControls(product, "settings-collaborator-agreed")[0]; agreed.checked = true; agreed.fire("change", {});
+  await publicPress(srv, save, SCRIPTED);
   assert.deepEqual(srv.writes, []);
 });
 
 test("UC-042 5a: Remove takes a collaborator off the list with one commit, and says that earlier commits keep the name", async () => {
   const two = `${COLLABORATORS_HEAD}| Jane Doe | @jdoe | 2026-09-30 |\n| Max Müller | @max-m | 2026-10-01 |\n`;
-  const { srv, product, page } = await settingsPage({ server: await ucServer({ "docs/collaborators.md": two }) });
-  await press(srv, among(product(), "data-remove-collaborator", "jdoe"));
+  const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/collaborators.md": two }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
+  const product = publicControls(box(), "settings-product")[0];
+  publicControls(product, "settings-collaborator-remove-name")[0].value = "Jane Doe";
+  publicControls(product, "settings-collaborator-remove-account")[0].value = "jdoe";
+  await publicPress(srv, publicControls(product, "settings-collaborator-remove")[0]);
   assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${COLLABORATORS_HEAD}| Max Müller | @max-m | 2026-10-01 |\n` }]);
-  assert.match(page.main(), /Removed @jdoe; earlier commits keep the name in the history — <a href="[^"]+"[^>]*>commit [0-9a-f]{7}<\/a>\./);
+  const committed = await connect(parseAddress(`https://github.com/${REPO}`), { token: TOKEN }).readSnapshot("main");
+  const historyLink = publicControls(product, "settings-collaborator-history")[0];
+  assert.ok(historyLink, "the removal names the returned commit in a history link");
+  assert.equal(historyLink.href, `https://github.com/${REPO}/commit/${committed.commit}`);
+  assert.equal(historyLink.textContent, `commit ${committed.commit.slice(0, 7)}`);
+  assert.match(product.textContent, /Max Müller · @max-m · agreed on 2026-10-01/);
 });
 
 test("UC-042 step 6: Clear everything removes every Agent M entry from localStorage and the kept file texts, after a confirmation", async () => {
   const caches = fakeCaches();
   const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc", caches });
-  for (const [k, v] of Object.entries({ "agent-m.github-token-expires": day(60), "agent-m.products": JSON.stringify([PRODUCT_ADDR]),
-    "agent-m.gitlab-tokens": JSON.stringify({ [GL_ADDR]: { token: GL_TOKEN, expires: null } }),
-    "agent-m.jump-host": JSON.stringify({ host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003 }) })) {
-    globalThis.localStorage.setItem(k, v);
-  }
+  const { general } = await publicSettingsPage({ server: srv, caches, settings: { products: [PRODUCT_ADDR], [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: null }, "jump-host": { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] } } });
   globalThis.localStorage.setItem("another-site.setting", "kept");
   assert.ok(caches.stores.size > 0, "file texts were kept");
-  const dom = richDocument();
-  await page.go("#settings");
-  confirmAnswer = false;
-  await press(srv, dom.byId("token-clear"));
-  assert.equal(agentKeys().length, 5, "not confirmed: everything stays");
-  confirmAnswer = true;
-  await press(srv, dom.byId("token-clear"));
-  assert.deepEqual(agentKeys(), []);
+  const before = [...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:"));
+  assert.ok(before.length > 0);
+  const acknowledgement = publicControls(general(), "settings-clear-ack")[0];
+  const clear = publicControls(general(), "settings-clear-everything")[0];
+  assert.equal(clear.disabled, true, "Clear everything waits for its confirmation");
+  assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")).sort(), before.sort(), "without acknowledgement every Agent M record stays");
+  acknowledgement.checked = true; acknowledgement.fire("change", {});
+  await publicPress(srv, clear);
+  assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")), []);
   assert.equal(stored("another-site.setting"), "kept", "only Agent M's entries");
-  assert.equal(caches.stores.size, 0, "the kept file texts too");
-  assert.equal(dom.byId("token-msg").textContent, "Nothing stored any more.");
+  assert.equal(caches.stores.size, 0, "the kept file texts are cleared with Agent M browser settings");
+  assert.equal(publicControls(general(), "settings-clear-result")[0].textContent, "Every Agent M setting for this instance is cleared from this browser.");
 });
+
+async function publicPress(srv, control, event = TRUSTED) {
+  assert.ok(control, "the public Settings control exists");
+  control.fire("click", event);
+  await settle(srv);
+}

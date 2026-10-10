@@ -53,12 +53,13 @@ async function dashboardFor(t, bridge, endpointOrigin) {
     return nativeFetch(url.href, init);
   }] });
   const page = await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}bridge`]: JSON.stringify({ address: bridge.address, token: bridge.token }) } });
-  const dom = richDocument(), main = dom.byId("main"), original = main.querySelector.bind(main);
-  let section = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]' ? { replaceChildren(...children) { section = children; } } : original(selector);
+  const dom = richDocument(), main = dom.byId("main"); let mounted = [];
+  const replace = main.replaceChildren.bind(main); main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  assert.equal(section.length, 2, "known positive: Settings mounts the public endpoint Configure control");
-  await press(server, section[0]);
+  const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  const configure = pane?.querySelector("button.settings-endpoint-configure");
+  assert.ok(configure, "known positive: public Endpoints & Agents mounts Configure");
+  await press(server, configure);
   assert.equal(globalThis.location.hash, "#endpoints", "failure node: Settings Configure selected the public endpoint route");
   await page.go("#endpoints");
   return { server, page, main };
