@@ -165,7 +165,7 @@ export function loadErrorHtml({ error: e, product, ref, hasToken, own = null, no
   if (limit) return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(limit)}</p>`;
   const refused = tokenRefusal(e, gl ? product : own);
   const msg = e?.message || "";
-  const limited = !gl && !hasToken && /403|429/.test(msg), forbidden = !gl && hasToken && /403/.test(msg), missing = !gl && /404/.test(msg);
+  const limited = !gl && !hasToken && /403|429/.test(msg), forbidden = !gl && hasToken && /403/.test(msg), missing = !gl && (e?.name === "NotFound" || /404/.test(msg));
   return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(msg)}</p>
       ${gl && e instanceof TypeError ? `<p class="muted">${h(product.host)} could not be reached from this page — it must accept requests
         from this address, and your network must reach it.</p>` : ""}
