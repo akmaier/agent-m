@@ -106,8 +106,8 @@ test("registerStrategies — a name registered twice is refused as DuplicateStra
 //        participant with another model
 // input: prepareJob("derive-architecture", its context, { drafter: drafter-a, reviewers: [reviewer-c] }); and once more
 //        with the limit 2
-// expect: the drafter's parts — the SPEC, both use cases and the chapters, whole, each sized by the estimate; two
-//         destinations: the
+// expect: the job's parts — the SPEC, both use cases and the chapters, whole, each sized by the estimate and naming its
+//         recipe, the reviewer's being the same; two destinations: the
 //         drafter, with those parts and its prompt, and the reviewer, with review-architecture's prompt and the parts its
 //         recipes give before a draft exists, each at its place; everything fits, nothing left out, nothing blocking; the
 //         kind's limit, 5, and the caller's, 2, where it gives one
@@ -116,7 +116,8 @@ test("prepareJob — names every destination with the parts it receives and thei
   const reviewing = await kindOf("review-architecture");
   const job = await prepared("derive-architecture", { drafter: DRAFTER, reviewers: [REVIEWER] });
 
-  const parts = [SPEC_PART, ...USE_CASES, CHAPTERS].map((part) => ({ ...part, size: estimate(part.text) }));
+  const recipes = ["whole-spec", "accepted-use-cases", "accepted-use-cases", "chapters-for-architecture"];
+  const parts = [SPEC_PART, ...USE_CASES, CHAPTERS].map((part, at) => ({ ...part, size: estimate(part.text), recipe: recipes[at] }));
   assert.deepEqual(job.parts, parts);
   const partsSize = parts.reduce((sum, part) => sum + part.size, 0);
   assert.deepEqual(job.destinations, [
