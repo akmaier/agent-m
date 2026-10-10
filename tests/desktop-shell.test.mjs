@@ -179,6 +179,12 @@ const evaluate = async (url, expression) => {
 };
 const unusedPort = async () => await new Promise((resolve, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const { port } = server.address(); server.close((failure) => failure ? reject(failure) : resolve(port)); }); });
 const nativeClipboardEquals = async (app, value) => await evaluate(app.main, `(async () => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); return await electron.clipboard.readText() === ${JSON.stringify(value)}; })()`);
+const debuggerSnapshot = async (url) => {
+  try {
+    const answer = await within(fetch(url), "launch debugger snapshot"), text = await within(answer.text(), "launch debugger body"), value = JSON.parse(text);
+    return { status: answer.status, body: scrub(text).slice(-4000), value };
+  } catch (error) { return { error: error.message }; }
+};
 
 async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")), port, debug, inspect, dataFolder = true, environment = {}, instance = "release-owner/release-frame", origin = "https://release-owner.github.io" } = {}) {
   port ??= await unusedPort();
@@ -188,8 +194,9 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
   const launched = electronCommand(executable, args);
-  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment, NODE_PATH: sshRuntime() }, stdio: ["ignore", "ignore", "pipe"] });
-  let stderr = "";
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment, NODE_PATH: sshRuntime() }, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "", stderr = "";
+  child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
@@ -202,7 +209,15 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
     const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
     return { browser, child, exited, folder, main, origin, page, port };
   } catch (failure) {
-    const diagnostic = { stage, exitCode: child.exitCode, signal: child.signalCode, stderr: scrub(stderr) };
+    const debugSnapshot = await debuggerSnapshot(`http://127.0.0.1:${debug}/json/list`);
+    const inspectorSnapshot = await debuggerSnapshot(`http://127.0.0.1:${inspect}/json/list`);
+    let mainRuntime = null;
+    const main = inspectorSnapshot.value?.[0]?.webSocketDebuggerUrl;
+    if (main) {
+      try { mainRuntime = scrub(JSON.stringify(await evaluate(main, "({ stack: new Error().stack, argv: process.argv, exitCode: process.exitCode })"))); }
+      catch (error) { mainRuntime = { error: error.message }; }
+    }
+    const diagnostic = { stage, exitCode: child.exitCode, signal: child.signalCode, stdout: scrub(stdout), stderr: scrub(stderr), debug: { status: debugSnapshot.status ?? null, body: debugSnapshot.body ?? null, error: debugSnapshot.error ?? null }, inspector: { status: inspectorSnapshot.status ?? null, body: inspectorSnapshot.body ?? null, error: inspectorSnapshot.error ?? null }, mainRuntime };
     if (child.exitCode === null) child.kill();
     await within(exited, "Electron startup cleanup").catch(() => {});
     failure.message = `${failure.message}; launch=${JSON.stringify(diagnostic)}`;
