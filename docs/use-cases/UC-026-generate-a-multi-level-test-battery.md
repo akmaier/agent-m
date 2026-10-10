@@ -63,8 +63,8 @@ its own.
 ## Precondition
 
 - The product has accepted requirements and, for system tests, accepted use cases (UC-006, UC-008).
-- The product declares a process model with a role for writing tests (UC-002), assigned in a team to at
-  least one participant with the three capabilities above (UC-048).
+- The product declares a process model with a role for writing tests (UC-002), filled by at least one
+  participant with the three capabilities above (UC-048).
 
 ## Main flow
 

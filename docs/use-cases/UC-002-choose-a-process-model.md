@@ -22,13 +22,14 @@ realises:
   - A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
   - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
   - A GATE NAMES WHO DECIDES IT
-  - THE PROCESS NAMES NO PARTICIPANT
+  - THE PROCESS NAMES ROLES, NOT PARTICIPANTS
+  - A ROLE NAMES HOW MANY FILL IT
 ---
 # UC-002 Choose how the product is developed
 
 **Goal.** The author decides how the product is developed: which role does what, in which order, and
-where someone has to approve before the work continues. Who holds the roles is no part of it; the
-product's teams assign them (UC-048). This is the first step of
+where someone has to approve before the work continues. Who fills the roles is no part of it; the
+product's role assignment does (UC-048). This is the first step of
 implementing the architecture (UC-024, step 1): the model decides how the software is assembled — along
 an implementation plan (UC-045) or from a backlog (UC-032). Until then the product needs no model; its
 requirements, use cases and architecture are worked out the same way whatever the process.
@@ -65,12 +66,12 @@ and its process requirements show up here as additions to whatever model the aut
    For each: the risk it manages well, the risk it accepts, an example project it suits, and the
    book chapter that explains it.
 3. The author selects one model.
-4. Agent M shows the model's roles; for each, whether a person, an agent or either may fill it, and
-   which capabilities it needs. For Scrum, for example (book ch. 7 §5): *Product Owner* — a person or
+4. Agent M shows the model's roles; for each, whether a person, an agent or either may fill it,
+   which capabilities it needs, and whether one participant fills it or several may. For Scrum, for example (book ch. 7 §5): *Product Owner* — a person or
    an agent, who fills the backlog, selects each sprint's items and decides what is released; *Scrum Master* — either, who watches the
    process and removes obstacles, and approves nothing; *Developers* — either, needing *write to the
-   repository* and *run code and tests*, who turn items into a done increment. Who holds
-   them is set per team (UC-048).
+   repository* and *run code and tests*, who turn items into a done increment. Who fills
+   them is set in the product's role assignment (UC-048).
 5. Agent M shows the model's phases, the transitions between them, which phases pair for verification, and each gate
    with what it checks and who decides it — a role held by a person or an agent, or an automated check
    (UC-031). For a phase, or for a sprint — with or without a time box —, the author may set a
@@ -122,7 +123,8 @@ sequenceDiagram
 ## Postcondition
 
 - The product declares exactly one process model, its Definition of Done, and zero or more practices,
-  and its declaration names no participant; who holds the roles is set per team (UC-048).
+  and its declaration names the roles that participants fill, never a participant; its role assignment fills them
+  (UC-048).
 - The workflow Agent M offers for the product follows from the model, the practices and the
   product's process requirements — and from nothing else.
 - Implementation continues as the model calls for: with the implementation plan (UC-045) or the

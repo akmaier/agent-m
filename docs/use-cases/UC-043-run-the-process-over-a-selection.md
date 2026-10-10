@@ -67,7 +67,7 @@ work-in-progress limit (UC-034), and each item's job includes its tests.
 
 ## Precondition
 
-- The product declares a process model (UC-002), and a team holds its roles (UC-048).
+- The product declares a process model (UC-002), and its roles are filled (UC-048).
 - The architecture is accepted (UC-022, UC-023).
 - The product has an implementation plan (UC-045), or, in Scrum or Kanban, a planned and filled backlog (UC-032).
 
@@ -130,8 +130,8 @@ sequenceDiagram
 ## Alternative flows
 
 - **1a. The product works from a backlog (Scrum, Kanban).** The selection is backlog items, not modules:
-  the ready items of the current sprint of the author's team, or as many as its work-in-progress limit allows; each
-  team starts runs of its own. Each item's job
+  in Scrum, the ready items of the current sprint of the author's team, each team starting runs of its own; in Kanban,
+  as many as the work-in-progress limit allows. Each item's job
   is that of UC-034, including its tests; the rest of this use case applies unchanged.
 - **1b. A selected step's module file or decision is not accepted.** It cannot be selected; Agent M names
   what is open and links to UC-022 or UC-023.

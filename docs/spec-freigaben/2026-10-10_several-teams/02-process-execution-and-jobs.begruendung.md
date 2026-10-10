@@ -1,11 +1,17 @@
-# 13. Process execution and jobs: teams run sprints of their own, planned against what the others hold
+# 13. Process execution and jobs: work under its role assignment; Scrum teams plan against what the others hold
 
-**The change.** `NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT` counts a team's items in progress, `A TIME BOX WORKS ONLY ON
-WHAT WAS SELECTED FOR IT` reads the team's current sprint, and `A JOB GOES ONLY TO A HOLDER OF ITS ROLE` the job's team's
-assignment. They keep their names and checks; each check gains a counter-proof with two teams. Five new requirements:
-every team runs sprints of its own; a sprint holds its items until their change is merged into the default branch or
-they return to the backlog; of two items held by sprints of different teams, neither changes a module that the other
-changes or uses; sprint planning lists what the other teams' sprints hold; a team's gates are decided within the team.
+**The change.** `NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT` counts the items in progress under the job's role
+assignment, `A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT` reads the team's current sprint, and `A JOB GOES ONLY TO A
+HOLDER OF ITS ROLE` the job's role assignment. They keep their names and checks; each check gains a case with several
+holders or two teams. Five new requirements: every team runs sprints of its own; a sprint holds its items until their
+change is merged into the default branch or they return to the backlog; of two items held by sprints of different teams,
+neither changes a module that the other changes or uses; sprint planning lists what the other teams' sprints hold; a gate
+is decided within the job's role assignment.
+
+**One wording for every model.** A product has one role assignment, or one per team in a model that works in sprints. The
+rules on jobs, gates and the work-in-progress limit name the job's role assignment: in Kanban and the V-model the product's
+one, in Scrum the job's team. So none of them names a team where a model has none, and the work-in-progress limit of
+Kanban counts the product's items, that of a Scrum team with a limit its own.
 
 **Why.** PO, 2026-10-10: teams "have to inspect running sprints in their sprint planning and have to select their backlog
 items in a way that they will not produce conflicts." The SPEC already gives the unit of conflict: every item names the
@@ -45,6 +51,6 @@ that conflict).
   UC-034, UC-036, UC-043 and the fixtures of sprint 02.
 
 Once the use cases are accepted — not before (`ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES`) — ARC-042,
-MOD-product-process and MOD-work-plans are changed: team files, held items, startable per team; MOD-work-plans'
-`backlog-order` schema and `saveOrder`, and `docs/backlog/order.md`, go. The measurement and the sprint records are records
-and stay as written.
+MOD-product-process and MOD-work-plans are changed: role assignments, held items, startable per role assignment;
+MOD-work-plans' `backlog-order` schema and `saveOrder`, and `docs/backlog/order.md`, go. The measurement and the sprint
+records are records and stay as written.

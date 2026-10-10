@@ -73,7 +73,7 @@ its steps are what implementation jobs start for (UC-024).
    - a failed job;
    - a job waiting at a gate, with the role or check that decides it;
    - a requirement not yet accepted;
-   - the WIP limit of its team;
+   - the WIP limit — of its team, in a model with sprints;
    - another team's sprint that holds what it needs, named with the module (UC-032, step 5).
 5. A panel **Who works on what** lists each participant of the product with its role — and its team, in a
    product with several teams — and its current jobs, linked to the job dashboard (UC-036). With several teams, it

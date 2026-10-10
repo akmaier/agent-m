@@ -66,8 +66,8 @@ names is accepted.
 The same item can be started after an approval record names the proposal's text.
 
 **NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT** *(Vibe Coding, ch. 7 §4)*
-When a product's model sets a work-in-progress limit, no implementation job of a team starts while the number
-of that team's items in progress has reached that limit.
+When a product's model sets a work-in-progress limit, no implementation job starts while the number
+of items in progress under the job's role assignment has reached that limit.
 *Check:* `tests/test_wip_limit.py`. With limit 2 and two items in progress, a third start is refused
 with the limit named. With one of the two done, the start succeeds. With two teams, a team's two items in progress do not
 refuse a start by the other team.
@@ -107,9 +107,9 @@ with their sprint and modules, and marks every item they keep from being selecte
 counter-proof: while no other team's sprint holds an item, nothing is listed and no item is marked.
 
 **A JOB GOES ONLY TO A HOLDER OF ITS ROLE** *(PO A. Maier)*
-A job is handed only to a participant that the job's team has assigned to the role the job belongs to.
-*Check:* `tests/test_job_assignment.py` — counter-proof: with two teams, a job of one team is not handed to a Developer
-that only the other team assigns.
+A job is handed only to a participant that the job's role assignment assigns to the role the job belongs to.
+*Check:* `tests/test_job_assignment.py` — in a Kanban fixture, a job goes to any of the role assignment's three Developers;
+counter-proof: with two teams, a job of one team is not handed to a Developer that only the other team assigns.
 
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
@@ -124,10 +124,10 @@ an automated check whose result decides.
 *Check:* `tests/test_model_validation.py` — a gate without a decider is rejected; counter-proof: a gate
 decided by a role and one decided by a named CI check both pass validation.
 
-**A TEAM'S GATES ARE DECIDED WITHIN THE TEAM** *(PO A. Maier)*
-A gate that a team's job reaches is passed only by a decision of a holder of the deciding role in that team.
-*Check:* `tests/test_job_gate.py` — with two teams, a record by the other team's Product Owner leaves the job waiting;
-counter-proof: the record of the job's own team's Product Owner passes it.
+**A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT** *(PO A. Maier)*
+A gate that a job reaches is passed only by a decision of a holder of the deciding role in the job's role assignment.
+*Check:* `tests/test_job_gate.py` — in a V-model fixture with three Reviewers, the record of any of them other than the
+author passes the gate; counter-proof: with two teams, a record by the other team's Product Owner leaves the job waiting.
 
 **A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS** *(PO A. Maier; Vibe Coding, ch. 12 §2, ch. 13 §6)*
 A gate's decision recorded by the participant that did the work the gate checks does not pass it.

@@ -55,7 +55,7 @@ in the architecture's due diligence (UC-022, step 7).
 
 ## Precondition
 
-- The product declares a model that plans its work in advance (UC-002), and a team holds the role that plans (UC-048).
+- The product declares a model that plans its work in advance (UC-002), and the role that plans has a holder (UC-048).
 - The architecture is accepted (UC-022, UC-023).
 
 ## Main flow

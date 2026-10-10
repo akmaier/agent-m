@@ -42,9 +42,9 @@ items that implement modules, then the items that integrate a subsystem, then th
 An item **builds on** the items that implement the interfaces its modules use; an item that integrates a subsystem
 builds on the items of that subsystem's modules; an item for the system builds on the subsystems' integration. The
 backlog keeps no order of its own: what comes first follows from what the items build on, and what is worth doing next is
-decided where the work is taken on — in a team's sprint planning, or when a team pulls an item.
+decided where the work is taken on — in a team's sprint planning, or when an item is pulled.
 
-Several teams can work from one backlog at the same time (UC-048). Each plans sprints of its own and sees, when it
+In a model with sprints, several teams can work from one backlog at the same time (UC-048). Each plans sprints of its own and sees, when it
 plans, what the other teams' sprints hold: no item is in two sprints, and no team changes a module that another team's
 sprint changes or uses, or uses one that it changes — so the teams' work does not collide.
 
@@ -59,8 +59,8 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
 
 ## Precondition
 
-- The product declares a model that pulls its work from a backlog (UC-002), and a team holds the role that
-  fills the backlog (UC-048).
+- The product declares a model that pulls its work from a backlog (UC-002), and the role that
+  fills the backlog has a holder (UC-048).
 - The product has accepted requirements or use cases (UC-006, UC-008).
 - The architecture is accepted (UC-022, UC-023).
 
@@ -109,7 +109,7 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
    within the team, on the branch `sprint/<team>/<nn>` where sprints have a branch of their own (UC-002). From now on, the team's implementation jobs start only for the items
    selected for its sprint (UC-034), and the sprint holds them.
 7. **A model with a WIP limit (Kanban):** the board shows the columns of the model, for example Backlog,
-   Doing, Review, Done (book ch. 7 §4). A ready item — the one the team chooses — can be pulled only while fewer items are
+   Doing, Review, Done (book ch. 7 §4). A ready item — the one its developers choose — can be pulled only while fewer items are
    in progress than the WIP limit allows. Items in *Review* count as in progress. Without sprints there is
    no selection; in a model with sprints and a WIP limit, both hold — only selected items are pulled, and
    only below the limit.

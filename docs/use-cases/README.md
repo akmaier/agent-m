@@ -73,7 +73,7 @@ nine **steps** of the cycle are the areas below.
 | ID | Use case |
 |---|---|
 | [UC-002](UC-002-choose-a-process-model.md) | Choose how the product is developed |
-| [UC-048](UC-048-set-up-a-team.md) | Set up a team — who holds the roles of the process |
+| [UC-048](UC-048-fill-the-roles.md) | Fill the roles — one role assignment, or one per Scrum team |
 | [UC-024](UC-024-implement-modules.md) | Implement the architecture — as the process model prescribes |
 | [UC-045](UC-045-plan-the-implementation.md) | Plan the implementation — plan-driven models |
 | [UC-032](UC-032-maintain-the-backlog.md) | Maintain the backlog — Scrum and Kanban |

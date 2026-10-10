@@ -63,7 +63,7 @@ what one implementation job is, where the work comes from, in which order it is 
 |---|---|---|---|
 | plan-driven — V-model, waterfall, reuse-oriented | the implementation plan (UC-045) | one step of the plan: a module, a subsystem's integration, or the system | the plan's order; a phase's jobs start after the gate that closes the phase before |
 | Scrum | the team's sprint selection from the backlog (UC-032) | one backlog item (UC-034) | after the items it builds on, within the sprint |
-| Kanban | the ready items of the backlog (UC-032) | one backlog item (UC-034) | pulled as the team chooses, after the items it builds on, under the work-in-progress limit |
+| Kanban | the ready items of the backlog (UC-032) | one backlog item (UC-034) | pulled as its developers choose, after the items it builds on, under the work-in-progress limit |
 
 Every job is the same at its core: a coding participant writes failing tests first, then the code, on a branch, and the
 pull request is merged once the product's Definition of Done holds (UC-002, step 8). The questions the architecture leaves
@@ -99,7 +99,7 @@ it is one job per step the author picks; in a run (UC-043), the steps' jobs star
 1. The author opens **Implement** for the product. The process comes first, because it decides how the software is
    assembled:
    - if the product has no process model yet, the author configures it here, as UC-002 describes — the model, its roles,
-     the branches, the Definition of Done, the practices — and saves it, then sets up the team that holds the roles
+     the branches, the Definition of Done, the practices — and saves it, then fills its roles
      (UC-048); a model configured before is shown, and may be changed here (UC-002, 3b);
    - Agent M shows the route the model prescribes, with the table above and a folded **What is this?** pointing to book
      ch. 6 and 7;

@@ -42,7 +42,7 @@ realises:
   - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
   - A RUN HAS LIMITS FIXED AT ITS START
   - EVERY TEAM RUNS SPRINTS OF ITS OWN
-  - A TEAM'S GATES ARE DECIDED WITHIN THE TEAM
+  - A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT
   - SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
 ---
 # UC-034 Implement backlog items with a coding agent
@@ -89,11 +89,11 @@ names a person.
    - a requirement or use case the item names is not accepted;
    - an item it builds on — one that implements an interface its modules use, or, for an integration, one of
      its subsystem's modules — is not done (UC-032);
-   - the team's WIP limit would be exceeded.
+   - the WIP limit would be exceeded — counted per team in a model with sprints.
 
    For each item it cannot start, Agent M names the reason.
 3. For the startable items, Agent M proposes one participant each from the holders of the
-   implementing role in the item's team. The run panel shows, per item:
+   implementing role in the item's role assignment — its team's, in a model with sprints. The run panel shows, per item:
    - the participant;
    - where the participant processes data;
    - what is sent: the item; the requirements and use cases it realises, and their existing tests; the
@@ -125,7 +125,8 @@ names a person.
    - a **person** sees the gate on the job dashboard (UC-036), with what it checks and the artifacts to
      look at, and presses **Pass gate**: one click.
 
-   The deciding role is the one held in the job's team; a holder of it in another team does not decide.
+   The deciding role is the one held in the job's role assignment — its team's, in a model with sprints; a holder of it
+   in another team does not decide.
    Agent M commits the gate record — who or what decided, when, on which text — and the job continues.
 8. When the product's Definition of Done holds — CI green, no gate left, and whatever the product
    added (UC-002, step 8) — the pull request is merged: by the coding agent, or by a person, as the
@@ -186,7 +187,8 @@ sequenceDiagram
 - **6a. CI stays red after the retry limit.** The job ends as *failed*, with the last CI log linked.
   The item is *blocked*, and the author may retry with the same or another participant (UC-036).
 - **6b. Two jobs touch the same files.** Items held by different teams' sprints change disjoint modules (UC-032,
-  step 5), so this happens within one team, or in a file that no module owns. The later push is rebased onto the
+  step 5), so this happens among the jobs of one team — or of the product, in a model without sprints —, or in a file
+  that no module owns. The later push is rebased onto the
   default branch, or onto the team's sprint branch. On a
   conflict the job stops in *waiting at a gate* for the author and names the other item (book ch. 7, Brooks's
   law: more agents add coordination work).
