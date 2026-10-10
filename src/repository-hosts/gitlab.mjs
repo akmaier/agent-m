@@ -41,6 +41,25 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     const answer = await call("GET", url, options);
     return answer instanceof Response ? json(answer, address.origin) : answer;
   };
+  const page = async (url, options) => {
+    const answer = await call("GET", url, options);
+    return { items: await json(answer, address.origin), next: answer.headers.get("x-next-page") || null };
+  };
+  const pages = async (url) => {
+    const all = [];
+    for (let pageNumber = 1; pageNumber <= MAX_PAGES; pageNumber += 1) {
+      const u = new URL(url); u.searchParams.set("page", String(pageNumber));
+      const p = await page(u.href); all.push(...p.items);
+      if (!p.next) break;
+      pageNumber = Number(p.next) - 1;
+    }
+    return all;
+  };
+  const pull = (m) => ({ number: m.iid, title: m.title ?? "", branch: m.source_branch ?? "", base: m.target_branch ?? "", head: m.sha ?? "",
+    state: ({ opened: "open", locked: "open", merged: "merged", closed: "closed" }[m.state] ?? "closed"), draft: m.draft === true,
+    url: m.web_url ?? "", opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null });
+  const ci = (states) => states.some((s) => /running|pending|created|preparing|waiting/.test(s.status)) ? "running" : states.some((s) => /failed|failure/.test(s.status)) ? "failure" : states.some((s) => s.status === "success") ? "success" : "none";
+  const change = (f) => ({ path: f.new_path ?? f.old_path, change: f.new_file ? "added" : f.deleted_file ? "deleted" : f.renamed_file ? "renamed" : "modified" });
 
   // The commit the branch stands at now, or null when there is no such branch.
   const branchHead = async (branch) =>
@@ -94,6 +113,37 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       return tags;
+    },
+
+    async listPullRequests({ state = "all", branch } = {}) {
+      if (!["open", "merged", "closed", "all"].includes(state)) throw new TypeError("state is open, merged, closed or all");
+      if (branch !== undefined && (typeof branch !== "string" || !branch)) throw new TypeError("branch is a text");
+      const wanted = state === "open" ? "opened" : state;
+      let pageNumber = 1, next = "1", pulls = [];
+      while (next && pageNumber <= MAX_PAGES) {
+        const p = await page(`${api}/merge_requests?state=${wanted}&per_page=${PAGE}&page=${pageNumber}` + (branch ? `&source_branch=${encodeURIComponent(branch)}` : ""));
+        pulls.push(...p.items.map(pull)); next = p.next; pageNumber = next ? Number(next) : MAX_PAGES + 1;
+      }
+      return pulls.filter((p) => state === "all" || p.state === state);
+    },
+
+    async pullRequestFacts(number) {
+      if (!Number.isInteger(number) || number < 1) throw new TypeError("pullRequestFacts names a pull request number");
+      const raw = await read(`${api}/merge_requests/${number}`), request = pull(raw), base = raw.diff_refs?.base_sha, head = raw.sha;
+      const commits = await pages(`${api}/merge_requests/${number}/commits?per_page=${PAGE}`), facts = [];
+      for (const c of commits) {
+        const diff = await pages(`${api}/repository/commits/${c.id}/diff?per_page=${PAGE}`), states = await pages(`${api}/repository/commits/${c.id}/statuses?per_page=${PAGE}`);
+        facts.push({ sha: c.id, message: c.message ?? "", files: diff.map((f) => change(f).path), ci: ci(states) });
+      }
+      const files = (await read(`${api}/merge_requests/${number}/changes`)).changes.map(change);
+      // GitLab's merge-request approvals name the merge request and approval time, but no commit the approval was given on.
+      // PullRequestFacts reviews require that actual commit, so an unassociated merge-request approval is not a review record.
+      const reviews = [];
+      const pipelines = await pages(`${api}/merge_requests/${number}/pipelines?per_page=${PAGE}`), checks = [];
+      for (const pipeline of pipelines.filter((p) => p.sha === head)) {
+        for (const job of await pages(`${api}/pipelines/${pipeline.id}/jobs?per_page=${PAGE}`)) checks.push({ name: job.name, state: ({ success: "success", failed: "failure", running: "running", pending: "queued", canceled: "cancelled", skipped: "skipped" }[job.status] ?? "neutral"), url: job.web_url ?? "" });
+      }
+      return { pullRequest: request, commits: facts, files, reviews, checks, base, head };
     },
 
     // One file's text at a commit, or null where the commit does not hold it.

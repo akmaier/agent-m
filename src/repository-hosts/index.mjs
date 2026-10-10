@@ -136,6 +136,20 @@ export function connect(address, credentials = {}) {
   const refused = [...secrets, ...(token ? [token] : [])].filter((s) => s.length > 0);
   // The texts of the blobs read through this host, by their blob SHA: each blob is read once.
   const texts = new Map();
+  const snapshot = async (ref) => {
+    if (typeof ref !== "string" || !ref.trim()) throw new TypeError("readSnapshot names a branch, a tag or a commit");
+    const { commit, blobs } = await adapter.snapshot(ref);
+    return Object.freeze({
+      repository, ref, commit, paths: Object.freeze([...blobs.keys()]),
+      blob: (path) => blobs.get(path) ?? null,
+      read(path) {
+        const sha = blobs.get(path);
+        if (!sha) return Promise.resolve(null);
+        if (!texts.has(sha)) texts.set(sha, adapter.readFile(commit, path).catch((e) => { texts.delete(sha); throw e; }));
+        return texts.get(sha);
+      },
+    });
+  };
 
   return Object.freeze({
     // repositoryInfo() -> RepositoryInfo { defaultBranch, visibility, canWrite, archived, description }. Crosses the network;
@@ -144,22 +158,7 @@ export function connect(address, credentials = {}) {
 
     // readSnapshot(ref) -> Snapshot { repository, ref, commit, paths, read(path), blob(path) } — the repository at one commit.
     // Crosses the network, and so does read(path); fail with NotFound, TokenRefused, PermissionMissing, RateLimited, Unreachable.
-    async readSnapshot(ref) {
-      if (typeof ref !== "string" || !ref.trim()) throw new TypeError("readSnapshot names a branch, a tag or a commit");
-      const { commit, blobs } = await adapter.snapshot(ref);
-      return Object.freeze({
-        repository, ref, commit, paths: Object.freeze([...blobs.keys()]),
-        blob: (path) => blobs.get(path) ?? null,
-        read(path) {
-          const sha = blobs.get(path);
-          if (!sha) return Promise.resolve(null);
-          if (!texts.has(sha)) {
-            texts.set(sha, adapter.readFile(commit, path).catch((e) => { texts.delete(sha); throw e; }));
-          }
-          return texts.get(sha);
-        },
-      });
-    },
+    readSnapshot: snapshot,
 
     // listTags(pattern) -> { name, commit }[] — the tags of the repository, every one of them across however many pages the
     // server answers in, optionally only those whose name matches pattern, a glob with * as its only wildcard (e.g. "v*").
@@ -168,6 +167,23 @@ export function connect(address, credentials = {}) {
       if (pattern !== undefined && typeof pattern !== "string") throw new TypeError("a pattern is a text");
       const tags = await adapter.listTags();
       return pattern === undefined ? tags : tags.filter((t) => globPattern(pattern).test(t.name));
+    },
+
+    // listPullRequests({ state, branch }) -> PullRequest[] — the repository's pull or merge requests, through its server.
+    // Crosses the network and fails as readSnapshot.
+    listPullRequests: (filter = {}) => adapter.listPullRequests(filter),
+
+    // pullRequestFacts(number) -> PullRequestFacts — immutable base/head files and the server's recorded review and CI facts.
+    // Crosses the network and fails as readSnapshot.
+    async pullRequestFacts(number) {
+      const { base, head, ...facts } = await adapter.pullRequestFacts(number);
+      const sides = new Map();
+      return Object.freeze({ ...facts, async read(path, side) {
+        if (side !== "base" && side !== "head") throw new TypeError("side is base or head");
+        const ref = side === "base" ? base : head;
+        if (!sides.has(ref)) sides.set(ref, snapshot(ref));
+        return (await sides.get(ref)).read(path);
+      } });
     },
 
     // commitFiles({ branch, expectedHead, files, message }) -> { commit, url } — one commit of all the files, made only if the
