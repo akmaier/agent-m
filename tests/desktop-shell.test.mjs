@@ -12,9 +12,11 @@ import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-component-electron-44");
+const ssh2Cache = join(tmpdir(), "agent-m-291-desktop-native-ssh2-1.17.0");
 const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
 let nativeFixtureLockHeld = false;
 let runtimeFailure;
+let sshRuntimeFailure;
 let virtualDisplayFailure;
 let windowManagerFailure;
 const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
@@ -112,6 +114,21 @@ async function runtime() {
   } catch (failure) { runtimeFailure = failure; throw failure; }
 }
 
+function sshRuntime() {
+  if (sshRuntimeFailure) throw sshRuntimeFailure;
+  try {
+    if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
+      const installed = spawnSync("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"], { encoding: "utf8", timeout: 40_000 });
+      assert.equal(installed.status, 0, `ssh2 staging failed: ${installed.stderr}`);
+    }
+    const nodePath = join(ssh2Cache, "node_modules");
+    const positive = spawnSync(process.execPath, ["-e", "const ssh2=require('ssh2');if(require('ssh2/package.json').version!=='1.17.0'||typeof ssh2.utils.generateKeyPairSync!=='function')throw Error('ssh2 known positive');console.log('ssh2-known-positive')"], { encoding: "utf8", timeout: 40_000, env: { ...process.env, NODE_PATH: nodePath } });
+    assert.equal(positive.status, 0, `ssh2 known positive failed: ${positive.stderr}`);
+    assert.match(positive.stdout, /ssh2-known-positive/);
+    return nodePath;
+  } catch (failure) { sshRuntimeFailure = failure; throw failure; }
+}
+
 const electronCommand = (executable, arguments_) => {
   if (process.platform !== "linux") return { command: executable, arguments_ };
   if (virtualDisplayFailure) throw virtualDisplayFailure;
@@ -171,7 +188,7 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
   const launched = electronCommand(executable, args);
-  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment, NODE_PATH: sshRuntime() }, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
@@ -295,7 +312,7 @@ test("TST-276005: native close behavior and a second source start restore the fi
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
     const startSecond = async () => {
       const launched = electronCommand(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`]);
-      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
+      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", env: { ...process.env, NODE_PATH: sshRuntime() }, stdio: "ignore" });
       child.unref(); second.push(child); return { child, exited: new Promise((resolve) => child.once("exit", resolve)) };
     };
     const observeSecond = async () => await evaluate(app.main, "(() => { globalThis.__agentMSecondInstanceCount ??= 0; process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.once('second-instance', () => { globalThis.__agentMSecondInstanceCount += 1; }); return globalThis.__agentMSecondInstanceCount; })()");
