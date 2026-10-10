@@ -974,12 +974,12 @@ test("UC-042 step 4 counter-proofs: a click a script makes writes nothing; a Sav
   assert.equal(publicControls(product, "settings-pseudonymisation-result")[0].textContent, "Tick I have read this before switching pseudonymisation off.");
 });
 
-test("UC-042 4a: switching pseudonymisation back on is saved without a notice — the page says data written meanwhile stays in the history", async () => {
+test("UC-042 4a: switching pseudonymisation back on is saved without a notice — the page says already written data needs a history rewrite to be removed", async () => {
   const off = "# Settings of akmaier/agent-m\n\nintro\n\n- pseudonymisation: off\n";
   const { srv, box } = await publicSettingsPage({ server: await ucServer({ "docs/settings.md": off }, [(url) => url.href === `${API}/repos/${REPO}` ? json({ private: false, default_branch: "main", permissions: { push: true } }) : undefined]), writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
-  assert.ok(product.textContent.includes("Data written while pseudonymisation was off stays in the repository's history; removing it needs a rewrite of that history."));
+  assert.match(product.textContent, /Data already written remains in history; removing that data requires a history rewrite\./);
   const toggle = publicControls(product, "settings-pseudonymisation-off")[0];
   assert.equal(toggle.checked, true);
   toggle.checked = false;
@@ -990,8 +990,9 @@ test("UC-042 4a: switching pseudonymisation back on is saved without a notice �
 
 const COLLABORATORS_HEAD = "# Collaborators of akmaier/agent-m\n\nPeople who agreed to be named in this repository, with the date they agreed. Anyone else is\n" +
   "named only by their account. Changed on the Agent M dashboard (Settings).\n\n| Name | Account | Agreed on |\n|---|---|---|\n";
+const NEW_COLLABORATORS_HEAD = "# Collaborators of akmaier/agent-m\n\n| Name | Account | Agreed |\n|---|---|---|\n";
 
-test("UC-042 step 5: + Collaborator with the tick that the person agreed commits docs/collaborators.md with name, account and date", async () => {
+test("UC-042 step 5: + Collaborator creates the canonical new document with affirmative consent, name, account and one list row", async () => {
   const { srv, box } = await publicSettingsPage({ writableProduct: true });
   const product = publicControls(box(), "settings-product")[0];
   publicControls(product, "settings-collaborator-name")[0].value = "Jane Doe";
@@ -1001,10 +1002,10 @@ test("UC-042 step 5: + Collaborator with the tick that the person agreed commits
   consentDate.value = "2026-09-30";
   const agreed = publicControls(product, "settings-collaborator-agreed")[0]; agreed.checked = true; agreed.fire("change", {});
   await publicPress(srv, publicControls(product, "settings-collaborator-save")[0]);
-  assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${COLLABORATORS_HEAD}| Jane Doe | @jdoe | 2026-09-30 |\n` }]);
-  assert.equal(srv.writes[0].message, "collaborators: update (Agent M dashboard)");
-  assert.match(publicControls(product, "settings-collaborator-records")[0].textContent, /Jane Doe · @jdoe · agreed on 2026-09-30/);
-  assert.match(product.textContent, /Collaborators — 1 named/);
+  assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${NEW_COLLABORATORS_HEAD}| Jane Doe | jdoe | yes |\n` }]);
+  assert.equal(srv.writes[0].message, "edit collaborators.md (Agent M dashboard)");
+  assert.match(publicControls(product, "settings-collaborator-records")[0].textContent, /Jane Doe · @jdoe · agreed on recorded/);
+  assert.equal(publicControls(product, "settings-collaborator-records")[0].children.length, 1, "one collaborator row is shown");
 });
 
 test("UC-042 step 5 counter-proofs: without the tick nothing is written and the page says why; a click a script makes writes nothing", async () => {
@@ -1028,21 +1029,23 @@ test("UC-042 5a: Remove takes a collaborator off the list with one commit, and s
   publicControls(product, "settings-collaborator-remove-name")[0].value = "Jane Doe";
   publicControls(product, "settings-collaborator-remove-account")[0].value = "jdoe";
   await publicPress(srv, publicControls(product, "settings-collaborator-remove")[0]);
-  assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${COLLABORATORS_HEAD}| Max Müller | @max-m | 2026-10-01 |\n` }]);
+  assert.deepEqual(srv.writes.map((w) => w.files), [{ "docs/collaborators.md": `${COLLABORATORS_HEAD}| Max Müller | @max-m | 2026-10-01 |\n` }], "the retained legacy Max row keeps its exact bytes");
   const committed = await connect(parseAddress(`https://github.com/${REPO}`), { token: TOKEN }).readSnapshot("main");
-  const historyLink = publicControls(product, "settings-collaborator-history")[0];
-  assert.ok(historyLink, "the removal names the returned commit in a history link");
+  const historyLink = publicControls(product, "settings-collaborator-withdrawal-commit")[0];
+  assert.ok(historyLink, "the removal exposes the returned commit");
   assert.equal(historyLink.href, `https://github.com/${REPO}/commit/${committed.commit}`);
-  assert.equal(historyLink.textContent, `commit ${committed.commit.slice(0, 7)}`);
+  assert.equal(historyLink.textContent, "View removal commit");
   assert.match(product.textContent, /Max Müller · @max-m · agreed on 2026-10-01/);
 });
 
-test("UC-042 step 6: Clear everything removes every Agent M entry from localStorage and the kept file texts, after a confirmation", async () => {
+test("UC-042 step 6: Clear everything removes every Agent M localStorage entry after a confirmation", async () => {
   const caches = fakeCaches();
+  const retired = await caches.open("agent-m-file-texts");
+  await retired.put("old-file-text", new Response("retired persistent file text"));
   const srv = await ucServer();
   const { general } = await publicSettingsPage({ server: srv, caches, settings: { products: [PRODUCT_ADDR], [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: null }, "jump-host": { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] } } });
   globalThis.localStorage.setItem("another-site.setting", "kept");
-  assert.ok(caches.stores.size > 0, "file texts were kept");
+  assert.equal(caches.stores.size, 0, "the retired file-text cache is absent after dashboard boot");
   const before = [...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:"));
   assert.ok(before.length > 0);
   const acknowledgement = publicControls(general(), "settings-clear-ack")[0];
@@ -1053,7 +1056,7 @@ test("UC-042 step 6: Clear everything removes every Agent M entry from localStor
   await publicPress(srv, clear);
   assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")), []);
   assert.equal(stored("another-site.setting"), "kept", "only Agent M's entries");
-  assert.equal(caches.stores.size, 0, "the kept file texts are cleared with Agent M browser settings");
+  assert.equal(caches.stores.size, 0, "the retired file-text cache remains absent after Clear everything");
   assert.equal(publicControls(general(), "settings-clear-result")[0].textContent, "Every Agent M setting for this instance is cleared from this browser.");
 });
 

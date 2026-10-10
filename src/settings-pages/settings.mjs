@@ -277,6 +277,7 @@ function repositoryLine(target, context, info) {
   expiry.type = "date";
   expiry.value = stored?.expires ?? new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
   acknowledgement.type = "checkbox";
+  acknowledgement.checked = Boolean(readSetting(context.store, "acknowledged:shared-origin"));
   acknowledgement.disabled = true;
   value.disabled = true;
   expiry.disabled = true;
@@ -287,13 +288,23 @@ function repositoryLine(target, context, info) {
     show.textContent = hidden ? "Hide" : "Show";
   });
   acknowledgement.addEventListener("change", () => {
+    if (acknowledgement.checked) writeSetting(context.store, "acknowledged:shared-origin", new Date().toISOString().slice(0, 10));
+    else clearSetting(context.store, "acknowledged:shared-origin");
     value.disabled = expiry.disabled = save.disabled = !acknowledgement.checked;
     if (acknowledgement.checked) value.focus();
   });
   change.addEventListener("click", () => {
     acknowledgement.disabled = false;
-    result.textContent = "Read the shared-browser notice, then acknowledge it before saving a replacement token.";
-    acknowledgement.focus();
+    const alreadyAcknowledged = Boolean(readSetting(context.store, "acknowledged:shared-origin"));
+    acknowledgement.checked = alreadyAcknowledged;
+    if (alreadyAcknowledged) {
+      value.disabled = expiry.disabled = save.disabled = false;
+      result.textContent = "The shared-browser notice was already acknowledged in this browser.";
+      value.focus();
+    } else {
+      result.textContent = "Read the shared-browser notice, then acknowledge it before saving a replacement token.";
+      acknowledgement.focus();
+    }
   });
   save.addEventListener("click", () => {
     const next = value.value.trim();
@@ -507,7 +518,8 @@ async function productControls(context) {
   const legacyOff = (text) => /(^|\n)- pseudonymisation: off(?:\n|$)/.test(text ?? "");
   const settingState = (document, text) => legacyOff(text) ? "off" : pseudonymisationOf(document);
   let settingsDocument = readDocument(settings, settings.path, settingsText ?? "# Settings of this product\n");
-  let collaboratorsBytes = collaboratorsText ?? "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n";
+  const newCollaborators = `# Collaborators of ${address.path}\n\n| Name | Account | Agreed |\n|---|---|---|\n`;
+  let collaboratorsBytes = collaboratorsText ?? newCollaborators;
   let collaboratorsDocument = readDocument(collaborators, collaborators.path, collaboratorsBytes);
   let settingsBlob = snapshot.blob(settings.path), collaboratorsBlob = snapshot.blob(collaborators.path);
   let settingsBytes = settingsText ?? "# Settings of this product\n";
@@ -520,7 +532,7 @@ async function productControls(context) {
   const access = repository.canWrite === true ? "writable" : repository.canWrite === false ? "read-only" : "not reported";
   if (!canWrite) {
     const tokenStep = el("button", "settings-product-token-step", "Open the token step of UC-001");
-    tokenStep.addEventListener("click", () => context.go("add-product", {}));
+    tokenStep.addEventListener("click", () => context.go("add-product", { address: context.product.address }));
     const reason = credential?.token ? "The repository reports this credential cannot write." : "This browser has no token that can write to this product.";
     return el("section", "settings-product",
       el("h3", null, `Product · ${context.product.address}`),
@@ -570,7 +582,7 @@ async function productControls(context) {
     }
     const rows = collaboratorsDocument.sections[0]?.rows ?? [];
     const edited = { ...collaboratorsDocument, sections: [{ ...(collaboratorsDocument.sections[0] ?? { heading: "# Collaborators of this product", line: 1, text: "", rows: [] }), rows: [...rows, { line: null, cells: { Name: name.value.trim(), Account: account.value.trim(), Agreed: "yes" } }] }] };
-    const text = writeDocument(collaborators, edited) || `# Collaborators of this product\n\n| Name | Account | Agreed |\n|---|---|---|\n| ${name.value.trim()} | ${account.value.trim()} | yes |\n`;
+    const text = writeDocument(collaborators, edited) || `${newCollaborators}| ${name.value.trim()} | ${account.value.trim()} | yes |\n`;
     const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
@@ -584,7 +596,7 @@ async function productControls(context) {
     const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
     const legacy = legacyRows.find((row) => row[1].trim() === wantedName && row[2].trim().replace(/^@/, "") === wantedAccount);
     let text;
-    if (legacy) text = collaboratorsBytes.replace(legacy[0], "");
+    if (legacy) text = `${collaboratorsBytes.slice(0, legacy.index)}${collaboratorsBytes.slice(legacy.index + legacy[0].length).replace(/^\n/, "")}`;
     else {
       const rows = collaboratorsDocument.sections[0]?.rows ?? [];
       const kept = rows.filter((row) => row.cells.Name !== wantedName || String(row.cells.Account ?? "").replace(/^@/, "") !== wantedAccount);
@@ -598,11 +610,13 @@ async function productControls(context) {
     collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
     if (result.commit) { const address = parseAddress(context.product.address); const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${address.web}/${address.server === "gitlab" ? "-/commit" : "commit"}/${result.commit}`; collabResult.append(link); }
   });
+  const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${context.product.address} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
     whatIsThis("This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click."),
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
-    el("p", "notice", "When off, report data enters issues and the repository unchanged. In a public product it is published; use only a protected, non-public data space. Data already written remains in history; removing that data requires a history rewrite."),
+    el("p", "notice", "With pseudonymisation on, report data is rewritten without persons while keeping its technical content."),
+    el("p", "notice", `With pseudonymisation off, report data from mails — the names, addresses and other details of the people who write — enters the issues and the repository of ${context.product.address} unchanged. This is advisable only on a protected, non-public data space. Issue texts themselves stay neutral either way. ${publication} Data already written remains in history; removing that data requires a history rewrite.`),
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
     el("h4", null, "Collaborators"),
     collaboratorRecords,
