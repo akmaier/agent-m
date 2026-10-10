@@ -84,7 +84,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
   const worker = `
     import assert from "node:assert/strict";
     import { createHash, timingSafeEqual } from "node:crypto";
-    import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+    import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
     import { createRequire } from "node:module";
     import http from "node:http";
     import net from "node:net";
@@ -178,6 +178,12 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         assert.ok([...emittedModules, ...sslConfigurationDependencies].every(name => loaded.includes(name + ".load")), "temporary Apache configuration loads every generated directive provider and ssl.conf dependency");
         assert.ok(readdirSync(modules).includes("ssl.conf"), "temporary Apache configuration stages the installed SSL configuration");
         assert.deepEqual(loaded.filter(name => /^mpm_.*\.load$/.test(name)), [mpm + ".load"], "temporary Apache configuration stages exactly one installed MPM");
+        // The installed mime module resolves its TypesConfig relative to this temporary
+        // ServerRoot. Copy the installed package data to that resolved temporary path.
+        const mimeTypes = "/etc/mime.types";
+        assert.ok(existsSync(mimeTypes), "the installed Apache MIME data is available");
+        cpSync(mimeTypes, join(root, "mime.types"), { dereference: true });
+        assert.ok(existsSync(join(root, "mime.types")), "temporary ServerRoot stages the installed MIME data");
         const runtime = join(root, "run"), logs = join(root, "log"), locks = join(root, "lock"); mkdirSync(runtime, { recursive: true }); mkdirSync(logs, { recursive: true }); mkdirSync(locks, { recursive: true });
         const apacheEnvironment = { ...process.env, APACHE_RUN_DIR: runtime, APACHE_LOG_DIR: logs, APACHE_LOCK_DIR: locks, APACHE_PID_FILE: join(root, "httpd.pid") };
         const config = ["ServerRoot \\\"" + root + "\\\"", "DefaultRuntimeDir \\\"" + runtime + "\\\"", "PidFile \\\"" + join(root, "httpd.pid") + "\\\"", "Listen 127.0.0.1:" + port, "ServerName localhost", "ErrorLog \\\"" + join(root, "error.log") + "\\\"", "CustomLog \\\"" + join(root, "access.log") + "\\\" combined", "IncludeOptional \\\"" + join(modules, "*.load") + "\\\"", "IncludeOptional \\\"" + join(modules, "*.conf") + "\\\"", emitted.replace("<VirtualHost *:443>", "<VirtualHost 127.0.0.1:" + port + ">")].join("\\n");
