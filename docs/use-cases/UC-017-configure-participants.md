@@ -25,8 +25,8 @@ realises:
 # UC-017 Configure the participants of the instance
 
 **Goal.** The author describes, once, the people and agents who can work on the instance's products
-— what each of them can do and where the data given to it goes — so that any product can assign them
-to roles (UC-002).
+— what each of them can do and where the data given to it goes — so that any product's teams can assign
+them to roles (UC-048).
 
 | Type | Example | Reached through | Typical capabilities |
 |---|---|---|---|
@@ -121,4 +121,4 @@ sequenceDiagram
 
 - The instance lists the participant with type, capabilities and processing place; no key is in the
   repository.
-- Products can assign it to roles that need no more than its capabilities (UC-002).
+- Teams can assign it to roles that need no more than its capabilities (UC-048).

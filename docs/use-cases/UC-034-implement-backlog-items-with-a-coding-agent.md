@@ -42,11 +42,8 @@ realises:
   - A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS
   - A RUN HAS LIMITS FIXED AT ITS START
   - EVERY TEAM RUNS SPRINTS OF ITS OWN
-  - AN ITEM STARTS ONLY WHERE WHAT IT BUILDS ON IS MERGED
   - A TEAM'S GATES ARE DECIDED WITHIN THE TEAM
-  - A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES
-  - A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT USES
-  - A SPRINT USES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES
+  - SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
 ---
 # UC-034 Implement backlog items with a coding agent
 
@@ -62,9 +59,9 @@ names a person.
 
 ## Actors
 
-- **Author**: starts the jobs — in a product with several teams, those of their own team (UC-002).
+- **Author**: starts the jobs — in a product with several teams, those of their own team (UC-048).
 - **Coding agent**: a participant assigned to the role that implements, typically *Developers*
-  (UC-002). It needs *read the repository*, *write to the repository* and *run code and tests*. It
+  (UC-048). It needs *read the repository*, *write to the repository* and *run code and tests*. It
   is one of these (UC-017):
   - a CLI agent reached through the local bridge (UC-011);
   - a sandboxed agent reached through the bridge over a tunnel;
@@ -80,7 +77,7 @@ names a person.
   architecture. There is a current sprint selection (Scrum) or a WIP limit (Kanban) (UC-032).
 - The architecture is accepted (UC-022, UC-023).
 - At least one participant with the needed capabilities is assigned to the implementing role
-  (UC-002).
+  (UC-048).
 - The product's CI runs the test suite on pull requests.
 
 ## Main flow
@@ -91,8 +88,7 @@ names a person.
    - the item is not selected for the current sprint of the author's team;
    - a requirement or use case the item names is not accepted;
    - an item it builds on — one that implements an interface its modules use, or, for an integration, one of
-     its subsystem's modules — is not done (UC-032), or is not merged into the branch the job starts from, as an
-     item done in another team's sprint whose increment is not yet in the default branch;
+     its subsystem's modules — is not done (UC-032);
    - the team's WIP limit would be exceeded.
 
    For each item it cannot start, Agent M names the reason.

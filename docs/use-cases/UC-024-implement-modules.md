@@ -79,7 +79,7 @@ it is one job per step the author picks; in a run (UC-043), the steps' jobs star
 ## Actors
 
 - **Author** — starts the jobs and chooses the participants.
-- **Coding participant** — a participant assigned to the role that implements (UC-002): a CLI agent reached through the
+- **Coding participant** — a participant assigned to the role that implements (UC-048): a CLI agent reached through the
   local bridge, a sandboxed agent reached through a tunnel (UC-011), or a CI agent in a workflow on a self-hosted runner
   on that agent's machine (UC-010, UC-017).
 - **CI** — the product's GitHub Actions or GitLab CI, which runs the test suite on every push.
@@ -98,9 +98,9 @@ it is one job per step the author picks; in a run (UC-043), the steps' jobs star
 
 1. The author opens **Implement** for the product. The process comes first, because it decides how the software is
    assembled:
-   - if the product has no process model yet, the author configures it here, as UC-002 describes — the model, its roles
-     and the participants that hold them, the branches, the Definition of Done, the practices — and saves it; a model
-     configured before is shown, and may be changed here (UC-002, 3b);
+   - if the product has no process model yet, the author configures it here, as UC-002 describes — the model, its roles,
+     the branches, the Definition of Done, the practices — and saves it, then sets up the team that holds the roles
+     (UC-048); a model configured before is shown, and may be changed here (UC-002, 3b);
    - Agent M shows the route the model prescribes, with the table above and a folded **What is this?** pointing to book
      ch. 6 and 7;
    - where the work is not planned yet, it is planned next: the implementation plan for a model that plans its work

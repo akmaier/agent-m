@@ -84,11 +84,6 @@ product's other teams.
 *Check:* `tests/test_parallel_sprints.py` — three fixture teams run sprints at the same time, and each closes its own;
 counter-proof: closing one leaves the others running.
 
-**NO TWO TEAMS SHARE A SPRINT BRANCH** *(PO A. Maier)*
-The branch a team gives its sprint is the branch of no other team's sprint.
-*Check:* `tests/test_parallel_sprints.py` — a sprint whose branch is that of another team's sprint is refused, naming that
-sprint; counter-proof: sprints of three teams on branches of their own are accepted.
-
 **A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH** *(PO A. Maier)*
 An item selected for a team's sprint is held by that sprint until its change is merged into the default branch or the
 item returns to the backlog.
@@ -96,36 +91,13 @@ item returns to the backlog.
 after the merge into the default branch it is not; counter-proof: an unfinished item sent back to the backlog is no
 longer held.
 
-**AN ITEM IS HELD BY AT MOST ONE SPRINT** *(PO A. Maier)*
-No backlog item is held by two sprints at the same time.
-*Check:* `tests/test_parallel_sprints.py` — a selection of an item that another team's sprint holds is refused, naming that
-sprint; counter-proof: once the item is back in the backlog, the selection is accepted.
-
-**A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES** *(PO A. Maier)*
-A team's sprint is started, or its selection changed, only when none of its selected items changes a module that an item
-held by another team's sprint changes.
-*Check:* `tests/test_parallel_sprints.py` — a selection whose item changes a module that an item held by another team's
-sprint changes is refused, naming that sprint, item and module; counter-proof: items of disjoint modules are accepted.
-
-**A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT USES** *(PO A. Maier)*
-A team's sprint is started, or its selection changed, only when none of its selected items changes a module whose
-interface a module of an item held by another team's sprint uses, as that module's file names it.
-*Check:* `tests/test_parallel_sprints.py` — with module A using module B, a selection changing B while another team's
-sprint holds an item changing A is refused, naming that sprint, item and module; counter-proof: with A not using B, it is
-accepted.
-
-**A SPRINT USES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES** *(PO A. Maier)*
-A team's sprint is started, or its selection changed, only when no module of its selected items uses, as that module's
-file names it, the interface of a module that an item held by another team's sprint changes.
-*Check:* `tests/test_parallel_sprints.py` — with module A using module B, a selection changing A while another team's
-sprint holds an item changing B is refused, naming that sprint, item and module; counter-proof: once that item's change is
-merged into the default branch, it is accepted.
-
-**AN ITEM STARTS ONLY WHERE WHAT IT BUILDS ON IS MERGED** *(PO A. Maier)*
-An implementation job for an item starts only from a branch into which every item it builds on is merged.
-*Check:* `tests/test_parallel_sprints.py` — an item that builds on an item done on another team's unmerged sprint branch
-does not start and names that sprint; counter-proof: once that item is merged into the branch the job starts from, it
-starts.
+**SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES** *(PO A. Maier)*
+Of two items held by sprints of different teams, neither changes a module that the other changes or uses through the
+interfaces its modules' files name.
+*Check:* `tests/test_parallel_sprints.py` — with module A using module B, a selection is refused, naming the other team's
+sprint, its held item and the module, when its item changes a module the held item changes, when it changes B while the
+held item changes A, when it changes A while the held item changes B, and when it selects the held item itself;
+counter-proof: an item whose modules neither change nor use those of the held item is accepted.
 
 **SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD** *(PO A. Maier)*
 When a team plans or changes a sprint, every item held by another team's sprint is listed with that sprint, the modules

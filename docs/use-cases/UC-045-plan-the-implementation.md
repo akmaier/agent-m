@@ -48,14 +48,14 @@ in the architecture's due diligence (UC-022, step 7).
 
 ## Actors
 
-- **Planner** — the person or agent the product assigned to the role that plans the work in its model (UC-002).
+- **Planner** — the person or agent the product assigned to the role that plans the work in its model (UC-048).
 - **Drafting participant** — a model endpoint or agent from the instance's list that can *draft text* (UC-017); it
   drafts the plan from the architecture.
 - **Product repository** — holds the architecture and receives the plan.
 
 ## Precondition
 
-- The product declares a model that plans its work in advance, with a holder of the role that plans (UC-002).
+- The product declares a model that plans its work in advance (UC-002), and a team holds the role that plans (UC-048).
 - The architecture is accepted (UC-022, UC-023).
 
 ## Main flow

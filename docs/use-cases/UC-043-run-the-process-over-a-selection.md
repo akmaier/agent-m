@@ -60,14 +60,14 @@ work-in-progress limit (UC-034), and each item's job includes its tests.
 ## Actors
 
 - **Author** — selects, sets the limits, starts the run, decides where a gate names a person.
-- **Participants of the product's roles** — the agents and people assigned in UC-002; each job goes to a
+- **Participants of the product's roles** — the agents and people assigned in UC-048; each job goes to a
   holder of its role.
 - **CI** — the product's continuous integration, which runs the tests of every push.
 - **Product repository** — holds architecture, code, tests, job records.
 
 ## Precondition
 
-- The product declares a process model with its roles assigned (UC-002).
+- The product declares a process model (UC-002), and a team holds its roles (UC-048).
 - The architecture is accepted (UC-022, UC-023).
 - The product has an implementation plan (UC-045), or, in Scrum or Kanban, a planned and filled backlog (UC-032).
 

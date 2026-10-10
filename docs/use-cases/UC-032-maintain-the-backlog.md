@@ -23,12 +23,8 @@ realises:
   - EVERY STEP EXPLAINS ITSELF
   - CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
   - EVERY TEAM RUNS SPRINTS OF ITS OWN
-  - NO TWO TEAMS SHARE A SPRINT BRANCH
   - A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
-  - AN ITEM IS HELD BY AT MOST ONE SPRINT
-  - A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES
-  - A SPRINT CHANGES NO MODULE THAT ANOTHER TEAM'S SPRINT USES
-  - A SPRINT USES NO MODULE THAT ANOTHER TEAM'S SPRINT CHANGES
+  - SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
   - SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD
 ---
 # UC-032 Maintain the backlog
@@ -48,14 +44,14 @@ builds on the items of that subsystem's modules; an item for the system builds o
 backlog keeps no order of its own: what comes first follows from what the items build on, and what is worth doing next is
 decided where the work is taken on — in a team's sprint planning, or when a team pulls an item.
 
-Several teams can work from one backlog at the same time (UC-002). Each plans sprints of its own and sees, when it
+Several teams can work from one backlog at the same time (UC-048). Each plans sprints of its own and sees, when it
 plans, what the other teams' sprints hold: no item is in two sprints, and no team changes a module that another team's
 sprint changes or uses, or uses one that it changes — so the teams' work does not collide.
 
 ## Actors
 
 - **Product Owner**: the person or agent the product assigned to the role that fills the backlog and selects
-  from it (UC-002), as the model's role allows. In Scrum, this is the Product Owner role; in a product with several
+  from it (UC-048), as the model's role allows. In Scrum, this is the Product Owner role; in a product with several
   teams, each team's Product Owner fills the one backlog and plans the sprints of their own team.
 - **Drafting participant**: a model endpoint or agent (UC-017) that can *draft text*; optionally drafts
   items from accepted requirements and use cases.
@@ -63,8 +59,8 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
 
 ## Precondition
 
-- The product declares a model that pulls its work from a backlog, with a holder of the ordering
-  role (UC-002).
+- The product declares a model that pulls its work from a backlog (UC-002), and a team holds the role that
+  fills the backlog (UC-048).
 - The product has accepted requirements or use cases (UC-006, UC-008).
 - The architecture is accepted (UC-022, UC-023).
 
@@ -95,7 +91,7 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
 4. The Product Owner edits or discards drafts and presses **Add to backlog**: one click. Agent M
    commits one Markdown file per item under `docs/backlog/`, for example
    `docs/backlog/ITM-014-export-thesis-as-pdf.md`.
-5. **What the other teams hold.** In a product with several teams (UC-002), Agent M lists beside the backlog every
+5. **What the other teams hold.** In a product with several teams (UC-048), Agent M lists beside the backlog every
    item that another team's sprint holds — from its selection until its change is merged into the default branch or it
    returns to the backlog —, each with its sprint, its team, the modules it changes and the modules whose interfaces
    they use. It marks every item that cannot be selected because of one of them, naming the sprint, the held item and
@@ -186,5 +182,4 @@ sequenceDiagram
 - Every item names what it realises, the modules it changes and where it came from.
 - The system is built bottom-up: no item is selected or pulled before an item it builds on, other than together
   with it.
-- No item is held by two sprints, and no team's sprint changes a module that another team's sprint changes or uses, or
-  uses a module that one changes.
+- Of two items held by sprints of different teams, neither changes a module that the other changes or uses.

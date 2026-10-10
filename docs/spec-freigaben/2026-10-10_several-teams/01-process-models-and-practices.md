@@ -83,18 +83,22 @@ the source's register entry permits.
 *Check:* `tests/review-core.test.mjs`
 
 **A PRODUCT IS DEVELOPED BY TEAMS** *(PO A. Maier)*
-A product is developed by one or more teams, each of which assigns the roles of the product's process model in a
-declaration `docs/process_<team>.md` of the product's repository.
-*Check:* `tests/test_teams.py` — a fixture product with three declarations `docs/process_<team>.md`, each assigning the
-roles of the same model under the same Definition of Done, validates; counter-proofs: a declaration naming another model
-or another Definition of Done is rejected, and so is a declaration named otherwise, such as `docs/process.md`.
+A product is developed by one or more teams, each configured in a file `docs/teams/<team>.md` of its own in the
+product's repository that only assigns the roles of the product's process model to participants.
+*Check:* `tests/test_teams.py` — a fixture product with three team files, each assigning the roles of its process model,
+validates; counter-proofs: a team file that also states a model, a practice, a branch or a Definition of Done is
+rejected, and so is one that assigns a role the model does not have.
+
+**THE PROCESS NAMES NO PARTICIPANT** *(PO A. Maier)*
+A product's process declaration names no participant.
+*Check:* `tests/test_teams.py` — a declaration that names a participant of the instance's list, as the holder of a role or
+otherwise, is rejected; counter-proof: the same declaration with the holders in team files validates.
 
 **SEVERAL TEAMS WORK IN SPRINTS** *(PO A. Maier)*
 A product is developed by more than one team only when its process model works in sprints.
-*Check:* `tests/test_teams.py` — two team declarations of a Kanban fixture product are rejected; counter-proof: two of a
-Scrum fixture product validate.
+*Check:* `tests/test_teams.py` — two team files of a Kanban fixture product are rejected; counter-proof: two of a Scrum
+fixture product validate.
 
 **A PARTICIPANT MAY SERVE SEVERAL TEAMS** *(PO A. Maier)*
 A participant may hold roles in several teams of a product at the same time.
-*Check:* `tests/test_teams.py` — two team declarations that assign the same participant of `docs/participants.md`
-validate.
+*Check:* `tests/test_teams.py` — two team files that assign the same participant of `docs/participants.md` validate.
