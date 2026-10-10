@@ -34,16 +34,18 @@ const ENDPOINT = {
 test("TST-290: Settings composes the stored endpoint slice beside legacy browser settings", async () => {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries: { [ENDPOINT_KEY]: JSON.stringify(ENDPOINT) } });
-  richDocument();
-
+  const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
 
-  const html = page.main();
-  assert.match(html, /General/, "the public route replaces the legacy browser-settings mount");
-  assert.match(html, /Usability/, "the public route keeps UC-047 in its named tab");
-  assert.match(html, /Endpoints &amp; Agents/, "the endpoint slice has its named public tab");
-  assert.match(html, /Endpoint: campus/, "the public endpoint settings route reaches the stored endpoint");
-  assert.match(html, /tiny-model/, "the endpoint slice reads the canonical browser-store record");
+  const panels = mounted.filter((node) => node.className === "settings-tab-panel");
+  const endpoints = panels.find((node) => /Endpoints & Agents/.test(node.textContent));
+  assert.match(panels.find((node) => /General/.test(node.textContent)).textContent, /General/, "the public route replaces the legacy browser-settings mount");
+  assert.match(panels.find((node) => /Usability/.test(node.textContent)).textContent, /Usability/, "the public route keeps UC-047 in its named tab");
+  assert.ok(endpoints, "the endpoint slice has its named public tab");
+  assert.match(endpoints.textContent, /Endpoint: campus/, "the public endpoint settings route reaches the stored endpoint");
+  assert.match(endpoints.textContent, /tiny-model/, "the endpoint slice reads the canonical browser-store record");
 });
 
 // TST-291

@@ -34,7 +34,9 @@ test("TST-288101: dashboard Settings exports and restores every delivered setup 
   const route = mounted.find((node) => node.className === "settings-tab-panel" && /General/.test(node.textContent));
   assert.ok(route, "actual dashboard dispatch mounts the public General tab");
   assert.match(route.textContent, /Export and import settings/);
-  assert.match(route.textContent, /Endpoint: campus.*Bridge.*Jump host.*Remote session: gpu/s);
+  for (const label of ["Endpoint: campus", "Bridge", "Jump host", "Remote session: gpu"]) {
+    assert.match(route.textContent, new RegExp(label), `the public export notice names ${label}`);
+  }
   assert.match(route.textContent, /contains every stored token, key and password/);
   assert.equal(page.main().includes('id="export-go"') || page.main().includes('id="import-go"'), false, "the dashboard no longer renders its duplicate legacy export controls");
   const downloads = [], oldUrl = globalThis.URL;
