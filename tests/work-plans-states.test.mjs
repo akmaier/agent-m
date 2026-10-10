@@ -52,15 +52,15 @@ const pull = (branch, state, number = 1) => ({ number, title: branch, branch, ba
 // module: MOD-work-plans
 // guards: STATUS IS DERIVED FROM THE RECORDS; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
 // given: ordered backlog Documents with accepted, open, changed and withdrawn realised artifacts
-// input: itemStates with their public status Map and change queues
+// input: itemStates with their public status Map and the accepted empty Queue list
 // expect: the accepted item is ready; each open, changed or withdrawn artifact yields waiting for acceptance with that artifact named
 test("TST-295001: itemStates derives acceptance and changed-or-withdrawn waits from supplied records", () => {
   const items = [item("ITM-295-a"), item("ITM-295-b", { realises: ["REQ-OPEN"] }), item("ITM-295-c", { realises: ["REQ-CHANGED"] }), item("ITM-295-d", { realises: ["REQ-WITHDRAWN"] })];
   const statuses = accepted(["UC-032"]);
   statuses.set("REQ-OPEN", { id: "REQ-OPEN", kind: "requirement", status: "open" });
   statuses.set("REQ-CHANGED", { id: "REQ-CHANGED", kind: "requirement", status: "changed" });
-  const queues = [{ entries: [{ id: "REQ-WITHDRAWN", state: "withdrawn" }] }];
-  const states = itemStates(items, order(items.map((entry) => entry.id)), facts({ statuses, queues }));
+  statuses.set("REQ-WITHDRAWN", { id: "REQ-WITHDRAWN", kind: "requirement", status: "withdrawn" });
+  const states = itemStates(items, order(items.map((entry) => entry.id)), facts({ statuses, queues: [] }));
   assert.equal(stateOf(states, "ITM-295-a").state, "ready", "known positive: accepted inputs are ready");
   for (const id of ["ITM-295-b", "ITM-295-c", "ITM-295-d"]) {
     assert.equal(stateOf(states, id).state, "waiting for acceptance");
@@ -111,7 +111,11 @@ test("TST-295003: startable returns every supplied selection, WIP, gate, and imp
   assert.equal(unselected.startable, false); assert.match(unselected.reasons.join("\n"), /selected|sprint/i);
   const full = startable("ITM-295-ready", [...ready, { item: "ITM-running", state: "in progress", reason: "open pull request waiting for review", job: null, pullRequest: "1" }, { item: "ITM-review", state: "in progress", reason: "waiting for review", job: null, pullRequest: "2" }], context);
   assert.equal(full.startable, false); assert.match(full.reasons.join("\n"), /ITM-running/); assert.match(full.reasons.join("\n"), /ITM-review/);
-  const blockedGate = startable("ITM-295-ready", ready, { ...context, workflow: { ...workflow, gates: [{ ...workflow.gates[0], to: "Development" }] } });
+  const waiting = itemStates([item("ITM-295-ready")], order(["ITM-295-ready"]), facts({
+    gates: [{ gate: "Planning → Development", state: "pending" }],
+  }));
+  assert.equal(waiting[0].state, "waiting", "known gate input produces the ItemState startable consumes");
+  const blockedGate = startable("ITM-295-ready", waiting, context);
   assert.equal(blockedGate.startable, false); assert.match(blockedGate.reasons.join("\n"), /Planning → Development/);
   const absentDeveloper = startable("ITM-295-ready", ready, { ...context, participants: [] });
   assert.equal(absentDeveloper.startable, false); assert.match(absentDeveloper.reasons.join("\n"), /Developers/); assert.match(absentDeveloper.reasons.join("\n"), /write to the repository/);
