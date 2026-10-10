@@ -89,7 +89,7 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
 // given: the public Settings Route with a stored remote Bridge session and browser-held settings
 // input: the person opens Endpoints & Agents, reveals the session token, removes a listed product, then acknowledges browser clear
 // expect: the session remains hidden until Show and routes to its existing Bridge setup, while Clear everything stays disabled until acknowledgement and then removes the actual browser-store entries; product removal also removes its own credential and test metadata
-test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async () => {
+test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async (t) => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
   const store = openStore("fixture/instance");
@@ -124,12 +124,11 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   const product = byClass(target, "settings-product-list-item")[0];
   const priorConfirm = globalThis.confirm;
   globalThis.confirm = () => true;
-  click(byClass(product, "settings-product-remove")[0]);
-  await new Promise((resolve) => setImmediate(resolve));
+  t.after(() => { globalThis.confirm = priorConfirm; });
+  await trustedClick(byClass(product, "settings-product-remove")[0]);
   assert.deepEqual(readSetting(store, "products"), [], "Remove updates the canonical browser product list");
   assert.equal(readSetting(store, "github-token:fixture/product"), null, "Remove takes the product's own GitHub token with its browser list entry");
   assert.equal(readSetting(store, "last-test:github-token:fixture/product"), null, "Remove takes the adjacent token-test metadata too");
-  globalThis.confirm = priorConfirm;
 
   click(tabs[0]);
   const clear = byClass(target, "settings-clear-everything")[0];
