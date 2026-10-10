@@ -10,6 +10,7 @@ realises:
   - THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 modules:
+  - MOD-documents
   - MOD-work-plans
 builds_on:
   - ITM-209
@@ -26,8 +27,14 @@ origin:
 
 ## Outcome
 
-Complete exactly MOD-work-plans' accepted public planSchemas with planOrder and sprint, alongside the delivered
-backlogOrder. Keep each new format in its own data file in src/work-plans/, interpreted through MOD-documents'
+Deliver the necessary MOD-documents path-pattern finding first, in a separate Documents-only job: for the already
+loaded string pattern or list of string patterns, documentFindings reports a document path that matches none, through
+its existing Finding interface with the schema's rule. An absent path specification adds no constraint. Use the existing
+compiled pattern language; do not add a placeholder, regular-expression format, path condition, identifier-against-path
+check, object pattern rule, parser or public API. This prerequisite is part of selected297; it starts no fifth item.
+
+After that producer's approved source delivery, a fresh Workplans-only job completes exactly MOD-work-plans' accepted
+public planSchemas with planOrder and sprint, alongside the delivered backlogOrder. Keep each new format in its own data file in src/work-plans/, interpreted through MOD-documents'
 existing public loadSchema/readDocument/writeDocument/documentFindings/appendSection interfaces. Read the working
 backlog-order loader and guards first; retain its disk-in-Node and own-file-in-browser loading boundary.
 
@@ -40,7 +47,8 @@ sources, unfinished-item decisions and retrospective entries; do not invent anot
 These schemas are necessary lower-layer inputs for UC002's continuation into a plan or backlog and for the later
 pages/forms and saves. They do not themselves save a plan, start a sprint, derive states, enforce dependencies/gates,
 run jobs or deliver either whole UC032/045 postcondition. Existing backlogOrder and ITM295 itemStates/startable stay
-unchanged. No caller, parser, artifact schema, strategy, network operation or other module is authored here.
+unchanged. No caller, artifact schema, strategy or network operation is authored here. Each generation job changes one
+of the two named modules: Documents for the prerequisite, then Workplans for the schemas; neither job takes over the other module.
 
 ## Acceptance
 
@@ -53,8 +61,18 @@ unchanged. No caller, parser, artifact schema, strategy, network operation or ot
 - Both schemas load from their owned data files in Node and in the browser's existing own-file pattern. Broken/unserved
   schema data stops the module as the accepted loadSchema contract states. Existing backlog-order and state/startability
   cases retain their expectations; no fixed current backlog/sprint selection is baked into a test.
-- Only src/work-plans/ and new tests naming MOD-work-plans change. If an actual missing prerequisite is demonstrated,
-  return its concrete caller/data-flow path before touching an unowned module or changing an accepted contract.
+- The prerequisite job changes only src/documents/ and new tests naming MOD-documents. Known-valid paths precede a
+  nonmatching folder or extension; string patterns, alternative patterns and an absent pattern retain their accepted
+  meanings. Its error names the path/artifact, line 1 and the schema rule through the existing Finding interface.
+  Existing field, date, table, section, reading/writing and append guards retain their expected results.
+- The later schema job changes only src/work-plans/ and new tests naming MOD-work-plans. A valid 19.md precedes a
+  nonmatching folder or extension. The accepted {nnn} means three or more digits; {any} admits one segment. Do not require
+  x.md rejection under {any}, invent {nn}, bake in today's sprint number, or claim filename-number validation that the
+  accepted language cannot express. Malformed date and identifier findings remain required.
+- B's existing Workplans-only job cannot write Documents source. Root records its actual failed End for the missing
+  prerequisite, preserves both unpublished tests-only commits, then publishes a fresh Documents-only Start and isolation.
+  After approved prerequisite source delivery and actual prior End, root publishes a fresh Workplans-only Start.
+  Each job receives its own tests-only product-red CI before source; no existing guard is weakened.
 - The first implementation commit contains only tests, with its actual product-red CI read before source writing.
   Final canonical numeric declarations, relevant guarded-code fault/SAME-case failure/exact restoration/SAME-case pass,
   complete exact-head Ubuntu CI within each job's 120-second bound and independent source/Release gates follow the
