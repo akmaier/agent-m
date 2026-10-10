@@ -114,6 +114,36 @@ def start(item: str, team: str, states: list, wip=WIP_LIMIT) -> dict:
                           f" wip: {json.dumps(wip)}, participants }});")
 
 
+# The declaration's sprint branch, a pattern startSprint fills with the team and its sprint's number.
+BRANCH_PATTERN = "sprint/<team>/<nn>"
+
+
+def host_prelude() -> str:
+    """JavaScript that, after prelude(), holds `host`, a fake of MOD-repository-hosts' Host over the fixture product at one
+    head, HEAD: its sprint records, an item file per item of the data, and a declaration whose sprint branch is
+    BRANCH_PATTERN; each call recorded in `calls`, each commit applied to its files. And `declaration`, `model` and `held`
+    — the held items at HEAD."""
+    return ("const HEAD = 'a'.repeat(40); const calls = [];"
+            "const itemFile = (doc) => ['---', `id: ${doc.id}`, `title: ${doc.id} the work`, 'level: module', 'realises:',"
+            " '  - UC-032', 'modules:', ...doc.fields.modules.map((m) => `  - ${m}`), 'builds_on: []', 'tests:', '  - unit',"
+            " 'origin:', '  - UC-032', '---', `# ${doc.id} ${doc.id} the work`, '', '## Outcome', '', 'Done.', '', '## Acceptance', '',"
+            " '- a unit test.', ''].join('\\n');"
+            f"const files = Object.fromEntries([...{json.dumps(SPRINTS)}.map((p) => [p, read(p)]),"
+            " ...items.map((i) => [`docs/backlog/${i.id}-work.md`, itemFile(i)])]);"
+            "const host = { async repositoryInfo() { return { defaultBranch: 'main' }; },"
+            " async readSnapshot(ref) { calls.push(['readSnapshot', ref]); return { ref, commit: HEAD, paths: Object.keys(files),"
+            " blob: (p) => (p in files ? p : null), read: async (p) => files[p] ?? null }; },"
+            " async createBranch(name, from) { calls.push(['createBranch', name, from]); },"
+            " async commitFiles(change) { calls.push(['commitFiles', change.files.map((f) => f.path)]);"
+            " for (const f of change.files) files[f.path] = f.text; return { commit: 'c'.repeat(40), url: 'https://example.org/c' }; } };"
+            "const declaration = documents.readDocument(productProcess.declarationSchema, 'docs/process.md', ['---', 'model: fixture',"
+            " 'model_file: docs/process-models/fixture.md', `model_version: ${HEAD}`, '---', '# How', '', '## Practices', '', '- none', '',"
+            f" '## Branches', '', '| Phase or time box | Branch |', '|---|---|', '| Sprint | {BRANCH_PATTERN} |', '',"
+            " '## Definition of Done', '', 'The job rules hold.', ''].join('\\n'));"
+            "const model = workflow.model;"
+            f"const held = workPlans.heldItems(sprints, items, architecture, {json.dumps(PULL_REQUESTS)});")
+
+
 def state(item: str, value: str, pull_request=None, job=None) -> dict:
     """An ItemState: `value` one of its states; `pull_request` an open one's number — the item waits for review."""
     return {"item": item, "state": value, "reason": None, "job": job, "pullRequest": pull_request}

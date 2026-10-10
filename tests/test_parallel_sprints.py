@@ -15,14 +15,17 @@
 - SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD — checks that each item another team's sprint holds comes with
   its sprint, the modules it changes and the modules they use.
 
-MOD-work-plans' heldItems and conflicts, asked through node over the fixture product of tests/parallel_sprints_fixture.py:
+MOD-work-plans' heldItems, conflicts, startSprint and closeSprint, asked through node over the fixture product of tests/parallel_sprints_fixture.py:
 two teams, team1 running sprint 01, team2 having closed sprint 01 and running sprint 02. Every expectation is read from the
-fixture's data, never from the code under test. Starting and closing a sprint through startSprint and closeSprint, and the
-sprint planning page, are not built yet; their tests below are skipped and say why.
+fixture's data, never from the code under test. A team closes and starts its sprints through closeSprint and startSprint,
+over a fake of the repository host. The sprint planning page is not built yet; its test below is skipped and says why.
 """
+import json
 import unittest
 
-from parallel_sprints_fixture import (CURRENT, ITEMS, PULL_REQUESTS, SELECTIONS, SPRINTS, FIX, conflicts_of, held, uses_of)
+from parallel_sprints_fixture import (CURRENT, ITEMS, PULL_REQUESTS, SELECTIONS, SPRINTS, FIX, all_ready, conflicts_of, held,
+                                     host_prelude, prelude, uses_of)
+from jsrun import js
 
 CLOSED = "docs/backlog/sprints/team2/01.md"
 
@@ -59,10 +62,30 @@ class EveryTeamRunsSprintsOfItsOwn(unittest.TestCase):
         self.assertEqual(team1(held(texts={CLOSED: before_its_close(CLOSED)})), now, "team2's close")
         self.assertEqual(team1(held(paths=[p for p in SPRINTS if not p.endswith("team2/02.md")])), now, "team2's start")
 
-    @unittest.skip("startSprint and closeSprint are not built yet: startSprint reads the selected items with MOD-documents' "
-                   "artifactSchemas and creates a sprint's branch with MOD-repository-hosts' createBranch, neither built")
-    def test_a_team_starts_and_closes_its_sprints_through_start_sprint_and_close_sprint(self):
-        pass
+    def test_a_team_closes_its_sprint_and_starts_its_next_numbered_within_the_team_and_the_other_team_holds_the_same(self):
+        got = js(prelude() + host_prelude() + f"""
+            const team1 = (entries) => entries.filter((e) => e.team === 'team1');
+            const before = team1(held);
+            const facts = {{ increment: [], notDone: [{{ item: 'ITM-007', state: 'in progress', reason: 'its pull request is open' }},
+              {{ item: 'ITM-008', state: 'ready', reason: null }}], numbers: {{}} }};
+            await workPlans.closeSprint(host, {{ sprint: 'team2/02', review: {{ feedback: [], tookPart: ['alice'], sources: null }},
+              unfinished: [{{ item: 'ITM-007', to: 'next sprint', reason: 'its review goes on' }},
+                {{ item: 'ITM-008', to: 'backlog', reason: 'waits for sign-in' }}],
+              retrospective: [{{ text: 'Review sooner.', kind: 'change', goes: 'team agreement' }}], newItems: [] }},
+              {{ facts, architecture, head: HEAD, trailers: [] }});
+            const started = await workPlans.startSprint(host, {{ team: 'team2', goal: 'Sign-in again', start: '2026-10-15',
+              closer: 'alice', selection: ['ITM-007'] }}, {{ states: {json.dumps(all_ready())}, model, declaration, held,
+              architecture, running: null, head: HEAD, trailers: [] }});
+            const now = Object.keys(files).filter((p) => p.startsWith('docs/backlog/sprints/')).sort()
+              .map((p) => documents.readDocument(workPlans.planSchemas.sprint, p, files[p]));
+            const after = workPlans.heldItems(now, items, architecture, {json.dumps(PULL_REQUESTS)});
+            return {{ path: started.path, branches: calls.filter((c) => c[0] === 'createBranch').map((c) => c[1]),
+              team1Before: before, team1After: team1(after),
+              team2After: after.filter((e) => e.team === 'team2').map((e) => [e.item, e.sprint]) }};""")
+        self.assertEqual(got["path"], "docs/backlog/sprints/team2/03.md", "numbered within team2, after its 01 and 02")
+        self.assertEqual(got["branches"], ["sprint/team2/03"])
+        self.assertEqual(got["team1After"], got["team1Before"], "team2's close and start change nothing team1 holds")
+        self.assertEqual(got["team2After"], [["ITM-007", "team2/03"]], "team2's closed sprint holds nothing; its new one ITM-007")
 
 
 class ASprintHoldsItsItemsUntilTheyReachTheDefaultBranch(unittest.TestCase):
@@ -114,11 +137,24 @@ class SprintsOfDifferentTeamsChangeNoModuleTheOtherChangesOrUses(unittest.TestCa
                     refused += bool(got)
         self.assertTrue(refused, "known positive: some item is kept from a selection")
 
-    @unittest.skip("startSprint is not built yet: it is the one that refuses a selection with the sprint, the held item and "
-                   "the module; MOD-documents' artifactSchemas and MOD-repository-hosts' createBranch, which it uses, are not "
-                   "built either")
     def test_start_sprint_refuses_a_selection_that_shares_a_module_naming_the_sprint_the_item_and_the_module(self):
-        pass
+        candidate = "ITM-002"
+        expected = self.expected(candidate, "team2", held())
+        self.assertTrue(expected, "known positive: ITM-002 shares a module with an item team1's sprint holds")
+        got = js(prelude() + host_prelude() + f"""
+            try {{
+              await workPlans.startSprint(host, {{ team: 'team2', goal: 'The pages', start: '2026-10-15', closer: 'alice',
+                selection: [{json.dumps(candidate)}] }}, {{ states: {json.dumps(all_ready())}, model, declaration, held,
+                architecture, running: null, head: HEAD, trailers: [] }});
+              return {{ refused: null }};
+            }} catch (error) {{
+              return {{ refused: error.name, reasons: error.reasons ?? [], written: calls.filter((c) => c[0] !== 'readSnapshot') }};
+            }}""")
+        self.assertEqual(got["refused"], "SprintRefused")
+        self.assertEqual(got["written"], [], "nothing created, nothing committed")
+        text = " ".join(got["reasons"])
+        for sprint, item, module in expected:
+            self.assertTrue(sprint in text and item in text and module in text, (sprint, item, module, text))
 
 
 class SprintPlanningShowsWhatTheOtherTeamsSprintsHold(unittest.TestCase):
