@@ -20,7 +20,7 @@ import Module from "node:module";
 import test from "node:test";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
 
-const ssh2Cache = join(tmpdir(), "agent-m-291-desktop-fixture-ssh2-1.17.0");
+const ssh2Cache = join(tmpdir(), "agent-m-291-release-269-ssh2-1.17.0");
 let sshRuntimeFailure;
 function sshRuntime() {
   if (sshRuntimeFailure) throw sshRuntimeFailure;
