@@ -88,6 +88,9 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   writeSetting(store, "github-token:fixture/product", { value: "ghp_product", name: "Agent M", expires: "2026-12-01" });
   writeSetting(store, "last-test:github-token:fixture/product", { at: "2026-10-10T00:00:00.000Z", outcome: "working" });
   const navigations = [];
+  const oldFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => { calls.push({ url: String(url), init }); return new Response(JSON.stringify({ paired: true }), { status: 200 }); };
   const target = document.createElement("div");
   await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store,
     go(name, params) { navigations.push({ name, params }); } }, {});
@@ -99,6 +102,10 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   assert.equal(token.type, "password", "failure node: the rendered Settings line keeps the stored session secret hidden");
   click(byClass(remote, "settings-remote-session-show")[0]);
   assert.equal(token.type, "text", "Show is the explicit action that reveals the stored session secret");
+  await new Promise((resolve) => { click(byClass(remote, "settings-remote-session-test")[0]); setImmediate(resolve); });
+  assert.equal(calls[0].url, "http://localhost:40101/v1/pair", "Test follows the existing public pair path through the forwarded local port");
+  assert.equal(calls[0].init.headers["x-agent-m-bridge-token"], "remote-token");
+  assert.match(byClass(remote, "settings-remote-session-result")[0].textContent, /answers at localhost:40101/);
   click(byClass(remote, "settings-remote-session-change")[0]);
   assert.deepEqual(navigations, [{ name: "bridge", params: { name: "lab" } }], "Change enters the existing public Bridge setup route");
 
@@ -120,6 +127,7 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   click(clear);
   assert.equal(readSetting(store, "remote-session:lab"), null, "clear reaches the canonical remote-session record");
   assert.equal(readSetting(store, "endpoint:main"), null, "clear reaches every current-instance browser setting");
+  globalThis.fetch = oldFetch;
 });
 
 // TST-290111
@@ -195,4 +203,34 @@ test("TST-290112: Settings names denied notification permission without asking a
     assert.equal(asked, 0, "rendering or selecting Usability never requests notification permission");
     assert.equal(readSetting(store, "notifications"), null);
   } finally { Object.defineProperty(globalThis, "Notification", { configurable: true, value: priorNotification }); }
+});
+
+// TST-290113
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
+// given: a chosen product with a legacy dated collaborator-consent row and unrelated bytes
+// input: the person names that collaborator and presses Remove collaborator consent on the public Settings Route
+// expect: the public save boundary removes only the matching consent row and preserves the unrelated bytes and repository target
+test("TST-290113: Settings removes one legacy collaborator consent row without altering unrelated bytes", async () => {
+  const storage = new Storage();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const collaborators = "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n| Ada Example | @ada | 2026-09-01 |\n\nKeep this unrelated note.\n";
+  const writes = [];
+  const host = {
+    async repositoryInfo() { return { defaultBranch: "main" }; },
+    async readSnapshot() { return { blob(path) { return path === "docs/collaborators.md" ? "collab-sha" : null; }, async read(path) { return path === "docs/collaborators.md" ? collaborators : null; } }; },
+    async commitFiles(change) { writes.push(change); return { commit: "a".repeat(40) }; },
+  };
+  const target = document.createElement("div");
+  await route().render(target, { instance: { repository: "fixture/instance" }, product: { address: "https://github.com/fixture/product", kind: "github", host }, store: openStore("fixture/instance"), go() {} }, {});
+  click(byClass(target, "settings-tab")[1]);
+  byClass(target, "settings-collaborator-remove-name")[0].value = "Ada Example";
+  byClass(target, "settings-collaborator-remove-account")[0].value = "@ada";
+  await new Promise((resolve) => { click(byClass(target, "settings-collaborator-remove")[0]); setImmediate(resolve); });
+  assert.equal(writes.length, 1, "the explicit click reaches the public one-file save boundary");
+  const text = writes[0].files[0].text;
+  assert.doesNotMatch(text, /Ada Example|@ada|2026-09-01/);
+  assert.match(text, /Keep this unrelated note\.\n$/, "failure node: legacy unrelated bytes survive the targeted row removal");
+  assert.equal(writes[0].files[0].path, "docs/collaborators.md");
 });

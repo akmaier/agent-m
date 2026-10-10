@@ -9,6 +9,7 @@ import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs"
 import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
+import { pair } from "../bridge-client/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -411,6 +412,7 @@ function remoteSessionLine(target, context, info) {
   if (!session) return null;
   const token = el("input", "settings-remote-session-token");
   const show = el("button", "settings-remote-session-show", "Show");
+  const test = el("button", "settings-remote-session-test", "Test");
   const change = el("button", "settings-remote-session-change", "Change");
   const clear = el("button", "settings-remote-session-clear", "Clear");
   const result = el("p", "settings-remote-session-result");
@@ -424,6 +426,14 @@ function remoteSessionLine(target, context, info) {
     show.textContent = hidden ? "Hide" : "Show";
   });
   change.addEventListener("click", () => context.go("bridge", { name: info.key.slice("remote-session:".length) }));
+  test.addEventListener("click", async () => {
+    if (!Number.isInteger(session.port) || !session.token) { result.textContent = "This remote session needs a forwarded port and copied Bridge token before it can be tested."; return; }
+    result.textContent = `Testing the forwarded Bridge at localhost:${session.port}…`;
+    try {
+      await pair(`http://localhost:${session.port}`, session.token);
+      result.textContent = `✓ The forwarded Bridge answers at localhost:${session.port}.`;
+    } catch (error) { result.textContent = `✗ ${error.message}`; }
+  });
   clear.addEventListener("click", async () => {
     clearSetting(context.store, info.key);
     result.textContent = "Cleared from this browser.";
@@ -434,7 +444,7 @@ function remoteSessionLine(target, context, info) {
     el("p", null, `Forwarded port: ${session.port ?? "Not configured."}`),
     el("p", null, el("label", null, "Copied Bridge token ", token, " ", show)),
     el("p", null, "Tunnel commands and proxy configuration are prepared on the Bridge page; no tunnel is started here."),
-    el("p", null, change, " ", clear), result,
+    el("p", null, test, " ", change, " ", clear), result,
   );
 }
 
@@ -472,6 +482,8 @@ async function productControls(context) {
   const name = el("input", "settings-collaborator-name"), account = el("input", "settings-collaborator-account");
   const agreed = el("input", "settings-collaborator-agreed"); agreed.type = "checkbox";
   const add = el("button", "settings-collaborator-save", "Save collaborator"); const collabResult = el("p", "settings-collaborator-result");
+  const removeName = el("input", "settings-collaborator-remove-name"), removeAccount = el("input", "settings-collaborator-remove-account");
+  const remove = el("button", "settings-collaborator-remove", "Remove collaborator consent");
   add.addEventListener("click", async () => {
     if (!agreed.checked) { collabResult.textContent = "Tick that this person has agreed to be named."; return; }
     const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
@@ -490,6 +502,24 @@ async function productControls(context) {
     collaboratorsBlob = result.blob; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
     collabResult.textContent = "Saved in the product repository.";
   });
+  remove.addEventListener("click", async () => {
+    const wantedName = removeName.value.trim(), wantedAccount = removeAccount.value.trim().replace(/^@/, "");
+    if (!wantedName || !wantedAccount) { collabResult.textContent = "Enter the collaborator name and account to remove consent."; return; }
+    const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
+    const legacy = legacyRows.find((row) => row[1].trim() === wantedName && row[2].trim().replace(/^@/, "") === wantedAccount);
+    let text;
+    if (legacy) text = collaboratorsBytes.replace(legacy[0], "");
+    else {
+      const rows = collaboratorsDocument.sections[0]?.rows ?? [];
+      const kept = rows.filter((row) => row.cells.Name !== wantedName || String(row.cells.Account ?? "").replace(/^@/, "") !== wantedAccount);
+      if (kept.length === rows.length) { collabResult.textContent = "No matching consenting collaborator is stored."; return; }
+      text = writeDocument(collaborators, { ...collaboratorsDocument, sections: [{ ...collaboratorsDocument.sections[0], rows: kept }] });
+    }
+    const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
+    if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
+    collaboratorsBlob = result.blob; collaboratorsBytes = text; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
+    collabResult.textContent = "Removed this collaborator's consent record from the product repository.";
+  });
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
@@ -497,7 +527,10 @@ async function productControls(context) {
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
     el("h4", null, "Collaborators"),
     el("p", null, el("label", null, "Name ", name)), el("p", null, el("label", null, "Account ", account)),
-    el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", add), collabResult);
+    el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", add),
+    el("h4", null, "Remove collaborator consent"),
+    el("p", null, el("label", null, "Name ", removeName)), el("p", null, el("label", null, "Account ", removeAccount)),
+    el("p", null, remove), collabResult);
 }
 
 function tabbedSettings(panes) {
