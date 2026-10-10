@@ -8,14 +8,15 @@
 //           document nor a tab panel overflows horizontally.
 
 import assert from "node:assert/strict";
-import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { cpSync, createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, normalize } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = process.env.AGENT_M_290_ROOT ?? new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-release-electron-44");
 const executableOf = (installed) => process.platform === "darwin" ? join(installed, "dist/Electron.app/Contents/MacOS/Electron") : join(installed, "dist/electron");
 async function runtime() {
@@ -35,9 +36,14 @@ function electronCommand(executable, arguments_) {
   if (process.platform !== "linux") return { command: executable, arguments_ };
   const display = spawnSync("xvfb-run", ["--help"], { encoding: "utf8", timeout: 5000 });
   assert.equal(display.status, 0, `Linux virtual display unavailable: ${display.stderr}`);
-  const openbox = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  let openbox = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (openbox.status !== 0) {
+    const install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    assert.equal(install.status, 0, `Linux Openbox installation failed: ${install.stderr}`);
+    openbox = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
+  }
   assert.equal(openbox.status, 0, `Linux Openbox unavailable: ${openbox.stderr}`);
-  return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", "sh", "-c", "openbox >/dev/null 2>&1 & wm=$!; trap 'kill \\\"$wm\\\" 2>/dev/null; wait \\\"$wm\\\" 2>/dev/null' EXIT INT TERM; \\\"$@\\\"; status=$?; exit \\\"$status\\\"", "agent-m-xvfb-openbox", executable, ...arguments_] };
+  return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", "sh", "-c", "openbox >/dev/null 2>&1 & wm=$!; trap 'kill \"$wm\" 2>/dev/null; wait \"$wm\" 2>/dev/null' EXIT INT TERM; \"$@\"; status=$?; exit \"$status\"", "agent-m-xvfb-openbox", executable, ...arguments_] };
 }
 const wait = async (read) => { for (let n = 0; n < 160; n += 1) { try { const value = await read(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for controlled Electron."); };
 const cdp = async (url, method, params = {}) => {
@@ -48,12 +54,12 @@ const cdp = async (url, method, params = {}) => {
 const evaluate = async (page, expression) => (await cdp(page, "Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true })).result.value;
 const port = async () => await new Promise((resolve) => { const s = createServer(); s.listen(0, "127.0.0.1", () => { const value = s.address().port; s.close(() => resolve(value)); }); });
 const fixture = () => {
-  const api = `localStorage.setItem('agent-m:akmaier/agent-m:endpoint:long',JSON.stringify({url:'https://models-with-a-deliberately-long-hostname.example.test/v1',kind:'openai-compatible',model:'a-deliberately-long-model-name-for-layout-verification',key:'layout-secret',throughBridge:false}));const nativeFetch=window.fetch;window.fetch=async(u,o={})=>{const x=String(u);if(x.includes('api.github.com'))return new Response(JSON.stringify(x.includes('/git/trees/')?{tree:[]}:x.includes('/git/ref/')?{object:{sha:'a'.repeat(40)}}:x.includes('/git/commits/')?{tree:{sha:'b'.repeat(40)}}:{private:false,default_branch:'main',permissions:{push:true}}),{status:200,headers:{'content-type':'application/json'}});return nativeFetch(u,o)};`;
+  const api = `localStorage.setItem('agent-m:akmaier/agent-m:endpoint:long',JSON.stringify({url:'https://models-with-a-deliberately-long-hostname.example.test/v1',kind:'openai-compatible',model:'a-deliberately-long-model-name-for-layout-verification',key:'layout-secret',throughBridge:false}));const nativeFetch=window.fetch;window.fetch=async(u,o={})=>{const x=String(u);if(x.includes('api.github.com')){const body=x.includes('/repos/akmaier/agent-m/commits/main')?{sha:'a'.repeat(40)}:x.includes('/git/trees/')?{tree:[]}:x.includes('/git/ref/')?{object:{sha:'a'.repeat(40)}}:x.includes('/git/commits/')?{tree:{sha:'b'.repeat(40)}}:{private:false,default_branch:'main',permissions:{push:true}};return new Response(JSON.stringify(body),{status:200,headers:{'content-type':'application/json'}})}return nativeFetch(u,o)};`;
   return createServer((request, response) => {
-    const raw = decodeURIComponent(new URL(request.url, "http://fixture").pathname), relative = raw === "/" ? "index.html" : raw.replace(/^\//, "");
+    const raw = decodeURIComponent(new URL(request.url, "http://fixture").pathname), relative = raw === "/" || raw === "/docs/" ? "docs/index.html" : raw.replace(/^\//, "");
     const file = normalize(join(root, relative));
     if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) { response.writeHead(404); response.end(); return; }
-    if (relative === "index.html") { response.setHeader("content-type", "text/html"); response.end(readFileSync(file, "utf8").replace("<head>", `<head><script>${api}</script>`)); return; }
+    if (relative === "docs/index.html") { response.setHeader("content-type", "text/html"); response.end(readFileSync(file, "utf8").replace("<head>", `<head><script>${api}</script>`)); return; }
     response.writeHead(200, { "content-type": relative.endsWith(".mjs") ? "text/javascript" : relative.endsWith(".css") ? "text/css" : relative.endsWith(".json") ? "application/json" : "application/octet-stream" }); createReadStream(file).pipe(response);
   });
 };
@@ -61,7 +67,7 @@ const fixture = () => {
 test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout: 120000, concurrency: false }, async (t) => {
   const electron = await runtime();
   const server = fixture(); await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const debug = await port(), address = `http://127.0.0.1:${server.address().port}/#settings`;
+  const debug = await port(), address = `http://127.0.0.1:${server.address().port}/docs/#settings`;
   const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, `--app=${address}`]);
   const child = spawn(launched.command, launched.arguments_, { cwd: root, stdio: "ignore" });
   t.after(() => { child.kill(); server.close(); });
@@ -69,12 +75,41 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
   for (const width of [390, 1280]) {
     await cdp(target, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
     await wait(async () => await evaluate(target, "document.querySelectorAll('.settings-tab').length === 4"));
-    const result = await evaluate(target, `(()=>{const tabs=[...document.querySelectorAll('.settings-tab')];return {longValue:document.body.innerText.includes('models-with-a-deliberately-long-hostname.example.test'),overflow:document.documentElement.scrollWidth<=${width},tabs:tabs.map(t=>{t.click();const panel=document.getElementById(t.getAttribute('aria-controls'));const r=t.getBoundingClientRect(),p=panel.getBoundingClientRect();return {selected:t.getAttribute('aria-selected'),readable:r.width>40&&r.height>=24,visible:!panel.hidden&&p.width>0,visibleCount:[...document.querySelectorAll('.settings-tab-panel')].filter(x=>!x.hidden).length,panelOverflow:panel.scrollWidth<=panel.clientWidth};})}})()`);
-    assert.equal(result.longValue, true, `${width}px: the controlled long endpoint value is delivered to the public page`);
-    assert.equal(result.overflow, true, `${width}px: the public Settings document has no horizontal overflow`);
-    // Root CI counterproof: temporarily change settings.mjs's `pane.hidden = !chosen`
-    // to `pane.hidden = false`; this same case fails visibleCount, then the exact
-    // source bytes are restored before the ordinary green run.
-    for (const tab of result.tabs) { assert.equal(tab.selected, "true", `${width}px: selected state follows the clicked tab`); assert.equal(tab.readable, true, `${width}px: tab control is readable and usable`); assert.equal(tab.visible, true, `${width}px: selected panel is visible`); assert.equal(tab.visibleCount, 1, `${width}px: exactly one tab panel is visible`); assert.equal(tab.panelOverflow, true, `${width}px: selected panel has no horizontal overflow`); }
+    const result = await evaluate(target, `(()=>{const tabs=[...document.querySelectorAll('.settings-tab')],general=tabs[0],unfinished='unfinished-passphrase';general.click();const passphrase=document.querySelector('.settings-export-passphrase');passphrase.value=unfinished;general.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));const keyboard={selected:tabs[1].getAttribute('aria-selected'),focus:document.activeElement===tabs[1]};general.click();const preserved=passphrase.value===unfinished;return {keyboard,preserved,tabs:tabs.map(t=>{t.click();const panel=document.getElementById(t.getAttribute('aria-controls'));const r=t.getBoundingClientRect(),p=panel.getBoundingClientRect();return {name:t.textContent,selected:t.getAttribute('aria-selected'),readable:r.width>40&&r.height>=24,visible:!panel.hidden&&p.width>0,visibleCount:[...document.querySelectorAll('.settings-tab-panel')].filter(x=>!x.hidden).length,documentOverflow:document.documentElement.scrollWidth<=${width},panelOverflow:panel.scrollWidth<=panel.clientWidth,longValue:panel.innerText.includes('models-with-a-deliberately-long-hostname.example.test')};})}})()`);
+    assert.deepEqual(result.keyboard, { selected: "true", focus: true }, `${width}px: ArrowRight selects and focuses the next rendered Settings tab`);
+    assert.equal(result.preserved, true, `${width}px: unfinished export passphrase survives tab switches`);
+    assert.equal(result.tabs.find((tab) => tab.name === "Endpoints & Agents").longValue, true, `${width}px: the controlled long endpoint value is visible in the public Endpoints pane`);
+    for (const tab of result.tabs) { assert.equal(tab.selected, "true", `${width}px: selected state follows the clicked tab`); assert.equal(tab.readable, true, `${width}px: tab control is readable and usable`); assert.equal(tab.visible, true, `${width}px: selected panel is visible`); assert.equal(tab.visibleCount, 1, `${width}px: exactly one tab panel is visible`); assert.equal(tab.documentOverflow, true, `${width}px: the document has no horizontal overflow after selecting ${tab.name}`); assert.equal(tab.panelOverflow, true, `${width}px: selected panel has no horizontal overflow`); }
   }
+  if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_290_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-290-fault-")), copied = join(temporary, "agent-m");
+  try {
+    cpSync(join(root, "src"), join(copied, "src"), { recursive: true });
+    cpSync(join(root, "docs"), join(copied, "docs"), { recursive: true });
+    mkdirSync(join(copied, "tests"), { recursive: true });
+    cpSync(join(root, "tests", "app-harness.mjs"), join(copied, "tests", "app-harness.mjs"));
+    const production = join(copied, "src", "settings-pages", "settings.mjs"), original = readFileSync(production), source = original.toString();
+    const fault = "pane.hidden = !chosen;", mutation = Buffer.from(source.replace(fault, "pane.hidden = false;"));
+    assert.notDeepEqual(mutation, original, "the guarded tab visibility source is present in the copied production tree");
+    const tests = [join(root, "tests", "dashboard-public-settings-tabs.test.mjs"), new URL(import.meta.url).pathname];
+    const ids = ["TST-290114", "TST-290115"], childArgv = [process.execPath, "--test", "--test-name-pattern", ids.join("|"), ...tests];
+    const childEnvironment = { AGENT_M_290_ROOT: copied, AGENT_M_290_FAULT_CHILD: "1" };
+    const invoke = () => { const env = { ...process.env, ...childEnvironment }; delete env.NODE_TEST_CONTEXT;
+      return spawnSync(childArgv[0], childArgv.slice(1), { cwd: root, encoding: "utf8", timeout: 60000, env }); };
+    const originalHash = createHash("sha256").update(original).digest("hex"), testHashes = Object.fromEntries(tests.map((path) => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
+    const faultStarted = new Date().toISOString(); writeFileSync(production, mutation);
+    const faultSourceHash = createHash("sha256").update(readFileSync(production)).digest("hex"), failed = invoke();
+    const faultEnded = new Date().toISOString();
+    const faultNodes = Object.fromEntries(ids.map((id) => [id, failed.stdout.match(new RegExp(`not ok \\d+ - ${id}:[\\s\\S]*?(?=\\n# Subtest:|\\n1\\.\\.)`))?.[0] ?? null]));
+    const restoredStarted = new Date().toISOString(); writeFileSync(production, original);
+    const restoredSourceHash = createHash("sha256").update(readFileSync(production)).digest("hex"), passed = invoke();
+    const restoredEnded = new Date().toISOString();
+    const receipt = { cases: ids, cwd: root, childArgv, childEnvironment: { ...childEnvironment, NODE_TEST_CONTEXT: null }, source: production, tests, originalHash, faultSourceHash, restoredSourceHash, testHashes, fault, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultNodes, faultStdout: failed.stdout, faultStderr: failed.stderr, restoredStarted, restoredEnded, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr };
+    process.stdout.write(`TST-290115-counterproof ${JSON.stringify(receipt)}\n`);
+    assert.equal(restoredSourceHash, originalHash, "byte-exact source restoration precedes the same-case positive");
+    assert.equal(failed.status, 1, "faulted child ends with normal Node test failure status"); assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
+    for (const id of ids) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${id}:`), `${id} has a named same-case failure node`);
+    assert.equal(passed.status, 0, "byte-restored same cases pass"); assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
+    for (const id of ids) assert.match(passed.stdout, new RegExp(`ok \\d+ - ${id}:`), `${id} passes after exact restoration`);
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });

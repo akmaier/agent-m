@@ -9,7 +9,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repoServer, openDashboard, richDocument } from "./app-harness.mjs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const root = process.env.AGENT_M_290_ROOT ?? new URL("..", import.meta.url).pathname;
+const { repoServer, openDashboard, richDocument } = await import(pathToFileURL(join(root, "tests", "app-harness.mjs")).href);
 
 const INSTANCE = "akmaier/agent-m";
 const key = (name) => `agent-m:${INSTANCE}:${name}`;
@@ -56,6 +60,11 @@ test("TST-290114: dashboard composes the public Settings tabs without a setting 
       assert.equal(visible.length, 1, "exactly one panel is shown after a tab selection");
       assert.equal(visible[0].id, tab.getAttribute("aria-controls"), "the shown panel belongs to the selected tab");
     }
+    let prevented = false;
+    await tabs[0].fire("keydown", { key: "ArrowRight", preventDefault() { prevented = true; } });
+    assert.equal(prevented, true, "the arrow-key tab action prevents the page-level key behavior");
+    assert.equal(tabs[1].getAttribute("aria-selected"), "true", "failure node: ArrowRight selects the next Settings tab");
+    assert.equal(dom.focused(), tabs[1], "failure node: keyboard tab selection moves focus to the selected tab");
     const after = [...Array(globalThis.localStorage.length).keys()].map((index) => [globalThis.localStorage.key(index), globalThis.localStorage.getItem(globalThis.localStorage.key(index))]);
     assert.deepEqual(after, before, "tab selection is presentation only and writes no browser setting");
     assert.equal(permissions, 0, "tab selection never requests notification permission");
