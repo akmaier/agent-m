@@ -282,7 +282,7 @@ test("TST-257022: public Release walks one selected product from candidate start
 // guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; ACCEPTING THE RELEASE TEST REPORT RELEASES
 // given: the isolated public Release caller and every original TST-257 public-flow case.
 // input: in controlled Ubuntu CI, fault the public Release render, run those same cases, restore exact bytes, and rerun them.
-// expect: every named original case fails through the public render fault with normal test status; exact restoration is recorded for the functional cases' later positive run.
+// expect: every named original case fails through the public render fault with normal test status, then every same case passes after byte restoration.
 test("TST-257901: CI counter-proof restores the public Release render for every original flow case", () => {
   if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_257_FAULT_CHILD) return;
   const temporary = mkdtempSync(join(tmpdir(), "agent-m-257-fault-")), copied = join(temporary, "repo");
@@ -306,5 +306,7 @@ test("TST-257901: CI counter-proof restores the public Release render for every 
     assert.match(failed.stdout, /TST-257 public Release render fault/, "the actual fault output reaches the public Release case set");
     assert.ok(faultNodes["TST-257007"]?.includes("Cannot set properties of null"), "007 records the missing-control call-stack relation after the public render fault");
     assert.ok(faultNodes["TST-257022"]?.includes("Cannot set properties of null"), "022 records the missing-control call-stack relation after the public render fault");
+    assert.equal(restored.status, 0, "restored same-case child passes"); assert.equal(restored.signal, null); assert.equal(restored.error, undefined);
+    for (const id of ids) assert.match(restored.stdout, new RegExp(`ok \\d+ - ${id}:`), `${id} passes after exact restoration`);
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
