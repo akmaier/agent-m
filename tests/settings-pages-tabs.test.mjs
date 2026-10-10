@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/settings-pages/index.mjs";
-import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
 
 class Element extends EventTarget {
   constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.files = []; this.attributes = new Map(); }
@@ -66,4 +66,46 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
   assert.equal(passphrase.value, "unfinished passphrase", "failure node: switching must retain the same General DOM input");
   assert.deepEqual(storage.snapshot(), before, "failure node: tab selection writes no browser setting");
   assert.equal(tabs[0].getAttribute("aria-selected"), "true");
+});
+
+// TST-290110
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR;
+//   A STORED SECRET IS HIDDEN UNTIL SHOWN
+// given: the public Settings Route with a stored remote Bridge session and browser-held settings
+// input: the person opens Endpoints & Agents, reveals the session token, then acknowledges browser clear
+// expect: the session remains hidden until Show and routes to its existing Bridge setup, while Clear everything stays
+//   disabled until acknowledgement and then removes the actual browser-store entries
+test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async () => {
+  const storage = new Storage();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const store = openStore("fixture/instance");
+  writeSetting(store, "remote-session:lab", { port: 40101, token: "remote-token" });
+  writeSetting(store, "endpoint:main", { url: "https://models.example.test/v1", kind: "openai-compatible", model: "small", key: "stored-key", throughBridge: false });
+  const navigations = [];
+  const target = document.createElement("div");
+  await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store,
+    go(name, params) { navigations.push({ name, params }); } }, {});
+
+  const tabs = byClass(target, "settings-tab");
+  click(tabs[2]);
+  const remote = byClass(target, "settings-remote-session")[0];
+  const token = byClass(remote, "settings-remote-session-token")[0];
+  assert.equal(token.type, "password", "failure node: the rendered Settings line keeps the stored session secret hidden");
+  click(byClass(remote, "settings-remote-session-show")[0]);
+  assert.equal(token.type, "text", "Show is the explicit action that reveals the stored session secret");
+  click(byClass(remote, "settings-remote-session-change")[0]);
+  assert.deepEqual(navigations, [{ name: "bridge", params: { name: "lab" } }], "Change enters the existing public Bridge setup route");
+
+  click(tabs[0]);
+  const clear = byClass(target, "settings-clear-everything")[0];
+  const acknowledgement = byClass(target, "settings-clear-ack")[0];
+  assert.equal(clear.disabled, true, "failure node: browser clear requires the visible acknowledgement");
+  acknowledgement.checked = true;
+  acknowledgement.dispatchEvent(new Event("change"));
+  assert.equal(clear.disabled, false);
+  click(clear);
+  assert.equal(readSetting(store, "remote-session:lab"), null, "clear reaches the canonical remote-session record");
+  assert.equal(readSetting(store, "endpoint:main"), null, "clear reaches every current-instance browser setting");
 });

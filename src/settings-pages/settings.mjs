@@ -204,14 +204,21 @@ function exportImportControls(context) {
 
 function browserClearControls(context) {
   const clear = el("button", "settings-clear-everything", "Clear everything in this browser");
+  const acknowledgement = el("input", "settings-clear-ack");
   const result = el("p", "settings-clear-result");
+  acknowledgement.type = "checkbox";
+  clear.disabled = true;
+  acknowledgement.addEventListener("change", () => { clear.disabled = !acknowledgement.checked; });
   clear.addEventListener("click", () => {
     clearEverything(context.store);
+    clear.disabled = true;
+    acknowledgement.checked = false;
     result.textContent = "Every Agent M setting for this instance is cleared from this browser.";
   });
   return el("section", "settings-clear",
     el("h3", null, "Clear this browser"),
     el("p", null, "This removes this instance's stored settings from localStorage and does not change a repository."),
+    el("p", null, el("label", null, acknowledgement, " I understand this clears every Agent M setting in this browser.")),
     clear, result,
   );
 }
@@ -255,11 +262,15 @@ function notificationsControls(context) {
   const on = el("button", "settings-notifications-on", "Switch on");
   const test = el("button", "settings-notifications-test", "Test");
   const off = el("button", "settings-notifications-off", "Switch off");
-  on.disabled = state.on || state.permission === "denied";
-  test.disabled = !state.on;
-  off.disabled = !state.on;
+  const refresh = (next) => {
+    status.textContent = next.on ? "On." : next.permission === "denied" ? "Blocked." : "Off.";
+    on.disabled = next.on || next.permission === "denied";
+    test.disabled = !next.on;
+    off.disabled = !next.on;
+  };
+  refresh(state);
   on.addEventListener("click", async () => {
-    try { const next = await switchOn(context.store); status.textContent = next.on ? "On." : "Blocked."; }
+    try { refresh(await switchOn(context.store)); }
     catch (error) { result.textContent = error.message; }
   });
   test.addEventListener("click", async () => {
@@ -268,12 +279,46 @@ function notificationsControls(context) {
   });
   off.addEventListener("click", async () => {
     await switchOff(context.store);
-    status.textContent = "Off. Browser permission remains until you remove it in browser settings.";
+    refresh(notificationState(context.store));
+    result.textContent = "Off. Browser permission remains until you remove it in browser settings.";
   });
   return el("section", "settings-notifications",
     el("h3", null, "Notifications"), status,
     el("p", null, on, " ", test, " ", off),
     explain("notifications"), result,
+  );
+}
+
+function remoteSessionLine(target, context, info) {
+  if (!info.key.startsWith("remote-session:")) return null;
+  const session = readSetting(context.store, info.key);
+  if (!session) return null;
+  const token = el("input", "settings-remote-session-token");
+  const show = el("button", "settings-remote-session-show", "Show");
+  const change = el("button", "settings-remote-session-change", "Change");
+  const clear = el("button", "settings-remote-session-clear", "Clear");
+  const result = el("p", "settings-remote-session-result");
+  token.type = "password";
+  token.value = session.token ?? "";
+  token.autocomplete = "off";
+  token.spellcheck = false;
+  show.addEventListener("click", () => {
+    const hidden = token.type === "password";
+    token.type = hidden ? "text" : "password";
+    show.textContent = hidden ? "Hide" : "Show";
+  });
+  change.addEventListener("click", () => context.go("bridge", { name: info.key.slice("remote-session:".length) }));
+  clear.addEventListener("click", async () => {
+    clearSetting(context.store, info.key);
+    result.textContent = "Cleared from this browser.";
+    await route.render(target, context, {});
+  });
+  return el("section", "settings-remote-session",
+    el("h3", null, info.label),
+    el("p", null, `Forwarded port: ${session.port ?? "Not configured."}`),
+    el("p", null, el("label", null, "Copied Bridge token ", token, " ", show)),
+    el("p", null, "Tunnel commands and proxy configuration are prepared on the Bridge page; no tunnel is started here."),
+    el("p", null, change, " ", clear), result,
   );
 }
 
@@ -384,6 +429,7 @@ export const route = {
       .filter(Boolean);
     const bridge = bridgeLine(target, context);
     const jumpHost = jumpHostLine(target, context);
+    const remoteSessions = listSettings(context.store).map((info) => remoteSessionLine(target, context, info)).filter(Boolean);
     const general = el("section", "settings-tab-panel",
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
@@ -396,6 +442,7 @@ export const route = {
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
       ...(bridge ? [bridge] : []), ...(jumpHost ? [jumpHost] : []),
+      ...remoteSessions,
       el("div", "settings-endpoints", ...endpoints));
     const usability = el("section", "settings-tab-panel",
       el("h3", null, "Usability · this browser"), notificationsControls(context));
