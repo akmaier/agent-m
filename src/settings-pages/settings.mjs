@@ -234,7 +234,7 @@ function browserClearControls(context) {
   );
 }
 
-function repositoryLine(context, info) {
+function repositoryLine(target, context, info) {
   if (info.key !== "github-token" && info.key !== "products" &&
     !info.key.startsWith("github-token:") && !info.key.startsWith("gitlab-token:")) return null;
   if (info.key === "products") {
@@ -242,11 +242,12 @@ function repositoryLine(context, info) {
     const clear = el("button", "settings-repository-clear", "Clear");
     const status = el("p", "settings-repository-status", "Product addresses are stored in this browser.");
     change.addEventListener("click", () => context.go("add-product", {}));
-    clear.addEventListener("click", () => {
+    clear.addEventListener("click", async () => {
       if (typeof globalThis.confirm !== "function" || !globalThis.confirm("Clear all managed products and their stored tokens from this browser?")) return;
       for (const web of readSetting(context.store, "products") ?? []) clearProductToken(context.store, web);
       clearSetting(context.store, info.key);
       status.textContent = "Cleared from this browser with every product's own token.";
+      await route.render(target, context, {});
     });
     return el("section", "settings-repository", el("h3", null, info.label), status,
       whatIsThis("This browser keeps the list of managed product addresses so it can open their repository settings. Any Pages site under the same owner domain can read that browser storage."),
@@ -440,6 +441,7 @@ function remoteSessionLine(target, context, info) {
   const change = el("button", "settings-remote-session-change", "Change");
   const clear = el("button", "settings-remote-session-clear", "Clear");
   const result = el("p", "settings-remote-session-result");
+  const status = el("p", "settings-remote-session-status", stateText(info.lastTest));
   token.type = "password";
   token.value = session.token ?? "";
   token.autocomplete = "off";
@@ -455,16 +457,25 @@ function remoteSessionLine(target, context, info) {
     result.textContent = `Testing the forwarded Bridge at localhost:${session.port}…`;
     try {
       await pair(`http://localhost:${session.port}`, session.token);
+      const lastTest = { at: new Date().toISOString(), outcome: "working" };
+      writeSetting(context.store, `last-test:${info.key}`, lastTest);
+      status.textContent = stateText(lastTest);
       result.textContent = `✓ The forwarded Bridge answers at localhost:${session.port}.`;
-    } catch (error) { result.textContent = `✗ ${error.message}`; }
+    } catch (error) {
+      const lastTest = { at: new Date().toISOString(), outcome: "refused" };
+      writeSetting(context.store, `last-test:${info.key}`, lastTest);
+      status.textContent = stateText(lastTest);
+      result.textContent = `✗ ${error.message}`;
+    }
   });
   clear.addEventListener("click", async () => {
     clearSetting(context.store, info.key);
+    clearSetting(context.store, `last-test:${info.key}`);
     result.textContent = "Cleared from this browser.";
     await route.render(target, context, {});
   });
   return el("section", "settings-remote-session",
-    el("h3", null, info.label),
+    el("h3", null, info.label), status,
     el("p", null, `Forwarded port: ${session.port ?? "Not configured."}`),
     el("p", null, el("label", null, "Copied Bridge token ", token, " ", show)),
     el("p", null, "Tunnel commands and proxy configuration are prepared on the Bridge page; no tunnel is started here."),
@@ -478,7 +489,14 @@ async function productControls(context) {
     el("p", null, "Choose a product to edit its repository settings."),
     whatIsThis("A chosen product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser reads them to show their current state."));
   const { settings, collaborators } = await settingsSchemas();
-  const repository = await context.product.host.repositoryInfo();
+  let repository;
+  try { repository = await context.product.host.repositoryInfo(); }
+  catch (error) {
+    return el("section", "settings-product",
+      el("h3", null, `Product · ${context.product.address}`),
+      el("p", "settings-product-read-only", `Repository metadata is unavailable: ${error.message}`),
+      whatIsThis("This browser keeps the selected product address and token. Its token remains available in the repository settings above."));
+  }
   const { defaultBranch } = repository;
   const address = parseAddress(context.product.address);
   const credential = credentialsFor(context.store, address);
@@ -658,7 +676,7 @@ export const route = {
     const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
-      ...listSettings(context.store).map((info) => repositoryLine(context, info)).filter(Boolean),
+      ...listSettings(context.store).map((info) => repositoryLine(target, context, info)).filter(Boolean),
       ...(productList ? [productList] : []), product);
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),

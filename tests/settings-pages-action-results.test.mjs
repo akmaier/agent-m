@@ -3,6 +3,11 @@
 // Guards: UC-042; A CLEAR IS A REAL CLEAR; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { openDashboard, repoServer, richDocument, press, settle } from "./app-harness.mjs";
 
@@ -19,9 +24,9 @@ const controls = (root, className, found = []) => {
   return found;
 };
 
-async function publicSettings({ entries = {}, handlers = [], selectedProduct = null } = {}) {
+async function publicSettings({ entries = {}, handlers = [], selectedProduct = null, assets = process.env.AGENT_M_290_ACTIONS_ROOT ? new URL(`file://${process.env.AGENT_M_290_ACTIONS_ROOT}/docs/assets/`) : undefined } = {}) {
   const server = await repoServer({ files: {}, handlers });
-  const page = await openDashboard({ server, search: selectedProduct ? `?product=${encodeURIComponent(selectedProduct)}` : "", hash: "#uc", entries });
+  const page = await openDashboard({ server, search: selectedProduct ? `?product=${encodeURIComponent(selectedProduct)}` : "", hash: "#uc", entries, ...(assets ? { assets } : {}) });
   const dom = richDocument();
   const main = dom.byId("main"), replace = main.replaceChildren.bind(main);
   let mounted = [];
@@ -104,4 +109,43 @@ test("TST-290127: remote-session Test persists its public result for reload", as
     const stored = globalThis.localStorage.key(index); return [stored, globalThis.localStorage.getItem(stored)];
   })) });
   assert.match(controls(reloaded.pane("Endpoints & Agents"), "settings-remote-session")[0].textContent, /Last successful test/, "the public line reloads its persisted result");
+  settingsActionCounterproof();
 });
+
+function settingsActionCounterproof() {
+  if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_290_ACTIONS_FAULT_CHILD) return;
+  const root = process.env.AGENT_M_290_ACTIONS_ROOT ?? new URL("..", import.meta.url).pathname;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-290-actions-fault-"));
+  const copied = join(temporary, "agent-m");
+  try {
+    cpSync(join(root, "src"), join(copied, "src"), { recursive: true });
+    cpSync(join(root, "docs"), join(copied, "docs"), { recursive: true });
+    const source = join(copied, "src/settings-pages/settings.mjs");
+    const original = readFileSync(source);
+    const text = original.toString();
+    const productClear = `status.textContent = "Cleared from this browser with every product's own token.";\n      await route.render(target, context, {});`;
+    const fault = text
+      .replace('catch (error) {\n    return el("section", "settings-product",', 'catch (error) { throw error;\n    return el("section", "settings-product",')
+      .replace(productClear, `status.textContent = "Cleared from this browser with every product's own token.";\n      void target;`)
+      .replaceAll('writeSetting(context.store, `last-test:${info.key}`, lastTest);', 'void lastTest;');
+    assert.notEqual(fault, text, "the copied Settings source contains every guarded action path");
+    const testPath = new URL(import.meta.url).pathname;
+    const argv = [process.execPath, "--test", "--test-name-pattern", "TST-290125|TST-290126|TST-290127", testPath];
+    const environment = { ...process.env, AGENT_M_290_ACTIONS_ROOT: copied, AGENT_M_290_ACTIONS_FAULT_CHILD: "1" }; delete environment.NODE_TEST_CONTEXT;
+    const run = () => spawnSync(argv[0], argv.slice(1), { cwd: root, encoding: "utf8", timeout: 60000, env: environment });
+    const originalHash = createHash("sha256").update(original).digest("hex");
+    const started = new Date().toISOString(); writeFileSync(source, fault);
+    const faultHash = createHash("sha256").update(readFileSync(source)).digest("hex");
+    const failed = run(); const failedAt = new Date().toISOString();
+    writeFileSync(source, original);
+    const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex");
+    const passed = run(); const passedAt = new Date().toISOString();
+    const receipt = { argv, cwd: root, environment: { AGENT_M_290_ACTIONS_ROOT: copied, AGENT_M_290_ACTIONS_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null }, originalHash, faultHash, restoredHash, started, failedAt, passedAt, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null, faultStdout: failed.stdout, faultStderr: failed.stderr, restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null, restoredStdout: passed.stdout, restoredStderr: passed.stderr };
+    process.stdout.write(`TST-290125-127-counterproof ${JSON.stringify(receipt)}\n`);
+    assert.equal(restoredHash, originalHash, "source bytes are restored before the same-case positive");
+    assert.equal(failed.status, 1, "meaningful copied-source faults produce normal test failures");
+    for (const id of ["TST-290125", "TST-290126", "TST-290127"]) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${id}:`), `${id} fails on its copied source fault`);
+    assert.equal(passed.status, 0, "the byte-restored same cases pass");
+    for (const id of ["TST-290125", "TST-290126", "TST-290127"]) assert.match(passed.stdout, new RegExp(`ok \\d+ - ${id}:`), `${id} passes after exact restoration`);
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
+}
