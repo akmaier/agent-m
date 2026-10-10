@@ -383,6 +383,7 @@ test("releaseReport — a worse model-dependent rate is read against the last re
   assert.match(limitations, /TST-010/);
 });
 
+// TST-293001
 // guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // given: the running version recorded 8 of 10 for TST-010 and the candidate records 6 of 10
 // input: releaseReport(at, results, candidate)
@@ -390,7 +391,7 @@ test("releaseReport — a worse model-dependent rate is read against the last re
 //         two-sided 95% Wilson score interval, 31.3%–83.2%; the interval's method and confidence level are stated
 // counter-proof: planting `return "";` in report.mjs's rateFindingText makes this same case fail because its displayed
 //                finding and numeric evidence disappear
-test("releaseReport — worse 6 of 10 versus 8 of 10 is a 95% Wilson finding with its 31.3%–83.2% interval", async () => {
+test("TST-293001: releaseReport shows worse 6 of 10 versus 8 of 10 as a 95% Wilson finding with its 31.3%–83.2% interval", async () => {
   const at = fixtureSnapshot({
     "SPEC.md": SPEC_TEXT, "tests/rate.test.mjs": RATE_TEST_FILE,
     "docs/tests/releases/v2026.3.0.md": lastReleaseReportText(LAST_RELEASE_COMMIT),
