@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "implements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "unit",
+              "component",
+              "system"
+            ]
+          },
+          "phase": {
+            "type": "string"
+          },
+          "after": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "implements",
+          "level",
+          "phase",
+          "after"
+        ]
+      }
+    }
+  },
+  "required": [
+    "steps"
+  ]
+}

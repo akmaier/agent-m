@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "moves": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "group"
+        ]
+      }
+    }
+  },
+  "required": [
+    "moves"
+  ]
+}

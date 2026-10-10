@@ -168,7 +168,8 @@ names no source.
   `chapters-for-architecture` and `chapters-for-implementation`: each reads the instance's register entry
   `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through
   `readContent`, and returns one part per chapter of its row above, in the order of their numbers: the whole file,
-  naming `SRC-vibe-coding` as its source and the version with its hash as its pin. None of these parts may be left out:
+  naming `SRC-vibe-coding` as its source and, in the part's name, the file, the version and the version's hash as its
+  pin. None of these parts may be left out:
   a participant whose context cannot hold them is named as not fitting, and nothing is cut. Throws as `readContent`
   throws, `NotRegistered { source }` when the instance has no entry `SRC-vibe-coding`, and `ChapterMissing { chapter,
   version }` when the version holds no file for a chapter.
