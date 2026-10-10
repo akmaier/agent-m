@@ -34,8 +34,9 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 - `kinds.schema.md` — the schema of the index, in the schema language of MOD-documents.
 - `definition.schema.md` — the schema of a kind's definition, in the schema language of MOD-documents.
 - `kinds/<name>/kind.md` — a kind's definition.
-- `kinds/<name>/prompt.md` — its prompt, in English, data only.
-- `kinds/<name>/answer.schema.json` — the shape of the draft it expects back.
+- `kinds/<name>/prompt.md` — its prompt, in English, data only; a kind without a participant, such as `set-up-ci`, has
+  none.
+- `kinds/<name>/answer.schema.json` — the shape of the draft it expects back; none for a kind without a participant.
 
 ## Data
 
@@ -162,16 +163,19 @@ decisions, the module files, the further decisions.
   | "product", preconditions: string[], recipes: { name: string, optional: boolean }[], checks: string[], personDecides:
   string[], reviewer: string | null, reviewers: number, steps: string[], gatePoints: ("before-write" | "before-merge" |
   "question")[], review: "person" | "none", writer: string, limit: number, purpose: string, prompt: string, answer: object
-  }`: a definition as read, its prompt and the schema of its draft loaded with it.
+  | null }`: a definition as read, its prompt and the schema of its draft loaded with it; for a kind without a
+  participant, which has neither, `prompt` is `""` and `answer` is `null`.
 - `kindNames() -> Promise<string[]>` — the names of every kind in the index, in its order.
 - `kindOf(name: string) -> Promise<KindDefinition>` — the kind's definition, prompt and answer schema, read once per
-  program and kept. Throws `UnknownKind { name }` for a name the index does not hold, and `InvalidKind { name, findings }`
-  for a definition MOD-documents finds at odds with the definition schema. It does not check that the strategies a
+  program and kept. Throws `UnknownKind { kind }` for a name the index does not hold, and `InvalidKind { kind, findings }`
+  for a definition MOD-documents finds at odds with the definition schema — each naming the kind in `kind`, since an
+  error's own `name` is its type. It does not check that the strategies a
   definition names exist: MOD-job-runner does, when a job is prepared.
 
 ## Files
 
-It reads its own data files: `kinds.md`, `definition.schema.md` and the three files of each kind. It writes nothing.
+It reads its own data files: `kinds.md`, `kinds.schema.md`, `definition.schema.md` and the files of each kind — its
+definition, and, for a kind with a participant, its prompt and the schema of its draft. It writes nothing.
 
 ## Uses
 
