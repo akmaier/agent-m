@@ -3,7 +3,7 @@
 // Level: component
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, statSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, rmdirSync, statSync, symlinkSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -12,9 +12,15 @@ import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
 const electronCache = join(tmpdir(), "agent-m-276-component-electron-44");
+const ssh2Cache = join(tmpdir(), "agent-m-291-desktop-native-ssh2-1.17.0");
 const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
+const electronModules = join(root, "node_modules");
+const electronSsh2 = join(electronModules, "ssh2");
 let nativeFixtureLockHeld = false;
+let electronModulesCreated = false;
+let electronSsh2Owned = false;
 let runtimeFailure;
+let sshRuntimeFailure;
 let virtualDisplayFailure;
 let windowManagerFailure;
 const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
@@ -33,7 +39,11 @@ const acquireNativeFixtureLock = async () => {
   }
   throw new Error("Timed out waiting for the native Electron fixture lock.");
 };
-const releaseNativeFixtureLock = () => { if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; } };
+const releaseNativeFixtureLock = () => {
+  if (electronSsh2Owned) { unlinkSync(electronSsh2); electronSsh2Owned = false; }
+  if (electronModulesCreated) { rmdirSync(electronModules); electronModulesCreated = false; }
+  if (nativeFixtureLockHeld) { rmdirSync(nativeFixtureLock); nativeFixtureLockHeld = false; }
+};
 const commandEvidence = (stage, result) => {
   const evidence = { stage, status: result.status, signal: result.signal, error: result.error?.code ?? null, stdout: scrub(result.stdout), stderr: scrub(result.stderr) };
   process.stdout.write(`native-fixture ${JSON.stringify(evidence)}\n`);
@@ -85,6 +95,12 @@ const prepareNativeFixture = async () => {
   electronCommand(executable, []);
   await acquireNativeFixtureLock();
   try {
+    const target = join(sshRuntime(), "ssh2");
+    if (!existsSync(electronModules)) { mkdirSync(electronModules); electronModulesCreated = true; }
+    if (existsSync(electronSsh2)) {
+      assert.equal(lstatSync(electronSsh2).isSymbolicLink(), true, "existing Electron ssh2 dependency link is not a link");
+      assert.equal(readlinkSync(electronSsh2), target, "existing Electron ssh2 dependency link has another target");
+    } else { symlinkSync(target, electronSsh2); electronSsh2Owned = true; }
     process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
   } catch (failure) { releaseNativeFixtureLock(); throw failure; }
 };
@@ -110,6 +126,21 @@ async function runtime() {
     assert.equal(existsSync(executableOf(installed)), true, "Electron 44.5.1 executable was not acquired.");
     return executableOf(installed);
   } catch (failure) { runtimeFailure = failure; throw failure; }
+}
+
+function sshRuntime() {
+  if (sshRuntimeFailure) throw sshRuntimeFailure;
+  try {
+    if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
+      const installed = spawnSync("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"], { encoding: "utf8", timeout: 40_000 });
+      assert.equal(installed.status, 0, `ssh2 staging failed: ${installed.stderr}`);
+    }
+    const nodePath = join(ssh2Cache, "node_modules");
+    const positive = spawnSync(process.execPath, ["-e", "const ssh2=require('ssh2');if(require('ssh2/package.json').version!=='1.17.0'||typeof ssh2.utils.generateKeyPairSync!=='function')throw Error('ssh2 known positive');console.log('ssh2-known-positive')"], { encoding: "utf8", timeout: 40_000, env: { ...process.env, NODE_PATH: nodePath } });
+    assert.equal(positive.status, 0, `ssh2 known positive failed: ${positive.stderr}`);
+    assert.match(positive.stdout, /ssh2-known-positive/);
+    return nodePath;
+  } catch (failure) { sshRuntimeFailure = failure; throw failure; }
 }
 
 const electronCommand = (executable, arguments_) => {
@@ -162,6 +193,12 @@ const evaluate = async (url, expression) => {
 };
 const unusedPort = async () => await new Promise((resolve, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const { port } = server.address(); server.close((failure) => failure ? reject(failure) : resolve(port)); }); });
 const nativeClipboardEquals = async (app, value) => await evaluate(app.main, `(async () => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); return await electron.clipboard.readText() === ${JSON.stringify(value)}; })()`);
+const debuggerSnapshot = async (url) => {
+  try {
+    const answer = await within(fetch(url), "launch debugger snapshot"), text = await within(answer.text(), "launch debugger body"), value = JSON.parse(text);
+    return { status: answer.status, body: scrub(text).slice(-4000), value };
+  } catch (error) { return { error: error.message }; }
+};
 
 async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")), port, debug, inspect, dataFolder = true, environment = {}, instance = "release-owner/release-frame", origin = "https://release-owner.github.io" } = {}) {
   port ??= await unusedPort();
@@ -171,19 +208,33 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
   const launched = electronCommand(executable, args);
-  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
-  let stderr = "";
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "", stderr = "";
+  child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
+  let stage = "page";
   try {
     const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
+    stage = "browser";
     const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
+    stage = "main";
     const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
     return { browser, child, exited, folder, main, origin, page, port };
   } catch (failure) {
+    const debugSnapshot = await debuggerSnapshot(`http://127.0.0.1:${debug}/json/list`);
+    const inspectorSnapshot = await debuggerSnapshot(`http://127.0.0.1:${inspect}/json/list`);
+    let mainRuntime = null;
+    const main = inspectorSnapshot.value?.[0]?.webSocketDebuggerUrl;
+    if (main) {
+      try { mainRuntime = scrub(JSON.stringify(await evaluate(main, "({ stack: new Error().stack, argv: process.argv, exitCode: process.exitCode })"))); }
+      catch (error) { mainRuntime = { error: error.message }; }
+    }
+    const diagnostic = { stage, exitCode: child.exitCode, signal: child.signalCode, stdout: scrub(stdout), stderr: scrub(stderr), debug: { status: debugSnapshot.status ?? null, body: debugSnapshot.body ?? null, error: debugSnapshot.error ?? null }, inspector: { status: inspectorSnapshot.status ?? null, body: inspectorSnapshot.body ?? null, error: inspectorSnapshot.error ?? null }, mainRuntime };
     if (child.exitCode === null) child.kill();
     await within(exited, "Electron startup cleanup").catch(() => {});
+    failure.message = `${failure.message}; launch=${JSON.stringify(diagnostic)}`;
     throw failure;
   }
 }
@@ -295,7 +346,7 @@ test("TST-276005: native close behavior and a second source start restore the fi
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
     const startSecond = async () => {
       const launched = electronCommand(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`]);
-      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
+      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", env: { ...process.env }, stdio: "ignore" });
       child.unref(); second.push(child); return { child, exited: new Promise((resolve) => child.once("exit", resolve)) };
     };
     const observeSecond = async () => await evaluate(app.main, "(() => { globalThis.__agentMSecondInstanceCount ??= 0; process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.once('second-instance', () => { globalThis.__agentMSecondInstanceCount += 1; }); return globalThis.__agentMSecondInstanceCount; })()");
