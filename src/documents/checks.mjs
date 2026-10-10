@@ -10,7 +10,7 @@
 //
 // documentFindings finds what ITM-227 builds: front matter keys missing, unknown, out of order, required or forbidden by a
 // condition; values not of their type or of the variant that holds, or empty where nonEmpty; the rows of a table, cell by
-// cell, in the same way; required sections missing, sections out of order, and sections the schema forbids. The path, the
+// cell, in the same way; required sections missing, sections out of order, and sections the schema forbids. The
 // identifier against the path, the title, describedIn, diagrams and images, the marks of history, the fields of a section, a
 // record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with
 // MOD-text-tools' finding, and names the rule of the part of the schema closest to it (Data, The requirement a finding
