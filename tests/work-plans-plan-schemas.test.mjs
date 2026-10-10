@@ -74,7 +74,7 @@ test("TST-297013: malformed identifiers, paths, and sprint dates are findings af
   for (const path of ["docs/backlog/other/19.md", "docs/backlog/sprints/19.txt"]) {
     const [badPath] = findingsOf(planSchemas.sprint, path, sprintOf());
     assert.deepEqual(findingShape(badPath), {
-      artifact: SPRINT_PATH, line: 1, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
+      artifact: path, line: 1, kind: "error", rule: "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY",
       what: `the path ${path} does not match a path of the format sprint`,
     });
   }
