@@ -304,7 +304,7 @@ function planPanel(app, ctx, d, team) {
     <p><button class="btn primary" data-start-sprint="${h(team)}"${token ? "" : " disabled"}>Start sprint</button>
       <button class="btn" data-cancel-plan>Cancel</button></p>
     ${token ? "" : `<p class="muted small">Starting a sprint commits to the product's repository: store a token for it first (<a href="#settings">Settings</a>).</p>`}
-    <div class="result" data-plan-result></div>
+    <div data-plan-result></div>
     ${explain("<p>The Product Owner selects the items the team works on in its sprint (UC-032 step 6). An item another team's " +
       "sprint holds, or one that changes or uses a module such an item changes or uses, cannot be selected, and its line names " +
       "why; an item is selected only together with, or after, the items it builds on. <em>Start sprint</em> commits " +

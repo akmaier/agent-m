@@ -246,13 +246,21 @@ test("#backlog — Plan sprint for a team: kept items cannot be selected; Start 
 // guards: EVERY STEP EXPLAINS ITSELF; the user's layout of the pages
 // given: the fixture product, its plan for team2 open
 // input: open #backlog, click Plan sprint for team2
-// expect: the page holds no style attribute and none of the old board's classes; every panel explains itself
+// expect: the page holds no style attribute, none of the old board's classes, and no class docs/assets/style.css — the
+//         stylesheet of #uc and #arc — does not define, but for the language of the burn-down's diagram, which the Markdown
+//         renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
 test("#backlog — the page is laid out as #uc and #arc are: panels, list tables, buttons and badges, no style of its own", async () => {
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
   const html = page.main();
   assert.doesNotMatch(html, /\sstyle="/);
   assert.doesNotMatch(html, /class="(board|column|card|cards|step)\b/);
+  const style = read("docs/assets/style.css");
+  const defined = (name) => new RegExp(`\\.${name}(?![\\w-])`).test(style);
+  assert.ok(defined("panel") && !defined("board"), "known positive and negative of the search");
+  const classes = new Set([...html.matchAll(/\sclass="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/).filter(Boolean)));
+  assert.ok(classes.has("language-mermaid"), "known positive: the burn-down's diagram is on the page");
+  for (const name of classes) if (name !== "language-mermaid") assert.ok(defined(name), `${name} is a class of docs/assets/style.css`);
   const panels = html.split('<section class="panel"').slice(1);
   assert.ok(panels.length >= 4, "the teams, the backlog, what no item realises, the plan");
   for (const panel of panels) assert.match(panel, /<details class="explain"><summary>What is this\?<\/summary>/);

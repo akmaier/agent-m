@@ -836,33 +836,6 @@ test("A ROLE NAMES THE CAPABILITIES IT NEEDS: the page shows what a role needs, 
   assert.ok(!developers.includes("endpoint-x"), "endpoint-x is not offered");
 });
 
-// Guards: A PARTICIPANT DECLARES ITS CAPABILITIES
-// given: lab-flow's Prober, needing "run code and tests" and "use tools"; cli-bot declares both, ci-bot only the first
-// input: the author chooses lab-flow
-// expect: the page goes by what each participant declares: cli-bot is offered to the Prober, ci-bot is not
-test("A PARTICIPANT DECLARES ITS CAPABILITIES: what a participant declares decides whether it is offered", async (t) => {
-  const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW } });
-  await choose(target, "lab-flow");
-
-  const prober = roleText(target, "Prober");
-  assert.ok(prober.includes("cli-bot"), "cli-bot, declaring both, is offered");
-  assert.ok(!prober.includes("ci-bot"), "ci-bot, declaring one, is not");
-});
-
-// Guards: A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
-// given: Scrum's Developers; ci-bot, cli-bot and box-bot, each declaring where it processes data
-// input: the author chooses Scrum
-// expect: each of them is offered with its place — a provider in the USA, this machine, a container on this machine
-test("A PARTICIPANT DECLARES WHERE IT PROCESSES DATA: each participant offered is shown with where it processes data", async (t) => {
-  const { target } = await openPage(t);
-  await choose(target, "scrum");
-
-  const developers = roleText(target, "Developers");
-  for (const name of ["ci-bot", "cli-bot", "box-bot"]) {
-    assert.match(developers, new RegExp(`${escape(name)}\\W+${escape(PLACES[name])}`), `${name}, at ${PLACES[name]}`);
-  }
-});
-
 // ---------------------------------------------------------------- 13. Definition of Done and branches
 
 // Guards: A PRODUCT DECLARES ITS DEFINITION OF DONE

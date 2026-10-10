@@ -4,6 +4,7 @@
   "process-view.mjs",
   "release-view.mjs",
   "review-views.mjs",
+  "roles-view.mjs",
   "settings/endpoints.mjs",
   "settings-view.mjs",
   "setup-view.mjs",

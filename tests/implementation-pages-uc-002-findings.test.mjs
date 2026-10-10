@@ -636,27 +636,3 @@ test("process route — a gate a process requirement adds is shown with the two 
 
 // ---------------------------------------------------------------- F6: the missing-capability link
 
-// guards: UC-002 (4b: no participant has the capabilities a role needs; the missing capability links to the
-//         participants' page, #participants, UC-017; ITM-223-F6)
-// given: fixture-sprint-model declared; Reviewer needs "use tools", which no fixture participant declares
-// input: route.render(target, context)
-// expect: Reviewer's missing-capability notice carries a link whose href is exactly #participants
-test("process route — the missing-capability notice links to the participants' page, #participants (F6)", async () => {
-  const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
-  const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("f6-product-head"));
-  const target = connectedTarget();
-
-  await route.render(target, contextOf(instanceHost, productHost));
-
-  const reviewer = byData(target, "data-role", "Reviewer")[0];
-  assert.ok(reviewer, "known positive: Reviewer, which no participant can hold, is shown");
-  assert.match(reviewer.textContent, /use tools/, "known positive: the missing capability is named");
-  const link = byTag(reviewer, "a")[0];
-  assert.ok(link, "known positive: the notice carries a link");
-  // This DOM has no reflected href attribute (as tests/system-uc-002-choose-a-process-model.test.mjs's own `role` reader
-  // allows for too): a plain `a.href = …` sets the property, not the attribute.
-  const href = link.getAttribute("href") ?? link.href;
-  assert.equal(href, "#participants", "the link is to the participants' page, not #settings/participants");
-
-  target.remove();
-});

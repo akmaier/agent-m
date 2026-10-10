@@ -1,9 +1,8 @@
 // The route `process` — How this product is developed (MOD-implementation-pages, docs/architecture/
 // MOD-implementation-pages.md; Interfaces: view, route process; UC-002). It shows the five catalogue models in their two
 // groups, each with what its `about` holds (step 2); the declared model's roles, each with who may hold it, whether one
-// participant fills it or several may, the capabilities it needs (step 4), and the participants that hold every one of
-// them and where they process data — only those offered, through MOD-participant-list's `eligible` —, a role no
-// participant can hold named by its missing capability; phases, each with the roles that work in it, transitions,
+// participant fills it or several may, the capabilities it needs (step 4), and a link to the Roles page, where they are
+// filled (UC-048); phases, each with the roles that work in it, transitions,
 // verification pairs, gates and branches; the available practices; what the product's process requirements add, or that
 // it has none (7a); the Definition of Done; all beside a form from the declaration's schema
 // (`MOD-product-process.declarationSchema`), with each finding of `declarationFindings` beside its field — among them a
@@ -35,7 +34,7 @@
 import { explain, schemaForm } from "../site-frame/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
-import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
+import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema, declarationFindings, workflowOf } from "../product-process/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 
@@ -124,7 +123,6 @@ export const route = {
     let workflowDeclaration = declarationForWorkflow;
 
     const participants = readDocument(participantSchema(), PARTICIPANTS_PATH, participantsText ?? "");
-    const allParticipants = participantsOf(participants);
 
     const instanceSpec = instanceSpecText ?? "";
     const declaredModel = openedDeclaration ? modelAt(cat.models, String(openedDeclaration.fields.model_file ?? "")) : null;
@@ -236,7 +234,7 @@ export const route = {
     renderPanels(declaredModel);
 
     // The panels beside the form that follow the live declaration's selected model and practices: the roles, each with how
-    // many fill it and its eligible participants (step 4),
+    // many fill it and what it needs (step 4),
     // phases/transitions/pairs/gates and branches (step 5), the available practices (step 6), what the process
     // requirements add or that there are none (step 7, 7a), and the Definition of Done's preset rules (step 8).
     function renderPanels(model) {
@@ -296,25 +294,17 @@ export const route = {
       extra.append(donePanel);
     }
 
-    // A role, who may hold it, whether one participant fills it or several may, and its capabilities (step 4); the
-    // participants `eligible` offers for it — each with its place —, or, where none is eligible, the capabilities no
-    // participant has at all, with a link to the instance's participants.
+    // A role, who may hold it, whether one participant fills it or several may, and its capabilities (step 4), and where it
+    // is filled: the Roles page.
     function roleInfo(role) {
       const block = el("div", "role-info", el("strong", null, `${role.name} (${role.filledBy})`),
         el("p", "how-many", role.howMany === "one" ? "one participant fills it" : "several participants may fill it"),
         el("p", null, `needs: ${role.capabilities.join(", ")}`));
       block.setAttribute("data-role", role.name);
-      const { eligible: offered } = eligible(allParticipants, { capabilities: role.capabilities });
-      if (offered.length) {
-        block.append(el("p", "eligible", `offered: ${offered.map((p) => `${p.name} (${p.place ?? "—"})`).join(", ")}`));
-      } else {
-        const missing = role.capabilities.filter((capability) => !allParticipants.some((p) => p.capabilities?.includes(capability)));
-        const link = el("a", null, "the instance's participants");
-        // F6: UC-017's own view, #participants — not #settings/participants, the settings view, which has no section
-        // for participants.
-        link.href = "#participants";
-        block.append(el("p", "missing-capability", `no participant has: ${(missing.length ? missing : role.capabilities).join(", ")} — add one under `, link));
-      }
+      // Who fills the role is the product's role assignment's, chosen on the Roles page (UC-048), not this route's.
+      const link = el("a", null, "Roles");
+      link.href = "#roles";
+      block.append(el("p", null, "who fills it: ", link));
       return block;
     }
   },
