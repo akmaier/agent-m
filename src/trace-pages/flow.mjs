@@ -52,7 +52,7 @@ function requirementsTable(requirements) {
 }
 
 function overview(spec) {
-  const page = el("section", "current-requirements", el("h2", null, "Current requirements"));
+  const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
   const sectioned = new Set(spec.sections.flatMap((section) => section.requirements));
   const outside = [...spec.requirements.values()].filter((requirement) => !sectioned.has(requirement.name));
 
@@ -61,7 +61,7 @@ function overview(spec) {
     const requirements = section.requirements.map((name) => spec.requirements.get(name)).filter(Boolean);
     const table = requirementsTable(requirements);
     table.setAttribute("hidden", "hidden");
-    const toggle = el("button", "spec-section-toggle btn small", sectionTitle(section.heading));
+    const toggle = el("button", "spec-section-toggle btn", sectionTitle(section.heading));
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", "false");
     toggle.addEventListener("click", () => {
@@ -70,7 +70,7 @@ function overview(spec) {
       else table.setAttribute("hidden", "hidden");
       toggle.setAttribute("aria-expanded", String(collapsed));
     });
-    const group = el("section", "panel spec-section", el("h3", null, toggle), table);
+    const group = el("section", "spec-section", el("h3", null, toggle), table);
     page.append(group);
   }
   if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
