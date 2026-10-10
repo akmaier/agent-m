@@ -11,7 +11,15 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { itemStates, startable } from "../src/work-plans/index.mjs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const sourceRoot = process.env.AGENT_M_295_SOURCE_ROOT ?? new URL("../src/", import.meta.url).pathname;
+const { itemStates, startable } = await import(pathToFileURL(join(sourceRoot, "work-plans", "index.mjs")).href);
 
 const workflow = {
   phases: [
@@ -118,4 +126,41 @@ test("TST-295003: startable returns every supplied selection, WIP, gate, and imp
   assert.equal(blockedGate.startable, false); assert.match(blockedGate.reasons.join("\n"), /Planning → Development/);
   const absentDeveloper = startable("ITM-295-ready", ready, { ...context, participants: [] });
   assert.equal(absentDeveloper.startable, false); assert.match(absentDeveloper.reasons.join("\n"), /Developers/); assert.match(absentDeveloper.reasons.join("\n"), /write to the repository/);
+
+  if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_295_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-295-fault-")), copied = join(temporary, "src");
+  try {
+    cpSync(sourceRoot, copied, { recursive: true });
+    const production = join(copied, "work-plans", "states.mjs"), original = readFileSync(production), source = original.toString();
+    const fault = 'statusOf(facts.statuses, artifact) !== "accepted"';
+    const mutation = Buffer.from(source.replace(fault, 'statusOf(facts.statuses, artifact) !== "faulted"'));
+    assert.notDeepEqual(mutation, original, "fault text exists once in the guarded acceptance derivation");
+    const ids = ["TST-295001", "TST-295002", "TST-295003"], testPath = new URL(import.meta.url).pathname;
+    const childArgv = [process.execPath, "--test", "--test-name-pattern", ids.join("|"), testPath];
+    const childEnvironment = { AGENT_M_295_SOURCE_ROOT: copied, AGENT_M_295_FAULT_CHILD: "1" };
+    const invoke = () => { const env = { ...process.env, ...childEnvironment }; delete env.NODE_TEST_CONTEXT;
+      return spawnSync(childArgv[0], childArgv.slice(1), { cwd: process.cwd(), encoding: "utf8", timeout: 40_000, env }); };
+    const originalHash = createHash("sha256").update(original).digest("hex");
+    const faultStarted = new Date().toISOString(); writeFileSync(production, mutation);
+    const faultSourceHash = createHash("sha256").update(readFileSync(production)).digest("hex"), failed = invoke();
+    const faultEnded = new Date().toISOString();
+    const faultNode = (id) => failed.stdout.match(new RegExp(`not ok \\d+ - ${id}:[\\s\\S]*?(?=\\n# Subtest:|\\n1\\.\\.)`))?.[0] ?? null;
+    const faultNodes = Object.fromEntries(ids.map((id) => [id, faultNode(id)]));
+    const restoredStarted = new Date().toISOString(); writeFileSync(production, original);
+    const restoredSourceHash = createHash("sha256").update(readFileSync(production)).digest("hex"), passed = invoke();
+    const restoredEnded = new Date().toISOString();
+    const testHash = createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex");
+    const receipt = { cases: ids, cwd: process.cwd(), childArgv, childEnvironment: { ...childEnvironment, NODE_TEST_CONTEXT: null },
+      source: production, test: testPath, originalHash, faultSourceHash, restoredSourceHash, testHash,
+      fault, faultStarted, faultEnded, faultStatus: failed.status, faultSignal: failed.signal, faultError: failed.error?.code ?? null,
+      faultNodes, faultStdout: failed.stdout, faultStderr: failed.stderr, restoredStarted, restoredEnded,
+      restoredStatus: passed.status, restoredSignal: passed.signal, restoredError: passed.error?.code ?? null,
+      restoredStdout: passed.stdout, restoredStderr: passed.stderr };
+    process.stdout.write(`TST-295003-counterproof ${JSON.stringify(receipt)}\n`);
+    assert.equal(restoredSourceHash, originalHash, "byte-exact source restoration precedes the same-case positive");
+    assert.equal(failed.status, 1, "faulted child ends with normal Node test failure status"); assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
+    for (const id of ids) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${id}:`), `${id} has a named same-case failure node`);
+    assert.equal(passed.status, 0, "byte-restored same cases pass"); assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
+    for (const id of ids) assert.match(passed.stdout, new RegExp(`ok \\d+ - ${id}:`), `${id} passes after exact restoration`);
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
