@@ -181,7 +181,7 @@ function stepSection(title, ...body) {
 }
 
 function placeholderSteps(message) {
-  const addBtn = el("button", "add", "Add product");
+  const addBtn = el("button", "add btn primary", "Add product");
   addBtn.disabled = true;
   return [
     stepSection("Step A · A key for the product",
@@ -225,7 +225,7 @@ function githubStepABody(context, address, out, afterCheck) {
   token.value = ""; token.type = "password"; token.placeholder = "github_pat_…"; token.autocomplete = "off"; token.spellcheck = false;
   const expires = el("input", "expires");
   expires.type = "date"; expires.value = defaultExpiry();
-  const storeBtn = el("button", "store", "Store and check");
+  const storeBtn = el("button", "store btn primary", "Store and check");
   const ack = acknowledgementControls(token, expires, storeBtn);
   const err = el("p", "result");
   storeBtn.addEventListener("click", async () => {
@@ -271,7 +271,7 @@ function gitlabStepABody(address, selectedReason, selectReason) {
   const alternatives = GITLAB_ALTERNATIVE_REASONS.map((reason) => {
     const selected = selectedReason === reason.id;
     const detail = el("details", "gitlab-alternative");
-    const select = el("button", "gitlab-alternative-select", `I saw: ${reason.label}`);
+    const select = el("button", "gitlab-alternative-select btn", `I saw: ${reason.label}`);
     if (selected) detail.setAttribute("open", "");
     detail.append(
       el("summary", null, reason.label),
@@ -302,12 +302,12 @@ function gitlabStepBBody(context, address, afterCheck) {
   token.value = ""; token.type = "password"; token.placeholder = "glpat-…"; token.autocomplete = "off"; token.spellcheck = false;
   const expires = el("input", "expires");
   expires.type = "date"; expires.value = defaultExpiry();
-  const storeBtn = el("button", "store", "Store and check");
+  const storeBtn = el("button", "store btn primary", "Store and check");
   const ack = acknowledgementControls(token, expires, storeBtn);
   const out = el("p", "result");
   const children = [];
   if (already) {
-    const checkBtn = el("button", "check", "Check");
+    const checkBtn = el("button", "check btn", "Check");
     checkBtn.addEventListener("click", async () => {
       out.replaceChildren();
       out.textContent = `Reading ${address.web}…`;
@@ -348,7 +348,7 @@ function gitlabStepBBody(context, address, afterCheck) {
 
 function stepCSection(context, address, onWriteRefused) {
   const label = address.server === "gitlab" ? "Step B" : "Step A";
-  const btn = el("button", "add", "Add product");
+  const btn = el("button", "add btn primary", "Add product");
   const out = el("p", "result");
   const sends = el("p", "muted", `One click writes the missing review layout into ${address.web}'s own default ` +
     "branch and adds its address to this browser's product list — nothing is written to the instance repository.");
@@ -377,7 +377,7 @@ function stepCSection(context, address, onWriteRefused) {
         out.append("Done — wrote the missing review layout in ", anchor("the commit ↗", layout.commit.url),
           `; ${address.web} is now in this browser's product list.`);
       }
-      const switchProduct = el("button", "switch", "Switch to the new product");
+      const switchProduct = el("button", "switch btn", "Switch to the new product");
       switchProduct.addEventListener("click", () => context.go("main", { product: address.web }));
       out.append(" ", switchProduct);
     } catch (e) {
@@ -445,7 +445,7 @@ function renderSteps(container, context, text) {
     stepBEl = el("section", "step", el("h3", null, "Step B · Give the key to Agent M"),
       ...gitlabStepBBody(context, address, afterCheck));
   } else {
-    const checkBtn = el("button", "check", "Check");
+    const checkBtn = el("button", "check btn", "Check");
     checkBtn.addEventListener("click", async () => {
       stepBOut.replaceChildren();
       stepBOut.textContent = `Reading ${address.web}…`;

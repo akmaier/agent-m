@@ -29,7 +29,7 @@ function attribute(node, name, value) {
 }
 
 function whatIsThis(text) {
-  return el("details", "settings-what-is-this", el("summary", null, "What is this?"), el("p", null, text));
+  return el("details", "explain settings-what-is-this", el("summary", null, "What is this?"), el("div", null, text));
 }
 
 function endpointName(key) {
@@ -63,10 +63,10 @@ function endpointLine(target, context, info) {
   const setting = readSetting(context.store, info.key);
   if (!setting) return null;
   const key = el("input", "settings-endpoint-key");
-  const show = el("button", "settings-endpoint-show", "Show");
-  const test = el("button", "settings-endpoint-test", "Test");
-  const change = el("button", "settings-endpoint-change", "Change");
-  const clear = el("button", "settings-endpoint-clear", "Clear");
+  const show = el("button", "settings-endpoint-show btn small", "Show");
+  const test = el("button", "settings-endpoint-test btn", "Test");
+  const change = el("button", "settings-endpoint-change btn", "Change");
+  const clear = el("button", "settings-endpoint-clear btn", "Clear");
   const result = el("p", "settings-endpoint-result");
   const status = el("p", "settings-endpoint-status", stateText(info.lastTest));
   key.type = "password";
@@ -98,7 +98,7 @@ function endpointLine(target, context, info) {
     await route.render(target, context, {});
   });
 
-  return el("section", "settings-endpoint",
+  return el("section", "settings-endpoint panel",
     el("h3", null, info.label),
     el("p", null, `Model: ${setting.model}`),
     status,
@@ -114,9 +114,9 @@ function bridgeLine(target, context) {
   const setting = readSetting(context.store, "bridge");
   if (!setting) return null;
   const token = el("input", "settings-bridge-token");
-  const show = el("button", "settings-bridge-show", "Show");
-  const change = el("button", "settings-bridge-change", "Change");
-  const clear = el("button", "settings-bridge-clear", "Clear");
+  const show = el("button", "settings-bridge-show btn small", "Show");
+  const change = el("button", "settings-bridge-change btn", "Change");
+  const clear = el("button", "settings-bridge-clear btn", "Clear");
   token.type = "password";
   token.value = setting.token ?? "";
   token.autocomplete = "off";
@@ -131,7 +131,7 @@ function bridgeLine(target, context) {
     clearSetting(context.store, "bridge");
     await route.render(target, context);
   });
-  return el("section", "settings-bridge",
+  return el("section", "settings-bridge panel",
     el("h3", null, "Bridge"),
     el("p", null, `Address: ${setting.address}`),
     el("p", null, el("label", null, "Pairing token ", token, " ", show)),
@@ -143,14 +143,14 @@ function bridgeLine(target, context) {
 function jumpHostLine(target, context) {
   const setting = readSetting(context.store, "jump-host");
   if (!setting) return null;
-  const change = el("button", "settings-jump-host-change", "Change");
-  const clear = el("button", "settings-jump-host-clear", "Clear");
+  const change = el("button", "settings-jump-host-change btn", "Change");
+  const clear = el("button", "settings-jump-host-clear btn", "Clear");
   change.addEventListener("click", () => context.go("bridge", {}));
   clear.addEventListener("click", async () => {
     clearSetting(context.store, "jump-host");
     await route.render(target, context);
   });
-  return el("section", "settings-jump-host",
+  return el("section", "settings-jump-host panel",
     el("h3", null, "Jump host"),
     el("p", null, `Host: ${setting.hostname}`),
     el("p", null, `HTTPS address: ${setting.httpsAddress ?? "Not configured."}`),
@@ -170,7 +170,7 @@ function exportNotice(store) {
 function exportImportControls(context) {
   const notice = el("p", "settings-export-notice", exportNotice(context.store));
   const passphrase = el("input", "settings-export-passphrase");
-  const download = el("button", "settings-export-download", "Export settings");
+  const download = el("button", "settings-export-download btn primary", "Export settings");
   const file = el("input", "settings-import-file");
   const importPassphrase = el("input", "settings-import-passphrase");
   const result = el("p", "settings-import-result");
@@ -205,7 +205,7 @@ function exportImportControls(context) {
       result.textContent = error.message;
     }
   });
-  return el("section", "settings-export-import",
+  return el("section", "settings-export-import panel",
     el("h3", null, "Export and import settings"),
     notice,
     el("p", null, el("label", null, "Optional export passphrase ", passphrase)),
@@ -218,7 +218,7 @@ function exportImportControls(context) {
 }
 
 function browserClearControls(context) {
-  const clear = el("button", "settings-clear-everything", "Clear everything in this browser");
+  const clear = el("button", "settings-clear-everything btn", "Clear everything in this browser");
   const acknowledgement = el("input", "settings-clear-ack");
   const result = el("p", "settings-clear-result");
   acknowledgement.type = "checkbox";
@@ -230,7 +230,7 @@ function browserClearControls(context) {
     acknowledgement.checked = false;
     result.textContent = "Every Agent M setting for this instance is cleared from this browser.";
   });
-  return el("section", "settings-clear",
+  return el("section", "settings-clear panel",
     el("h3", null, "Clear this browser"),
     el("p", null, "This removes this instance's stored settings from localStorage and does not change a repository."),
     whatIsThis("This removes every Agent M setting held in this browser. It changes no repository, and any Pages site under the same owner domain that can read this storage loses access too."),
@@ -243,8 +243,8 @@ function repositoryLine(target, context, info) {
   if (info.key !== "github-token" && info.key !== "products" &&
     !info.key.startsWith("github-token:") && !info.key.startsWith("gitlab-token:")) return null;
   if (info.key === "products") {
-    const change = el("button", "settings-repository-change", "Add or remove products");
-    const clear = el("button", "settings-repository-clear", "Clear");
+    const change = el("button", "settings-repository-change btn", "Add or remove products");
+    const clear = el("button", "settings-repository-clear btn", "Clear");
     const status = el("p", "settings-repository-status", "Product addresses are stored in this browser.");
     change.addEventListener("click", () => context.go("add-product", {}));
     clear.addEventListener("click", async () => {
@@ -254,19 +254,19 @@ function repositoryLine(target, context, info) {
       status.textContent = "Cleared from this browser with every product's own token.";
       await route.render(target, context, {});
     });
-    return el("section", "settings-repository", el("h3", null, info.label), status,
+    return el("section", "settings-repository panel", el("h3", null, info.label), status,
       whatIsThis("This browser keeps the list of managed product addresses so it can open their repository settings. Any Pages site under the same owner domain can read that browser storage."),
       el("p", null, change, " ", clear));
   }
   const stored = readSetting(context.store, info.key);
   const value = el("input", "settings-repository-secret");
-  const show = el("button", "settings-repository-show", "Show");
+  const show = el("button", "settings-repository-show btn small", "Show");
   const acknowledgement = el("input", "settings-repository-ack");
   const expiry = el("input", "settings-repository-expiry");
-  const save = el("button", "settings-repository-save", "Save");
-  const test = el("button", "settings-repository-test", "Test");
-  const clear = el("button", "settings-repository-clear", "Clear");
-  const change = el("button", "settings-repository-change", "Change");
+  const save = el("button", "settings-repository-save btn primary", "Save");
+  const test = el("button", "settings-repository-test btn", "Test");
+  const clear = el("button", "settings-repository-clear btn", "Clear");
+  const change = el("button", "settings-repository-change btn", "Change");
   const result = el("p", "settings-repository-result");
   const address = repositoryAddress(context, info.key);
   const links = address ? connect(address, {}).webLinks() : null;
@@ -351,7 +351,7 @@ function repositoryLine(target, context, info) {
     value.value = "";
     status.textContent = `Cleared from this browser. ${consequence}`;
   });
-  return el("section", "settings-repository",
+  return el("section", "settings-repository panel",
     el("h3", null, info.label), status,
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
     el("p", null, `Expires on `, expiry, " ", renewal),
@@ -383,8 +383,8 @@ function productListControls(target, context) {
   const products = readSetting(context.store, "products");
   if (!Array.isArray(products) || !products.length) return null;
   const lines = products.map((web) => {
-    const test = el("button", "settings-product-test", "Test");
-    const remove = el("button", "settings-product-remove", "Remove");
+    const test = el("button", "settings-product-test btn", "Test");
+    const remove = el("button", "settings-product-remove btn", "Remove");
     const result = el("p", "settings-product-list-result");
     test.addEventListener("click", async () => {
       try {
@@ -404,7 +404,7 @@ function productListControls(target, context) {
       whatIsThis("This browser keeps this product address and its optional token so it can test and open the repository. Any Pages site under the same owner domain can read that browser storage."),
       el("p", null, test, " ", remove), result);
   });
-  return el("section", "settings-product-list", el("h3", null, "Managed products"),
+  return el("section", "settings-product-list panel", el("h3", null, "Managed products"),
     whatIsThis("This browser keeps the managed product list so it can show each repository's settings. Any Pages site under the same owner domain can read that browser storage."), ...lines);
 }
 
@@ -418,9 +418,9 @@ function notificationsControls(context) {
   const result = el("p", "settings-notifications-result");
   const state = notificationState(context.store);
   const status = el("p", "settings-notifications-status", state.on ? "On." : "Off.");
-  const on = el("button", "settings-notifications-on", "Switch on");
-  const test = el("button", "settings-notifications-test", "Test");
-  const off = el("button", "settings-notifications-off", "Switch off");
+  const on = el("button", "settings-notifications-on btn", "Switch on");
+  const test = el("button", "settings-notifications-test btn", "Test");
+  const off = el("button", "settings-notifications-off btn", "Switch off");
   const refresh = (next) => {
     status.textContent = next.on ? "On. Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens."
       : next.permission === "denied" ? "Blocked. Allow notifications for this site in the browser's own site settings, then reload."
@@ -444,7 +444,7 @@ function notificationsControls(context) {
     refresh(notificationState(context.store));
     result.textContent = "Off. Browser permission remains until you remove it in browser settings.";
   });
-  return el("section", "settings-notifications",
+  return el("section", "settings-notifications panel",
     el("h3", null, "Notifications"), status,
     el("p", null, on, " ", test, " ", off),
     whatIsThis("Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch. While a dashboard page is open, it checks every five minutes for open SPEC changes, use cases, architecture files, and release test reports waiting for Accept and release. Checks go only to repository servers with the tokens of this browser and nowhere else. Nothing is checked while no dashboard page is open."), result,
@@ -456,10 +456,10 @@ function remoteSessionLine(target, context, info) {
   const session = readSetting(context.store, info.key);
   if (!session) return null;
   const token = el("input", "settings-remote-session-token");
-  const show = el("button", "settings-remote-session-show", "Show");
-  const test = el("button", "settings-remote-session-test", "Test");
-  const change = el("button", "settings-remote-session-change", "Change");
-  const clear = el("button", "settings-remote-session-clear", "Clear");
+  const show = el("button", "settings-remote-session-show btn small", "Show");
+  const test = el("button", "settings-remote-session-test btn", "Test");
+  const change = el("button", "settings-remote-session-change btn", "Change");
+  const clear = el("button", "settings-remote-session-clear btn", "Clear");
   const result = el("p", "settings-remote-session-result");
   const status = el("p", "settings-remote-session-status", stateText(info.lastTest));
   token.type = "password";
@@ -494,7 +494,7 @@ function remoteSessionLine(target, context, info) {
     result.textContent = "Cleared from this browser.";
     await route.render(target, context, {});
   });
-  return el("section", "settings-remote-session",
+  return el("section", "settings-remote-session panel",
     el("h3", null, info.label), status,
     el("p", null, `Forwarded port: ${session.port ?? "Not configured."}`),
     el("p", null, el("label", null, "Copied Bridge token ", token, " ", show)),
@@ -505,14 +505,14 @@ function remoteSessionLine(target, context, info) {
 }
 
 async function productControls(context) {
-  if (!context.product) return el("section", "settings-product",
+  if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
     whatIsThis("A chosen product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser reads them to show their current state."));
   const { settings, collaborators } = await settingsSchemas();
   let repository;
   try { repository = await context.product.host.repositoryInfo(); }
   catch (error) {
-    return el("section", "settings-product",
+    return el("section", "settings-product panel",
       el("h3", null, `Product · ${context.product.address}`),
       el("p", "settings-product-read-only", `Repository metadata is unavailable: ${error.message}`),
       whatIsThis("This browser keeps the selected product address and token. Its token remains available in the repository settings above."));
@@ -540,10 +540,10 @@ async function productControls(context) {
   const collaboratorRecords = el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`)));
   const access = repository.canWrite === true ? "writable" : repository.canWrite === false ? "read-only" : "not reported";
   if (!canWrite) {
-    const tokenStep = el("button", "settings-product-token-step", "Open the token step of UC-001");
+    const tokenStep = el("button", "settings-product-token-step btn", "Open the token step of UC-001");
     tokenStep.addEventListener("click", () => context.go("add-product", { address: context.product.address }));
     const reason = credential?.token ? "The repository reports this credential cannot write." : "This browser has no token that can write to this product.";
-    return el("section", "settings-product",
+    return el("section", "settings-product panel",
       el("h3", null, `Product · ${context.product.address}`),
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
@@ -554,7 +554,7 @@ async function productControls(context) {
   }
   const off = el("input", "settings-pseudonymisation-off"); off.type = "checkbox"; off.checked = settingState(settingsDocument, settingsBytes) === "off";
   const acknowledgement = el("input", "settings-pseudonymisation-ack"); acknowledgement.type = "checkbox";
-  const save = el("button", "settings-pseudonymisation-save", "Save pseudonymisation");
+  const save = el("button", "settings-pseudonymisation-save btn primary", "Save pseudonymisation");
   const pseudoResult = el("p", "settings-pseudonymisation-result");
   save.addEventListener("click", async (event) => {
     if (!event.isTrusted) return;
@@ -572,9 +572,9 @@ async function productControls(context) {
   const name = el("input", "settings-collaborator-name"), account = el("input", "settings-collaborator-account");
   const agreed = el("input", "settings-collaborator-agreed"); agreed.type = "checkbox";
   const agreedDate = el("input", "settings-collaborator-agreed-date"); agreedDate.type = "date"; agreedDate.value = new Date().toISOString().slice(0, 10);
-  const add = el("button", "settings-collaborator-save", "Save collaborator"); const collabResult = el("p", "settings-collaborator-result");
+  const add = el("button", "settings-collaborator-save btn primary", "Save collaborator"); const collabResult = el("p", "settings-collaborator-result");
   const removeName = el("input", "settings-collaborator-remove-name"), removeAccount = el("input", "settings-collaborator-remove-account");
-  const remove = el("button", "settings-collaborator-remove", "Remove collaborator consent");
+  const remove = el("button", "settings-collaborator-remove btn", "Remove collaborator consent");
   add.addEventListener("click", async (event) => {
     if (!event.isTrusted) return;
     if (!agreed.checked) { collabResult.textContent = "Tick that this person has agreed to be named."; return; }
@@ -620,7 +620,7 @@ async function productControls(context) {
     if (result.commit) { const address = parseAddress(context.product.address); const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${address.web}/${address.server === "gitlab" ? "-/commit" : "commit"}/${result.commit}`; collabResult.append(link); }
   });
   const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
-  return el("section", "settings-product",
+  return el("section", "settings-product panel",
     el("h3", null, `Product · ${context.product.address}`), state,
     whatIsThis("This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click."),
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
@@ -644,6 +644,7 @@ function tabbedSettings(panes) {
     for (const { button, pane } of buttons) {
       const chosen = button === selected;
       attribute(button, "aria-selected", String(chosen));
+      button.className = chosen ? "settings-tab btn primary" : "settings-tab btn";
       button.tabIndex = chosen ? 0 : -1;
       pane.hidden = !chosen;
     }
@@ -671,8 +672,8 @@ function tabbedSettings(panes) {
 }
 
 function configurationControls(context) {
-  const endpoint = el("button", "settings-endpoint-configure", "Configure a model endpoint");
-  const bridge = el("button", "settings-bridge-configure", "Configure the Agent M Bridge");
+  const endpoint = el("button", "settings-endpoint-configure btn", "Configure a model endpoint");
+  const bridge = el("button", "settings-bridge-configure btn", "Configure the Agent M Bridge");
   endpoint.addEventListener("click", () => context.go("endpoints", {}));
   bridge.addEventListener("click", () => context.go("bridge", {}));
   return el("p", "settings-configure", endpoint, " ", bridge);
@@ -688,8 +689,10 @@ export const route = {
     // UC-042 steps 2 and 3, UC-011 step 1, UC-044 step 4: the forms that set up a model endpoint or the Bridge open in
     // place, in the tab Endpoints & Agents under its buttons, one at a time; Add a product opens in the tab Repositories,
     // under the product list. Every other route, and these from other pages, go through the page's own context.
-    const form = el("div", "settings-configure-form");
-    const productForm = el("div", "settings-product-form");
+    // Each opens as a card, as a setting line is one; empty, the card is not shown.
+    const form = el("div", "settings-configure-form panel");
+    const productForm = el("div", "settings-product-form panel");
+    form.hidden = productForm.hidden = true;
     const inPlace = {
       ...context,
       [PAGE]: context,
@@ -697,6 +700,7 @@ export const route = {
         const [guided, place] = { endpoints: [endpointsRoute, form], bridge: [bridgeRoute, form],
           "add-product": [addProductRoute, productForm] }[name] ?? [];
         if (!guided) return context.go(name, params);
+        place.hidden = false;
         await guided.render(place, inPlace, params);
       },
     };
@@ -735,6 +739,6 @@ export const route = {
       { name: "Endpoints & Agents", id: "settings-endpoints-agents", node: endpointPane },
       { name: "Usability", id: "settings-usability", node: usability },
     ]);
-    target.replaceChildren(el("h2", null, "Settings"), tabbed.tabs, ...tabbed.panels);
+    target.replaceChildren(el("section", "head", el("h2", null, "Settings")), tabbed.tabs, ...tabbed.panels);
   },
 };
