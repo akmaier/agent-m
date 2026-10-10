@@ -75,7 +75,7 @@ and its process requirements show up here as additions to whatever model the aut
    an agent, who fills the backlog, selects each sprint's items and decides what is released; *Scrum Master* — either, who watches the
    process and removes obstacles, and approves nothing; *Developers* — either, needing *write to the
    repository* and *run code and tests*, who turn items into a done increment. The
-   author assigns participants from the team's list (UC-017): people, model endpoints, CI agents,
+   author assigns participants from the instance's list (UC-017): people, model endpoints, CI agents,
    CLI agents or sandboxed agents — several to one role where the role allows it. Agent M offers only
    participants that have every capability the role needs, and shows for each where it processes
    data. The assignment is that of the product's first team, which the author names, for example `team1`; further teams
@@ -126,9 +126,8 @@ sequenceDiagram
   UC-017 to add a participant that has it.
 - **4d. The product is developed by several teams** — in a model with sprints, as many as the author wants. The
   author chooses **+ Team** and names it, for example `team2`. Every team, the first included, has a declaration of its
-  own, `docs/process_<team>.md`, and a participant list of its own, `docs/participants_<team>.md` (UC-017). In its
-  declaration the author assigns the model's roles for that team from its list, as in step 4; a participant may hold
-  roles in several teams, standing in each of their lists under its one name. Every declaration names the product's model and states the same
+  own, `docs/process_<team>.md`. In it the author assigns the model's roles for that team from the instance's list of
+  participants (UC-017), as in step 4; a participant may hold roles in several teams. Every declaration names the product's model and states the same
   Definition of Done (step 8): a declaration that differs in either is not saved, and Agent M names the difference. A
   team's jobs go to its own holders of their roles, and its gates are decided by its own holders of the deciding role
   (UC-034). Where sprints have a branch of their own, a team's is `sprint/<team>/<nn>`. A team whose sprint still holds

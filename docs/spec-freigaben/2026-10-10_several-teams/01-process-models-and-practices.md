@@ -45,16 +45,11 @@ hold before the next phase opens.
 *Check:* `tests/test_gate_definition.py`
 
 **PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE** *(PO A. Maier)*
-An instance lists its participants — people and agents — in one list `docs/participants_<team>.md` of its own repository
-for each team, and each team assigns its roles from its own list.
-*Check:* `tests/test_participants.py` — a role a team assigns to a participant of its own list is accepted; counter-proofs:
-a role assigned to a participant that only another team's list holds is rejected, and so is a participant list named
-otherwise, such as `docs/participants.md`.
-
-**A PARTICIPANT'S NAME NAMES ONE PERSON OR AGENT** *(PO A. Maier)*
-All rows that bear one name, in whichever participant lists of an instance, describe one and the same person or agent.
-*Check:* `tests/test_participants.py` — a name whose rows in two lists are identical is one participant; counter-proof: a
-name whose rows in two lists differ in model, processing place or route is rejected, and both lists are named.
+An instance lists all its participants — people and agents — in the one list `docs/participants.md` of its own
+repository, and every team of a product assigns its roles from that list.
+*Check:* `tests/test_participants.py` — a role a team assigns to a participant of `docs/participants.md` is accepted;
+counter-proofs: a role assigned to a name that list does not hold is rejected, and a second participant list, such as
+`docs/participants_team2.md`, is reported.
 
 **A PARTICIPANT HAS ONE OF FIVE TYPES** *(PO A. Maier)*
 A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
@@ -101,5 +96,5 @@ Scrum fixture product validate.
 
 **A PARTICIPANT MAY SERVE SEVERAL TEAMS** *(PO A. Maier)*
 A participant may hold roles in several teams of a product at the same time.
-*Check:* `tests/test_teams.py` — two team declarations that assign the same participant, which both teams' lists hold
-under its one name, validate.
+*Check:* `tests/test_teams.py` — two team declarations that assign the same participant of `docs/participants.md`
+validate.
