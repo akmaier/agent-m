@@ -23,7 +23,9 @@ class StepExplanations(unittest.TestCase):
     def test_the_app_renders_steps_only_through_stepHtml(self):
         app = dashboard_text(shell=False)
         self.assertNotRegex(app, r'class="step"', "a step written by hand can skip its explanation")
-        self.assertGreaterEqual(len(re.findall(r"\bstepHtml\(", app)), 3, "Step A, B and C of UC-001")
+        # Known positive: the views render their steps through stepHtml — the setup view's steps; UC-001's steps are
+        # MOD-settings-pages' now, and a page laid out as #uc and #arc writes a panel whose explanation it carries itself.
+        self.assertGreaterEqual(len(re.findall(r"\bstepHtml\(", app)), 1, "the views render their steps through stepHtml")
 
     def test_a_step_without_explanation_is_refused(self):
         self.assertEqual(js("try { dashboardApp.stepHtml({title: 'x', body: 'y', explain: ''}); return 'rendered'; }"

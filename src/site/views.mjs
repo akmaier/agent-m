@@ -24,6 +24,7 @@ export const DASHBOARD = [
   { view: "participants", file: "participants-view.mjs", useCases: ["UC-017"] },
   { view: "process-models", file: "process-models-view.mjs", useCases: ["UC-031"] },
   { view: "process", file: "process-view.mjs", useCases: ["UC-002"] },
+  { view: "roles", file: "roles-view.mjs", useCases: ["UC-048"] },
   { view: "backlog", file: "backlog-view.mjs", useCases: ["UC-032", "UC-033"] },
   { view: "progress", file: "progress-view.mjs", useCases: ["UC-035"] },
   { view: "sprint-close", file: "sprint-close-view.mjs", useCases: ["UC-041"] },

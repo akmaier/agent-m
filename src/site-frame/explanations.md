@@ -33,9 +33,9 @@ A model names its roles. For each role it says whether a person, an agent or eit
 fills it or several may, and which capabilities its holder needs — for example *write to the repository* or *run code and
 tests*. The process names the roles and no one: who holds them is set in the product's role assignment — one, or one per
 team in a model that works in sprints — from this instance's participants: people, model endpoints, CI agents, CLI agents
-and sandboxed agents. Only participants with every capability the role needs are offered, each with the place where it
-processes the data it is given. Where no participant has them all, the page names the missing capability; a participant
-who has it can be added under Settings.
+and sandboxed agents. The page *Roles* offers for a role only participants with every capability it needs, each with the
+place where it processes the data it is given; where no participant has them all, it names the missing capability and
+links to the participants, where one who has it can be added.
 
 In Scrum, for example: the *Product Owner* — a person or an agent — orders the backlog and decides what is released; the
 *Scrum Master* — either — watches the process, removes obstacles and approves nothing; the *Developers* — either, able to
@@ -44,6 +44,36 @@ write to the repository and to run code and tests — turn items into a done inc
 A role that needs a person must have one before a role assignment can be saved. A participant that processes data at a
 place a linked requirement source does not permit may still hold a role, but that source's content is never given to it.
 In the book *Vibe Coding*: chapter 7, section 5, for the roles of Scrum.
+
+## fill-the-roles
+
+The process names roles and no one; the product's role assignment fills them with participants of this instance's list,
+so who does the work can change without the process changing. A role is a defined responsibility in the process, such as
+developer, reviewer, tester or product owner, and one participant may hold several roles in a small project.
+
+Only Scrum has teams. A Scrum team — its Product Owner, Scrum Master and Developers — is one filling of Scrum's roles, and
+plans and runs sprints of its own; several teams of one product, at work at the same time, are what the book calls
+agility at scale. Kanban is one flow under a limit on the work in progress, and the V-model pairs each step down to the
+code with the step that verifies it on the way back up; neither knows a team, so a product in either has one role
+assignment, with as many developers, testers and reviewers as the work needs. In the book *Vibe Coding*: chapter 6, the
+Geek Box *Artifacts, roles, and traceability*, for what a role is, and the V-model; chapter 7, Figure 7.4, for the Scrum
+team, Kanban, and *Scaling Agility to Large Systems* for several teams.
+
+## role-assignment
+
+A role assignment, `docs/role-assignments/<name>.md` in the product's repository, gives each role of the process its
+participants, and holds nothing else. In a model that works in sprints, each team has one, and a participant may serve
+several teams; in any other model, the product has one. Beside it stand the findings of the role assignments read
+together. A team is removed only while no sprint of it holds an item: an item stays held until its change reaches the
+default branch.
+
+## assign-participants
+
+Name the role assignment — in a model that works in sprints, the team, such as `team1` — and tick who fills each role:
+one participant for a role that one fills, as many as the work needs for a role that several may fill. *Save* commits
+the role assignment to the product's repository as your own commit, and nothing else. It stays disabled while a role
+that needs a person has none, or a role that one fills has more, and the role is named. Jobs already running keep their
+participant.
 
 ## phases-and-gates
 

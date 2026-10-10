@@ -22,7 +22,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { repoServer, settle, TOKEN } from "./app-harness.mjs";
-import { DASHBOARD } from "../src/site/views.mjs";
 
 // ---------------------------------------------------------------- a small DOM, copied unchanged from tests/dashboard-
 // ---------------------------------------------------------------- process-view.test.mjs (itself copied from tests/
@@ -270,20 +269,6 @@ Fixture participants, one of each type.
 | ci-bot | CI agent | fixture-llm | — | — | read the repository, write to the repository, run code and tests | a provider in the USA | ci hosted secret CI_BOT |
 | cli-bot | CLI agent | fixture-llm | — | — | read the repository, write to the repository, run code and tests, use tools | this machine | bridge lab agent claude |
 | box-bot | sandboxed agent | fixture-llm | — | — | read the repository, write to the repository, run code and tests | a container on this machine | container lab-box |
-`;
-
-// Where each participant that is not a person processes the data given to it, as PARTICIPANTS declares it.
-const PLACES = { "endpoint-x": "NHR@FAU, Erlangen", "ci-bot": "a provider in the USA", "cli-bot": "this machine",
-  "box-bot": "a container on this machine" };
-
-// An instance whose only participant is a model endpoint (UC-002 4b's own example).
-const ONLY_AN_ENDPOINT = `# Participants of this instance
-
-Fixture participants: a model endpoint only.
-
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| endpoint-x | model endpoint | fixture-llm | — | — | draft text, read the repository | NHR@FAU, Erlangen | endpoint https://llm.example.test |
 `;
 
 // A process requirement, accepted from a registered standard: the requirement, the source it comes from, and the
@@ -613,9 +598,8 @@ test("UC-002 main flow, steps 1–2: the table, then the book's five models in t
 // input: the author chooses Scrum
 // expect (steps 3–4): Scrum is the model chosen; its roles are shown as UC-002 names them — the Product Owner a person or
 //         an agent, the Scrum Master either, the Developers either, needing "write to the repository" and "run code and
-//         tests"; for the Developers exactly the participants with every capability they need are offered — alice,
-//         ci-bot, cli-bot and box-bot, not endpoint-x —, each agent with where it processes data
-test("UC-002 main flow, steps 3–4: the author chooses Scrum; its roles, who may fill each and what it needs; only participants with every capability are offered, each with its place", async (t) => {
+//         tests"; no participant is offered here — who fills the roles is the role assignment's, on the Roles page (UC-048)
+test("UC-002 main flow, steps 3–4: the author chooses Scrum; its roles, who may fill each and what it needs; who fills them is the Roles page's", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
 
@@ -625,11 +609,8 @@ test("UC-002 main flow, steps 3–4: the author chooses Scrum; its roles, who ma
   const developers = roleText(target, "Developers");
   assert.match(developers, /either/);
   for (const capability of ["write to the repository", "run code and tests"]) assert.ok(developers.includes(capability), `the Developers need: ${capability}`);
-  for (const name of ["alice", "ci-bot", "cli-bot", "box-bot"]) assert.ok(developers.includes(name), `${name} is offered to the Developers`);
-  assert.ok(!developers.includes("endpoint-x"), "endpoint-x, lacking two capabilities the Developers need, is not offered");
-  for (const name of ["ci-bot", "cli-bot", "box-bot"]) {
-    assert.match(developers, new RegExp(`${escape(name)}\\W+${escape(PLACES[name])}`), `${name} is shown with where it processes data`);
-  }
+  for (const name of ["alice", "ci-bot", "cli-bot", "box-bot", "endpoint-x"]) assert.ok(!developers.includes(name), `${name} is not offered here`);
+  assert.match(developers, /Roles/, "the Developers link to the Roles page");
 });
 
 // Guards: UC-002
@@ -873,39 +854,6 @@ test("UC-002 alternative flow 3b: changing the model lists the artifacts the new
   assert.match(text, new RegExp(`^\\|\\s*${REQUIREMENT}\\s*\\|\\s*Probe → Handover\\s*\\|`, "m"), "the requirement keeps its gate");
   assert.equal(page.product.files[ITEM], "# ITM-001\n", "the item stays");
   assert.equal(page.product.files[ARCHITECTURE], "# ARC-001\n", "the architecture file stays");
-});
-
-// Guards: UC-002
-// given: an instance whose only participant is a model endpoint, endpoint-x (draft text, read the repository); a product
-//        without a declaration
-// input: the author chooses Scrum
-// expect (4b): for the Developers, who must run code and tests, the page names the missing capabilities — "write to the
-//         repository" and "run code and tests" — and offers no participant
-test("UC-002 alternative flow 4b: no participant has the capabilities a role needs — the missing capability is named", async (t) => {
-  const { target } = await openPage(t, { participants: ONLY_AN_ENDPOINT });
-  await choose(target, "scrum");
-
-  const entries = elements(role(target, "Developers"), (e) => e.localName === "p").map(textOf);
-  for (const capability of ["write to the repository", "run code and tests"]) {
-    assert.ok(entries.some((entry) => /no participant|missing|lack/i.test(entry) && entry.includes(capability)), `the missing capability ${capability} is named`);
-  }
-  assert.ok(!roleText(target, "Developers").includes("endpoint-x"), "endpoint-x is not offered");
-});
-
-// Guards: UC-002
-// given: an instance whose only participant is a model endpoint; a product without a declaration
-// input: the author chooses Scrum
-// expect (4b): the notice of the missing capability links to UC-017 — the view src/site/views.mjs maps UC-017 to — to add
-//         a participant that has it
-test("UC-002 alternative flow 4b: the missing capability links to UC-017, to add a participant that has it", async (t) => {
-  const view = DASHBOARD.find((entry) => entry.view && entry.useCases.includes("UC-017"));
-  assert.ok(view, "known positive: the dashboard's table names the view of UC-017");
-  const { target } = await openPage(t, { participants: ONLY_AN_ENDPOINT });
-  await choose(target, "scrum");
-
-  const links = byTag(role(target, "Developers"), "a").map((a) => a.getAttribute("href") ?? a.href);
-  assert.ok(links.length, "known positive: the notice links somewhere");
-  assert.ok(links.some((href) => href === `#${view.view}` || String(href).startsWith(`#${view.view}/`)), `a link to #${view.view}, UC-017; the links: ${links.join(", ")}`);
 });
 
 // Guards: UC-002

@@ -269,20 +269,6 @@ Fixture participants, one of each type.
 | box-bot | sandboxed agent | fixture-llm | — | — | read the repository, write to the repository, run code and tests | a container on this machine | container lab-box |
 `;
 
-// Where each participant that is not a person processes the data given to it, as PARTICIPANTS declares it.
-const PLACES = { "endpoint-x": "NHR@FAU, Erlangen", "ci-bot": "a provider in the USA", "cli-bot": "this machine",
-  "box-bot": "a container on this machine" };
-
-// An instance whose only participant is a model endpoint (UC-002 4b's own example).
-const ONLY_AN_ENDPOINT = `# Participants of this instance
-
-Fixture participants: a model endpoint only.
-
-| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
-|---|---|---|---|---|---|---|---|
-| endpoint-x | model endpoint | fixture-llm | — | — | draft text, read the repository | NHR@FAU, Erlangen | endpoint https://llm.example.test |
-`;
-
 // A process requirement, accepted from a registered standard: the requirement, the source it comes from, and the
 // instance's SPEC that holds it — where a declaration's ## Gates added by requirements looks its requirement up
 // (src/product-process/declaration.schema.md).
@@ -357,92 +343,6 @@ chapter: 6, a fixture chapter
 | Prober | agent | several | run code and tests, use tools |
 `;
 
-// A second process of the instance, with lab-flow's phases and roles, whose phases produce requirements, MOD and TST —
-// not ARC and ITM, which lab-flow's produce (UC-002 3b).
-const LAB_LITE_PATH = "docs/process-models/lab-lite.md";
-const LAB_LITE = `---
-name: lab-lite
-kind: planned
-measure: plan entries per phase
----
-# Lab lite
-
-The fixture organisation's lighter process.
-
-## About
-
-manages: the lab's lighter fixture risk
-accepts: the lab's lighter accepted risk
-example: a small lab fixture project
-chapter: 6, a fixture chapter
-
-## Phases
-
-| Name | Role | Produces |
-|---|---|---|
-| Outline | Steward | requirements |
-| Assemble | Builders | MOD |
-| Probe | Prober | TST |
-| Handover | Steward | — |
-
-## Transitions
-
-| From | To | Kind |
-|---|---|---|
-| Outline | Assemble | sequence |
-| Assemble | Probe | sequence |
-| Probe | Handover | sequence |
-
-## Verification pairs
-
-| Phase | Checked by |
-|---|---|
-| Assemble | Probe |
-
-## Gates
-
-| Between | Artifacts | Condition | Decider |
-|---|---|---|---|
-| Probe → Handover | TST | every test is green | Steward |
-
-## Roles
-
-| Name | Filled by | How many | Capabilities |
-|---|---|---|---|
-| Steward | person | several | draft text |
-| Builders | either | several | write to the repository, run code and tests |
-| Prober | agent | several | run code and tests, use tools |
-`;
-
-// A restricted source of the instance's register that permits processing only at NHR@FAU, Erlangen, and the product's
-// link to it (UC-002 4c).
-const RESTRICTED = "SRC-restricted-fixture";
-const RESTRICTED_PATH = `docs/sources/${RESTRICTED}.md`;
-const RESTRICTED_ENTRY = `---
-id: ${RESTRICTED}
-title: A restricted fixture standard
-kind: standard
-authority: normative
-licence: restricted — fixture terms
-designation: FIX 1:2026
-places:
-  - NHR@FAU, Erlangen
----
-# ${RESTRICTED} A restricted fixture standard
-
-## Versions
-
-| Version | Date | Edition | Read from | Files |
-|---|---|---|---|---|
-| 1 | 2026-01-01 | — | — | fixture.txt |
-`;
-const LINKS = `# The fixture product's linked sources
-
-| Source | Version | Hash | Part |
-|---|---|---|---|
-| ${RESTRICTED} | 1 | ${"a".repeat(64)} | |
-`;
-
 // A product whose implementation starts: no declaration yet.
 const NEW_PRODUCT = { "README.md": "# The fixture product\n" };
 
@@ -462,10 +362,6 @@ function declaration({ model, file, practices = ["none"], branches = [],
 const scrumDeclaration = (rest) => declaration({ model: "scrum", file: "src/model-catalogue/models/scrum.md", ...rest });
 const kanbanDeclaration = (rest) => declaration({ model: "kanban", file: "src/model-catalogue/models/kanban.md", ...rest });
 const labFlowDeclaration = (rest) => declaration({ model: "lab-flow", file: LAB_FLOW_PATH, ...rest });
-
-// The gate REQUIREMENT adds to Scrum, as a declaration names it.
-const ADDED_TO_SCRUM = [REQUIREMENT, "Development → Sprint Review", "the verification record of the increment",
-  "the verification of every selected item is documented", "Product Owner"];
 
 // ---------------------------------------------------------------- the dashboard's way to the page
 
@@ -526,9 +422,6 @@ const shownEntries = (target) => elements(target, (e) => ["li", "tr", "p"].inclu
 // merely as an end of a gate.
 const phaseShown = (shown, name, phases) => shown.some((entry) => entry.includes(name) && phases.every((other) => other === name || !entry.includes(other)));
 
-// The table that keeps the process model and the rules to be met apart (UC-002, before its main flow).
-const rulesTable = (target) => byTag(target, "table").find((table) => /process model/i.test(textOf(byTag(table, "thead")[0] ?? table))
-  && /rules to be met/i.test(textOf(byTag(table, "thead")[0] ?? table)));
 // The models offered, by name, and a model's card.
 const modelsOffered = (target) => elements(target, (e) => e.hasAttribute("data-model")).map((e) => e.getAttribute("data-model"));
 const card = (target, name) => byData(target, "data-model", name)[0];
@@ -834,33 +727,6 @@ test("A ROLE NAMES THE CAPABILITIES IT NEEDS: the page shows what a role needs, 
     assert.ok(developers.includes(capability), `the Developers need: ${capability}`);
   }
   assert.ok(!developers.includes("endpoint-x"), "endpoint-x is not offered");
-});
-
-// Guards: A PARTICIPANT DECLARES ITS CAPABILITIES
-// given: lab-flow's Prober, needing "run code and tests" and "use tools"; cli-bot declares both, ci-bot only the first
-// input: the author chooses lab-flow
-// expect: the page goes by what each participant declares: cli-bot is offered to the Prober, ci-bot is not
-test("A PARTICIPANT DECLARES ITS CAPABILITIES: what a participant declares decides whether it is offered", async (t) => {
-  const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW } });
-  await choose(target, "lab-flow");
-
-  const prober = roleText(target, "Prober");
-  assert.ok(prober.includes("cli-bot"), "cli-bot, declaring both, is offered");
-  assert.ok(!prober.includes("ci-bot"), "ci-bot, declaring one, is not");
-});
-
-// Guards: A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
-// given: Scrum's Developers; ci-bot, cli-bot and box-bot, each declaring where it processes data
-// input: the author chooses Scrum
-// expect: each of them is offered with its place — a provider in the USA, this machine, a container on this machine
-test("A PARTICIPANT DECLARES WHERE IT PROCESSES DATA: each participant offered is shown with where it processes data", async (t) => {
-  const { target } = await openPage(t);
-  await choose(target, "scrum");
-
-  const developers = roleText(target, "Developers");
-  for (const name of ["ci-bot", "cli-bot", "box-bot"]) {
-    assert.match(developers, new RegExp(`${escape(name)}\\W+${escape(PLACES[name])}`), `${name}, at ${PLACES[name]}`);
-  }
 });
 
 // ---------------------------------------------------------------- 13. Definition of Done and branches

@@ -19,7 +19,7 @@
 // with a title, and is missing from a document without one.
 
 import { finding } from "../text-tools/index.mjs";
-import { KIND_FORMS, REQUIREMENT_NAME, compiledOf, effective, holds, sectionOf } from "./schema-language.mjs";
+import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, holds, pathRule, sectionOf } from "./schema-language.mjs";
 
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -111,7 +111,8 @@ function typeProblem(value, spec, where) {
 
 const conditionText = (condition) => (condition.all ? condition.all.map(conditionText).join(" and ")
   : condition.any ? condition.any.map(conditionText).join(" or ")
-    : `${condition.field} is ${condition.in ? "" : "not "}${(condition.in ?? condition.notIn).join(" or ")}`);
+    : condition.path ? `the document stands at ${condition.path.join(" or ")}`
+      : `${condition.field} is ${condition.in ? "" : "not "}${(condition.in ?? condition.notIn).join(" or ")}`);
 
 // valueCheck(value, spec, lookup, where) -> null when a value fits its value specification, else { why, condition }: why it
 // does not — left out where it is required, always or where its requiredWhen condition holds; given where its forbiddenWhen
@@ -203,9 +204,9 @@ export function documentFindings(schema, document) {
   const artifact = document.id ?? document.path;
   const found = [];
   const add = (line, rules, what, fix) => found.push(finding({ artifact, line, kind: "error",
-    rule: [...rules, schema.rule].find(Boolean), what, fix }));
+    rule: [...rules, pathRule(compiled, document.path) ?? schema.rule].find(Boolean), what, fix }));
   const fields = document.fields;
-  const frontLookup = (name) => textOf(fields[name]);
+  const frontLookup = (name) => (name === PATH ? document.path : textOf(fields[name]));
 
   if (schema.shape === "document") {
     const specs = schema.frontMatter ?? {};

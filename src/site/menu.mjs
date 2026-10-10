@@ -9,7 +9,7 @@ export const MENU = [
   { key: "requirements", label: "Requirements", views: ["specification", "spec"] },
   { key: "use-cases", label: "Use cases", views: ["uc"] },
   { key: "architecture", label: "Architecture", views: ["arc"] },
-  { key: "implementation", label: "Implementation", views: ["progress", "backlog"] },
+  { key: "implementation", label: "Implementation", views: ["progress", "backlog", "roles"] },
   { key: "tests", label: "Tests", views: ["tests"] },
   { key: "releases", label: "Releases", views: ["release"] },
   { key: "maintenance", label: "Maintenance", views: ["issues", "mail"], title: "Issues and mail" },

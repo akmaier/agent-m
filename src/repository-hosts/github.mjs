@@ -4,7 +4,8 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit) — and adds what both adapters share.
+// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit), createBranch(name, from) — and adds what
+// both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -159,6 +160,17 @@ export function githubAdapter(address, { token, tokenName }, links) {
           const said = await a.clone().json().then((j) => String(j.message ?? ""), () => "");
           if (!/reference already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
           throw await tagExists(name);
+        } } });
+    },
+
+    // Creates a branch at a commit ("Create a reference", ref: "refs/heads/<name>"). A branch that stands already — 422
+    // "Reference already exists", as for a tag — is left where it stands, never moved; any other 422 stays the failure it is.
+    async createBranch(name, from) {
+      await call("POST", `${repo}/git/refs`, { body: { ref: `refs/heads/${name}`, sha: from },
+        on: { 422: async (a) => {
+          const said = await a.clone().json().then((j) => String(j.message ?? ""), () => "");
+          if (!/reference already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
+          return null;
         } } });
     },
   };

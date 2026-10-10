@@ -749,16 +749,18 @@ test("process route — the page of a product with Agent M's own declaration", a
   target.remove();
 });
 
-// ---------------------------------------------------------------- roles: eligible participants and a missing capability (4b)
+// ---------------------------------------------------------------- roles: what each needs; who fills it is the Roles page's (4b)
 
-// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-048 (step 3, and 3b: the participants offered for a role are only
-//         those with every capability it needs, each with its place; for a role none can hold, the missing capability)
+// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-002 step 4: "Agent M shows the model's roles; for each, whether a
+//         person, an agent or either may fill it, which capabilities it needs, and whether one participant fills it or several
+//         may … Who fills them is set in the product's role assignment (UC-048)."
 // given: fixture-model's Developers, needing "write to the repository" and "run code and tests" — alice and bot-a have
-//        both, bot-b only "draft text" —, and Reviewer, needing "use tools", which no fixture participant declares
+//        both —, and Reviewer, needing "use tools", which no fixture participant declares
 // input: route.render(target, context)
-// expect: Developers' offered participants are exactly alice and bot-a, each shown with its processing place (alice's
-//         is none, shown as "—"); bot-b is not offered; Reviewer names "use tools" as the capability no one has
-test("process route — a role's offered participants are those with every capability, each with its place; a role none can hold names the missing capability", async () => {
+// expect: Developers shown with what it needs and how many fill it, and no participant — not alice, not bot-a, who hold
+//         its capabilities —; Reviewer shown with "use tools", and no notice of a missing participant; each role links to the
+//         Roles page, #roles, where its participants are chosen
+test("process route — a role shows who may fill it, how many and what it needs; who fills it is the Roles page's", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-3"));
   const target = connectedTarget();
@@ -768,12 +770,14 @@ test("process route — a role's offered participants are those with every capab
   const developers = byData(target, "data-role", "Developers")[0];
   const reviewer = byData(target, "data-role", "Reviewer")[0];
   assert.ok(developers && reviewer, "both roles are shown");
-  assert.ok(developers.textContent.includes("alice"), "alice is offered to Developers");
-  assert.ok(developers.textContent.includes("bot-a"), "bot-a is offered to Developers");
-  assert.ok(developers.textContent.includes("a lab"), "bot-a's place is shown");
-  assert.ok(developers.textContent.includes("—"), "alice's place, which it does not declare, is shown as —");
-  assert.ok(!developers.textContent.includes("bot-b"), "bot-b, who lacks a capability Developers needs, is not offered");
-  assert.ok(reviewer.textContent.includes("use tools"), "Reviewer names the capability no participant has");
+  assert.ok(developers.textContent.includes("run code and tests"), "what Developers need");
+  assert.ok(!developers.textContent.includes("alice") && !developers.textContent.includes("bot-a"), "no participant is offered here");
+  assert.ok(reviewer.textContent.includes("use tools"), "what Reviewer needs");
+  for (const role of [developers, reviewer]) {
+    const link = byTag(role, "a")[0];
+    assert.ok(link, "the role links to where it is filled");
+    assert.equal(link.getAttribute("href") ?? link.href, "#roles");
+  }
 
   target.remove();
 });
