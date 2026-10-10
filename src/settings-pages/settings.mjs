@@ -426,7 +426,7 @@ function notificationsControls(context) {
   return el("section", "settings-notifications",
     el("h3", null, "Notifications"), status,
     el("p", null, on, " ", test, " ", off),
-    whatIsThis("Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch."), result,
+    whatIsThis("Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch. While a dashboard page is open, it checks every five minutes for open SPEC changes, use cases, architecture files, and release test reports waiting for Accept and release. Checks go only to repository servers with the tokens of this browser and nowhere else. Nothing is checked while no dashboard page is open."), result,
   );
 }
 
