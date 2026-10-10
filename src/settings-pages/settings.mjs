@@ -552,7 +552,7 @@ async function productControls(context) {
     if (off.checked && !acknowledgement.checked) { pseudoResult.textContent = "Tick I have read this before switching pseudonymisation off."; return; }
     const legacy = /(^|\n)- pseudonymisation: (?:on|off)(?=\n|$)/;
     const edited = { ...settingsDocument, fields: { ...settingsDocument.fields, pseudonymisation: off.checked ? "off" : "on" } };
-    const text = legacy.test(settingsBytes) ? (off.checked ? settingsBytes.replace(legacy, "$1- pseudonymisation: off") : settingsBytes.replace(legacy, "$1"))
+    const text = legacy.test(settingsBytes) ? (off.checked ? settingsBytes.replace(legacy, "$1- pseudonymisation: off") : settingsBytes.replace(legacy, ""))
       : (writeDocument(settings, edited) || `---\npseudonymisation: ${off.checked ? "off" : "on"}\n---\n# Settings of this product\n`);
     const result = await saveFile(context.product.host, { path: settings.path, text, openedBlob: settingsBlob });
     if (result.refused) { pseudoResult.textContent = "Product settings changed meanwhile; nothing was written."; return; }
@@ -610,13 +610,13 @@ async function productControls(context) {
     collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
     if (result.commit) { const address = parseAddress(context.product.address); const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${address.web}/${address.server === "gitlab" ? "-/commit" : "commit"}/${result.commit}`; collabResult.append(link); }
   });
-  const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${context.product.address} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
+  const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
     whatIsThis("This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click."),
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
     el("p", "notice", "With pseudonymisation on, report data is rewritten without persons while keeping its technical content."),
-    el("p", "notice", `With pseudonymisation off, report data from mails — the names, addresses and other details of the people who write — enters the issues and the repository of ${context.product.address} unchanged. This is advisable only on a protected, non-public data space. Issue texts themselves stay neutral either way. ${publication} Data already written remains in history; removing that data requires a history rewrite.`),
+    el("p", "notice", `With pseudonymisation off, report data from mails — the names, addresses and other details of the people who write — enters the issues and the repository of ${address.path} unchanged. This is advisable only on a protected, non-public data space. Issue texts themselves stay neutral either way. ${publication} Data already written remains in history; removing that data requires a history rewrite.`),
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
     el("h4", null, "Collaborators"),
     collaboratorRecords,
