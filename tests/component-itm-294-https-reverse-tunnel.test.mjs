@@ -93,6 +93,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     import { openDashboard, press, repoServer, richDocument } from ${JSON.stringify(new URL("./app-harness.mjs", import.meta.url).href)};
     import { proxyConfiguration } from ${JSON.stringify(pathToFileURL(join(sourceRoot, "bridge-client/index.mjs")).href)};
     import { compose } from ${JSON.stringify(pathToFileURL(join(sourceRoot, "desktop-shell/compose.mjs")).href)};
+    import { saveSettings } from ${JSON.stringify(pathToFileURL(join(sourceRoot, "desktop-shell/settings.mjs")).href)};
     import { ensureKey } from ${JSON.stringify(pathToFileURL(join(sourceRoot, "tunnels/index.mjs")).href)};
     const require = createRequire(import.meta.url), { Server, utils } = require("ssh2");
     const [folder, ca, certificate, certificateKey] = process.argv.slice(1);
@@ -135,10 +136,12 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         try { await new Promise((resolve, rejectListen) => remote.listen(info.bindPort, info.bindAddr, error => error ? rejectListen(error) : resolve())); accept(); } catch (error) { reject(); }
       });
     });
-    const sshPort = await listen(ssh), tunnelPort = await reservePort();
-    writeFileSync(join(bridgeFolder, "settings.json"), JSON.stringify({ port: 0, tunnels: [{ direction: "reverse", jumpHost: "127.0.0.1", user: "fixture", sshPort, remotePort: tunnelPort, bind: "127.0.0.1" }] }));
+    const sshPort = await listen(ssh), tunnelPort = await reservePort(), persistedPort = await reservePort();
+    const persisted = saveSettings(bridgeFolder, { name: "component", port: persistedPort, products: [], every: 300, paused: false, jumpHost: null, tunnels: [{ direction: "reverse", jumpHost: "127.0.0.1", user: "fixture", sshPort, remotePort: tunnelPort, bind: "127.0.0.1" }] });
+    assert.equal(persisted.port, persistedPort, "the public settings writer persists a valid Bridge port for the composed runtime");
     const bridge = await compose({ instance: "akmaier/agent-m", origin, dataFolder: bridgeFolder, port: 0 });
     assert.equal(bridge.key.publicKey, persistedPublicKey, "composition reuses the actual persisted Bridge public key required by the fixture jump host");
+    assert.equal(bridge.settings.port, persistedPort, "the ephemeral compose listener override keeps the valid persisted Bridge setting");
     await waitFor(() => bridge.tunnels().then(rows => rows[0]?.state === "open"), "reverse tunnel did not become open");
     assert.ok(signedAuthentication?.accepted && signedAuthentication.signed && signedAuthentication.signatureValid, "the reverse tunnel completed signed public-key authentication with the Bridge key");
     assert.ok(sshForwarding.length > 0 && sshForwarding.every(receipt => receipt.signedAuthenticationOrder < receipt.order), "every accepted reverse forward follows signed Bridge-key authentication");
