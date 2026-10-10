@@ -1,0 +1,131 @@
+// The items a team's sprints hold, and what keeps an item from a team's selection (docs/architecture/MOD-work-plans.md,
+// Interfaces: Held, heldItems, conflicts; EVERY TEAM RUNS SPRINTS OF ITS OWN, A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE
+// DEFAULT BRANCH, SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES). Pure: nothing is read or written
+// here; the sprint records, the items, the architecture's module files and the pull requests are handed in.
+//
+// Module: MOD-work-plans
+//
+// A team's sprint is the record docs/backlog/sprints/<team>/<nn>.md, read with planSchemas.sprint; <team> is the name of the
+// team's role assignment, and the sprint is named <team>/<nn>. A record that stands in no team's folder is no team's sprint
+// and holds nothing. An item and a module file are Documents as MOD-documents' readDocument gives them: an item's `modules`
+// are the modules it changes, a module file's `uses` the interfaces it uses, `MOD-<slug>.<name>`. A pull request is in the
+// form of MOD-repository-hosts' PullRequest: `branch` its head branch, `base` the branch it goes into.
+
+const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/([^/]+)\.md$/;
+
+const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
+// A list as a Document holds it — or as a comma-separated line, where a field was read as text.
+const list = (value) => (Array.isArray(value) ? value.map(text)
+  : text(value).split(",").map((part) => part.trim()).filter(Boolean));
+const idOf = (document) => text(document?.id ?? document?.fields?.id);
+const modulesOf = (document) => list(document?.fields?.modules);
+
+/**
+ * sprintOf(record: Document) -> { team: string, name: string } | null — the team a sprint record belongs to and the sprint's
+ * name, `<team>/<nn>`, from its path; null for a record outside a team's folder.
+ */
+export function sprintOf(record) {
+  const match = SPRINT_PATH.exec(text(record?.path));
+  return match ? { team: match[1], name: `${match[1]}/${match[2]}` } : null;
+}
+
+/**
+ * selectionOf(record: Document) -> string[] — the items a sprint selects now: those of the last `## Selection` appended to
+ * its record when a new start decision changed it, else those of its front matter.
+ */
+export function selectionOf(record) {
+  const decisions = (record?.appended ?? []).filter((section) => section?.heading === "## Selection" && section.fields?.selection);
+  return list(decisions.length ? decisions.at(-1).fields.selection : record?.fields?.selection);
+}
+
+// The items a sprint's close sent on — back to the backlog, or into the team's next sprint: neither is held by it any more.
+function sentOn(record) {
+  const close = (record?.appended ?? []).find((section) => section?.heading === "## Unfinished items");
+  return new Set([...list(close?.fields?.["to the backlog"]), ...list(close?.fields?.["into the next sprint"])]);
+}
+
+// The modules whose interfaces `modules` use, by the architecture's module files, in the order of their identifiers.
+function usedBy(modules, architecture) {
+  const files = new Map((architecture ?? []).map((file) => [idOf(file), file]));
+  const used = new Set();
+  for (const module of modules) for (const use of list(files.get(module)?.fields?.uses)) used.add(use.split(".")[0]);
+  return [...used].sort();
+}
+
+// A pull request belongs to an item when its head branch or its title holds the item's identifier, not followed by a digit.
+const naming = (pullRequest, id) => {
+  const pattern = new RegExp(`(?<![A-Za-z0-9])${id}(?![0-9])`);
+  return pattern.test(text(pullRequest?.branch)) || pattern.test(text(pullRequest?.title));
+};
+const time = (value) => Date.parse(text(value));
+
+// Whether an item's change is merged into the default branch: a merged pull request of the item into a branch other than its
+// sprint's own branch — without one, into the default branch —; or, with a branch of its own, the item merged into that
+// branch and that branch merged into another after the item's last merge into it.
+function inDefaultBranch(id, branch, pullRequests) {
+  const merged = pullRequests.filter((pullRequest) => pullRequest?.state === "merged" && naming(pullRequest, id));
+  if (merged.some((pullRequest) => !branch || pullRequest.base !== branch)) return true;
+  if (!merged.length) return false;
+  const last = Math.max(...merged.map((pullRequest) => time(pullRequest.merged)));
+  return pullRequests.some((pullRequest) => pullRequest?.state === "merged" && text(pullRequest.branch) === branch
+    && pullRequest.base !== branch && time(pullRequest.merged) >= last);
+}
+
+/**
+ * @typedef {{ item: string, sprint: string, team: string, changes: string[], uses: string[] }} Held — an item a team's sprint
+ *   holds, with the modules it changes and the modules whose interfaces those use.
+ */
+
+/**
+ * heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown") ->
+ * Held[] — every item a team's sprint holds, in the order of the sprints and of their selections: from its selection until a
+ * pull request with its change is merged into the default branch, or until its sprint's close sends it back to the backlog or
+ * on to the next sprint (A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH). With the pull requests "unknown" — a
+ * host that could not read them —, a selected item counts as held. An item the backlog lacks is held with no module.
+ * @param {object[]} sprints @param {object[]} items @param {object[]} architecture @param {object[] | "unknown"} pullRequests
+ * @returns {Held[]}
+ */
+export function heldItems(sprints, items, architecture, pullRequests) {
+  const known = pullRequests === "unknown" ? null : (pullRequests ?? []);
+  const byId = new Map((items ?? []).map((item) => [idOf(item), item]));
+  const held = [];
+  for (const record of sprints ?? []) {
+    const of = sprintOf(record);
+    if (!of) continue;
+    const gone = sentOn(record);
+    const branch = text(record?.fields?.branch).trim();
+    for (const item of selectionOf(record)) {
+      if (gone.has(item) || (known && inDefaultBranch(item, branch, known))) continue;
+      const changes = modulesOf(byId.get(item));
+      held.push({ item, sprint: of.name, team: of.team, changes, uses: usedBy(changes, architecture) });
+    }
+  }
+  return held;
+}
+
+/**
+ * conflicts(item: Document, team: string, held: Held[], architecture: Document[]) -> Array<{ sprint: string, team: string,
+ * item: string, module: string }> — what keeps an item from `team`'s selection: for each item another team's sprint holds,
+ * every module that item changes and the item changes or uses, and every module it uses that the item changes, one entry
+ * each, in the order of the modules' identifiers; the item itself, held by another team, names its modules — `module` empty
+ * when it names none (SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES).
+ * @param {object} item @param {string} team @param {Held[]} held @param {object[]} architecture
+ * @returns {Array<{ sprint: string, team: string, item: string, module: string }>}
+ */
+export function conflicts(item, team, held, architecture) {
+  const id = idOf(item);
+  const changes = modulesOf(item);
+  const uses = usedBy(changes, architecture);
+  const found = [];
+  for (const other of held ?? []) {
+    if (other.team === team) continue;
+    const shared = new Set([
+      ...other.changes.filter((module) => changes.includes(module) || uses.includes(module)),
+      ...other.uses.filter((module) => changes.includes(module)),
+    ]);
+    const modules = [...shared].sort();
+    if (!modules.length && other.item === id) modules.push("");
+    for (const module of modules) found.push({ sprint: other.sprint, team: other.team, item: other.item, module });
+  }
+  return found;
+}

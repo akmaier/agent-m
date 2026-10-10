@@ -1,9 +1,11 @@
-# Module: MOD-work-items
+# Module: MOD-work-items; MOD-work-plans
 # Guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-032
 # Level: unit
 """SPEC §13 NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT — when a product's model sets a work-in-progress limit, no
-implementation job starts while the number of the product's items in progress has reached that limit; an item waiting
-for review counts as in progress (UC-032 step 7 and 7a).
+implementation job starts while the number of items in progress under the job's role assignment has reached that limit;
+an item waiting for review counts as in progress (UC-032 step 7 and 7a). TestTheLimitPerRoleAssignment asks MOD-work-plans'
+startable to start jobs while items are in progress, counting them per role assignment (the fixture product of
+tests/parallel_sprints_fixture.py); the rest of this file asks the dashboard's kernel, for one team.
 
 docs/assets/work-items/flow.mjs (MOD-work-items): itemState(item, { requirements, useCases, jobs, pullRequests, wip })
 derives the item's state from the pull requests and job records passed in, and lists in `reasons` what refuses its
@@ -16,6 +18,7 @@ product is tests/flow_fixture.py's. Counter-proofs: docs/measurements/2026-10-01
 import unittest
 
 from flow_fixture import WIP, item_state, job, kinds, pr, starts
+from parallel_sprints_fixture import WIP_LIMIT, all_ready, start, state
 
 
 class TestTheLimitOfTwo(unittest.TestCase):
@@ -87,6 +90,34 @@ class TestWithoutALimit(unittest.TestCase):
         prs = [pr(1, "ITM-014"), pr(2, "ITM-016"), pr(3, "ITM-017")]
         got = item_state("ITM-015", "scrum", prs=prs, sprint="timeboxed", today="2026-09-20")
         self.assertEqual((got["state"], got["reasons"]), ("ready", []))
+
+
+
+class TestTheLimitPerRoleAssignment(unittest.TestCase):
+    """MOD-work-plans' startable over the fixture product of tests/parallel_sprints_fixture.py: the limit 2; team1's sprint
+    01 holds ITM-001, ITM-003 and ITM-005, team2's sprint 02 holds ITM-007 and ITM-008. Items in progress are counted per
+    role assignment: those team1's sprint holds count under team1's, those team2's holds under team2's."""
+
+    def states(self, *changed):
+        return [next((c for c in changed if c["item"] == s["item"]), s) for s in all_ready()]
+
+    def test_a_start_is_refused_naming_the_limit_while_the_items_in_progress_under_its_assignment_reach_it(self):
+        busy = self.states(state("ITM-001", "in progress", job="JOB-1"), state("ITM-003", "in progress", pull_request="#4"),
+                           state("ITM-007", "in progress", pull_request="#5"))
+        got = start("ITM-005", "team1", busy)
+        self.assertFalse(got["startable"])
+        self.assertTrue(any(str(WIP_LIMIT) in r and "ITM-001" in r and "ITM-003" in r for r in got["reasons"]), got["reasons"])
+        self.assertFalse(any("ITM-007" in r for r in got["reasons"]), "team2's item counts under team2 only")
+
+    def test_the_start_succeeds_once_the_count_under_its_assignment_is_below_the_limit(self):
+        freed = self.states(state("ITM-001", "done"), state("ITM-003", "in progress", pull_request="#4"),
+                            state("ITM-007", "in progress", pull_request="#5"))
+        self.assertEqual(start("ITM-005", "team1", freed), {"startable": True})
+
+    def test_another_teams_items_in_progress_do_not_count_under_a_teams_assignment(self):
+        busy = self.states(state("ITM-001", "in progress", job="JOB-1"), state("ITM-003", "in progress", pull_request="#4"),
+                           state("ITM-007", "in progress", pull_request="#5"))
+        self.assertEqual(start("ITM-008", "team2", busy), {"startable": True})
 
 
 if __name__ == "__main__":
