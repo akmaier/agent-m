@@ -2,7 +2,7 @@
 
 **The change.** `A ROLE NAMES HOW MANY FILL IT` follows `A PROCESS MODEL ORGANISES PEOPLE AND AGENTS`. The rule of
 `PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE` says outright that `docs/participants.md` is the instance's one list of all
-its participants; its name and its check file are kept, the check gains a case and counter-proofs. At the section's end:
+its participants; its name and its check are kept. At the section's end:
 the process declaration names the roles that participants fill, never a participant; a role assignment
 `docs/role-assignments/<name>.md` fills them and does nothing else; a product has one role assignment, or, in a model that
 works in sprints, one per team; a participant may serve several teams. The rest of the section is carried over byte for

@@ -36,8 +36,7 @@ either may fill it.
 
 **A ROLE NAMES HOW MANY FILL IT** *(PO A. Maier)*
 A process model names for each role whether it is filled by one participant or may be filled by several.
-*Check:* `tests/test_model_roles.py` — a role that does not say how many fill it is rejected; counter-proof: a role filled by
-one and a role filled by several both validate.
+*Check:* `tests/test_model_roles.py`
 
 **A PRACTICE IS NOT A MODEL** *(PO A. Maier)*
 A practice — DevOps, prototyping, incremental delivery, a scaling layer — is added to a declared
@@ -52,9 +51,7 @@ hold before the next phase opens.
 **PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE** *(PO A. Maier)*
 An instance lists all its participants — people and agents — in the one list `docs/participants.md` of its own
 repository, and a product assigns its roles from that list.
-*Check:* `tests/test_participants.py` — a role assigned to a participant of `docs/participants.md` is accepted;
-counter-proofs: a role assigned to a name that list does not hold is rejected, and a second participant list, such as
-`docs/participants_team2.md`, is reported.
+*Check:* `tests/test_participants.py`
 
 **A PARTICIPANT HAS ONE OF FIVE TYPES** *(PO A. Maier)*
 A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
@@ -89,22 +86,17 @@ the source's register entry permits.
 
 **THE PROCESS NAMES ROLES, NOT PARTICIPANTS** *(PO A. Maier)*
 A product's process declaration names the roles that participants fill, never a participant.
-*Check:* `tests/test_role_assignment.py` — a declaration that names a participant of the instance's list, as the holder of a
-role or otherwise, is rejected; counter-proof: the same declaration with its roles filled in a role assignment validates.
+*Check:* `tests/test_role_assignment.py`
 
 **A ROLE ASSIGNMENT FILLS THE ROLES** *(PO A. Maier)*
 A product's roles are filled in a role assignment, a file `docs/role-assignments/<name>.md` of the product's repository
 that only assigns participants to the roles of its process.
-*Check:* `tests/test_role_assignment.py` — a V-model fixture's role assignment with three Developers, two Testers and two
-Reviewers validates; counter-proofs: one that also states a model, a practice, a branch or a Definition of Done is
-rejected, and so is one that gives a role filled by one participant two of them, or a role the model does not have.
+*Check:* `tests/test_role_assignment.py`
 
 **A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM** *(PO A. Maier)*
 A product has one role assignment, or, in a model that works in sprints, one for each of its teams.
-*Check:* `tests/test_role_assignment.py` — a V-model and a Kanban fixture with one role assignment validate, and with two
-are rejected; counter-proof: a Scrum fixture with three teams' role assignments validates.
+*Check:* `tests/test_role_assignment.py`
 
 **A PARTICIPANT MAY SERVE SEVERAL TEAMS** *(PO A. Maier)*
 A participant may hold roles in several teams of a product at the same time.
-*Check:* `tests/test_role_assignment.py` — two teams' role assignments that assign the same participant of
-`docs/participants.md` validate.
+*Check:* `tests/test_role_assignment.py`
