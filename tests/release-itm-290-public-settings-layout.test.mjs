@@ -86,19 +86,25 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
   t.after(release);
   const electron = await runtime();
   server = fixture(); await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const debug = await port(), address = `http://127.0.0.1:${server.address().port}/docs/#settings`;
+  const debug = await port(), inspect = await port(), address = `http://127.0.0.1:${server.address().port}/docs/#settings`;
   entryFolder = mkdtempSync(join(tmpdir(), "agent-m-290-electron-entry-"));
   const entry = join(entryFolder, "main.mjs");
-  writeFileSync(join(entryFolder, "package.json"), JSON.stringify({ type: "module", main: "main.mjs" }));
   writeFileSync(entry, `import electron from "electron"; const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); const window = new electron.BrowserWindow({ webPreferences: { contextIsolation: true, nodeIntegration: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url);`);
-  const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, entryFolder, `--fixture-url=${address}`]);
+  const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
   child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "linux", stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "", spawnError = null;
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   child.on("error", (error) => { spawnError = error; });
   const stopped = () => { if (spawnError || child.exitCode !== null || child.signalCode !== null) throw new Error(`Controlled Electron stopped; argv=${JSON.stringify([launched.command, ...launched.arguments_])}; cwd=${root}; exit=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}`); };
-  const target = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl, stopped, () => ` argv=${JSON.stringify([launched.command, ...launched.arguments_])}; cwd=${root}; exit=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}`);
+  let debugTargets = "";
+  const target = await wait(async () => {
+    try {
+      const targets = await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json();
+      debugTargets = JSON.stringify(targets.map(({ type, url }) => ({ type, url }))).slice(-4000);
+      return targets.find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl;
+    } catch (error) { debugTargets = `${error.name}: ${error.message}`; throw error; }
+  }, stopped, () => ` argv=${JSON.stringify([launched.command, ...launched.arguments_])}; cwd=${root}; exit=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}; debugTargets=${debugTargets}`);
   for (const width of [390, 1280]) {
     await cdp(target, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
     await wait(async () => await evaluate(target, "document.querySelectorAll('.settings-tab').length === 4"));
