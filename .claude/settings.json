@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '%s\\n\\n' 'Context was compacted. AGENTS.md is binding: re-read it now, in the original, before continuing. Its full text follows.'; cat \"$CLAUDE_PROJECT_DIR/AGENTS.md\""
+            "command": "printf '%s\\n' \"Context was compacted. AGENTS.md is binding: before continuing, read all of it, in the original, with the Read tool: $CLAUDE_PROJECT_DIR/AGENTS.md\""
           }
         ]
       }
