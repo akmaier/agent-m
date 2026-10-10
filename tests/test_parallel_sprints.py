@@ -18,13 +18,14 @@
 MOD-work-plans' heldItems, conflicts, startSprint and closeSprint, asked through node over the fixture product of tests/parallel_sprints_fixture.py:
 two teams, team1 running sprint 01, team2 having closed sprint 01 and running sprint 02. Every expectation is read from the
 fixture's data, never from the code under test. A team closes and starts its sprints through closeSprint and startSprint,
-over a fake of the repository host. The sprint planning page is not built yet; its test below is skipped and says why.
+over a fake of the repository host; its sprint planning is the Backlog page of the real dashboard with Plan sprint open.
 """
 import json
+import re
 import unittest
 
 from parallel_sprints_fixture import (CURRENT, ITEMS, PULL_REQUESTS, SELECTIONS, SPRINTS, FIX, all_ready, conflicts_of, held,
-                                     host_prelude, prelude, uses_of)
+                                     host_prelude, planning_page, prelude, uses_of)
 from jsrun import js
 
 CLOSED = "docs/backlog/sprints/team2/01.md"
@@ -167,9 +168,21 @@ class SprintPlanningShowsWhatTheOtherTeamsSprintsHold(unittest.TestCase):
                 self.assertEqual(entry["changes"], ITEMS[entry["item"]])
                 self.assertEqual(entry["uses"], sorted(uses_of(entry["item"])))
 
-    @unittest.skip("the sprint planning page is not built yet; it lists heldItems' entries beside the backlog (UC-032 step 5)")
     def test_a_teams_sprint_planning_lists_every_item_the_other_teams_sprints_hold(self):
-        pass
+        # team1 plans while team2's sprint 02 holds what it selected; team2's closed sprint 01 holds nothing any more — ITM-002
+        # is merged into the default branch with the sprint's branch, ITM-006 went back to the backlog. Each row of the list
+        # gives the item, its title, its sprint, the modules it changes and the modules they use.
+        html = planning_page("team1")
+        self.assertIn('data-part="held"', html, "the page lists what the other teams' sprints hold")
+        listed = html[html.index('data-part="held"'):]
+        listed = listed[:listed.find('<section class="panel"')] if '<section class="panel"' in listed else listed
+        rows = {item: [re.sub(r"<[^>]+>", "", cell).strip() for cell in re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)][2:]
+                for item, row in re.findall(r'<tr data-held="([^"]+)">(.*?)</tr>', listed, re.S)}
+        sprint = CURRENT["team2"].removeprefix("docs/backlog/sprints/").removesuffix(".md")
+        expected = {item: [sprint, ", ".join(ITEMS[item]) or "—", ", ".join(sorted(uses_of(item))) or "—"]
+                    for item in SELECTIONS[CURRENT["team2"]]}
+        self.assertTrue(expected, "known positive: team2's sprint holds items")
+        self.assertEqual(rows, expected)
 
 
 if __name__ == "__main__":

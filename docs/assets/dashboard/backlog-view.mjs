@@ -1,7 +1,8 @@
 // Backlog — the state of the current process first: each team's running sprint, what it holds, the state of each held item
 // and its burn-down, or that the team runs none; then the backlog, each item after the items it builds on, with its state and,
 // in a product with several teams, what keeps it from a team's selection; then the accepted requirements and use cases no
-// item realises yet (UC-032 steps 1, 5 and 6; UC-035). Plan sprint, for one team, lists what the team may select; Start
+// item realises yet (UC-032 steps 1, 5 and 6; UC-035). Plan sprint, for one team, lists what the team may select, and beside
+// it every item the other teams' sprints hold, with its sprint and the modules it changes and uses; Start
 // sprint commits the team's sprint through MOD-work-plans' startSprint, as the person's own commit — the one write of this
 // view, on the person's click. Everything else is read from the product's repository and its pull requests and derived when
 // shown; nothing is stored (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains itself (EVERY STEP EXPLAINS
@@ -13,8 +14,8 @@
 // this browser keeps by blob SHA (app.fileText): the declaration docs/process.md and the model file it names; the role
 // assignments under docs/role-assignments/, which name the teams; every team's sprints under docs/backlog/sprints/<team>/;
 // every item under docs/backlog/; the SPEC, which names the accepted requirements; the use cases' approval state; in a
-// product with several teams, the architecture's module files; and the pull requests into each team's newest sprint's branch
-// and into the default branch. No job writes a record yet, so `jobs` is empty.
+// product with several teams, the architecture's module files; and the product's pull requests, of which those into the
+// default branch or into a sprint's branch count. No job writes a record yet, so `jobs` is empty.
 //
 // MOD-work-plans decides what the sprints hold (heldItems), what keeps an item from a team (conflicts) and how a sprint starts
 // (startSprint); MOD-progress-measures derives each team's burn-down (progressIn); MOD-documents reads the items, modules,
@@ -60,13 +61,6 @@ const idOf = (doc) => text(doc?.id ?? doc?.fields?.id) || ITEM_FILE.exec(text(do
 const modelOf = (parsed) => ({ name: parsed.name, kind: parsed.kind, measure: parsed.measure,
   flow: { wip: parsed.flow?.wipLimit ?? null, timeBox: parsed.flow?.timeBox ?? null, sprints: parsed.flow?.sprints === true } });
 
-// The pull requests into `base` opened since `since` (all of them without a date), as MOD-git-host gives them.
-function pullsInto(app, base, since) {
-  return app.once(`backlog:pulls:${base}:${since ?? ""}`, async () => {
-    const found = await pullRequests({ product: app.T.product, token: app.token() }).list({ base, since: validDate(since) ? since : null });
-    return found.filter((p) => p.base === base);
-  });
-}
 // A pull request in MOD-repository-hosts' form, from MOD-git-host's.
 const asPullRequest = (p) => ({ number: p.number, title: text(p.title), branch: text(p.head), base: text(p.base), head: text(p.mergeCommit),
   state: p.state, draft: false, url: "", opened: p.openedAt ?? null, merged: p.mergedAt ?? null, closed: p.mergedAt ?? null });
@@ -103,17 +97,15 @@ function context(app) {
   });
 }
 
-// The pull requests the page derives from: into each team's newest sprint's own branch since its start, and into the default
-// branch since the earliest of those starts — each once.
-async function pullRequestsOf(app, ctx) {
-  const newest = [...ctx.newest.values()];
-  const starts = newest.map((n) => text(n.record.fields.start)).filter(validDate).sort();
-  const lists = await Promise.all([
-    ...newest.filter((n) => text(n.record.fields.branch)).map((n) => pullsInto(app, text(n.record.fields.branch), text(n.record.fields.start))),
-    pullsInto(app, app.T.ref, starts[0] ?? null),
-  ]);
-  const seen = new Set();
-  return lists.flat().filter((p) => !seen.has(`${p.base}#${p.number}`) && seen.add(`${p.base}#${p.number}`));
+// The pull requests the page derives from, as MOD-git-host gives them, read in one listing of all of them: an item's hold can
+// outlast its sprint, and an item can be done before any sprint ran. Only those into the default branch or into the branch of
+// a sprint count, whatever else the server answers.
+function pullRequestsOf(app, ctx) {
+  const bases = new Set([app.T.ref, ...ctx.sprints.map((s) => text(s.fields.branch)).filter(Boolean)]);
+  return app.once("backlog:pulls", async () => {
+    const found = await pullRequests({ product: app.T.product, token: app.token() }).list({});
+    return found.filter((p) => bases.has(p.base));
+  });
 }
 
 // Each item's state in MOD-work-plans' ItemState form: from its pull requests and what it realises (itemState), and, for an
@@ -312,6 +304,26 @@ function planPanel(app, ctx, d, team) {
       "where the declaration gives one; while the sprint runs, a new selection is added to its record.</p>")}</section>`;
 }
 
+// What the other teams' sprints hold, beside `team`'s plan (UC-032 step 5): each item with its title, the sprint that holds
+// it, the modules it changes and the modules whose interfaces those use.
+function heldPanel(app, ctx, d, team) {
+  const { h } = app;
+  const others = d.held.filter((x) => x.team !== team);
+  const rows = others.map((x) => {
+    const doc = docOf(ctx, x.item);
+    return `<tr data-held="${h(x.item)}"><td>${doc ? fileLink(app, doc.path, h(x.item)) : h(x.item)}</td><td>${h(doc?.fields?.title ?? "")}</td>
+      <td>${h(x.sprint)}</td><td class="small">${x.changes.map(h).join(", ") || "—"}</td><td class="small">${x.uses.map(h).join(", ") || "—"}</td></tr>`;
+  }).join("");
+  return `<section class="panel" data-part="held"><h3>What the other teams' sprints hold</h3>
+    ${others.length ? `<table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
+      <tbody>${rows}</tbody></table>` : `<p class="muted">No other team's sprint holds an item.</p>`}
+    ${explain("<p>A sprint holds the items it selected from its start until their change is merged into the default branch or " +
+      "they go back to the backlog — after its close too, while its increment waits on its own branch. While another team's " +
+      "sprint holds an item, this team selects neither that item nor one that changes a module the item changes or uses, or " +
+      "whose modules use a module it changes: each held item is listed with its sprint, the modules it changes and the modules " +
+      "whose interfaces they use, as the modules' files under <code>docs/architecture/</code> name them (UC-032 step 5).</p>")}</section>`;
+}
+
 // ---------------------------------------------------------------- the view
 
 const planning = new WeakMap(); // the team whose sprint the person plans, per page (its context) — in memory only
@@ -343,6 +355,7 @@ async function viewBacklog(app) {
         "repository and its pull requests.</p>")}</section>
     ${teamsPart}
     ${team && model?.flow.sprints ? planPanel(app, ctx, d, team) : ""}
+    ${team && model?.flow.sprints && ctx.teams.length > 1 ? heldPanel(app, ctx, d, team) : ""}
     ${backlogPanel(app, ctx, d)}
     ${uncoveredPanel(app, ctx)}`;
   await app.renderMermaid(main());

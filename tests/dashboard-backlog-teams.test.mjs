@@ -241,6 +241,30 @@ test("#backlog — Plan sprint for a team: kept items cannot be selected; Start 
     [2, "Mail again", ["ITM-003"], "sprint/team2/02"]);
 });
 
+// guards: SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032 step 5
+// given: the fixture product; team1's sprint 01 holds ITM-001, which changes MOD-store, and ITM-002, which changes
+//        MOD-pages, which uses MOD-store; team2 runs no sprint, and its closed sprint 01 sent ITM-003 back to the backlog
+// input: click Plan sprint for team2; then Cancel, and Plan sprint for team1
+// expect: beside team2's plan, what the other teams' sprints hold: ITM-001 and ITM-002, each with its title, team1/01, the
+//         modules it changes and the modules they use, and nothing else; beside team1's, that no other team's sprint holds
+//         an item
+test("#backlog — Plan sprint lists every item the other teams' sprints hold, with its sprint and the modules it changes and uses", async () => {
+  const { page } = await backlogPage();
+  await page.click('[data-plan="team2"]');
+  const others = part(page.main(), 'data-part="held"');
+  const cells = (item) => {
+    const at = others.indexOf(`data-held="${item}"`);
+    if (at < 0) return null;
+    return others.slice(at, others.indexOf("</tr>", at)).split("<td").slice(1).map((cell) => cell.replace(/^[^>]*>/, "").replace(/<[^>]+>/g, "").trim());
+  };
+  assert.deepEqual(cells("ITM-001"), ["ITM-001", "The work of item 1", "team1/01", "MOD-store", "—"]);
+  assert.deepEqual(cells("ITM-002"), ["ITM-002", "The work of item 2", "team1/01", "MOD-pages", "MOD-store"]);
+  assert.equal(others.match(/data-held="/g).length, 2, "nothing else is listed");
+  await page.click("[data-cancel-plan]");
+  await page.click('[data-plan="team1"]');
+  assert.match(part(page.main(), 'data-part="held"'), /No other team's sprint holds an item\./);
+});
+
 // ---------------------------------------------------------------- the layout of #uc and #arc
 
 // guards: EVERY STEP EXPLAINS ITSELF; the user's layout of the pages
