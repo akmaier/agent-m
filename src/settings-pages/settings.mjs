@@ -482,6 +482,7 @@ async function productControls(context) {
   const collaboratorRows = legacyCollaborators.length ? legacyCollaborators : (collaboratorsDocument.sections[0]?.rows ?? [])
     .map((row) => ({ name: row.cells.Name, account: String(row.cells.Account ?? "").replace(/^@/, ""), agreed: row.cells["Agreed on"] ?? row.cells.Agreed ?? "recorded" }));
   const state = el("p", "settings-pseudonymisation-state", `Pseudonymisation is ${settingState(settingsDocument, settingsBytes)}.`);
+  const collaboratorRecords = el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`)));
   const access = repository.canWrite === true ? "writable" : repository.canWrite === false ? "read-only" : "not reported";
   if (!canWrite) {
     const tokenStep = el("button", "settings-product-token-step", "Open the token step of UC-001");
@@ -529,8 +530,7 @@ async function productControls(context) {
       if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
       collaboratorsBlob = result.blob; collaboratorsBytes = text;
       const records = el("li", null, `${name.value.trim()} · @${account.value.trim().replace(/^@/, "")} · agreed on ${date}`);
-      const list = collabResult.parentNode?.childNodes?.find?.((node) => node.className === "settings-collaborator-records");
-      if (list) list.append(records);
+      collaboratorRecords.append(records);
       collabResult.textContent = "Saved in the product repository."; return;
     }
     const rows = collaboratorsDocument.sections[0]?.rows ?? [];
@@ -564,10 +564,10 @@ async function productControls(context) {
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
-    el("p", "notice", "When off, report data enters issues and the repository unchanged. In a public product it is published; switching back on requires a history rewrite."),
+    el("p", "notice", "When off, report data enters issues and the repository unchanged. In a public product it is published; use only a protected, non-public data space. Data already written remains in history; removing that data requires a history rewrite."),
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
     el("h4", null, "Collaborators"),
-    el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))),
+    collaboratorRecords,
     el("p", null, el("label", null, "Name ", name)), el("p", null, el("label", null, "Account ", account)),
     el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", el("label", null, "Consent date ", agreedDate), " ", add),
     el("h4", null, "Remove collaborator consent"),
