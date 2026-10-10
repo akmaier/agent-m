@@ -77,7 +77,7 @@ built into MOD-job-runner.
 | `change-use-case` | UC-019 | draft text | | `instruction`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `change-architecture` | UC-023 | draft text | `rests-on-accepted` | `instruction`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
-| `review-architecture` | UC-022, UC-023 | draft text | | `whole-spec`, `accepted-use-cases`, `draft` | | | | `none` · `return-draft` | findings, each a warning |
+| `review-architecture` | UC-022, UC-023 | draft text | | `whole-spec`, `accepted-use-cases`, `draft`, `chapters-for-architecture` | | | | `none` · `return-draft` | findings, each a warning |
 | `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves |
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
 | `propose-items` | UC-032 | draft text | `rests-on-accepted` | `backlog-inputs` | `backlog-checks`, `candidate-classes` | | | `person` · `backlog-items` | items |
@@ -111,8 +111,9 @@ DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` n
 latter for tests that pass before any code exists (UC-024, UC-034); for `write-tests`, `before-merge`. `implement`,
 `refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`.
 
-A kind whose jobs write or change requirements or use cases, tests or the architecture, or implement, names among its
-recipes the one of MOD-source-register that gives the chapters of the book *Vibe Coding* for that kind of work. `fix-bug`
+A kind whose jobs write or change requirements or use cases, tests or the architecture, review the architecture, or
+implement, names among its recipes the one of MOD-source-register that gives the chapters of the book *Vibe Coding* for
+that kind of work. `fix-bug`
 names the one for tests: its job writes a regression test before it fixes anything (UC-012).
 
 **An example definition**, `kinds/derive-architecture/kind.md`:

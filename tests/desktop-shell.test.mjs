@@ -11,6 +11,11 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
+
+// Electron's windows show on the screen unless a virtual screen holds them. These tests therefore run only on Linux, under
+// xvfb-run, as on the CI; elsewhere each is skipped with this reason, and Electron is neither installed nor started.
+const NO_VIRTUAL_SCREEN = process.platform === "linux" ? false
+  : "needs a virtual screen: runs only on Linux under xvfb-run, as on the CI; elsewhere Electron's windows would show";
 const electronCache = join(tmpdir(), "agent-m-276-component-electron-44");
 const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
 let nativeFixtureLockHeld = false;
@@ -88,8 +93,10 @@ const prepareNativeFixture = async () => {
     process.stdout.write(`native-fixture ${JSON.stringify({ stage: "ready", electron: "44.5.1", executable })}\n`);
   } catch (failure) { releaseNativeFixtureLock(); throw failure; }
 };
-before(prepareNativeFixture);
-after(releaseNativeFixtureLock);
+if (!NO_VIRTUAL_SCREEN) {
+  before(prepareNativeFixture);
+  after(releaseNativeFixtureLock);
+}
 
 async function runtime() {
   const bundled = "/private/tmp/agent-m-electron-44/node_modules/electron";
@@ -198,7 +205,7 @@ async function quit(app) {
 }
 async function clean(app) { try { await quit(app); } finally { if (app.child.exitCode === null) app.child.kill(); } }
 
-test("TST-276001: the actual Electron entry renders its forked pairing page and rotates its token", { timeout: 120000, concurrency: false }, async () => {
+test("TST-276001: the actual Electron entry renders its forked pairing page and rotates its token", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   try {
     const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
@@ -225,7 +232,7 @@ test("TST-276001: the actual Electron entry renders its forked pairing page and 
   finally { await clean(app); }
 });
 
-test("TST-276002: pause refuses new work, resume restores the real server refusal, and Quit stops it", { timeout: 120000, concurrency: false }, async () => {
+test("TST-276002: pause refuses new work, resume restores the real server refusal, and Quit stops it", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   let didQuit = false;
   try {
@@ -244,7 +251,7 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
   } finally { if (!didQuit) await clean(app); }
 });
 
-test("TST-276003: an occupied port is visible and its replacement starts the same real composition", { timeout: 120000, concurrency: false }, async () => {
+test("TST-276003: an occupied port is visible and its replacement starts the same real composition", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const occupied = createServer(), port = await unusedPort();
   await new Promise((resolve, reject) => { occupied.once("error", reject); occupied.listen(port, "127.0.0.1", resolve); });
   let app;
@@ -260,7 +267,7 @@ test("TST-276003: an occupied port is visible and its replacement starts the sam
   } finally { await new Promise((resolve) => occupied.close(resolve)); if (app) await clean(app); }
 });
 
-test("TST-276004: an unwritable private folder is shown without starting a server", { timeout: 120000, concurrency: false }, async () => {
+test("TST-276004: an unwritable private folder is shown without starting a server", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const folder = mkdtempSync(join(tmpdir(), "agent-m-276-readonly-"));
   chmodSync(folder, 0o500);
   const app = await launch({ folder, port: await unusedPort() });
@@ -271,7 +278,7 @@ test("TST-276004: an unwritable private folder is shown without starting a serve
   } finally { chmodSync(folder, 0o700); await clean(app); }
 });
 
-test("TST-276006: the production default stores the instance token privately", { timeout: 120000, concurrency: false }, async () => {
+test("TST-276006: the production default stores the instance token privately", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const owner = `agentm276${Date.now()}`, instance = `${owner}/bridge`;
   const appData = process.platform === "darwin" ? join(process.env.HOME, "Library", "Application Support") : join(process.env.XDG_CONFIG_HOME ?? join(process.env.HOME, ".config"));
   const folder = join(appData, `io.github.${owner}.bridge.bridge`);
@@ -283,7 +290,7 @@ test("TST-276006: the production default stores the instance token privately", {
   } finally { await clean(app); rmSync(folder, { recursive: true, force: true }); }
 });
 
-test("TST-276005: native close behavior and a second source start restore the first window", { timeout: 120000, concurrency: false }, async () => {
+test("TST-276005: native close behavior and a second source start restore the first window", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   const second = [];
   try {

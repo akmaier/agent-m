@@ -178,8 +178,8 @@ sprint holds it, and the product's one in a model without sprints.
   context: { states: ItemState[], model: Model, declaration: Document, held: Held[], architecture: Document[], running:
   Document | null, head: string, trailers: string[] }) -> Promise<{ commit: string, path: string, added: string[],
   removed: string[] }>` — **Start sprint** (UC-032 step 6), for one team: `end` set to the date the model's time box gives
-  from `start`, empty without one; `branch` the one the declaration gives the time box, followed by `/<team>/<nn>`,
-  created from the head where it does not exist yet; `docs/backlog/sprints/<team>/<nn>.md` committed with the team's next
+  from `start`, empty without one; `branch` the one the declaration gives the time box, its placeholders `<team>` and
+  `<nn>` filled with the team and its next number, created from the head where it does not exist yet; `docs/backlog/sprints/<team>/<nn>.md` committed with the team's next
   number. `held` is read at the head the commit is written on, and each selected item is checked with `conflicts` (UC-032
   6c). While a sprint runs, a new start decision is appended to its file as `## Selection`, and `added` and `removed` name
   what it changes (UC-032 6a). Errors: `SprintRefused { reasons }` — an item waiting for acceptance, one selected without
