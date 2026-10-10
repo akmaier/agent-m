@@ -15,6 +15,53 @@ function valueOf(token, expires, name, tested = null) {
   return { value: token, name, expires: expires ?? null, stored: day(), ...(tested ? { tested } : {}) };
 }
 
+function canonicalTest(test, kind = "token") {
+  if (!test || typeof test !== "object") return { converted: true, value: null };
+  const at = kind === "session" ? test.up : test.ok;
+  if (typeof at === "string") return { converted: true, value: { at, outcome: "working" } };
+  // Legacy refusal/down records deliberately have no date.  The canonical shape requires one, so leave their
+  // source record intact instead of inventing an observed test time.
+  return { converted: false, value: null };
+}
+
+function observedTest(test) {
+  if (!test || typeof test !== "object") return null;
+  if (test.refused === true) return { at: new Date().toISOString(), outcome: "refused" };
+  if (typeof test.ok === "string") return { at: new Date().toISOString(), outcome: "working" };
+  return null;
+}
+
+function legacyTest(store, key) {
+  const value = readSetting(store, `last-test:${key}`);
+  return value?.outcome === "working" ? { ok: value.at } : value?.outcome === "refused" ? { refused: true } : undefined;
+}
+
+function tokenMatches(value, token, expires) {
+  return value?.value === token && (value.expires ?? null) === (expires ?? null);
+}
+
+function copyToken(store, key, token, expires, name, tested) {
+  const test = canonicalTest(tested);
+  if (typeof token !== "string" || !test.converted) return false;
+  const current = readSetting(store, key);
+  if (current === null) writeSetting(store, key, valueOf(token, expires, name));
+  if (!tokenMatches(readSetting(store, key), token, expires)) return false;
+  if (test.value) {
+    const testKey = `last-test:${key}`;
+    if (readSetting(store, testKey) === null) writeSetting(store, testKey, test.value);
+    if (JSON.stringify(readSetting(store, testKey)) !== JSON.stringify(test.value)) return false;
+  }
+  return true;
+}
+
+function copyProducts(store, products) {
+  const current = readSetting(store, "products");
+  const next = [...new Set([...(Array.isArray(current) ? current : []), ...products])];
+  if (current === null || next.length !== current.length) writeSetting(store, "products", next);
+  const stored = readSetting(store, "products");
+  return Array.isArray(stored) && products.every((address) => stored.includes(address));
+}
+
 // productStore(instance) -> the dashboard's established settings API. Its token and product-list calls share the
 // instance-prefixed MOD-browser-store entries with the add-product route; unrelated legacy settings and its export/import
 // format remain with settings-store.mjs until their own migration.
@@ -23,83 +70,75 @@ export function productStore(instance) {
   const store = openStore(instance);
 
   const migrate = () => {
-    if (readSetting(store, "github-token") === null && legacy.getToken()) {
-      writeSetting(store, "github-token", valueOf(legacy.getToken(), legacy.getTokenExpiry(), `Agent M · ${instance}`, legacy.getTokenTest()));
-    }
+    const token = legacy.getToken();
+    if (token && copyToken(store, "github-token", token, legacy.getTokenExpiry(), `Agent M · ${instance}`, legacy.getTokenTest())) legacy.clearToken();
     const github = legacy.gitHubProductTokens(), gitlab = legacy.gitLabTokens();
-    const products = [...new Set([...(readSetting(store, "products") ?? []), ...legacy.getProducts(), ...Object.keys(github), ...Object.keys(gitlab)])];
-    if (products.length && JSON.stringify(products) !== JSON.stringify(readSetting(store, "products") ?? [])) writeSetting(store, "products", products);
-    for (const [address, old] of [...Object.entries(github), ...Object.entries(gitlab)]) {
-      const key = tokenKey(address);
-      if (readSetting(store, key) === null && old?.token) writeSetting(store, key, valueOf(old.token, old.expires, "Agent M", old.tested));
+    const sources = [...Object.entries(github).map(([address, value]) => ({ address, value, clear: () => legacy.clearGitHubProductToken(address) })),
+      ...Object.entries(gitlab).map(([address, value]) => ({ address, value, clear: () => legacy.clearGitLabToken(address) }))];
+    const converted = new Set();
+    for (const { address, value } of sources) {
+      if (copyToken(store, tokenKey(address), value?.token, value?.expires, "Agent M", value?.tested)) converted.add(address);
     }
-  };
-  const syncLegacy = () => {
-    const own = readSetting(store, "github-token");
-    if (own?.value) {
-      // A legacy settings page can add an expiry or last test to the same token after the public route first
-      // created its canonical entry.  Preserve that metadata in both stores; if values differ, the canonical
-      // token is the current configuration and must not be replaced by the stale legacy value.
-      const sameToken = legacy.getToken() === own.value;
-      const expires = sameToken ? legacy.getTokenExpiry() ?? own.expires : own.expires;
-      const tested = sameToken ? legacy.getTokenTest() ?? own.tested : own.tested;
-      const { tested: ignored, ...setting } = own;
-      const merged = { ...setting, expires: expires ?? null, ...(tested ? { tested } : {}) };
-      if (JSON.stringify(merged) !== JSON.stringify(own)) writeSetting(store, "github-token", merged);
-      legacy.setToken(own.value, expires);
-      legacy.setTokenTest(tested ?? null);
-    }
-    const products = readSetting(store, "products");
-    if (Array.isArray(products)) {
-      legacy.clearProducts();
-      for (const address of products) {
-        legacy.addProduct(address);
-        const token = readSetting(store, tokenKey(address));
-        if (token?.value) {
-          if (new URL(address).hostname === "github.com") legacy.setGitHubProductToken(address, token.value, token.expires);
-          else legacy.setGitLabToken(address, token.value, token.expires);
-          if (token.tested) {
-            if (new URL(address).hostname === "github.com") legacy.setGitHubProductTokenTest(address, token.tested);
-            else legacy.setGitLabTokenTest(address, token.tested);
-          }
-        }
+    const known = [...new Set([...legacy.getProducts(), ...converted])];
+    if (copyProducts(store, known)) {
+      for (const address of legacy.getProducts()) {
+        const source = sources.find((item) => item.address === address);
+        if (!source || converted.has(address)) legacy.removeProduct(address);
       }
+      for (const source of sources) if (!legacy.getProducts().includes(source.address) && converted.has(source.address)) source.clear();
+    }
+    const jump = legacy.getJumpHost();
+    if (jump && typeof jump.host === "string" && typeof jump.user === "string" && Number.isInteger(jump.portFrom) && Number.isInteger(jump.portTo)
+      && !jump.reverseKey && !jump.forwardKey && readSetting(store, "jump-host") === null) {
+      const value = { hostname: jump.host, user: jump.user, sshPort: 22, portRange: [jump.portFrom, jump.portTo] };
+      writeSetting(store, "jump-host", value);
+      if (JSON.stringify(readSetting(store, "jump-host")) === JSON.stringify(value)) legacy.clearJumpHost();
+    }
+    for (const session of legacy.getRemoteSessions()) {
+      const test = canonicalTest(session.tested, "session");
+      if (typeof session.token !== "string" || session.bridgePort !== undefined || !test.converted) continue;
+      const key = `remote-session:${session.name}`, value = { port: session.port, token: session.token };
+      if (readSetting(store, key) === null) writeSetting(store, key, value);
+      if (JSON.stringify(readSetting(store, key)) !== JSON.stringify(value)) continue;
+      if (test.value) {
+        const testKey = `last-test:${key}`;
+        if (readSetting(store, testKey) === null) writeSetting(store, testKey, test.value);
+        if (JSON.stringify(readSetting(store, testKey)) !== JSON.stringify(test.value)) continue;
+      }
+      legacy.clearRemoteSession(session.name);
     }
   };
   migrate();
-  // A public add-product route may have written its token without a legacy dashboard call.  Mirror it before legacy
-  // settings/export consumers render, so they enumerate the same configured product token after a reload.
-  syncLegacy();
   return {
     ...legacy,
     getToken: () => readSetting(store, "github-token")?.value ?? legacy.getToken(),
+    getTokenExpiry: () => readSetting(store, "github-token")?.expires ?? legacy.getTokenExpiry(),
+    getTokenTest: () => {
+      const value = readSetting(store, "last-test:github-token");
+      return value?.outcome === "working" ? { ok: value.at } : value?.outcome === "refused" ? { refused: true } : legacy.getTokenTest();
+    },
     setToken(token, expires = null) {
       writeSetting(store, "github-token", valueOf(String(token).trim(), expires, `Agent M · ${instance}`));
-      legacy.setToken(token, expires);
     },
     setTokenTest(result) {
-      legacy.setTokenTest(result);
-      const token = readSetting(store, "github-token"), tested = legacy.getTokenTest();
-      if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, "github-token", { ...setting, ...(tested ? { tested } : {}) }); }
+      const test = observedTest(result);
+      if (readSetting(store, "github-token")?.value && test) writeSetting(store, "last-test:github-token", test);
     },
     getProducts: () => readSetting(store, "products") ?? legacy.getProducts(),
     addProduct(address) {
       const products = readSetting(store, "products") ?? [];
       if (!products.includes(address)) writeSetting(store, "products", [...products, address]);
-      legacy.addProduct(address);
     },
     getGitHubProductToken(address) {
       const token = readSetting(store, tokenKey(address));
-      return token?.value ? { token: token.value, expires: token.expires ?? null } : legacy.getGitHubProductToken(address);
+      return token?.value ? { token: token.value, expires: token.expires ?? null, tested: legacyTest(store, tokenKey(address)) } : legacy.getGitHubProductToken(address);
     },
     setGitHubProductToken(address, token, expires = null) {
       writeSetting(store, tokenKey(address), valueOf(String(token).trim(), expires, "Agent M"));
-      legacy.setGitHubProductToken(address, token, expires);
     },
     setGitHubProductTokenTest(address, result) {
-      legacy.setGitHubProductTokenTest(address, result);
-      const token = readSetting(store, tokenKey(address)), tested = legacy.getGitHubProductToken(address)?.tested;
-      if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, tokenKey(address), { ...setting, ...(tested ? { tested } : {}) }); }
+      const test = observedTest(result);
+      if (readSetting(store, tokenKey(address))?.value && test) writeSetting(store, `last-test:${tokenKey(address)}`, test);
     },
     clearGitHubProductToken(address) {
       clearSetting(store, tokenKey(address));
@@ -107,16 +146,14 @@ export function productStore(instance) {
     },
     getGitLabToken(address) {
       const token = readSetting(store, tokenKey(address));
-      return token?.value ? { token: token.value, expires: token.expires ?? null } : legacy.getGitLabToken(address);
+      return token?.value ? { token: token.value, expires: token.expires ?? null, tested: legacyTest(store, tokenKey(address)) } : legacy.getGitLabToken(address);
     },
     setGitLabToken(address, token, expires = null) {
       writeSetting(store, tokenKey(address), valueOf(String(token).trim(), expires, "Agent M"));
-      legacy.setGitLabToken(address, token, expires);
     },
     setGitLabTokenTest(address, result) {
-      legacy.setGitLabTokenTest(address, result);
-      const token = readSetting(store, tokenKey(address)), tested = legacy.getGitLabToken(address)?.tested;
-      if (token?.value) { const { tested: ignored, ...setting } = token; writeSetting(store, tokenKey(address), { ...setting, ...(tested ? { tested } : {}) }); }
+      const test = observedTest(result);
+      if (readSetting(store, tokenKey(address))?.value && test) writeSetting(store, `last-test:${tokenKey(address)}`, test);
     },
     clearGitLabToken(address) {
       clearSetting(store, tokenKey(address));
@@ -141,7 +178,7 @@ export function productStore(instance) {
       legacy.removeProduct(address);
     },
     clear() { this.clearToken(); this.clearProducts(); legacy.clear(); },
-    putEntries(values) { legacy.putEntries(values); migrate(); syncLegacy(); },
-    entries() { syncLegacy(); return legacy.entries(); },
+    putEntries(values) { legacy.putEntries(values); migrate(); },
+    entries() { return legacy.entries(); },
   };
 }

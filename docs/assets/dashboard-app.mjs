@@ -34,7 +34,7 @@ import {
 import {
   parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
 } from "./review-core.mjs";
-import { tokenBannerHtml, renderBrowserSettings, loadProductSettings } from "./dashboard/settings-view.mjs";
+import { tokenBannerHtml } from "./dashboard/settings-view.mjs";
 import { DASHBOARD, builtViews } from "../../src/site/views.mjs";
 import { menuHtml, entryOf } from "../../src/site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
@@ -354,7 +354,6 @@ function noteRefusal(e, product = T.product) {
     else if (ownTokenOf(product)) store.setGitHubProductTokenTest(product.address, { refused: true });
     else store.setTokenTest({ refused: true });
     showBanner();
-    if (document.getElementById("browser-settings")) renderBrowserSettings(app);
   }
   return e;
 }
@@ -506,7 +505,24 @@ async function route() {
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
     await available;
-    if (kind === "add") {
+    if (kind === "settings") {
+      const settings = settingsPages.routes.find((r) => r.name === "settings");
+      const settingsStore = openStore(T.instance);
+      const address = parseAddress(T.product.address);
+      await settings.render(main(), {
+        instance: {
+          repository: T.instance,
+          host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }),
+        },
+        product: { address: T.product.address, kind: address.server, host: connect(address, { token: store.tokenFor(T.product) }) },
+        store: settingsStore,
+        go(route, params = {}) {
+          if (route === "add-product") location.hash = "#add";
+          if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+          if (route === "bridge") location.hash = "#bridge";
+        },
+      }, {});
+    } else if (kind === "add") {
       const addProduct = settingsPages.routes.find((r) => r.name === "add-product");
       await addProduct.render(main(), {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
@@ -592,12 +608,12 @@ async function start() {
   } catch (e) {
     noteRefusal(e);
     state.loadError = e;
-    if (early) { loadProductSettings(app); return; }
+    if (early) return;
     main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()), own: ownTokenOf(T.product) });
     addEventListener("hashchange", route);
     return;
   }
-  if (!early) { addEventListener("hashchange", route); route(); } else loadProductSettings(app);
+  if (!early) { addEventListener("hashchange", route); route(); }
 }
 
 if (globalThis.document) start();
