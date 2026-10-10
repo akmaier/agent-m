@@ -794,6 +794,19 @@ const githubRow = (panes) => publicControls(panes.repositories(), "settings-repo
 const gitlabRow = (panes) => publicControls(panes.repositories(), "settings-repository").find((row) => /GitLab token/.test(row.textContent));
 const repositoryControl = (row, name) => publicControls(row, `settings-repository-${name}`)[0];
 const pressPublic = async (w, control) => { control.fire("click", { isTrusted: true }); await settle(w.server); };
+const settingStorageKey = (key) => `agent-m:${INSTANCE}:${key}`;
+const storedSetting = (page, key) => JSON.parse(page.storage()[settingStorageKey(key)]);
+const testedAt = (page, key) => {
+  const test = storedSetting(page, `last-test:${key}`);
+  assert.equal(test.outcome, "working", `${key}'s kept test says it works`);
+  assert.equal(test.at.slice(0, 10), today(), `${key}'s kept test records today's date`);
+  return test.at;
+};
+const worksAt = (row, at) => {
+  assert.ok(repositoryControl(row, "status").textContent.includes(`Works. Last successful test: ${at}.`),
+    `the public setting line names its exact kept test time (${at})`);
+  return true;
+};
 const refusedRead = (u) => (u.origin === API && u.pathname.startsWith(`/repos/${INSTANCE}`) ? new Response('{"message":"Bad credentials"}', { status: 401 }) : undefined);
 
 // UC-042 1 · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN — Expected: Test of the GitHub token shows ✓ works with
@@ -803,9 +816,11 @@ test("release · ITM-136 UC-042 1: the GitHub token's ✓ works and its date are
   const page = await open(w, { hash: "#uc" }), panes = await settingsPanes(page);
   assert.doesNotMatch(repositoryControl(githubRow(panes), "status").textContent, /Last successful test/, "known positive: not tested before the Test");
   await pressPublic(w, repositoryControl(githubRow(panes), "test"));
-  assert.match(repositoryControl(githubRow(panes), "status").textContent, /Works\. Last successful test:/);
+  const at = testedAt(page, "github-token");
+  worksAt(githubRow(panes), at);
   const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
-  assert.match(repositoryControl(githubRow(againPanes), "status").textContent, /Works\. Last successful test:/, "after the reload");
+  assert.deepEqual(storedSetting(again, "last-test:github-token"), { at, outcome: "working" }, "the exact successful test remains stored after the reload");
+  worksAt(githubRow(againPanes), at);
 });
 
 // UC-042 1, 1b · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — Expected: when GitHub refuses the token at its Test, the
@@ -833,9 +848,12 @@ test("release · ITM-136 UC-042 1: a GitLab project token's last test — works,
   await storeGitLabProductToken(w, setup, GL_ADDRESS, { add: true });
   let page = await reload(w, setup, { hash: "#uc" }), panes = await settingsPanes(page);
   await pressPublic(w, repositoryControl(gitlabRow(panes), "test"));
-  assert.match(repositoryControl(gitlabRow(panes), "status").textContent, /Works\. Last successful test:/);
+  const key = `gitlab-token:${new URL(GL_ADDRESS).host}/${GL_PROJECT}`;
+  const at = testedAt(page, key);
+  worksAt(gitlabRow(panes), at);
   page = await reload(w, page, { hash: "#uc" }); panes = await settingsPanes(page);
-  assert.match(repositoryControl(gitlabRow(panes), "status").textContent, /Works\. Last successful test:/, "works, after the reload");
+  assert.deepEqual(storedSetting(page, `last-test:${key}`), { at, outcome: "working" }, "the GitLab successful test remains stored after the reload");
+  worksAt(gitlabRow(panes), at);
   gitlab.refuseToken = true;
   await pressPublic(w, repositoryControl(gitlabRow(panes), "test"));
   assert.match(repositoryControl(gitlabRow(panes), "status").textContent, /Refused/);
@@ -856,7 +874,7 @@ test("release · ITM-136 UC-042 2: a new token stored with Change does not inher
   repositoryControl(githubRow(panes), "secret").value = NEW_TOKEN;
   repositoryControl(githubRow(panes), "expiry").value = today();
   await pressPublic(w, repositoryControl(githubRow(panes), "save"));
-  assert.ok(Object.values(page.storage()).includes(NEW_TOKEN), "the new token is stored");
+  assert.equal(storedSetting(page, "github-token").value, NEW_TOKEN, "the new token is stored in its canonical record");
   assert.doesNotMatch(repositoryControl(githubRow(panes), "status").textContent, /Last successful test|Refused/, "the new token is not tested");
   const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
   assert.doesNotMatch(repositoryControl(githubRow(againPanes), "status").textContent, /Last successful test|Refused/, "not after the reload either");
@@ -871,10 +889,13 @@ test("release · ITM-136 UC-042 2: Clear removes the token's kept test with the 
   const before = Object.keys(page.storage());
   await pressPublic(w, repositoryControl(githubRow(panes), "test"));
   const added = Object.keys(page.storage()).filter((k) => !before.includes(k));
-  assert.ok(added.length >= 1, `known positive: the Test keeps something (${added.join(", ")})`);
+  const tokenKey = settingStorageKey("github-token"), testKey = settingStorageKey("last-test:github-token");
+  assert.deepEqual(added, [testKey], `known positive: the Test keeps its canonical metadata (${testKey})`);
+  assert.equal(storedSetting(page, "github-token").value, TOKEN, "the tested canonical token remains present before Clear");
+  testedAt(page, "github-token");
   await pressPublic(w, repositoryControl(githubRow(panes), "clear"));
   const left = page.storage();
-  assert.deepEqual(Object.keys(left).filter((k) => added.includes(k) || k === "agent-m.github-token"), [], "token and its test are gone");
+  assert.deepEqual(Object.keys(left).filter((k) => added.includes(k) || k === tokenKey), [], "token and its test are gone");
   assert.ok(!Object.values(left).some((v) => v.includes(TOKEN) || v.includes(today())), JSON.stringify(left));
   const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
   assert.match(repositoryControl(githubRow(againPanes), "status").textContent, /Not set\.|Cleared/, "after the reload");
@@ -891,8 +912,16 @@ test("release · ITM-136 EVERY SETTING IS REACHED FROM ONE PAGE: every key kept 
   await pressPublic(w, repositoryControl(githubRow(panes), "test"));
   await pressPublic(w, repositoryControl(gitlabRow(panes), "test"));
   page = await reload(w, page, { hash: "#uc" }); panes = await settingsPanes(page);
-  const html = panes.repositories().textContent;
-  const keys = Object.keys(page.storage()).filter((k) => k.startsWith("agent-m."));
-  assert.ok(keys.includes("agent-m.github-token"), "known positive: the token's key is kept");
-  assert.ok(repositoryControl(githubRow(panes), "status") && repositoryControl(gitlabRow(panes), "status"), "each tested repository setting remains reachable on the public Repositories pane");
+  const gitlabKey = `gitlab-token:${new URL(GL_ADDRESS).host}/${GL_PROJECT}`;
+  const githubAt = testedAt(page, "github-token"), gitlabAt = testedAt(page, gitlabKey);
+  const reachability = new Map([
+    [settingStorageKey("github-token"), () => /GitHub token/.test(githubRow(panes).textContent)],
+    [settingStorageKey("last-test:github-token"), () => worksAt(githubRow(panes), githubAt)],
+    [settingStorageKey("products"), () => /Managed products/.test(panes.repositories().textContent)],
+    [settingStorageKey(gitlabKey), () => /GitLab token/.test(gitlabRow(panes).textContent)],
+    [settingStorageKey(`last-test:${gitlabKey}`), () => worksAt(gitlabRow(panes), gitlabAt)],
+  ]);
+  const keys = Object.keys(page.storage()).filter((key) => key.startsWith(`agent-m:${INSTANCE}:`));
+  assert.deepEqual(keys.sort(), [...reachability.keys()].sort(), "every canonical setting kept by these flows is accounted for");
+  for (const [key, reachesPage] of reachability) assert.ok(reachesPage(), `${key} is reached on the public Repositories pane`);
 });
