@@ -202,20 +202,25 @@ test("TST-290123: every rendered Settings section states purpose, storage, and r
 // TST-290124
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-042; EVERY STEP EXPLAINS ITSELF
+// guards: UC-042; UC-047; EVERY STEP EXPLAINS ITSELF
 // given: the public Settings Route on its Usability tab
 // input: the person opens Notifications without changing its switch, test, permission, or stored state
-// expect: the Notifications section directly carries a folded What is this? that names notification delivery's purpose, browser storage, and readers
-test("TST-290124: Notifications states purpose, storage, and readers in its folded explanation", async () => {
+// expect: while Notifications is off, its direct folded What is this? names notification delivery's purpose, browser storage and readers; the pending acceptance records checked every five minutes; repository-server checks only with this browser's tokens; and no checks without an open dashboard page
+test("TST-290124: Notifications explains its off-state checks, tokens, and open-page boundary in a folded explanation", async () => {
   const target = await render(store());
   click(byClass(target, "settings-tab")[3]);
   const section = byClass(target, "settings-notifications")[0];
   assert.ok(section, "known positive: the public Usability tab renders Notifications");
+  assert.equal(byClass(section, "settings-notifications-status")[0].textContent, "Off.", "known positive: the disclosure is checked while Notifications is off");
   const details = section.childNodes.filter((node) => node.localName === "details" && node.textContent.includes("What is this?"));
   assert.equal(details.length, 1, "failure node: Notifications directly exposes one folded What is this?");
   assert.match(details[0].textContent, /notification|delivery/i, "failure node: the explanation names notification delivery's purpose");
   assert.match(details[0].textContent, /browser/i, "failure node: the explanation names browser storage");
   assert.match(details[0].textContent, /read/i, "failure node: the explanation names who can read it");
+  assert.match(details[0].textContent, /SPEC.*use cases?.*architecture.*release test reports?/i, "failure node: the folded explanation names every pending acceptance record it checks");
+  assert.match(details[0].textContent, /every five minutes/i, "failure node: the folded explanation names the check interval");
+  assert.match(details[0].textContent, /repository servers?.*tokens?.*browser.*nowhere else/i, "failure node: the folded explanation limits checks to repository servers with this browser's tokens");
+  assert.match(details[0].textContent, /nothing is checked.*no dashboard page.*open/i, "failure node: the folded explanation names the no-open-dashboard boundary");
 });
 
 // TST-290121
