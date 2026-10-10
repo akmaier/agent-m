@@ -33,7 +33,7 @@ const mismatch = (path) => ({ artifact: path, line: 1, kind: "error", rule: RULE
 // given: one supported string pattern and a document at its matching path
 // input: public readDocument then documentFindings
 // expect: no finding
-test("a string path pattern accepts its matching path", () => {
+test("TST-297001 — a string path pattern accepts its matching path", () => {
   assert.deepEqual(findingsOf(singlePath, "docs/examples/alpha.md"), []);
 });
 
@@ -41,7 +41,7 @@ test("a string path pattern accepts its matching path", () => {
 // given: that same known-valid string pattern and a document in a wrong folder
 // input: public readDocument then documentFindings
 // expect: one compiler-form finding at line 1, naming its path and the schema rule
-test("a string path pattern rejects a wrong folder", () => {
+test("TST-297002 — a string path pattern rejects a wrong folder", () => {
   const path = "docs/other/alpha.md";
   const found = findingsOf(singlePath, path);
   assert.deepEqual(shape(found), [mismatch(path)]);
@@ -52,7 +52,7 @@ test("a string path pattern rejects a wrong folder", () => {
 // given: that same known-valid string pattern and a document with a wrong extension
 // input: public readDocument then documentFindings
 // expect: one compiler-form finding at line 1, naming its path and the schema rule
-test("a string path pattern rejects a wrong extension", () => {
+test("TST-297003 — a string path pattern rejects a wrong extension", () => {
   const path = "docs/examples/alpha.txt";
   const found = findingsOf(singlePath, path);
   assert.deepEqual(shape(found), [mismatch(path)]);
@@ -63,7 +63,7 @@ test("a string path pattern rejects a wrong extension", () => {
 // given: two supported list alternatives and a path fitting each alternative in turn
 // input: public readDocument then documentFindings
 // expect: neither valid alternative yields a finding
-test("a list of path patterns accepts either matching alternative", () => {
+test("TST-297004 — a list of path patterns accepts either matching alternative", () => {
   assert.deepEqual(findingsOf(alternatives, "docs/examples/alpha.md"), []);
   assert.deepEqual(findingsOf(alternatives, "docs/archive/alpha.md"), []);
 });
@@ -72,7 +72,7 @@ test("a list of path patterns accepts either matching alternative", () => {
 // given: the list alternatives and a path fitting neither
 // input: public readDocument then documentFindings
 // expect: one compiler-form finding at line 1, naming its path and the schema rule
-test("a list of path patterns rejects a path fitting neither alternative", () => {
+test("TST-297005 — a list of path patterns rejects a path fitting neither alternative", () => {
   const path = "docs/other/alpha.md";
   const found = findingsOf(alternatives, path);
   assert.deepEqual(shape(found), [mismatch(path)]);
@@ -83,7 +83,7 @@ test("a list of path patterns rejects a path fitting neither alternative", () =>
 // given: a schema that names no path pattern and a repository-relative path
 // input: public readDocument then documentFindings
 // expect: no path finding
-test("an absent path pattern adds no path constraint", () => {
+test("TST-297006 — an absent path pattern adds no path constraint", () => {
   assert.deepEqual(findingsOf(unconstrained, "any/folder/alpha.txt"), []);
 });
 
@@ -91,7 +91,7 @@ test("an absent path pattern adds no path constraint", () => {
 // given: a matching path and a required front-matter value left out
 // input: public readDocument then documentFindings
 // expect: the existing value finding remains, at line 1 under its own schema rule
-test("a path check preserves existing value findings", () => {
+test("TST-297007 — a path check preserves existing value findings", () => {
   const found = findingsOf(withField, "docs/examples/alpha.md", "");
   assert.deepEqual(shape(found), [{ artifact: "docs/examples/alpha.md", line: 1, kind: "error", rule: RULE }]);
   assert.equal(found[0].what, "the key title is required, and left out");
