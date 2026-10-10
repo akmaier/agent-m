@@ -82,6 +82,7 @@ realises:
   - WHAT A PERSON DECIDES IS NOT SENT BACK
   - THE CORRECTION LOOP HAS A FIXED LIMIT
   - THE ROUNDS ARE COUNTED AND SHOWN
+  - AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION
 ---
 # UC-022 Derive the system architecture from requirements and use cases
 
@@ -132,8 +133,9 @@ implementation (UC-024). Its files in the product repository:
    shows where each processes data, and leaves out any whose place a linked source forbids for content that would be
    sent; as reviewer it offers only participants that are not the deriving one and use another model.
 3. Agent M assembles the input for the deriving participant: the whole SPEC — its definition of an architecture and its
-   design principles included —, every use case, and, from the single definition, the architecture prompt with the order
-   of step 5. It checks that the input fits the participant's context.
+   design principles included —, every use case, chapters 9 to 12 of the book *Vibe Coding*, and, from the single
+   definition, the architecture prompt with the order of step 5. It checks that the input fits the participant's
+   context.
 4. The run panel shows the destinations and what is sent to each; the author presses **Run** — that click is the
    decision.
 5. The deriving participant drafts the architecture from the whole to its modules:

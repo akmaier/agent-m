@@ -22,6 +22,7 @@ realises:
   - WHAT A PERSON DECIDES IS NOT SENT BACK
   - THE CORRECTION LOOP HAS A FIXED LIMIT
   - THE ROUNDS ARE COUNTED AND SHOWN
+  - A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
 ---
 # UC-007 Derive use cases from requirements
 
@@ -46,9 +47,9 @@ own file, for review in UC-008.
    realises yet.
 2. The author chooses the participant. The run panel shows the destination and the content to be
    sent; the author presses **Run**.
-3. Agent M sends the requirements, **every existing use case of the product**, and the use-case prompt
-   from the single definition — so that a goal already covered becomes a change, not a second use case
-   (6a).
+3. Agent M sends the requirements, **every existing use case of the product**, chapter 8 of the book
+   *Vibe Coding*, and the use-case prompt from the single definition — so that a goal already covered
+   becomes a change, not a second use case (6a).
 4. The participant returns use cases, each with actors, precondition, main flow, alternative flows,
    postcondition, a Mermaid diagram, and the names of the requirements it realises.
 5. Agent M checks every draft without a model — the five parts of a use case, a Mermaid diagram, every
