@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "class": {
+      "type": "string",
+      "enum": [
+        "bug",
+        "change",
+        "not-reproducible"
+      ]
+    },
+    "reasoning": {
+      "type": "string"
+    },
+    "wrong": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "class",
+    "reasoning"
+  ]
+}

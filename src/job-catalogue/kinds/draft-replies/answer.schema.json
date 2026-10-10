@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "replies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "mail": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mail",
+          "text"
+        ]
+      }
+    }
+  },
+  "required": [
+    "replies"
+  ]
+}

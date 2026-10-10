@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "outcomes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "test": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "not run",
+              "undeclared"
+            ]
+          }
+        },
+        "required": [
+          "test",
+          "outcome"
+        ]
+      }
+    }
+  },
+  "required": [
+    "outcomes"
+  ]
+}

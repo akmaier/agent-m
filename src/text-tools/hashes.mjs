@@ -1,5 +1,5 @@
-// Hashes — git's blob SHA-1 of a text, through the platform's WebCrypto, which browsers and Node both offer (MOD-text-tools,
-// Parts). The module's SHA-256 belongs here too and is not built yet.
+// Hashes — git's blob SHA-1 of a text, and the SHA-256 of a text or of bytes, through the platform's WebCrypto, which
+// browsers and Node both offer (MOD-text-tools, Parts).
 //
 // Module: MOD-text-tools
 
@@ -17,4 +17,11 @@ export async function blobSha(text) {
   all.set(head);
   all.set(body, head.length);
   return hex(await globalThis.crypto.subtle.digest("SHA-1", all));
+}
+
+// sha256(content: string | Uint8Array) -> Promise<string> — the SHA-256 of the bytes, or of a string's UTF-8 bytes, as 64
+// lowercase hexadecimal digits.
+export async function sha256(content) {
+  const bytes = typeof content === "string" ? encoder.encode(content) : content;
+  return hex(await globalThis.crypto.subtle.digest("SHA-256", bytes));
 }

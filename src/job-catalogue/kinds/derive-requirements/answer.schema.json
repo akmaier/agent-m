@@ -1,0 +1,55 @@
+{
+  "type": "object",
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "check": {
+            "type": "string"
+          },
+          "constrains": {
+            "type": "string",
+            "enum": [
+              "product",
+              "process"
+            ]
+          },
+          "passage": {
+            "type": "string"
+          },
+          "class": {
+            "type": "string",
+            "enum": [
+              "new",
+              "change",
+              "duplicate",
+              "conflict"
+            ]
+          },
+          "of": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "rule",
+          "check",
+          "constrains",
+          "passage",
+          "class"
+        ]
+      }
+    }
+  },
+  "required": [
+    "candidates"
+  ]
+}

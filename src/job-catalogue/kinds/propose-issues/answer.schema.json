@@ -1,0 +1,62 @@
+{
+  "type": "object",
+  "properties": {
+    "proposals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "mail": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "defect",
+              "change",
+              "no issue"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "duplicates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "issue": {
+                  "type": "number"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "issue",
+                "reason"
+              ]
+            }
+          }
+        },
+        "required": [
+          "mail",
+          "product",
+          "kind",
+          "title",
+          "text",
+          "duplicates"
+        ]
+      }
+    }
+  },
+  "required": [
+    "proposals"
+  ]
+}

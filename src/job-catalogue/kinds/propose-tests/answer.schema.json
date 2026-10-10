@@ -1,0 +1,75 @@
+{
+  "type": "object",
+  "properties": {
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "unit",
+              "component",
+              "system",
+              "release"
+            ]
+          },
+          "guards": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "precondition": {
+            "type": "string"
+          },
+          "input": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "class": {
+            "type": "string",
+            "enum": [
+              "new",
+              "extends",
+              "duplicate"
+            ]
+          },
+          "of": {
+            "type": "string"
+          },
+          "phrasings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "runs": {
+            "type": "number"
+          },
+          "response": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "identifier",
+          "level",
+          "guards",
+          "precondition",
+          "input",
+          "expected",
+          "class"
+        ]
+      }
+    }
+  },
+  "required": [
+    "cases"
+  ]
+}

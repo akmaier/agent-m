@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "artifact": {
+            "type": "string"
+          },
+          "line": {
+            "type": "number"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "what": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact",
+          "line",
+          "rule",
+          "what",
+          "fix"
+        ]
+      }
+    }
+  },
+  "required": [
+    "findings"
+  ]
+}

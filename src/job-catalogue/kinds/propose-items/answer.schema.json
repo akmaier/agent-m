@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "realises": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "buildsOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "class": {
+            "type": "string",
+            "enum": [
+              "new",
+              "change",
+              "duplicate",
+              "conflict"
+            ]
+          },
+          "of": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "outcome",
+          "realises",
+          "modules",
+          "buildsOn",
+          "acceptance",
+          "class"
+        ]
+      }
+    }
+  },
+  "required": [
+    "items"
+  ]
+}

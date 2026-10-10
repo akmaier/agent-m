@@ -1,6 +1,6 @@
 // MOD-text-tools — the text primitives every format uses (docs/architecture/MOD-text-tools.md): its interface. Of it, ITM-212
 // builds the front matter, the finding in its one text form, git's blob SHA, the line difference of two texts and the marks
-// of history in a document; `sha256` is not built yet.
+// of history in a document; the SHA-256 with which a source's file is checked is added with the book's chapters for a job.
 //
 // Module: MOD-text-tools
 //
@@ -32,6 +32,6 @@
 
 export { parseFrontMatter, formatFrontMatter } from "./front-matter.mjs";
 export { finding, formatFinding, parseFinding } from "./findings.mjs";
-export { blobSha } from "./hashes.mjs";
+export { blobSha, sha256 } from "./hashes.mjs";
 export { lineDiff } from "./line-diff.mjs";
 export { historyMarks } from "./history-marks.mjs";
