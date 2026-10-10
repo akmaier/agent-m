@@ -31,6 +31,7 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 
 - `index.mjs` — the interface.
 - `kinds.md` — the index: one row per kind, its name and folder.
+- `kinds.schema.md` — the schema of the index, in the schema language of MOD-documents.
 - `definition.schema.md` — the schema of a kind's definition, in the schema language of MOD-documents.
 - `kinds/<name>/kind.md` — a kind's definition.
 - `kinds/<name>/prompt.md` — its prompt, in English, data only.
