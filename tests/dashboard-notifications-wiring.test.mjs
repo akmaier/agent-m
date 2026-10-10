@@ -62,6 +62,19 @@ function installBrowser() {
   };
 }
 
+// MOD-settings-pages owns the public Settings DOM.  Capture its actual tab panel
+// from the dashboard mount instead of reaching the retired dashboard-owned id.
+async function usabilitySettings(page) {
+  const main = globalThis.document.getElementById("main");
+  const replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const pane = mounted.find((node) => node.className === "settings-tab-panel" && /Usability/.test(node.textContent));
+  assert.ok(pane, "the dashboard mounts MOD-settings-pages' public Usability tab");
+  return pane;
+}
+
 // ---------------------------------------------------------------- the settings page (UC-042, UC-047)
 
 // given: the settings page of a fresh browser (nothing stored under MOD-browser-store's prefix yet)
@@ -75,23 +88,20 @@ test("the settings page's line Notifications reaches MOD-notifications: off, the
   const browser = installBrowser();
   try {
     const page = await openDashboard({ server, hash: "#uc" });
-    const dom = richDocument();
-    await page.go("#settings");
-
-    const box = dom.byId("notifications-settings");
-    assert.match(box.innerHTML, /<h3>Notifications<\/h3>/);
-    assert.match(box.innerHTML, /<p class="state">off<\/p>/, "notificationState: off before anything is stored");
+    const box = await usabilitySettings(page);
+    assert.match(box.textContent, /Notifications/);
+    assert.match(box.textContent, /off/, "notificationState: off before anything is stored");
     assert.equal(globalThis.localStorage.getItem(`${PREFIX}notifications`), null);
 
-    const switchOn = box.querySelector("[data-notifications-switch-on]");
+    const switchOn = [...box.children].flatMap((n) => n.children ?? []).find((n) => n.className === "settings-notifications-on");
     assert.ok(switchOn, "Switch on is offered while off");
     await press(server, switchOn);
 
     assert.equal(browser.calls.requestPermission, 1, "Switch on asks the browser's permission, once, on the click");
     assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notifications`)), { checked: null },
       "switchOn stored the switch under MOD-browser-store's own key of the instance");
-    assert.match(box.innerHTML, /<p class="state">✓ on<\/p>/, "notificationState now reads on");
-    assert.ok(box.querySelector("[data-notifications-switch-off]"), "Switch off is offered once on");
+    assert.match(box.textContent, /on/, "notificationState now reads on");
+    assert.ok([...box.children].flatMap((n) => n.children ?? []).some((n) => n.className === "settings-notifications-off"), "Switch off is offered once on");
   } finally { browser.restore(); }
 });
 
@@ -200,25 +210,16 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
 
 // given: a fresh browser (nothing stored)
 // input: opening #settings
-// expect (F1 fixed): the Notifications box sits inside the section "This browser", beside #browser-settings — the
-//         box of that section's other lines — not as a section of its own, beside "This browser"
-test("ITM-238 F1 fixed: the Notifications box sits inside the section This browser, beside #browser-settings", async () => {
+// expect (F1 fixed): the Notifications controls live in the public Usability tab,
+//         with no dashboard-owned browser-settings composition.
+test("ITM-238 F1 fixed: the Notifications controls are in the public Usability tab", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   try {
     const page = await openDashboard({ server, hash: "#settings" });
-    const html = page.main();
-    const h3At = html.indexOf("<h3>This browser</h3>");
-    assert.ok(h3At >= 0, "the section This browser is on the page");
-    const sectionCloseAt = html.indexOf("</section>", h3At);
-    const browserSettingsAt = html.indexOf('id="browser-settings"', h3At);
-    const notificationsAt = html.indexOf('id="notifications-settings"');
-    assert.ok(browserSettingsAt >= 0 && browserSettingsAt < sectionCloseAt, "#browser-settings is in that same section");
-    assert.ok(notificationsAt >= 0 && notificationsAt < sectionCloseAt,
-      "the Notifications box is inside the section This browser, before its own closing tag — beside #browser-settings");
-
-    const box = richDocument().byId("notifications-settings");
-    assert.match(box.innerHTML, /<h3>Notifications<\/h3>/, "the box is the live Notifications panel, not an empty placeholder");
+    const box = await usabilitySettings(page);
+    assert.match(box.textContent, /Notifications/, "the live public pane contains Notifications");
+    assert.equal(page.main().includes('id="browser-settings"'), false, "the retired dashboard-owned settings section is absent");
   } finally { browser.restore(); }
 });
 

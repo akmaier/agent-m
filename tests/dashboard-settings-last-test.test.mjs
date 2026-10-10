@@ -63,8 +63,14 @@ async function settingsPage(world, entries = { "agent-m.github-token": TOKEN }) 
   const page = await openDashboard({ server: world.srv, hash: "#uc", token: null });
   for (const [k, v] of Object.entries(entries)) globalThis.localStorage.setItem(k, v);
   const dom = richDocument();
+  const main = dom.byId("main"), replace = main.replaceChildren.bind(main);
+  let mounted = [];
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  const box = () => dom.byId("browser-settings");
+  // MOD-settings-pages now owns this composition; token controls are in the
+  // public Repositories tab rather than dashboard-app's browser-settings box.
+  const box = () => mounted.find((node) => node.className === "settings-tab-panel" && /Repositories/.test(node.textContent));
+  assert.ok(box(), "the public Repositories Settings pane is mounted");
   return { page, dom, box };
 }
 const reload = (world) => settingsPage(world, agentEntries());
