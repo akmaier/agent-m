@@ -12,7 +12,9 @@ import { view } from "../src/settings-pages/index.mjs";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
 
 class Element extends EventTarget {
-  constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.files = []; this.attributes = new Map(); }
+  constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.files = []; this.attributes = new Map(); this.handlers = []; }
+  addEventListener(type, listener, options) { this.handlers.push([type, listener]); return super.addEventListener(type, listener, options); }
+  fire(type, isTrusted) { return Promise.all(this.handlers.filter(([kind]) => kind === type).map(([, listener]) => listener({ type, target: this, currentTarget: this, isTrusted }))); }
   append(...nodes) { for (const node of nodes.flat()) this.childNodes.push(typeof node === "string" ? new Text(node) : node); }
   replaceChildren(...nodes) { this.childNodes = []; this.append(...nodes); }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
@@ -41,6 +43,7 @@ function descendants(root, predicate) {
 }
 const byClass = (root, name) => descendants(root, (node) => node.className.split(" ").includes(name));
 const click = (node) => node.dispatchEvent(new Event("click"));
+const trustedClick = (node) => node.fire("click", true);
 function route() { return view.routes.find((candidate) => candidate.name === "settings"); }
 
 test("TST-290109: Settings tabs preserve unfinished form state without actions", async () => {
@@ -86,7 +89,7 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
 // given: the public Settings Route with a stored remote Bridge session and browser-held settings
 // input: the person opens Endpoints & Agents, reveals the session token, removes a listed product, then acknowledges browser clear
 // expect: the session remains hidden until Show and routes to its existing Bridge setup, while Clear everything stays disabled until acknowledgement and then removes the actual browser-store entries; product removal also removes its own credential and test metadata
-test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async () => {
+test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async (t) => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
   const store = openStore("fixture/instance");
@@ -119,8 +122,10 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
 
   click(tabs[1]);
   const product = byClass(target, "settings-product-list-item")[0];
-  click(byClass(product, "settings-product-remove")[0]);
-  await new Promise((resolve) => setImmediate(resolve));
+  const priorConfirm = globalThis.confirm;
+  globalThis.confirm = () => true;
+  t.after(() => { globalThis.confirm = priorConfirm; });
+  await trustedClick(byClass(product, "settings-product-remove")[0]);
   assert.deepEqual(readSetting(store, "products"), [], "Remove updates the canonical browser product list");
   assert.equal(readSetting(store, "github-token:fixture/product"), null, "Remove takes the product's own GitHub token with its browser list entry");
   assert.equal(readSetting(store, "last-test:github-token:fixture/product"), null, "Remove takes the adjacent token-test metadata too");
@@ -259,7 +264,7 @@ test("TST-290113: Settings removes one legacy collaborator consent row without a
   assert.match(byClass(target, "settings-collaborator-records")[0].textContent, /Ada Example.*@ada.*2026-09-01/, "the selected product exposes the existing consent name, account, and date before any edit");
   byClass(target, "settings-collaborator-remove-name")[0].value = "Ada Example";
   byClass(target, "settings-collaborator-remove-account")[0].value = "@ada";
-  await new Promise((resolve) => { click(byClass(target, "settings-collaborator-remove")[0]); setImmediate(resolve); });
+  await trustedClick(byClass(target, "settings-collaborator-remove")[0]);
   assert.equal(writes.length, 1, "the explicit click reaches the public one-file save boundary");
   const text = writes[0].files[0].text;
   assert.doesNotMatch(text, /Ada Example|@ada|2026-09-01/);

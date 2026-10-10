@@ -23,6 +23,10 @@ function attribute(node, name, value) {
   else node[name] = String(value);
 }
 
+function whatIsThis(text) {
+  return el("details", "settings-what-is-this", el("summary", null, "What is this?"), el("p", null, text));
+}
+
 function endpointName(key) {
   return key.slice("endpoint:".length);
 }
@@ -126,6 +130,7 @@ function bridgeLine(target, context) {
     el("h3", null, "Bridge"),
     el("p", null, `Address: ${setting.address}`),
     el("p", null, el("label", null, "Pairing token ", token, " ", show)),
+    whatIsThis("This browser keeps the Bridge address and pairing token so it can reach the Bridge. Anyone able to read this browser's Pages storage can read them."),
     el("p", null, change, " ", clear),
   );
 }
@@ -144,6 +149,7 @@ function jumpHostLine(target, context) {
     el("h3", null, "Jump host"),
     el("p", null, `Host: ${setting.hostname}`),
     el("p", null, `HTTPS address: ${setting.httpsAddress ?? "Not configured."}`),
+    whatIsThis("This browser keeps the jump-host connection details so the Bridge can prepare remote sessions. Anyone able to read this browser's Pages storage can read them."),
     el("p", null, change, " ", clear),
   );
 }
@@ -201,6 +207,7 @@ function exportImportControls(context) {
     download,
     el("p", null, el("label", null, "Import settings file ", file)),
     el("p", null, el("label", null, "Import passphrase ", importPassphrase)),
+    whatIsThis("Export copies this browser's settings, including secrets, into a file for this person to keep or move. Import reads that file into this browser; whoever holds an unlocked export can read its settings."),
     result,
   );
 }
@@ -221,6 +228,7 @@ function browserClearControls(context) {
   return el("section", "settings-clear",
     el("h3", null, "Clear this browser"),
     el("p", null, "This removes this instance's stored settings from localStorage and does not change a repository."),
+    whatIsThis("This removes every Agent M setting held in this browser. It changes no repository, and any Pages site under the same owner domain that can read this storage loses access too."),
     el("p", null, el("label", null, acknowledgement, " I understand this clears every Agent M setting in this browser.")),
     clear, result,
   );
@@ -235,11 +243,14 @@ function repositoryLine(context, info) {
     const status = el("p", "settings-repository-status", "Product addresses are stored in this browser.");
     change.addEventListener("click", () => context.go("add-product", {}));
     clear.addEventListener("click", () => {
+      if (typeof globalThis.confirm !== "function" || !globalThis.confirm("Clear all managed products and their stored tokens from this browser?")) return;
       for (const web of readSetting(context.store, "products") ?? []) clearProductToken(context.store, web);
       clearSetting(context.store, info.key);
       status.textContent = "Cleared from this browser with every product's own token.";
     });
-    return el("section", "settings-repository", el("h3", null, info.label), status, el("p", null, change, " ", clear));
+    return el("section", "settings-repository", el("h3", null, info.label), status,
+      whatIsThis("This browser keeps the list of managed product addresses so it can open their repository settings. Any Pages site under the same owner domain can read that browser storage."),
+      el("p", null, change, " ", clear));
   }
   const stored = readSetting(context.store, info.key);
   const value = el("input", "settings-repository-secret");
@@ -263,7 +274,7 @@ function repositoryLine(context, info) {
   value.autocomplete = "off";
   value.spellcheck = false;
   expiry.type = "date";
-  expiry.value = stored?.expires ?? "";
+  expiry.value = stored?.expires ?? new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
   acknowledgement.type = "checkbox";
   acknowledgement.disabled = true;
   value.disabled = true;
@@ -322,6 +333,7 @@ function repositoryLine(context, info) {
     el("h3", null, info.label), status,
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
     el("p", null, `Expires on `, expiry, " ", renewal),
+    whatIsThis("This browser keeps this token so Agent M can read and write this repository. Any Pages site under the same owner domain can read it; give it only the minimum repository scope needed."),
     el("p", "notice settings-repository-shared-origin", sharedPagesNotice(context)),
     el("p", null, el("label", null, acknowledgement, " I have read this.")),
     el("p", null, change, " ", save, " ", test, " ", clear), result,
@@ -362,13 +374,17 @@ function productListControls(target, context) {
       } catch (error) { result.textContent = `✗ ${error.message}`; }
     });
     remove.addEventListener("click", async () => {
+      if (typeof globalThis.confirm !== "function" || !globalThis.confirm(`Remove ${web} and its stored token from this browser?`)) return;
       clearProductToken(context.store, web);
       writeSetting(context.store, "products", products.filter((candidate) => candidate !== web));
       await route.render(target, context, {});
     });
-    return el("section", "settings-product-list-item", el("h4", null, web), el("p", null, test, " ", remove), result);
+    return el("section", "settings-product-list-item", el("h4", null, web),
+      whatIsThis("This browser keeps this product address and its optional token so it can test and open the repository. Any Pages site under the same owner domain can read that browser storage."),
+      el("p", null, test, " ", remove), result);
   });
-  return el("section", "settings-product-list", el("h3", null, "Managed products"), ...lines);
+  return el("section", "settings-product-list", el("h3", null, "Managed products"),
+    whatIsThis("This browser keeps the managed product list so it can show each repository's settings. Any Pages site under the same owner domain can read that browser storage."), ...lines);
 }
 
 function clearProductToken(store, web) {
@@ -410,7 +426,7 @@ function notificationsControls(context) {
   return el("section", "settings-notifications",
     el("h3", null, "Notifications"), status,
     el("p", null, on, " ", test, " ", off),
-    explain("notifications"), result,
+    whatIsThis("Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch. While a dashboard page is open, it checks every five minutes for open SPEC changes, use cases, architecture files, and release test reports waiting for Accept and release. Checks go only to repository servers with the tokens of this browser and nowhere else. Nothing is checked while no dashboard page is open."), result,
   );
 }
 
@@ -452,12 +468,15 @@ function remoteSessionLine(target, context, info) {
     el("p", null, `Forwarded port: ${session.port ?? "Not configured."}`),
     el("p", null, el("label", null, "Copied Bridge token ", token, " ", show)),
     el("p", null, "Tunnel commands and proxy configuration are prepared on the Bridge page; no tunnel is started here."),
+    whatIsThis("This browser keeps the forwarded port and copied Bridge token for this remote session. Any Pages site under the same owner domain can read them; the Bridge reads its own tunnel settings."),
     el("p", null, test, " ", change, " ", clear), result,
   );
 }
 
 async function productControls(context) {
-  if (!context.product) return el("section", "settings-product", el("p", null, "Choose a product to edit its repository settings."));
+  if (!context.product) return el("section", "settings-product",
+    el("p", null, "Choose a product to edit its repository settings."),
+    whatIsThis("A chosen product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser reads them to show their current state."));
   const { settings, collaborators } = await settingsSchemas();
   const repository = await context.product.host.repositoryInfo();
   const { defaultBranch } = repository;
@@ -479,6 +498,7 @@ async function productControls(context) {
   const collaboratorRows = legacyCollaborators.length ? legacyCollaborators : (collaboratorsDocument.sections[0]?.rows ?? [])
     .map((row) => ({ name: row.cells.Name, account: String(row.cells.Account ?? "").replace(/^@/, ""), agreed: row.cells["Agreed on"] ?? row.cells.Agreed ?? "recorded" }));
   const state = el("p", "settings-pseudonymisation-state", `Pseudonymisation is ${settingState(settingsDocument, settingsBytes)}.`);
+  const collaboratorRecords = el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`)));
   const access = repository.canWrite === true ? "writable" : repository.canWrite === false ? "read-only" : "not reported";
   if (!canWrite) {
     const tokenStep = el("button", "settings-product-token-step", "Open the token step of UC-001");
@@ -489,6 +509,7 @@ async function productControls(context) {
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
       state,
+      whatIsThis("This product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser only reads them to show their current state."),
       el("h4", null, "Collaborators"),
       el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))));
   }
@@ -496,7 +517,8 @@ async function productControls(context) {
   const acknowledgement = el("input", "settings-pseudonymisation-ack"); acknowledgement.type = "checkbox";
   const save = el("button", "settings-pseudonymisation-save", "Save pseudonymisation");
   const pseudoResult = el("p", "settings-pseudonymisation-result");
-  save.addEventListener("click", async () => {
+  save.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
     if (off.checked && !acknowledgement.checked) { pseudoResult.textContent = "Tick I have read this before switching pseudonymisation off."; return; }
     const legacy = /(^|\n)- pseudonymisation: (?:on|off)(?=\n|$)/;
     const edited = { ...settingsDocument, fields: { ...settingsDocument.fields, pseudonymisation: off.checked ? "off" : "on" } };
@@ -510,18 +532,23 @@ async function productControls(context) {
   });
   const name = el("input", "settings-collaborator-name"), account = el("input", "settings-collaborator-account");
   const agreed = el("input", "settings-collaborator-agreed"); agreed.type = "checkbox";
+  const agreedDate = el("input", "settings-collaborator-agreed-date"); agreedDate.type = "date"; agreedDate.value = new Date().toISOString().slice(0, 10);
   const add = el("button", "settings-collaborator-save", "Save collaborator"); const collabResult = el("p", "settings-collaborator-result");
   const removeName = el("input", "settings-collaborator-remove-name"), removeAccount = el("input", "settings-collaborator-remove-account");
   const remove = el("button", "settings-collaborator-remove", "Remove collaborator consent");
-  add.addEventListener("click", async () => {
+  add.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
     if (!agreed.checked) { collabResult.textContent = "Tick that this person has agreed to be named."; return; }
     const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
     if (legacyRows.length || /\| Name \| Account \| Agreed on \|/.test(collaboratorsBytes)) {
-      const date = new Date().toISOString().slice(0, 10);
+      const date = agreedDate.value;
       const text = `${collaboratorsBytes}${collaboratorsBytes.endsWith("\n") ? "" : "\n"}| ${name.value.trim()} | @${account.value.trim().replace(/^@/, "")} | ${date} |\n`;
       const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
       if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
-      collaboratorsBlob = result.blob; collaboratorsBytes = text; collabResult.textContent = "Saved in the product repository."; return;
+      collaboratorsBlob = result.blob; collaboratorsBytes = text;
+      const records = el("li", null, `${name.value.trim()} · @${account.value.trim().replace(/^@/, "")} · agreed on ${date}`);
+      collaboratorRecords.append(records);
+      collabResult.textContent = "Saved in the product repository."; return;
     }
     const rows = collaboratorsDocument.sections[0]?.rows ?? [];
     const edited = { ...collaboratorsDocument, sections: [{ ...(collaboratorsDocument.sections[0] ?? { heading: "# Collaborators of this product", line: 1, text: "", rows: [] }), rows: [...rows, { line: null, cells: { Name: name.value.trim(), Account: account.value.trim(), Agreed: "yes" } }] }] };
@@ -529,9 +556,11 @@ async function productControls(context) {
     const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
+    collaboratorRecords.append(el("li", null, `${name.value.trim()} · @${account.value.trim().replace(/^@/, "")} · agreed on recorded`));
     collabResult.textContent = "Saved in the product repository.";
   });
-  remove.addEventListener("click", async () => {
+  remove.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
     const wantedName = removeName.value.trim(), wantedAccount = removeAccount.value.trim().replace(/^@/, "");
     if (!wantedName || !wantedAccount) { collabResult.textContent = "Enter the collaborator name and account to remove consent."; return; }
     const legacyRows = [...collaboratorsBytes.matchAll(/^\|\s*([^|]+?)\s*\|\s*@?([^|]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$/gm)];
@@ -547,20 +576,23 @@ async function productControls(context) {
     const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsBytes = text; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
-    collabResult.textContent = "Removed this collaborator's consent record from the product repository.";
+    collaboratorRecords.replaceChildren(...Array.from(collaboratorRecords.childNodes).filter((node) => !node.textContent.startsWith(`${wantedName} · @${wantedAccount} ·`)));
+    collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
+    if (result.commit) { const address = parseAddress(context.product.address); const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${address.web}/${address.server === "gitlab" ? "-/commit" : "commit"}/${result.commit}`; collabResult.append(link); }
   });
   return el("section", "settings-product",
     el("h3", null, `Product · ${context.product.address}`), state,
+    whatIsThis("This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click."),
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
-    el("p", "notice", "When off, report data enters this product unchanged; use only a protected, non-public data space."),
+    el("p", "notice", "When off, report data enters issues and the repository unchanged. In a public product it is published; use only a protected, non-public data space. Data already written remains in history; removing that data requires a history rewrite."),
     el("p", null, el("label", null, acknowledgement, " I have read this."), " ", save), pseudoResult,
     el("h4", null, "Collaborators"),
-    el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))),
+    collaboratorRecords,
     el("p", null, el("label", null, "Name ", name)), el("p", null, el("label", null, "Account ", account)),
-    el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", add),
+    el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", el("label", null, "Consent date ", agreedDate), " ", add),
     el("h4", null, "Remove collaborator consent"),
     el("p", null, el("label", null, "Name ", removeName)), el("p", null, el("label", null, "Account ", removeAccount)),
-    el("p", null, remove), collabResult);
+    el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
 }
 
 function tabbedSettings(panes) {
@@ -579,7 +611,7 @@ function tabbedSettings(panes) {
   for (const pane of panes) {
     attribute(pane.node, "role", "tabpanel");
     attribute(pane.node, "aria-label", pane.name);
-    const button = el("button", "settings-tab", pane.name);
+    const button = el("button", "settings-tab btn", pane.name);
     attribute(button, "role", "tab");
     attribute(button, "aria-controls", pane.id);
     pane.node.id = pane.id;
