@@ -46,8 +46,14 @@ hold before the next phase opens.
 
 **PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE** *(PO A. Maier)*
 An instance lists its participants — people and agents — in `docs/participants.md` of its own
-repository, and a product assigns its roles from that list.
-*Check:* `tests/test_participants.py`
+repository or in further lists `docs/participants_<name>.md` beside it, and a product assigns its roles from these lists.
+*Check:* `tests/test_participants.py` — a role assigned to a participant listed only in `docs/participants_<name>.md` is
+accepted; counter-proof: a role assigned to a name that no list of the instance holds is rejected.
+
+**A PARTICIPANT'S NAME NAMES ONE PERSON OR AGENT** *(PO A. Maier)*
+All rows that bear one name, in whichever participant lists of an instance, describe one and the same person or agent.
+*Check:* `tests/test_participants.py` — a name whose rows in two lists are identical is one participant; counter-proof: a
+name whose rows in two lists differ in model, processing place or route is rejected, and both lists are named.
 
 **A PARTICIPANT HAS ONE OF FIVE TYPES** *(PO A. Maier)*
 A participant is a person, a model endpoint, a CI agent, a CLI agent on a machine, or a sandboxed
