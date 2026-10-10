@@ -83,7 +83,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
   const tls = certificate(folder), nodePath = stageSsh2();
   const worker = `
     import assert from "node:assert/strict";
-    import { createHash } from "node:crypto";
+    import { createHash, timingSafeEqual } from "node:crypto";
     import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
     import { createRequire } from "node:module";
     import http from "node:http";
@@ -93,6 +93,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     import { openDashboard, press, repoServer, richDocument } from ${JSON.stringify(new URL("./app-harness.mjs", import.meta.url).href)};
     import { proxyConfiguration } from ${JSON.stringify(pathToFileURL(join(sourceRoot, "bridge-client/index.mjs")).href)};
     import { compose } from ${JSON.stringify(pathToFileURL(join(sourceRoot, "desktop-shell/compose.mjs")).href)};
+    import { ensureKey } from ${JSON.stringify(pathToFileURL(join(sourceRoot, "tunnels/index.mjs")).href)};
     const require = createRequire(import.meta.url), { Server, utils } = require("ssh2");
     const [folder, ca, certificate, certificateKey] = process.argv.slice(1);
     const origin = "https://akmaier.github.io", prefix = "agent-m:akmaier/agent-m:", nativeFetch = globalThis.fetch;
@@ -104,15 +105,43 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     const waitFor = async (check, label) => { for (let n = 0; n < 100; n += 1) { if (await check()) return; await pause(20); } throw new Error(label); };
     const start = (binary, args, options = {}) => { const child = spawn(binary, args, { stdio: ["ignore", "ignore", "pipe"], ...options }); let stderr = "", spawnError = null; child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-4000); }); child.once("error", error => { spawnError = error; }); return { child, stderr: () => stderr, error: () => spawnError }; };
     const stop = async process => { if (!process || process.exitCode !== null) return; process.kill("SIGTERM"); await Promise.race([new Promise(resolve => process.once("exit", resolve)), pause(5000)]); if (process.exitCode === null) process.kill("SIGKILL"); };
-    const modelReceipts = [], tunnelReceipts = [], proxyProcesses = new Set();
+    const modelReceipts = [], tunnelReceipts = [], sshAuthentication = [], sshForwarding = [], proxyProcesses = new Set();
     const model = http.createServer(async (request, response) => { let body = ""; for await (const chunk of request) body += chunk; modelReceipts.push({ path: request.url, authorization: request.headers.authorization, body: JSON.parse(body) }); response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ choices: [{ message: { content: "ok" } }] })); });
     const modelPort = await listen(model);
-    let remote; const ssh = new Server({ hostKeys: [utils.generateKeyPairSync("rsa", { bits: 2048 }).private] }, client => { client.on("error", () => {}); client.on("authentication", context => context.accept()); client.on("request", async (accept, reject, name, info) => { if (name !== "tcpip-forward" || info.bindAddr !== "127.0.0.1") return reject(); remote = net.createServer(socket => client.forwardOut(info.bindAddr, info.bindPort, socket.remoteAddress, socket.remotePort, (error, stream) => { if (error) return socket.destroy(error); tunnelReceipts.push({ bind: info.bindAddr, port: info.bindPort }); socket.pipe(stream).pipe(socket); })); try { await new Promise((resolve, rejectListen) => remote.listen(info.bindPort, info.bindAddr, error => error ? rejectListen(error) : resolve())); accept(); } catch (error) { reject(); } }); });
+    const bridgeFolder = join(folder, "bridge"); mkdirSync(bridgeFolder, { recursive: true });
+    const persistedKey = await ensureKey(bridgeFolder), persistedPublicKey = readFileSync(join(bridgeFolder, "ssh", "id_ed25519.pub"), "utf8"), allowedBridgeKey = utils.parseKey(persistedPublicKey);
+    assert.ok(!(allowedBridgeKey instanceof Error), "the production-persisted Bridge public key parses for ssh2 authentication");
+    assert.equal(persistedKey.publicKey, persistedPublicKey, "the permitted SSH key is the Bridge's persisted public key");
+    let receiptOrder = 0, signedAuthentication = null, remote;
+    const ssh = new Server({ hostKeys: [utils.generateKeyPairSync("rsa", { bits: 2048 }).private] }, client => {
+      client.on("error", () => {});
+      client.on("authentication", context => {
+        const receipt = { order: ++receiptOrder, username: context.username, method: context.method, signed: Boolean(context.signature), keyMatches: false, signatureValid: null, accepted: false };
+        sshAuthentication.push(receipt);
+        if (context.username !== "fixture" || context.method !== "publickey") return context.reject();
+        const expected = allowedBridgeKey.getPublicSSH();
+        receipt.keyMatches = context.key.algo === allowedBridgeKey.type && context.key.data.length === expected.length && timingSafeEqual(context.key.data, expected);
+        if (!receipt.keyMatches) return context.reject();
+        if (!context.signature) { receipt.accepted = true; return context.accept(); }
+        receipt.signatureValid = allowedBridgeKey.verify(context.blob, context.signature, context.hashAlgo) === true;
+        if (!receipt.signatureValid) return context.reject();
+        receipt.accepted = true; signedAuthentication = receipt; context.accept();
+      });
+      client.on("request", async (accept, reject, name, info) => {
+        if (name !== "tcpip-forward" || info.bindAddr !== "127.0.0.1" || !signedAuthentication) return reject();
+        const receipt = { order: ++receiptOrder, signedAuthenticationOrder: signedAuthentication.order, bind: info.bindAddr, port: info.bindPort }; sshForwarding.push(receipt);
+        assert.ok(receipt.signedAuthenticationOrder < receipt.order, "the signed Bridge-key authentication precedes reverse forwarding");
+        remote = net.createServer(socket => client.forwardOut(info.bindAddr, info.bindPort, socket.remoteAddress, socket.remotePort, (error, stream) => { if (error) return socket.destroy(error); tunnelReceipts.push({ bind: info.bindAddr, port: info.bindPort, signedAuthenticationOrder: signedAuthentication.order }); socket.pipe(stream).pipe(socket); }));
+        try { await new Promise((resolve, rejectListen) => remote.listen(info.bindPort, info.bindAddr, error => error ? rejectListen(error) : resolve())); accept(); } catch (error) { reject(); }
+      });
+    });
     const sshPort = await listen(ssh), tunnelPort = await reservePort();
-    mkdirSync(join(folder, "bridge"), { recursive: true });
-    writeFileSync(join(folder, "bridge", "settings.json"), JSON.stringify({ port: 0, tunnels: [{ direction: "reverse", jumpHost: "127.0.0.1", user: "fixture", sshPort, remotePort: tunnelPort, bind: "127.0.0.1" }] }));
-    const bridge = await compose({ instance: "akmaier/agent-m", origin, dataFolder: join(folder, "bridge"), port: 0 });
+    writeFileSync(join(bridgeFolder, "settings.json"), JSON.stringify({ port: 0, tunnels: [{ direction: "reverse", jumpHost: "127.0.0.1", user: "fixture", sshPort, remotePort: tunnelPort, bind: "127.0.0.1" }] }));
+    const bridge = await compose({ instance: "akmaier/agent-m", origin, dataFolder: bridgeFolder, port: 0 });
+    assert.equal(bridge.key.publicKey, persistedPublicKey, "composition reuses the actual persisted Bridge public key required by the fixture jump host");
     await waitFor(() => bridge.tunnels().then(rows => rows[0]?.state === "open"), "reverse tunnel did not become open");
+    assert.ok(signedAuthentication?.accepted && signedAuthentication.signed && signedAuthentication.signatureValid, "the reverse tunnel completed signed public-key authentication with the Bridge key");
+    assert.ok(sshForwarding.length > 0 && sshForwarding.every(receipt => receipt.signedAuthenticationOrder < receipt.order), "every accepted reverse forward follows signed Bridge-key authentication");
     const login = { user: "fixture-web", password: "fixture-web-password" };
     const loginFile = join(folder, "jump-host.htpasswd"); writeFileSync(loginFile, login.user + ":" + hash(login.password) + "\\n");
     const runServer = async kind => {
@@ -176,8 +205,8 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         await stop(proxy.process.child); proxyProcesses.delete(proxy.process);
       }
       assert.deepEqual(modelReceipts.map(value => ({ path: value.path, authorization: value.authorization, body: value.body })), ["apache", "nginx"].flatMap(kind => [{ path: "/v1/chat/completions", authorization: "Bearer endpoint-key-" + kind, body: { model: "controlled-" + kind, messages: [{ role: "user", content: "Reply with one word: ok." }], max_tokens: 1 } }, { path: "/v1/chat/completions", authorization: "Bearer direct-key-" + kind, body: { model: "direct-" + kind, messages: [{ role: "user", content: "Reply with one word: ok." }], max_tokens: 1 } }]), "the actual Bridge handler and ordinary direct route each call the controlled model once per configured web server");
-      assert.ok(tunnelReceipts.every(value => value.bind === "127.0.0.1" && value.port === tunnelPort), "the web servers reached only the reverse tunnel loopback end");
-      console.log("itm294-component-positive", JSON.stringify({ webServers: ["apache", "nginx"], modelCalls: modelReceipts.length, tunnelForwards: tunnelReceipts.length }));
+      assert.ok(tunnelReceipts.every(value => value.bind === "127.0.0.1" && value.port === tunnelPort && value.signedAuthenticationOrder < sshForwarding[0].order), "the web servers reached only the reverse tunnel loopback end after signed Bridge-key authentication");
+      console.log("itm294-component-positive", JSON.stringify({ webServers: ["apache", "nginx"], modelCalls: modelReceipts.length, tunnelForwards: tunnelReceipts.length, sshAuthentication, sshForwarding }));
     } finally { for (const proxy of proxyProcesses) await stop(proxy.child); await bridge.close(); if (remote) await close(remote).catch(() => {}); await close(ssh); await close(model); rmSync(folder, { recursive: true, force: true }); }
   `;
   try {
