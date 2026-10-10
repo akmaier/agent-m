@@ -41,3 +41,11 @@ Derive necessary unused canonical numeric IDs from the actual whole tested tree 
 Return clean exact tests-only commit, full diff against the current approved base, PR body, full provenance and immutable evidence inventory. Root obtains the complete changed-head Ubuntu CI and an independent exact PO release gate before merge. Each CI job≤120s; red/pending is not PASS, same-head flips remain flaky. Both producer source and release delivery precede B's fresh full Settings consumer Start; this release job alone completes no item or use case. No source/helper/workflow/accepted artifact/process/model/participants/DoD/backlog/selection edits, own publication/merge or children.
 
 NO local full/glob/native/Electron/APT/browser/CUA/MacUI/device/system settings/accessibility/clipboard/focus/typing/personal folders/systemSSH/externalSSH/paid execution, even elevated or in fault subprocesses. Explicitly selected necessary nonnative DOM/schema/storage/temporary-document/declaration checks only. Full/native/layout tests remain controlled GitHub Ubuntu. Preserve human-confirmed notifications and browser-direct general endpoints except accepted explicit own-model2a. Future UC004–006 backlog assessment follows actual290 delivery.
+
+## End
+
+at: 2026-10-10 02:39:20 UTC
+state: failed
+result: Test-only fe756ff supplies four canonical cases105–108 and relevant fault/restoration receipts, but the handoff did not satisfy the recorded-job instructions: it reported Taken02:33:08 without obtaining a clock receipt and retained no final four-case suite raw artifact. The participant explicitly withdrew that timestamp. It is not an actual measurement and root records no Taken value for this job. Verified Start commit e21ed469 was published after its02:34:04 UTC commit; isolation metadata/reflog place creation at02:34:37–38 UTC, after publication. Exact original reading/Taken time is unknown. The immutable /private/tmp/p19-290-fe756ff-evidence.json and earlier receipts remain unchanged with these limitations; no publication, release gate or producer delivery is claimed. A fresh separately recorded job completes the release handoff.
+usage: null
+cost: null
