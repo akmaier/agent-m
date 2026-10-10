@@ -434,7 +434,7 @@ test("release · UC-008 1a: a private repository is read with the token, and wit
   assert.ok(w.log.filter((r) => r.origin === API).every((r) => r.auth === `Bearer ${TOKEN}`), "read with the token");
   const none = await open(w, { token: null });
   assert.doesNotMatch(none.main(), /UC-001/);
-  assert.match(stripTags(none.main()), /HostError.*NotFound/i);
+  assert.match(stripTags(none.main()), /Could not read akmaier\/agent-m @ main: https:\/\/github\.com\/akmaier\/agent-m at main was not found/i);
   assert.match(stripTags(none.main()), /private.*token/i);
   reaches = false;
   const wrong = await open(w);
