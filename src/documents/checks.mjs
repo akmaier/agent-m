@@ -207,6 +207,11 @@ export function documentFindings(schema, document) {
   const fields = document.fields;
   const frontLookup = (name) => textOf(fields[name]);
 
+  if (compiled.patterns.length && !compiled.patterns.some(({ re }) => re.test(document.path))) {
+    add(1, [], `the path ${document.path} does not match a path of the format ${schema.schema}`,
+      `move the document to a path the format ${schema.schema} names`);
+  }
+
   if (schema.shape === "document") {
     const specs = schema.frontMatter ?? {};
     const keys = Object.keys(specs);
