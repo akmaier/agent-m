@@ -47,12 +47,8 @@ async function openEndpointDashboard({ entries = {}, handlers = [], pathname = n
   let mounted = [];
   const replace = main.replaceChildren.bind(main);
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
-  if (pathname) {
-    globalThis.location.pathname = pathname;
-    globalThis.location.hash = "#settings";
-    await import(`../docs/assets/dashboard-app.mjs?itm270-instance=${encodeURIComponent(pathname)}`);
-    await settle(server);
-  } else await page.go("#settings");
+  if (pathname) globalThis.location.pathname = pathname;
+  await page.go("#settings");
   const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
   const configure = publicControl(endpoints, "settings-endpoint-configure");
   assert.ok(configure, "known positive: public Endpoints & Agents exposes Configure");
