@@ -874,8 +874,9 @@ function pullFactsServer(kind, { refused = false } = {}) {
     if (path === `/commits/${PR_OLDER}`) return json(200, { files: [{ filename: "old.md", status: "modified" }] });
     if (path === `/commits/${PR_BASE}`) return json(200, { sha: PR_BASE, commit: { tree: { sha: "tree-base" } } });
     if (path === `/commits/${PR_HEAD}`) return json(200, { sha: PR_HEAD, commit: { tree: { sha: "tree-head" } }, files: [{ filename: "new.md", status: "added" }] });
-    if (path === "/git/trees/tree-base") return json(200, { tree: [{ path: "changed.md", type: "blob", sha: "blob-base" }] });
-    if (path === "/git/trees/tree-head") return json(200, { tree: [{ path: "changed.md", type: "blob", sha: "blob-head" }] });
+    // snapshot resolves a ref to its commit SHA, then reads that SHA through GitHub's Git database tree endpoint.
+    if (path === `/git/trees/${PR_BASE}`) return json(200, { tree: [{ path: "changed.md", type: "blob", sha: "blob-base" }] });
+    if (path === `/git/trees/${PR_HEAD}`) return json(200, { tree: [{ path: "changed.md", type: "blob", sha: "blob-head" }] });
     if (path === `/repository/commits/${PR_BASE}`) return json(200, { id: PR_BASE });
     if (path === `/repository/commits/${PR_HEAD}`) return json(200, { id: PR_HEAD });
     if (path === "/repository/tree") return json(200, [{ path: "changed.md", type: "blob", id: ref === PR_BASE ? "blob-base" : "blob-head" }]);
@@ -982,12 +983,14 @@ test("TST-296003: pull-request reads preserve refusal and read-only token bounda
       const argv = ["--test", "--test-name-pattern", "TST-29600[1-4]", join(tests, "repository-hosts.test.mjs")];
       const run = (node) => ({ started: new Date().toISOString(), cwd: folder, argv: [process.execPath, ...argv], sourceSha256: createHash("sha256").update(readFileSync(index)).digest("hex"), testSha256: createHash("sha256").update(readFileSync(join(tests, "repository-hosts.test.mjs"))).digest("hex"), child: spawnSync(process.execPath, argv, { cwd: folder, encoding: "utf8", env: childEnv }), ended: new Date().toISOString(), node });
       const failed = run("fault");
-      assert.notEqual(failed.child.status, 0, "the same copied TST-296 stream fails when Host forwarding is absent");
       writeFileSync(index, original);
-      assert.equal(readFileSync(index, "utf8"), original, "the source copy is restored byte-for-byte");
+      const bytesEqual = readFileSync(index, "utf8") === original;
       const passed = run("restored");
+      // Emit the complete child streams before assertions so a broken proof retains its named failure/pass evidence in CI.
+      console.log(JSON.stringify({ kind: "ITM-296-source-copy-proof", failure: { ...failed, child: { status: failed.child.status, signal: failed.child.signal, error: failed.child.error?.message ?? null, stdout: failed.child.stdout, stderr: failed.child.stderr }, namedNode: "TST-296001 Host.listPullRequests absent" }, restoration: { bytesEqual, restoredSha256: createHash("sha256").update(readFileSync(index)).digest("hex") }, pass: { ...passed, child: { status: passed.child.status, signal: passed.child.signal, error: passed.child.error?.message ?? null, stdout: passed.child.stdout, stderr: passed.child.stderr }, namedNodes: ["TST-296001", "TST-296002", "TST-296003", "TST-296004"] } }));
+      assert.notEqual(failed.child.status, 0, "the same copied TST-296 stream fails when Host forwarding is absent");
+      assert.equal(bytesEqual, true, "the source copy is restored byte-for-byte");
       assert.equal(passed.child.status, 0, `the same copied stream passes after restoration: ${passed.child.stderr}`);
-      console.log(JSON.stringify({ kind: "ITM-296-source-copy-proof", failure: { ...failed, child: { status: failed.child.status, signal: failed.child.signal, error: failed.child.error?.message ?? null, stdout: failed.child.stdout, stderr: failed.child.stderr }, namedNode: "TST-296001 Host.listPullRequests absent" }, restoration: { bytesEqual: true, restoredSha256: createHash("sha256").update(readFileSync(index)).digest("hex") }, pass: { ...passed, child: { status: passed.child.status, signal: passed.child.signal, error: passed.child.error?.message ?? null, stdout: passed.child.stdout, stderr: passed.child.stderr }, namedNodes: ["TST-296001", "TST-296002", "TST-296003", "TST-296004"] } }));
     } finally { rmSync(folder, { recursive: true, force: true }); }
   }
 });
