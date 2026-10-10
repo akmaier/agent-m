@@ -51,7 +51,7 @@ to roles (UC-002).
 1. The author opens **Participants** on the dashboard and chooses **+ Add participant**.
 2. The author picks the type. A folded **What is this?** explains each type with an example and what
    it means for cost, speed and control.
-3. The author names the participant and fills in the type-specific part:
+3. The author names the participant, chooses the team whose list it joins, and fills in the type-specific part:
    - **Person:** the account on GitHub or on the GitLab server;
    - **Model endpoint:** which configured endpoint and model (the key itself is set up in UC-003 and
      stays in the browser);
@@ -84,7 +84,7 @@ to roles (UC-002).
 6. For a CLI or sandboxed agent, the author presses **Test**; Agent M sends a harmless request through
    the bridge and shows what answered.
 7. The author presses **Save** — one click. Agent M commits the participant to
-   `docs/participants.md` of the instance, or to the further list `docs/participants_<name>.md` the author chose: name, type, model, context and price where it has them, capabilities,
+   the team's list `docs/participants_<team>.md` of the instance: name, type, model, context and price where it has them, capabilities,
    processing place — no key.
 
 ```mermaid
@@ -100,7 +100,7 @@ sequenceDiagram
     D->>B: harmless request with bridge token
     B-->>D: agent answered
     A->>D: Save
-    D->>I: commit docs/participants.md or a further list (no key)
+    D->>I: commit docs/participants_<team>.md (no key)
 ```
 
 ## Alternative flows
@@ -109,7 +109,7 @@ sequenceDiagram
   open in place, with UC-003's test request; the author does not leave this page.
 - **3c. The name already names another person or agent.** A list of the instance holds the name with another entry.
   Agent M names that list and the difference, and saves nothing until the author chooses another name. The same person
-  or agent may stand in several lists under its one name, with the same entry.
+  or agent may stand in several teams' lists under its one name, with the same entry.
 - **6a. The bridge does not answer.** Agent M names the reason — not running, wrong address, token
   missing — and saves nothing until the author decides to save untested.
 - **5a. A participant processes data outside places that some sources permit.** Agent M lists those

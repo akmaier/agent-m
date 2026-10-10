@@ -109,9 +109,8 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
    date its length gives, the selection, and who closes the
    sprint — themselves by default, or a participant such as an agent (UC-041) —, and presses
    **Start sprint**: one click. Agent M checks the selection once more against what the other teams' sprints hold
-   in the default branch at that moment, and commits the sprint to `docs/backlog/sprints/` — in a product with several
-   teams as `docs/backlog/sprints/<team>/<nn>.md`, numbered within the team, on the branch `sprint/<team>/<nn>` where
-   sprints have a branch of their own (UC-002). From now on, the team's implementation jobs start only for the items
+   in the default branch at that moment, and commits the sprint as `docs/backlog/sprints/<team>/<nn>.md`, numbered
+   within the team, on the branch `sprint/<team>/<nn>` where sprints have a branch of their own (UC-002). From now on, the team's implementation jobs start only for the items
    selected for its sprint (UC-034), and the sprint holds them.
 7. **A model with a WIP limit (Kanban):** the board shows the columns of the model, for example Backlog,
    Doing, Review, Done (book ch. 7 §4). A ready item — the one the team chooses — can be pulled only while fewer items are
@@ -182,7 +181,7 @@ sequenceDiagram
 ## Postcondition
 
 - The product repository holds its backlog as one Markdown file per item and, in Scrum, the sprint
-  selections — per team in a product with several teams. No state is stored in them. State is derived from approvals, jobs
+  selections, per team. No state is stored in them. State is derived from approvals, jobs
   and pull requests.
 - Every item names what it realises, the modules it changes and where it came from.
 - The system is built bottom-up: no item is selected or pulled before an item it builds on, other than together

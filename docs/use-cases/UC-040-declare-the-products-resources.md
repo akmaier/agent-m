@@ -50,7 +50,7 @@ down cannot be checked, updated or handed over.
 | relation to the product | the product or one of its jobs **uses** it | the product must **meet** its rules | it **develops** the product |
 | examples | a private repository of DLLs; `meta-llama/Llama-3.1-8B` on Hugging Face at a fixed revision; the SLURM cluster *Alex* at NHR@FAU; a vLLM endpoint on `gpu01` that the product queries | EU AI Act, IEC 62304 class B | a colleague, Claude Code on the author's machine, a CI agent |
 | fixed by | commit, revision, file hash, served model | edition, hash of the text | capabilities, processing place |
-| file | product: `docs/resources.md` | product: `docs/sources.md` | instance: `docs/participants.md` |
+| file | product: `docs/resources.md` | product: `docs/sources.md` | instance: `docs/participants_<team>.md` |
 
 **The instance has resources of its own, too** — the cluster or runner on which it runs its agents, an
 endpoint its jobs use. They are declared the same way in `docs/resources.md` of the instance

@@ -24,8 +24,8 @@ realises:
   - A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
   - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
   - A GATE NAMES WHO DECIDES IT
-  - A PRODUCT MAY BE DEVELOPED BY SEVERAL TEAMS
-  - A PRODUCT WITHOUT DECLARED TEAMS HAS ONE TEAM
+  - A PRODUCT IS DEVELOPED BY TEAMS
+  - SEVERAL TEAMS WORK IN SPRINTS
   - A PARTICIPANT MAY SERVE SEVERAL TEAMS
   - NO TWO TEAMS SHARE A SPRINT BRANCH
   - A TEAM'S GATES ARE DECIDED WITHIN THE TEAM
@@ -75,10 +75,11 @@ and its process requirements show up here as additions to whatever model the aut
    an agent, who fills the backlog, selects each sprint's items and decides what is released; *Scrum Master* — either, who watches the
    process and removes obstacles, and approves nothing; *Developers* — either, needing *write to the
    repository* and *run code and tests*, who turn items into a done increment. The
-   author assigns participants from the instance's list (UC-017): people, model endpoints, CI agents,
+   author assigns participants from the team's list (UC-017): people, model endpoints, CI agents,
    CLI agents or sandboxed agents — several to one role where the role allows it. Agent M offers only
    participants that have every capability the role needs, and shows for each where it processes
-   data. The assignment is that of the product's one team, until the author adds another (4d).
+   data. The assignment is that of the product's first team, which the author names, for example `team1`; further teams
+   are added in 4d.
 5. Agent M shows the model's phases, the transitions between them, which phases pair for verification, and each gate
    with what it checks and who decides it — a role held by a person or an agent, or an automated check
    (UC-031). For a phase, or for a sprint — with or without a time box —, the author may set a
@@ -95,7 +96,7 @@ and its process requirements show up here as additions to whatever model the aut
    recorded. The author may add conditions, for example *reviewed by a second developer*. A folded
    explanation says that in Scrum the Developers meet the Definition of Done, whoever presses merge.
 9. The author presses **Save** — one click. Agent M commits the declaration to the product
-   repository.
+   repository as `docs/process_<team>.md`.
 
 Every choice carries a folded **What is this?** for people new to software processes, with a pointer
 to the book.
@@ -124,10 +125,10 @@ sequenceDiagram
   configured, and *Developers* must run tests. Agent M names the missing capability and links to
   UC-017 to add a participant that has it.
 - **4d. The product is developed by several teams** — in a model with sprints, as many as the author wants. The
-  author chooses **+ Team** and names it, for example `team2`. Each team has a declaration of its own — `docs/process.md`
-  for the first, `docs/process_<team>.md` for every further one —, and in a product with several teams every declaration
-  names its team. In it the author assigns the model's roles for that team from the instance's participants, as in
-  step 4; a participant may hold roles in several teams. Every declaration names the product's model and states the same
+  author chooses **+ Team** and names it, for example `team2`. Every team, the first included, has a declaration of its
+  own, `docs/process_<team>.md`, and a participant list of its own, `docs/participants_<team>.md` (UC-017). In its
+  declaration the author assigns the model's roles for that team from its list, as in step 4; a participant may hold
+  roles in several teams, standing in each of their lists under its one name. Every declaration names the product's model and states the same
   Definition of Done (step 8): a declaration that differs in either is not saved, and Agent M names the difference. A
   team's jobs go to its own holders of their roles, and its gates are decided by its own holders of the deciding role
   (UC-034). Where sprints have a branch of their own, a team's is `sprint/<team>/<nn>`. A team whose sprint still holds
@@ -146,8 +147,8 @@ sequenceDiagram
 
 ## Postcondition
 
-- The product declares exactly one process model, its role assignment — for one team, or for each of several
-  teams —, its Definition of Done, and zero or more practices.
+- The product declares exactly one process model, its teams with their role assignments, its Definition of Done, and
+  zero or more practices.
 - The workflow Agent M offers for the product follows from the model, the practices and the
   product's process requirements — and from nothing else.
 - Implementation continues as the model calls for: with the implementation plan (UC-045) or the

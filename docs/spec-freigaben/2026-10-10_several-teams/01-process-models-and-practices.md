@@ -45,10 +45,11 @@ hold before the next phase opens.
 *Check:* `tests/test_gate_definition.py`
 
 **PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE** *(PO A. Maier)*
-An instance lists its participants — people and agents — in `docs/participants.md` of its own
-repository or in further lists `docs/participants_<name>.md` beside it, and a product assigns its roles from these lists.
-*Check:* `tests/test_participants.py` — a role assigned to a participant listed only in `docs/participants_<name>.md` is
-accepted; counter-proof: a role assigned to a name that no list of the instance holds is rejected.
+An instance lists its participants — people and agents — in one list `docs/participants_<team>.md` of its own repository
+for each team, and each team assigns its roles from its own list.
+*Check:* `tests/test_participants.py` — a role a team assigns to a participant of its own list is accepted; counter-proofs:
+a role assigned to a participant that only another team's list holds is rejected, and so is a participant list named
+otherwise, such as `docs/participants.md`.
 
 **A PARTICIPANT'S NAME NAMES ONE PERSON OR AGENT** *(PO A. Maier)*
 All rows that bear one name, in whichever participant lists of an instance, describe one and the same person or agent.
@@ -86,19 +87,19 @@ Content of a source whose licence is restricted is given only to participants wh
 the source's register entry permits.
 *Check:* `tests/review-core.test.mjs`
 
-**A PRODUCT MAY BE DEVELOPED BY SEVERAL TEAMS** *(PO A. Maier)*
-In a model with sprints, a product may be developed by any number of teams, each of which assigns the roles of the
-product's process model in a declaration of its own.
-*Check:* `tests/test_teams.py` — a fixture product with three team declarations, each naming its team and assigning the
+**A PRODUCT IS DEVELOPED BY TEAMS** *(PO A. Maier)*
+A product is developed by one or more teams, each of which assigns the roles of the product's process model in a
+declaration `docs/process_<team>.md` of the product's repository.
+*Check:* `tests/test_teams.py` — a fixture product with three declarations `docs/process_<team>.md`, each assigning the
 roles of the same model under the same Definition of Done, validates; counter-proofs: a declaration naming another model
-or another Definition of Done is rejected, and so is a second declaration beside one that names no team, and so are two
-team declarations of a product whose model has no sprints.
+or another Definition of Done is rejected, and so is a declaration named otherwise, such as `docs/process.md`.
 
-**A PRODUCT WITHOUT DECLARED TEAMS HAS ONE TEAM** *(PO A. Maier)*
-A product whose declaration names no team is developed by one team, which holds that declaration's role assignment.
-*Check:* `tests/test_teams.py` — a fixture product with one declaration that names no team yields one team with its
-roles; counter-proof: a product with three team declarations yields three teams.
+**SEVERAL TEAMS WORK IN SPRINTS** *(PO A. Maier)*
+A product is developed by more than one team only when its process model works in sprints.
+*Check:* `tests/test_teams.py` — two team declarations of a Kanban fixture product are rejected; counter-proof: two of a
+Scrum fixture product validate.
 
 **A PARTICIPANT MAY SERVE SEVERAL TEAMS** *(PO A. Maier)*
 A participant may hold roles in several teams of a product at the same time.
-*Check:* `tests/test_teams.py` — two team declarations that assign the same participant validate.
+*Check:* `tests/test_teams.py` — two team declarations that assign the same participant, which both teams' lists hold
+under its one name, validate.
