@@ -17,6 +17,8 @@
 // Schema, in the type below, is MOD-documents' type of that name.
 import { loadSchema } from "../documents/index.mjs";
 
+export { itemStates, startable } from "./states.mjs";
+
 const OWNER = "MOD-work-plans";
 const SCHEMA_FILE = new URL("./backlog-order.schema.md", import.meta.url);
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
