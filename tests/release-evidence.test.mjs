@@ -383,6 +383,34 @@ test("releaseReport — a worse model-dependent rate is read against the last re
   assert.match(limitations, /TST-010/);
 });
 
+// guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// given: the running version recorded 8 of 10 for TST-010 and the candidate records 6 of 10
+// input: releaseReport(at, results, candidate)
+// expect: the public Limitations text calls this a finding and names TST-010, both rates, and the current rate's
+//         two-sided 95% Wilson score interval, 31.3%–83.2%; the interval's method and confidence level are stated
+// counter-proof: planting `return "";` in report.mjs's rateFindingText makes this same case fail because its displayed
+//                finding and numeric evidence disappear
+test("releaseReport — worse 6 of 10 versus 8 of 10 is a 95% Wilson finding with its 31.3%–83.2% interval", async () => {
+  const at = fixtureSnapshot({
+    "SPEC.md": SPEC_TEXT, "tests/rate.test.mjs": RATE_TEST_FILE,
+    "docs/tests/releases/v2026.3.0.md": lastReleaseReportText(LAST_RELEASE_COMMIT),
+  });
+  const results = fixtureSnapshot({
+    [`runs/${LAST_RELEASE_COMMIT}/20260901-1000-release-candidate-aaaa.md`]: runRecord({
+      commit: LAST_RELEASE_COMMIT, rows: [["TST-010", "unit", "passed", "8 of 10"]],
+    }),
+    [`runs/${CANDIDATE_COMMIT}/20261007-1000-release-candidate-bbbb.md`]: runRecord({
+      commit: CANDIDATE_COMMIT, rows: [["TST-010", "unit", "passed", "6 of 10"]],
+    }),
+  });
+  const candidate = { version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "Entry." };
+  const { text, worse } = await releaseReport(at, results, candidate);
+  const limitations = text.slice(text.indexOf("## Limitations"), text.indexOf("## Levels"));
+  assert.deepEqual(worse, ["TST-010"]);
+  assert.match(limitations, /TST-010: finding; current 6 of 10; running version 8 of 10/);
+  assert.match(limitations, /95% Wilson score interval.*31\.3%.*83\.2%/);
+});
+
 // ================================================================== acceptAndRelease
 //
 // acceptAndRelease recomputes the report itself (releaseReport, above) from the host alone: the candidate's own tag,
