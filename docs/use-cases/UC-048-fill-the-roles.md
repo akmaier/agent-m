@@ -71,7 +71,8 @@ sequenceDiagram
     A->>M: Roles
     M->>G: read the process declaration and the role assignments
     M->>I: read the participants
-    M-->>A: role assignments with their holders; roles of the model, the capabilities they need, how many fill each
+    M-->>A: role assignments with their holders
+    M-->>A: roles of the model, the capabilities they need, how many fill each
     A->>M: name, participants for each role
     M-->>A: only participants with the capabilities, and where each processes data
     A->>M: Save
