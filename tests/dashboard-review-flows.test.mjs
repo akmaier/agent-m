@@ -27,6 +27,7 @@ import { settingsSchemas } from "../src/personal-data/index.mjs";
 const TRUSTED = { isTrusted: true }, SCRIPTED = { isTrusted: false };
 const API = "https://api.github.com";
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
+const GL_TOKEN_KEY = `gitlab-token:${new URL(GL_ADDR).host}${new URL(GL_ADDR).pathname}`;
 
 // richDocument and press — what the harness's document lacks for these flows, and a person's click on what it adds — are in
 // tests/app-harness.mjs, beside the harness, so that other tests of the dashboard's editor use them too.
@@ -630,9 +631,9 @@ test("UC-014 steps 8–9: after the notice is ticked, the pasted token and its e
   dom.byId("key-token").value = key;
   dom.byId("key-expires").value = "2027-01-15";
   await press(srv, dom.byId("key-store"));
-  assert.deepEqual(agentKeys(), ["agent-m.github-token", "agent-m.github-token-expires"], "one token, in this browser, and nothing else");
-  assert.equal(stored("agent-m.github-token"), key);
-  assert.equal(stored("agent-m.github-token-expires"), "2027-01-15", "the date as entered");
+  assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((storedKey) => storedKey.startsWith("agent-m:akmaier/agent-m:")).sort(), ["agent-m:akmaier/agent-m:github-token"], "one canonical token, in this browser, and nothing else");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).value, key);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token")).expires, "2027-01-15", "the date as entered");
   assert.ok(srv.seen.some((r) => r.url === `${API}/repos/${REPO}` && r.auth === `Bearer ${key}`), "the instance is read with it");
   assert.equal(dom.byId("key-check").innerHTML, "✓ akmaier/agent-m reachable — public, so write access is confirmed only by the first write");
   assert.equal(dom.byId("setup-done").innerHTML, `<a class="btn primary" href="#uc">Your instance is ready →</a> <a class="btn" href="#add">+ Add a product</a>`);
@@ -661,14 +662,12 @@ globalThis.confirm = (text) => { confirms.push(text); return confirmAnswer; };
 const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
 const publicRepositoryRow = (box, label) => publicControls(box(), "settings-repository").find((row) => row.textContent.includes(label));
 const publicRepositoryControl = (box, label, name) => publicControls(publicRepositoryRow(box, label), `settings-repository-${name}`)[0];
-async function publicSettingsPage({ server = null, token = null, settings = {}, caches = null } = {}) {
+async function publicSettingsPage({ server = null, token = TOKEN, settings = {}, caches = null } = {}) {
   confirms.length = 0;
   confirmAnswer = true;
-  const srv = server ?? await ucServer(), page = await openDashboard({ server: srv, hash: "#uc", token, ...(caches ? { caches } : {}) });
   const storedSettings = { "github-token": { value: TOKEN, name: "GitHub token", expires: day(90), stored: day(0) }, ...settings };
-  for (const [key, value] of Object.entries(storedSettings)) {
-    globalThis.localStorage.setItem(`agent-m:akmaier/agent-m:${key}`, JSON.stringify(value));
-  }
+  const entries = Object.fromEntries(Object.entries(storedSettings).map(([key, value]) => [`agent-m:akmaier/agent-m:${key}`, JSON.stringify(value)]));
+  const srv = server ?? await ucServer(), page = await openDashboard({ server: srv, hash: "#uc", token, entries, ...(caches ? { caches } : {}) });
   const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main); let mounted = [];
   main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
@@ -689,7 +688,7 @@ async function until(cond, what) {
 test("UC-042 step 1: public component tabs keep every settings scope and existing control reachable", async () => {
   const { page, tabs, box, general, endpoints, usability } = await publicSettingsPage({ settings: {
     products: [PRODUCT_ADDR, GL_ADDR], [`github-token:${PRODUCT}`]: { value: "github_pat_PRODUCT0123456789abcdefghij", name: "Agent M", expires: day(60), stored: day(0) },
-    "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) },
+    [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) },
     "jump-host": { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] },
     "remote-session:lab-pc": { port: 20001, token: "bridgeTOKEN-0123456789abcdef" }, "endpoint:main": { url: "https://models.example.test/v1", model: "small", key: "endpoint-key" },
   } });
@@ -814,7 +813,7 @@ test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of the token: the pas
 });
 
 test("A FORM OPENS WITH ITS FIRST FIELD FOCUSED — Change of a GitLab project token: the field for the new token", async () => {
-  const { srv, box, dom } = await publicSettingsPage({ settings: { products: [GL_ADDR], "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  const { srv, box, dom } = await publicSettingsPage({ settings: { products: [GL_ADDR], [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
   const acknowledgement = publicRepositoryControl(box, "GitLab token", "ack");
   const secret = publicRepositoryControl(box, "GitLab token", "secret");
   await publicPress(srv, publicRepositoryControl(box, "GitLab token", "change"));
@@ -846,21 +845,21 @@ test("UC-042 1b: a token the server refused is named, with its renewal, at the t
   await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
   assert.equal(publicRepositoryControl(box, "GitHub token", "status").textContent, "Expires on " + day(90) + ". Refused.");
   assert.equal(publicRepositoryControl(box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
-  assert.match(publicRepositoryControl(box, "GitHub token", "result").textContent, /^✗ GitHub did not accept this token/);
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub. Renew it on https://github.com/settings/personal-access-tokens.");
   await page.go("#uc");
   assert.ok(page.el("token-banner").includes("<strong>GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub.</strong>"));
   assert.ok(page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens"'));
 });
 
 test("UC-042 step 2: products — Remove takes one off this browser's list after a confirmation; Clear takes all, with the GitLab products' tokens; no repository changes", async () => {
-  const { srv, page, box } = await publicSettingsPage({ settings: { products: [PRODUCT_ADDR, GL_ADDR], [`github-token:${PRODUCT}`]: { value: "github_pat_PRODUCT0123456789abcdefghij", name: "Agent M", expires: day(60), stored: day(0) }, "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  const { srv, page, box } = await publicSettingsPage({ settings: { products: [PRODUCT_ADDR, GL_ADDR], [`github-token:${PRODUCT}`]: { value: "github_pat_PRODUCT0123456789abcdefghij", name: "Agent M", expires: day(60), stored: day(0) }, [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
   assert.equal(publicControls(box(), "settings-product-list-item").length, 2);
   await publicPress(srv, publicControls(box(), "settings-product-remove")[0]);
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products")), [GL_ADDR]);
-  assert.ok(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project")).value === GL_TOKEN, "another product's token stays");
+  assert.ok(JSON.parse(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`)).value === GL_TOKEN, "another product's token stays");
   await publicPress(srv, publicRepositoryControl(box, "Products", "clear"));
   assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products"), null);
-  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project"), null);
+  assert.equal(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`), null);
   assert.equal(confirms.length, 2, "Remove and Clear each require their own confirmation");
   assert.deepEqual(srv.writes, []);
   assert.equal(publicControls(box(), "settings-product-list-item").length, 0, "the product list follows");
@@ -869,8 +868,8 @@ test("UC-042 step 2: products — Remove takes one off this browser's list after
 });
 
 test("UC-042 step 2: a GitLab project token — hidden until Show, changed after the notice, cleared after a confirmation", async () => {
-  const { srv, box } = await publicSettingsPage({ settings: { products: [GL_ADDR], "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
-  const label = "GitLab token: gitlab.example/group/project";
+  const { srv, box } = await publicSettingsPage({ settings: { products: [GL_ADDR], [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: day(60), stored: day(0) } } });
+  const label = `GitLab token: ${GL_TOKEN_KEY.slice("gitlab-token:".length)}`;
   const secret = publicRepositoryControl(box, label, "secret");
   assert.equal(secret.type, "password");
   await publicPress(srv, publicRepositoryControl(box, label, "show"));
@@ -884,9 +883,9 @@ test("UC-042 step 2: a GitLab project token — hidden until Show, changed after
   secret.value = renewed;
   publicRepositoryControl(box, label, "expiry").value = day(80);
   await publicPress(srv, publicRepositoryControl(box, label, "save"));
-  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project")), { value: renewed, name: "Agent M", expires: day(80), stored: day(0) });
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`)), { value: renewed, name: "Agent M", expires: day(80), stored: day(0) });
   await publicPress(srv, publicRepositoryControl(box, label, "clear"));
-  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:gitlab-token:gitlab.example/group/project"), null);
+  assert.equal(globalThis.localStorage.getItem(`agent-m:akmaier/agent-m:${GL_TOKEN_KEY}`), null);
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:products")), [GL_ADDR], "the product stays in the list");
 });
 
@@ -1031,7 +1030,7 @@ test("UC-042 5a: Remove takes a collaborator off the list with one commit, and s
 test("UC-042 step 6: Clear everything removes every Agent M entry from localStorage and the kept file texts, after a confirmation", async () => {
   const caches = fakeCaches();
   const srv = await ucServer();
-  const { general } = await publicSettingsPage({ server: srv, caches, settings: { products: [PRODUCT_ADDR], "gitlab-token:gitlab.example/group/project": { value: GL_TOKEN, name: "Agent M", expires: null }, "jump-host": { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] } } });
+  const { general } = await publicSettingsPage({ server: srv, caches, settings: { products: [PRODUCT_ADDR], [GL_TOKEN_KEY]: { value: GL_TOKEN, name: "Agent M", expires: null }, "jump-host": { hostname: "jump.example.org", user: "agentm", sshPort: 22, portRange: [20001, 20003] } } });
   globalThis.localStorage.setItem("another-site.setting", "kept");
   assert.ok(caches.stores.size > 0, "file texts were kept");
   const before = [...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:"));
