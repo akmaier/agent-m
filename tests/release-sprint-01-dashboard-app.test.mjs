@@ -780,7 +780,7 @@ test("release · UC-014 8–9: Store and check keeps token and expiry after the 
   const page = await open(w, { hash: "#setup", token: null });
   const [a, b] = sections(page.main());
   for (const s of [a, b]) assert.match(s, /<summary>What is this\?<\/summary>/);
-  assert.match(stripTags(b), /every GitHub Pages site under that same akmaier\.github\.io domain/i);
+  assert.match(stripTags(b), /every other GitHub Pages site of akmaier/i);
   assert.equal(page.byId("key-expires").value, daysFromToday(90), "preset to 90 days");
   page.byId("key-token").value = TOKEN;
   await page.fire("key-store");
@@ -1082,8 +1082,10 @@ test("release · UC-042: every line and section of the settings page explains it
     }
   };
   for (const row of publicControls(panes.repositories(), "settings-repository")) folded(row, row.textContent.split("\n")[0] || "repository row");
-  folded(productControl(panes, "pseudonymisation-state").parentElement, "pseudonymisation");
-  folded(productControl(panes, "collaborator-save").parentElement, "collaborators");
+  const product = productControls(panes);
+  folded(product, "product settings");
+  assert.match(detailsOf(product)[0].textContent, /pseudonymisation[\s\S]*collaborator consent/i,
+    "the product setting explanation covers both pseudonymisation and collaborator consent");
   folded(publicControls(panes.general(), "settings-export-import")[0], "Export and import");
   folded(publicControls(panes.general(), "settings-clear")[0], "Clear everything");
   for (const details of detailsOf(panes.usability())) {
