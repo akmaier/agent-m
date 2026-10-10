@@ -74,9 +74,10 @@ test("TST-290109: Settings tabs preserve unfinished form state without actions",
 // guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR;
 //   A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: the public Settings Route with a stored remote Bridge session and browser-held settings
-// input: the person opens Endpoints & Agents, reveals the session token, then acknowledges browser clear
+// input: the person opens Endpoints & Agents, reveals the session token, removes a listed product, then acknowledges browser clear
 // expect: the session remains hidden until Show and routes to its existing Bridge setup, while Clear everything stays
-//   disabled until acknowledgement and then removes the actual browser-store entries
+//   disabled until acknowledgement and then removes the actual browser-store entries; product removal also removes its own
+//   credential and test metadata
 test("TST-290110: Settings exposes remote-session actions and requires acknowledgement before browser clear", async () => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
@@ -84,6 +85,8 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   writeSetting(store, "remote-session:lab", { port: 40101, token: "remote-token" });
   writeSetting(store, "endpoint:main", { url: "https://models.example.test/v1", kind: "openai-compatible", model: "small", key: "stored-key", throughBridge: false });
   writeSetting(store, "products", ["https://github.com/fixture/product"]);
+  writeSetting(store, "github-token:fixture/product", { value: "ghp_product", name: "Agent M", expires: "2026-12-01" });
+  writeSetting(store, "last-test:github-token:fixture/product", { at: "2026-10-10T00:00:00.000Z", outcome: "working" });
   const navigations = [];
   const target = document.createElement("div");
   await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store,
@@ -104,6 +107,8 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   click(byClass(product, "settings-product-remove")[0]);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(readSetting(store, "products"), [], "Remove updates the canonical browser product list");
+  assert.equal(readSetting(store, "github-token:fixture/product"), null, "Remove takes the product's own GitHub token with its browser list entry");
+  assert.equal(readSetting(store, "last-test:github-token:fixture/product"), null, "Remove takes the adjacent token-test metadata too");
 
   click(tabs[0]);
   const clear = byClass(target, "settings-clear-everything")[0];

@@ -7,7 +7,7 @@ import { explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
-import { checkProduct, credentialsFor } from "./products.mjs";
+import { checkProduct, credentialsFor, tokenSettingKey } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 
 function el(name, className, ...children) {
@@ -233,7 +233,11 @@ function repositoryLine(context, info) {
     const clear = el("button", "settings-repository-clear", "Clear");
     const status = el("p", "settings-repository-status", "Product addresses are stored in this browser.");
     change.addEventListener("click", () => context.go("add-product", {}));
-    clear.addEventListener("click", () => { clearSetting(context.store, info.key); status.textContent = "Cleared from this browser."; });
+    clear.addEventListener("click", () => {
+      for (const web of readSetting(context.store, "products") ?? []) clearProductToken(context.store, web);
+      clearSetting(context.store, info.key);
+      status.textContent = "Cleared from this browser with every product's own token.";
+    });
     return el("section", "settings-repository", el("h3", null, info.label), status, el("p", null, change, " ", clear));
   }
   const stored = readSetting(context.store, info.key);
@@ -349,12 +353,19 @@ function productListControls(target, context) {
       } catch (error) { result.textContent = `✗ ${error.message}`; }
     });
     remove.addEventListener("click", async () => {
+      clearProductToken(context.store, web);
       writeSetting(context.store, "products", products.filter((candidate) => candidate !== web));
       await route.render(target, context, {});
     });
     return el("section", "settings-product-list-item", el("h4", null, web), el("p", null, test, " ", remove), result);
   });
   return el("section", "settings-product-list", el("h3", null, "Managed products"), ...lines);
+}
+
+function clearProductToken(store, web) {
+  const key = tokenSettingKey(parseAddress(web));
+  clearSetting(store, key);
+  clearSetting(store, `last-test:${key}`);
 }
 
 function notificationsControls(context) {
