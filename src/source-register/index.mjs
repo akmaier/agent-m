@@ -2,8 +2,9 @@
 // its interface. Of it, ITM-217 builds what UC-002 needs: sourceSchemas, with the schema of a register entry, and
 // permittedPlaces, the processing places to which the content of a source may be given. ITM-228 adds to sourceSchemas the
 // schema of a product's links file. readContent, which reads a version's files with their hashes checked (content.mjs),
-// and sourceStrategies with the four recipes of the book's chapters (strategies.mjs) come with the job runner. Registering
-// and fetching a source's content, the recipe source-excerpt and the module's other functions are not built yet.
+// linkedVersion, and sourceStrategies with the recipe source-excerpt and the four recipes of the book's chapters
+// (strategies.mjs) come with the job runner. Registering and fetching a source's content and the module's other functions
+// are not built yet.
 //
 // Module: MOD-source-register
 //
@@ -19,6 +20,7 @@
 // is MOD-job-runner's.
 import { loadSchema } from "../documents/index.mjs";
 import { strategiesOf } from "./strategies.mjs";
+import { unquoted, versionRecord } from "./content.mjs";
 
 export { readContent } from "./content.mjs";
 
@@ -79,8 +81,42 @@ export function permittedPlaces(entry) {
   return Array.isArray(places) ? [...places] : [];
 }
 
+// The names an entry goes by in a requirement's source item: its identifier, its title, and a standard's designation.
+const namesOf = (entry) => [entry.id, entry.fields.title, entry.fields.kind === "standard" ? entry.fields.designation : null]
+  .filter((name) => typeof name === "string" && name !== "");
+
 /**
- * sourceStrategies — Partial<Strategies>: the four recipes of the book's chapters, `chapters-for-requirements` (8),
+ * linkedVersion(links: Document, register: Document[], source: string) -> LinkedVersion | null — the version a product links
+ * of the source that `source` names, an identifier or an item of a requirement's source: the register entry whose
+ * identifier, title or — for a standard — designation the item begins with, the longest such match, followed by the end of
+ * the item or by `, ` and the part it draws on. The version is the one the product's link names, with the hash its link
+ * records, and the part the link names that applies, or null. Null when `source` names no register entry, or the product
+ * links none of it, or the entry records no version the link names.
+ * @param {Document} links — a product's links file, read with the schema sourceSchemas gives
+ * @param {Document[]} register — the instance's register entries
+ * @param {string} source
+ * @returns {{ source: Document, version: SourceVersion, part: string | null } | null}
+ */
+export function linkedVersion(links, register, source) {
+  let entry = null, longest = -1;
+  for (const each of register) {
+    for (const name of namesOf(each)) {
+      if ((source === name || source.startsWith(`${name}, `)) && name.length > longest) [entry, longest] = [each, name.length];
+    }
+  }
+  if (!entry) return null;
+  const link = links.sections.flatMap((section) => section.rows ?? []).find((row) => unquoted(row.cells.Source) === entry.id);
+  if (!link) return null;
+  const version = versionRecord(entry, unquoted(link.cells.Version), unquoted(link.cells.Hash));
+  if (!version) return null;
+  const part = typeof link.cells.Part === "string" && link.cells.Part.trim() ? link.cells.Part.trim() : null;
+  return { source: entry, version, part };
+}
+
+/**
+ * sourceStrategies — Partial<Strategies>: the recipe source-excerpt — the text of the version a product links of the source
+ * a job names, as one part naming the source, read where its content lies; NotLinked { source } for a source the product
+ * does not link — and the four recipes of the book's chapters, `chapters-for-requirements` (8),
  * `chapters-for-tests` (13), `chapters-for-architecture` (9, 10, 11, 12) and `chapters-for-implementation` (9, 11, 12, 13):
  * each reads the instance's register entry SRC-vibe-coding, takes its newest version — the last row of its `## Versions` —,
  * reads that version's files through readContent, and returns one part per chapter, in the order of their numbers: the
@@ -89,4 +125,4 @@ export function permittedPlaces(entry) {
  * throws, NotRegistered { source } when the instance has no entry SRC-vibe-coding, and ChapterMissing { chapter, version }
  * when the version holds no file for a chapter.
  */
-export const sourceStrategies = strategiesOf(ENTRY);
+export const sourceStrategies = strategiesOf({ entry: ENTRY, links: LINKS, linkedVersion, permittedPlaces });

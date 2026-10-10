@@ -7,8 +7,8 @@
 
 Builds the input of each kind of job from its job definition and compares it with the book's chapter files. For every kind
 of MOD-job-catalogue, MOD-job-runner's prepareJob — which sends nothing — builds the parts of its input from the kind's
-recipes: the chapter recipes MOD-source-register offers, reading this instance's register entry SRC-vibe-coding, and, for
-every other strategy a kind names that no module offers yet, a stand-in that gives no part. Each part that carries
+recipes: the four chapter recipes MOD-source-register offers, reading this instance's register entry SRC-vibe-coding, and,
+for every other strategy a kind names, a stand-in that gives no part. Each part that carries
 SRC-vibe-coding is compared, by its SHA-256, with the chapter file of the entry's newest version it names.
 
 The kinds of each work, as their purposes in the catalogue state them: on requirements or use cases derive-requirements,
@@ -40,7 +40,8 @@ const root = %s;
 const read = async (path) => { try { return fs.readFileSync(root + path, "utf8"); } catch { return null; } };
 const snapshot = { repository: { server: "github", origin: "https://github.com", path: "akmaier/agent-m",
   web: "https://github.com/akmaier/agent-m" }, ref: "main", commit: null, paths: [], read, blob: () => null };
-jobRunner.registerStrategies("MOD-source-register", sourceRegister.sourceStrategies);
+jobRunner.registerStrategies("MOD-source-register", { recipes: Object.fromEntries(
+  Object.entries(sourceRegister.sourceStrategies.recipes).filter(([name]) => name.startsWith("chapters-for-"))) });
 const empty = { recipes: async () => [], preconditions: async () => null, checks: () => [],
   steps: async (draft) => ({ draft, findings: [] }), writers: async () => ({ commits: [], files: [], pullRequest: null, shown: null }) };
 const named = (kind) => ({ preconditions: kind.preconditions, recipes: kind.recipes.map((recipe) => recipe.name),
