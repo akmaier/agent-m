@@ -218,14 +218,16 @@ test("TST-290122: CI counter-proof restores the Settings route for TST-290116 th
     const argv = [process.execPath, "--test", "--test-name-pattern", "TST-29011[6-9]|TST-290120|TST-290121", testPath];
     const invoke = () => { const env = { ...process.env, AGENT_M_290_SETTINGS_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 60_000, env }); };
     const originalHash = createHash("sha256").update(original).digest("hex");
-    writeFileSync(source, original.toString().replace(needle, "function repositoryLineFault(context, info) {"));
-    const faultHash = createHash("sha256").update(readFileSync(source)).digest("hex"), failed = invoke();
-    writeFileSync(source, original);
-    const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), passed = invoke();
-    assert.notEqual(failed.status, 0, `fault argv=${argv.join(" ")} stdout=${failed.stdout} stderr=${failed.stderr}`);
-    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121"]) assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(id));
+    const faultStarted = new Date().toISOString(); writeFileSync(source, original.toString().replace(needle, "function repositoryLineFault(context, info) {"));
+    const faultHash = createHash("sha256").update(readFileSync(source)).digest("hex"), failed = invoke(), faultEnded = new Date().toISOString();
+    const restoreStarted = new Date().toISOString(); writeFileSync(source, original);
+    const restoredHash = createHash("sha256").update(readFileSync(source)).digest("hex"), passed = invoke(), restoreEnded = new Date().toISOString();
+    console.log(JSON.stringify({ argv, cwd: copied, childEnv: { AGENT_M_290_SETTINGS_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null }, source, testPath, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoreEnded, failed: { status: failed.status, signal: failed.signal, error: failed.error?.message, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message, stdout: passed.stdout, stderr: passed.stderr } }));
+    assert.equal(failed.status, 1); assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
+    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121"]) assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}:`));
     assert.equal(restoredHash, originalHash, "source bytes are restored exactly");
-    assert.equal(passed.status, 0, `restored argv=${argv.join(" ")} stdout=${passed.stdout} stderr=${passed.stderr}`);
+    assert.equal(passed.status, 0); assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
+    for (const id of ["TST-290116", "TST-290117", "TST-290118", "TST-290119", "TST-290120", "TST-290121"]) assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}:`));
     assert.ok(faultHash !== originalHash);
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });

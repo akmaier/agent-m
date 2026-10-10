@@ -539,6 +539,7 @@ async function productControls(context) {
     const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
+    collaboratorRecords.append(el("li", null, `${name.value.trim()} · @${account.value.trim().replace(/^@/, "")} · agreed on recorded`));
     collabResult.textContent = "Saved in the product repository.";
   });
   remove.addEventListener("click", async (event) => {
@@ -558,6 +559,7 @@ async function productControls(context) {
     const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsBytes = text; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
+    collaboratorRecords.replaceChildren(...Array.from(collaboratorRecords.childNodes).filter((node) => !node.textContent.includes(`@${wantedAccount}`)));
     collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
     if (result.url) { const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = result.url; collabResult.append(link); }
   });
