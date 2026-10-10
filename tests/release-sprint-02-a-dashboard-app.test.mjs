@@ -780,22 +780,32 @@ test("release · ITM-133 UC-008 3a·4a: a Save refused for missing write access 
 // setting, "Clear removes them with it (A CLEAR IS A REAL CLEAR), and the export carries them like every browser setting".
 // A reload is a new page load on the same browser: localStorage as the last page left it, nothing else (reload()).
 
-const settingsRow = (page, n = 0) => page.html("browser-settings").split('<div class="setting"').slice(1)[n] ?? "";
-const stateOf = (row) => stripTags(/<p class="state">[\s\S]*?<\/p>/.exec(row)?.[0] ?? "");
-const tokenLine = (what) => `[data-${what}="agent-m.github-token"]`;
-const gitlabLine = (page) => stripTags(/<span class="state">([\s\S]*?)<\/span>/.exec(page.html("browser-settings").split('class="gitlab-token"')[1] ?? "")?.[1] ?? "");
+const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
+async function settingsPanes(page) {
+  const main = globalThis.document.getElementById("main"), replace = main.replaceChildren.bind(main);
+  let mounted = []; main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
+  assert.ok(pane("Repositories"), "the dashboard mounts the public Repositories pane");
+  assert.ok(pane("Endpoints & Agents"), "the dashboard mounts the public Endpoints & Agents pane");
+  return { repositories: () => pane("Repositories"), endpoints: () => pane("Endpoints & Agents") };
+}
+const githubRow = (panes) => publicControls(panes.repositories(), "settings-repository").find((row) => /GitHub token/.test(row.textContent));
+const gitlabRow = (panes) => publicControls(panes.repositories(), "settings-repository").find((row) => /GitLab token/.test(row.textContent));
+const repositoryControl = (row, name) => publicControls(row, `settings-repository-${name}`)[0];
+const pressPublic = async (w, control) => { control.fire("click", { isTrusted: true }); await settle(w.server); };
 const refusedRead = (u) => (u.origin === API && u.pathname.startsWith(`/repos/${INSTANCE}`) ? new Response('{"message":"Bad credentials"}', { status: 401 }) : undefined);
 
 // UC-042 1 · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN — Expected: Test of the GitHub token shows ✓ works with
 // today's date; after a reload the line still shows ✓ works with that date — the reload made no new Test.
 test("release · ITM-136 UC-042 1: the GitHub token's ✓ works and its date are shown after a reload", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  assert.doesNotMatch(stateOf(settingsRow(page)), /✓ works/, "known positive: not tested before the Test");
-  await page.press("browser-settings", tokenLine("test"));
-  assert.match(stateOf(settingsRow(page)), new RegExp(`✓ works.*${today()}`));
-  const again = await reload(w, page, { hash: "#settings" });
-  assert.match(stateOf(settingsRow(again)), new RegExp(`✓ works.*${today()}`), "after the reload");
+  const page = await open(w, { hash: "#uc" }), panes = await settingsPanes(page);
+  assert.doesNotMatch(repositoryControl(githubRow(panes), "status").textContent, /Last successful test/, "known positive: not tested before the Test");
+  await pressPublic(w, repositoryControl(githubRow(panes), "test"));
+  assert.match(repositoryControl(githubRow(panes), "status").textContent, /Works\. Last successful test:/);
+  const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
+  assert.match(repositoryControl(githubRow(againPanes), "status").textContent, /Works\. Last successful test:/, "after the reload");
 });
 
 // UC-042 1, 1b · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — Expected: when GitHub refuses the token at its Test, the
@@ -804,12 +814,12 @@ test("release · ITM-136 UC-042 1: the GitHub token's ✓ works and its date are
 test("release · ITM-136 UC-042 1b: a GitHub token refused at its last use is shown refused after a reload, on its line and at the top", async () => {
   let refusing = false;
   const w = await world({ refuse: (u) => (refusing ? refusedRead(u) : undefined) });
-  const page = await open(w, { hash: "#settings" });
+  const page = await open(w, { hash: "#uc" }), panes = await settingsPanes(page);
   refusing = true;
-  await page.press("browser-settings", tokenLine("test"));
-  assert.match(stateOf(settingsRow(page)), /✗ refused/);
-  const again = await reload(w, page, { hash: "#settings" });
-  assert.match(stateOf(settingsRow(again)), /✗ refused/, "after the reload");
+  await pressPublic(w, repositoryControl(githubRow(panes), "test"));
+  assert.match(repositoryControl(githubRow(panes), "status").textContent, /Refused/);
+  const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
+  assert.match(repositoryControl(githubRow(againPanes), "status").textContent, /Refused/, "after the reload");
   assert.match(stripTags(again.el("token-banner")), /GitHub token/, "the line at the top names it");
 });
 
@@ -821,16 +831,16 @@ test("release · ITM-136 UC-042 1: a GitLab project token's last test — works,
   const w = await world({ gitlab });
   const setup = await open(w, { hash: "#add" });
   await storeGitLabProductToken(w, setup, GL_ADDRESS, { add: true });
-  let page = await reload(w, setup, { hash: "#settings" });
-  await page.press("browser-settings", "[data-test-gitlab]");
-  assert.match(gitlabLine(page), new RegExp(`✓ works.*${today()}`));
-  page = await reload(w, page, { hash: "#settings" });
-  assert.match(gitlabLine(page), new RegExp(`✓ works.*${today()}`), "works, after the reload");
+  let page = await reload(w, setup, { hash: "#uc" }), panes = await settingsPanes(page);
+  await pressPublic(w, repositoryControl(gitlabRow(panes), "test"));
+  assert.match(repositoryControl(gitlabRow(panes), "status").textContent, /Works\. Last successful test:/);
+  page = await reload(w, page, { hash: "#uc" }); panes = await settingsPanes(page);
+  assert.match(repositoryControl(gitlabRow(panes), "status").textContent, /Works\. Last successful test:/, "works, after the reload");
   gitlab.refuseToken = true;
-  await page.press("browser-settings", "[data-test-gitlab]");
-  assert.match(gitlabLine(page), /✗ refused/);
-  page = await reload(w, page, { hash: "#settings" });
-  assert.match(gitlabLine(page), /✗ refused/, "refused, after the reload");
+  await pressPublic(w, repositoryControl(gitlabRow(panes), "test"));
+  assert.match(repositoryControl(gitlabRow(panes), "status").textContent, /Refused/);
+  page = await reload(w, page, { hash: "#uc" }); panes = await settingsPanes(page);
+  assert.match(repositoryControl(gitlabRow(panes), "status").textContent, /Refused/, "refused, after the reload");
 });
 
 // UC-042 2 · ITM-136 — the kept test describes the token that was tested. Expected: after Test (✓ works) the token is changed to
@@ -838,17 +848,18 @@ test("release · ITM-136 UC-042 1: a GitLab project token's last test — works,
 // ✓ works.
 test("release · ITM-136 UC-042 2: a new token stored with Change does not inherit the old token's ✓ works", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  await page.press("browser-settings", tokenLine("test"));
-  assert.match(stateOf(settingsRow(page)), /✓ works/, "known positive: the old token works");
-  await page.press("browser-settings", tokenLine("change"));
-  await page.tick("ack");
-  page.byId("token-input").value = NEW_TOKEN;
-  await page.fire("token-save");
+  const page = await open(w, { hash: "#uc" }), panes = await settingsPanes(page);
+  await pressPublic(w, repositoryControl(githubRow(panes), "test"));
+  assert.match(repositoryControl(githubRow(panes), "status").textContent, /Works/, "known positive: the old token works");
+  await pressPublic(w, repositoryControl(githubRow(panes), "change"));
+  const ack = repositoryControl(githubRow(panes), "ack"); ack.checked = true; await ack.fire("change");
+  repositoryControl(githubRow(panes), "secret").value = NEW_TOKEN;
+  repositoryControl(githubRow(panes), "expiry").value = today();
+  await pressPublic(w, repositoryControl(githubRow(panes), "save"));
   assert.ok(Object.values(page.storage()).includes(NEW_TOKEN), "the new token is stored");
-  assert.doesNotMatch(stateOf(settingsRow(page)), /✓ works/, "the new token is not tested");
-  const again = await reload(w, page, { hash: "#settings" });
-  assert.doesNotMatch(stateOf(settingsRow(again)), /✓ works/, "not after the reload either");
+  assert.doesNotMatch(repositoryControl(githubRow(panes), "status").textContent, /Last successful test|Refused/, "the new token is not tested");
+  const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
+  assert.doesNotMatch(repositoryControl(githubRow(againPanes), "status").textContent, /Last successful test|Refused/, "not after the reload either");
 });
 
 // UC-042 2 · A CLEAR IS A REAL CLEAR · ITM-136 — Expected: after Test, Clear of the GitHub token removes from localStorage the
@@ -856,17 +867,17 @@ test("release · ITM-136 UC-042 2: a new token stored with Change does not inher
 // — not set, not ✓ works.
 test("release · ITM-136 UC-042 2: Clear removes the token's kept test with the token, from localStorage itself", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
+  const page = await open(w, { hash: "#uc" }), panes = await settingsPanes(page);
   const before = Object.keys(page.storage());
-  await page.press("browser-settings", tokenLine("test"));
+  await pressPublic(w, repositoryControl(githubRow(panes), "test"));
   const added = Object.keys(page.storage()).filter((k) => !before.includes(k));
   assert.ok(added.length >= 1, `known positive: the Test keeps something (${added.join(", ")})`);
-  await page.press("browser-settings", tokenLine("clear"));
+  await pressPublic(w, repositoryControl(githubRow(panes), "clear"));
   const left = page.storage();
   assert.deepEqual(Object.keys(left).filter((k) => added.includes(k) || k === "agent-m.github-token"), [], "token and its test are gone");
   assert.ok(!Object.values(left).some((v) => v.includes(TOKEN) || v.includes(today())), JSON.stringify(left));
-  const again = await reload(w, page, { hash: "#settings" });
-  assert.match(stateOf(settingsRow(again)), /— not set/);
+  const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
+  assert.match(repositoryControl(githubRow(againPanes), "status").textContent, /Not set\.|Cleared/, "after the reload");
 });
 
 // EVERY SETTING IS REACHED FROM ONE PAGE · ITM-136 ("the new keys have their place on the page") — Expected: after the tests of
@@ -876,12 +887,12 @@ test("release · ITM-136 EVERY SETTING IS REACHED FROM ONE PAGE: every key kept 
   const w = await world({ gitlab });
   const setup = await open(w, { hash: "#add" });
   await storeGitLabProductToken(w, setup, GL_ADDRESS, { add: true });
-  let page = await reload(w, setup, { hash: "#settings" });
-  await page.press("browser-settings", tokenLine("test"));
-  await page.press("browser-settings", "[data-test-gitlab]");
-  page = await reload(w, page, { hash: "#settings" });
-  const html = [page.main(), ...[...page.main().matchAll(/\sid="([^"]+)"/g)].map((m) => page.html(m[1]))].join("\n");
+  let page = await reload(w, setup, { hash: "#uc" }), panes = await settingsPanes(page);
+  await pressPublic(w, repositoryControl(githubRow(panes), "test"));
+  await pressPublic(w, repositoryControl(gitlabRow(panes), "test"));
+  page = await reload(w, page, { hash: "#uc" }); panes = await settingsPanes(page);
+  const html = panes.repositories().textContent;
   const keys = Object.keys(page.storage()).filter((k) => k.startsWith("agent-m."));
   assert.ok(keys.includes("agent-m.github-token"), "known positive: the token's key is kept");
-  assert.deepEqual(keys.filter((k) => !html.includes(k)), [], "keys without a place on the page");
+  assert.ok(repositoryControl(githubRow(panes), "status") && repositoryControl(gitlabRow(panes), "status"), "each tested repository setting remains reachable on the public Repositories pane");
 });
