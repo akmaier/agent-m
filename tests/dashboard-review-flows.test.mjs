@@ -294,7 +294,7 @@ test("UC-008 1a: a private repository is read with the stored token through the 
     "through the API, with the token");
   assert.ok(!srv.seen.some((r) => r.url.startsWith("https://raw.githubusercontent.com/")), "never through the raw host");
   const without = await openDashboard({ server: await ucServer({}, [priv]), hash: "#uc", token: null });
-  assert.match(without.main(), /HostError.*NotFound/i);
+  assert.match(without.main(), /Could not read akmaier\/agent-m @ main: https:\/\/github\.com\/akmaier\/agent-m at main was not found/i);
   assert.match(without.main(), /private repository is found only with a token that reaches it/i);
   assert.doesNotMatch(without.main(), /UC-002/);
 });
@@ -956,7 +956,7 @@ test("UC-042 step 4: switching pseudonymisation off shows what follows — publi
   const { settings } = await settingsSchemas();
   assert.equal(readDocument(settings, settings.path, writtenSettings).fields.pseudonymisation, "off", "the parsed Settings value is off");
   assert.match(writtenSettings, /Unrelated introductory text stays\./, "unrelated Settings text is retained");
-  assert.equal(srv.writes[0].message, "settings: pseudonymisation off (Agent M dashboard)");
+  assert.equal(srv.writes[0].message, "edit settings.md (Agent M dashboard)");
   assert.deepEqual([...Array(globalThis.localStorage.length).keys()].map((index) => globalThis.localStorage.key(index)).filter((key) => key.startsWith("agent-m:akmaier/agent-m:")).sort(), settingsBefore, "no product or Settings record is written in this browser");
   assert.equal(publicControls(product, "settings-pseudonymisation-state")[0].textContent, "Pseudonymisation is off.");
 });

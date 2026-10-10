@@ -161,7 +161,7 @@ test("a second load on an unchanged tree reads its displayed files again", async
   // the earlier one says whether it is changed or open.
   const edited = { ...repo, [UC1]: repo[UC1].replace("Read a file", "Read one file") };
   const third = await openDashboard({ server: await server(edited), caches });
-  assert.deepEqual(files(third.requests), files(first.requests));
+  assert.deepEqual(files(third.requests), [...files(first.requests), ...recordOf(repo, "UC-001")].sort());
   assert.match(third.main(), /Read one file/);
 });
 
