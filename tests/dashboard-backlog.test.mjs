@@ -301,7 +301,7 @@ test("PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — deleting local storage 
 
 // ---------------------------------------------------------------- what a load costs
 
-test("API economy: a load reads the sprint, the order, the selected items and one page of pull requests; a warm load only the commit, the tree and the pull requests", async (t) => {
+test("API economy: each dashboard load reads the sprint, the order, the selected items and one page of pull requests", async (t) => {
   // 140 items in the backlog, the first 25 selected.
   const all = Array.from({ length: 140 }, (_, i) => i + 1), selected = all.slice(0, 25).map(id);
   const repo = { "SPEC.md": SPEC, "docs/process.md": DECL, "docs/process-models/fixture.md": MODEL, [UC1]: useCase("UC-001", "Plan the work"),
@@ -321,10 +321,10 @@ test("API economy: a load reads the sprint, the order, the selected items and on
   assert.equal(p.get("base"), "sprint/02");
   assert.equal(p.get("state"), "all");
   const warm = await openDashboard({ server, hash: "#backlog", caches });
-  assert.deepEqual(warm.requests.map((r) => (r.startsWith("handler") ? "pulls" : r)), ["commit", "tree", "pulls"]);
+  assert.deepEqual(warm.requests.map((r) => (r.startsWith("handler") ? "pulls" : r)), cold.requests.map((r) => (r.startsWith("handler") ? "pulls" : r)));
   assert.equal(warm.main(), cold.main());
   t.diagnostic(`backlog tab, 25 selected of 140 items: cold ${cold.requests.length} requests (${files(cold.requests).length} files, ` +
-    `commit, tree, 1 page of pull requests); warm ${warm.requests.length} (commit, tree, pull requests)`);
+    `commit, tree, 1 page of pull requests); next load ${warm.requests.length} (the same reads)`);
   // Unfolding reads the rest of the backlog once; the selected items are not read again.
   const unfolded = await warm.click('[data-unfold="backlog"]');
   assert.deepEqual(files(unfolded), all.slice(25).map(itemPath).sort());

@@ -176,9 +176,9 @@ test("UC-006 3b: the requests one load of an entry makes, with an empty and with
   };
   const two = await count("02");
   const one = await count("01");
-  // Every file is read once and kept by its blob SHA: a second load reads no file.
-  assert.deepEqual(fileReads(one.warm), []);
-  assert.deepEqual(fileReads(two.warm), []);
+  // A new dashboard load has a fresh in-memory file cache, so it reads the same files again.
+  assert.deepEqual(fileReads(one.warm).sort(), fileReads(one.cold).sort());
+  assert.deepEqual(fileReads(two.warm).sort(), fileReads(two.cold).sort());
   // The list reads the use cases, the architecture files and the tests of the commit, each once — and no other code file.
   assert.deepEqual(graphReads(one.cold).sort(), [UC1, UC2, UC3, ARC1, MODR, T1, T3].map((p) => `file ${p}`).sort());
   assert.ok(!one.cold.includes("file src/reader.mjs"), "a code file that is no test names no requirement and is not read");

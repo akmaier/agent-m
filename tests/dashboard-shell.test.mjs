@@ -90,9 +90,9 @@ test("a view or settings section whose file is not there yet is not shown, and i
   assert.match(page.main(), /<h2>Use cases<\/h2>/);
   await page.go("#settings");
   assert.doesNotMatch(page.main(), new RegExp(`data-settings-section="${section.section}"`));
-  // Counter-proof: a view whose file is there is linked from its stage, and a built-in section is on the page.
+  // Counter-proof: a view whose file is there is linked from its stage, and the public Settings route is on the page.
   assert.match(page.el("tabs"), /<a href="#uc" role="tab" id="tab-uc"/);
-  assert.match(page.main(), /id="product-settings"/);
+  assert.match(page.main(), /General.*Repositories.*Endpoints &(?:amp;)? Agents.*Usability/s);
 });
 
 // Guards: UC-024
@@ -128,14 +128,18 @@ test("the list of built files beside the views names exactly the files of the ta
 
 test("a request handler a test brings answers before the harness's own GitHub", async () => {
   const privateRepo = async (url, init) => (init.method === "GET" && url.pathname === "/repos/akmaier/agent-m"
-    ? new Response(JSON.stringify({ private: true, default_branch: "main" }), { status: 200 }) : null);
+    ? new Response(JSON.stringify({ private: true, default_branch: "main", permissions: { push: true } }), { status: 200 }) : null);
   const own = await openDashboard({ server: await repoServer({ files: FILES, handlers: [privateRepo] }), hash: "#settings" });
   assert.ok(own.requests.includes("handler GET https://api.github.com/repos/akmaier/agent-m"), own.requests.join(", "));
-  assert.doesNotMatch(own.el("product-settings"), /will be published/, "the handler's private repository is not warned of publication");
-  // Counter-proof: without the handler the harness answers — a public repository, warned of publication.
-  const plain = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#settings" });
-  assert.match(plain.el("product-settings"), /will be published/);
-  assert.ok(!plain.requests.some((r) => r.startsWith("handler ")));
+  assert.doesNotMatch(own.main(), /will be published/, "the handler's private repository is not warned of publication");
+  const publicRepo = async (url, init) => (init.method === "GET" && url.pathname === "/repos/akmaier/agent-m"
+    ? new Response(JSON.stringify({ private: false, default_branch: "main", permissions: { push: true } }), { status: 200 }) : null);
+  const plain = await openDashboard({ server: await repoServer({ files: FILES, handlers: [publicRepo] }), hash: "#settings" });
+  assert.ok(plain.requests.includes("handler GET https://api.github.com/repos/akmaier/agent-m"), plain.requests.join(", "));
+  assert.match(plain.main(), /will be published/);
+  const fallback = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#settings" });
+  assert.ok(!fallback.requests.some((request) => request.startsWith("handler ")),
+    "without a test handler the harness answers its own GitHub requests");
 });
 
 test("a view may link a stylesheet of its own beside style.css — once, when it is first shown", async () => {

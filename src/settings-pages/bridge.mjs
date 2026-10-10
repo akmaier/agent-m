@@ -100,6 +100,7 @@ export const route = {
     const saveRemoteSession = el("button", "remote-session-save", "Save remote session");
     const remoteResult = el("p", "remote-session-result");
     const remoteCommands = el("pre", "remote-session-commands");
+    const copyRemoteCommands = el("button", "remote-session-copy-commands", "Copy commands");
     const remoteApache = el("pre", "remote-session-proxy-apache");
     const remoteNginx = el("pre", "remote-session-proxy-nginx");
     const httpsExplanation = el("details", "explain",
@@ -231,6 +232,15 @@ export const route = {
         remoteResult.textContent = error?.name === "NoFreePort" ? error.message : `Remote-session setup needs valid settings: ${error?.message ?? error}`;
       }
     });
+    copyRemoteCommands.addEventListener("click", async () => {
+      const text = remoteCommands.textContent;
+      if (!text) { remoteResult.textContent = "Select or save a remote session before copying its commands."; return; }
+      try {
+        if (!globalThis.navigator?.clipboard?.writeText) throw new Error("Clipboard access is not available in this browser.");
+        await globalThis.navigator.clipboard.writeText(text);
+        remoteResult.textContent = "Tunnel commands copied.";
+      } catch (error) { remoteResult.textContent = error.message; }
+    });
 
     target.replaceChildren(
       el("h2", null, "Connect a Bridge"),
@@ -259,7 +269,7 @@ export const route = {
       el("p", null, el("label", null, "Remote SSH key file ", remoteKey)),
       el("p", null, el("label", null, "Local SSH key file ", localKey)),
       el("p", null, saveRemoteSession), remoteResult,
-      el("h4", null, "Tunnel commands"), remoteCommands,
+      el("h4", null, "Tunnel commands"), remoteCommands, copyRemoteCommands,
       el("h4", null, "Apache HTTPS proxy configuration"), remoteApache,
       el("h4", null, "nginx HTTPS proxy configuration"), remoteNginx,
     );

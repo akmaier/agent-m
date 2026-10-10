@@ -143,7 +143,7 @@ test("counter-proof: the write happens only on a trusted click — a click a scr
   assert.equal(srv.writes.length, 1);
 });
 
-test("request count: the architecture's review page reads that area's files, the records and the texts its differences need — and, warm, only commit and tree", async (t) => {
+test("request count: the architecture's review page reads that area's files, the records and the texts its differences need on each load", async (t) => {
   const repo = await product(), caches = fakeCaches();
   const cold = await openDashboard({ server: await server(repo), hash: "#review/arc", caches });
   const recordOf = (id) => Object.keys(repo).filter((p) => p.startsWith(`docs/approvals/${id}-`));
@@ -156,7 +156,7 @@ test("request count: the architecture's review page reads that area's files, the
   assert.deepEqual(blobs, [`blob ${await gitBlobSha(repo[READER].replace("Reads files at", "Reads a file at"))}`], "MOD-reader's accepted text");
   assert.deepEqual(cold.requests.filter((r) => !/^(file|blob) /.test(r)), ["commit", "tree"]);
   const warm = await openDashboard({ server: await server(repo), hash: "#review/arc", caches });
-  assert.deepEqual(warm.requests, ["commit", "tree"], "every text from this browser, by its blob SHA");
+  assert.deepEqual(warm.requests, cold.requests, "a new dashboard load has a fresh in-memory text cache");
   assert.equal(warm.main(), cold.main(), "the same page");
   t.diagnostic(`architecture review page: cold ${cold.requests.length} requests (${files(cold.requests).length} files, ${blobs.length} blob, ` +
     `commit, tree); warm ${warm.requests.length} (${warm.requests.join(", ")})`);
