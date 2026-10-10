@@ -84,12 +84,12 @@ test("A REFUSED SAVE KEEPS THE EDIT — UC-008 3a: the use case changed after th
   assert.ok(beside.includes(esc(edit)), "beside the edit");
   assert.match(beside, /<span class="ddel">- A line someone else added\.<\/span>/, "what the newer version has that the edit lacks");
   assert.match(beside, /<span class="dadd">\+ 1\. The dashboard shows the status and the date\.<\/span>/, "what the edit changed");
-  // At most one read beyond the save's own: the file itself, once, at the branch — no snapshot, no tree.
-  assert.deepEqual(made.filter((r) => !/^handler /.test(r)), ["ref", `file ${UC2}`]);
-  // The newer text is kept in this browser by its blob SHA: the next page that shows it reads it from there, not again.
+  // The newer text is read from a pinned snapshot of the current branch before it is shown beside the edit.
+  assert.deepEqual(made.filter((r) => !/^handler /.test(r)), ["ref", "commit", "tree", `file ${UC2}`]);
+  // A later dashboard load reads the newer text again from its own in-memory lifetime.
   const again = await openDashboard({ server: srv, hash: "#uc/UC-002", caches });
   assert.ok(again.main().includes("A line someone else added."), "the next page shows the newer text");
-  assert.ok(!again.requests.includes(`file ${UC2}`), "and does not read it again");
+  assert.ok(again.requests.includes(`file ${UC2}`), "and reads it in the new dashboard load");
 }));
 
 test("A REFUSED SAVE KEEPS THE EDIT — UC-006 3a: the proposal changed after the editor opened; Save writes nothing, the edit stays in the editor, and the newer version is shown beside it", () => isolated(async () => {
@@ -105,7 +105,7 @@ test("A REFUSED SAVE KEEPS THE EDIT — UC-006 3a: the proposal changed after th
   assert.ok(beside.includes(esc(newer)), "the newer text, in full");
   assert.match(beside, /<span class="ddel">- new ten as someone else wrote it<\/span>/);
   assert.match(beside, /<span class="dadd">\+ new ten, reworded<\/span>/);
-  assert.deepEqual(made.filter((r) => !/^handler /.test(r)), ["ref", `file ${P05}`]);
+  assert.deepEqual(made.filter((r) => !/^handler /.test(r)), ["ref", "commit", "tree", `file ${P05}`]);
 }));
 
 test("A REFUSED SAVE KEEPS THE EDIT counter-proof: a save the server refuses for another reason (no write access) reads no newer version and shows none", () => isolated(async () => {
