@@ -7,6 +7,8 @@ import { explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
+import { checkProduct, credentialsFor } from "./products.mjs";
+import { parseAddress } from "../repository-hosts/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -255,6 +257,30 @@ function repositoryLine(context, info) {
   );
 }
 
+function productListControls(target, context) {
+  const products = readSetting(context.store, "products");
+  if (!Array.isArray(products) || !products.length) return null;
+  const lines = products.map((web) => {
+    const test = el("button", "settings-product-test", "Test");
+    const remove = el("button", "settings-product-remove", "Remove");
+    const result = el("p", "settings-product-list-result");
+    test.addEventListener("click", async () => {
+      try {
+        const address = parseAddress(web);
+        result.textContent = "Testing the product repository…";
+        const checked = await checkProduct(address, credentialsFor(context.store, address));
+        result.textContent = checked.ok ? `✓ ${web} is reachable.` : `✗ ${checked.error.message}`;
+      } catch (error) { result.textContent = `✗ ${error.message}`; }
+    });
+    remove.addEventListener("click", async () => {
+      writeSetting(context.store, "products", products.filter((candidate) => candidate !== web));
+      await route.render(target, context, {});
+    });
+    return el("section", "settings-product-list-item", el("h4", null, web), el("p", null, test, " ", remove), result);
+  });
+  return el("section", "settings-product-list", el("h3", null, "Managed products"), ...lines);
+}
+
 function notificationsControls(context) {
   const result = el("p", "settings-notifications-result");
   const state = notificationState(context.store);
@@ -436,9 +462,11 @@ export const route = {
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
       exportImportControls(context), browserClearControls(context));
     const product = await productControls(context);
+    const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
-      ...listSettings(context.store).map((info) => repositoryLine(context, info)).filter(Boolean), product);
+      ...listSettings(context.store).map((info) => repositoryLine(context, info)).filter(Boolean),
+      ...(productList ? [productList] : []), product);
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
       ...(bridge ? [bridge] : []), ...(jumpHost ? [jumpHost] : []),

@@ -83,6 +83,7 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   const store = openStore("fixture/instance");
   writeSetting(store, "remote-session:lab", { port: 40101, token: "remote-token" });
   writeSetting(store, "endpoint:main", { url: "https://models.example.test/v1", kind: "openai-compatible", model: "small", key: "stored-key", throughBridge: false });
+  writeSetting(store, "products", ["https://github.com/fixture/product"]);
   const navigations = [];
   const target = document.createElement("div");
   await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store,
@@ -97,6 +98,12 @@ test("TST-290110: Settings exposes remote-session actions and requires acknowled
   assert.equal(token.type, "text", "Show is the explicit action that reveals the stored session secret");
   click(byClass(remote, "settings-remote-session-change")[0]);
   assert.deepEqual(navigations, [{ name: "bridge", params: { name: "lab" } }], "Change enters the existing public Bridge setup route");
+
+  click(tabs[1]);
+  const product = byClass(target, "settings-product-list-item")[0];
+  click(byClass(product, "settings-product-remove")[0]);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(readSetting(store, "products"), [], "Remove updates the canonical browser product list");
 
   click(tabs[0]);
   const clear = byClass(target, "settings-clear-everything")[0];
