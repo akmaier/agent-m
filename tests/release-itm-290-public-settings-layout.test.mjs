@@ -46,7 +46,7 @@ function electronCommand(executable, arguments_) {
   assert.equal(openbox.status, 0, `Linux Openbox unavailable: ${openbox.stderr}`);
   return { command: "xvfb-run", arguments_: ["--auto-servernum", "--server-args=-screen 0 1280x1024x24", "sh", "-c", "openbox >/dev/null 2>&1 & wm=$!; trap 'kill \"$wm\" 2>/dev/null; wait \"$wm\" 2>/dev/null' EXIT INT TERM; \"$@\"; status=$?; exit \"$status\"", "agent-m-xvfb-openbox", executable, ...arguments_] };
 }
-const wait = async (read, fatal = () => {}) => { for (let n = 0; n < 160; n += 1) { fatal(); try { const value = await read(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } fatal(); throw new Error("Timed out waiting for controlled Electron."); };
+const wait = async (read, fatal = () => {}, evidence = () => "") => { for (let n = 0; n < 160; n += 1) { fatal(); try { const value = await read(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } fatal(); throw new Error(`Timed out waiting for controlled Electron.${evidence()}`); };
 const acquireNativeFixtureLock = async () => { for (let n = 0; n < 240; n += 1) { try { mkdirSync(nativeFixtureLock); return; } catch (error) { if (error.code !== "EEXIST") throw error; } await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for the controlled Electron fixture lock."); };
 const cdp = async (url, method, params = {}) => {
   const socket = new WebSocket(url); await new Promise((resolve, reject) => { socket.addEventListener("open", resolve, { once: true }); socket.addEventListener("error", reject, { once: true }); });
@@ -72,7 +72,13 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
   const release = async () => {
     if (released) return;
     released = true;
-    if (child?.exitCode === null) { child.kill(); await new Promise((resolve) => child.once("exit", resolve)); }
+    if (child?.exitCode === null) {
+      if (process.platform === "linux" && child.pid) {
+        try { process.kill(-child.pid, "SIGTERM"); }
+        catch { child.kill(); }
+      } else child.kill();
+      child.stdout.destroy(); child.stderr.destroy(); child.unref();
+    }
     if (server) await new Promise((resolve) => server.close(resolve));
     if (entryFolder) rmSync(entryFolder, { recursive: true, force: true });
     rmSync(nativeFixtureLock, { recursive: true, force: true });
@@ -83,15 +89,16 @@ test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout
   const debug = await port(), address = `http://127.0.0.1:${server.address().port}/docs/#settings`;
   entryFolder = mkdtempSync(join(tmpdir(), "agent-m-290-electron-entry-"));
   const entry = join(entryFolder, "main.mjs");
+  writeFileSync(join(entryFolder, "package.json"), JSON.stringify({ type: "module", main: "main.mjs" }));
   writeFileSync(entry, `import electron from "electron"; const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); const window = new electron.BrowserWindow({ webPreferences: { contextIsolation: true, nodeIntegration: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url);`);
-  const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
-  child = spawn(launched.command, launched.arguments_, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+  const launched = electronCommand(electron, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, entryFolder, `--fixture-url=${address}`]);
+  child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "linux", stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "", spawnError = null;
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   child.on("error", (error) => { spawnError = error; });
   const stopped = () => { if (spawnError || child.exitCode !== null || child.signalCode !== null) throw new Error(`Controlled Electron stopped; argv=${JSON.stringify([launched.command, ...launched.arguments_])}; cwd=${root}; exit=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}`); };
-  const target = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl, stopped);
+  const target = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl, stopped, () => ` argv=${JSON.stringify([launched.command, ...launched.arguments_])}; cwd=${root}; exit=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}`);
   for (const width of [390, 1280]) {
     await cdp(target, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
     await wait(async () => await evaluate(target, "document.querySelectorAll('.settings-tab').length === 4"));
