@@ -148,7 +148,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
       const port = await reservePort(), root = join(folder, kind); mkdirSync(root, { recursive: true });
       const emitted = proxyConfiguration({ hostname: "localhost" }, [{ name: "component", port: tunnelPort, token: bridge.token }], origin, kind)
         .replaceAll("/etc/agent-m/jump-host-cert.pem", certificate).replaceAll("/etc/agent-m/jump-host-key.pem", certificateKey).replaceAll("/etc/agent-m/jump-host.htpasswd", loginFile);
-      let process;
+      let serverProcess;
       if (kind === "apache") {
         // The generated virtual host needs these modules, some of which are normally disabled on a fresh Ubuntu
         // worker. Resolve them from the installed package's available modules, rather than copying the host's
@@ -169,14 +169,14 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         const runtime = join(root, "run"), logs = join(root, "log"), locks = join(root, "lock"); mkdirSync(runtime, { recursive: true }); mkdirSync(logs, { recursive: true }); mkdirSync(locks, { recursive: true });
         const apacheEnvironment = { ...process.env, APACHE_RUN_DIR: runtime, APACHE_LOG_DIR: logs, APACHE_LOCK_DIR: locks, APACHE_PID_FILE: join(root, "httpd.pid") };
         const config = ["ServerRoot \\\"" + root + "\\\"", "DefaultRuntimeDir \\\"" + runtime + "\\\"", "PidFile \\\"" + join(root, "httpd.pid") + "\\\"", "Listen 127.0.0.1:" + port, "ServerName localhost", "ErrorLog \\\"" + join(root, "error.log") + "\\\"", "CustomLog \\\"" + join(root, "access.log") + "\\\" combined", "IncludeOptional \\\"" + join(modules, "*.load") + "\\\"", "IncludeOptional \\\"" + join(modules, "*.conf") + "\\\"", emitted.replace("<VirtualHost *:443>", "<VirtualHost 127.0.0.1:" + port + ">")].join("\\n");
-        const file = join(root, "httpd.conf"); writeFileSync(file, config); process = start("apache2", ["-f", file, "-DFOREGROUND"], { env: apacheEnvironment });
+        const file = join(root, "httpd.conf"); writeFileSync(file, config); serverProcess = start("apache2", ["-f", file, "-DFOREGROUND"], { env: apacheEnvironment });
       } else {
         const config = ["pid " + join(root, "nginx.pid") + ";", "error_log " + join(root, "error.log") + ";", "events {}", "http {", "  access_log " + join(root, "access.log") + ";", emitted.replace("listen 443 ssl;", "listen 127.0.0.1:" + port + " ssl;").split("\\n").map(line => "  " + line).join("\\n"), "}"].join("\\n");
-        const file = join(root, "nginx.conf"); writeFileSync(file, config); process = start("nginx", ["-p", root, "-c", file, "-g", "daemon off;"]);
+        const file = join(root, "nginx.conf"); writeFileSync(file, config); serverProcess = start("nginx", ["-p", root, "-c", file, "-g", "daemon off;"]);
       }
       const base = "https://localhost:" + port + "/bridge/component";
-      try { await waitFor(async () => { try { const reply = await nativeFetch(base + "/v1/pair", { headers: { Origin: origin, Authorization: "Basic " + btoa(login.user + ":" + login.password), "x-agent-m-bridge-token": bridge.token } }); return reply.status === 200; } catch { return false; } }, kind + " did not accept TLS"); return { base, process }; }
-      catch (error) { await stop(process.child); throw new Error(kind + " startup: " + process.stderr() + "; " + (process.error()?.message ?? "") + "; " + error.message); }
+      try { await waitFor(async () => { try { const reply = await nativeFetch(base + "/v1/pair", { headers: { Origin: origin, Authorization: "Basic " + btoa(login.user + ":" + login.password), "x-agent-m-bridge-token": bridge.token } }); return reply.status === 200; } catch { return false; } }, kind + " did not accept TLS"); return { base, process: serverProcess }; }
+      catch (error) { await stop(serverProcess.child); throw new Error(kind + " startup: " + serverProcess.stderr() + "; " + (serverProcess.error()?.message ?? "") + "; " + error.message); }
     };
     try {
       for (const kind of ["apache", "nginx"]) {
