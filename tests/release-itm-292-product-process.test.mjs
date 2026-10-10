@@ -48,10 +48,12 @@ const model = {
     { name: "Planning", role: "Product Owner", produces: ["ITM"] },
     { name: "Development", role: "Developers", produces: ["MOD"] },
     { name: "Review", role: "Product Owner", produces: ["TST"] },
+    { name: "Release", role: "Product Owner", produces: ["TST"] },
   ],
   transitions: [
     { from: "Planning", to: "Development", kind: "sequence" },
     { from: "Development", to: "Review", kind: "sequence" },
+    { from: "Review", to: "Release", kind: "sequence" },
   ],
   pairs: [],
   gates: [
@@ -69,11 +71,11 @@ const declaration = () => readDocument(declarationSchema, DECLARATION_PATH, decl
 const workflow = () => workflowOf(declaration(), model, [], "# Fixture SPEC\n");
 const namedGate = (name) => workflow().gates.find((candidate) => candidate.name === name);
 
-function record({ name, decision = "passed", decider = "owner-a", role = "Product Owner", on, path = gatePath(name) }) {
+function record({ name, decision = "passed", decider = "owner-a", role = "Product Owner", on, path = gatePath(name), reason = "release fixture decision" }) {
   return readDocument(gateSchema, path, [
     "---", `gate: ${name}`, "job: JOB-20261010-0201-e19release292", `decider: ${decider}`, `role: ${role}`,
     `decision: ${decision}`, "on:", ...on.map((entry) => `  - ${entry}`), "date: 2026-10-10 02:11 UTC", "---",
-    "# Gate decision", "", "## Reason", "", "release fixture decision", "",
+    "# Gate decision", "", "## Reason", "", reason, "",
   ].join("\n"));
 }
 
@@ -113,21 +115,25 @@ test("TST-292017: a complete declared gate record is preserved by the public gat
 // level: release
 // module: MOD-product-process
 // guards: STATUS IS DERIVED FROM THE RECORDS; THE GATE IS RECORDED
-// given: current, stale, mismatched-decider, and absent gate-record snapshots over the declared workflow's current text blobs
+// given: current, stale, rejected, mismatched-decider, and absent gate-record snapshots over the declared workflow's current text blobs
 // input: public gateStates evaluates the workflow records against those current blobs
-// expect: a current valid record passes, changed evidence is shown as passed on an earlier text, an invalid decider never passes, and unrecorded reachable and blocked gates are pending and not reached
-test("TST-292018: gate states distinguish current evidence, stale evidence, invalid deciders, and absent records", () => {
+// expect: a current valid record passes, changed evidence is shown as passed on an earlier text, a valid rejection preserves its record and reason, an invalid decider never passes, and unrecorded reachable and blocked gates are pending and not reached
+test("TST-292018: gate states distinguish current evidence, stale evidence, rejection, invalid deciders, and absent records", () => {
   const flow = workflow();
+  const rejected = record({ name: "Review → Release", decision: "rejected", decider: "check: ci", role: "check", path: gatePath("release-rejected"),
+    on: [`tests/release-itm-292-product-process.test.mjs@${TEXTS["tests/release-itm-292-product-process.test.mjs"]}`], reason: "release test failed" });
   const states = gateStates(flow, [
     record({ name: "Planning → Development", on: [`docs/plan.md@${TEXTS["docs/plan.md"]}`] }),
     record({ name: "Development → Review", on: ["src/product-process/gates.mjs@old-checked-blob"] }),
     record({ name: "Review → Release", decider: "implementer", role: "Product Owner", on: [`tests/release-itm-292-product-process.test.mjs@${TEXTS["tests/release-itm-292-product-process.test.mjs"]}`] }),
+    rejected,
   ], TEXTS);
   assert.deepEqual(states.map(({ gate, state }) => [gate, state]), [
-    ["Planning → Development", "passed"], ["Development → Review", "passed on an earlier text"], ["Review → Release", "not reached"],
+    ["Planning → Development", "passed"], ["Development → Review", "passed on an earlier text"], ["Review → Release", "rejected"],
   ]);
   assert.match(states[1].difference, /old-checked-blob/);
-  assert.equal(states[2].record, null);
+  assert.deepEqual(states[2], { gate: "Review → Release", state: "rejected", record: rejected.path, needs: null, difference: null });
+  assert.equal(rejected.sections.find((section) => section.heading === "## Reason").text.trim(), "release test failed");
   const pending = gateStates(flow, [], TEXTS);
   assert.equal(pending[0].state, "pending");
   assert.equal(pending[1].state, "not reached");
