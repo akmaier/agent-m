@@ -252,8 +252,8 @@ test("identifier-kept — names a changed identifier and passes a kept one", asy
   assert.equal(found.length, 1);
   assert.equal(found[0].kind, "error");
   assert.equal(found[0].artifact, UC4_PATH);
-  assert.match(`${found[0].what} ${found[0].fix}`, /UC-004/);
-  assert.match(found[0].what, /UC-009/);
+  assert.match(found[0].fix, /UC-004/, "the fix names the identifier to keep");
+  assert.match(found[0].what, /UC-009/, "the finding names the one it carries");
   assert.deepEqual(await kept()({ files: [drafted(UC4_PATH, UC4.replace("a book that is out.", "a book."), "change", "UC-004")] }, context, []), []);
   assert.deepEqual(await kept()({ files: [drafted(UC_PATH("UC-900", "renew-a-card"), useCase("UC-900", "Renew a card", "x"), "new")] }, context, []), []);
 });
@@ -285,8 +285,8 @@ test("open-files — a module whose identifier the history holds is refused and 
 //        an error of the rule A REUSE DECISION RECORDS ITS DUE DILIGENCE on the decision's path, naming the registry npm — beside a
 //        warning of the rule DUE DILIGENCE IS FETCHED, NOT RECALLED
 // input: the writer; and, as the known positive, the same result without the mark
-// expect: with the mark nothing written and DueDiligenceMissing naming the decision's path and the registry npm; without it the files are
-//         written
+// expect: with the mark nothing written and DueDiligenceMissing naming the decision's path and the registry npm; without it — with only
+//         the warning, an error of another rule and a warning of the mark's own rule — the files are written
 test("open-files — the due-diligence mark writes nothing", async () => {
   assert.ok(open(), `editStrategies.writers["open-files"]: ${artifactEdits.error?.message}`);
   const fake = fakeHost();
@@ -302,7 +302,9 @@ test("open-files — the due-diligence mark writes nothing", async () => {
     return true;
   });
   assert.equal(fake.writes().length, 0, "nothing written");
-  await open()(resultOf(files, { stepFindings: [warning] }), contextOf(fake));
+  // What is not the mark stops nothing: a warning, an error of another rule, and a warning of the mark's own rule, all on the decision.
+  const otherError = { ...mark, rule: "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT" }, warnedMark = { ...mark, kind: "warning" };
+  await open()(resultOf(files, { stepFindings: [warning, otherError, warnedMark] }), contextOf(fake));
   assert.equal(fake.writes().length, 1, "known positive: without the mark the files are written");
 });
 
