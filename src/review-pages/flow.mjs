@@ -33,14 +33,15 @@ const button = (className, text) => {
   return b;
 };
 
-// The token this browser stores for the page's product: the product's own, and for a GitHub product, else the instance's.
+// The token this browser stores for the page's product — its own, never the instance's (A GITHUB PRODUCT USES A TOKEN OF ITS OWN) —,
+// or, on the page that shows the instance itself, the instance's.
 function storedToken(context) {
   const keys = [];
   try {
     if (context.product) {
       const address = parseAddress(context.product.address);
       if (address.server === "gitlab") keys.push(`gitlab-token:${new URL(address.origin).host}/${address.path}`);
-      else keys.push(`github-token:${address.path}`, "github-token");
+      else keys.push(`github-token:${address.path}`);
     } else keys.push("github-token");
     for (const key of keys) {
       const token = readSetting(context.store, key);
