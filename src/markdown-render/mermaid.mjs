@@ -40,6 +40,13 @@ function safeSvg(root) {
   return true;
 }
 
+async function rejectImageMetadata(mermaid, source) {
+  const diagram = await mermaid.mermaidAPI.getDiagramFromText(source);
+  const vertices = diagram.db?.getVertices?.() ?? diagram.db?.getData?.()?.nodes ?? [];
+  const values = vertices instanceof Map ? vertices.values() : Object.values(vertices);
+  if ([...values].some((vertex) => vertex?.img)) throw new Error("the diagram contains an image resource");
+}
+
 async function library() {
   if (globalThis.mermaid) return globalThis.mermaid;
   if (!loading || !libraryScript.parentNode) {
@@ -67,6 +74,7 @@ export async function renderMermaid(source) {
     const element = document.createElement("div");
     element.className = "mermaid";
     element.textContent = source;
+    await rejectImageMetadata(m, source);
     await m.run({ nodes: [element] });
     element.innerHTML = DOMPurify.sanitize(element.innerHTML, {
       USE_PROFILES: { svg: true, svgFilters: true },
