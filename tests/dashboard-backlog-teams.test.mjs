@@ -108,8 +108,27 @@ const PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: 
     title: "Tidy the README", head: { ref: "team/tidy", sha: "b".repeat(40) } },
   pr({ number: 4, item: "ITM-005", base: "experiment/x", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T15:00:00Z" })];
 
-async function backlogPage({ created = [] } = {}) {
-  const server = await repoServer({ files: fixtureFiles(), handlers: [pullsApi(PRS), refsApi(created)] });
+// A same-day sprint: team1's sprint 01 starts on 2026-09-14 with ITM-001, ITM-002 and ITM-005; ITM-001 is merged into its
+// branch at 09:30 UTC that day and ITM-005 at 11:45 UTC, and ITM-002's pull request is open.
+const SAME_DAY_SPRINT = "---\nsprint: 1\ngoal: Store and show\nstart: 2026-09-14\nend:\ncloser: alice\nbranch: sprint/team1/01\n"
+  + "selection:\n  - ITM-001\n  - ITM-002\n  - ITM-005\n---\n# team1 Sprint 01\n";
+const SAME_DAY_PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: "2026-09-14T08:00:00Z", merged: "2026-09-14T09:30:00Z" }),
+  pr({ number: 2, item: "ITM-002", base: "sprint/team1/01", created: "2026-09-14T08:10:00Z" }),
+  pr({ number: 5, item: "ITM-005", base: "sprint/team1/01", created: "2026-09-14T08:20:00Z", merged: "2026-09-14T11:45:00Z" })];
+
+// A closed sprint with merges: team2's sprint 01 ran from 2026-09-01 to 2026-09-07 with ITM-003, ITM-004 and ITM-006; ITM-003
+// was merged into the default branch on 2026-09-02 at 10:15 UTC and ITM-004 on 2026-09-03 at 16:40 UTC; ITM-006 went back to
+// the backlog and was merged only after the sprint's end, on 2026-09-10.
+const CLOSED_SPRINT = "---\nsprint: 1\ngoal: Mail\nstart: 2026-09-01\nend: 2026-09-07\ncloser: bob\nbranch:\nselection:\n  - ITM-003\n"
+  + "  - ITM-004\n  - ITM-006\n---\n# team2 Sprint 01\n\n## Review\n\nITM-003 and ITM-004 are done.\n\n## Unfinished items\n\n"
+  + "to the backlog: ITM-006\ninto the next sprint:\n\nITM-006 waits for its requirement.\n\n## Retrospective\n\n- change: smaller items.\n";
+const CLOSED_PRS = [...PRS,
+  pr({ number: 6, item: "ITM-003", base: "main", created: "2026-09-01T09:00:00Z", merged: "2026-09-02T10:15:00Z" }),
+  pr({ number: 7, item: "ITM-004", base: "main", created: "2026-09-02T11:00:00Z", merged: "2026-09-03T16:40:00Z" }),
+  pr({ number: 8, item: "ITM-006", base: "main", created: "2026-09-08T09:00:00Z", merged: "2026-09-10T09:00:00Z" })];
+
+async function backlogPage({ created = [], files = fixtureFiles(), prs = PRS } = {}) {
+  const server = await repoServer({ files, handlers: [pullsApi(prs), refsApi(created)] });
   const page = await openDashboard({ server, hash: "#backlog" });
   return { server, page, created };
 }
@@ -154,6 +173,49 @@ test("#backlog — a team's running sprint: its items with their states and modu
   assert.match(row(team1, "ITM-002"), /in progress/);
   assert.match(team1, /<code class="language-mermaid">xychart-beta/);
   assert.match(team1, /line \[2, 1/);
+});
+
+// guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the same-day sprint — team1's sprint 01 starts on 2026-09-14 with three items; ITM-001 is merged at 09:30 UTC and
+//        ITM-005 at 11:45 UTC that day, and ITM-002's pull request is open
+// input: open #backlog
+// expect: team1's chart shows four points — the start, the two merges by their time and now — with 3, 2, 1 and 1 items left
+test("#backlog — a running sprint's chart: the items left at its start, after each merge, and now", async () => {
+  const { page } = await backlogPage({ files: { ...fixtureFiles(), [TEAM1_SPRINT]: SAME_DAY_SPRINT }, prs: SAME_DAY_PRS });
+  const team1 = part(page.main(), 'data-team="team1"');
+  assert.match(team1, /<code class="language-mermaid">xychart-beta/);
+  assert.match(team1, /x-axis \[&quot;start&quot;, &quot;09:30&quot;, &quot;11:45&quot;, &quot;now&quot;\]/);
+  assert.match(team1, /line \[3, 2, 1, 1\]/);
+});
+
+// guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: team2's closed sprint 01, from 2026-09-01 to 2026-09-07, with ITM-003, ITM-004 and ITM-006; ITM-003 merged into the
+//        default branch on 2026-09-02 at 10:15 UTC and ITM-004 on 2026-09-03 at 16:40 UTC; ITM-006 went back to the backlog
+//        and was merged only on 2026-09-10, after the sprint's end
+// input: open #backlog
+// expect: team2's panel still says it runs no sprint, names its last sprint and offers Plan sprint, and shows that sprint's
+//         final chart: start, the two merges by their date and time, and end — 3, 2, 1 and 1 items left —, with no merge
+//         after its end and no "now"
+test("#backlog — a team's closed sprint: its final chart from start through each merge to end", async () => {
+  const { page } = await backlogPage({ files: { ...fixtureFiles(), [TEAM2_SPRINT]: CLOSED_SPRINT }, prs: CLOSED_PRS });
+  const team2 = part(page.main(), 'data-team="team2"');
+  assert.match(team2, /no running sprint/i);
+  assert.match(team2, /Its last sprint, .*team2\/01/s);
+  assert.match(team2, /data-plan="team2"/);
+  assert.match(team2, /x-axis \[&quot;start&quot;, &quot;09-02 10:15&quot;, &quot;09-03 16:40&quot;, &quot;end&quot;\]/);
+  assert.match(team2, /line \[3, 2, 1, 1\]/);
+  assert.doesNotMatch(team2, /&quot;now&quot;/);
+});
+
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product, whose pull requests fit into one page of GitHub's pulls API
+// input: open #backlog
+// expect: the load lists the pull requests in one request, and makes 20 requests in all — as many as before the chart showed
+//         each merge: the merge times come from the pull requests the page reads anyway
+test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 20 requests in all", async () => {
+  const { page } = await backlogPage();
+  assert.equal(page.requests.filter((r) => /\/pulls(?:\?|\/|$)/.test(r)).length, 1, page.requests.join(" | "));
+  assert.equal(page.requests.length, 20, page.requests.join(" | "));
 });
 
 // guards: UC-032 step 6; UC-035
