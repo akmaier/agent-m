@@ -168,6 +168,7 @@ test("TST-342005 an artifact without a diagram loads no diagram library", async 
     assert.equal(calls.filter((call) => call.kind === "run").length, 1, "known positive: the detector records a diagram draw");
     calls.length = 0;
     const shown = renderArtifact("# Prose only\n");
+    await new Promise((resolve) => setImmediate(resolve));
     assert.match(shown.innerHTML, /<h1>Prose only<\/h1>/);
     assert.deepEqual(calls, [], "plain prose neither acquires nor calls the diagram library");
     assert.equal(acquired.length, 1, "plain prose does not append a vendor script");
