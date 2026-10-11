@@ -21,10 +21,21 @@ const byTag = (root, tag) => { const out=[]; (function walk(n){ for(const c of n
 const byClass = (root, name) => { const out=[]; (function walk(n){ for(const c of n.childNodes ?? []) { if(c.nodeType===1){if(c.className.split(" ").includes(name))out.push(c);walk(c);} } })(root); return out; };
 async function withSvg(run) {
   const prior = Object.getOwnPropertyDescriptor(globalThis, "SVGElement");
+  const proto = globalThis.window.Element.prototype;
+  const namespace = Object.getOwnPropertyDescriptor(proto, "namespaceURI");
+  const tags = proto.getElementsByTagName;
   Object.defineProperty(globalThis, "SVGElement", { configurable: true, value: globalThis.window.Element });
+  Object.defineProperty(proto, "namespaceURI", { configurable: true, get() {
+    for (let node = this; node; node = node.parentNode) if (node.localName === "svg") return "http://www.w3.org/2000/svg";
+    return namespace.get.call(this);
+  } });
+  proto.getElementsByTagName = function(name) {
+    if (name !== "*") return tags.call(this, name);
+    const out = []; (function walk(node) { for (const child of node.children ?? []) { out.push(child); walk(child); } })(this); return out;
+  };
   const calls = [];
   globalThis.mermaid = { initialize(options) { calls.push(options); }, mermaidAPI: { async getDiagramFromText(source) { if (source.includes("invalid")) throw new Error("parse error"); return { db: { getVertices: () => new Map() } }; } }, async run({nodes}) { for (const n of nodes) n.innerHTML = '<svg><text>drawn</text></svg>'; } };
-  try { return await run(calls); } finally { if (prior) Object.defineProperty(globalThis, "SVGElement", prior); else delete globalThis.SVGElement; delete globalThis.mermaid; }
+  try { return await run(calls); } finally { if (prior) Object.defineProperty(globalThis, "SVGElement", prior); else delete globalThis.SVGElement; Object.defineProperty(proto, "namespaceURI", namespace); proto.getElementsByTagName = tags; delete globalThis.mermaid; }
 }
 
 // TST-342008
