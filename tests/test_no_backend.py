@@ -570,6 +570,41 @@ class NoServer(unittest.TestCase):
         self.assertEqual(findings[0], f"src/markdown-render/mermaid.mjs:1: loading element: not {MERMAID_LIBRARY_LOADING}")
         self.assertTrue(findings[1].startswith('src/markdown-render/mermaid.mjs:2: url(): URL("https://tracker.example/mermaid.js"'))
 
+    def test_counter_proof_msal_browsers_sign_in_requests_are_allowed_only_in_its_vendored_file(self):
+        # MOD-mail-routes vendors @azure/msal-browser 5.24.0 in src/mail-routes/vendor/ (ARC-053). Planted text with the library's four
+        # channels, each as the library's file writes it: the GET and the POST of its network client (the authority's configuration and
+        # the token endpoint), the preconnect link to the authority's origin, and the hidden iframe of the silent sign-in.
+        library = ('Il="@azure/msal-browser",wl="5.24.0";\n'
+                   'function Pc(e){const t=document.createElement("link");t.rel="preconnect",t.href=new URL(e).origin,'
+                   't.crossOrigin="anonymous",document.head.appendChild(t)}\n'
+                   'function Mh(){const e=document.createElement("iframe");return e.className="msalSilentIframe",'
+                   'e.title="Microsoft Authentication",e.style.visibility="hidden",e}\n'
+                   'class N{async sendGetRequestAsync(e,t){let r,n={};try{r=await fetch(e,{method:oa,headers:i})}catch(e){throw e}'
+                   'return r.json()}async sendPostRequestAsync(e,t){let s;for(let t=1;t<=2;t++)try{s=await fetch(e,{method:ia,headers:n,body:r});break}'
+                   'catch(e){}return s}}\n')
+        path = "src/mail-routes/vendor/msal-browser.min.js"
+        self.assertEqual(channel_findings({path: library}), [])
+        # The same text anywhere else is found: next to the vendored folder, in another module's, in the dashboard's.
+        for elsewhere in ("src/mail-routes/msal-browser.min.js", "src/mail-routes/index.mjs", "src/other/vendor/msal-browser.min.js",
+                          "docs/assets/vendor/msal-browser.min.js", "src/mail-routes/vendor/other.min.js"):
+            self.assertEqual(len(channel_findings({elsewhere: library})), 4, elsewhere)
+        # Another version is not the one whose channels were read.
+        self.assertEqual(len(channel_findings({path: library.replace("5.24.0", "5.25.0")})), 4)
+        self.assertEqual(len(channel_findings({path: library.replace('Il="@azure/msal-browser",', 'Il="other",')})), 4)
+        # Another destination, another method, a third request and another kind of channel are found.
+        other_host = library.replace("fetch(e,{method:oa,headers:i})", 'fetch("https://tracker.example/x",{method:oa,headers:i})')
+        self.assertEqual(len(channel_findings({path: other_host})), 1)
+        self.assertTrue(channel_findings({path: other_host})[0].startswith(f"{path}:"))
+        self.assertEqual(len(channel_findings({path: library.replace("{method:ia,headers:n,body:r}", "{method:ia,headers:n,body:r,credentials:'include'}")})), 1)
+        self.assertEqual(len(channel_findings({path: library + "fetch(e,{method:oa,headers:i});\n"})), 2)
+        self.assertEqual(len(channel_findings({path: library.replace('"iframe"', '"script"')})), 1)
+        self.assertEqual(len(channel_findings({path: library + "navigator.sendBeacon(u,d);\n"})), 1)
+        self.assertEqual(len(channel_findings({path: library + "new WebSocket(u);\n"})), 1)
+        # The vendored folder is skipped by check 1 as the other two are; the module's own code is not.
+        text = 'const a = "https://login.chinacloudapi.cn/";\n'
+        self.assertEqual(foreign_by_file({path: text, "src/mail-routes/index.mjs": text}),
+                         {"src/mail-routes/index.mjs": ["login.chinacloudapi.cn"]})
+
     def test_counter_proof_a_markdown_file_that_loads_from_another_host(self):
         text = ("![flow](https://tracker.example/p.png)\n<img src='//cdn.example/x.svg'>\n<iframe src=\"https://embed.example/\"></iframe>\n"
                 "![badge](https://github.com/o/r/actions/workflows/t.yml/badge.svg)\n![local](diagram.png)\n[a link](https://example.org/)\n"
