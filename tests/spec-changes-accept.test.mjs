@@ -37,8 +37,10 @@
 //     what MOD-documents writes for MOD-approvals' schema, and the commit's message names the entries and the person who accepted.
 //   - A decision row is appended to the bytes of the file: `| <when> UTC | <entry> | uebernommen | approval:<record file> |`.
 //   - applyApproved takes the target of an entry from the queue's index, and refuses a record that names another target, another
-//     anchor or another proposal than its entry's; it reads the product's links and the register from docs/sources.md and
-//     docs/sources/; it leaves alone a record of an entry that a decision row names, and applies queues oldest first.
+//     anchor or another proposal than its entry's, or that lacks a field; it reads the product's links and the whole register from
+//     docs/sources.md and docs/sources/; it leaves alone a record that a decision row names — also where the entry has left the
+//     index — and a record of an entry that a decision row names, and applies queues oldest first.
+//   - An entry the queue's index lacks, a queue the repository lacks, a proposal or a target that is gone: refused, with what is gone.
 //   - Nothing shown is a TypeError.
 
 import test from "node:test";
@@ -100,6 +102,7 @@ const entry = (nr, anchor, proposal) => ({ nr, anchor, proposal, slug: `entry-${
 const E05 = entry(5, "## 1. Reading", READING_NEW + ADDED);
 const E06 = entry(6, "## 1a. Added", ADDED_NEW);
 const E07 = entry(7, "## 2. Writing", WRITING_NEW);
+const E09 = entry(9, "## 1. Reading", READING_NEW);
 
 const DECISIONS = text("# Decisions — queue 2026-03-01 sample", "", "Append-only.");
 const recordName = (item, blob = gitBlob(item.proposal)) => `spec-2026-03-01_sample-${pad2(item.nr)}-${blob.slice(0, 12)}.md`;
@@ -109,7 +112,7 @@ const entryId = (item) => recordName(item).replace(/-[0-9a-f]{12}\.md$/, "");
 const rowFor = (item, blob) => `| ${WHEN} | ${item.nr} | uebernommen | approval:${recordName(item, blob)} |\n`;
 
 // The files of the product: the SPEC, the queue with the entries given, the sources, and `extra` files.
-function productFiles({ entries, decisions = DECISIONS, spec = SPEC, extra = {} }) {
+function productFiles({ entries, decisions = DECISIONS, spec = SPEC, extra = {}, without = [] }) {
   const files = {
     "README.md": "# Fixture product\n", "SPEC.md": spec, ...SOURCE_FILES,
     [`${QUEUE}/index.md`]: text("# SPEC approvals — queue 2026-03-01 · sample", "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
@@ -122,6 +125,7 @@ function productFiles({ entries, decisions = DECISIONS, spec = SPEC, extra = {} 
     files[proposalPath(item)] = item.proposal;
     files[`${QUEUE}/${pad2(item.nr)}-${item.slug}.begruendung.md`] = text(`# ${item.anchor}: a change`, "", "**The change.** A sample.");
   }
+  for (const path of without) delete files[path];
   return files;
 }
 
@@ -129,8 +133,9 @@ function productFiles({ entries, decisions = DECISIONS, spec = SPEC, extra = {} 
 const shownOf = (item, section) => ({ queue: QUEUE, entry: item.nr, proposalBlob: gitBlob(item.proposal), sectionBlob: section === "" ? "" : gitBlob(section) });
 
 // A record as a person commits it, or as MOD-approvals' schema reads it: one `key: value` line each; `omit` leaves keys out.
-function recordFile(item, { proposal = item.proposal, section, anchor = item.anchor, target = "SPEC.md", proposalAt = proposalPath(item), omit = [] }) {
-  const fields = { kind: "spec", queue: QUEUE, entry: pad2(item.nr), proposal: proposalAt, blob: gitBlob(proposal), target, anchor, section: gitBlob(section) };
+function recordFile(item, { proposal = item.proposal, section, anchor = item.anchor, target = "SPEC.md", proposalAt = proposalPath(item), queue = QUEUE,
+  entryField = pad2(item.nr), omit = [] }) {
+  const fields = { kind: "spec", queue, entry: entryField, proposal: proposalAt, blob: gitBlob(proposal), target, anchor, section: gitBlob(section) };
   const body = text(...Object.entries(fields).filter(([key]) => !omit.includes(key)).map(([key, value]) => `${key}: ${value}`));
   return [recordPath(item, gitBlob(proposal)), body];
 }
@@ -391,6 +396,49 @@ test("acceptEntries — nothing shown is a TypeError", async () => {
   assert.deepEqual(fake.calls(), [], "no request");
 });
 
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
+// given: a queue whose index lists entry 09 before entry 07 — 09 on "## 1. Reading", 07 on "## 2. Writing" —, both shown as they stand,
+//        in the order of their numbers; and, for applyApproved, the records of the two committed without the dashboard
+// input: acceptEntries(host, [07 shown, 09 shown], ...) and applyApproved on the records
+// expect: the decisions file with 09's row before 07's, the order of the index and not of the numbers; the commit's message naming 09
+//         before 07; applyApproved applying 09's record first
+test("acceptEntries and applyApproved — the entries are written in the order of the queue's index, whatever their numbers", async () => {
+  const fake = fakeHost({ files: productFiles({ entries: [E09, E07] }) });
+  await acceptEntries(fake.host, [shownOf(E07, WRITING), shownOf(E09, READING)], "alice", NOW, sources());
+  assert.equal(written(fake)[`${QUEUE}/entscheidungen.md`], DECISIONS + rowFor(E09) + rowFor(E07));
+  const { message } = fake.writes()[0].change;
+  assert.ok(message.indexOf(entryId(E09)) >= 0 && message.indexOf(entryId(E09)) < message.indexOf(entryId(E07)), `and in the message: ${message}`);
+
+  const applied = await applyApproved(fakeHost({ files: approvedFiles([[E07, WRITING], [E09, READING]], { entries: [E09, E07] }) }).snapshot(), NOW);
+  assert.deepEqual(applied.applied, [recordPath(E09), recordPath(E07)]);
+  assert.equal(applied.files[`${QUEUE}/entscheidungen.md`], DECISIONS + rowFor(E09) + rowFor(E07));
+});
+
+// guards: A STALE APPROVAL IS NOT APPLIED; UC-006
+// given: entry 07 shown as it stands, to show the same fixture accepting; then four things gone — entry 09, shown, which the queue's index
+//        lacks; a queue, 2099-01-01_none, which the repository lacks; entry 07's proposal file; and the SPEC file
+// input: acceptEntries(host, [shown], ...) for each
+// expect: accepted; for each of the four nothing written and the entry named with a reason that says what is gone — the entry, the queue,
+//         the proposal, the target
+test("acceptEntries — an entry whose files are gone is refused and named, and nothing is written", async () => {
+  const accepting = fakeHost({ files: productFiles({ entries: [E07] }) });
+  assert.ok((await acceptEntries(accepting.host, [shownOf(E07, WRITING)], "alice", NOW, sources())).commit, "known positive");
+
+  const cases = [
+    ["the entry", productFiles({ entries: [E07] }), shownOf(E09, READING), /index/],
+    ["the queue", productFiles({ entries: [E07] }), { ...shownOf(E07, WRITING), queue: "docs/spec-freigaben/2099-01-01_none" }, /queue/],
+    ["the proposal", productFiles({ entries: [E07], without: [proposalPath(E07)] }), shownOf(E07, WRITING), /proposal no longer exists/],
+    ["the target", productFiles({ entries: [E07], without: ["SPEC.md"] }), shownOf(E07, WRITING), /target SPEC\.md does not exist/],
+  ];
+  for (const [what, files, shown, reason] of cases) {
+    const fake = fakeHost({ files });
+    const result = await acceptEntries(fake.host, [shown], "alice", NOW, sources());
+    assert.equal(fake.writes().length, 0, `${what}: nothing written`);
+    assert.deepEqual(result.refused.map(({ queue, entry: number }) => [queue, number]), [[shown.queue, shown.entry]], what);
+    assert.match(result.refused[0].reason, reason, what);
+  }
+});
+
 // ---------------------------------------------------------------- applyApproved
 
 // A repository in which the records given — [[entry, the section its record names]] — have been committed without the dashboard: the SPEC
@@ -526,17 +574,72 @@ test("applyApproved — a record that names another target or another proposal t
 });
 
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
-// given: a record of the kind use-case, which is no SPEC entry's; a spec record that lacks its section line; and the right record of 07
+// given: a record named like a spec record whose kind is use-case; a spec record of entry 09 that lacks its section line; one whose entry
+//        field is "five"; one of entry 05 that names its queue with a slash at the end; and the right record of 07
 // input: applyApproved(snapshot, now)
-// expect: the use-case record left alone, neither applied nor refused; the incomplete spec record refused, naming what it lacks; 07's applied
-test("applyApproved — a record of another kind is left alone, an incomplete spec record is refused", async () => {
-  const useCase = ["docs/approvals/UC-001-aaaaaaaaaaaa.md", text("kind: use-case", "file: docs/use-cases/UC-001-read-a-file.md", `blob: ${"a".repeat(40)}`)];
-  const [bare, bareBody] = recordFile(E05, { section: READING, omit: ["section"] });
-  const files = approvedFiles([[E07, WRITING]], { entries: [E05, E07], extra: { [useCase[0]]: useCase[1], [bare]: bareBody } });
+// expect: the use-case record left alone, neither applied nor refused; the incomplete one refused, saying that it lacks the section; the
+//         one with no entry number refused, saying that it is no number; 05's and 07's applied, in index order, the queue read through
+//         its slash
+test("applyApproved — a record of another kind is left alone, an incomplete or ill-formed spec record is refused", async () => {
+  const useCase = ["docs/approvals/spec-a-use-case-aaaaaaaaaaaa.md", text("kind: use-case", "file: docs/use-cases/UC-001-read-a-file.md", `blob: ${"a".repeat(40)}`)];
+  const [bare, bareBody] = recordFile(E09, { section: READING, omit: ["section"] });
+  const E08 = entry(8, "## 2. Writing", WRITING_NEW);
+  const [odd, oddBody] = recordFile(E08, { section: WRITING, entryField: "five" });
+  const [slashed, slashedBody] = recordFile(E05, { section: READING, queue: `${QUEUE}/` });
+  const files = approvedFiles([[E07, WRITING]], { entries: [E05, E07, E09],
+    extra: { [useCase[0]]: useCase[1], [bare]: bareBody, [odd]: oddBody, [slashed]: slashedBody } });
   const result = await applyApproved(fakeHost({ files }).snapshot(), NOW);
-  assert.deepEqual(result.applied, [recordPath(E07)]);
-  assert.deepEqual(result.refused.map(({ record }) => record), [bare]);
-  assert.match(result.refused[0].reason, /section/);
+  assert.deepEqual(result.applied, [slashed, recordPath(E07)]);
+  assert.deepEqual(result.refused.map(({ record }) => record).sort(), [bare, odd].sort());
+  const why = Object.fromEntries(result.refused.map(({ record, reason }) => [record, reason]));
+  assert.match(why[bare], /lacks section/);
+  assert.match(why[odd], /not a number/);
+  assert.equal(result.files["SPEC.md"], HEAD + READING_NEW + ADDED + WRITING_NEW);
+});
+
+// guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A STALE APPROVAL IS NOT APPLIED; UC-006
+// given: entry 05 decided — a decision row names its record — and another record of 05, under an earlier blob of its proposal, that no row
+//        names; then the same without the decision row; then a decision row that names a record of an entry that the queue's index lacks
+// input: applyApproved(snapshot, now) for each
+// expect: the first: nothing to do — no file, nothing applied, nothing refused, since the older record belongs to an entry that is written
+//         already; the second: the older record refused as stale, which shows the same record refused where nothing is written; the third:
+//         nothing to do, a record that a row names being left alone though its entry has left the index
+test("applyApproved — a record of an entry that a decision row names is left alone", async () => {
+  const [current, currentBody] = recordFile(E05, { section: READING });
+  const [older, olderBody] = recordFile(E05, { proposal: E05.proposal + "an earlier wording\n", section: READING });
+  const decided = DECISIONS + rowFor(E05);
+  const withRow = await applyApproved(fakeHost({ files: productFiles({ entries: [E05], decisions: decided, extra: { [current]: currentBody, [older]: olderBody } }) }).snapshot(), NOW);
+  assert.deepEqual(withRow, { files: {}, applied: [], refused: [] });
+
+  const withoutRow = await applyApproved(fakeHost({ files: productFiles({ entries: [E05], extra: { [older]: olderBody } }) }).snapshot(), NOW);
+  assert.deepEqual(withoutRow.refused.map(({ record }) => record), [older], "known positive: where no row names the entry, the older record is stale");
+
+  const gone = await applyApproved(fakeHost({ files: productFiles({ entries: [E07], decisions: decided, extra: { [current]: currentBody } }) }).snapshot(), NOW);
+  assert.deepEqual(gone, { files: {}, applied: [], refused: [] });
+});
+
+// guards: A REQUIREMENT HAS A REGISTERED SOURCE; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
+// given: a register in which the entry titled "Medical Devices" is linked and the entry titled "Medical Devices, Regulation" is not; the
+//        record of entry 07 whose requirement names "Medical Devices, Art. 3", the linked title; and one that names "Medical Devices,
+//        Regulation, Art. 3", which begins with both titles, the longer of which is not linked
+// input: applyApproved(snapshot, now) for each
+// expect: the first applied; the second refused, naming the requirement — the item names the longest title, linked or not
+test("applyApproved — the register is read whole: an item names the longest title, linked or not", async () => {
+  const regulation = (id, title) => text("---", `id: ${id}`, `title: ${title}`, "kind: regulation", "authority: normative",
+    "licence: may be republished — fixture", "---", `# ${id} ${title}`, "", "A fixture source.");
+  const register = {
+    "docs/sources.md": text("# The sources this product meets", "", "| Source | Version | Hash | Part |", "|---|---|---|---|",
+      `| SRC-medical | 2026-10-05 | ${"0".repeat(64)} | |`),
+    "docs/sources/SRC-medical.md": regulation("SRC-medical", "Medical Devices"),
+    "docs/sources/SRC-medical-regulation.md": regulation("SRC-medical-regulation", "Medical Devices, Regulation"),
+  };
+  const citing = (source) => entry(7, "## 2. Writing", WRITING_NEW.replace("(Fixture PO)", `(${source})`));
+  const linked = citing("Medical Devices, Art. 3"), longer = citing("Medical Devices, Regulation, Art. 3");
+  const filesOf = (item) => ({ ...approvedFiles([[item, WRITING]]), ...register });
+  assert.equal((await applyApproved(fakeHost({ files: filesOf(linked) }).snapshot(), NOW)).applied.length, 1, "known positive");
+  const result = await applyApproved(fakeHost({ files: filesOf(longer) }).snapshot(), NOW);
+  assert.deepEqual(result.refused.map(({ record }) => record), [recordPath(longer)]);
+  assert.ok(result.refused[0].reason.includes(WRITE_RULE), result.refused[0].reason);
 });
 
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
