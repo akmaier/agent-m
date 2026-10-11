@@ -364,3 +364,87 @@ A CI agent is a participant that runs in a GitHub Actions workflow, so nobody is
 workflow runs the same correction loop, then commits the draft to the default branch: a use case as *open*, and a change to
 requirements as an entry in a new change queue, leaving the SPEC itself untouched. You review it afterwards on the dashboard,
 a use case in the review of use cases and a queue entry beside the current SPEC section. Nothing counts before you accept it.
+
+## participant-person
+
+A person is a colleague, reached through their GitHub or GitLab account and through the dashboard. They can do everything, and
+only a person takes the decisions that need one. Nothing is billed for a person and nothing is sent to a model, but a person
+works at the speed of a person; you control the work by doing it yourself.
+
+## participant-model-endpoint
+
+A model endpoint is a language model that you reach over the network, for example the NHR hub, an OpenAI or Anthropic
+endpoint, or a model server such as Ollama that you run yourself. It drafts text and nothing else: it cannot read or change a
+repository. It answers quickly, and a hosted endpoint is billed per use by its provider, while a model you run yourself costs
+you the machine. You control which model answers and, for a hosted one, where your data is processed. The browser reaches it
+directly, or through a Bridge the configuration names.
+
+## participant-ci-agent
+
+A CI agent is an agent that runs inside a GitHub Actions or GitLab CI job, so it is reached through a workflow. It can read
+and write the repository and run code and tests. On GitHub's machines it needs nothing installed, but each call is billed per
+use by the agent's provider and a job takes the time of a workflow run. On a self-hosted runner, a program you install on a
+machine you control, it runs on your own machine and you control more of it.
+
+## participant-cli-agent
+
+A CLI agent is a coding agent such as Claude Code or Codex that runs on a computer of yours, reached through the Bridge on that
+computer. It can read and write the repository, run code and tests, and use tools. It signs in with its own login on that
+computer, so the work uses your subscription instead of a key billed per call, and it starts at once. You control it the most:
+the work happens on your machine, in a working folder of its own.
+
+## participant-sandboxed-agent
+
+A sandboxed agent is a CLI agent inside a virtual machine or a container, reached through the Bridge in it, over a tunnel. It
+can do what a CLI agent does, but isolated: it sees only what the sandbox holds. You control it by what you put in the sandbox,
+so it is the choice when the agent should not touch the rest of your computer.
+
+## capabilities-and-place
+
+Capabilities say what a participant can do: draft text, read the repository, write to the repository, run code and tests, use
+tools, reach the web. The dashboard presets the ones typical for the type and you adjust them. A role can only be held by a
+participant that has every capability the role needs. The processing place says where the data given to the participant is
+processed, for example *this machine* for a CLI agent. It matters because a linked source may permit its content only at
+certain places: a participant elsewhere can still be saved, but is never given that source's content.
+
+## ci-agent-runner
+
+A workflow runs on its runner, on GitHub's machines or on a machine you installed a runner on, and not in this browser. So
+nothing stored in this browser, neither a token nor an SSH key, reaches it; its key is an Actions secret that you set on
+GitHub. To let a workflow use an agent on your own machine, install a self-hosted runner on that agent's machine. The workflow's
+job then runs there and reaches the agent locally, with no inbound SSH and no key stored on GitHub, and it also works for a
+machine behind NAT, because the runner only connects out. A self-hosted runner serves private repositories only: on a public
+repository a pull request from any fork could run its own code on your machine, so the dashboard refuses a public one and says
+why. Since a participant may serve every product of the instance, this holds for each product that would use it.
+
+## ci-ssh-alternative
+
+If you do not want a self-hosted runner, a workflow can reach an agent behind SSH instead. That costs two things: the SSH key
+has to be stored as an Actions secret on GitHub, and the machine has to be reachable from the internet by GitHub's machines.
+The runner is the recommended way, because it needs neither.
+
+## agent-test
+
+The test sends a harmless request through the Bridge the participant names and shows what answered, so that you know the
+connection works before you save. If the Bridge does not answer, the dashboard names the reason, such as the Bridge not running,
+a wrong address or a missing token, and saves nothing until you decide to save it untested.
+
+## job-workflow
+
+Agent M's job workflow is the workflow in the product repository that runs a job on GitHub's machines. It reads two secrets
+that you set on GitHub as Actions secrets: the key of the agent or endpoint, and your Agent M token. The dashboard names each
+secret and opens the repository's secrets page for it, but never asks for the value. The token is there so that the job's
+pushes and pull requests start CI like your own; the workflow's built-in token would not. The agent's calls are billed per use
+by the agent's provider. In the book *Vibe Coding*: chapter 10, section 6, on API tokens.
+
+## bridge-own-login
+
+A job handed to a Bridge runs on your computer with the agent's own login and with the computer's own git login. No key is
+stored for it on GitHub; the job uses your subscription. The computer's git login must reach the
+instance and the product, and the Bridge refuses the job and names the repository when it does not.
+
+## bridge-https-route
+
+Some browsers block the call to the Bridge's local address, `http://127.0.0.1`, as Safari does. The site then says why and points
+to the other route: the Bridge reached over HTTPS through the jump host. Use that route when your browser blocks the local
+address. The same route reaches a machine behind NAT.
