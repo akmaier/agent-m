@@ -193,7 +193,7 @@ def _bridge_client_transport(text: str, at: int) -> bool:
 
 
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
-ENDPOINT_TRANSPORT = "the EndpointConfig-derived short test request and, when both declared paths are present, one direct driver request"
+ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
 BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
 MERMAID_VENDOR_CHANNELS = {
     "Worker": (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
@@ -201,8 +201,7 @@ MERMAID_VENDOR_CHANNELS = {
     "@import": (1, "the name of the at-rule in mermaid's CSS parser, not a style sheet", None),
 }
 
-# (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None,
-# optional count(text) -> int). An optional count is for a fixed, independently evidenced pair in one file.
+# (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
 # An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
 # read of its own data files and requires none.
 PERMITTED_CHANNELS = {
@@ -210,7 +209,7 @@ PERMITTED_CHANNELS = {
     ("src/repository-hosts/failures.mjs", "fetch"): (1, "the repository hosts' request helper sends only what its origin gate prepare() let through", _prepared),
     ("src/spec-document/index.mjs", "fetch"): (1, "its own skeleton.md, from the address the module itself was loaded from",
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
-    ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport, _endpoint_transport_count),
+    ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
     ("src/bridge-client/", "fetch"): (1, BRIDGE_CLIENT_TRANSPORT, _bridge_client_transport),
     # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -281,10 +280,9 @@ def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> lis
                 evidence = permitted[key][2]
                 if evidence and not evidence(text, m.start()):
                     found.append(f"{path}:{line}: {name}: not {permitted[key][1]}")
-    for key, rule in permitted.items():
-        count, why, _ = rule[:3]
-        if len(rule) == 4:
-            count = rule[3](files[key[0]])
+    for key, (count, why, _) in permitted.items():
+        if key == ("src/endpoint-calls/index.mjs", "fetch") and _present(key[0], files):
+            count = _endpoint_transport_count(files[key[0]])
         n, folder = seen.get(key, 0), key[0].endswith("/")
         if _present(key[0], files) and (n > count if folder else n != count):
             found.append(f"{key[0]}: {key[1]} found {n} times, permitted {'at most ' if folder else ''}{count} ({why})")
