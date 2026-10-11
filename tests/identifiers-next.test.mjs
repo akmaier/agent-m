@@ -14,10 +14,10 @@
 // reaches the network. The counter-proofs are recorded in the pull request.
 //
 // UC-007 (main flow, step 5) assigns identifiers `UC-<nnn>` to the use cases it drafts, and UC-019 (alternative flow 7a) splits a use
-// case by keeping it and adding another. Three cases the module file leaves open are read as follows, and named in the pull request:
+// case by keeping it and adding another. Four cases the module file leaves open are read as follows, and named in the pull request:
 // the first number of a numbered kind is 001; a kind outside the seven the signature lists is no kind to give an identifier of, a
-// TypeError; and after 999 of ARC, TST or ITM, which the scheme gives exactly three digits, there is no next identifier — a
-// RangeError, not an identifier the scheme rejects.
+// TypeError; after 999 of ARC, TST or ITM, which the scheme gives exactly three digits, there is no next identifier — a RangeError,
+// not an identifier the scheme rejects; and a history that is not given at all is no empty history — a TypeError.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -35,7 +35,7 @@ function once(identifiers) {
 //        holds it — given in that order, in another order, as a Set and as a generator that can be read once
 // input: nextIdentifier("UC", everUsed) for each of the four forms
 // expect: UC-032 for each — one more than the highest number ever used, neither the number of identifiers used plus one (UC-004) nor
-//         the lowest number free (UC-002), and not UC-031, which a withdrawn identifier would be given again
+//         the lowest number free (UC-002), and not UC-031, which would give the withdrawn identifier again
 test("nextIdentifier — a use case after UC-001, UC-022 and a withdrawn UC-031 is UC-032, whatever form the history is given in", () => {
   const history = ["UC-001", "UC-022", "UC-031"];
   assert.equal(nextIdentifier("UC", history), "UC-032");
@@ -98,7 +98,7 @@ test("nextIdentifier — after 999 a three-digit kind has no next identifier, a 
 
 // ---------------------------------------------------------------- a slug kind
 
-// guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-019
+// guards: EVERY ARTIFACT HAS AN IDENTIFIER
 // given: the slug kinds SRC, MOD and RES with the slugs eu-ai-act, text-tools and alex-cluster, none used; and SRC with the slug
 //        iec-62304, which holds digits, among SRC-vibe-coding, MOD-iec-62304 and UC-022, used before — of the same kind with another
 //        slug, of another kind with this slug, and of another kind
@@ -135,6 +135,26 @@ test("nextIdentifier — a slug ever used throws IdentifierTaken, naming the ide
   assert.equal(nextIdentifier("MOD", used, "eu-ai-act"), "MOD-eu-ai-act");
 });
 
+// ---------------------------------------------------------------- a history that is not given
+
+// guards: THE NAME IS THE ID AND IT SURVIVES
+// given: an empty history, to show the same calls giving identifiers; then no history at all — the argument left out, undefined and
+//        null — for a numbered kind and for a slug kind
+// input: nextIdentifier("UC", []) and nextIdentifier("SRC", [], "eu-ai-act"); then nextIdentifier("UC"), and each of the two kinds
+//        with undefined and with null for the history
+// expect: UC-001 and SRC-eu-ai-act for the empty history; a TypeError for each of the others — a history that is not given is not an
+//         empty one, since an identifier withdrawn long ago would then be given again
+test("nextIdentifier — a history that is not given is no empty history", () => {
+  // Known positive: an empty history is a history that holds nothing.
+  assert.equal(nextIdentifier("UC", []), "UC-001");
+  assert.equal(nextIdentifier("SRC", [], "eu-ai-act"), "SRC-eu-ai-act");
+  assert.throws(() => nextIdentifier("UC"), TypeError, "UC with no second argument");
+  for (const missing of [undefined, null]) {
+    assert.throws(() => nextIdentifier("UC", missing), TypeError, `UC with ${missing} for the history`);
+    assert.throws(() => nextIdentifier("SRC", missing, "eu-ai-act"), TypeError, `SRC with ${missing} for the history`);
+  }
+});
+
 // ---------------------------------------------------------------- no slug, or a slug that breaks the scheme
 
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
@@ -159,9 +179,10 @@ test("nextIdentifier — a slug kind without a slug, or with a slug that breaks 
 
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
 // given: UC, to show the same call giving an identifier; then JOB and "requirement", kinds of the scheme that the signature does not
-//        list; and a name that is no kind at all — FOO, the lowercase uc, the empty string, undefined and a number
-// input: nextIdentifier(kind, []) and nextIdentifier(kind, [], "x") for each of the others
-// expect: UC-001; a TypeError for each of the others, with a slug and without
+//        list; and a name that is no kind at all — FOO, the lowercase uc, the empty string, undefined and a number; and JOB with the
+//        slug 20261005-0900-a1b2, which makes JOB-20261005-0900-a1b2, an identifier of the scheme, though not one this gives
+// input: nextIdentifier(kind, []) and nextIdentifier(kind, [], "x") for each of the others; and nextIdentifier("JOB", [], the slug)
+// expect: UC-001; a TypeError for each of the others, with a slug and without, and for the JOB whose identifier the scheme accepts
 test("nextIdentifier — a kind outside the seven it lists throws TypeError", () => {
   // Known positive: a kind the signature lists is given an identifier.
   assert.equal(nextIdentifier("UC", []), "UC-001");
@@ -169,4 +190,6 @@ test("nextIdentifier — a kind outside the seven it lists throws TypeError", ()
     assert.throws(() => nextIdentifier(kind, []), TypeError, `the kind ${String(kind)} without a slug`);
     assert.throws(() => nextIdentifier(kind, [], "x"), TypeError, `the kind ${String(kind)} with a slug`);
   }
+  assert.equal(kindOfIdentifier("JOB-20261005-0900-a1b2"), "JOB", "the scheme accepts this identifier");
+  assert.throws(() => nextIdentifier("JOB", [], "20261005-0900-a1b2"), TypeError, "a JOB identifier is not given by nextIdentifier");
 });
