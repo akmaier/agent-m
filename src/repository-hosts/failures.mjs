@@ -18,8 +18,9 @@ export class HostError extends Error {
   }
 }
 
-// gate: what one host may send where — { allowed: [address], tokenAt: address, header, value, token }: every request goes to an
-// address under one of `allowed`; the header `header: value` that carries the token is added to a request under `tokenAt` only.
+// gate: what one host may send where — { allowed: [address], tokenAt: address | [address], header, value, token }: every
+// request goes to an address under one of `allowed`; the header `header: value` that carries the token is added to a request
+// under `tokenAt` — one address or several — only.
 const under = (u, prefix) => {
   const at = u.origin + u.pathname;
   return at === prefix || at.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`);
@@ -32,7 +33,7 @@ function prepare(url, { method = "GET", headers = {}, body } = {}, gate) {
   if (!gate.allowed.some((p) => under(u, p))) throw new TypeError(`not an address of this repository: ${u.origin}${u.pathname}`);
   if (gate.token && u.href.includes(gate.token)) throw new TypeError("a credential is never placed in an address");
   const h = { ...headers };
-  if (gate.value && under(u, gate.tokenAt)) h[gate.header] = gate.value;
+  if (gate.value && [gate.tokenAt].flat().some((at) => under(u, at))) h[gate.header] = gate.value;
   return [u, { method, headers: h, credentials: "omit", cache: "no-store", ...(body === undefined ? {} : { body }) }];
 }
 
@@ -65,8 +66,10 @@ const resetDate = (v) => (Number(v) > 0 ? new Date(Number(v) * 1000) : null);
 // limit with 403 or 429 and X-RateLimit-Remaining: 0; the limit is the account's (5000 an hour) or, without a token, the
 // network's (60 an hour), and X-RateLimit-Reset is when it starts again, in seconds since 1970. A GitLab server answers 429, or
 // 403 with RateLimit-Remaining: 0, and tells the time in RateLimit-Reset only where it lets the page read that header. Whose
-// limit it is where no header says: the account's when the request carried a token, else the network's.
-function usedUpLimit(answer, server, authenticated) {
+// limit it is where no header says: the account's when the request carried a token, else the network's. GitHub's search has a
+// limit of its own, 30 a minute with a token and 10 without: a used-up limit on a search is the search's (`search`), however
+// small the number the server gives.
+function usedUpLimit(answer, server, authenticated, search) {
   if (answer.status !== 403 && answer.status !== 429) return null;
   const whose = authenticated ? "account" : "network";
   if (server === "gitlab") {
@@ -75,29 +78,32 @@ function usedUpLimit(answer, server, authenticated) {
     return { limit: whose, resetsAt: remaining === "0" ? resetDate(header(answer, "ratelimit-reset")) : null };
   }
   if (header(answer, "x-ratelimit-remaining") !== "0") return null;
+  if (search) return { limit: "search", resetsAt: resetDate(header(answer, "x-ratelimit-reset")) };
   const perHour = Number(header(answer, "x-ratelimit-limit"));
   return { limit: perHour > 0 ? (perHour <= 60 ? "network" : "account") : whose, resetsAt: resetDate(header(answer, "x-ratelimit-reset")) };
 }
 
 // The failure a refused answer means. context: { server: "github" | "gitlab", host: the server's name, web: the repository's
 // address, authenticated, tokenName, renewal: the page where the token is renewed or extended, permission: what the request
-// needs, write: whether it writes, what: what a 404 of a read did not find }.
+// needs, write: whether it writes, what: what a 404 of a read did not find, search: the request is a search of GitHub's }.
 //   401 — the token itself is refused: TokenRefused, whatever else the answer says (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL
 //         LINKED); a used-up limit's headers on it do not make it a limit.
-//   403, 429 with a used-up limit — RateLimited, never the token.
+//   403, 429 with a used-up limit — RateLimited, never the token; on a search the limit is the search's.
 //   403 — PermissionMissing. 404 — a write's is PermissionMissing too: GitHub answers a token that may not write to a private
-//         repository with 404; a read's is NotFound.
+//         repository with 404; a read's is NotFound, and so is a search's 422, which is GitHub's answer to a repository it does
+//         not hold or the client may not see.
 //   Any other — the server did not serve the request: Unreachable, with its status.
 export async function refusal(answer, context) {
-  const { server, host, web, authenticated, tokenName, renewal, permission, write, what } = context;
+  const { server, host, web, authenticated, tokenName, renewal, permission, write, what, search } = context;
   if (answer.status === 401) {
     return new HostError("TokenRefused", { tokenName, renewal }, server === "github"
       ? `GitHub refused your ${tokenName} — it has expired, or was regenerated or deleted on GitHub. Renew it on ${renewal}.`
       : `${host} refused your ${tokenName} — it has expired, or was rotated or revoked on GitLab. Renew it on ${renewal}.`);
   }
-  const limit = usedUpLimit(answer, server, authenticated);
+  const limit = usedUpLimit(answer, server, authenticated, search);
   if (limit) {
-    const whose = limit.limit === "account" ? "the account these requests are made with" : "this network, for requests without a token";
+    const whose = limit.limit === "account" ? "the account these requests are made with"
+      : limit.limit === "search" ? "searches" : "this network, for requests without a token";
     return new HostError("RateLimited", limit, `${host}'s request limit for ${whose} is used up` +
       (limit.resetsAt ? `; it resets at ${limit.resetsAt.toISOString()}.` : `; ${host} does not tell this page when it resets.`));
   }
@@ -107,7 +113,7 @@ export async function refusal(answer, context) {
         `to the token on ${renewal}.`
       : `${web} needs a token with ${permission} to be ${write ? "written" : "read"}.`);
   }
-  if (answer.status === 404) {
+  if (answer.status === 404 || (search && answer.status === 422)) {
     return new HostError("NotFound", { what }, `${what} was not found` +
       (authenticated ? "." : " — a private repository is found only with a token that reaches it."));
   }
