@@ -37,14 +37,15 @@ function fixture(id) {
   const results = { [`runs/${OLD}/old.md`]: outcome(OLD, id, "8 of 10"), [`runs/${CANDIDATE}/now.md`]: outcome(CANDIDATE, id, "6 of 10") };
   const commits = new Map([["main", main], [CANDIDATE, candidateFiles], ["test-results", results]]);
   const tags = new Map([[TAG, CANDIDATE]]); let serial = 0;
+  const calls = [];
   const host = {
     async repositoryInfo() { return { defaultBranch: "main" }; },
     async readSnapshot(ref) { const key = tags.get(ref) ?? ref; return snapshot(commits.get(key), key); },
     async listTags(pattern = "*") { const rx = new RegExp(`^${pattern.replaceAll("*", ".*")}$`); return [...tags].filter(([name]) => rx.test(name)).map(([name, commit]) => ({ name, commit })); },
-    async commitFiles(change) { assert.equal(change.expectedHead, "main"); const next = { ...commits.get("main") }; for (const file of change.files) next[file.path] = file.text; const commit = `write-${++serial}`; commits.set(commit, next); commits.set("main", next); return { commit }; },
-    async createTag(name, commit) { if (tags.has(name)) { const error = new Error("exists"); error.name = "TagExists"; throw error; } tags.set(name, commit); },
+    async commitFiles(change) { calls.push({ fn: "commitFiles", change: structuredClone(change) }); assert.equal(change.expectedHead, "main"); const next = { ...commits.get("main") }; for (const file of change.files) next[file.path] = file.text; const commit = `write-${++serial}`; commits.set(commit, next); commits.set("main", next); return { commit }; },
+    async createTag(name, commit) { calls.push({ fn: "createTag", name, commit }); if (tags.has(name)) { const error = new Error("exists"); error.name = "TagExists"; throw error; } tags.set(name, commit); },
   };
-  return { host, at: snapshot(candidateFiles, CANDIDATE), results: snapshot(results, "test-results"), main };
+  return { host, calls, at: snapshot(candidateFiles, CANDIDATE), results: snapshot(results, "test-results"), main };
 }
 
 function scoreInterval(successes, total) {
@@ -65,8 +66,10 @@ test("TST-293201 releaseReport records the 6-of-10 finding and its independently
   const id = "TST-293201", { at, results } = fixture(id);
   const report = await releaseReport(at, results, { version: VERSION, tag: TAG, commit: CANDIDATE, changelog: "Documented rate limitation." });
   const limits = report.text.slice(report.text.indexOf("## Limitations"), report.text.indexOf("## Levels"));
+  const [nistLow, nistHigh] = scoreInterval(20, 25);
+  assert.ok(Math.abs(nistLow - .6086905) < .00001 && Math.abs(nistHigh - .9113942) < .00001, "known positive: independent score inversion agrees with NIST 20-of-25 bounds");
   const [low, high] = scoreInterval(6, 10), match = /confidence interval \[([0-9.]+), ([0-9.]+)\]/i.exec(limits);
-  assert.deepEqual(report.worse, [id]); assert.match(limits, /6 of 10.*8 of 10.*Wilson.*95%/is); assert.ok(match);
+  assert.deepEqual(report.worse, [id]); assert.match(limits, /6 of 10/); assert.match(limits, /8 of 10/); assert.match(limits, /two-sided/i); assert.match(limits, /95%/); assert.match(limits, /Wilson/i); assert.ok(match);
   assert.ok(Math.abs(Number(match[1]) - low) <= .00005 && Math.abs(Number(match[2]) - high) <= .00005);
   assert.deepEqual(Object.keys(report).sort(), ["complete", "failing", "text", "worse"]);
 });
@@ -79,14 +82,17 @@ test("TST-293201 releaseReport records the 6-of-10 finding and its independently
 // input: public acceptAndRelease(host, report, decision, person, today)
 // expect: it refuses the missing reason; a reason records the approval, report and changelog in one commit and tags the tested candidate
 test("TST-293202 acceptAndRelease refuses an unreasoned rate finding then records the person's decision", async () => {
-  const id = "TST-293202", { host, at, results } = fixture(id);
+  const id = "TST-293202", { host, calls, at, results } = fixture(id);
   const shown = await releaseReport(at, results, { version: VERSION, tag: TAG, commit: CANDIDATE, changelog: "Documented rate limitation." });
   const report = { path: PATH, blob: blob(shown.text) };
   await assert.rejects(() => acceptAndRelease(host, report, { limitations: {} }, "akmaier", "2026-10-11"), (error) => error.name === "LimitationMissing" && error.tests.includes(id));
-  const accepted = await acceptAndRelease(host, report, { limitations: { [id]: "The person accepts this observed rate uncertainty." } }, "akmaier", "2026-10-11");
+  assert.deepEqual(calls, [], "refusal makes neither a release commit nor a tag");
+  const reason = "The person accepts this observed rate uncertainty.";
+  const accepted = await acceptAndRelease(host, report, { limitations: { [id]: reason } }, "akmaier", "2026-10-11");
   assert.equal(accepted.tag, `v${VERSION}`); const committed = await host.readSnapshot("main");
-  assert.match(await committed.read(PATH), /6 of 10/); assert.match(await committed.read("CHANGELOG.md"), /Known limitations:[\s\S]*TST-293202/);
-  const approval = committed.paths.find((path) => path.startsWith(`docs/approvals/release-v${VERSION}-`)); assert.ok(approval); assert.match(await committed.read(approval), /TST-293202/);
+  assert.match(await committed.read(PATH), /6 of 10/); assert.equal(blob(await committed.read(PATH)), report.blob, "the accepted report is exactly the one shown"); assert.match(await committed.read("CHANGELOG.md"), new RegExp(`Known limitations:[\\s\\S]*${id} — ${reason}`));
+  const approval = committed.paths.find((path) => path.startsWith(`docs/approvals/release-v${VERSION}-`)); assert.ok(approval); assert.match(await committed.read(approval), new RegExp(`${id} — ${reason}`));
+  assert.equal(calls.length, 2); assert.equal(calls[0].fn, "commitFiles"); assert.deepEqual(calls[0].change.files.map((file) => file.path).sort(), ["CHANGELOG.md", PATH, approval].sort(), "one commit carries report, approval, and changelog"); assert.equal(calls[1].fn, "createTag"); assert.equal(calls[1].commit, CANDIDATE, "the tag names the tested candidate after the decision commit");
 });
 
 after(() => {
@@ -95,7 +101,7 @@ after(() => {
   const digest = (value) => createHash("sha256").update(value).digest("hex");
   try { cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
     for (const [id, [needle, replacement]] of Object.entries(FAULTS)) { const source = join(copied, "src/release-evidence/report.mjs"), original = readFileSync(source), testFile = join(copied, "tests/release-evidence-293-release.test.mjs");
-      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`); const argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/release-evidence-293-release.test.mjs"]; const run = () => spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env: { ...process.env, AGENT_M_293_RELEASE_FAULT_CHILD: "1" } });
+      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`); const argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/release-evidence-293-release.test.mjs"]; const run = () => { const env = { ...process.env, AGENT_M_293_RELEASE_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
       const sourceHash = digest(original), testHash = digest(readFileSync(testFile)), faultStarted = new Date().toISOString(); let failed, faultHash, faultEnded, restoreStarted, restoredHash, restoredEnded;
       try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = run(); faultEnded = new Date().toISOString(); } finally { restoreStarted = new Date().toISOString(); writeFileSync(source, original); restoredHash = digest(readFileSync(source)); restoredEnded = new Date().toISOString(); }
       const passed = run(), positiveEnded = new Date().toISOString(); console.log("TST293-release-counterproof " + JSON.stringify({ id, source, needle, replacement, sourceHash, testHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv, cwd: copied, childflag: "AGENT_M_293_RELEASE_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
