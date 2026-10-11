@@ -11,15 +11,14 @@ const REGISTER_FILE = new URL("./agents.md", import.meta.url);
 const schema = loadSchema(readFileSync(SCHEMA_FILE, "utf8"), OWNER);
 const register = readRegister(schema, "src/agent-processes/agents.md", readFileSync(REGISTER_FILE, "utf8"));
 const findings = documentFindings(schema, register.document).filter((finding) => finding.kind === "error");
-if (findings.length) throw new Error(`${OWNER}: agent register is invalid: ${findings.map((finding) => finding.message).join("; ")}`);
-const rows = register.rows.map(({ cells }) => rowOf(cells));
+if (findings.length) throw new Error(`${OWNER}: agent register is invalid: ${findings.map((finding) => finding.what).join("; ")}`);
 
 /** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null,
  *   install: Record<"macos" | "windows" | "linux", string> }} Agent */
 
-const json = (value, column) => {
+function json(value, column) {
   try { return JSON.parse(value); } catch { throw new Error(`${OWNER}: ${column} in agents.md is not JSON`); }
-};
+}
 function rowOf(cells) {
   return {
     name: cells.Agent,
@@ -27,10 +26,11 @@ function rowOf(cells) {
     version: json(cells.Version, "Version"),
     task: json(cells.Task, "Task"),
     login: json(cells["Login check"], "Login check"),
-    keyVariable: cells["Key variable"] === "—" ? null : cells["Key variable"],
+    keyVariable: cells["Key variable"] ?? null,
     install: { macos: cells["Install macos"], windows: cells["Install windows"], linux: cells["Install linux"] },
   };
 }
+const rows = register.rows.map(({ cells }) => rowOf(cells));
 
 function invoke(command, args) {
   return new Promise((resolve) => {
@@ -47,9 +47,21 @@ const versionOf = (row, output) => (new RegExp(row.version.pattern).exec(output)
 function loginMatches(login, result) {
   if (login.loggedIn.exitCode !== undefined) return result.status === login.loggedIn.exitCode;
   if (login.loggedIn.contains !== undefined) return result.stdout.includes(login.loggedIn.contains);
+  if (login.loggedIn.minimumLines !== undefined) return result.stdout.split("\n").filter(Boolean).length >= login.loggedIn.minimumLines;
   return false;
 }
 const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, install: row.install });
+const taskArgs = (task, prompt) => task.args.map((arg) => arg === "{prompt}" ? prompt : arg);
+function valueAt(value, path) {
+  return path.reduce((part, key) => part?.[key], value);
+}
+function answerOf(task, stdout) {
+  if (task.finalAnswer.format === "text") return stdout.trim();
+  const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  const values = events.filter((event) => event.type === task.finalAnswer.eventType)
+    .map((event) => valueAt(event, task.finalAnswer.path)).filter((value) => typeof value === "string");
+  return values.at(-1)?.trim() ?? "";
+}
 
 /** @returns {Promise<Agent[]>} */
 export async function installedAgents() {
@@ -67,9 +79,9 @@ export async function installedAgents() {
 export async function testAgent(agent) {
   const row = rows.find((candidate) => candidate.name === agent?.name);
   if (!row || !agent.installed) return { answered: false, reason: "agent is not installed" };
-  const result = await invoke(row.command, row.task.args);
+  const result = await invoke(row.command, taskArgs(row.task, "Reply with one word: ok."));
   if (!result.ok) return { answered: false, reason: (result.stderr || result.error?.message || `exit ${result.status}`).trim() };
-  const answer = result.stdout.trim();
-  if (row.task.finalAnswer === "one word" && !/^\S+$/.test(answer)) return { answered: false, reason: "agent did not answer with one word" };
+  const answer = answerOf(row.task, result.stdout);
+  if (row.task.finalAnswer.oneWord && !/^\S+$/.test(answer)) return { answered: false, reason: "agent did not answer with one word" };
   return { answered: true, version: agent.version };
 }

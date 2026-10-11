@@ -16,7 +16,7 @@ each command's argument vector, interpretation and final-answer rule in data rat
       { "name": "Version", "value": { "type": "text", "required": true } },
       { "name": "Task", "value": { "type": "text", "required": true } },
       { "name": "Login check", "value": { "type": "text", "required": true } },
-      { "name": "Key variable", "value": { "type": "text", "required": true } },
+      { "name": "Key variable", "value": { "type": "text" } },
       { "name": "Install macos", "value": { "type": "url", "required": true } },
       { "name": "Install windows", "value": { "type": "url", "required": true } },
       { "name": "Install linux", "value": { "type": "url", "required": true } }
