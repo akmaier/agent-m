@@ -1,6 +1,7 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, commitFiles, createTag, createBranch and webLinks. Every
-// function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch and
+// webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
+// NAMES HOW IT FAILS).
 //
 // Module: MOD-repository-hosts
 //
@@ -176,6 +177,12 @@ export function connect(address, credentials = {}) {
       const tags = await adapter.listTags();
       return pattern === undefined ? tags : tags.filter((t) => globPattern(pattern).test(t.name));
     },
+
+    // issueCounts() -> { open, closed } — the numbers of open and closed issues of the repository, pull requests not counted,
+    // no issue listed: on GitHub through its search, on a GitLab server through the project's issue statistics, without a token
+    // where the repository is public. Crosses the network; fails with RateLimited — on GitHub with the limit `search` —,
+    // NotFound, TokenRefused, Unreachable.
+    issueCounts: () => adapter.issueCounts(),
 
     // commitFiles({ branch, expectedHead, files, message }) -> { commit, url } — one commit of all the files, made only if the
     // branch still stands at expectedHead; expectedHead null makes an empty repository's first commit — on GitHub two, the first
