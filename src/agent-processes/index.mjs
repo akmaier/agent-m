@@ -47,7 +47,10 @@ const versionOf = (row, output) => (new RegExp(row.version.pattern).exec(output)
 function loginMatches(login, result) {
   if (login.loggedIn.exitCode !== undefined) return result.status === login.loggedIn.exitCode;
   if (login.loggedIn.contains !== undefined) return result.stdout.includes(login.loggedIn.contains);
-  if (login.loggedIn.minimumLines !== undefined) return result.stdout.split("\n").filter(Boolean).length >= login.loggedIn.minimumLines;
+  if (login.loggedIn.countPattern !== undefined) {
+    const count = Number(new RegExp(login.loggedIn.countPattern).exec(result.stdout)?.[1] ?? 0);
+    return count >= login.loggedIn.minimumCount;
+  }
   return false;
 }
 const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, install: row.install });
@@ -81,7 +84,12 @@ export async function testAgent(agent) {
   if (!row || !agent.installed) return { answered: false, reason: "agent is not installed" };
   const result = await invoke(row.command, taskArgs(row.task, "Reply with one word: ok."));
   if (!result.ok) return { answered: false, reason: (result.stderr || result.error?.message || `exit ${result.status}`).trim() };
-  const answer = answerOf(row.task, result.stdout);
+  let answer;
+  try {
+    answer = answerOf(row.task, result.stdout);
+  } catch (error) {
+    return { answered: false, reason: error instanceof Error ? error.message : String(error) };
+  }
   if (row.task.finalAnswer.oneWord && !/^\S+$/.test(answer)) return { answered: false, reason: "agent did not answer with one word" };
   return { answered: true, version: agent.version };
 }
