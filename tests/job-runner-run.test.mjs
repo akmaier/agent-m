@@ -87,9 +87,13 @@ const contextOf = (kind, { gates = [] } = {}) => ({
   places: { sources: {}, mailbox: null }, gates, person: "alice", now: new Date("2026-10-11T08:00:00Z"),
   agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: "JOB-20261011-0800-abcd",
 });
+// These tests drive the loop with the findings they set. Their drafts are no documents of the artifact model, which the
+// runner's own check document-schema judges (tests/job-runner-document-schema.test.mjs), so their kinds run without it.
+const withoutDocumentSchema = (job) => ({ ...job,
+  kind: { ...job.kind, checks: job.kind.checks.filter((check) => check !== "document-schema") } });
 async function prepared(name, { reviewers = [], limit, gates } = {}) {
   const context = contextOf(await kindOf(name), { gates });
-  return { job: await prepareJob(name, context, { drafter: DRAFTER, reviewers, limit }), context };
+  return { job: withoutDocumentSchema(await prepareJob(name, context, { drafter: DRAFTER, reviewers, limit })), context };
 }
 
 const USE_CASE = (text) => ({ files: [{ path: "docs/use-cases/UC-001-x.md", text, class: "new" }] });
