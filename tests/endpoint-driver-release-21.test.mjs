@@ -14,7 +14,14 @@ import { endpointDriver } from "../src/endpoint-calls/index.mjs";
 const OPENAI = { name: "openai", kind: "openai-compatible", baseUrl: "https://models.example.test/v1", model: "tiny", key: "openai-key" };
 const ANTHROPIC = { name: "anthropic", kind: "anthropic", baseUrl: "https://claude.example.test/v1", model: "claude", key: "anthropic-key" };
 const PARTICIPANT = { name: "fixture", type: "model endpoint", model: "fixture", context: 100, price: null, capabilities: [], place: "test", route: "direct" };
-const INPUT = { prompt: "Prepared prompt only.", parts: [{ text: "must not be appended" }] };
+const INPUT = {
+  prompt: "Prepared prompt only.",
+  parts: [{ text: "must not be appended" }],
+  output: null,
+  findings: [],
+  previous: null,
+  workdir: null,
+};
 const reply = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 function withFetch(t, fetch) { const prior = globalThis.fetch; globalThis.fetch = fetch; t.after(() => { globalThis.fetch = prior; }); }
 const FAULTS = {
@@ -46,6 +53,19 @@ test("TST-316903: blocked and cancelled direct calls remain named single request
 // given: constructed key-refused and input-too-long provider replies.
 // input: send once for each reply through the public direct driver.
 // expect: each keeps its diagnosis, does not cut input, and makes no retry.
-test("TST-316904: refused key and length remain diagnosed single requests", async (t) => { let calls = 0; withFetch(t, async () => { calls += 1; return calls === 1 ? reply(401, { error: { message: "key refused" } }) : reply(413, { error: { message: "input too long" } }); }); const driver = endpointDriver(OPENAI, PARTICIPANT); await assert.rejects(driver.send(INPUT), (error) => error.name === "EndpointFailed" && error.diagnosis.reason === "key refused"); await assert.rejects(driver.send(INPUT), (error) => error.name === "EndpointFailed" && error.diagnosis.reason === "too long"); assert.equal(calls, 2); });
+test("TST-316904: refused key and length remain diagnosed single requests", async (t) => {
+  const bodies = [];
+  withFetch(t, async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return bodies.length === 1
+      ? reply(401, { error: { message: "key refused" } })
+      : reply(413, { error: { message: "input too long" } });
+  });
+  const driver = endpointDriver(OPENAI, PARTICIPANT);
+  await assert.rejects(driver.send(INPUT), (error) => error.name === "EndpointFailed" && error.diagnosis.reason === "key refused");
+  await assert.rejects(driver.send(INPUT), (error) => error.name === "EndpointFailed" && error.diagnosis.reason === "too long");
+  assert.equal(bodies.length, 2);
+  for (const body of bodies) assert.equal(body.messages[0].content, INPUT.prompt);
+});
 
 after(() => { if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_316_RELEASE_FAULT_CHILD) return; const temporary = mkdtempSync(join(tmpdir(), "agent-m-316-release-fault-")), copied = join(temporary, "repo"), digest = (value) => createHash("sha256").update(value).digest("hex"); try { cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") }); for (const [id, [needle, replacement]] of Object.entries(FAULTS)) { const source = join(copied, "src/endpoint-calls/index.mjs"), original = readFileSync(source), argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/endpoint-driver-release-21.test.mjs"]; assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`); const invoke = () => { const env = { ...process.env, AGENT_M_316_RELEASE_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env }); }; const sourceHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/endpoint-driver-release-21.test.mjs"))); let failed, passed, faultHash, restoredHash, faultEnded, restoreStarted, restoredEnded, positiveEnded; const faultStarted = new Date().toISOString(); try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); faultEnded = new Date().toISOString(); } finally { restoreStarted = new Date().toISOString(); writeFileSync(source, original); restoredHash = digest(readFileSync(source)); restoredEnded = new Date().toISOString(); } passed = invoke(); positiveEnded = new Date().toISOString(); console.log("TST316-release-counterproof " + JSON.stringify({ id, needle, replacement, source, sourceHash, testHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv, cwd: copied, childflag: "AGENT_M_316_RELEASE_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } })); assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`)); assert.equal(restoredHash, sourceHash); assert.equal(passed.status, 0, id); assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`)); } } finally { rmSync(temporary, { recursive: true, force: true }); } });
