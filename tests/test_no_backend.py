@@ -121,7 +121,7 @@ def _mermaid_library_script(text: str, at: int) -> bool:
     return (window.startswith('createElement("script")')
             and 'script.setAttribute("src", new URL("./vendor/mermaid.min.js", import.meta.url).href);' in window
             and 'libraryScript = script;' in window
-            and 'appendChild(script);' in window)
+            and 'appendChild(script);' in text)
 
 
 def _own_data_file(text: str, at: int) -> bool:
@@ -298,6 +298,7 @@ class NoServer(unittest.TestCase):
 
     def test_mermaid_renders_katex_untrusted(self):
         # The evidence for KaTeX's image element: \includegraphics is rendered only when the trust setting allows it.
+        self.assertIn("docs/assets/vendor/mermaid.min.js", self.files)
         for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js"):
             if path not in self.files:
                 continue
