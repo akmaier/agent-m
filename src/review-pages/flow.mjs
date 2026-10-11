@@ -7,16 +7,20 @@
 // TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN. Nothing is written while a page is drawn.
 
 import { statuses, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema } from "../approvals/index.mjs";
-import { writeDocument } from "../documents/index.mjs";
+import { writeDocument, readDocument, artifactSchemas } from "../documents/index.mjs";
+import { listJobs } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { splitDueDiligence, dueDiligenceSection, roundsSection } from "./sections.mjs";
 
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 const TOKEN_STEP = "#add-product";
 // The id of the page that shows every file not yet accepted: #<route>/id=all.
 const REVIEW_ALL = "all";
+// The kind of job whose record holds the rounds of the architecture shown.
+const ARCHITECTURE_JOB = "derive-architecture";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -76,6 +80,30 @@ function problem(failure, token) {
   const paragraph = el("p", "problem", text);
   if (!token) paragraph.append(" ", link(TOKEN_STEP, "token-step", "Store a token"));
   return paragraph;
+}
+
+// The files of the whole architecture in the order of its review page: the decision that states the system — the one that refines no
+// other —, the subsystems' decisions — those that refine it and design modules —, the module files, the further decisions — those
+// that refine it and design none —; each group by identifier.
+function architectureOrder(entries, texts) {
+  const group = (file) => {
+    if (file.kind === "module") return 2;
+    let fields;
+    try { fields = readDocument(artifactSchemas().decision, file.path, texts.get(file.path)).fields; } catch { return 3; }
+    if (!fields.refines) return 0;
+    return [fields.designs ?? []].flat().length ? 1 : 3;
+  };
+  return entries.map((file) => ({ file, group: group(file) })).sort((a, b) => a.group - b.group || a.file.id.localeCompare(b.file.id)).map(({ file }) => file);
+}
+
+// The rounds of the newest job that drafted an architecture and has ended, as its record holds them; null where there is none.
+async function draftingRounds(where) {
+  try {
+    const address = where.context.product?.address ?? where.context.instance.repository;
+    const rows = await listJobs([{ address, snapshot: where.snapshot }], new Map());
+    const row = rows.find((each) => each.record.kind === ARCHITECTURE_JOB && each.record.end);
+    return row && row.record.end.rounds.length ? row.record.end.rounds : null;
+  } catch { return null; }
 }
 
 export function reviewRoute(kind) {
@@ -153,20 +181,25 @@ export function reviewRoute(kind) {
   }
 
   // Review all: every file not yet accepted in sequence — a changed one as its difference to the last accepted text, a new one in
-  // full — and, below them, the acceptance of exactly what is shown.
+  // full — and, below them, the acceptance of exactly what is shown. For the architecture it is the page of the whole architecture:
+  // decisions and module files in their order, a further decision with its due diligence, and the rounds of the job that drafted them.
   async function showAll(where) {
     const { target, snapshot, token, host, context } = where;
-    const shown = files(snapshot).filter((file) => file.status !== "accepted");
-    target.append(el("h2", null, `Review all — ${kind.title}`), explain(kind.explain.all));
+    const reviewed = [...statuses(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
+      .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
+    const texts = new Map();
+    for (const file of reviewed) texts.set(file.path, (await snapshot.read(file.path)) ?? "");
+    const shown = kind.whole ? architectureOrder(reviewed, texts) : reviewed.sort((a, b) => a.id.localeCompare(b.id));
+    target.append(el("h2", null, kind.whole ? "Review all — the whole architecture" : `Review all — ${kind.title}`), explain(kind.explain.all));
     if (shown.length === 0) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
       return;
     }
     const records = [];
     for (const file of shown) {
-      const body = await snapshot.read(file.path);
+      const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
-      records.push({ file, record: recordOf(file.id, kind.kind, file.path, blob), blob });
+      records.push({ file, record: recordOf(file.id, file.kind, file.path, blob), blob });
       const section = el("section", "review-file", el("h3", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]));
       section.setAttribute("data-id", file.id);
       if (file.status === "changed") {
@@ -178,8 +211,24 @@ export function reviewRoute(kind) {
           diff.append(el("p", "problem", failure.message));
         }
         section.append(diff);
-      } else section.append(renderArtifact(shortBody(body)));
+      } else {
+        const { rest, section: diligence } = kind.whole && file.kind === "architecture-decision" ? splitDueDiligence(shortBody(body)) : { rest: shortBody(body), section: null };
+        section.append(renderArtifact(rest));
+        if (diligence !== null) section.append(dueDiligenceSection(diligence));
+      }
+      if (kind.restsOn) {
+        const open = await acceptanceBlockers(file.path, snapshot);
+        if (open.length) {
+          const names = el("ul");
+          for (const name of open) names.append(el("li", "open-name", name));
+          section.append(el("section", "rests-on", el("h4", null, "Rests on what is not accepted"), names));
+        }
+      }
       target.append(section);
+    }
+    if (kind.whole) {
+      const rounds = await draftingRounds(where);
+      if (rounds) target.append(roundsSection(rounds));
     }
     const heading = `Accept all ${shown.length} shown`;
     if (token) {
