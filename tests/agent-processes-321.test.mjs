@@ -3,10 +3,12 @@
 // Guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A CANCELLED JOB WRITES NOTHING MORE; ONE DEFINITION, THREE DRIVERS; UC-010; UC-011
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import { agentDriver } from "../src/agent-processes/index.mjs";
 
 const node = process.execPath;
@@ -50,6 +52,24 @@ const OPENCODE = {
     windows: "https://opencode.ai/docs/#windows",
     linux: "https://opencode.ai/docs/#install",
   },
+};
+const FAULTS = {
+  "TST-321001": [
+    "return { text: answerFor(row.task, result.stdout), usage: usageFor(row.task, result.stdout) };",
+    "return { text: \"\", usage: usageFor(row.task, result.stdout) };",
+  ],
+  "TST-321002": [
+    "return ownLoginEnvironment();",
+    "return process.env;",
+  ],
+  "TST-321003": [
+    "else process.kill(-child.pid, \"SIGTERM\");",
+    "else child.kill(\"SIGTERM\");",
+  ],
+  "TST-321004": [
+    "throw failure(\"AgentNotLoggedIn\", \"the selected agent is not logged in\");",
+    "throw failure(\"AgentMissing\", \"the selected agent is not logged in\");",
+  ],
 };
 
 function executable(folder, name, program) {
@@ -220,5 +240,90 @@ test("TST-321004: agent driver names each accepted failure", async () => {
     await assert.rejects(driver(CLAUDE, folder).send({ ...INPUT, workdir: folder }, { signal: controller.signal }), { name: "Cancelled" });
   } finally {
     rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+after(() => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_321_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-321-fault-"));
+  const copied = join(temporary, "repo");
+  const digest = (value) => createHash("sha256").update(value).digest("hex");
+  try {
+    cpSync(process.cwd(), copied, {
+      recursive: true,
+      filter: (path) => !path.includes("/.git") && !path.includes("/node_modules"),
+    });
+    for (const [id, [needle, replacement]] of Object.entries(FAULTS)) {
+      const source = join(copied, "src", "agent-processes", "processes.mjs");
+      const original = readFileSync(source);
+      const testPath = join(copied, "tests", "agent-processes-321.test.mjs");
+      const argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/agent-processes-321.test.mjs"];
+      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
+      const invoke = () => {
+        const env = { ...process.env, AGENT_M_321_FAULT_CHILD: "1" };
+        delete env.NODE_TEST_CONTEXT;
+        return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env });
+      };
+      const sourceHash = digest(original);
+      const testHash = digest(readFileSync(testPath));
+      const faultStarted = new Date().toISOString();
+      let failed, passed, faultHash, restoredHash, faultEnded, restoreStarted, restoredEnded, positiveEnded;
+      try {
+        writeFileSync(source, original.toString().replace(needle, replacement));
+        faultHash = digest(readFileSync(source));
+        failed = invoke();
+        faultEnded = new Date().toISOString();
+      } finally {
+        restoreStarted = new Date().toISOString();
+        writeFileSync(source, original);
+        restoredHash = digest(readFileSync(source));
+        restoredEnded = new Date().toISOString();
+      }
+      passed = invoke();
+      positiveEnded = new Date().toISOString();
+      console.log("TST321-counterproof " + JSON.stringify({
+        id,
+        file: "src/agent-processes/processes.mjs",
+        needle,
+        replacement,
+        sourceHash,
+        testHash,
+        faultHash,
+        restoredHash,
+        faultStarted,
+        faultEnded,
+        restoreStarted,
+        restoredEnded,
+        positiveEnded,
+        argv,
+        cwd: copied,
+        childflag: "AGENT_M_321_FAULT_CHILD=1",
+        failed: {
+          status: failed.status,
+          signal: failed.signal,
+          error: failed.error?.message ?? null,
+          stdout: failed.stdout,
+          stderr: failed.stderr,
+        },
+        passed: {
+          status: passed.status,
+          signal: passed.signal,
+          error: passed.error?.message ?? null,
+          stdout: passed.stdout,
+          stderr: passed.stderr,
+        },
+      }));
+      assert.equal(failed.status, 1, id);
+      assert.equal(failed.signal, null, id);
+      assert.equal(failed.error, undefined, id);
+      assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));
+      assert.equal(restoredHash, sourceHash, `${id}: exact restoration`);
+      assert.equal(passed.status, 0, id);
+      assert.equal(passed.signal, null, id);
+      assert.equal(passed.error, undefined, id);
+      assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
+    }
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
   }
 });

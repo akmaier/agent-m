@@ -59,7 +59,7 @@ function loginMatches(login, result) {
 }
 const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, install: row.install });
 const taskArgs = (task, prompt) => task.args.map((arg) => arg === "{prompt}" ? prompt : arg);
-function ownLoginEnvironment() {
+export function ownLoginEnvironment() {
   const credentials = new Set(rows.map((row) => row.keyVariable).filter((name) => name && name !== "—"));
   const environment = {};
   for (const name of Object.keys(process.env)) {
@@ -70,13 +70,28 @@ function ownLoginEnvironment() {
 function valueAt(value, path) {
   return path.reduce((part, key) => part?.[key], value);
 }
-function answerOf(task, stdout) {
+export function answerFor(task, stdout) {
   if (task.finalAnswer.format === "text") return stdout.trim();
   const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
   const values = events.filter((event) => event.type === task.finalAnswer.eventType)
     .map((event) => valueAt(event, task.finalAnswer.path)).filter((value) => typeof value === "string");
   return values.at(-1)?.trim() ?? "";
 }
+export function usageFor(task, stdout) {
+  if (!task.usage) return null;
+  const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  const values = events.filter((event) => event.type === task.usage.eventType)
+    .map((event) => valueAt(event, task.usage.path)).filter((value) => value && typeof value === "object");
+  const tokens = values.at(-1);
+  if (!tokens) return null;
+  return {
+    inputTokens: typeof tokens[task.usage.input] === "number" ? tokens[task.usage.input] : null,
+    outputTokens: typeof tokens[task.usage.output] === "number" ? tokens[task.usage.output] : null,
+    minutes: null,
+    cost: null,
+  };
+}
+export const agentConfiguration = (name) => rows.find((row) => row.name === name) ?? null;
 
 /** @returns {Promise<Agent[]>} */
 export async function installedAgents() {
@@ -98,10 +113,12 @@ export async function testAgent(agent) {
   if (!result.ok) return { answered: false, reason: (result.stderr || result.error?.message || `exit ${result.status}`).trim() };
   let answer;
   try {
-    answer = answerOf(row.task, result.stdout);
+    answer = answerFor(row.task, result.stdout);
   } catch (error) {
     return { answered: false, reason: error instanceof Error ? error.message : String(error) };
   }
   if (row.task.finalAnswer.oneWord && !/^\S+$/.test(answer)) return { answered: false, reason: "agent did not answer with one word" };
   return { answered: true, version: agent.version };
 }
+
+export { agentDriver } from "./processes.mjs";
