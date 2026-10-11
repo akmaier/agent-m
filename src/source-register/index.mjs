@@ -4,7 +4,8 @@
 // schema of a product's links file. readContent, which reads a version's files with their hashes checked (content.mjs),
 // linkedVersion, and sourceStrategies with the recipe source-excerpt and the four recipes of the book's chapters
 // (strategies.mjs) come with the job runner. ITM-315 adds sourceFindings, the requirements that name no source the product
-// links. Registering and fetching a source's content and the module's other functions are not built yet.
+// links. ITM-383 adds personSource, the source of the person who gives an instruction. Registering and fetching a source's
+// content and the module's other functions are not built yet.
 //
 // Module: MOD-source-register
 //
@@ -124,6 +125,25 @@ export function linkedVersion(links, register, source) {
   if (!version) return null;
   const part = typeof link.cells.Part === "string" && link.cells.Part.trim() ? link.cells.Part.trim() : null;
   return { source: entry, version, part };
+}
+
+/**
+ * personSource(links: Document, register: Document[], account: string) -> string | null — the identifier of the register entry of
+ * kind `person` whose `identifier` is `account`, the person's account on a repository server written `<server>/<account>`, such
+ * as github.com/akmaer, and which the product links — its links file holds a row for the entry —: the source of the person who
+ * gives an instruction (THE PERSON WHO PROMPTS IS A SOURCE). Null when there is none: no entry of that account, an entry of
+ * that account the product does not link, an entry of another kind, or no account. The account is compared whole, as written;
+ * of two entries of one account, the linked one answers.
+ * @param {Document} links — a product's links file, read with the schema sourceSchemas gives
+ * @param {Document[]} register — the instance's register entries
+ * @param {string} account
+ * @returns {string | null}
+ */
+export function personSource(links, register, account) {
+  if (typeof account !== "string" || account === "") return null;
+  const entry = register.find((each) => each.fields.kind === "person" && each.fields.identifier === account
+    && linkOf(links, each) !== undefined);
+  return entry ? entry.id : null;
 }
 
 const REGISTERED_SOURCE = "A REQUIREMENT HAS A REGISTERED SOURCE";

@@ -5,7 +5,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), history(path, { ref, limit }), listTags(), commitFiles(change), createTag(name, commit),
+// readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
 // createBranch(name, from) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
@@ -101,6 +101,14 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       return tags;
+    },
+
+    // The numbers of open and closed issues, from the project's issue statistics ("Retrieve issues statistics for a project":
+    // counts.opened and counts.closed). They count issues alone: a merge request is no issue. A public project serves them
+    // without a token.
+    async issueCounts() {
+      const { counts } = (await read(`${api}/issues_statistics`)).statistics;
+      return { open: counts.opened, closed: counts.closed };
     },
 
     // The commits that changed a path — the project where the path is null —, newest first, from `ref` (the default branch where

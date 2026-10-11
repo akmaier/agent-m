@@ -248,3 +248,57 @@ confirms that nothing is stored for the endpoint in this browser. Add the URL, k
 The token shown by the Bridge pairs this dashboard with this Bridge. Copy it only into the dashboard that belongs to this
 instance; it authorises that dashboard to ask this local app to reach services on this computer. It is not a model key and
 is never put into a repository, a link or a cookie.
+
+## accepting
+
+Accepting is a commit made under your own account, so Git records who accepted and when; a commit is one saved change to the
+repository. The commit adds an *approval record*, a small file under `docs/approvals/` that names the file you accepted and the
+blob SHA of exactly the text you were shown. Several files can be accepted at once: one commit then holds one approval record
+per file, each naming the text you were shown, and a file that changed after it was shown is left out and named. Accepting a
+change to the SPEC also replaces the SPEC section with the proposal, byte for byte, and adds the decision to the queue. In the
+book *Vibe Coding*: chapter 12, section 10.
+
+## blob-sha
+
+A blob SHA is the number Git computes from the content of a file: the same text always gives the same SHA, and any change to
+the text, even one character, gives another. An approval record names the file and the blob SHA of the text you saw, so it is
+about that text and no other. The editor notes the SHA of the text it opened, and *Save* compares it with the file on the
+branch: if that has another SHA, nothing is written.
+
+## edit-after-acceptance
+
+An approval record names the accepted text by its blob SHA. When the file is edited afterwards, by you in the editor or by
+anyone else, the new text has another blob SHA, and no approval record names it. So the dashboard shows the file as *changed
+since acceptance*, and nobody has to reset a status: whether a file counts as accepted is worked out every time from the
+records, and a record can only vouch for the text it names. Above the text, the dashboard shows the difference to the text the
+most recent record for this file names, so that you read only what changed and can accept the new text as before. In the book
+*Vibe Coding*: chapter 12, section 10.
+
+## spec-edit-waits-for-approval
+
+The SPEC is what the use cases, the architecture, the tests and the releases are checked against, so a change to it is a
+decision, and the dashboard never writes it straight into SPEC.md. Saving an edited requirement writes a proposal into a change
+queue under `docs/spec-freigaben/`. A reviewer sees the proposal beside the current text and accepts it, and only then is it
+written into the SPEC. A use case is different: it is a draft to be read and corrected, so its file is saved at once. It is
+open, not accepted, until an approval record names the saved text, so nothing relies on it before someone has accepted exactly
+that text. In the book *Vibe Coding*: chapter 8, section 6.
+
+## change-queue
+
+A change queue is a folder under `docs/spec-freigaben/` that holds proposed changes to the SPEC. Each *entry* is one SPEC
+section as it is proposed; the queue's `index.md` lists the entries in order, and `entscheidungen.md` records each decision as
+it is taken. An entry is open until someone accepts it. The edits you save on the dashboard collect in your newest queue of the
+day that has no accepted entry yet. Entries of one queue that are accepted together are written in the order of the queue's
+index, in one commit; an entry whose heading another entry creates is offered only together with or after that entry, and the
+dashboard names the entry it waits for. In the book *Vibe Coding*: chapter 8, section 6.
+
+## github-page-without-token
+
+With a token, a key you create on GitHub and store in this browser, the dashboard makes the commit for you, under your
+account. Without a token it cannot, so it opens GitHub's own page instead, prepared as far as GitHub allows: to accept,
+GitHub's page for a new file with the approval record filled in; to edit, GitHub's editor, with your edited text on the
+clipboard. The link carries at most the file's path and the record, never the text you reviewed. You press *Commit changes*
+there, and the commit is yours as before; then reload the dashboard. Without write access to the repository, GitHub makes your
+commit a pull request, a proposal for the maintainers to review, and the change counts once a maintainer merges it. If the
+record does not arrive filled in, the dashboard shows it with a copy button and the exact path of the file. On a GitLab server
+there is no such page, so the dashboard needs the project's own token there. In the book *Vibe Coding*: chapter 12, section 10.

@@ -1,6 +1,6 @@
-// status.mjs — statuses: the status of every reviewed file of a snapshot, from one pass over docs/approvals/
-// (MOD-approvals, Interfaces). lastAcceptedText is not built yet (ITM-233 builds only statuses and approvalSchema,
-// index.mjs).
+// status.mjs — statuses: the status of every reviewed file of a snapshot, from one pass over docs/approvals/; and
+// lastAcceptedText: the text that the most recent record of an identifier names (MOD-approvals, Interfaces). statusOf is not
+// built yet (ITM-233 builds statuses, ITM-334 lastAcceptedText).
 //
 // Module: MOD-approvals
 //
@@ -10,9 +10,14 @@
 // (MOD-approvals, Data; AN APPROVAL NAMES THE EXACT TEXT). A snapshot already holds every path and every blob SHA of
 // its tree in memory (MOD-repository-hosts, Snapshot: paths, blob), so status is derived from the names alone, matched
 // by identifier — so a renamed file keeps its status, as MOD-approvals' statusOf states it: no record's text is read,
-// and nothing here crosses the network.
+// and statuses crosses no network. lastAcceptedText does: it reads the repository, the history of the records and the text
+// itself through the host it is given. Host, Snapshot and HistoryEntry are MOD-repository-hosts' types.
 
+import { readDocument } from "../documents/index.mjs";
 import { kindOfIdentifier } from "../identifiers/index.mjs";
+import { HostError } from "../repository-hosts/index.mjs";
+// The schema is loaded by index.mjs, once, and used here only when a function is called: that is after both have loaded.
+import { approvalSchema } from "./index.mjs";
 
 // The approval record's `kind` for a reviewed file's identifier kind (MOD-approvals, Data: kind is one of use-case,
 // architecture-decision, module, spec, release-report). This item derives only the three a reviewed file's own folder
@@ -74,4 +79,37 @@ export function statuses(snapshot) {
     out.set(path, { id: file.id, kind: file.kind, status });
   }
   return out;
+}
+
+/**
+ * lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null> — the text that the
+ * most recent approval record of the identifier `id` names, with the blob the record names and the path the file had when it
+ * was accepted (the record's `file`), also when the file has been renamed since; null when no record names the identifier.
+ * The records of an identifier are those of the default branch whose names carry it (docs/approvals/<id>-<blob12>.md); the
+ * most recent is the one whose commit, found in the history of the record, was committed last — the date as the server gives
+ * it, in its own offset; two records committed at the same instant are not told apart. The text is read in the repository as
+ * it stood at the commit that added that record, where the file still has the path the record names. Crosses the network,
+ * through the host; fails with its failures, unchanged — TokenRefused, RateLimited, NotFound, Unreachable —, and with
+ * NotFound { what: the file } when the file did not hold the text the record names at the commit that added the record: no
+ * other text is given for it.
+ * @param {string} id
+ * @param {object} host
+ * @returns {Promise<{ text: string, blob: string, path: string } | null>}
+ */
+export async function lastAcceptedText(id, host) {
+  const { defaultBranch } = await host.repositoryInfo();
+  const head = await host.readSnapshot(defaultBranch);
+  const records = head.paths.filter((path) => approvalRecord(path)?.id === id);
+  if (records.length === 0) return null;
+  const added = await Promise.all(records.map(async (path) => {
+    const [adding] = await host.readHistory(path, { ref: head.commit, limit: 1 });
+    return { path, commit: adding.commit, at: Date.parse(adding.date) };
+  }));
+  const last = added.reduce((newest, each) => (each.at > newest.at ? each : newest));
+  const { file, blob } = readDocument(approvalSchema, last.path, await head.read(last.path)).fields;
+  const then = await host.readSnapshot(last.commit);
+  if (then.blob(file) !== blob) {
+    throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);
+  }
+  return { text: await then.read(file), blob, path: file };
 }
