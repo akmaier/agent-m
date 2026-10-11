@@ -22,6 +22,7 @@ const FAULTS = {
   "TST-342004": ["src/markdown-render/difference.mjs", 'added: "dadd"', 'added: "dctx"'],
   "TST-342005": ["src/markdown-render/render.mjs", "return rendered;", "renderMermaid('flowchart LR\\nEager-->Load'); return rendered;"],
   "TST-342006": ["src/markdown-render/mermaid.mjs", "await rejectImageMetadata(m, source);", "// image metadata preflight disabled"],
+  "TST-342007": ["src/markdown-render/mermaid.mjs", "const requested = drawing.then(() => drawMermaid(source));", "const requested = drawMermaid(source);"],
 };
 
 // The established renderer battery owns the browser-compatible small DOM. Loading it here puts

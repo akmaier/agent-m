@@ -7,6 +7,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
 let ready = false;
 let loading;
 let libraryScript;
+let drawing = Promise.resolve();
 const failed = (source, error) => {
   const element = document.createElement("div");
   element.className = "unrendered";
@@ -64,7 +65,7 @@ async function library() {
   return globalThis.mermaid;
 }
 
-export async function renderMermaid(source) {
+async function drawMermaid(source) {
   try {
     const m = await library();
     if (!ready) {
@@ -87,4 +88,12 @@ export async function renderMermaid(source) {
   catch (error) {
     return failed(source, error);
   }
+}
+
+// Mermaid's parser keeps flowchart metadata in one shared database. Keep parsing, its metadata
+// check, and drawing together so another Mermaid block cannot replace that database mid-draw.
+export function renderMermaid(source) {
+  const requested = drawing.then(() => drawMermaid(source));
+  drawing = requested.then(() => undefined, () => undefined);
+  return requested;
 }
