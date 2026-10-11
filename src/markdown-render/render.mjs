@@ -5,11 +5,14 @@
 //
 // The sanitiser keeps only the elements and attributes that Markdown writes, so no script, event handler or `javascript:`
 // address of a text runs, and nothing a text names is loaded (NO SERVER): an image is written as a link to its address, and an
-// image or other embedded resource written in HTML is removed. A Mermaid block is shown as its source with the reason, since
-// this module draws no diagram; so is a whole text that cannot be rendered — renderArtifact never throws.
+// image or other embedded resource written in HTML is removed. A Mermaid block is drawn by the local Mermaid library; a parser
+// failure is shown as its source with the reason. A whole text that cannot be rendered is also shown as source — renderArtifact
+// never throws.
 
 import { Marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
+import { parseFrontMatter } from "../text-tools/index.mjs";
+import { renderMermaid } from "./mermaid.mjs";
 
 const h = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
@@ -26,7 +29,9 @@ const markdown = new Marked({
     },
     // A Mermaid block is shown as its source; every other block as marked writes it.
     code({ text, lang }) {
-      return /^mermaid(?:\s|$)/.test(lang ?? "") ? unrendered(text, NOT_DRAWN) : false;
+      if (!/^mermaid(?:\s|$)/.test(lang ?? "")) return false;
+      if (typeof SVGElement === "undefined") return unrendered(text, NOT_DRAWN);
+      return `<pre><code class="language-mermaid">${h(text)}</code></pre>`;
     },
   },
 });
@@ -40,12 +45,26 @@ const SANITISE = {
 
 // renderArtifact(text: string) -> Element — the text rendered, sanitised before it is inserted. It never throws: a text that
 // cannot be rendered, or a browser that cannot sanitise, shows the text as its source with the reason.
-export function renderArtifact(text) {
+export function renderArtifact(text, { frontMatter = "table" } = {}) {
   const rendered = document.createElement("div");
   rendered.className = "md";
   try {
     if (!DOMPurify.isSupported) throw new Error("this browser cannot sanitise HTML");
-    rendered.innerHTML = DOMPurify.sanitize(markdown.parse(text), SANITISE);
+    const parsed = parseFrontMatter(text);
+    const rows = parsed.order.map((key) => {
+      const value = Array.isArray(parsed.fields[key]) ? parsed.fields[key].join(", ") : parsed.fields[key];
+      return `<tr><th>${h(key)}</th><td>${h(value)}</td></tr>`;
+    }).join("");
+    const table = frontMatter === "hidden" || !parsed.order.length ? "" : `<table class="frontmatter"><tbody>${rows}</tbody></table>`;
+    rendered.innerHTML = table + DOMPurify.sanitize(markdown.parse(parsed.body), SANITISE);
+    for (const code of rendered.getElementsByTagName("code")) {
+      if (!/language-mermaid/.test(code.className)) continue;
+      const parent = code.parentNode;
+      renderMermaid(code.textContent).then((diagram) => {
+        parent.parentNode.insertBefore(diagram, parent);
+        parent.parentNode.removeChild(parent);
+      });
+    }
   } catch (e) {
     rendered.innerHTML = unrendered(text, `This text is not rendered: ${e?.message ?? e}`);
   }
