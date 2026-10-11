@@ -49,7 +49,7 @@ from pathlib import Path
 from test_artifact_format import outside_code
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/")
+VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/", "src/mail-routes/vendor/")
 CODE = (".html", ".css", ".mjs", ".js")
 
 PERMITTED_HOSTS = {
@@ -205,9 +205,36 @@ def _bridge_client_transport(text: str, at: int) -> bool:
 
 
 MAIL_ROUTES_LOOKUP = "the one lookup at Microsoft's sign-in service, login.microsoftonline.com"
+MSAL_VERSION = ('Il="@azure/msal-browser",wl="5.24.0";',)
+
+
+def _msal_browser(text: str, at: int, starts: tuple[str, ...], before: str = "") -> bool:
+    """MOD-mail-routes' vendored @azure/msal-browser 5.24.0 (ARC-053): the channel here is one of the library's own, read from
+    its file — the version is the one whose file was read, and the channel starts as that file writes it."""
+    return (all(version in text for version in MSAL_VERSION) and text[at:].startswith(starts)
+            and (not before or before in text[max(0, at - 160):at]))
+
+
+def _msal_fetch(text: str, at: int) -> bool:
+    """The library's network client: the GET of sendGetRequestAsync (the authority's configuration) and the POST of
+    sendPostRequestAsync (the token endpoint), to the address the library is given, with no credentials."""
+    get = _msal_browser(text, at, ("fetch(e,{method:oa,headers:i})",), "async sendGetRequestAsync(e,t){")
+    post = _msal_browser(text, at, ("fetch(e,{method:ia,headers:n,body:r})",), "async sendPostRequestAsync(e,t){")
+    return get or post
+
+
+def _msal_element(text: str, at: int) -> bool:
+    """The library's preconnect link to the origin of its authority, and the hidden iframe of its silent sign-in."""
+    return (_msal_browser(text, at, ('createElement("link");t.rel="preconnect",t.href=new URL(e).origin,t.crossOrigin="anonymous"',),
+                          "function Pc(e){const t=document.")
+            or _msal_browser(text, at, ('createElement("iframe");return e.className="msalSilentIframe"',), "function Mh(){const e=document."))
+
+
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
 ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
 BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
+MSAL_BROWSER_FETCH = "the network client of @azure/msal-browser 5.24.0, vendored in MOD-mail-routes: the authority's configuration and the token endpoint"
+MSAL_BROWSER_ELEMENT = "the preconnect link and the silent sign-in iframe of @azure/msal-browser 5.24.0, vendored in MOD-mail-routes"
 MERMAID_VENDOR_CHANNELS = {
     "Worker": (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
     "loading element": (1, "KaTeX's \\includegraphics, rendered only when trusted; mermaid renders KaTeX untrusted", None),
@@ -235,6 +262,10 @@ PERMITTED_CHANNELS = {
     ("src/personal-data/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/", "loading element"): (3, FRAME_ASSET_LOADING, _site_frame_asset),  # link, source and img
     ("src/markdown-render/mermaid.mjs", "loading element"): (1, MERMAID_LIBRARY_LOADING, _mermaid_library_script),
+    # MOD-mail-routes' sign-in library: Microsoft's sign-in service is the mail provider's, which NO SERVER permits; its requests are
+    # the library's two fetches (GET, POST), its preconnect link and its silent iframe — four, read from the library's file.
+    ("src/mail-routes/vendor/msal-browser.min.js", "fetch"): (2, MSAL_BROWSER_FETCH, _msal_fetch),
+    ("src/mail-routes/vendor/msal-browser.min.js", "loading element"): (2, MSAL_BROWSER_ELEMENT, _msal_element),
     ("src/approvals/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/spec-changes/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/work-plans/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -587,7 +618,9 @@ class NoServer(unittest.TestCase):
         # The same text anywhere else is found: next to the vendored folder, in another module's, in the dashboard's.
         for elsewhere in ("src/mail-routes/msal-browser.min.js", "src/mail-routes/index.mjs", "src/other/vendor/msal-browser.min.js",
                           "docs/assets/vendor/msal-browser.min.js", "src/mail-routes/vendor/other.min.js"):
-            self.assertEqual(len(channel_findings({elsewhere: library})), 4, elsewhere)
+            found = channel_findings({elsewhere: library})
+            self.assertGreaterEqual(len(found), 4, elsewhere)
+            self.assertTrue(all(line.startswith(elsewhere) for line in found[:4]), elsewhere)
         # Another version is not the one whose channels were read.
         self.assertEqual(len(channel_findings({path: library.replace("5.24.0", "5.25.0")})), 4)
         self.assertEqual(len(channel_findings({path: library.replace('Il="@azure/msal-browser",', 'Il="other",')})), 4)
