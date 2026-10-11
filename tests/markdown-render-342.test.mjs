@@ -201,7 +201,7 @@ after(() => {
       const faultStarted = new Date().toISOString(); writeFileSync(source, original.toString().replace(needle, replacement));
       const faultHash = digest(readFileSync(source)), failed = invoke(), faultEnded = new Date().toISOString(); const restoreStarted = new Date().toISOString(); writeFileSync(source, original);
       const restoredHash = digest(readFileSync(source)), passed = invoke(), restoredEnded = new Date().toISOString();
-      console.log("TST342-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, argv: [process.execPath, "--test", "--test-name-pattern", id], cwd: copied, childflag: "AGENT_M_342_FAULT_CHILD=1",
+      console.log("TST342-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/markdown-render-342.test.mjs"], cwd: copied, childflag: "AGENT_M_342_FAULT_CHILD=1",
         failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
       assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));
       assert.equal(restoredHash, originalHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id);

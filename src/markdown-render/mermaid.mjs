@@ -6,7 +6,7 @@ let ready = false;
 let loading;
 let libraryScript;
 const failed = (source, error) => { const e = document.createElement("div"); e.className = "unrendered"; e.innerHTML = `<p>Diagram error: ${esc(error?.message ?? error)}</p><pre><code>${esc(source)}</code></pre>`; return e; };
-const PRESENTATION = new Set(["fill", "stroke", "filter", "marker-start", "marker-mid", "marker-end", "clip-path", "mask"]);
+const PRESENTATION = new Set(["fill", "stroke", "filter", "marker-start", "marker-mid", "marker-end", "clip-path", "mask", "cursor"]);
 function unsafeCss(value) {
   if (/@|\\|\/\*|\bimage-set\s*\(/i.test(value)) return true;
   const allowed = new Set(["url", "rgb", "rgba", "hsl", "hsla", "drop-shadow", "var", "not", "is", "where", "nth-child"]);
@@ -14,8 +14,9 @@ function unsafeCss(value) {
   for (const match of value.matchAll(/\burl\(([^)]*)\)/gi)) {
     if (!/^\s*(?:#[-\w:.]+|'#[-\w:.]+'|"#[-\w:.]+")\s*$/.test(match[1])) return true;
   }
-  const rest = value.replace(/\burl\(([^)]*)\)/gi, "").replace(/\b(?:rgb|rgba|hsl|hsla|drop-shadow|var)\([^)]*\)/gi, "");
-  return /\b[a-z-]+\s*\(/i.test(rest);
+  const urls = [...value.matchAll(/\burl\s*\(/gi)].length;
+  const complete = [...value.matchAll(/\burl\s*\(([^)]*)\)/gi)].length;
+  return urls !== complete;
 }
 function safeSvg(root) {
   for (const node of root.getElementsByTagName("*")) {
