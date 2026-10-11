@@ -163,3 +163,23 @@ test("explain — the topics of connecting a mailbox point to no chapter of the 
     assert.doesNotMatch(bodyText(topic), /Vibe Coding/, `${topic}: it points to no chapter`);
   }
 });
+
+// guards: EVERY STEP EXPLAINS ITSELF; UC-037 (step 4.2: "A folded explanation links Google's page for creating one")
+// given: the renderer, shown on a Markdown link as the known positive; and the five topics of connecting a mailbox
+// input: explain("gmail-app-password"), and explain of each of the other four
+// expect: the app-password topic holds exactly one link, to https://myaccount.google.com/apppasswords — the address that Google's own
+//         help page "Sign in with app passwords" (https://support.google.com/accounts/answer/185833) gives as "Create and manage your
+//         app passwords" — whose text names app passwords; none of the other four holds a link
+test("explain — gmail-app-password: links Google's page for creating an app password (UC-037 4.2)", () => {
+  const links = (element) => element.getElementsByTagName("a");
+  assert.equal(links(renderArtifact("[a page](https://example.org/page)")).length, 1, "known positive: the renderer keeps a Markdown link");
+
+  const found = links(explain("gmail-app-password"));
+  assert.equal(found.length, 1, "one link");
+  assert.equal(found[0].getAttribute("href"), "https://myaccount.google.com/apppasswords");
+  assert.match(found[0].textContent, /app passwords/i, "the link says what it leads to");
+  for (const topic of TOPICS.filter((each) => each !== "gmail-app-password")) {
+    assert.ok(topicText(topic)?.trim(), `known positive: explanations.md holds the topic ${topic}`);
+    assert.equal(links(explain(topic)).length, 0, `${topic}: no link`);
+  }
+});
