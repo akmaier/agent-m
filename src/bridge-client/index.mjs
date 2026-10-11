@@ -1,7 +1,7 @@
 // The page's client for the Bridge API used by UC-003 endpoint tests.
 //
 // Module: MOD-bridge-client
-// Public: BridgeError, settingsOf, bridgeAt, pair, testBridge, handOver, ask, probe
+// Public: BridgeError, settingsOf, bridgeAt, pair, testBridge, handOver, ask, mailCall, probe
 
 import { bridgeApi } from "../bridge-http/index.mjs";
 import { bridgePath } from "./paths.mjs";
@@ -58,6 +58,11 @@ function requestHeaders(bridge, contentType = false) {
   return headers;
 }
 
+// Whether `code` is one of the Bridge's error codes: bridgeApi's own, or those of a route (the mail route's).
+function isBridgeErrorCode(code) {
+  return Object.hasOwn(bridgeApi.errors, code) || bridgeApi.routes.some((route) => route.errors && Object.hasOwn(route.errors, code));
+}
+
 async function answerJson(answer) {
   const text = await answer.text();
   try { return JSON.parse(text); } catch { return null; }
@@ -86,7 +91,7 @@ async function call(bridge, path, init) {
     throw new BridgeError("TokenRefused", {}, "The Bridge refused its pairing token.");
   }
   const error = body?.error;
-  if (typeof error === "string" && Object.hasOwn(bridgeApi.errors, error)) {
+  if (typeof error === "string" && isBridgeErrorCode(error)) {
     throw new BridgeError("BridgeFailed", { error }, typeof body.message === "string" ? body.message : error);
   }
   throw new BridgeError("BridgeFailed", { error: "upstream-failed" }, `The Bridge answered ${answer.status}.`);
@@ -149,6 +154,14 @@ export async function ask(bridge, target, input) {
     if (answer.state === "done") return { text: answer.text, usage: answer.usage ?? null };
     if (answer.state === "failed") throw new BridgeError("AskFailed", {}, answer.error ?? "The Bridge ask failed.");
   }
+}
+
+// mailCall(bridge, operation, connection, args) -> the Bridge's answer — POST /v1/mail/{operation} with { connection, args }: the connection with its
+// password travels only in that body. The operations and the route's own error codes are bridgeApi's. Throws TypeError for another operation.
+export async function mailCall(bridge, operation, connection, args) {
+  const route = apiRoute("POST", "/v1/mail/{operation}");
+  if (!route.operations.includes(operation)) throw new TypeError(`bridgeApi has no mail operation ${operation}`);
+  return call(bridge, route.path.replace("{operation}", operation), { method: route.method, body: JSON.stringify({ connection, args }) });
 }
 
 export async function probe(bridge, kind, args) {
