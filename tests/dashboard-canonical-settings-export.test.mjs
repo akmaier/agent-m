@@ -12,6 +12,11 @@ import { repoServer, openDashboard, richDocument } from "./app-harness.mjs";
 
 const INSTANCE = "akmaier/agent-m";
 const key = (name) => `agent-m:${INSTANCE}:${name}`;
+const byClass = (root, name) => {
+  const found = [];
+  const visit = (node) => { for (const child of node.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) found.push(child); visit(child); } };
+  visit(root); return found;
+};
 
 test("TST-288101: dashboard Settings exports and restores every delivered setup secret through its canonical route", async () => {
   const entries = {
@@ -22,28 +27,28 @@ test("TST-288101: dashboard Settings exports and restores every delivered setup 
   };
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries });
-  const dom = richDocument(), main = dom.byId("main"), prior = main.querySelector.bind(main);
+  const dom = richDocument(), main = dom.byId("main"), replace = main.replaceChildren.bind(main);
   let mounted = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]' ? { replaceChildren(...children) { mounted = children; } } : prior(selector);
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  assert.equal(mounted.length, 2, "actual settings/endpoints.mjs mounts its public controls and route target");
-  const route = mounted[1];
+  const route = mounted.find((node) => node.className === "settings-tab-panel" && /General/.test(node.textContent));
+  assert.ok(route, "actual dashboard dispatch mounts the public General tab");
   assert.match(route.textContent, /Export and import settings/);
   assert.match(route.textContent, /Endpoint: campus.*Bridge.*Jump host.*Remote session: gpu/s);
   assert.match(route.textContent, /contains every stored token, key and password/);
   assert.equal(page.main().includes('id="export-go"') || page.main().includes('id="import-go"'), false, "the dashboard no longer renders its duplicate legacy export controls");
   const downloads = [], oldUrl = globalThis.URL;
   globalThis.URL = { createObjectURL(blob) { downloads.push(blob); return "blob:controlled-settings"; }, revokeObjectURL() {} };
-  try { await route.querySelector("button.settings-export-download").fire("click"); } finally { globalThis.URL = oldUrl; }
+  try { await byClass(route, "settings-export-download")[0].fire("click"); } finally { globalThis.URL = oldUrl; }
   assert.equal(downloads.length, 1, "the public Settings control creates its one controlled download");
   const exported = await downloads[0].text();
   const expected = Object.fromEntries(Object.entries(entries).map(([stored, raw]) => [stored.slice(key("").length), JSON.parse(raw)]));
   for (const [name, value] of Object.entries(expected)) assert.deepEqual(JSON.parse(exported).settings[name], value, `${name} is present in the canonical download`);
   for (const stored of Object.keys(entries)) globalThis.localStorage.removeItem(stored);
-  const file = route.querySelector("input.settings-import-file");
+  const file = byClass(route, "settings-import-file")[0];
   file.files = [{ text: async () => exported }];
   await file.fire("change");
   for (const [stored, raw] of Object.entries(entries)) assert.equal(globalThis.localStorage.getItem(stored), raw, `${stored} is restored by the public import control`);
-  assert.match(route.querySelector("p.settings-import-result").textContent, /Added:.*endpoint:campus.*bridge.*jump-host.*remote-session:gpu/s);
+  assert.match(byClass(route, "settings-import-result")[0].textContent, /Added:.*endpoint:campus.*bridge.*jump-host.*remote-session:gpu/s);
   assert.deepEqual(server.writes, [], "opening, exporting, and importing settings does not write the selected repository");
 });

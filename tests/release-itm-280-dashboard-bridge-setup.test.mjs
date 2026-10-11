@@ -36,17 +36,16 @@ async function dashboardAtBridge(t) {
   const page = await openDashboard({ server, hash: "#settings" });
   const dom = richDocument();
   const main = dom.byId("main");
-  const originalQuery = main.querySelector.bind(main);
   let mounted = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]'
-    ? { replaceChildren(...children) { mounted = children; } }
-    : originalQuery(selector);
+  const replace = main.replaceChildren.bind(main);
+  main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
-  const configure = mounted[1]?.querySelector("button.settings-bridge-configure");
+  const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
+  const configure = endpoints?.querySelector("button.settings-bridge-configure");
   assert.ok(configure, "known positive: empty Settings exposes the actual Configure control");
   await configure.fire("click");
   await page.go("#bridge");
-  return { bridge, calls, dom, main, page, server, mounted: () => mounted };
+  return { bridge, calls, dom, main, page, server, mounted: () => mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent)) };
 }
 
 // TST-280901
@@ -77,7 +76,7 @@ test("TST-280901: public Settings pairs a real Bridge, reloads through Change, a
   assert.equal(main.querySelector(".bridge-token").type, "text", "Show reveals the stored token only after the person's action");
 
   await page.go("#settings");
-  const change = mounted()[1].querySelector("button.settings-bridge-change");
+  const change = mounted().querySelector("button.settings-bridge-change");
   assert.ok(change, "known positive: Settings exposes Change for the stored Bridge");
   await change.fire("click");
   await page.go("#bridge");
@@ -123,11 +122,11 @@ test("TST-280902: failures do not pair, while configured HTTPS storage stays sep
   await press(server, main.querySelector(".jump-host-bridge-show"));
   assert.equal(main.querySelector(".jump-host-bridge-token").type, "text");
   await page.go("#settings");
-  const change = mounted()[1].querySelector("button.settings-jump-host-change");
+  const change = mounted().querySelector("button.settings-jump-host-change");
   assert.ok(change, "Settings names the jump-host configuration before action");
   await change.fire("click");
   await page.go("#bridge");
-  const clear = mounted()[1].querySelector("button.settings-jump-host-clear");
+  const clear = mounted().querySelector("button.settings-jump-host-clear");
   assert.ok(clear, "Settings exposes jump-host Clear");
   await clear.fire("click");
   assert.equal(globalThis.localStorage.getItem(key("jump-host")), null, "failure node: jump-host Clear removes the login-bearing raw entry");

@@ -107,6 +107,21 @@ test("the dashboard #add entry renders the settings-pages route with its instanc
   assert.equal(readSetting(openStore(instance), "github-token")?.value, "github_pat_INSTANCE");
 });
 
+// TST-266A
+// given: the public dashboard entry and an instance-prefixed canonical store
+// input: navigate to #settings through the dashboard dispatcher
+// expect: the current public Settings route, rather than the retired dashboard
+// settings composition, is mounted with all four named panes.
+test("the dashboard #settings entry mounts the public Settings route", async () => {
+  const { repoServer, openDashboard } = await import("./app-harness.mjs");
+  const page = await openDashboard({ server: await repoServer({ files: { "SPEC.md": "# Agent M\n" } }), hash: "#uc", token: "github_pat_INSTANCE" });
+  const main = globalThis.document.getElementById("main");
+  routeDom(main);
+  await page.go("#settings");
+  assert.match(main.innerHTML, /General.*Repositories.*Endpoints &amp; Agents.*Usability/s);
+  assert.doesNotMatch(main.innerHTML, /id="browser-settings"|id="product-settings"/);
+});
+
 // TST-268
 // Module: MOD-dashboard-app
 // Level: integration

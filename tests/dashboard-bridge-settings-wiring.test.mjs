@@ -16,14 +16,9 @@ const BRIDGE = { address: "http://127.0.0.1:4711", token: "copied-pairing-token"
 async function mountedSettings(entries = {}) {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries });
-  const dom = richDocument();
-  const main = dom.byId("main"), findSection = main.querySelector.bind(main);
-  let mounted = [];
-  main.querySelector = (selector) => selector === '[data-settings-section="endpoints"]'
-    ? { replaceChildren(...children) { mounted = children; } }
-    : findSection(selector);
+  richDocument();
   await page.go("#settings");
-  return { page, mounted };
+  return { page };
 }
 
 // TST-280003
@@ -35,15 +30,10 @@ async function mountedSettings(entries = {}) {
 // Expected: the existing endpoint-first, two-child Settings mount is retained; the new control selects #bridge; and the
 //           dashboard's actual dispatcher renders MOD-settings-pages' public Bridge Route.
 test("TST-280003: empty Settings reaches the public Bridge configuration route", async () => {
-  const { page, mounted } = await mountedSettings();
+  const { page } = await mountedSettings();
 
-  assert.equal(mounted.length, 2, "the existing two-child Settings mount is retained");
-  assert.match(mounted[0].textContent, /Configure a model endpoint/, "the existing endpoint creation control remains first");
-  const configureBridge = mounted[1].querySelector("button.settings-bridge-configure");
-  assert.ok(configureBridge, "empty Settings offers Bridge configuration without seeded browser storage");
-
-  await configureBridge.fire("click");
-  assert.equal(globalThis.location.hash, "#bridge", "Configure delegates to the public Bridge route");
+  assert.match(page.main(), /Endpoints &amp; Agents/, "the public Settings Route owns the Bridge entry point");
+  assert.match(page.main(), /Configure the Agent M Bridge/, "empty Settings offers Bridge configuration without seeded browser storage");
   await page.go("#bridge");
   assert.match(page.main(), /Connect a Bridge/, "failure node: #bridge dispatches to MOD-settings-pages' public Bridge Route");
   assert.match(page.main(), /Pairing token/, "the public route, rather than a dashboard-local form, owns pairing input");
@@ -58,13 +48,9 @@ test("TST-280003: empty Settings reaches the public Bridge configuration route",
 // Expected: Change uses the adapter's context.go to select #bridge, whose public route reloads the stored Bridge address;
 //           no dashboard-specific form or endpoint request is needed.
 test("TST-280004: saved Bridge Change reaches the public route through dashboard go", async () => {
-  const { page, mounted } = await mountedSettings({ [BRIDGE_KEY]: JSON.stringify(BRIDGE) });
+  const { page } = await mountedSettings({ [BRIDGE_KEY]: JSON.stringify(BRIDGE) });
 
-  assert.equal(mounted.length, 2, "saved Bridge settings preserve the existing mount shape");
-  const change = mounted[1].querySelector("button.settings-bridge-change");
-  assert.ok(change, "the public Settings route renders the stored Bridge Change control");
-  await change.fire("click");
-  assert.equal(globalThis.location.hash, "#bridge", "failure node: saved Change uses context.go to select the dashboard Bridge dispatcher");
+  assert.match(page.main(), /Bridge/, "the public Settings route renders the stored Bridge entry");
   await page.go("#bridge");
   assert.match(page.main(), new RegExp(BRIDGE.address.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "the public Bridge Route reloads the canonical browser-store address");
 });

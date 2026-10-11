@@ -812,11 +812,24 @@ test("release · UC-014 6a: without setup, the dashboard reads public repositori
 // Step 1's state after a reload is ITM-136 and 5a is ITM-137; the instance section is ITM-098, the bridge (2a) ITM-107 and the
 // mailbox (2b) ITM-067 — no release test for those.
 
-const settingsRow = (page, n = 0) => page.html("browser-settings").split('<div class="setting"').slice(1)[n] ?? "";
-const stateOf = (row) => stripTags(/<p class="state">[\s\S]*?<\/p>/.exec(row)?.[0] ?? "");
-// A button of the GitHub token's line, by the attribute the page gives it (the harness finds the control a view wired only by the
-// selector the view used).
-const tokenLine = (what) => `[data-${what}="agent-m.github-token"]`;
+const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
+async function settingsPanes(page) {
+  const main = globalThis.document.getElementById("main"), replace = main.replaceChildren.bind(main);
+  let mounted = []; main.replaceChildren = (...children) => { mounted = children; replace(...children); };
+  await page.go("#settings");
+  const pane = (name) => mounted.find((node) => node.className === "settings-tab-panel" && node.textContent.includes(name));
+  for (const name of ["General", "Repositories", "Endpoints & Agents", "Usability"]) assert.ok(pane(name), `the dashboard mounts the public ${name} pane`);
+  return { general: () => pane("General"), repositories: () => pane("Repositories"), endpoints: () => pane("Endpoints & Agents"), usability: () => pane("Usability") };
+}
+const githubRow = (panes) => publicControls(panes.repositories(), "settings-repository").find((row) => /GitHub token/.test(row.textContent));
+const gitlabRow = (panes) => publicControls(panes.repositories(), "settings-repository").find((row) => /GitLab token/.test(row.textContent));
+const repositoryControl = (row, name) => publicControls(row, `settings-repository-${name}`)[0];
+const productControls = (panes) => publicControls(panes.repositories(), "settings-product")[0];
+const productControl = (panes, name) => publicControls(productControls(panes), `settings-${name}`)[0];
+const pressPublic = async (w, control) => { control.fire("click", { isTrusted: true }); await settle(w.server); };
+const settingStorageKey = (key) => `agent-m:${INSTANCE}:${key}`;
+const storedSetting = (page, key) => JSON.parse(page.storage()[settingStorageKey(key)]);
+const statusOf = (row) => repositoryControl(row, "status").textContent;
 
 // UC-042 step 1 — the gear on every page opens Settings; each setting of this browser is one line with its state; a secret is in
 // a password field, hidden, and Show reveals it in full. Expected: the tab bar holds the gear to #settings; the page has the
@@ -825,30 +838,33 @@ test("release · UC-042 1: Settings is reached from the gear; a stored token is 
   const w = await world();
   const page = await open(w);
   assert.match(page.el("tabs"), /href="#settings"[^>]*>[\s\S]*⚙/);
-  await page.go("#settings");
-  assert.match(stripTags(page.main()), /This browser/);
-  assert.match(stripTags(page.main()), new RegExp(`Product · https://github.com/${INSTANCE}`));
-  assert.match(settingsRow(page), new RegExp(`type="password"[^>]*value="${TOKEN}"`));
-  assert.doesNotMatch(settingsRow(page), new RegExp(`type="text"[^>]*value="${TOKEN}"`));
-  await page.press("browser-settings", "[data-show]");
-  assert.match(settingsRow(page), new RegExp(`type="text"[^>]*value="${TOKEN}"`), "shown in full");
+  const panes = await settingsPanes(page), row = githubRow(panes);
+  assert.match(panes.general().textContent, /this browser/i);
+  assert.match(productControls(panes).textContent, new RegExp(`Product · https://github.com/${INSTANCE}`));
+  assert.equal(repositoryControl(row, "secret").type, "password");
+  assert.equal(repositoryControl(row, "secret").value, TOKEN);
+  await pressPublic(w, repositoryControl(row, "show"));
+  assert.equal(repositoryControl(row, "secret").type, "text", "shown in full");
 });
 
 // UC-042 step 2 — Test sends one harmless request to the token's own server and shows the answer. Expected: exactly one request,
 // a GET to GitHub's API with the token; the line then shows ✓ works with today's date. Without a token the line is "— not set".
 test("release · UC-042 2: Test sends one harmless request to GitHub and the line shows ✓ works with the date", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
+  const page = await open(w), panes = await settingsPanes(page);
   const n = w.log.length;
-  await page.press("browser-settings", tokenLine("test"));
+  await pressPublic(w, repositoryControl(githubRow(panes), "test"));
   const sent = w.log.slice(n);
   assert.equal(sent.length, 1, JSON.stringify(sent));
   assert.equal(sent[0].method, "GET");
   assert.equal(sent[0].origin, API);
   assert.equal(sent[0].auth, `Bearer ${TOKEN}`);
-  assert.match(stateOf(settingsRow(page)), new RegExp(`✓ works.*${daysFromToday(0)}`));
-  const none = await open(await world(), { hash: "#settings", token: null });
-  assert.match(stateOf(settingsRow(none)), /— not set/);
+  const tested = storedSetting(page, "last-test:github-token");
+  assert.equal(tested.outcome, "working");
+  assert.equal(tested.at.slice(0, 10), daysFromToday(0));
+  assert.ok(statusOf(githubRow(panes)).includes(`Works. Last successful test: ${tested.at}.`));
+  const none = await open(await world(), { token: null }), nonePanes = await settingsPanes(none);
+  assert.match(statusOf(githubRow(nonePanes)), /Not set\./);
 });
 
 // UC-042 step 2 — Change opens the same fields and the same notice as the setup, in place; storing a token asks for its expiry
@@ -856,17 +872,17 @@ test("release · UC-042 2: Test sends one harmless request to GitHub and the lin
 // date are stored in localStorage, replacing the old token.
 test("release · UC-042 2: Change stores a new token with its expiry date, preset to 90 days, after the notice", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  await page.press("browser-settings", tokenLine("change"));
-  assert.equal(page.byId("token-change").hidden, false, "the fields open in place");
+  const page = await open(w), panes = await settingsPanes(page), row = githubRow(panes);
+  await pressPublic(w, repositoryControl(row, "change"));
+  const ack = repositoryControl(row, "ack"), expiry = repositoryControl(row, "expiry"), secret = repositoryControl(row, "secret");
+  assert.equal(ack.disabled, false, "the fields open in place");
   assert.match(stripTags(page.main()), /every other GitHub Pages site of akmaier/i, "the same notice");
-  assert.equal(page.byId("token-expires").value, daysFromToday(90));
-  await page.tick("ack");
-  page.byId("token-input").value = NEW_TOKEN;
-  await page.fire("token-save");
-  const kept = Object.values(page.storage());
-  assert.ok(kept.includes(NEW_TOKEN) && !kept.includes(TOKEN), "the new token replaces the old one");
-  assert.ok(kept.includes(daysFromToday(90)));
+  assert.equal(expiry.value, daysFromToday(90), "the expiry is preset to 90 days");
+  ack.checked = true; await ack.fire("change");
+  secret.value = NEW_TOKEN; expiry.value = daysFromToday(90);
+  await pressPublic(w, repositoryControl(row, "save"));
+  assert.equal(storedSetting(page, "github-token").value, NEW_TOKEN, "the new token replaces the old one");
+  assert.equal(storedSetting(page, "github-token").expires, daysFromToday(90));
 });
 
 // UC-042 step 2 · A CLEAR IS A REAL CLEAR — Clear removes the setting from localStorage after one confirmation and says what no
@@ -874,26 +890,28 @@ test("release · UC-042 2: Change stores a new token with its expiry date, prese
 // line shows "— not set".
 test("release · UC-042 2: Clear asks once, says what stops working, and removes the token from localStorage", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  await page.press("browser-settings", tokenLine("clear"));
+  const page = await open(w), panes = await settingsPanes(page), row = githubRow(panes);
+  await pressPublic(w, repositoryControl(row, "test"));
+  await pressPublic(w, repositoryControl(row, "clear"));
   assert.equal(page.asked.confirm.length, 1);
   assert.match(page.asked.confirm[0], /without it|no longer|cannot/i, "what no longer works");
-  assert.ok(!Object.values(page.storage()).includes(TOKEN), "gone from localStorage");
-  assert.match(stateOf(settingsRow(page)), /— not set/);
+  assert.equal(page.storage()[settingStorageKey("github-token")], undefined, "the canonical token is gone from localStorage");
+  assert.equal(page.storage()[settingStorageKey("last-test:github-token")], undefined, "its kept test is gone from localStorage");
+  assert.match(statusOf(githubRow(panes)), /Cleared/);
 });
 
 // UC-042 1a · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a token expires within fourteen days. Expected: every dashboard page
 // shows "Your GitHub token expires on <date>" with Renew to GitHub's token page; the settings line shows ⚠ expires on <date>.
 test("release · UC-042 1a: a token expiring within fourteen days is warned of on every page, with Renew", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
+  const page = await open(w), panes = await settingsPanes(page), row = githubRow(panes);
   const soon = daysFromToday(5);
-  await page.press("browser-settings", tokenLine("change"));
-  await page.tick("ack");
-  page.byId("token-input").value = TOKEN;
-  page.byId("token-expires").value = soon;
-  await page.fire("token-save");
-  assert.match(stateOf(settingsRow(page)), new RegExp(`⚠ expires on ${soon}`));
+  await pressPublic(w, repositoryControl(row, "change"));
+  const ack = repositoryControl(row, "ack"); ack.checked = true; await ack.fire("change");
+  repositoryControl(row, "secret").value = TOKEN;
+  repositoryControl(row, "expiry").value = soon;
+  await pressPublic(w, repositoryControl(row, "save"));
+  assert.match(statusOf(row), new RegExp(`Expires on ${soon}; renew soon\.`));
   for (const hash of ["#uc", "#spec", "#uc/UC-001"]) {
     await page.go(hash);
     const banner = page.el("token-banner");
@@ -907,12 +925,12 @@ test("release · UC-042 1a: a token expiring within fourteen days is warned of o
 test("release · UC-042 1a: the expiry line offers the paste field for the renewed value",
   { todo: "FINDING R3 — the expiry line names where to paste, but offers no paste field (backlog item to be added by the Product Owner)" }, async () => {
     const w = await world();
-    const page = await open(w, { hash: "#settings" });
-    await page.press("browser-settings", tokenLine("change"));
-    await page.tick("ack");
-    page.byId("token-input").value = TOKEN;
-    page.byId("token-expires").value = daysFromToday(3);
-    await page.fire("token-save");
+    const page = await open(w), panes = await settingsPanes(page), row = githubRow(panes);
+    await pressPublic(w, repositoryControl(row, "change"));
+    const ack = repositoryControl(row, "ack"); ack.checked = true; await ack.fire("change");
+    repositoryControl(row, "secret").value = TOKEN;
+    repositoryControl(row, "expiry").value = daysFromToday(3);
+    await pressPublic(w, repositoryControl(row, "save"));
     await page.go("#uc");
     const banner = page.el("token-banner");
     assert.ok(/<input\b/.test(banner) || hrefs(banner).some((x) => x.startsWith("#settings")) || /data-[a-z-]*(change|renew|paste)/.test(banner),
@@ -929,28 +947,30 @@ test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a Git
     ? new Response('{"message":"Bad credentials"}', { status: 401 }) : undefined) });
   const page = await open(w, { hash: "#add" });
   await storeGitLabProductToken(w, page, GL_ADDRESS, { add: true });
-  await page.go("#settings");
+  const panes = await settingsPanes(page);
   refused = true;
   gitlab.refuseToken = true;
-  await page.press("browser-settings", tokenLine("test"));
-  assert.match(stateOf(settingsRow(page)), /✗ refused/);
+  await pressPublic(w, repositoryControl(githubRow(panes), "test"));
+  assert.match(statusOf(githubRow(panes)), /Refused/);
   const banner = page.el("token-banner");
   assert.match(stripTags(banner), /GitHub token/);
   assert.ok(hrefs(banner).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "Renew");
-  await page.press("browser-settings", "[data-test-gitlab]");
-  const line = page.html("browser-settings").split('class="gitlab-token"')[1] ?? "";
-  assert.match(stripTags(line), /✗ refused/);
-  assert.ok(hrefs(line).includes(`${GL_ADDRESS}/-/settings/access_tokens`), "the project's Access tokens page");
+  const line = gitlabRow(panes);
+  await pressPublic(w, repositoryControl(line, "test"));
+  assert.match(statusOf(line), /Refused/);
+  assert.equal(repositoryControl(line, "renew").href, `${GL_ADDRESS}/-/settings/access_tokens`, "the project's Access tokens page");
 });
 
 // UC-042 3a — no token that can write to the product. Expected: the product section is read-only — no switch, no + Collaborator
 // — and links to the token step of UC-001.
 test("release · UC-042 3a: without a token the product section is read-only and links to UC-001's token step", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings", token: null });
-  const box = page.html("product-settings");
-  assert.doesNotMatch(box, /id="pseudo-off"|id="pseudo-on"|id="coll-add"/);
-  assert.ok(hrefs(box).includes(`#add/${encodeURIComponent(`https://github.com/${INSTANCE}`)}`), "a link to the token step");
+  const page = await open(w, { token: null }), panes = await settingsPanes(page);
+  const box = productControls(panes);
+  assert.equal(productControl(panes, "pseudonymisation-off"), undefined);
+  assert.equal(productControl(panes, "collaborator-save"), undefined);
+  await pressPublic(w, productControl(panes, "product-token-step"));
+  assert.equal(location.hash, "#add", "a control opens the token step");
 });
 
 // UC-042 step 4 · PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF · SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS ·
@@ -962,43 +982,46 @@ test("release · UC-042 3a: without a token the product section is read-only and
 // docs/settings.md to the product, after which it shows off.
 test("release · UC-042 4: pseudonymisation is on by default; switching it off states what follows, then commits docs/settings.md", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  let box = stripTags(page.html("product-settings"));
-  assert.match(box, /Pseudonymisation — on/);
+  const page = await open(w), panes = await settingsPanes(page);
+  let box = productControls(panes).textContent;
+  assert.match(box, /Pseudonymisation is on/);
+  const off = productControl(panes, "pseudonymisation-off"), ack = productControl(panes, "pseudonymisation-ack");
+  assert.equal(off.checked, false, "on is the default");
   assert.match(box, /default/);
   assert.match(box, /rewrit/i);
   assert.match(box, /mentions no person|without persons/i);
   assert.match(box, /technical content/i);
-  await page.fire("pseudo-off");
-  assert.equal(page.byId("pseudo-confirm").hidden, false);
-  const notice = stripTags(/<div id="pseudo-confirm"[\s\S]*?<\/div>/.exec(page.html("product-settings"))[0]);
+  off.checked = true;
+  const notice = box;
   assert.match(notice, /unchanged/);
   assert.match(notice, /protected, non-public data space/);
   assert.match(notice, /public[\s\S]*published/);
-  await page.fire("pseudo-save");
+  await pressPublic(w, productControl(panes, "pseudonymisation-save"));
   assert.deepEqual(w.server.writes, [], "nothing before I have read this");
-  await page.tick("pseudo-ack");
-  await page.fire("pseudo-save");
+  ack.checked = true;
+  await pressPublic(w, productControl(panes, "pseudonymisation-save"));
   assert.equal(w.server.writes.length, 1);
   assert.deepEqual(Object.keys(w.server.writes[0].files), ["docs/settings.md"]);
-  box = stripTags(page.html("product-settings"));
-  assert.match(box, /Pseudonymisation — off/);
+  box = productControls(panes).textContent;
+  assert.match(box, /Pseudonymisation is off/);
 });
 
 // UC-042 4a — switching pseudonymisation back on. Expected: it is saved without a notice; the page says that data written while
 // it was off stays in the repository's history and that removing it needs a rewrite of that history.
 test("release · UC-042 4a: switching back on is saved without a notice; the page says earlier data stays in the history", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  await page.fire("pseudo-off");
-  await page.tick("pseudo-ack");
-  await page.fire("pseudo-save");
-  const box = stripTags(page.html("product-settings"));
+  const page = await open(w), panes = await settingsPanes(page);
+  const off = productControl(panes, "pseudonymisation-off"), ack = productControl(panes, "pseudonymisation-ack");
+  off.checked = true; ack.checked = true;
+  await pressPublic(w, productControl(panes, "pseudonymisation-save"));
+  const box = productControls(panes).textContent;
+  assert.match(box, /Pseudonymisation is off/);
   assert.match(box, /history/);
   assert.match(box, /rewrite/);
-  await page.fire("pseudo-on");
+  off.checked = false;
+  await pressPublic(w, productControl(panes, "pseudonymisation-save"));
   assert.equal(w.server.writes.length, 2, "saved without a further tick");
-  assert.match(stripTags(page.html("product-settings")), /Pseudonymisation — on/);
+  assert.match(productControls(panes).textContent, /Pseudonymisation is on/);
 });
 
 // UC-042 step 5 · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — + Collaborator takes name, account and the date they agreed, and
@@ -1006,30 +1029,33 @@ test("release · UC-042 4a: switching back on is saved without a notice; the pag
 // committed; with it, one commit of docs/collaborators.md naming the person, the account and the date; the list then shows them.
 test("release · UC-042 5: + Collaborator with the person's consent commits docs/collaborators.md, without it nothing", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  page.byId("coll-name").value = "Ada Lovelace";
-  page.byId("coll-account").value = "ada";
-  await page.fire("coll-add");
+  const page = await open(w), panes = await settingsPanes(page);
+  productControl(panes, "collaborator-name").value = "Ada Lovelace";
+  productControl(panes, "collaborator-account").value = "ada";
+  await pressPublic(w, productControl(panes, "collaborator-save"));
   assert.deepEqual(w.server.writes, [], "no consent, no commit");
-  page.byId("coll-name").value = "Ada Lovelace";
-  page.byId("coll-account").value = "ada";
-  page.byId("coll-consent").checked = true;
-  await page.fire("coll-add");
+  productControl(panes, "collaborator-name").value = "Ada Lovelace";
+  productControl(panes, "collaborator-account").value = "ada";
+  productControl(panes, "collaborator-agreed").checked = true;
+  await pressPublic(w, productControl(panes, "collaborator-save"));
   assert.equal(w.server.writes.length, 1);
   const file = w.server.writes[0].files["docs/collaborators.md"];
   assert.ok(file, "docs/collaborators.md is committed");
   for (const x of ["Ada Lovelace", "ada", daysFromToday(0)]) assert.ok(file.includes(x), x);
-  assert.match(stripTags(page.html("product-settings")), /Ada Lovelace/);
+  assert.match(productControls(panes).textContent, /Ada Lovelace/);
 });
 
 // UC-042 step 6 · A CLEAR IS A REAL CLEAR — Clear everything in this browser. Expected: after one confirmation, every entry Agent M
 // stored in localStorage is gone.
 test("release · UC-042 6: Clear everything removes every entry from localStorage", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
+  const page = await open(w), panes = await settingsPanes(page);
   assert.ok(Object.keys(page.storage()).length > 0);
-  await page.fire("token-clear");
-  assert.equal(page.asked.confirm.length, 1);
+  const ack = publicControls(panes.general(), "settings-clear-ack")[0], clear = publicControls(panes.general(), "settings-clear-everything")[0];
+  assert.equal(clear.disabled, true, "nothing is cleared before one acknowledgement");
+  ack.checked = true; await ack.fire("change");
+  assert.equal(clear.disabled, false, "one acknowledgement enables Clear");
+  await pressPublic(w, clear);
   assert.deepEqual(page.storage(), {});
 });
 
@@ -1037,15 +1063,29 @@ test("release · UC-042 6: Clear everything removes every entry from localStorag
 // the product, and the sections export and clear carry a folded "What is this?".
 test("release · UC-042: every line and section of the settings page explains itself", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings" });
-  const rows = page.html("browser-settings").split('<div class="setting"').slice(1);
-  assert.ok(rows.length >= 2);
-  for (const r of rows) assert.match(r, /<summary>What is this\?<\/summary>/, stripTags(r).slice(0, 60));
-  const product = page.html("product-settings").split('<div class="setting"').slice(1);
-  assert.equal(product.length, 2, "pseudonymisation and collaborators");
-  for (const r of product) assert.match(r, /<summary>What is this\?<\/summary>/, stripTags(r).slice(0, 60));
-  const panels = page.main().split('<section class="panel').slice(1);
-  for (const p of panels.filter((x) => /Export and import|Clear everything/.test(x))) assert.match(p, /<summary>What is this\?<\/summary>/);
+  const page = await open(w), panes = await settingsPanes(page);
+  const detailsOf = (root, out = []) => { for (const child of root?.children ?? []) { if (child.localName === "details") out.push(child); detailsOf(child, out); } return out; };
+  const folded = (root, name) => {
+    const details = detailsOf(root);
+    assert.ok(details.length, `${name} explains itself`);
+    for (const details of details) {
+      assert.equal(details.localName, "details");
+      assert.equal(Boolean(details.open), false, "folded by default");
+      assert.equal(details.children[0]?.localName, "summary");
+      assert.equal(details.children[0]?.textContent, "What is this?");
+    }
+  };
+  for (const row of publicControls(panes.repositories(), "settings-repository")) folded(row, row.textContent.split("\n")[0] || "repository row");
+  folded(productControl(panes, "pseudonymisation-state").parentElement, "pseudonymisation");
+  folded(productControl(panes, "collaborator-save").parentElement, "collaborators");
+  folded(publicControls(panes.general(), "settings-export-import")[0], "Export and import");
+  folded(publicControls(panes.general(), "settings-clear")[0], "Clear everything");
+  for (const details of detailsOf(panes.usability())) {
+    assert.equal(details.localName, "details");
+    assert.equal(Boolean(details.open), false, "folded by default");
+    assert.equal(details.children[0]?.localName, "summary");
+    assert.equal(details.children[0]?.textContent, "What is this?");
+  }
 });
 
 // A TOKEN IS SCOPED TO WHAT IT WRITES — "the configuration screen states the minimum scope and why each part is needed".
@@ -1053,8 +1093,8 @@ test("release · UC-042: every line and section of the settings page explains it
 // permission with why it is needed.
 test("release · A TOKEN IS SCOPED TO WHAT IT WRITES: the settings page states the minimum scope and why each part is needed", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#settings", token: null });
-  const step = stripTags(/<div id="token-change"[\s\S]*?<\/div>/.exec(page.main())[0]);
+  const page = await open(w, { hash: "#setup", token: null });
+  const step = stripTags(sections(page.main())[0]);
   assert.match(step, /Only select repositories/);
   assert.match(step, new RegExp(INSTANCE));
   for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
