@@ -12,14 +12,14 @@ import { agentDriver } from "../src/agent-processes/index.mjs";
 const node = process.execPath;
 const fixture = () => mkdtempSync(join(tmpdir(), "agent-m-321-"));
 const PARTICIPANT = {
-  name: "fixture agent",
-  type: "coding agent",
-  model: null,
-  context: null,
+  name: "fixture-cli-agent",
+  type: "CLI agent",
+  model: "fixture-model",
+  context: 200000,
   price: null,
   capabilities: ["draft text"],
   place: "fixture",
-  route: null,
+  route: "bridge fixture agent claude",
 };
 const INPUT = {
   prompt: "The prepared prompt stays unchanged.",
@@ -40,10 +40,21 @@ const CLAUDE = {
     linux: "https://code.claude.com/docs/en/setup",
   },
 };
+const OPENCODE = {
+  name: "opencode",
+  installed: true,
+  version: "1.19.0",
+  loggedIn: true,
+  install: {
+    macos: "https://opencode.ai/docs/#install",
+    windows: "https://opencode.ai/docs/#windows",
+    linux: "https://opencode.ai/docs/#install",
+  },
+};
 
-function executable(folder, program) {
-  const script = join(folder, "claude-fixture.mjs");
-  const command = join(folder, "claude");
+function executable(folder, name, program) {
+  const script = join(folder, `${name}-fixture.mjs`);
+  const command = join(folder, name);
   writeFileSync(script, program);
   writeFileSync(command, `#!/bin/sh\nexec '${node}' '${script}' \"$@\"\n`, { mode: 0o755 });
 }
@@ -82,17 +93,21 @@ function driver(agent, workdir, keyVariable = null) {
 // level: unit
 // module: MOD-agent-processes
 // guards: ONE DEFINITION, THREE DRIVERS; UC-010; UC-011
-// given: a controlled Claude executable on PATH that emits its final answer as output.
+// given: controlled Claude and OpenCode executables on PATH: Claude emits a text final answer without usage and OpenCode emits published raw JSON text and step-finish usage events.
 // input: a DriverInput whose prompt has already been assembled and whose workdir is the fixture folder.
-// expect: send gives the agent the unchanged prompt in that workdir, streams the output through onOutput, and returns the final answer with null unreported usage.
-test("TST-321001: agent driver streams an answer and null unreported usage", async () => {
+// expect: each send gives the agent the unchanged prompt in that workdir and streams output; Claude returns null for unreported usage and OpenCode maps its reported token counts and USD cost to Usage.
+test("TST-321001: agent driver streams answers with reported or null usage", async () => {
   const folder = fixture();
   const record = join(folder, "record.json");
   try {
-    executable(folder, `
+    executable(folder, "claude", `
       import { writeFileSync } from "node:fs";
       writeFileSync(${JSON.stringify(record)}, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd() }));
       process.stdout.write("final answer\\n");
+    `);
+    executable(folder, "opencode", `
+      process.stdout.write(JSON.stringify({ type: "text", part: { text: "reported answer" } }) + "\\n");
+      process.stdout.write(JSON.stringify({ type: "step_finish", part: { tokens: { input: 13, output: 5 }, cost: 0.01 } }) + "\\n");
     `);
     const output = [];
     const result = await withPath(folder, () => driver(CLAUDE, folder).send(
@@ -106,6 +121,10 @@ test("TST-321001: agent driver streams an answer and null unreported usage", asy
       cwd: folder,
     });
     assert.equal(output.join(""), "final answer\n");
+    assert.deepEqual(await withPath(folder, () => driver(OPENCODE, folder).send({ ...INPUT, workdir: folder })), {
+      text: "reported answer",
+      usage: { inputTokens: 13, outputTokens: 5, minutes: null, cost: 0.01 },
+    });
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
@@ -123,13 +142,13 @@ test("TST-321002: local and CI invocations keep credentials out of command argum
   const localRecord = join(folder, "local.json");
   const ciRecord = join(folder, "ci.json");
   try {
-    executable(folder, `
+    executable(folder, "claude", `
       import { appendFileSync } from "node:fs";
       const target = process.env.CI === "true" ? ${JSON.stringify(ciRecord)} : ${JSON.stringify(localRecord)};
       appendFileSync(target, JSON.stringify({ argv: process.argv.slice(2), key: process.env.ANTHROPIC_API_KEY ?? null }) + "\\n");
       process.stdout.write("ok\\n");
     `);
-    await withEnvironment({ CI: undefined, ANTHROPIC_API_KEY: "local-parent-key" }, () =>
+    await withEnvironment({ CI: undefined, GITHUB_ACTIONS: undefined, ANTHROPIC_API_KEY: "local-parent-key" }, () =>
       withPath(folder, () => driver(CLAUDE, folder).send({ ...INPUT, workdir: folder })));
     await withEnvironment({ CI: "true", ANTHROPIC_API_KEY: "ci-secret-fixture" }, () =>
       withPath(folder, () => driver(CLAUDE, folder, "ANTHROPIC_API_KEY").send({ ...INPUT, workdir: folder })));
@@ -158,7 +177,7 @@ test("TST-321003: abort stops the agent and its child before later output", asyn
   const folder = fixture();
   const marker = join(folder, "later-marker");
   try {
-    executable(folder, `
+    executable(folder, "claude", `
       import { spawn } from "node:child_process";
       import { writeFileSync } from "node:fs";
       const child = spawn(${JSON.stringify(node)}, ["-e", ${JSON.stringify(`setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, "later"), 250)`)}]);
@@ -189,7 +208,7 @@ test("TST-321003: abort stops the agent and its child before later output", asyn
 test("TST-321004: agent driver names each accepted failure", async () => {
   const folder = fixture();
   try {
-    executable(folder, "process.stdout.write('last output\\n'); process.exit(23);");
+    executable(folder, "claude", "process.stdout.write('last output\\n'); process.exit(23);");
     await assert.rejects(driver({ ...CLAUDE, installed: false }, folder).send({ ...INPUT, workdir: folder }), { name: "AgentMissing" });
     await assert.rejects(driver({ ...CLAUDE, loggedIn: false }, folder).send({ ...INPUT, workdir: folder }), { name: "AgentNotLoggedIn" });
     await withPath(folder, async () => {
