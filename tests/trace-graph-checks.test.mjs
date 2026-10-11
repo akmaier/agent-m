@@ -294,14 +294,16 @@ const UNKNOWN_NAMES = [
     artifact: "MOD-text", rule: ORIGIN, name: "GHOST RULE" },
   { where: "an item's realises", path: ITEM_PATH, edit: replace("  - UC-001", "  - UC-099"), at: "  - UC-099",
     artifact: "ITM-002", rule: ORIGIN, name: "UC-099" },
+  { where: "an item's realises naming a decision", path: ITEM_PATH, edit: replace("  - UC-001", "  - ARC-001"), at: "  - ARC-001",
+    artifact: "ITM-002", rule: ORIGIN, name: "ARC-001" },
   { where: "a test's guards", path: TEST_PATH, edit: replace(`// guards: ${REQUIREMENT}`, "// guards: GHOST RULE"), at: "// TST-001",
     artifact: "TST-001", rule: ORIGIN, name: "GHOST RULE" },
 ];
 
 // guards: A USE CASE REALISES NAMED REQUIREMENTS; EVERY ARTIFACT NAMES ITS ORIGIN; UC-007; UC-018; UC-019
 // given: the fixture, with in one file a name that is neither a requirement nor a use case: a use case's realises names NO SUCH
-//        RULE, a decision's forced_by UC-099, a module's realises GHOST RULE, a backlog item's realises UC-099, a test's guards
-//        GHOST RULE
+//        RULE, a decision's forced_by UC-099, a module's realises GHOST RULE, a backlog item's realises UC-099 and, in another graph,
+//        the decision ARC-001, which exists but is neither, a test's guards GHOST RULE
 // input: graphFindings of the graph of each
 // expect: for each, the one error at the artifact and the line of the name — of a test, the line of its declaration —, under A USE
 //         CASE REALISES NAMED REQUIREMENTS for the use case and under EVERY ARTIFACT NAMES ITS ORIGIN for the others, naming the name
@@ -401,12 +403,13 @@ test("graphFindings — an item that names a module the architecture does not de
 // guards: A PLAN STEP NAMES THE TESTS OF ITS LEVEL; UC-007; UC-019
 // given: the fixture's plan step ITM-001, of level module with the unit tests, changed to name component tests in their place;
 //        to name unit and component tests; to be of level system with the unit tests; to name no tests; and, as known positives,
-//        to be of level system with the system and release tests; and the backlog item ITM-002, of level module, changed to name
-//        unit and release tests
+//        to be of level system with the system and release tests; the backlog item ITM-002, of level module, changed to name
+//        unit and release tests; and the plan step changed to have no level
 // input: graphFindings of the graph of each
 // expect: for the first four, the one error at ITM-001 and the line of its identifier, under A PLAN STEP NAMES THE TESTS OF ITS
-//         LEVEL, naming the tests of another level (component; component; unit; none to name); for the last two none — a system's tests
-//         are the system and release tests, and the rule is the plan step's, which the backlog item is not
+//         LEVEL, naming the tests of another level (component; component; unit; none to name); for the next two none — a system's tests
+//         are the system and release tests, and the rule is the plan step's, which the backlog item is not; and none for the step
+//         without a level, a finding of its format, MOD-documents'
 test("graphFindings — a plan step whose tests are not those of its level is an error", async () => {
   const wrong = [
     { label: "component tests at level module", edit: replace("  - unit", "  - component"), names: ["component"] },
@@ -424,6 +427,9 @@ test("graphFindings — a plan step whose tests are not those of its level is an
   const item = await repository({ [ITEM_PATH]: replace("  - unit", "  - unit", "  - release") });
   assert.deepEqual(item.graph.nodes.get("ITM-002").tests, ["unit", "release"], "known positive: the graph holds the item's tests");
   assert.deepEqual(graphFindings(item.graph), [], "a backlog item is not a plan step");
+  const bare = await repository({ [STEP_PATH]: replace("level: module") });
+  assert.equal(bare.graph.nodes.get("ITM-001").level, null, "known positive: the graph holds the step without a level");
+  assert.deepEqual(graphFindings(bare.graph), [], "no level");
 });
 
 // ---------------------------------------------------------------- a module's folder
@@ -490,28 +496,32 @@ test("selfSufficiencyFindings — a link to a path of the repository that it doe
 
 // guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; UC-007; UC-018; UC-019
 // given: the fixture, holding the file docs/use-cases/Übersicht.md, with the use case also linking to it as Übersicht.md and as
-//        %C3%9Cbersicht.md, and, in a second graph, to ../50%.md, a target with a stray percent sign
+//        %C3%9Cbersicht.md, and to the root of the repository, ../../; and, in a second graph, to ../50%.md, a target with a stray
+//        percent sign, and to https://, an address that is none
 // input: selfSufficiencyFindings of the graph of each
-// expect: none for the first, where both targets name the file; for the second the one error at UC-001 and the line of the link,
-//         naming ../50%.md — a link that cannot be read as a path is a path the repository does not hold, not a crash
+// expect: none for the first, where both targets name the file and the root is held; for the second the one error at UC-001 and
+//         the line of the link, naming ../50%.md — a target that cannot be read as a path is a path the repository does not hold,
+//         and an address that cannot be read is no concern of this check, and neither is a crash
 test("selfSufficiencyFindings — a link target is read as an address: the file it names is held, a stray percent sign is a path not held", async () => {
   const extra = { "docs/use-cases/Übersicht.md": ["# Übersicht", ""] };
-  const encoded = `${GOAL} See [raw](Übersicht.md) and [encoded](%C3%9Cbersicht.md).`;
+  const encoded = `${GOAL} See [raw](Übersicht.md), [encoded](%C3%9Cbersicht.md) and [root](../../).`;
   const held = await repository({ [UC_PATH]: replace(GOAL, encoded) }, { extra });
-  assert.equal(held.graph.links.length, 6, "known positive: the graph holds the six links");
+  assert.equal(held.graph.links.length, 7, "known positive: the graph holds the seven links");
   assert.deepEqual(selfSufficiencyFindings(held.graph, INSTANCE), []);
-  const stray = `${GOAL} See [stray](../50%.md).`;
+  const stray = `${GOAL} See [stray](../50%.md) and [broken](https://).`;
   const lost = await repository({ [UC_PATH]: replace(GOAL, stray) }, { extra });
+  assert.equal(lost.graph.links.length, 6, "known positive: the graph holds the six links");
   assertFindings(selfSufficiencyFindings(lost.graph, INSTANCE), [want("UC-001", lineOf(lost.lines[UC_PATH], stray), SELF, "../50%.md")]);
 });
 
 // guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; AN INSTANCE IS A FORK OF AGENT M; UC-007; UC-018; UC-019
 // given: the fixture, with the use case also linking to a file of the repository of the instance fixture-owner/agent-m; to the
 //        repository itself; to its dashboard, at the address MOD-identifiers' pagesAddress gives; to a page of the dashboard; to
-//        another repository of the same owner, agent-m-tools; and to a page of another owner's site of the same name
+//        another repository of the same owner, agent-m-tools; to a page of another owner's site of the same name; and to an address
+//        without a scheme, //example.org/standard
 // input: selfSufficiencyFindings of the graph of each, for the instance fixture-owner/agent-m
 // expect: for the first four, the one error at UC-001 and the line of the link, under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT,
-//         naming the target; for the last two none, which are other places
+//         naming the target; for the last three none, which are other places
 test("selfSufficiencyFindings — a link to the instance's repository or to its dashboard is an error, a link to another place is none", async () => {
   const flagged = [
     "https://github.com/fixture-owner/agent-m/blob/main/SPEC.md",
@@ -524,7 +534,7 @@ test("selfSufficiencyFindings — a link to the instance's repository or to its 
     const { lines, graph } = await repository({ [UC_PATH]: replace(GOAL, goal) });
     assertFindings(selfSufficiencyFindings(graph, INSTANCE), [want("UC-001", lineOf(lines[UC_PATH], goal), SELF, target)], target);
   }
-  for (const target of ["https://github.com/fixture-owner/agent-m-tools", "https://other-owner.github.io/agent-m/"]) {
+  for (const target of ["https://github.com/fixture-owner/agent-m-tools", "https://other-owner.github.io/agent-m/", "//example.org/standard"]) {
     const { graph } = await repository({ [UC_PATH]: replace(GOAL, `${GOAL} See [elsewhere](${target}).`) });
     assert.ok(graph.links.some((link) => link.target === target), `known positive: the graph holds the link to ${target}`);
     assert.deepEqual(selfSufficiencyFindings(graph, INSTANCE), [], target);
