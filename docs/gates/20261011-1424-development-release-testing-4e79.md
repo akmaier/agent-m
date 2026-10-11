@@ -1,0 +1,21 @@
+---
+gate: Development → Release testing
+job:
+decider: po-sol
+role: Product Owner
+decision: rejected
+on: 151792c1db28e25750500fd39109d3698dec82fb
+pull_request: https://github.com/akmaier/agent-m/pull/362
+date: 2026-10-11T14:24:53Z
+---
+## Reason
+
+ITM-324 fails check 5 on one condition: accepted MOD-bridge-client Responsibility and Uses require the client to read the protocol from bridgeApi and build every request from that data. The new testBridge at src/bridge-client/index.mjs:113 → call(bridge, "/v1/pair", { method: "GET" }) → call:67 address construction/:73 fetch instead hard-codes both fields. Expected: this newly implemented request is built from bridgeApi. Actual: it bypasses that data. Accepted MOD-bridge-http Data expressly lists GET /v1/pair with its Bridge/origin answer, but the dependency's bridgeApi.routes at this head contains no pair entry; simply adding a lookup would not establish a working request. This static finding is not a dynamic reproduction. Unchanged legacy pair:103 is outside the selected implementation; it is not an additional rejection condition. No accepted-artifact change is requested here.
+
+The other four checks and the remaining bounded Acceptance have evidence: only src/bridge-client/index.mjs and new tests/bridge-client-324.test.mjs change relative to the actual branch base80da1cec08364424b31779fcc64811ee85813918. First tests-only344d555806952e9ee937f275bcfcae9e48645f1f has red CI38145292869 (missing ask export), with actual checkout5d1ce1e51c5362fa1fb3e2f6f0bbea786b097c3c tree equal. Initial draft reading preceded completion of inputs; publication/source were held for original reading and reassessment. This acknowledged gap is not retroactively compliant; corrected tests52ba precede sourcec379. Existing expected results are unchanged.
+
+Final Ubuntu CI38146247188 is green, live PR head exact, both SUCCESS checks. Actual checkoutf5301415ce6b1ec2db61946c3ada08ba4fe848b4 has complete tree8e9ed84945dc2aec6fc69cdf2025da689cb9ef54 equal to the reviewed head: Node1349 pass/0fail/8 existing TODO; Python441 successful (5 skipped/5 expected failures); jobs76/88 seconds. All1798 raw case identities and applicable outcomes match immutable result93049cba14a7b52e41a7b8bffb2672448bc0d764 at runs/f5301415ce6b1ec2db61946c3ada08ba4fe848b4/20261011-1418-pull-request-4e79-324.md. Undeclared cases and skips follow the accepted result convention, with honest runner totals retained.
+
+Five canonical TST-324001–005 records at bc575e64 match decoded raw outputs and exact source/test SHA256. Each unique planted fault fails its selected case with status1, exact restoration precedes the same case's status0; signals/errors are null and timestamps ordered. The observed nodes are test:28:411 (agents omitted), :33:499 (commit altered), :38:388 (usage discarded), source probe:137:48/test:43:751 (agent refused), and test:48:518 (token refusal remapped). The fourth is a runtime TypeError from the planted behavior, not an import/compiler failure. The intermediate compiler-red run38146038876 supplies no proofs. These proofs do not cover the protocol-data condition above. The client run used base80da; it did not test the newer independently approved checker base84bc. Combined release CI remains separate. This is one source rejection under JOB-20261011-1418-4e79, not a whole-use-case decision.
+
+Reading receipt: I personally read the original Start, full current AGENTS, both items and accepted modules/approvals, affected original use cases and public interfaces, complete changed sources/new batteries, existing guarding code and callers, complete commit histories and refreshed live PR descriptions. My own retained full SPEC/process/model/roles/instructions and chapters 9–13 were verified unchanged by identity; AGENTS 92de37251471b1211f936b732c0444e6fe7094bc and SPEC 7a309483c1edbb7f622f8f2b249f08a02863ac30 bind. I reviewed checkout pins, complete case outcomes, selected failure/restoration/pass nodes and full metadata/proof records, retaining the complete original logs under /private/tmp/agent-m-21-324-* and -316-*. I do not claim every unrelated log line was personally read. No local product/import/test/fault execution occurred. I implemented neither behavior.
