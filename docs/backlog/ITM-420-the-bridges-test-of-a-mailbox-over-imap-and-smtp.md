@@ -12,6 +12,7 @@ modules:
   - MOD-mail-protocols
 builds_on:
   - ITM-419
+  - ITM-459
 tests:
   - unit
 origin:
