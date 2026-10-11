@@ -1,7 +1,7 @@
 // MOD-settings-pages' Bridge configuration route (UC-044).  Pairing is the only operation here that contacts a
 // Bridge; the jump-host record is browser configuration and its Save button deliberately makes no request.
 
-import { allocatePort, pair, proxyConfiguration, tunnelCommands } from "../bridge-client/index.mjs";
+import { allocatePort, pair, proxyConfiguration, settingsOf, tunnelCommands } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
@@ -57,6 +57,17 @@ function remoteSessions(store) {
     .filter(Boolean);
 }
 
+// The Bridges this browser keeps under their names: { name, address, token } or { name, port, token }.
+function namedBridges(store) {
+  return listSettings(store)
+    .filter((setting) => setting.key.startsWith("bridge:"))
+    .map((setting) => {
+      const entry = readSetting(store, setting.key);
+      return entry && typeof entry === "object" ? { ...entry, name: setting.key.slice("bridge:".length) } : null;
+    })
+    .filter(Boolean);
+}
+
 function instanceOrigin() {
   const origin = globalThis.location?.origin;
   return typeof origin === "string" && origin.startsWith("https://") ? origin : null;
@@ -91,6 +102,14 @@ export const route = {
     const showLoginPassword = el("button", "jump-host-login-show btn small", "Show");
     const saveJumpHost = el("button", "jump-host-save btn primary", "Save HTTPS connection");
     const jumpResult = el("p", "jump-host-result");
+    const throughName = el("input", "bridge-through-jump-name");
+    const throughToken = el("input", "bridge-through-jump-token");
+    const showThroughToken = el("button", "bridge-through-jump-show btn small", "Show");
+    const addThrough = el("button", "bridge-through-jump-add btn primary", "+ Bridge through the jump host");
+    const throughResult = el("p", "bridge-through-jump-result");
+    const throughCommands = el("pre", "bridge-through-jump-commands");
+    const bridgeApache = el("pre", "bridge-proxy-apache");
+    const bridgeNginx = el("pre", "bridge-proxy-nginx");
     const remoteSessionSelect = el("select", "remote-session-select");
     const remoteSessionName = el("input", "remote-session-name");
     const remoteSessionToken = el("input", "remote-session-token");
@@ -122,6 +141,9 @@ export const route = {
     loginUser.placeholder = "Jump-host web login";
     loginPassword.type = "password";
     loginPassword.placeholder = "Jump-host web password";
+    throughName.placeholder = "Name of the Bridge";
+    throughToken.type = "password";
+    throughToken.placeholder = "Copied Bridge token";
     remoteSessionName.placeholder = "Remote session name";
     remoteSessionToken.type = "password";
     remoteSessionToken.placeholder = "Copied remote Bridge token";
@@ -132,6 +154,11 @@ export const route = {
     for (const input of [address, token, hostname, user, httpsAddress, httpsBridgeToken, loginUser, loginPassword]) { input.autocomplete = "off"; input.spellcheck = false; }
     applyBridge(bridgeFields, readSetting(context.store, "bridge"));
     applyJumpHost(jumpFields, readSetting(context.store, "jump-host"));
+    const changing = typeof params.name === "string" ? namedBridges(context.store).find((item) => item.name === params.name) : null;
+    if (changing) {
+      try { address.value = settingsOf(changing, readSetting(context.store, "jump-host")).address; } catch { /* a port with no jump host: no address to show */ }
+      token.value = changing.token ?? "";
+    }
     const savedBridge = readSetting(context.store, "bridge");
     if (savedBridge?.address?.startsWith("https://")) httpsBridgeToken.value = savedBridge.token ?? "";
 
@@ -154,6 +181,15 @@ export const route = {
       remoteApache.textContent = proxyConfiguration(jumpHost, allSessions, origin, "apache");
       remoteNginx.textContent = proxyConfiguration(jumpHost, allSessions, origin, "nginx");
     }
+    function renderBridgeProxies() {
+      const jumpHost = readSetting(context.store, "jump-host");
+      const origin = instanceOrigin();
+      const through = namedBridges(context.store).filter((item) => Number.isInteger(item.port));
+      if (!usableJumpHost(jumpHost) || !origin || !through.length) { bridgeApache.textContent = ""; bridgeNginx.textContent = ""; return; }
+      bridgeApache.textContent = proxyConfiguration(jumpHost, through, origin, "apache");
+      bridgeNginx.textContent = proxyConfiguration(jumpHost, through, origin, "nginx");
+    }
+    renderBridgeProxies();
     for (const session of sessions) remoteSessionSelect.append(el("option", null, session.name));
     applyRemoteSession(sessions.find((session) => session.name === selectedName) ?? null);
     renderRemoteSetup(selectedSession());
@@ -176,9 +212,14 @@ export const route = {
       result.textContent = "Pairing the Bridge…";
       try {
         const settings = await pair(address.value.trim(), copiedToken);
-        writeSetting(context.store, "bridge", settings);
-        applyBridge(bridgeFields, settings);
-        result.textContent = "The Bridge is paired in this browser.";
+        if (typeof settings.name === "string" && settings.name) {
+          writeSetting(context.store, `bridge:${settings.name}`, { address: settings.address, token: settings.token });
+          result.textContent = `The Bridge ${settings.name} is paired in this browser.`;
+        } else {
+          writeSetting(context.store, "bridge", settings);
+          applyBridge(bridgeFields, settings);
+          result.textContent = "The Bridge is paired in this browser.";
+        }
       } catch (error) {
         result.textContent = failureText(error);
       }
@@ -200,6 +241,29 @@ export const route = {
       const copiedToken = httpsBridgeToken.value.trim();
       if (trustedAddress && copiedToken) writeSetting(context.store, "bridge", { address: trustedAddress, token: copiedToken });
       jumpResult.textContent = "The HTTPS jump-host connection is saved in this browser and remains untested. It has not contacted that address.";
+    });
+    showThroughToken.addEventListener("click", () => {
+      const hidden = throughToken.type === "password";
+      throughToken.type = hidden ? "text" : "password";
+      showThroughToken.textContent = hidden ? "Hide" : "Show";
+    });
+    addThrough.addEventListener("click", () => {
+      const jumpHost = readSetting(context.store, "jump-host");
+      const name = throughName.value.trim();
+      const copied = throughToken.value.trim();
+      if (!usableJumpHost(jumpHost)) { throughResult.textContent = "The jump host is required; set it up before adding a Bridge through it."; return; }
+      if (!name || !copied) { throughResult.textContent = "Enter the Bridge's name and its copied token first."; return; }
+      const current = namedBridges(context.store).filter((item) => Number.isInteger(item.port));
+      try {
+        const port = current.find((item) => item.name === name)?.port ?? allocatePort(jumpHost.portRange, current);
+        writeSetting(context.store, `bridge:${name}`, { port, token: copied });
+        const commands = tunnelCommands(jumpHost, { name, port }, undefined, { remote: remoteKey.value.trim(), local: localKey.value.trim() });
+        throughCommands.textContent = `${commands.reverse}\n\n${commands.forward}\n\n${commands.service}`;
+        renderBridgeProxies();
+        throughResult.textContent = `${name} is kept at port ${port} of the jump host. The commands are setup text only; they have not started a tunnel or tested an HTTPS connection.`;
+      } catch (error) {
+        throughResult.textContent = error?.name === "NoFreePort" ? error.message : `A Bridge through the jump host needs valid settings: ${error?.message ?? error}`;
+      }
     });
     remoteSessionSelect.addEventListener("change", () => {
       applyRemoteSession(selectedSession());
@@ -261,6 +325,14 @@ export const route = {
       el("p", null, el("label", null, "Web login ", loginUser)),
       el("p", null, el("label", null, "Web password ", loginPassword, " ", showLoginPassword)),
       el("p", null, saveJumpHost), jumpResult,
+      el("h3", null, "+ Bridge through the jump host"),
+      el("p", null, "Name the Bridge as it reports itself. It takes the lowest free port of the jump host's range. The commands are setup text only; they do not start a tunnel or test HTTPS."),
+      el("p", null, el("label", null, "Bridge name ", throughName)),
+      el("p", null, el("label", null, "Copied Bridge token ", throughToken, " ", showThroughToken)),
+      el("p", null, addThrough), throughResult,
+      el("h4", null, "Tunnel commands for this Bridge"), throughCommands,
+      el("h4", null, "Apache HTTPS proxy configuration for every Bridge through the jump host"), bridgeApache,
+      el("h4", null, "nginx HTTPS proxy configuration for every Bridge through the jump host"), bridgeNginx,
       el("h3", null, "Remote session"),
       el("p", null, "Add or select a remote Bridge session. The commands and proxy configuration are setup text only; they do not start a tunnel or test HTTPS."),
       el("p", null, el("label", null, "Stored session ", remoteSessionSelect)),
