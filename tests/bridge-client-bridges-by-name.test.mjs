@@ -137,6 +137,8 @@ test("allocatePort — the lowest free port over Bridge entries of both forms, t
   const entries = [LAPTOP, GPU, FORWARDED, MAC];
   const port = allocatePort([40100, 40103], entries);
   assert.equal(port, 40101);
+  assert.equal(allocatePort([40200, 40203], entries), 40200, "a Bridge reached directly holds no port of the range");
+  assert.equal(allocatePort([40102, 40103], entries), 40103, "the last port of the range is given when it is the only one free");
   assert.throws(() => allocatePort([40100, 40100], entries), (error) => error.name === "NoFreePort" && /40100/.test(error.message));
   const fresh = { name: "cluster", port, token: "cluster-token" };
   const commands = tunnelCommands(FORWARD_ONLY, fresh, 4711, { remote: "~/.ssh/agent-m-remote", local: "~/.ssh/agent-m-local" });
