@@ -7,6 +7,12 @@ const reply = (response, status, value, origin) => {
   response.end(JSON.stringify(value));
 };
 const error = (response, status, code, message, origin) => reply(response, status, { error: code, message }, origin);
+const match = (route, method, path) => {
+  if (route.method !== method) return null;
+  const names = [], expression = route.path.replace(/\{([^}]+)\}/g, (_all, name) => { names.push(name); return "([^/]+)"; });
+  const found = new RegExp(`^${expression}$`).exec(path);
+  return found && Object.fromEntries(names.map((name, index) => [name, decodeURIComponent(found[index + 1])]));
+};
 
 export async function serveBridge(config, handlers) {
   if (!loopback.has(config.host)) { const rejected = new Error(`Bridge bind refused: ${config.host}`); rejected.name = "BindRefused"; throw rejected; }
@@ -25,9 +31,11 @@ export async function serveBridge(config, handlers) {
       response.end(); log(204); return;
     }
     if (request.headers[bridgeApi.tokenHeader] !== await currentToken(config.dataFolder)) { error(response, 401, "token-refused", "Bridge token refused.", config.origin); log(401); return; }
-    if (config.paused() && request.method === "POST") { error(response, 503, "paused", "Bridge is paused.", config.origin); log(503); return; }
+    const startsWork = request.method === "POST" && (path === "/v1/jobs" || path === "/v1/ask" || path.startsWith("/v1/probes/"));
+    if (config.paused() && startsWork) { error(response, 503, "paused", "Bridge is paused.", config.origin); log(503); return; }
     if (request.method === "GET" && path === "/v1/pair") { reply(response, 200, { bridge: { name: "Bridge", version: "unreleased", platform: process.platform }, origin: config.origin }, config.origin); log(200); return; }
-    const route = bridgeApi.routes.find((candidate) => candidate.method === request.method && candidate.path === path);
+    const selected = bridgeApi.routes.map((candidate) => [candidate, match(candidate, request.method, path)]).find(([_candidate, params]) => params !== null);
+    const route = selected?.[0], params = selected?.[1];
     if (route?.path === "/v1/tunnels") {
       const handler = handlers.tunnels?.[`${request.method} ${path}`];
       if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
@@ -37,6 +45,19 @@ export async function serveBridge(config, handlers) {
         error(response, bridgeApi.errors[code], code, failure.message || "Bridge handler failed.", config.origin);
         log(bridgeApi.errors[code]);
       }
+      return;
+    }
+    if (!route) { error(response, 404, "not-found", "Bridge route not found.", config.origin); log(404); return; }
+    if (route.path !== "/v1/probes/{kind}") {
+      let body = {};
+      if (request.method === "POST") {
+        let text = ""; for await (const chunk of request) text += chunk;
+        try { body = text ? JSON.parse(text) : {}; } catch { error(response, 422, "invalid-request", "Bridge request is not JSON.", config.origin); log(422); return; }
+      }
+      const key = `${route.method} ${route.path}`, handler = handlers.jobs?.[key];
+      if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
+      try { reply(response, 200, await handler({ params, query: Object.fromEntries(new URL(request.url, "http://localhost").searchParams), body }), config.origin); log(200); }
+      catch (failure) { const code = Object.hasOwn(bridgeApi.errors, failure.code) ? failure.code : "upstream-failed"; error(response, bridgeApi.errors[code], code, failure.message || "Bridge handler failed.", config.origin); log(bridgeApi.errors[code]); }
       return;
     }
     if (request.method !== "POST" || !path.startsWith("/v1/probes/")) { error(response, 404, "not-found", "Bridge route not found.", config.origin); log(404); return; }

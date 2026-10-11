@@ -13,6 +13,13 @@ export const bridgeApi = {
     paused: 503,
   },
   routes: [
+    { method: "GET", path: "/v1/agents" },
+    { method: "POST", path: "/v1/jobs" },
+    { method: "GET", path: "/v1/jobs" },
+    { method: "GET", path: "/v1/jobs/{id}/log" },
+    { method: "POST", path: "/v1/jobs/{id}/cancel" },
+    { method: "POST", path: "/v1/ask" },
+    { method: "GET", path: "/v1/ask/{ask}" },
     { method: "POST", path: "/v1/probes/{kind}", kinds: ["agent", "endpoint-models", "endpoint-test", "partitions"], endpointTest: {
       args: { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] },
       answer: { works: [true, false], model: "string", diagnosis: { reason: endpointDiagnosisReasons, message: "string", routes: ["ci", "bridge"] } },
