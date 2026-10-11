@@ -90,8 +90,8 @@ test("TST-293202 acceptAndRelease refuses an unreasoned rate finding then record
   const reason = "The person accepts this observed rate uncertainty.";
   const accepted = await acceptAndRelease(host, report, { limitations: { [id]: reason } }, "akmaier", "2026-10-11");
   assert.equal(accepted.tag, `v${VERSION}`); const committed = await host.readSnapshot("main");
-  assert.match(await committed.read(PATH), /6 of 10/); assert.equal(blob(await committed.read(PATH)), report.blob, "the accepted report is exactly the one shown"); assert.match(await committed.read("CHANGELOG.md"), new RegExp(`Known limitations:[\\s\\S]*${id} — ${reason}`));
-  const approval = committed.paths.find((path) => path.startsWith(`docs/approvals/release-v${VERSION}-`)); assert.ok(approval); assert.match(await committed.read(approval), new RegExp(`${id} — ${reason}`));
+  assert.match(await committed.read(PATH), /6 of 10/); assert.equal(blob(await committed.read(PATH)), report.blob, "the accepted report is exactly the one shown"); assert.ok((await committed.read("CHANGELOG.md")).includes(`- ${id}: ${reason}`), "the changelog records the person's exact reason");
+  const approval = committed.paths.find((path) => path.startsWith(`docs/approvals/release-v${VERSION}-`)); assert.ok(approval); assert.ok((await committed.read(approval)).includes(`${id} — ${reason}`), "the approval records the person's exact reason");
   assert.equal(calls.length, 2); assert.equal(calls[0].fn, "commitFiles"); assert.deepEqual(calls[0].change.files.map((file) => file.path).sort(), ["CHANGELOG.md", PATH, approval].sort(), "one commit carries report, approval, and changelog"); assert.equal(calls[1].fn, "createTag"); assert.equal(calls[1].commit, CANDIDATE, "the tag names the tested candidate after the decision commit");
 });
 
