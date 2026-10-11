@@ -125,9 +125,33 @@ function outcomeCell(entry) {
   return entry.runs ?? entry.outcome;
 }
 
-function limitationsText(ids, declarations) {
+function rateOf(text) {
+  const match = /^(\d+) of (\d+)$/.exec(text ?? "");
+  if (!match || Number(match[2]) === 0) return null;
+  return { successes: Number(match[1]), total: Number(match[2]) };
+}
+
+function wilson95(rate) {
+  const proportion = rate.successes / rate.total;
+  const z = 1.959963984540054;
+  const square = z * z;
+  const denominator = 1 + square / rate.total;
+  const centre = (proportion + square / (2 * rate.total)) / denominator;
+  const margin = z * Math.sqrt((proportion * (1 - proportion) + square / (4 * rate.total)) / rate.total) / denominator;
+  return [centre - margin, centre + margin];
+}
+
+function rateFinding(row) {
+  const current = rateOf(row.now);
+  if (!current) return "";
+  const [lower, upper] = wilson95(current);
+  return `; current ${row.now}, running version ${row.then}; two-sided 95% Wilson confidence interval [${lower.toFixed(4)}, ${upper.toFixed(4)}]`;
+}
+
+function limitationsText(ids, declarations, worseRows) {
   if (!ids.length) return "\n";
-  const lines = ids.map((id) => `- ${id}: ${(declarations.get(id)?.guards ?? []).join(", ")}`);
+  const worse = new Map(worseRows.filter((row) => row.worse).map((row) => [row.test, row]));
+  const lines = ids.map((id) => `- ${id}: ${(declarations.get(id)?.guards ?? []).join(", ")}${worse.has(id) ? rateFinding(worse.get(id)) : ""}`);
   return `\n${lines.join("\n")}\n\n`;
 }
 
@@ -225,7 +249,7 @@ export async function releaseReport(at, results, candidate) {
     fields: { version: candidate.version, candidate: candidate.tag, commit: candidate.commit,
       date: new Date().toISOString().slice(0, 10) },
     sections: [
-      { heading: "## Limitations", text: limitationsText(limitationIds, declarations) },
+      { heading: "## Limitations", text: limitationsText(limitationIds, declarations, worseRows) },
       { heading: "## Levels", text: "\n", rows: levelsRows.map((cells) => ({ cells })) },
       { heading: "## Tests", text: "\n", rows: testsRows.map((cells) => ({ cells })) },
       { heading: "## Requirements", text: "\n", rows: requirements.map((cells) => ({ cells })) },

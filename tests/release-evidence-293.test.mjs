@@ -6,13 +6,28 @@
 //
 // The fixtures are Snapshot-shaped plain objects. They use no network, clock control, host write, or product runtime.
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { releaseReport } from "../src/release-evidence/index.mjs";
 
 const CANDIDATE_COMMIT = "c".repeat(40);
 const RUNNING_COMMIT = "e".repeat(40);
 const Z_95 = 1.959963984540054;
+const FAULTS = {
+  "TST-293001": [
+    "return `; current ${row.now}, running version ${row.then}; two-sided 95% Wilson confidence interval [${lower.toFixed(4)}, ${upper.toFixed(4)}]`;",
+    "return \"\";",
+  ],
+  "TST-293002": [
+    "const worse = worseRows.filter((r) => r.worse).map((r) => r.test).sort();",
+    "const worse = worseRows.map((r) => r.test).sort();",
+  ],
+};
 
 function snapshotOf(files) {
   return {
@@ -149,7 +164,7 @@ function reportInputs(id, currentRuns, runningRuns = "8 of 10") {
 // input: releaseReport(at, results, candidate)
 // expect: its public Limitations text names the test, current and running rates, and the two-sided 95% Wilson interval
 //         calculated independently by score-test inversion; the NIST 20/25 check rounds to [0.609, 0.911]
-test("releaseReport — a worse 6-of-10 model rate has its two-sided 95% Wilson interval in the public finding", async () => {
+test("TST-293001 releaseReport — a worse 6-of-10 model rate has its two-sided 95% Wilson interval in the public finding", async () => {
   const nist = wilson95ByScoreInversion(20, 25);
   assert.ok(Math.abs(nist.lower - 0.609) < 0.002 && Math.abs(nist.upper - 0.911) < 0.002,
     "known positive: score inversion agrees with NIST's 20-of-25 Wilson interval");
@@ -169,8 +184,13 @@ test("releaseReport — a worse 6-of-10 model rate has its two-sided 95% Wilson 
   assert.match(limits, /Wilson/i);
   assert.match(limits, /two-sided/i);
   assert.match(limits, /95%/);
-  assert.match(limits, new RegExp(expected.lower.toFixed(4)));
-  assert.match(limits, new RegExp(expected.upper.toFixed(4)));
+  const interval = /confidence interval\s*\[([0-9.]+),\s*([0-9.]+)\]/i.exec(limits);
+  assert.ok(interval, "the public finding contains one bracketed confidence interval");
+  const lower = Number(interval[1]);
+  const upper = Number(interval[2]);
+  assert.ok(lower >= 0 && lower < upper && upper <= 1, "the displayed bounds are ordered probabilities");
+  assert.ok(Math.abs(lower - expected.lower) <= 0.00005, "the displayed lower bound rounds the independent oracle to four decimals");
+  assert.ok(Math.abs(upper - expected.upper) <= 0.00005, "the displayed upper bound rounds the independent oracle to four decimals");
 });
 
 // TST-293002
@@ -182,7 +202,7 @@ test("releaseReport — a worse 6-of-10 model rate has its two-sided 95% Wilson 
 // input: releaseReport(at, results, candidate) for each report
 // expect: no worse-rate finding or Wilson interval is added; the returned `worse` stays empty and the existing report
 //         return does not make an acceptance decision
-test("releaseReport — unchanged, improved, and no-baseline rates add no confidence finding or automatic decision", async () => {
+test("TST-293002 releaseReport — unchanged, improved, and no-baseline rates add no confidence finding or automatic decision", async () => {
   const cases = [
     ["8 of 10", "8 of 10"],
     ["9 of 10", "8 of 10"],
@@ -197,5 +217,58 @@ test("releaseReport — unchanged, improved, and no-baseline rates add no confid
     assert.deepEqual(report.worse, [], `${current} versus ${running}`);
     assert.doesNotMatch(limits, /Wilson|confidence interval/i, `${current} versus ${running}`);
     assert.deepEqual(Object.keys(report).sort(), ["complete", "failing", "text", "worse"], "no acceptance decision is returned");
+  }
+});
+
+after(() => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_293_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-293-fault-"));
+  const copied = join(temporary, "repo");
+  const digest = (value) => createHash("sha256").update(value).digest("hex");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    for (const [id, [needle, replacement]] of Object.entries(FAULTS)) {
+      const source = join(copied, "src", "release-evidence", "report.mjs");
+      const original = readFileSync(source);
+      const argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/release-evidence-293.test.mjs"];
+      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
+      const invoke = () => {
+        const env = { ...process.env, AGENT_M_293_FAULT_CHILD: "1" };
+        delete env.NODE_TEST_CONTEXT;
+        return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env });
+      };
+      const sourceHash = digest(original);
+      const testHash = digest(readFileSync(join(copied, "tests", "release-evidence-293.test.mjs")));
+      let failed, passed, faultHash, restoredHash, faultEnded, restoreStarted, restoredEnded, positiveEnded;
+      const faultStarted = new Date().toISOString();
+      try {
+        writeFileSync(source, original.toString().replace(needle, replacement));
+        faultHash = digest(readFileSync(source));
+        failed = invoke();
+        faultEnded = new Date().toISOString();
+      } finally {
+        restoreStarted = new Date().toISOString();
+        writeFileSync(source, original);
+        restoredHash = digest(readFileSync(source));
+        restoredEnded = new Date().toISOString();
+      }
+      passed = invoke();
+      positiveEnded = new Date().toISOString();
+      console.log("TST293-counterproof " + JSON.stringify({
+        id, source, needle, replacement, sourceHash, testHash, faultHash, restoredHash,
+        faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv, cwd: copied,
+        childflag: "AGENT_M_293_FAULT_CHILD=1",
+        failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr },
+        passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr },
+      }));
+      assert.equal(failed.status, 1, id);
+      assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));
+      assert.match(`${failed.stdout}\n${failed.stderr}`, /AssertionError|ERR_ASSERTION/, `${id}: source fault reaches its assertion node`);
+      assert.equal(restoredHash, sourceHash, id);
+      assert.equal(passed.status, 0, id);
+      assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
+    }
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
   }
 });
