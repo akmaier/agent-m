@@ -5,6 +5,7 @@ import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
+import { participantSchema } from "../participant-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
@@ -153,6 +154,36 @@ function bridgeTestFailure(error) {
   return error?.message ?? String(error);
 }
 
+// The agents on the Bridge `name` that the instance's participants name: the rows of docs/participants.md whose route is `bridge <name> agent <agent>`.
+async function participantsOnBridge(host, name) {
+  const { defaultBranch } = await host.repositoryInfo();
+  const text = await (await host.readSnapshot(defaultBranch)).read("docs/participants.md");
+  if (text === null || text === undefined) return [];
+  return readRegister(participantSchema(), "docs/participants.md", text).rows
+    .map(({ cells }) => ({ name: cells.Name, route: /^bridge (\S+) agent (\S+)$/.exec(String(cells.Route ?? "").trim()) }))
+    .filter(({ route }) => route && route[1] === name).map((row) => `${row.name} (${row.route[2]})`);
+}
+
+// What clearing the Bridge `name` stops working in this browser, said before it is cleared (UC-042, 2a): the endpoints, the participants and the mailbox
+// that name it. Participants that cannot be read are said to be unread, never left out as if there were none.
+async function clearingConsequence(context, name) {
+  const endpoints = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
+    .filter((setting) => readSetting(context.store, setting.key)?.bridge === name).map((setting) => endpointName(setting.key));
+  let participants = [], unread = null;
+  if (context.instance?.host) {
+    try { participants = await participantsOnBridge(context.instance.host, name); } catch (error) { unread = error?.message ?? String(error); }
+  }
+  const mailbox = readSetting(context.store, "mailbox")?.imap?.bridge === name;
+  const plural = (list, one, many) => (list.length === 1 ? one : many);
+  const sentences = [
+    ...(endpoints.length ? [`${plural(endpoints, "The endpoint", "The endpoints")} ${endpoints.join(", ")} ${plural(endpoints, "names", "name")} it.`] : []),
+    ...(participants.length ? [`${plural(participants, "The participant", "The participants")} ${participants.join(", ")} ${plural(participants, "names", "name")} it.`] : []),
+    ...(unread ? [`The participants could not be read (${unread}), so those that name it are not listed.`] : []),
+    ...(mailbox ? ["The mailbox connection names it."] : []),
+  ];
+  return sentences.length ? `${sentences.join(" ")} ${unread && sentences.length === 1 ? "" : "They will have no Bridge to go through."}`.trim() : "Nothing in this browser names this Bridge.";
+}
+
 // The Bridges this browser keeps, each under its name: `bridge:<name>`.
 function bridgeNamedLine(target, context, info) {
   const name = info.key.slice("bridge:".length);
@@ -192,9 +223,7 @@ function bridgeNamedLine(target, context, info) {
     status.textContent = stateText(lastTest);
   });
   clear.addEventListener("click", async () => {
-    const naming = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
-      .filter((setting) => readSetting(context.store, setting.key)?.bridge === name).map((setting) => endpointName(setting.key));
-    const consequence = naming.length ? `${naming.length === 1 ? "The endpoint" : "The endpoints"} ${naming.join(", ")} ${naming.length === 1 ? "names" : "name"} this Bridge and will have none to call through.` : "No endpoint names this Bridge.";
+    const consequence = await clearingConsequence(context, name);
     if (typeof globalThis.confirm !== "function" || !globalThis.confirm(`Clear the Bridge ${name} from this browser? ${consequence}`)) return;
     clearSetting(context.store, info.key);
     clearSetting(context.store, `last-test:${info.key}`);
