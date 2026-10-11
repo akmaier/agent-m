@@ -462,8 +462,10 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings(files), [])
         self.assertEqual(len(channel_findings({**files, "src/markdown-render/extra.mjs": loader})), 1)
         foreign = loader.replace('"./vendor/mermaid.min.js"', '"https://tracker.example/mermaid.js"')
-        self.assertEqual(channel_findings({"src/markdown-render/mermaid.mjs": foreign}),
-                         [f"src/markdown-render/mermaid.mjs:1: loading element: not {MERMAID_LIBRARY_LOADING}"])
+        findings = channel_findings({"src/markdown-render/mermaid.mjs": foreign})
+        self.assertEqual(len(findings), 2)
+        self.assertEqual(findings[0], f"src/markdown-render/mermaid.mjs:1: loading element: not {MERMAID_LIBRARY_LOADING}")
+        self.assertTrue(findings[1].startswith('src/markdown-render/mermaid.mjs:2: url(): URL("https://tracker.example/mermaid.js"'))
 
     def test_counter_proof_a_markdown_file_that_loads_from_another_host(self):
         text = ("![flow](https://tracker.example/p.png)\n<img src='//cdn.example/x.svg'>\n<iframe src=\"https://embed.example/\"></iframe>\n"
