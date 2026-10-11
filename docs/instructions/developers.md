@@ -10,7 +10,7 @@ process's `CLAUDE.md` and the lines that end each commit.
 1. The process's `CLAUDE.md` — the working rules every agent follows (SPEC-first; §6a: read the existing caller first, a
    negative result counts only after a known positive, no unrequested checks).
 2. Your item `docs/backlog/ITM-<nnn>-*.md` as it stands on `origin/main`, and in the sprint's record
-   `docs/backlog/sprints/<nn>.md` only what the Product Owner's start decision says of your item.
+   `docs/backlog/sprints/<team>/<nn>.md` only what the Product Owner's start decision says of your item.
 3. Of `SPEC.md`, the requirements your item names under `realises` and in its text, each in full — find them by name:
    `grep -n "^\*\*NAME\*\*" SPEC.md` —, and `THE DEFAULT DEFINITION OF DONE IS THE JOB RULES`.
 4. The file of every module your item names (`docs/architecture/MOD-*.md`), in full.
@@ -25,9 +25,9 @@ names. Normally that is the file on `origin/main`; if the file has changed since
 blob (`git show <blob sha>`) and say so in your report.
 
 ## Where you work
-- Your own clone, in the folder your task names, and no other checkout: clone `https://github.com/akmaier/agent-m.git`,
-  then `git checkout -b item/ITM-<nnn>-<slug> origin/sprint/<nn>`. Network git commands over HTTPS:
-  `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' …`.
+- Your own git worktree, in the folder your task names under `.agent/worktrees/`, and no other checkout: from the clone
+  your task names, `git fetch origin`, then `git worktree add <folder> -b item/ITM-<nnn>-<slug> origin/sprint/<team>/<nn>`,
+  and work only inside that folder.
 - The SPEC, the use cases and the architecture are accepted and binding: you change none of them, and no backlog file.
 - Build only what the item names (YOU AREN'T GONNA NEED IT, KEEP IT SIMPLE; `SOFTWARE_MAINTENANCE.md` §0 Nr. 13): no
   extra function, option, check or case, however useful it looks.
@@ -50,8 +50,8 @@ blob (`git show <blob sha>`) and say so in your report.
 1. **Red first.** Write the tests the item's Acceptance names. Each names the module it exercises (`// Module: MOD-<slug>`
    at the top) and the requirement it guards (`// Guards: <names>`, bare identifiers separated by `;`), with its
    expected result readable without running it. Commit only these tests, push the branch and open a pull request into
-   `sprint/<nn>`: `gh pr create --repo akmaier/agent-m --base sprint/<nn> --head item/ITM-<nnn>-<slug> --title
-   "ITM-<nnn>: <title>"`. CI must be red on this commit (`gh pr checks`).
+   `sprint/<team>/<nn>`: `gh pr create --repo akmaier/agent-m --base sprint/<team>/<nn> --head item/ITM-<nnn>-<slug>
+   --title "ITM-<nnn>: <title>"`. CI must be red on this commit (`gh pr checks`).
 2. **Green.** Implement in the folders of your item's modules (`src/<slug>/`), as the module files describe, only the
    functions your item needs. Where code under `docs/assets/` does this today, take it as the model; the old file stays
    exactly as it is. Making the dashboard call the modules is a separate change between jobs. Push; CI must be green.
@@ -87,8 +87,8 @@ When the task names a change between jobs instead of an item (`WHAT NO MODULE OW
 record says what it changes, and the rules above hold with these differences:
 - It changes only files that no module owns, and each change is one of the kinds that requirement names — for instance
   old code of the dashboard calling a module in place of its own code. No module's folder changes.
-- The branch is `between/<nn>-<slug>`, the pull request's title `Sprint <nn>, between jobs: <what it changes>`, and its
-  description names the kind of change.
+- The branch is `between/<team>-<nn>-<slug>`, the pull request's title `Sprint <team>/<nn>, between jobs: <what it
+  changes>`, and its description names the kind of change.
 - A new test shows the dashboard reaching the module through the change, names the module it reaches, and has a
   counter-proof. Reach the page the way the existing tests of that page do; build no other way.
 - Commits end with `Item: — (between jobs) · Agent M at <the sprint commit you branched from> · <your participant name>
