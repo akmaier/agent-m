@@ -1,6 +1,6 @@
 // MOD-identifiers — the identifier scheme and the stability of identifiers (docs/architecture/MOD-identifiers.md): its
-// interface. Built so far: `IdentifierKind`, `IdentifierPlace`, `kindOfIdentifier`, `identifiersIn`, `positionalReferences`,
-// `pagesAddress` and `instanceOfPagesAddress`; `nextIdentifier` is not built yet.
+// interface. It provides `IdentifierKind`, `IdentifierPlace`, `kindOfIdentifier`, `identifiersIn`, `nextIdentifier`,
+// `positionalReferences`, `pagesAddress` and `instanceOfPagesAddress`.
 //
 // Module: MOD-identifiers
 //
@@ -17,7 +17,7 @@
  * @typedef {{ id: string, kind: IdentifierKind, path: string, line: number }} IdentifierPlace
  */
 
-export { kindOfIdentifier, identifiersIn } from "./scheme.mjs";
+export { kindOfIdentifier, identifiersIn, nextIdentifier } from "./scheme.mjs";
 export { positionalReferences } from "./positions.mjs";
 
 // instanceOfPagesAddress(location) -> "owner/repository" | null — the repository whose GitHub Pages address is given:
