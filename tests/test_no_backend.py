@@ -22,7 +22,7 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    product's own GitLab project (`prepare` in git-host.mjs, tested in tests/review-core.d/git-host.test.mjs, and its
    successor in MOD-repository-hosts, src/repository-hosts/failures.mjs); the bridge probe on localhost; the dashboard's
    own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
-   from; MOD-endpoint-calls' one configured endpoint test transport; and the own data files — schemas, models, practices —
+   from; MOD-endpoint-calls' configured endpoint short test and direct job-driver transports; and the own data files — schemas, models, practices —
    of the modules whose files state that they read them when
    they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process
    MOD-site-frame (its explanations.md), and MOD-personal-data,
@@ -134,15 +134,43 @@ def _own_data_file(text: str, at: int) -> bool:
     return bool(own) and len(own) == len(re.findall(r"new URL\(", text))
 
 
-def _configured_endpoint_transport(text: str, at: int) -> bool:
-    """MOD-endpoint-calls sends its one test request only from the EndpointConfig-derived requestFor result."""
+def _endpoint_transport_path(text: str, at: int) -> str | None:
+    """The declared short-test or driver path supplying this endpoint fetch, if any."""
     before = text[:at]
-    return (text[at:].startswith("fetch(url, init)")
-            and "function requestFor(config)" in before
-            and "url: endpointUrl(config.baseUrl," in before
-            and "if (config.key !== null)" in before
-            and "export async function testEndpoint(config)" in before
-            and "const { url, init } = requestFor(config);" in before)
+    if not text[at:].startswith("fetch(url, init)"):
+        return None
+    provider = ("function providerRequest(config, prompt," in before
+                and "url: endpointUrl(config.baseUrl," in before
+                and "if (config.key !== null)" in before)
+    direct = ("function requestFor(config)" in before
+              and "url: endpointUrl(config.baseUrl," in before
+              and "if (config.key !== null)" in before)
+    short_test = ("function requestFor(config)" in before
+                  and "export async function testEndpoint(config)" in before
+                  and "const { url, init } = requestFor(config);" in before)
+    driver = ("function driverRequest(config, prompt, signal)" in before
+              and "return providerRequest(config, prompt," in before
+              and "export function endpointDriver(config, participant)" in before
+              and "const { url, init } = driverRequest(config, input.prompt, options.signal);" in before)
+    if short_test and (direct or provider) and before.rfind("export async function testEndpoint(config)") > before.rfind("export function endpointDriver(config, participant)"):
+        return "short test"
+    if driver and provider:
+        return "direct driver"
+    return None
+
+
+def _configured_endpoint_transport(text: str, at: int) -> bool:
+    """MOD-endpoint-calls sends only its EndpointConfig-derived short test and direct driver requests."""
+    return _endpoint_transport_path(text, at) is not None
+
+
+def _endpoint_transport_count(text: str) -> int:
+    """The second transport exists only when the one short-test and one direct-driver paths both have their evidence."""
+    fetch = next(pattern for name, pattern in CHANNELS if name == "fetch")
+    calls = [match.start() for match in fetch.finditer(text)]
+    short = [at for at in calls if _endpoint_transport_path(text, at) == "short test"]
+    driver = [at for at in calls if _endpoint_transport_path(text, at) == "direct driver"]
+    return 2 if len(calls) == len(short) + len(driver) == 2 and len(short) == len(driver) == 1 else 1
 
 
 def _bridge_client_transport(text: str, at: int) -> bool:
@@ -253,6 +281,8 @@ def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> lis
                 if evidence and not evidence(text, m.start()):
                     found.append(f"{path}:{line}: {name}: not {permitted[key][1]}")
     for key, (count, why, _) in permitted.items():
+        if key == ("src/endpoint-calls/index.mjs", "fetch") and _present(key[0], files):
+            count = _endpoint_transport_count(files[key[0]])
         n, folder = seen.get(key, 0), key[0].endswith("/")
         if _present(key[0], files) and (n > count if folder else n != count):
             found.append(f"{key[0]}: {key[1]} found {n} times, permitted {'at most ' if folder else ''}{count} ({why})")
@@ -369,6 +399,35 @@ class NoServer(unittest.TestCase):
         twice = configured.replace("return fetch(url, init);", "return fetch(url, init);\n  return fetch(url, init);")
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": twice}),
                          [f"src/endpoint-calls/index.mjs: fetch found 2 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
+
+        driver = ("function requestFor(config) {\n"
+                  "  return providerRequest(config, ONE_WORD_PROMPT, { maxTokens: 1 });\n"
+                  "}\n"
+                  "function providerRequest(config, prompt, { maxTokens = null, signal } = {}) {\n"
+                  "  if (config.key !== null) headers.Authorization = `Bearer ${config.key}`;\n"
+                  "  return { url: endpointUrl(config.baseUrl, \"/chat/completions\"), init };\n"
+                  "}\n"
+                  "function driverRequest(config, prompt, signal) {\n"
+                  "  return providerRequest(config, prompt, { maxTokens: config.kind === \"anthropic\" ? DRIVER_MAX_TOKENS : null, signal });\n"
+                  "}\n"
+                  "export function endpointDriver(config, participant) {\n"
+                  "  const { url, init } = driverRequest(config, input.prompt, options.signal);\n"
+                  "  return fetch(url, init);\n"
+                  "}\n"
+                  "export async function testEndpoint(config) {\n"
+                  "  const { url, init } = requestFor(config);\n"
+                  "  return fetch(url, init);\n"
+                  "}\n")
+        self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": driver}), [])
+        arbitrary_driver = driver.replace("const { url, init } = driverRequest(config, input.prompt, options.signal);",
+                                          "const url = telemetry; const init = {};")
+        self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": arbitrary_driver}),
+                         [f"src/endpoint-calls/index.mjs:13: fetch: not {ENDPOINT_TRANSPORT}",
+                          f"src/endpoint-calls/index.mjs: fetch found 2 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
+        duplicate_driver = driver.replace("return fetch(url, init);\n}\nexport async function testEndpoint",
+                                          "return fetch(url, init);\n  return fetch(url, init);\n}\nexport async function testEndpoint", 1)
+        self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": duplicate_driver}),
+                         [f"src/endpoint-calls/index.mjs: fetch found 3 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
 
     def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
         accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
