@@ -178,18 +178,19 @@ function ownerOf(ctx, team) {
   return list(row?.cells.Participants)[0] ?? "";
 }
 
-// The items a running sprint has left over time: at its start, after each merge of one of its items, in time order, and now.
-// An item merged before the sprint's start is done from the start. A merge is labelled with its time, HH:MM in UTC, or
-// MM-DD HH:MM once a merge falls on another day than the start.
-function remainingOverTime(items, mergedAt, start) {
+// The items a sprint has left over time: at its start, after each merge of one of its items, in time order, and now — or, for
+// a closed sprint, at its end, which counts no merge after its end date. An item merged before the sprint's start is done from
+// the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
+function remainingOverTime(items, mergedAt, start, { final = false, end = "" } = {}) {
   const merges = items.map((id) => mergedAt.get(id)).filter(Boolean).sort();
-  const during = merges.filter((at) => at.slice(0, 10) >= start);
+  const before = merges.filter((at) => at.slice(0, 10) < start).length;
+  const during = merges.filter((at) => at.slice(0, 10) >= start && !(final && end && at.slice(0, 10) > end));
   const oneDay = during.every((at) => at.slice(0, 10) === start);
   const label = (at) => (oneDay ? at.slice(11, 16) : `${at.slice(5, 10)} ${at.slice(11, 16)}`);
-  let remaining = items.length - (merges.length - during.length);
+  let remaining = items.length - before;
   const points = [{ label: "start", remaining }];
   for (const at of during) points.push({ label: label(at), remaining: --remaining });
-  points.push({ label: "now", remaining });
+  points.push({ label: final ? "end" : "now", remaining });
   return points;
 }
 
@@ -218,12 +219,17 @@ function teamPanel(app, ctx, d, team) {
   const why = explain("<p>A team plans, starts and closes sprints of its own (UC-032 step 6). While its sprint runs, the sprint holds the " +
     "items it selected until their change is in the default branch or they go back to the backlog; no other team selects an item " +
     "that changes or uses the same modules. The chart counts the selected items not done yet: at the sprint's start, after each " +
-    "merge of one of its items, at the time of that merge in UTC, and now — derived now from the sprint's record and the pull " +
-    "requests the page reads anyway, never stored (book ch. 7 §5).</p>");
+    "merge of one of its items, at the time of that merge in UTC, and now — or, once the sprint is closed, at its end — derived " +
+    "now from the sprint's record and the pull requests the page reads anyway, never stored (book ch. 7 §5).</p>");
+  const chartOf = (points) => `<div class="md" data-burn-down="${h(team)}">${md(`\`\`\`mermaid\n${burnDownChart(newest.name, points)}\n\`\`\`\n`)}</div>`;
   if (!newest || !entry || entry.final) {
     const last = newest ? `<p class="muted">Its last sprint, ${fileLink(app, newest.record.path, `<b>${h(newest.name)}</b>`)}, `
       + `${text(newest.record.fields.end) ? `ended on ${h(newest.record.fields.end)}` : "is closed"}.</p>` : `<p class="muted">It has run no sprint yet.</p>`;
-    return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — no running sprint</h3>${last}
+    const end = text(newest?.record.fields.end)
+      || text((newest?.record.appended ?? []).find((s) => s?.heading === "## Ended")?.fields?.at);
+    const final = newest && entry?.final && entry.burnDown.length ? chartOf(remainingOverTime(entry.items.map((st) => st.item),
+      d.mergedAt, text(newest.record.fields.start), { final: true, end })) : "";
+    return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — no running sprint</h3>${last}${final}
       <p>${plan("Plan sprint", true)}</p>${why}</section>`;
   }
   const record = newest.record, f = record.fields;
@@ -235,8 +241,7 @@ function teamPanel(app, ctx, d, team) {
       <td>${stateCell(app, stateOf(d, st.item))}</td><td class="small">${changes.map(h).join(", ") || "—"}</td>
       <td class="small">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
-  const points = remainingOverTime(entry.items.map((st) => st.item), d.mergedAt, text(f.start));
-  const chart = entry.burnDown.length ? `<div class="md" data-burn-down="${h(team)}">${md(`\`\`\`mermaid\n${burnDownChart(newest.name, points)}\n\`\`\`\n`)}</div>`
+  const chart = entry.burnDown.length ? chartOf(remainingOverTime(entry.items.map((st) => st.item), d.mergedAt, text(f.start)))
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(f.start)}.</p>`;
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(app, record.path, h(newest.name))}</h3>
     <dl class="meta"><dt>Goal</dt><dd>${h(f.goal)}</dd><dt>Started</dt><dd>${h(f.start)}</dd>
