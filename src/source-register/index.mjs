@@ -4,8 +4,9 @@
 // schema of a product's links file. readContent, which reads a version's files with their hashes checked (content.mjs),
 // linkedVersion, and sourceStrategies with the recipe source-excerpt and the four recipes of the book's chapters
 // (strategies.mjs) come with the job runner. ITM-315 adds sourceFindings, the requirements that name no source the product
-// links. ITM-383 adds personSource, the source of the person who gives an instruction. Registering and fetching a source's
-// content and the module's other functions are not built yet.
+// links. ITM-313 adds recogniseLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names. ITM-383 adds
+// personSource, the source of the person who gives an instruction. Registering and fetching a source's content and the
+// module's other functions are not built yet.
 //
 // Module: MOD-source-register
 //
@@ -25,6 +26,7 @@ import { strategiesOf } from "./strategies.mjs";
 import { unquoted, versionRecord } from "./content.mjs";
 
 export { readContent } from "./content.mjs";
+export { recogniseLegalText } from "./legal-text.mjs";
 
 /**
  * One version of a source, fixed by identifier and hash: its source; its official identifier or edition and date; for a
