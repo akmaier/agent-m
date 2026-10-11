@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const FAULTS = {
-  "TST-342001": ["src/markdown-render/mermaid.mjs", "if (!safeSvg(e))", "if (false)"],
+  "TST-342001": ["src/markdown-render/mermaid.mjs", "if (!safeSvg(element))", "if (false)"],
   "TST-342002": ["src/markdown-render/render.mjs", 'frontMatter = "table"', 'frontMatter = "hidden"'],
   "TST-342003": ["src/markdown-render/mermaid.mjs", "${esc(source)}", "${source}"],
   "TST-342004": ["src/markdown-render/difference.mjs", 'added: "dadd"', 'added: "dctx"'],
