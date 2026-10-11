@@ -15,8 +15,9 @@
 // localStorage; the DOM is the small one the other tests of this module use. Names, addresses and tokens are constructed. Where the module file
 // leaves a reading open, the test states the reading it takes, and the pull request names it:
 //   - The Bridges by name stand beside the single `bridge` and the remote sessions the pages show today, which stay as they are: the existing
-//     tests of this module pin their form. A pairing whose answer names the Bridge stores it as `bridge:<name>`; one whose answer names none
-//     keeps the single `bridge`, as before.
+//     tests of this module pin their form. A pairing whose answer names the Bridge stores it as `bridge:<name>`; the single `bridge` is kept
+//     too, as the Bridge paired last, because the endpoints page and the existing release test of the pairing (TST-280901, which pairs a real
+//     Bridge) still read it; a pairing whose answer names none keeps the single `bridge` alone, as before.
 //   - Clear asks the person first, with the names of the endpoints (`bridge` is their field) that name the Bridge; it clears nothing on a
 //     refusal, and never changes the endpoints that name it. The mailbox, participants and resources are not named: the store's catalogue holds
 //     no `mailbox` key yet, and the pages of the other two are not in this folder.
@@ -197,8 +198,9 @@ test("Settings — Clear names the endpoints that name the Bridge before it clea
 // given: the Bridge route, and a Bridge on this computer that reports the name "lab-mac"; then another at a forwarded address that reports "lab-pc";
 //        then one whose answer names none (the pairing the page has always made)
 // input: Pair Bridge with the address and the copied token, for each
-// expect: the first is stored as bridge:lab-mac with its address and token, the second as bridge:lab-pc beside it, the single `bridge` untouched; the
-//         third is stored as the single `bridge`; the page names the reported name; Change for a stored name shows its address and token in the fields
+// expect: the first is stored as bridge:lab-mac with its address and token, and also as the single `bridge`; the second as bridge:lab-pc beside it, the
+//         first kept, and the single `bridge` now the second; the third is stored as the single `bridge` alone; the page names the reported name;
+//         Change for a stored name shows its address and token in the fields
 test("Bridge route — pairing stores the Bridge under the name it reports", async (t) => {
   const store = freshStore();
   const reported = { "http://127.0.0.1:4711/v1/pair": "lab-mac", "http://127.0.0.1:9222/v1/pair": "lab-pc" };
@@ -211,12 +213,14 @@ test("Bridge route — pairing stores the Bridge under the name it reports", asy
   };
   await pairWith("http://127.0.0.1:4711", "mac-token");
   assert.deepEqual(readSetting(store, "bridge:lab-mac"), { address: "http://127.0.0.1:4711", token: "mac-token" });
-  assert.equal(readSetting(store, "bridge"), null);
+  assert.deepEqual(readSetting(store, "bridge"), { address: "http://127.0.0.1:4711", token: "mac-token" }, "the single Bridge is the one paired last");
   assert.match(byClass(page, "bridge-result")[0].textContent, /lab-mac/);
   await pairWith("http://127.0.0.1:9222", "pc-token");
   assert.deepEqual(readSetting(store, "bridge:lab-pc"), { address: "http://127.0.0.1:9222", token: "pc-token" });
   assert.deepEqual(readSetting(store, "bridge:lab-mac"), { address: "http://127.0.0.1:4711", token: "mac-token" });
+  assert.deepEqual(readSetting(store, "bridge"), { address: "http://127.0.0.1:9222", token: "pc-token" });
   await pairWith("http://127.0.0.1:5555", "plain-token");
+  assert.equal(readSetting(store, "bridge:5555"), null);
   assert.deepEqual(readSetting(store, "bridge"), { address: "http://127.0.0.1:5555", token: "plain-token" });
 
   const changed = await bridgePage(store, { name: "lab-pc" });
