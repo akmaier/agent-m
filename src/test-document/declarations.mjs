@@ -1,4 +1,4 @@
-// Declarations — finding the test declarations in a file's text (MOD-test-document, Data).
+// Declarations — finding the test declarations in a file's text, and which files are test files (MOD-test-document, Data).
 //
 // Module: MOD-test-document
 //
@@ -18,6 +18,13 @@ const FIRST_LINE = /^TST-(\d+)$/;
 const KEY_LINE = /^([a-z]+):(.*)$/;
 const HEADING = /^### (TST-\d+)\b/;
 const FIELD_KEYS = ["level", "module", "guards", "given", "input", "expect", "runs", "phrasings", "paid"];
+
+// A test file (MOD-test-document, Data): a file under a folder named `test`, `tests` or `__tests__`, or a file named as tests are
+// named in its language — `*.test.mjs`, `test_*.py`, `*_test.go` and the like —; a Markdown file under such a folder holds manual
+// tests, and is a test file as every file under one is. The names are those of docs/assets/artifacts.mjs isTestPath, the rule the
+// dashboard has applied until now: a name that begins `test_`, ends `_test` or has `.test` or `.spec` before its extension.
+const TEST_FOLDERS = new Set(["test", "tests", "__tests__"]);
+const TEST_NAME = /^test_.|_test\.[A-Za-z0-9]+$|\.(?:test|spec)\.[A-Za-z0-9]+$/;
 
 // The text as its lines, in order, each without its line ending (LF or CR LF).
 function splitLines(text) {
@@ -50,6 +57,13 @@ function applyField(fields, key, rawValue) {
 // One declaration under construction (its identifier, fields, path and first line), flattened to a TestDeclaration.
 function toDeclaration(entry) {
   return { id: entry.id, ...entry.fields, path: entry.path, line: entry.line };
+}
+
+// isTestFile(path: string) -> boolean — whether a path is a test file, as defined above. The folders of a path are all its parts
+// but the last, which is the file's name: a file called `tests` is under no folder named tests.
+export function isTestFile(path) {
+  const parts = path.split("/");
+  return parts.slice(0, -1).some((folder) => TEST_FOLDERS.has(folder)) || TEST_NAME.test(parts[parts.length - 1]);
 }
 
 // testDeclarations(path: string, text: string) -> TestDeclaration[] — every test declaration of a test file, in order,
