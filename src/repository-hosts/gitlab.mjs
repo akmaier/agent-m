@@ -105,13 +105,14 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
 
     // The commits that changed a path — the project where the path is null —, newest first, from `ref` (the default branch where
     // none is given), at most `limit` of them (all where none is given), each with the files it changed. "List repository
-    // commits" (ref_name, path, per_page up to 100, page) names the commits, page by page; the diff of a commit gives its files,
-    // up to 100 to a page, read page by page for a commit that changed more. A commit's author is named by name and e-mail, not
-    // by account: the entry's account is null.
+    // commits" (ref_name, path, follow, per_page up to 100, page) names the commits, page by page; the diff of a commit gives
+    // its files, up to 100 to a page, read page by page for a commit that changed more. A server of GitLab 18.10 or later
+    // follows a file across a rename unless `follow` is false: the commits asked for are those of the path itself, as GitHub's
+    // `path` gives them. A commit's author is named by name and e-mail, not by account: the entry's account is null.
     async history(path, { ref, limit } = {}) {
       const what = ref ? `${address.web} at ${ref}` : address.web;
       const per = limit === undefined ? PAGE : Math.max(1, Math.min(PAGE, limit));
-      const query = `per_page=${per}${ref ? `&ref_name=${encodeURIComponent(ref)}` : ""}${path ? `&path=${encodeURIComponent(path)}` : ""}`;
+      const query = `per_page=${per}${ref ? `&ref_name=${encodeURIComponent(ref)}` : ""}${path ? `&path=${encodeURIComponent(path)}&follow=false` : ""}`;
       const listed = [];
       for (let page = 1; page <= MAX_PAGES && (limit === undefined || listed.length < limit); page++) {
         const items = await read(`${api}/repository/commits?${query}&page=${page}`, { what });
