@@ -30,8 +30,9 @@ const named = (kind) => [
   ["writers", kind.writer],
 ];
 
-// The parts a kind's recipes build, each sized and naming its recipe; a part of a recipe whose part may be left out is not
-// required, and such a recipe that fails is added to `leftOut` with its reason.
+// The parts a kind's recipes build, each sized and naming its recipe, and otherwise as the recipe gave it — the existing
+// artifacts a part shows among it; a part of a recipe whose part may be left out is not required, and such a recipe that
+// fails is added to `leftOut` with its reason.
 async function partsOf(kind, context, leftOut) {
   const parts = [];
   for (const { name, optional } of kind.recipes) {

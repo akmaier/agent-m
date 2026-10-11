@@ -9,7 +9,7 @@
 // Module: MOD-job-runner
 // Guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // Guards: CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
-// Guards: UC-005; UC-007; UC-019
+// Guards: UC-005; UC-019
 // Level: unit
 //
 // The kinds are this file's own, so that the check runs alone, in the loop of one drafter. The part of the job is the one a
@@ -232,7 +232,7 @@ test("candidate-classes — a draft fixed as the findings say passes, and its cl
   ]);
 });
 
-// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; UC-007
+// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
 // given: the same part, and a draft whose EXPORT AS PDF is an exact duplicate classed new; a kind that names no check, and —
 //        the known positive — the same kind naming candidate-classes; and the same kind with a job whose parts carry no artifact
 // input: runJob of each, the draft given as `from` and no drafter: the draft is checked once

@@ -98,14 +98,16 @@ return out;
 """
 
 # The conflict run needs a check that finds the conflict on derive-requirements; it is its own call, so that its stand-in
-# for candidate-classes finds what the other runs' stand-in does not.
+# for candidate-classes finds what the other runs' check does not. The runner registers candidate-classes itself
+# (tests/job-runner-candidate-classes.test.mjs), so the stand-in is registered under a name of this run's own, which the
+# run puts in the kind's place.
 CONFLICT = r"""
 const conflict = { artifact: "SPEC.md", line: 9, kind: "error", rule: "A CONFLICT IS DECIDED BY A PERSON",
   what: "\"EXPORT AS CSV\" contradicts EXPORT IS A PDF", fix: "decide which holds" };
 const standIns = {
   recipes: Object.fromEntries(["source-excerpt", "spec-with-queues", "chapters-for-requirements"]
     .map((name) => [name, async () => [{ name, text: `the text of ${name}`, size: 0, sources: [], required: true }]])),
-  checks: { "requirement-form": () => [], "candidate-classes": () => [conflict] },
+  checks: { "requirement-form": () => [], "candidate-classes stand-in": () => [conflict] },
   writers: { "queue-entries": async () => ({ commits: [], files: [], pullRequest: null, shown: null }) },
 };
 for (const [category, strategies] of Object.entries(standIns)) for (const [name, strategy] of Object.entries(strategies)) {
@@ -125,9 +127,11 @@ const context = { kind, params: {}, product: { address: "https://github.com/alic
   places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
   commit: "0".repeat(40) }, jobId: null };
 // This run drives the loop with the finding it sets. Its candidate is no requirement as the artifact model reads one, which the
-// runner's own check requirement-form judges (tests/job-runner-requirement-form.test.mjs), so its kind runs without it.
+// runner's own check requirement-form judges (tests/job-runner-requirement-form.test.mjs), so its kind runs without it, and
+// with the stand-in in the place of candidate-classes.
 const prepared = await jobRunner.prepareJob("derive-requirements", context, { drafter: drafterP, reviewers: [] });
-const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "requirement-form") } };
+const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "requirement-form")
+  .map((check) => (check === "candidate-classes" ? "candidate-classes stand-in" : check)) } };
 const result = await jobRunner.runJob(job, { drafter, reviewers: [] }, { attended: true, context });
 return { conflict: textTools.formatFinding(conflict), forPerson: result.forPerson.map(textTools.formatFinding),
   sent: inputs.map((input) => input.prompt + "\n" + input.findings.map(textTools.formatFinding).join("\n")),

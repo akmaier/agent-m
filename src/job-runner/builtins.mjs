@@ -1,11 +1,11 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
-// `instruction` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form` and
-// `test-declarations`, and what a built-in check needs of a job's context. The other built-in checks on the artifact model
-// come with the modules they use.
+// `instruction` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form`,
+// `test-declarations` and `candidate-classes`, what a built-in check needs of a job's context, and the classes the last of
+// them finds. The other built-in checks on the artifact model come with the modules they use.
 //
 // Module: MOD-job-runner
 
-import { artifactSchemaOf, documentFindings, readDocument } from "../documents/index.mjs";
+import { artifactSchemaOf, classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 import { isTestFile, testDeclarations, testFindings } from "../test-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
@@ -21,6 +21,45 @@ const written = ({ name, rule, check }, source) =>
 
 const EXPECTED_RESULT = "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS";
 const GOES_BACK = "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT";
+const EXACT_DUPLICATE = "EXACT DUPLICATES ARE FOUND WITHOUT A MODEL";
+const CLASS_NAMES_ARTIFACT = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT";
+
+// The classes of a draft's candidates against the artifacts the job's parts carry, and the findings on the classes its drafter
+// gave. A candidate is a requirement, as a draft of `{ candidates }` holds it — the module file gives the key values of a
+// requirement only: its reference in the draft its name, its key its name and its rule, the passage it came from its
+// passage. A candidate that the rule finds a duplicate of an existing artifact while its drafter classed it otherwise than
+// as a duplicate of that artifact is an error naming it; so is a change, a duplicate or a conflict that names no artifact a
+// part carries. A draft whose parts carry no artifact has nothing to classify.
+function classification(draft, parts) {
+  const existing = parts.flatMap((part) => part.artifacts ?? []);
+  const drafted = Array.isArray(draft?.candidates) ? draft.candidates : [];
+  if (existing.length === 0 || drafted.length === 0) return { classes: [], findings: [] };
+  const classes = classifyCandidates(drafted.map(({ name, rule, passage, class: proposed, of }) => ({ ref: name,
+    keys: [name, rule], from: [passage].filter(Boolean), proposed: { class: proposed, of: of ?? null } })), existing);
+  const carried = new Set(existing.map((artifact) => artifact.id));
+  const findings = drafted.flatMap(({ name, class: proposed, of }) => {
+    const shown = folded(name);
+    const classed = `${proposed}${of ? ` of "${folded(of)}"` : ""}`;
+    const decided = classes.find((each) => each.refs.includes(name));
+    if (decided.decidedBy === "rule" && !(proposed === "duplicate" && of === decided.of)) {
+      return [finding({ artifact: shown, line: 1, kind: "error", rule: EXACT_DUPLICATE,
+        what: `"${shown}" states the name or the rule of the existing "${decided.of}" and is classed ${classed}`,
+        fix: `class it as duplicate of ${decided.of}` })];
+    }
+    if (["change", "duplicate", "conflict"].includes(proposed) && !carried.has(of)) {
+      return [finding({ artifact: shown, line: 1, kind: "error", rule: CLASS_NAMES_ARTIFACT,
+        what: of ? `"${shown}" is classed ${classed}, which no part of the job shows`
+          : `"${shown}" is classed ${proposed} and names no existing artifact`,
+        fix: "name an existing artifact that a part shows, or class it new" })];
+    }
+    return [];
+  });
+  return { classes, findings };
+}
+
+// The classes of the last round's draft, for a kind that names candidate-classes; null for any other.
+export const classesOf = (kind, draft, parts) => (kind.checks.includes("candidate-classes")
+  ? classification(draft, parts).classes : null);
 
 export const builtins = {
   recipes: {
@@ -77,6 +116,10 @@ export const builtins = {
       }
       return found;
     },
+    // MOD-documents' classifyCandidates of the drafted candidates against the existing artifacts the job's parts carry, which
+    // runJob hands to a check as its third argument: the findings of `classification`. The classes of the last round are the
+    // result's, which runJob asks of classesOf.
+    "candidate-classes": (draft, context, parts = []) => classification(draft, parts).findings,
   },
   writers: {
     // Writes nothing; hands the result to the caller.
