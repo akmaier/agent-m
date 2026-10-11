@@ -50,7 +50,10 @@ async function run(kindName, { drafterAnswers, reviewerAnswers = null, limit, at
     places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
     commit: "0".repeat(40) }, jobId: "JOB-20261011-0800-abcd" };
   const reviewers = reviewerAnswers ? [reviewerP] : [];
-  const job = await jobRunner.prepareJob(kindName, context, { drafter: drafterP, reviewers, limit });
+  // These runs drive the loop with the findings they set. Their drafts are no documents of the artifact model, which the
+  // runner's own check document-schema judges (tests/job-runner-document-schema.test.mjs), so their kinds run without it.
+  const prepared = await jobRunner.prepareJob(kindName, context, { drafter: drafterP, reviewers, limit });
+  const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "document-schema") } };
   const drafter = driver(drafterP, drafterAnswers);
   const reviewerDrivers = reviewerAnswers ? [driver(reviewerP, reviewerAnswers)] : [];
   const result = await jobRunner.runJob(job, { drafter, reviewers: reviewerDrivers }, { attended, context });
@@ -121,7 +124,10 @@ const context = { kind, params: {}, product: { address: "https://github.com/alic
   instance: { snapshot: null, host: null }, connect: async () => null, participants: [drafterP],
   places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
   commit: "0".repeat(40) }, jobId: null };
-const job = await jobRunner.prepareJob("derive-requirements", context, { drafter: drafterP, reviewers: [] });
+// This run drives the loop with the finding it sets. Its candidate is no requirement as the artifact model reads one, which the
+// runner's own check requirement-form judges (tests/job-runner-requirement-form.test.mjs), so its kind runs without it.
+const prepared = await jobRunner.prepareJob("derive-requirements", context, { drafter: drafterP, reviewers: [] });
+const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "requirement-form") } };
 const result = await jobRunner.runJob(job, { drafter, reviewers: [] }, { attended: true, context });
 return { conflict: textTools.formatFinding(conflict), forPerson: result.forPerson.map(textTools.formatFinding),
   sent: inputs.map((input) => input.prompt + "\n" + input.findings.map(textTools.formatFinding).join("\n")),
