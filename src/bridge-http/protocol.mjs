@@ -1,4 +1,5 @@
 export const endpointDiagnosisReasons = ["cross-origin refused", "opt-in header missing", "blocked by the browser", "not reachable", "key refused", "model unknown", "too long", "rate limited", "endpoint error"];
+const mailOperations = ["test", "read", "find", "drafts", "sent", "store-draft", "update-draft", "show-draft", "confirm-send", "send"];
 const endpointConfiguration = { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] };
 
 export const bridgeApi = {
@@ -26,6 +27,10 @@ export const bridgeApi = {
       args: endpointConfiguration,
       answer: { works: [true, false], model: "string", diagnosis: { reason: endpointDiagnosisReasons, message: "string", routes: ["ci", "bridge"] } },
     } },
+    { method: "POST", path: "/v1/mail/{operation}", operations: mailOperations, request: { connection: "object", args: "object" }, answer: "object",
+      confirmSend: { args: { ref: "string", sha256: "string" }, answer: { confirmation: "string" } },
+      send: { args: { ref: "string", sha256: "string", confirmation: "string" } },
+      errors: { "confirmation-refused": 409, "no-encryption": 502, "login-refused": 502, "upstream-failed": 502 } },
     { method: "GET", path: "/v1/tunnels", answer: { tunnels: [{ name: "string", kind: "string", state: "string", reason: ["string", "null"] }] } },
   ],
 };

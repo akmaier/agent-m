@@ -31,7 +31,7 @@ export async function serveBridge(config, handlers) {
       response.end(); log(204); return;
     }
     if (request.headers[bridgeApi.tokenHeader] !== await currentToken(config.dataFolder)) { error(response, 401, "token-refused", "Bridge token refused.", config.origin); log(401); return; }
-    const startsWork = request.method === "POST" && (path === "/v1/jobs" || path === "/v1/ask" || path.startsWith("/v1/probes/"));
+    const startsWork = request.method === "POST" && (path === "/v1/jobs" || path === "/v1/ask" || path.startsWith("/v1/probes/") || path.startsWith("/v1/mail/"));
     if (config.paused() && startsWork) { error(response, 503, "paused", "Bridge is paused.", config.origin); log(503); return; }
     if (request.method === "GET" && path === "/v1/pair") { reply(response, 200, { bridge: { name: "Bridge", version: "unreleased", platform: process.platform }, origin: config.origin }, config.origin); log(200); return; }
     const selected = bridgeApi.routes.map((candidate) => [candidate, match(candidate, request.method, path)]).find(([_candidate, params]) => params !== null);
@@ -48,6 +48,21 @@ export async function serveBridge(config, handlers) {
       return;
     }
     if (!route) { error(response, 404, "not-found", "Bridge route not found.", config.origin); log(404); return; }
+    if (route.path === "/v1/mail/{operation}") {
+      const handler = route.operations.includes(params.operation) ? handlers.mail?.[`POST /v1/mail/${params.operation}`] : undefined;
+      if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
+      let text = ""; for await (const chunk of request) text += chunk;
+      let body;
+      try { body = JSON.parse(text); } catch { error(response, 422, "invalid-request", "Bridge request is not JSON.", config.origin); log(422); return; }
+      const errors = { ...bridgeApi.errors, ...route.errors };
+      try { reply(response, 200, await handler({ params, body }), config.origin); log(200); }
+      catch (failure) {
+        const code = Object.hasOwn(errors, failure.code) ? failure.code : "upstream-failed";
+        error(response, errors[code], code, failure.message || "Bridge handler failed.", config.origin);
+        log(errors[code]);
+      }
+      return;
+    }
     if (route.path !== "/v1/probes/{kind}") {
       let body = {};
       if (request.method === "POST") {
