@@ -1,10 +1,10 @@
 // MOD-trace-graph — the trace graph and everything derived from it (docs/architecture/MOD-trace-graph.md): its
-// interface. Of it, ITM-249 builds traceGraph and tracesTo, as far as the release test report needs them: traceGraph
-// reads, of its Data, only SPEC.md through MOD-spec-document and the test files through MOD-test-document, so that its
-// graph holds every requirement and every test with what it guards, and lists a file it cannot read with the reason;
-// tracesTo gives a requirement the tests that guard it. The other files of its Data, graphFindings, coverageGaps,
-// requirementImpact, architectureImpact, moduleOrder, moduleRows, compareGraphs and selfSufficiencyFindings are not
-// part of it.
+// interface. Of it, traceGraph and tracesTo are built. traceGraph reads, of its Data, SPEC.md through MOD-spec-document, the
+// test files through MOD-test-document, the use cases, the architecture decisions, the module files, the plan steps and the
+// backlog items through MOD-documents, and the group files through MOD-group-document, so that its graph holds every
+// requirement, test, document and group with the edges it states, and lists a file it cannot read with the reason. tracesTo
+// gives a requirement the tests that guard it. The code files and their imports, graphFindings, coverageGaps,
+// requirementImpact, architectureImpact, moduleOrder, moduleRows, compareGraphs and selfSufficiencyFindings are not built yet.
 //
 // Module: MOD-trace-graph
 //
@@ -18,12 +18,13 @@
  */
 
 /**
- * One node of the graph: an artifact or a code file, by its identifier. `title` and `blob` are read only from a file
- * this item does not read; of SPEC.md's requirements and the test files' declarations, neither carries one, so both
- * stay `null` here.
+ * One node of the graph: an artifact or a code file, by its identifier, or a group of a group file. A document's `title` is
+ * the `title` of its front matter and its `blob` the git blob SHA of its file; a group's `title` is its title, its `blob`
+ * the SHA of its group file, and, since it carries no identifier, its `id` is where it stands, `<path>:<line>`. SPEC.md's
+ * requirements and the test files' declarations carry neither a title nor a blob of their own: both are `null`.
  * @typedef {{
  *   id: string,
- *   kind: "requirement" | "SRC" | "UC" | "ARC" | "MOD" | "TST" | "ITM" | "RES" | "JOB" | "code",
+ *   kind: "requirement" | "SRC" | "UC" | "ARC" | "MOD" | "TST" | "ITM" | "RES" | "JOB" | "code" | "group",
  *   path: string,
  *   line: number,
  *   title: string | null,
@@ -44,9 +45,12 @@
  */
 
 /**
- * The graph traceGraph builds: every node and every edge, and the files it could not read, with the reason. Of this
- * item, the nodes are every requirement of SPEC.md and every test declaration of a test file, and the only edges built
- * are `guards`, from a test to what it guards.
+ * The graph traceGraph builds: every node and every edge, and the files it could not read, with the reason. Its nodes are
+ * the requirements of SPEC.md, the tests of the test files, the use cases, decisions, modules, plan steps and items, and the
+ * groups of the group files; its edges are `guards` from a test, `realises`, `forced_by`, `designs`, `follows`, `refines`,
+ * `uses`, `changes` and `builds_on` from a document's front matter — a `uses` edge points at the interface as the module file
+ * writes it, `MOD-<slug>.<name>` —, and `names` from a document to each identifier its text writes on a line no other edge
+ * states.
  * @typedef {{
  *   commit: string | null,
  *   nodes: Map<string, GraphNode>,
@@ -57,9 +61,8 @@
 
 /**
  * For a requirement, its sources and every use case, decision, module, test and item that names it
- * (A REQUIREMENT SHOWS WHAT TRACES TO IT). Of this item's graph, only a `guards` edge from a test is ever built, so
- * `tests` is the only list tracesTo can find an entry for; the rest stay empty until a later item reads the files that
- * would name them.
+ * (A REQUIREMENT SHOWS WHAT TRACES TO IT). tracesTo reads only the `guards` edges, so `tests` is the only list it fills;
+ * the rest stay empty until a later item gives each its rule.
  * @typedef {{
  *   sources: string[],
  *   useCases: string[],
