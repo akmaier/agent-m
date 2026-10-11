@@ -56,13 +56,37 @@ test("TST-316901: prepared input is one direct request for both provider shapes"
 // given: a controlled browser-context driver and an endpoint answer without usage.
 // input: send the same public DriverInput in browser context.
 // expect: answer kind is unchanged and absent usage and cost remain null.
-test("TST-316902: browser-context direct driver preserves absent usage as null", async (t) => { const prior = globalThis.window; globalThis.window = {}; t.after(() => { globalThis.window = prior; }); withFetch(t, async () => reply(200, { choices: [{ message: { content: "browser" } }] })); assert.deepEqual(await endpointDriver(OPENAI, PARTICIPANT).send(INPUT), { text: "browser", usage: null }); });
+test("TST-316902: browser-context direct driver preserves absent usage as null", async (t) => {
+  const prior = globalThis.window;
+  globalThis.window = {};
+  t.after(() => { globalThis.window = prior; });
+  withFetch(t, async () => reply(200, { choices: [{ message: { content: "browser" } }] }));
+  assert.deepEqual(await endpointDriver(OPENAI, PARTICIPANT).send(INPUT), { text: "browser", usage: null });
+});
 
 // TST-316903
 // given: a browser blocked before a response and an already aborted signal.
 // input: send the public driver once for each constructed failure.
 // expect: browser blockage is named with working routes, cancellation is preserved, and neither retries.
-test("TST-316903: blocked and cancelled direct calls remain named single requests", async (t) => { const prior = globalThis.window; globalThis.window = {}; t.after(() => { globalThis.window = prior; }); let calls = 0; withFetch(t, async (_url, init) => { calls += 1; if (calls === 1) throw new TypeError("Failed to fetch"); assert.ok(init.signal.aborted); throw Object.assign(new Error("aborted"), { name: "AbortError" }); }); const driver = endpointDriver(OPENAI, PARTICIPANT), controller = new AbortController(); controller.abort(); await assert.rejects(driver.send(INPUT), (error) => error.name === "EndpointFailed" && error.diagnosis.reason === "blocked by the browser" && error.diagnosis.routes.join(",") === "ci,bridge"); await assert.rejects(driver.send(INPUT, { signal: controller.signal }), { name: "AbortError" }); assert.equal(calls, 2); });
+test("TST-316903: blocked and cancelled direct calls remain named single requests", async (t) => {
+  const prior = globalThis.window;
+  globalThis.window = {};
+  t.after(() => { globalThis.window = prior; });
+  let calls = 0;
+  withFetch(t, async (_url, init) => {
+    calls += 1;
+    if (calls === 1) throw new TypeError("Failed to fetch");
+    assert.ok(init.signal.aborted);
+    throw Object.assign(new Error("aborted"), { name: "AbortError" });
+  });
+  const driver = endpointDriver(OPENAI, PARTICIPANT);
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(driver.send(INPUT), (error) => error.name === "EndpointFailed"
+    && error.diagnosis.reason === "blocked by the browser" && error.diagnosis.routes.join(",") === "ci,bridge");
+  await assert.rejects(driver.send(INPUT, { signal: controller.signal }), { name: "AbortError" });
+  assert.equal(calls, 2);
+});
 
 // TST-316904
 // given: constructed key-refused and input-too-long provider replies.
