@@ -16,6 +16,7 @@ uses:
   - MOD-identifiers.pagesAddress
   - MOD-spec-document.parseSpec
   - MOD-spec-document.Spec
+  - MOD-test-document.isTestFile
   - MOD-test-document.testDeclarations
   - MOD-test-document.TestDeclaration
   - MOD-group-document.parseGroupFile
@@ -73,7 +74,7 @@ What it reads, and as what:
 |---|---|
 | `SPEC.md` | requirements, through MOD-spec-document |
 | `docs/use-cases/UC-*.md`, `docs/architecture/ARC-*.md`, `docs/architecture/MOD-*.md`, `docs/plan/ITM-*.md`, `docs/backlog/ITM-*.md` | documents, through MOD-documents with the schemas it owns |
-| test files — files under a folder named `test`, `tests` or `__tests__`, or named as tests are in their language | test declarations, through MOD-test-document |
+| test files, as MOD-test-document's `isTestFile` tells them | test declarations, through MOD-test-document |
 | `docs/groups/<kind>.md` | the groups' titles, through MOD-group-document, so that a group's title named where an identifier is expected is found |
 | code files — files whose extension names a programming or style-sheet language, outside `docs/`, test files and folders named `vendor` or `node_modules` | paths, and for JavaScript, TypeScript, Python and CSS the modules they import |
 
@@ -186,7 +187,8 @@ It reads, through the `TextSource` it is given, the files listed under Data. It 
   `MOD-identifiers.IdentifierKind` — to find the identifiers and names a text writes, their kinds, and references by
   position; `MOD-identifiers.pagesAddress` — the instance's dashboard, which no artifact may link.
 - `MOD-spec-document.parseSpec` and the type `MOD-spec-document.Spec` — to read the requirements.
-- `MOD-test-document.testDeclarations` and the type `MOD-test-document.TestDeclaration` — to read the tests.
+- `MOD-test-document.isTestFile`, `MOD-test-document.testDeclarations` and the type `MOD-test-document.TestDeclaration` —
+  to tell the test files and read their tests.
 - `MOD-group-document.parseGroupFile` — to read the groups' titles.
 - `MOD-text-tools.blobSha` — the blob of each node.
 - `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — the findings it reports.

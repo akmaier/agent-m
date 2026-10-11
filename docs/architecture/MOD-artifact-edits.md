@@ -30,6 +30,7 @@ uses:
   - MOD-job-runner.provenanceLines
 provides:
   - saveFile
+  - keptIdentifier
   - saveGroupFile
   - fallbackEditLinks
   - reviewLayoutCommit
@@ -44,8 +45,9 @@ use case, an architecture decision, a module file, a test file), a group file, a
 product's source links, the resources, a product's settings, collaborators and declaration, the process models) and the
 audit export —, each only on the blob it was opened on, so that nobody overwrites what changed meanwhile; a SPEC change
 is written by MOD-spec-changes, and the plan, the backlog and the sprints by MOD-work-plans. It writes drafted use cases
-and architecture files as open files (`A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN`). It also writes the missing review layout into a newly added
-product (`ADDING A PRODUCT CREATES ITS LAYOUT`). It runs in the browser and in Node.
+and architecture files as open files (`A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN`), and restores the identifier of
+a drafted change before it is edited. It also writes the missing review layout into a newly added product (`ADDING A
+PRODUCT CREATES ITS LAYOUT`). It runs in the browser and in Node.
 
 ## Parts
 
@@ -71,26 +73,34 @@ The review layout it writes into a product, skipping whatever exists:
 
 ## Interfaces
 
-- `saveFile(host: Host, edit: { path: string, text: string, openedBlob: string | null, openedId: string | null }) ->
-  Promise<{ commit: string, blob: string } | { refused: "changed meanwhile", current: string | null, currentBlob: string |
+- `saveFile(host: Host, edit: Edit | Edit[]) ->
+  Promise<{ commit: string, blob: string | string[] } | { refused: "changed meanwhile", current: string | null, currentBlob: string |
   null } | { refused: "identifier changed", openedId: string, nowId: string | null } | { refused: "not one place", items:
-  string[] }>` — saves one file a person edited on a page, in one commit on the default branch of the repository that
+  string[] }>`, `Edit` being `{ path: string, text: string, openedBlob: string | null, openedId: string | null, trailers?:
+  string[] }` — saves one file a person edited on a page, in one commit on the default branch of the repository that
   holds it, only if the file's blob there is still `openedBlob`; `null` stands for a file that did not exist when it was
   opened, which is created only while it still does not exist (`A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE`). The
   commit is made with the token the host was connected with, so it is under the person's account; its message names no
-  one. It serves every such file: a reviewed file — a use case, an architecture
+  one, and ends with `trailers` — a job's provenance lines when a person saves the draft of a change by prompt (UC-019
+  step 9), none for the person's own edit. It serves every such file: a reviewed file — a use case, an architecture
   decision, a module file, a test file —; a group file; the instance's `docs/participants.md`, `docs/resources.md` and
   process models under `docs/process-models/`; a product's `docs/sources.md`, `docs/resources.md`, `docs/settings.md`,
   `docs/collaborators.md` and `docs/process.md`; and the audit export under `docs/audits/`. On refusal it writes nothing
   and returns the newer text, so that the caller keeps the edit beside it (`A REFUSED SAVE KEEPS THE EDIT`); a file
   whose identifier differs from the one it was opened with is refused (`AN EDITED FILE KEEPS ITS IDENTIFIER`); a group
   file is refused while an item stands in more than one place (`AN ITEM HAS ONE PLACE IN ITS HIERARCHY`). A saved
-  reviewed file counts as open, or as changed since acceptance, because no record names its new blob. Considers: called
+  reviewed file counts as open, or as changed since acceptance, because no record names its new blob. Given several
+  edits — the files one instruction changed by prompt (UC-019 8b) —, it saves them in one commit, each only on its own
+  `openedBlob`, or none of them, returning the refusal of the first one refused, and else each file's new blob in the
+  order of the edits. Considers: called
   only on a person's click; the caller checks a register's text with its owner's schema and findings first, since this
   module judges only identifiers and a group file's places; a SPEC section is never saved here, but by
   MOD-spec-changes. Crosses the network. Errors: `Moved`, `SecretRefused` (the text holds a configured secret: nothing
   is written), `TokenRefused`, `PermissionMissing` (the caller offers the GitHub route, where the commit becomes a pull
   request), `RateLimited`, `Unreachable`, `TokenRequired` for a GitLab product without a token.
+- `keptIdentifier(text: string, openedId: string) -> string` — the text with its front matter's `id` set back to
+  `openedId`, every other byte unchanged: a drafted change whose loop left a changed identifier opens in the editor with
+  the identifier it was opened with (UC-019 7a). A text whose `id` is `openedId` comes back unchanged.
 - `saveGroupFile(host: Host, edit: { kind: "requirements" | "use-cases" | "architecture" | "modules" | "tests",
   text: string, openedBlob: string | null }) -> Promise<{ commit: string, blob: string } | { refused:
   "changed meanwhile", current: string | null, currentBlob: string | null } | { refused: "not one place", items:
@@ -119,7 +129,11 @@ The review layout it writes into a product, skipping whatever exists:
   - writer `open-files` — commits drafted use cases or architecture files, in one commit on the default branch, as open
     files: a change to an existing identifier into that file, a new one under the next free identifier of its kind,
     never one the version history holds (`THE NAME IS THE ID AND IT SURVIVES`); a drafted module whose identifier the
-    history holds is refused and named. While the result's `stepFindings` hold a finding of kind `error` under the rule
+    history holds is refused and named. A drafted file that the result's classes make a change or a duplicate of an
+    existing one is written as a change to that file, not under a new identifier (UC-007 6a). A name a drafted use case
+    realises that still matches no requirement after the loop's last round is removed from it, and the outcome's notes
+    name the use case and the name; a use case that then realises nothing is written too, and the notes name it (UC-007
+    4a, 4b). While the result's `stepFindings` hold a finding of kind `error` under the rule
     `A REUSE DECISION RECORDS ITS DUE DILIGENCE` whose artifact is a drafted decision's path — the mark MOD-reuse-facts'
     step `due-diligence` leaves on a decision whose registry could not be read, naming the registry (UC-022 7b) —, it
     writes nothing and throws `DueDiligenceMissing { decisions }`, naming each such decision and its registry, since the

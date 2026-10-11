@@ -96,6 +96,14 @@ hashed is kept. Then, optionally, `## Parts`: the known parts a link may name, s
 republishing, of the named repository otherwise; a file the person only hashed is not stored at all. A source of kind
 repository is its repository at the pinned commit.
 
+**An EU legal text that waits for its fetch** is an entry whose `identifier` `recogniseLegalText` recognises and whose
+`## Versions` has no row yet. Whether its last fetch failed, and why, is the state of the instance's run of
+`onSourcesCommitted` (MOD-workflow-entries) that concerned it, which the library shows beside the entry; it is never
+written into the entry (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`).
+
+**A part of a version**, which a job's parameter `part` names, is a set of the version's files by their names, such as
+the chapters of a book. A version of a single file has no smaller part.
+
 **A version's hash** is the SHA-256 of the lines `<SHA-256 of the file>  <file name>`, one per file, sorted by name — the
 value a product's link records.
 
@@ -169,13 +177,14 @@ names no source.
   `Unreachable { reason }`; nothing is guessed.
 - `permittedPlaces(entry: Document) -> string[] | "any"` — the places a source's content may be given to: any for content
   that may be republished, its declared places otherwise, none when it declares none.
-- `sourceStrategies` — `Partial<Strategies>` with the recipe `source-excerpt`: for the source and part a job's parameters
-  `source` and `part` name, reads the version the product links, through `readContent`, where its content lies, and
-  returns the version's whole text — its files' texts in their order, a blank line between them — as one part that names
-  the source, so that the runner gives it only to participants at the places the source permits (`RESTRICTED CONTENT GOES
-  ONLY WHERE ITS SOURCE PERMITS`); the part's name names the version and the part that applies, the job's or else the
-  link's. Nothing defines how a text is cut to a part, so none is cut. Throws as `readContent` throws, and `NotLinked
-  { source }` for a source the product does not link.
+- `sourceStrategies` — `Partial<Strategies>` with the recipe `source-excerpt`: for the source a job's parameter
+  `source` names, reads the version the product links, through `readContent`, where its content lies, and returns the
+  texts of the files its parameter `part` names — every file of the version when it names none —, in the version's
+  order, a blank line between them, as one part that names the source, so that the runner gives it only to participants
+  at the places the source permits (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`); the part's name names the
+  version, the files sent and the part the product's link names. A smaller part is fewer files, and a version of one file
+  has none (UC-005 2a). Throws as `readContent` throws, `NotLinked { source }` for a source the product does not link,
+  and `NotInVersion { files }` for a part that names a file the version does not hold.
   And the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`,
   `chapters-for-architecture` and `chapters-for-implementation`: each reads the instance's register entry
   `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through

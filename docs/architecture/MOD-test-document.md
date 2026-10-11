@@ -10,6 +10,7 @@ uses:
   - MOD-text-tools.Finding
 provides:
   - TestDeclaration
+  - isTestFile
   - testDeclarations
   - testFindings
 ---
@@ -58,12 +59,16 @@ identifier; each following line is `key: value`.
 
 A declaration ends at the first line that is not a comment line of this form.
 
+A **test file** is a file under a folder named `test`, `tests` or `__tests__`, or a file named as tests are named in its
+language — such as `*.test.mjs`, `test_*.py` or `*_test.go` —; a Markdown file under such a folder holds manual tests.
+
 ## Interfaces
 
 - `TestDeclaration` — `{ id: string, level: "unit" | "component" | "system" | "release" | "user", module: string | null,
   guards: string[], given: string | null, input: string | null, expect: string | null, runs: number | null, phrasings:
   number | null, paid: string | null, path: string, line: number }`; `module` is a module's identifier or the word
   `system`.
+- `isTestFile(path: string) -> boolean` — whether a path is a test file as defined under Data.
 - `testDeclarations(path: string, text: string) -> TestDeclaration[]` — every declaration in a test file, in order. It
   never throws on content: a declaration missing a key is read with that key `null`, and `testFindings` names it. A file
   with no declaration yields none; the caller decides whether that is a gap.

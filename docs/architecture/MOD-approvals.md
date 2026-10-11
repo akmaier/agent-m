@@ -16,6 +16,7 @@ uses:
   - MOD-documents.loadSchema
   - MOD-documents.readDocument
   - MOD-documents.writeDocument
+  - MOD-documents.artifactSchemas
   - MOD-text-tools.Finding
   - MOD-text-tools.finding
   - MOD-text-tools.blobSha
@@ -128,11 +129,13 @@ never written.
   TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK`); the path and the record are returned as well, for a copy button when
   the prefill does not arrive. For a product on a GitLab server it refuses (`A GITLAB PRODUCT IS WRITTEN WITH A TOKEN`).
 - `approvalStrategies: Strategies` — the strategies this module offers the job runner (ARC-046):
-  - recipe `use-cases` — every use case of the product, each with its status, as one part per file;
+  - recipe `use-cases` — every use case of the product, each with its status, as one part per file, which carries its
+    use case as an artifact keyed by the key of its format;
   - recipe `accepted-use-cases` — every use case whose current text a record names, one part per file;
   - recipe `use-case-with-neighbours` — the use case named in the job's parameters, every requirement it realises with
     its text from the SPEC, and every other use case (`A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS`);
-  - recipe `whole-architecture` — every architecture decision and module file, one part per file;
+  - recipe `whole-architecture` — every architecture decision and module file, one part per file, which carries its
+    file as an artifact keyed by the key of its format;
   - precondition `rests-on-accepted` — an error finding naming every requirement or use case the job's selection names
     that is not accepted, and, where the parameters ask for it, every file of the architecture that is not accepted
     (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`, `ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES`);
@@ -155,7 +158,8 @@ never written.
 - MOD-repository-hosts.commitFiles — the acceptance commit on an expected head.
 - MOD-repository-hosts.webLinks — GitHub's new-file page without a token.
 - MOD-documents.Schema, loadSchema, readDocument, writeDocument — reading and writing records by their schema, and reading the
-  names a use case or decision declares.
+  names a use case or decision declares; MOD-documents.artifactSchemas — the key of each format, for the artifacts a
+  recipe's part carries.
 - MOD-text-tools.Finding, finding — the findings of the preconditions.
 - MOD-text-tools.blobSha — the blob SHA of a text that was shown.
 - MOD-identifiers.kindOfIdentifier — the kind of a reviewed file from its identifier.

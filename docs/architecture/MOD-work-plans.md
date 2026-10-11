@@ -204,7 +204,7 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   - recipe `architecture-and-model` — the decision that states the system, the subsystems' decisions, the module files,
     the process model with its phases and gates, and the existing plan;
   - recipe `backlog-inputs` — the accepted requirements and use cases, those no item realises yet, the architecture, and
-    the existing items;
+    the existing items, which its part carries as artifacts keyed by their title;
   - recipe `sprint-facts` — the sprint's facts, the product's issues opened or closed during the sprint, its job records
     and result records — each named as a source; never a mail;
   - check `plan-checks` — `planFindings` on a drafted plan;

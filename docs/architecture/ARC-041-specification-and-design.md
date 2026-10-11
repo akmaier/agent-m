@@ -101,16 +101,16 @@ kinds every input their rules demand.
 | Module | Functions other subsystems use |
 |---|---|
 | MOD-approvals | `approvalSchema`, `statusOf`, `statuses`, `lastAcceptedText`, `acceptShown`, `acceptanceBlockers`, `fallbackAcceptLink`, `approvalStrategies` |
-| MOD-spec-changes | `Queue`, `queues`, `openQueueOf`, `proposeSection`, `entryView`, `acceptEntries`, `applyApproved`, `requirementHistory`, `specStrategies` |
-| MOD-artifact-edits | `saveFile`, `saveGroupFile`, `fallbackEditLinks`, `reviewLayoutCommit`, `editStrategies` |
+| MOD-spec-changes | `Queue`, `queues`, `openQueueOf`, `proposeSection`, `saveEntry`, `entrySections`, `entryView`, `acceptEntries`, `applyApproved`, `requirementHistory`, `specStrategies` |
+| MOD-artifact-edits | `saveFile`, `keptIdentifier`, `saveGroupFile`, `fallbackEditLinks`, `reviewLayoutCommit`, `editStrategies` |
 
 ### Its modules
 
 | Module | Folder | Responsibility |
 |---|---|---|
 | MOD-approvals | `src/approvals/` | the schema of approval records under `docs/approvals/`; the status of a reviewed file — open, accepted, changed since acceptance —; its last accepted text; accepting one or many files shown, in one commit with one record each, leaving out and naming what changed since it was shown or rests on what is not accepted; GitHub's prefilled page without a token; the recipes of accepted use cases and of the whole architecture, and the precondition that what a draft rests on is accepted |
-| MOD-spec-changes | `src/spec-changes/` | change queues under `docs/spec-freigaben/`: proposals of whole sections with their rationale, impact list and origin; the person's open queue of the day; acceptance in the queue's order with each anchor, the SPEC section replaced byte for byte with its record and decision in one commit, nothing written on a stale text; the same application for the instance's workflow without a token; each requirement's history; the recipe of the SPEC with its open queues, and the writer that turns classified candidates into queue entries — a duplicate as an added source, a change under the existing name, a conflict only as a person decided it |
-| MOD-artifact-edits | `src/artifact-edits/` | saving an edited use case, decision, module file or group file only on the blob it was opened on, refusing a changed identifier, keeping the edit on refusal; GitHub's editor and new-file pages without a token; the review layout written into a new product; the writer that commits drafted use cases and architecture files as open files, new identifiers assigned, in one commit |
+| MOD-spec-changes | `src/spec-changes/` | change queues under `docs/spec-freigaben/`: proposals of whole sections with their rationale, impact list and origin; the person's open queue of the day, and an open entry edited in place; acceptance in the queue's order with each anchor, the SPEC section replaced byte for byte with its record and decision in one commit, nothing written on a stale text; the same application for the instance's workflow without a token; each requirement's history; the recipe of the SPEC with its open queues, the sections that classified candidates change — a duplicate as an added source, a change under the existing name, a conflict only as a person decided it —, and the writer that turns them into queue entries |
+| MOD-artifact-edits | `src/artifact-edits/` | saving an edited use case, decision, module file or group file only on the blob it was opened on, refusing a changed identifier, keeping the edit on refusal; a drafted change's identifier restored before it is edited; GitHub's editor and new-file pages without a token; the review layout written into a new product; the writer that commits drafted use cases and architecture files as open files, new identifiers assigned, in one commit |
 
 ```mermaid
 flowchart BT

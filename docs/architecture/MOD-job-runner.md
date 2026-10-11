@@ -12,16 +12,25 @@ uses:
   - MOD-participant-list.differs
   - MOD-participant-list.Participant
   - MOD-documents.documentFindings
+  - MOD-documents.readDocument
+  - MOD-documents.artifactSchemas
+  - MOD-documents.artifactSchemaOf
   - MOD-documents.classifyCandidates
+  - MOD-documents.Candidate
+  - MOD-documents.Classified
   - MOD-documents.loadSchema
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.graphFindings
   - MOD-trace-graph.selfSufficiencyFindings
   - MOD-spec-document.requirementFindings
+  - MOD-spec-document.parseSpec
   - MOD-group-document.parseGroupFile
+  - MOD-group-document.applyMoves
   - MOD-group-document.hierarchy
+  - MOD-group-document.GroupMove
   - MOD-test-document.testFindings
   - MOD-test-document.testDeclarations
+  - MOD-test-document.isTestFile
   - MOD-text-tools.finding
   - MOD-text-tools.formatFinding
   - MOD-text-tools.Finding
@@ -80,12 +89,12 @@ It keeps the registry of strategies of the program it runs in, in memory, filled
 | `instruction` | recipe | the person's words, from the job's parameters, as one part |
 | `draft` | recipe | the draft the job is handed: the draft under review, for a reviewing kind; the cases as the person left them, for `write-tests` |
 | `return-draft` | writer | writes nothing; hands the result to the caller |
-| `document-schema` | check | MOD-documents' `documentFindings` on every drafted document |
-| `candidate-classes` | check | MOD-documents' `classifyCandidates` of the drafted candidates against the existing artifacts |
+| `document-schema` | check | MOD-documents' `documentFindings` on every drafted document, read with the schema `artifactSchemaOf` names for its path; a path no schema's pattern matches is not judged here |
+| `candidate-classes` | check | MOD-documents' `classifyCandidates` of the drafted candidates against the existing artifacts the job's parts carry, each round: an error for a candidate the rule finds a duplicate of an existing artifact while its drafter classed it otherwise, naming that artifact (`EXACT DUPLICATES ARE FOUND WITHOUT A MODEL`), and for a change, a duplicate or a conflict that names no existing artifact or one no part carries (`A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT`). The classes of the last round — the candidates of one key merged, naming every one they came from, and exact duplicates decided by rule — are the result's `classes`. A draft whose parts carry no artifact has nothing to classify |
 | `graph-checks` | check | MOD-trace-graph's `graphFindings` on the snapshot with the drafted files put in place of their paths, and its `selfSufficiencyFindings` there against the instance's repository, the `owner/name` of the context's instance |
-| `requirement-form` | check | MOD-spec-document's `requirementFindings` on every drafted requirement |
-| `group-rules` | check | the problems MOD-group-document's `hierarchy` reports for a drafted arrangement |
-| `test-declarations` | check | MOD-test-document's `testFindings` on every declaration in the files the reported branch adds or changes, read with `testDeclarations` |
+| `requirement-form` | check | MOD-spec-document's `requirementFindings` on every drafted requirement, the candidates written as a SPEC section with the job's `source` as their source and read with `parseSpec` |
+| `group-rules` | check | the drafted moves — MOD-group-document's `GroupMove`s — applied with `applyMoves` to the group file of the kind the job's parameters name, read from the product's snapshot: each refused move, and the findings `hierarchy` reports for the result against the kind's items, read from the snapshot too |
+| `test-declarations` | check | MOD-test-document's `testFindings` on every declaration in the files the reported branch adds or changes, read with `testDeclarations`, and an error under `A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS` for a file the branch adds that `isTestFile` calls a test file and that declares none. A branch the host does not hold is a finding sent back, since the drafter reported a branch it has not pushed; any other failure of the host is thrown by name |
 
 **The round record.** Every round of the correction loop is kept and recorded with the job (`THE ROUNDS ARE COUNTED AND
 SHOWN`). Its text form, which MOD-job-ledger writes into the end of a job's record and the pages show beside a draft:
@@ -140,7 +149,9 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   Record<string, (context: JobContext) => Promise<Finding | null>>, steps: Record<string, (draft: unknown, context:
   JobContext) => Promise<{ draft: unknown, findings: Finding[] }>>, writers: Record<string, (result: JobResult, context:
   JobContext) => Promise<WriteOutcome>> }`: the plug-in contract. A strategy throws only for a failure of its own input or
-  output — a hash that does not match, a repository that refuses — and names it; a finding is returned, never thrown.
+  output — a hash that does not match, a repository that refuses — and names it; a finding is returned, never thrown. A
+  writer whose every file already stands on the head byte for byte as it would write it commits nothing and returns an
+  outcome without a commit (UC-010 4a).
 - `Driver` — `{ participant: Participant, send(input: DriverInput, options?: { onOutput?: (chunk: string) => void,
   signal?: AbortSignal }) -> Promise<{ text: string, usage: Usage | null }> }`: one participant behind its route. `send`
   makes one exchange and returns the participant's answer as text and the usage its runtime reported, or `null`; it
@@ -149,8 +160,9 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
 - `DriverInput` — `{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
   workdir: string | null }`: the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
   and `(none)` where a recipe gave no part — a driver sends this prompt as it is and does not add the parts again —; the
-  parts; the output schema the answer must follow; the findings of the last round with the draft they concern; and for an
-  agent that works in a folder, that folder.
+  parts; the output schema the answer must follow; the findings of the last round with the draft they concern — or, in
+  the first exchange of a job given `refine`, no finding and the draft to change —; and for an agent that works in a
+  folder, that folder.
 - `Usage` — `{ inputTokens: number | null, outputTokens: number | null, minutes: number | null, cost: { amount: number,
   currency: string } | null }`: exactly what a runtime reported; nothing is estimated.
 - `JobContext` — `{ kind: KindDefinition, params: Record<string, unknown>, product: { address: string, snapshot: Snapshot,
@@ -165,12 +177,16 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   the program — the token in a browser, the CI secret in CI, the computer's login on a Bridge; `places` gives, for every
   restricted source and for the mailbox, the places they allow; `gates` the gates of the product's workflow at this job's
   points, with whether their decisions are recorded.
-- `Part` — `{ name: string, text: string, size: number, sources: string[], required: boolean, recipe: string }`: one piece
+- `Part` — `{ name: string, text: string, size: number, sources: string[], required: boolean, recipe: string, artifacts:
+  { id: string, keys: string[] }[] }`: one piece
   of a job's input; `size` in tokens as estimated: its characters divided by three, rounded up — more than most texts
   take, so that a participant whose context is too small is named before anything is sent rather than after —; `sources`
   the identifiers of the requirement sources whose content it
   carries; `required` false only where the kind says the part may be left out, and then only with the reason shown;
-  `recipe` the recipe that gave it, whose named place of the prompt it fills — set by the runner, not by the recipe.
+  `recipe` the recipe that gave it, whose named place of the prompt it fills — set by the runner, not by the recipe;
+  `artifacts` the existing artifacts the part shows the participant, each with its identifier and the values of its
+  format's key — for a requirement its name and its rule —, against which `candidate-classes` classifies a draft; empty
+  for a part that shows none.
 - `Destination` — `{ participant: Participant, role: "drafter" | "reviewer" | "checker", place: string, parts: string[],
   size: number }`: one participant that will receive something, and what; `size` is the kind's prompt and every part
   it receives, each estimated as a part's size is.
@@ -179,20 +195,23 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   number, context: number | null }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
   what a run panel shows before the person's click (`THE PAGE STATES WHAT IT SENDS WHERE`); `parts` holds the parts of
   the drafter's and the reviewers' recipes, each once; `leftOut` the parts a recipe whose part may be left out could not
-  give, each with the failure's words as its reason; `blocking` the findings of preconditions and of eligibility that keep
-  the job from starting.
+  give, each with the failure's words as its reason; `blocking` the findings of preconditions, of eligibility, and of a
+  check that needs what the context lacks — `test-declarations` without the product's host —, which keep the job from
+  starting.
 - `Round` — `{ number: number, findings: Finding[], answers: { finding: Finding, how: "fixed" | "justified" | "answered",
   text: string | null }[], changed: boolean }`.
 - `JobResult` — `{ draft: unknown, raw: string | null, drafter: Participant | null, rounds: Round[], remaining: Finding[],
-  forPerson: Finding[], stepFindings: Finding[], stoppedBecause: "passed" | "limit" | "unchanged" | "unusable" | "not
-  checked" | "gate", gate: string | null, usage: { participant: string, usage: Usage | null }[], written: WriteOutcome |
+  forPerson: Finding[], stepFindings: Finding[], classes: Classified[] | null, stoppedBecause: "passed" | "limit" |
+  "unchanged" | "unusable" | "not checked" | "gate", gate: string | null, usage: { participant: string, usage: Usage | null }[], written: WriteOutcome |
   null }`: the draft as the output schema reads it; the raw answer, kept folded for a person when it could not be read;
   the participant that drafted it, whom a writer's provenance lines name; every round; what the loop left; what a person
   decides; what the kind's steps found, which the page shows and the writer reads — the mark of a reuse decision without
-  its due diligence among them (MOD-reuse-facts); why the loop stopped; the gate it stopped at; what the writer did when it
-  ran at once — `null` while the result waits for a person, or when nothing was written.
-- `WriteOutcome` — `{ commits: string[], files: string[], pullRequest: string | null, shown: unknown }`: what a writer did;
-  `shown` is what `return-draft` hands back.
+  its due diligence among them (MOD-reuse-facts); the classes of `candidate-classes`' last round, which the page shows
+  and the person may change, `null` for a kind without that check; why the loop stopped; the gate it stopped at; what
+  the writer did when it ran at once — `null` while the result waits for a person, or when nothing was written.
+- `WriteOutcome` — `{ commits: string[], files: string[], pullRequest: string | null, shown: unknown, notes: string[] }`:
+  what a writer did; `shown` is what `return-draft` hands back; `notes` what the writer changed of the draft while
+  writing, one line each, which the job's end record lists — a realised name it removed (UC-007 4a).
 - `registerStrategies(owner: string, strategies: Partial<Strategies>) -> void` — adds the named strategies a module
   offers. Throws `DuplicateStrategy { strategy, owners }` when a name is registered twice — the strategy's name in
   `strategy`, since an error's own `name` is its type —, and then adds none of them; a program registers each owner
@@ -208,9 +227,11 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   `UnknownStrategy { strategy }` for a strategy no module registered, and whatever a recipe throws by name — except a recipe
   whose part may be left out: its part is left out, in `leftOut`.
 - `runJob(prepared: Prepared, drivers: { drafter: Driver | null, reviewers: Driver[] }, options: { attended: boolean,
-  context: JobContext, from?: unknown, onRound?: (round: Round) => void, onOutput?: (chunk: string) => void, onGate?:
-  (gate: string) => Promise<void>, signal?: AbortSignal }) -> Promise<JobResult>` — refuses to start while
-  `prepared.blocking` or `prepared.notFitting` is not empty (`NotStartable`). It sends the input to the drafter — or, with
+  context: JobContext, from?: unknown, refine?: unknown, onRound?: (round: Round) => void, onOutput?: (chunk: string) =>
+  void, onGate?: (gate: string) => Promise<void>, signal?: AbortSignal }) -> Promise<JobResult>` — refuses to start while
+  `prepared.blocking` or `prepared.notFitting` is not empty (`NotStartable`). With `refine`, the drafter's first exchange
+  carries that draft as `previous`, beside the job's parts with the person's follow-up instruction among them, and the
+  drafter changes it as the instruction says (UC-019 step 8, *Refine*). It sends the input to the drafter — or, with
   `from`, begins with that draft, one a person changed and wants checked again as a whole (UC-022, UC-023), and without a
   drafter only checks it once and returns the findings on it, stopped `passed` when nothing is found, `limit` when a
   finding is left, and `not checked` when a reviewer's answer cannot be read —, reads the answer by the output schema —
@@ -246,8 +267,8 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   Promise<WriteOutcome>` — writes a result that waited for a person, on their click — *Write proposals*, *Save*, *Save
   plan*, *Add to backlog*: runs the kind's steps again on the draft as the person left it, since they may have changed
   what a step works on, such as the reuse candidate they chose, and then calls the kind's writer with `result`, its draft
-  replaced by theirs and its `stepFindings` by those the steps return now. `result` is what `runJob` returned, whose
-  drafter and rounds the provenance lines name; `context` is read at the click, so that the writer commits on the current
+  and its `classes` replaced by theirs and its `stepFindings` by those the steps return now. `result` is what `runJob`
+  returned, whose drafter and rounds the provenance lines name; `context` is read at the click, so that the writer commits on the current
   head. Throws what the writer throws by name — `DueDiligenceMissing` from `open-files`, which then writes nothing, while
   a reuse decision carries the mark of a registry that could not be read (UC-022); a refused commit because the branch
   moved.
@@ -258,8 +279,9 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
 
 ## Files
 
-It reads the data files of MOD-job-catalogue through `kindOf`, its own `rounds.schema.md`, and, for `test-declarations`,
-the branch a coding participant reports, through the host. It writes nothing itself: the writers write, and the route
+It reads the data files of MOD-job-catalogue through `kindOf`, its own `rounds.schema.md`, for `test-declarations` the
+branch a coding participant reports, through the host, and for `group-rules` the group file and the items of its kind in
+the product's snapshot. It writes nothing itself: the writers write, and the route
 appends to the job's record.
 
 ## Uses
@@ -267,10 +289,13 @@ appends to the job's record.
 - `MOD-job-catalogue.kindOf`, `MOD-job-catalogue.KindDefinition` — the definition it interprets.
 - `MOD-participant-list.eligible`, `MOD-participant-list.differs`, `MOD-participant-list.Participant` — who may receive
   what, and that reviewers and checkers differ.
-- `MOD-documents.documentFindings`, `MOD-documents.classifyCandidates`, `MOD-trace-graph.traceGraph`,
-  `MOD-trace-graph.graphFindings`, `MOD-trace-graph.selfSufficiencyFindings`, `MOD-spec-document.requirementFindings`,
-  `MOD-group-document.parseGroupFile`, `MOD-group-document.hierarchy`, `MOD-test-document.testFindings`, `MOD-test-document.testDeclarations` — the built-in
-  checks.
+- `MOD-documents.documentFindings`, `MOD-documents.readDocument`, `MOD-documents.artifactSchemas`,
+  `MOD-documents.artifactSchemaOf`, `MOD-documents.classifyCandidates` and the types `MOD-documents.Candidate` and
+  `MOD-documents.Classified`, `MOD-trace-graph.traceGraph`, `MOD-trace-graph.graphFindings`,
+  `MOD-trace-graph.selfSufficiencyFindings`, `MOD-spec-document.requirementFindings`, `MOD-spec-document.parseSpec`,
+  `MOD-group-document.parseGroupFile`, `MOD-group-document.applyMoves`, `MOD-group-document.hierarchy` and the type
+  `MOD-group-document.GroupMove`, `MOD-test-document.testFindings`, `MOD-test-document.testDeclarations`,
+  `MOD-test-document.isTestFile` — the built-in checks.
 - `MOD-documents.loadSchema` — the round record's schema.
 - `MOD-text-tools.finding`, `MOD-text-tools.formatFinding`, `MOD-text-tools.Finding` — findings of its own, such as an
   answer that cannot be read, and their text in the round record.
