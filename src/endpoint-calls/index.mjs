@@ -1,5 +1,4 @@
-// MOD-endpoint-calls — the direct short test and diagnosis that UC-003 needs. The endpoint driver, job execution,
-// correction loop, and Bridge composition are intentionally not part of ITM-260.
+// MOD-endpoint-calls — direct endpoint tests, diagnoses, and model drivers for browser and Node callers.
 
 /**
  * @typedef {{ name: string, kind: "openai-compatible" | "anthropic", baseUrl: string, model: string, key: string | null }} EndpointConfig
@@ -25,6 +24,10 @@ function endpointUrl(baseUrl, path) {
 }
 
 function requestFor(config) {
+  return providerRequest(config, ONE_WORD_PROMPT, { maxTokens: 1 });
+}
+
+function providerRequest(config, prompt, { maxTokens = null, signal } = {}) {
   if (config.kind === "anthropic") {
     const headers = {
       "content-type": "application/json",
@@ -34,11 +37,8 @@ function requestFor(config) {
     if (config.key !== null) headers["x-api-key"] = config.key;
     return {
       url: endpointUrl(config.baseUrl, "/messages"),
-      init: {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ model: config.model, max_tokens: 1, messages: [{ role: "user", content: ONE_WORD_PROMPT }] }),
-      },
+      init: { method: "POST", headers, signal,
+        body: JSON.stringify({ model: config.model, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }) },
     };
   }
 
@@ -46,11 +46,8 @@ function requestFor(config) {
   if (config.key !== null) headers.Authorization = `Bearer ${config.key}`;
   return {
     url: endpointUrl(config.baseUrl, "/chat/completions"),
-    init: {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ model: config.model, messages: [{ role: "user", content: ONE_WORD_PROMPT }], max_tokens: 1 }),
-    },
+    init: { method: "POST", headers, signal,
+      body: JSON.stringify(maxTokens === null ? { model: config.model, messages: [{ role: "user", content: prompt }] } : { model: config.model, messages: [{ role: "user", content: prompt }], max_tokens: maxTokens }) },
   };
 }
 
@@ -64,19 +61,10 @@ async function responseMessage(response) {
 }
 
 function driverRequest(config, prompt, signal) {
-  if (config.kind === "anthropic") {
-    const headers = { "content-type": "application/json", "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" };
-    if (config.key !== null) headers["x-api-key"] = config.key;
-    return { url: endpointUrl(config.baseUrl, "/messages"), init: { method: "POST", headers, signal,
-      body: JSON.stringify({ model: config.model, max_tokens: DRIVER_MAX_TOKENS, messages: [{ role: "user", content: prompt }] }) } };
-  }
-  const headers = { "content-type": "application/json" };
-  if (config.key !== null) headers.Authorization = `Bearer ${config.key}`;
-  return { url: endpointUrl(config.baseUrl, "/chat/completions"), init: { method: "POST", headers, signal,
-    body: JSON.stringify({ model: config.model, messages: [{ role: "user", content: prompt }] }) } };
+  return providerRequest(config, prompt, { maxTokens: config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null, signal });
 }
 
-function usageOf(usage, kind) {
+function usageOf(usage) {
   if (!usage) return null;
   const inputTokens = usage.prompt_tokens ?? usage.input_tokens ?? null;
   const outputTokens = usage.completion_tokens ?? usage.output_tokens ?? null;
@@ -106,7 +94,7 @@ export function endpointDriver(config, participant) {
       throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message }, config, where));
     }
     const body = await response.json();
-    return { text: answerOf(body, config.kind), usage: usageOf(body?.usage, config.kind) };
+    return { text: answerOf(body, config.kind), usage: usageOf(body?.usage) };
   } };
 }
 

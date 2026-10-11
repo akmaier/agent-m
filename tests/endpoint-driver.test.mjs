@@ -16,8 +16,8 @@ import { join } from "node:path";
 import { endpointDriver } from "../src/endpoint-calls/index.mjs";
 
 const FAULTS = {
-  "TST-316-001": ["src/endpoint-calls/index.mjs", 'content: prompt', 'content: "broken"'],
-  "TST-316-002": ["src/endpoint-calls/index.mjs", "max_tokens: DRIVER_MAX_TOKENS", "max_tokens: 1"],
+  "TST-316-001": ["src/endpoint-calls/index.mjs", "maxTokens === null ?", "false ?"],
+  "TST-316-002": ["src/endpoint-calls/index.mjs", 'config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null', 'false ? DRIVER_MAX_TOKENS : null'],
   "TST-316-003": ["src/endpoint-calls/index.mjs", "throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message }, config, where));", "return {};"],
   "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, input.prompt, options.signal)", "driverRequest(config, input.prompt)"],
 };
@@ -136,11 +136,11 @@ after(() => {
       const invoke = () => { const env = { ...process.env, AGENT_M_316_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
         return spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/endpoint-driver.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
       const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/endpoint-driver.test.mjs")));
-      let faultHash, failed, faultEnded, restoreStarted, restoredHash, passed, restoredEnded; const faultStarted = new Date().toISOString();
+      let faultHash, failed, faultEnded, restoreStarted, restoredHash, passed, positiveEnded, restoredEnded; const faultStarted = new Date().toISOString();
       try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); faultEnded = new Date().toISOString(); }
       finally { restoreStarted = new Date().toISOString(); writeFileSync(source, original); restoredHash = digest(readFileSync(source)); restoredEnded = new Date().toISOString(); }
-      passed = invoke();
-      console.log("TST316-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/endpoint-driver.test.mjs"], cwd: copied, childflag: "AGENT_M_316_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
+      passed = invoke(); positiveEnded = new Date().toISOString();
+      console.log("TST316-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/endpoint-driver.test.mjs"], cwd: copied, childflag: "AGENT_M_316_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
       assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));
       assert.equal(restoredHash, originalHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id); assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
     }
