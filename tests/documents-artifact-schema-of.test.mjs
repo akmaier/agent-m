@@ -67,20 +67,23 @@ test("artifactSchemaOf — a path under docs/ that no pattern matches gives null
 });
 
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; DON'T REPEAT YOURSELF
-// given: known positive first — a use case's path —; then seven paths, each a near miss of a pattern: UC-07 with two digits
-//        where {nnn} is three or more, a capital in a use case's slug and in a module's, one folder more, another extension,
-//        a use case's file name in the architecture folder, and a backlog item with no slug
+// given: known positive first — a use case's path —; then nine paths, each a near miss of a pattern: UC-07 with two digits
+//        where {nnn} is three or more, a capital in a use case's slug and in a module's, one folder more and one in front,
+//        another extension and text after the extension, a use case's file name in the architecture folder, and a backlog
+//        item with no slug
 // input: artifactSchemaOf of each
-// expect: the use-case schema for the known positive; null for each of the seven
+// expect: the use-case schema for the known positive; null for each of the nine: a pattern matches the whole path
 test("artifactSchemaOf — a pattern's near miss gives null", () => {
   assert.equal(artifactSchemaOf(USE_CASE), useCase, "known positive: a use case's path gives the use-case schema");
   const nearMisses = [
     ["two digits where {nnn} is three or more", "docs/use-cases/UC-07-derive-use-cases-from-requirements.md"],
     ["a capital in a use case's slug", "docs/use-cases/UC-007-Derive-Use-Cases.md"],
-    ["one folder more", "docs/use-cases/old/UC-007-derive-use-cases-from-requirements.md"],
-    ["another extension", "docs/use-cases/UC-007-derive-use-cases-from-requirements.txt"],
-    ["a use case's file name in the architecture folder", "docs/architecture/UC-007-derive-use-cases-from-requirements.md"],
     ["a capital in a module's slug", "docs/architecture/MOD-Identifiers.md"],
+    ["one folder more", "docs/use-cases/old/UC-007-derive-use-cases-from-requirements.md"],
+    ["one folder in front", "drafts/docs/use-cases/UC-007-derive-use-cases-from-requirements.md"],
+    ["another extension", "docs/use-cases/UC-007-derive-use-cases-from-requirements.txt"],
+    ["text after the extension", "docs/use-cases/UC-007-derive-use-cases-from-requirements.md.bak"],
+    ["a use case's file name in the architecture folder", "docs/architecture/UC-007-derive-use-cases-from-requirements.md"],
     ["a backlog item with no slug", "docs/backlog/ITM-378.md"],
   ];
   for (const [label, path] of nearMisses) {
