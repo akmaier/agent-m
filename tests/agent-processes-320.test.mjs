@@ -1,6 +1,6 @@
 // Module: MOD-agent-processes
 // Level: unit
-// Guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-011; UC-017; UC-044
+// Guards: THE BRIDGE FINDS THE INSTALLED AGENTS; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-011; UC-017; UC-044
 
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -32,7 +32,7 @@ const registerFixture = (folder, mutate = (text) => text) => {
 // level: unit
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-011; UC-017
-// given: a controlled PATH containing only register-named Claude, Codex and OpenCode executables whose version and harmless login-status outputs are constructed.
+// given: a controlled PATH containing only register-named Claude and Codex executables whose version and harmless login-status outputs are constructed; OpenCode is absent.
 // input: installedAgents() reads the public register and performs its discovery checks.
 // expect: two installed agents carry their register name, version and logged-in state; the missing third carries all platform install guidance; no fixture receives a task.
 test("TST-320001: discovery reports register agents' version and own-login outcomes", async () => {
@@ -48,7 +48,7 @@ test("TST-320001: discovery reports register agents' version and own-login outco
     assert.deepEqual(Object.keys(agents.find((agent) => agent.name === "opencode").install).sort(), ["linux", "macos", "windows"]);
     const missing = agents.find((agent) => agent.name === "opencode");
     assert.deepEqual({ installed: missing.installed, version: missing.version, loggedIn: missing.loggedIn }, { installed: false, version: null, loggedIn: null });
-    for (const url of Object.values(missing.install)) assert.match(url, /^https:\/\//);
+    for (const url of Object.values(missing.install)) assert.match(url, /^https:\/\/opencode\.ai\/docs\/installation(?:\/|$)/);
     assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n").sort(), ["--version", "--version", "auth status", "login status"].sort());
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
@@ -63,12 +63,14 @@ test("TST-320001: discovery reports register agents' version and own-login outco
 test("TST-320002: discovery names missing supported commands without a task", async () => {
   const folder = fixture();
   try {
-    command(folder, "claude", "case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"none\"}'; exit 1;; *) exit 64;; esac");
+    const calls = join(folder, "calls");
+    command(folder, "claude", `printf '%s\\n' \"$*\" >> ${calls}; case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"none\"}'; exit 1;; *) exit 64;; esac`);
     const agents = await withPath(folder, () => installedAgents());
     assert.equal(agents.find((agent) => agent.name === "claude").installed, true);
     assert.equal(agents.find((agent) => agent.name === "claude").loggedIn, false);
     assert.match(JSON.stringify(agents.find((agent) => agent.name === "claude")), /claude auth login/);
     assert.equal(JSON.stringify(agents.find((agent) => agent.name === "claude")).includes("password"), false);
+    assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n").sort(), ["--version", "auth status"].sort());
     for (const name of ["codex", "opencode"]) assert.equal(agents.find((agent) => agent.name === name).installed, false);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
@@ -78,19 +80,18 @@ test("TST-320002: discovery names missing supported commands without a task", as
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-011
 // given: a controlled Claude executable that records its complete argument vector and returns exactly one word.
-// input: testAgent(the public Claude Agent, work folder).
-// expect: the invoked task asks for one word, the returned one-word answer is retained, and no other agent executable is reachable.
+// input: testAgent(the discovered public Claude Agent).
+// expect: its documented print-mode task asks for one word and returns `{ answered: true, version }`; no other agent executable is reachable.
 test("TST-320003: harmless agent test sends a one-word task", async () => {
   const folder = fixture();
   try {
     const record = join(folder, "arguments");
-    command(folder, "claude", `case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) printf '%s\\n' \"$@\" > ${record}; echo yes;; esac`);
+    command(folder, "claude", `case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) [ \"$#\" = 2 ] && [ \"$1\" = '-p' ] && [ \"$2\" = 'Reply with one word: ok.' ] && printf '%s\\n' \"$@\" > ${record} && echo yes || exit 64;; esac`);
     const agent = (await withPath(folder, () => installedAgents())).find((value) => value.name === "claude");
     const answer = await withPath(folder, () => testAgent(agent));
     assert.deepEqual(answer, { answered: true, version: "2.1.300" });
-    const invocation = readFileSync(record, "utf8");
-    assert.match(invocation, /-p|--print/);
-    assert.match(invocation, /one word/i);
+    const argv = readFileSync(record, "utf8").trim().split("\n");
+    assert.deepEqual(argv, ["-p", "Reply with one word: ok."]);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 
@@ -99,15 +100,18 @@ test("TST-320003: harmless agent test sends a one-word task", async () => {
 // module: MOD-agent-processes
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-011; UC-044
 // given: a controlled Claude executable whose harmless request exits unsuccessfully after its own login check.
-// input: testAgent(public Agent, work folder).
-// expect: the refusal remains a named agent-test failure rather than a fabricated successful answer.
+// input: testAgent(the discovered public Claude Agent).
+// expect: the documented print-mode harmless request returns `{ answered: false, reason }` rather than a fabricated success.
 test("TST-320004: harmless agent refusal is named", async () => {
   const folder = fixture();
   try {
-    command(folder, "claude", "case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) echo refused >&2; exit 23;; esac");
+    const record = join(folder, "arguments");
+    command(folder, "claude", `case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) [ \"$#\" = 2 ] && [ \"$1\" = '-p' ] && [ \"$2\" = 'Reply with one word: ok.' ] && printf '%s\\n' \"$@\" > ${record} && { echo refused >&2; exit 23; } || exit 64;; esac`);
     const agent = (await withPath(folder, () => installedAgents())).find((value) => value.name === "claude");
     const answer = await withPath(folder, () => testAgent(agent));
     assert.deepEqual(answer, { answered: false, reason: "refused" });
+    const argv = readFileSync(record, "utf8").trim().split("\n");
+    assert.deepEqual(argv, ["-p", "Reply with one word: ok."]);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 
@@ -115,7 +119,7 @@ test("TST-320004: harmless agent refusal is named", async () => {
 // level: unit
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-017
-// given: an isolated copied MOD-agent-processes module and its actual agents.md register with one required register field removed.
+// given: an isolated copied MOD-agent-processes module and its actual agents.md register with exactly one required header field corrupted.
 // input: importing the copied public module that loads that corrupt register.
 // expect: schema-breaking register data refuses module load; the test does not require a particular error class.
 test("TST-320005: corrupt copied agent register refuses module load", async () => {
@@ -124,7 +128,7 @@ test("TST-320005: corrupt copied agent register refuses module load", async () =
     const valid = registerFixture(join(folder, "valid"));
     await import(new URL(`file://${valid}`).href);
     const corrupt = registerFixture(join(folder, "corrupt"), (text) => {
-      assert.match(text, /\|\s*Command\s*\|/, "known positive: the valid register has its required Command field");
+      assert.equal((text.match(/\|\s*Command\s*\|/g) ?? []).length, 1, "known positive: exactly one required Command header exists");
       return text.replace(/\|\s*Command\s*\|/, "| Broken command |");
     });
     await assert.rejects(import(new URL(`file://${corrupt}`).href), (error) => error?.code !== "ERR_MODULE_NOT_FOUND" && error?.name !== "SyntaxError" && /command|register|schema/i.test(String(error.message)));
