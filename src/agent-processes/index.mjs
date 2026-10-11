@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { documentFindings, loadSchema, readRegister } from "../documents/index.mjs";
+import { processDriver } from "./processes.mjs";
 
 const OWNER = "MOD-agent-processes";
 const SCHEMA_FILE = new URL("./agents.schema.md", import.meta.url);
@@ -59,7 +60,7 @@ function loginMatches(login, result) {
 }
 const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, install: row.install });
 const taskArgs = (task, prompt) => task.args.map((arg) => arg === "{prompt}" ? prompt : arg);
-export function ownLoginEnvironment() {
+function ownLoginEnvironment() {
   const credentials = new Set(rows.map((row) => row.keyVariable).filter((name) => name && name !== "—"));
   const environment = {};
   for (const name of Object.keys(process.env)) {
@@ -70,14 +71,14 @@ export function ownLoginEnvironment() {
 function valueAt(value, path) {
   return path.reduce((part, key) => part?.[key], value);
 }
-export function answerFor(task, stdout) {
+function answerFor(task, stdout) {
   if (task.finalAnswer.format === "text") return stdout.trim();
   const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
   const values = events.filter((event) => event.type === task.finalAnswer.eventType)
     .map((event) => valueAt(event, task.finalAnswer.path)).filter((value) => typeof value === "string");
   return values.at(-1)?.trim() ?? "";
 }
-export function usageFor(task, stdout) {
+function usageFor(task, stdout) {
   if (!task.usage) return null;
   const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
   const values = events.filter((event) => event.type === task.usage.eventType)
@@ -91,7 +92,16 @@ export function usageFor(task, stdout) {
     cost: null,
   };
 }
-export const agentConfiguration = (name) => rows.find((row) => row.name === name) ?? null;
+const agentConfiguration = (name) => rows.find((row) => row.name === name) ?? null;
+
+export function agentDriver(agent, options, participant) {
+  return processDriver(agent, options, participant, {
+    configuration: agentConfiguration,
+    answer: answerFor,
+    usage: usageFor,
+    ownLoginEnvironment,
+  });
+}
 
 /** @returns {Promise<Agent[]>} */
 export async function installedAgents() {
@@ -120,5 +130,3 @@ export async function testAgent(agent) {
   if (row.task.finalAnswer.oneWord && !/^\S+$/.test(answer)) return { answered: false, reason: "agent did not answer with one word" };
   return { answered: true, version: agent.version };
 }
-
-export { agentDriver } from "./processes.mjs";

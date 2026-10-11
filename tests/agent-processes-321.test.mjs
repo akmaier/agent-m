@@ -55,8 +55,8 @@ const OPENCODE = {
 };
 const FAULTS = {
   "TST-321001": [
-    "return { text: answerFor(row.task, result.stdout), usage: usageFor(row.task, result.stdout) };",
-    "return { text: \"\", usage: usageFor(row.task, result.stdout) };",
+    "return { text: helpers.answer(row.task, result.stdout), usage: helpers.usage(row.task, result.stdout) };",
+    "return { text: \"\", usage: helpers.usage(row.task, result.stdout) };",
   ],
   "TST-321002": [
     "return ownLoginEnvironment();",
