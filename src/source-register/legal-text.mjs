@@ -20,7 +20,7 @@ const ELI_PATH = /^\/eli\/([a-z_]+)\/(\d{4})\/(\d+)(?:\/(oj))?(?:\/[a-z]{3})?\/?
  * recogniseLegalText(address: string) -> { celex: string } | { eli: string } | null — the CELEX number or the ELI that an EUR-Lex
  * or an ELI address names. An EUR-Lex address names a CELEX number in its `uri` parameter (`CELEX:32024R1689`, the colon plain or
  * as %3A), and an EUR-Lex or data.europa.eu address an ELI in its path; the ELI is returned as the URI the publication office gives
- * it, `http://data.europa.eu/eli/<type>/<year>/<number>[/oj]`, without the language. Null for an address of any other site, of a
+ * it — `http://` and the host DATA_EUROPA, then `/eli/<type>/<year>/<number>[/oj]` —, without the language. Null for an address of any other site, of a
  * page of EUR-Lex that names no text, a CELEX number or an ELI of no form, an address that is no http(s) address, and anything
  * that is no text. Pure.
  * @param {string} address
