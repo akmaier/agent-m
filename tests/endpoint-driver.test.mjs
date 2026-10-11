@@ -6,9 +6,21 @@
 //
 // Constructed fetch replies model each provider. They do not contact a provider, wait, or estimate usage.
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { endpointDriver } from "../src/endpoint-calls/index.mjs";
+
+const FAULTS = {
+  "TST-316-001": ["src/endpoint-calls/index.mjs", 'content: prompt', 'content: "broken"'],
+  "TST-316-002": ["src/endpoint-calls/index.mjs", "max_tokens: DRIVER_MAX_TOKENS", "max_tokens: 1"],
+  "TST-316-003": ["src/endpoint-calls/index.mjs", "throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message }, config, where));", "return {};"],
+  "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, input.prompt, options.signal)", "driverRequest(config, input.prompt)"],
+};
 
 const OPENAI = { name: "example", kind: "openai-compatible", baseUrl: "https://models.example.test/v1", model: "tiny-model", key: "secret-key" };
 const ANTHROPIC = { name: "claude", kind: "anthropic", baseUrl: "https://claude.example.test/v1", model: "claude-test", key: "anthropic-key" };
@@ -111,4 +123,26 @@ test("TST-316-004: a blocked browser call and cancellation are named without a r
   await assert.rejects(driver.send(INPUT, { signal: controller.signal }), { name: "AbortError" });
   assert.equal(calls.length, 2, "neither failure is retried");
   assert.equal(calls[1].init.signal, controller.signal, "the cancellation signal reaches the direct request");
+});
+
+after(() => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_316_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-316-fault-")), copied = join(temporary, "repo");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    for (const [id, [file, needle, replacement]] of Object.entries(FAULTS)) {
+      const source = join(copied, file), original = readFileSync(source), digest = (value) => createHash("sha256").update(value).digest("hex");
+      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
+      const invoke = () => { const env = { ...process.env, AGENT_M_316_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
+        return spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/endpoint-driver.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
+      const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/endpoint-driver.test.mjs")));
+      let faultHash, failed, faultEnded, restoreStarted, restoredHash, passed, restoredEnded; const faultStarted = new Date().toISOString();
+      try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); faultEnded = new Date().toISOString(); }
+      finally { restoreStarted = new Date().toISOString(); writeFileSync(source, original); restoredHash = digest(readFileSync(source)); restoredEnded = new Date().toISOString(); }
+      passed = invoke();
+      console.log("TST316-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/endpoint-driver.test.mjs"], cwd: copied, childflag: "AGENT_M_316_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
+      assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));
+      assert.equal(restoredHash, originalHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id); assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
+    }
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
