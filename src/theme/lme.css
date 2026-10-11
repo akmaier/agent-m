@@ -1,7 +1,8 @@
 /* The look of the site — THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK: the colours of the FAU's Faculty of Engineering
    as lme.tf.fau.de shows them (FAU blue #04316a, dark blue #041e42, metallic #8c9fb1, and tints of them), the lab's logo in
    the header (src/brand/), and the header, menu and footer every page of the site carries. The font is the FAU sites'
-   Source Sans where the reader has it installed; the site loads no font from anywhere (NO SERVER). */
+   Source Sans where the reader has it installed; the site loads no font from anywhere (NO SERVER). Besides, the parts the
+   pages share: the buttons, the box a wide table scrolls in, and the line of the burn-down chart. */
 
 :root {
   --fau-blue: #04316a; --fau-dark: #041e42; --tf-metallic: #8c9fb1;
@@ -79,6 +80,14 @@ h1, h2, h3, h4 { color: var(--heading); line-height: 1.25; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--fau-blue); border-color: var(--fau-blue); color: #ffffff; }
 .btn.primary:hover { background: var(--fau-dark); }
+
+/* ---- a wide table, and the burn-down chart ---- */
+
+/* A table wider than its panel scrolls sideways in a box of its own, so the page keeps the margins of its heading. */
+.table-scroll { overflow-x: auto; }
+/* The burn-down chart's line — Mermaid's first line plot — in the accent and wider than the chart's axes, so that it reads at
+   least as clearly as they do, in light and in dark mode. */
+[data-burn-down] .line-plot-0 path { stroke: var(--accent); stroke-width: 3px; }
 
 /* ---- the footer: the lab, the book, where the source is ---- */
 
