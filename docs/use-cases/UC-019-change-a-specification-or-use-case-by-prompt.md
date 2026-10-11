@@ -11,6 +11,7 @@ realises:
   - A CI AGENT'S DRAFT ENTERS AS OPEN
   - A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
   - A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
+  - THE PERSON WHO PROMPTS IS A SOURCE
   - A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
   - NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
   - DERIVATION SEES THE EXISTING REQUIREMENTS
@@ -84,7 +85,9 @@ same Markdown the author does.
    are included. The author presses **Run** — that click is the decision to send.
 6. Agent M sends the instruction and the context with the change prompt from the repository's single
    definition. The participant returns the changed text; for requirements, each resulting requirement
-   is classified as new, a change to a named requirement, a duplicate of one, or a conflict with one.
+   is classified as new, a change to a named requirement, a duplicate of one, or a conflict with one,
+   and names among its sources the author's own source — the register entry of the author's account,
+   which the product links (UC-004, UC-015).
 7. **The correction loop.** Before showing anything, Agent M checks the draft without a model and
    sends every finding back to the participant, which returns a corrected draft; this repeats until the
    draft passes, or until the limit of rounds stated in the run panel (default 5), or until a round
@@ -138,6 +141,9 @@ sequenceDiagram
 - **4a. The context does not fit into the chosen participant.** Nothing is sent. Agent M says how
   many requirements or use cases there are and how much fits, and offers a participant with a larger
   context; it never leaves any of them out silently.
+- **4b. A change of requirements, and the author has no source of their own that the product links.**
+  Nothing is sent. Agent M says so and links registering the author as a source (UC-004) and linking
+  it to the product (UC-015).
 - **5a. The author does not press Run.** Nothing is sent.
 - **6a. The participant is a CLI or sandboxed agent** (UC-011). The request goes through the local
   bridge; the agent returns the draft to the dashboard and the flow continues at step 7.

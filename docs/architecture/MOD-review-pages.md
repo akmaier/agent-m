@@ -58,6 +58,7 @@ uses:
   - MOD-release-evidence.acceptAndRelease
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
+  - MOD-source-register.personSource
   - MOD-source-register.sourceStrategies
   - MOD-reuse-facts.reuseStrategies
   - MOD-participant-list.participantSchema
@@ -160,7 +161,10 @@ ReviewKind = {
     `review-architecture` on the edited files as its draft, and its findings stand beside them for the author to weigh.
   - `<k>/<id>/prompt`, `requirement/<name>/prompt` — *Change by prompt*: the instruction, the participant, the run panel,
     the draft in the editor as its difference against the current text, *Refine*, and *Save*, which lets the job's result
-    go on as the person left it; a CI agent's draft arrives as an open file or a queue entry instead.
+    go on as the person left it. For a change of requirements, the job's `source` is the person's own source, which
+    `personSource` names among the product's linked sources; without one nothing is sent, and the page says so and links
+    registering a source and linking it (UC-004, UC-015). A CI agent's draft arrives as an open file or a queue entry
+    instead.
   - `<k>/draft` — drafting: for use cases, the requirements to cover — by default those no use case realises —; for
     requirements, the linked source and its part; for the architecture, what the derivation covers, its preconditions,
     the drafting and the reviewing participant — a reviewer offered only if it differs from the drafter in participant
@@ -214,7 +218,7 @@ and `docs/participants.md` of the instance.
 - MOD-artifact-edits.saveFile, MOD-artifact-edits.saveGroupFile, MOD-artifact-edits.fallbackEditLinks — saves.
 - MOD-release-evidence.acceptAndRelease — accepting an open release test report.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — the product's links file and register, and its
-  linked sources with their parts.
+  linked sources with their parts; MOD-source-register.personSource — the source of the person who gives an instruction.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.
 - MOD-participant-list.participantSchema, MOD-participant-list.eligible, MOD-participant-list.differs — who may draft and

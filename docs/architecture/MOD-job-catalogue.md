@@ -113,6 +113,10 @@ DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` n
 latter for tests that pass before any code exists (UC-024, UC-034); for `write-tests`, `before-merge`. `implement`,
 `refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`.
 
+A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it — the linked
+register entry that MOD-source-register's `personSource` names for their account —, so that every requirement it drafts
+names that person among its sources (`THE PERSON WHO PROMPTS IS A SOURCE`).
+
 A kind whose jobs write or change requirements or use cases, tests or the architecture, review the architecture, or
 implement, names among its recipes the one of MOD-source-register that gives the chapters of the book *Vibe Coding* for
 that kind of work. `fix-bug`

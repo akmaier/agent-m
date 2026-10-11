@@ -5,4 +5,5 @@ APPLY`); the instance's register of sources is `docs/sources/`.
 
 | Source | Version | Hash | Part |
 |---|---|---|---|
-| SRC-vibe-coding | 2026-10-05 | `d4dff41c996d8a3f00c2b9323fc36bbeeb608bbbedd0ff301b2c8ac13ca667b3` | |
+| SRC-vibe-coding | 2026-10-05 | d4dff41c996d8a3f00c2b9323fc36bbeeb608bbbedd0ff301b2c8ac13ca667b3 | |
+| SRC-po-a-maier | 2026-10-11 | 8248c31707b2ec3588fd254c2eab849f0062b9471eea498c178a77cc1b39ecdc | |

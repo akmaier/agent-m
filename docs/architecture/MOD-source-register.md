@@ -31,6 +31,7 @@ provides:
   - registrationCommits
   - versionCommits
   - linkedVersion
+  - personSource
   - readContent
   - affectedRequirements
   - sourceFindings
@@ -50,13 +51,13 @@ sources (`THE INSTANCE KEEPS THE SOURCE REGISTER`) — each source a typed recor
 overwritten —; where a version's content lies, in the instance only where its licence permits republishing
 (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`); a product's links to the versions and parts that apply to it
 (`A PRODUCT LINKS THE SOURCES THAT APPLY`); a version's content read only with its hashes checked; the places a
-restricted source's content may go; EU legal texts recognised by their CELEX number or ELI and fetched from the EU's
-publication repository; the recipe that gives a job the excerpt of a linked version; and the recipes that give a job the
-chapters of the book *Vibe Coding* for its kind of work (`A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS
-ENGINEERING`, `A TEST JOB RECEIVES THE CHAPTER ON TESTING`, `AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING,
-ARCHITECTURE, DESIGN AND IMPLEMENTATION`, `AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN,
-IMPLEMENTATION AND TESTING`). It runs in a browser and in Node; fetching a legal text runs in Node, in the instance's
-workflow (ARC-039).
+restricted source's content may go; the source of a person, found by their account (`THE PERSON WHO PROMPTS IS A
+SOURCE`); EU legal texts recognised by their CELEX number or ELI and fetched from the EU's publication repository; the
+recipe that gives a job the excerpt of a linked version; and the recipes that give a job the chapters of the book *Vibe
+Coding* for its kind of work (`A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING`, `A TEST JOB
+RECEIVES THE CHAPTER ON TESTING`, `AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND
+IMPLEMENTATION`, `AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING`). It runs in a
+browser and in Node; fetching a legal text runs in Node, in the instance's workflow (ARC-039).
 
 ## Parts
 
@@ -80,7 +81,7 @@ workflow (ARC-039).
 | `authority` | `normative`, `advisory` or `informational`, as declared (`A SOURCE DECLARES ITS AUTHORITY`) | always |
 | `licence` | `may be republished`, `restricted`, or `unknown`, which counts as restricted, and the licence's name or terms (`A SOURCE DECLARES ITS LICENCE`) | always |
 | `designation` | a standard's full designation with edition and amendments, for example `IEC 62304:2006+AMD1:2015` (`A STANDARD IS REGISTERED BY ITS DESIGNATION`) | for a standard |
-| `identifier` | an EU legal text's CELEX number or ELI; a repository's address | for those two |
+| `identifier` | an EU legal text's CELEX number or ELI; a repository's address; a person's account on a repository server, `<server>/<account>`, by which a page finds the source of the person who gives it an instruction | for those three |
 | `content_repository` | the repository the person named for restricted content | for restricted content kept as files |
 | `places` | the processing places its content may be given to | for restricted content |
 
@@ -141,6 +142,9 @@ names no source.
   link names, or `null` when it names no register entry, the product links none, or the entry records no version the link
   names. The version carries the hash the product's link records, since a hash is not computed synchronously; `readContent`
   checks each of its files against its own SHA-256 when the version is read.
+- `personSource(links: Document, register: Document[], account: string) -> string | null` — the identifier of the
+  register entry of kind `person` whose `identifier` is the account `<server>/<account>` and which the product links, or
+  `null`: the source of the person who gives an instruction (`THE PERSON WHO PROMPTS IS A SOURCE`).
 - `readContent(version: SourceVersion, open: (source: string) => Promise<Host>) -> Promise<{ name: string, bytes:
   Uint8Array }[]>` — reads every stored file of the version from `docs/sources/<source>/<version>/` of the repository that
   holds it, at its default branch, across the network through the host `open` gives for the version's source — its
