@@ -67,7 +67,7 @@ test("TST-316-002: Anthropic driver returns text and null for an unreported usag
   assert.equal(calls[0].url, "https://claude.example.test/v1/messages");
   assert.equal(calls[0].init.headers["x-api-key"], "anthropic-key");
   assert.equal(calls[0].init.headers["anthropic-version"], "2023-06-01");
-  assert.deepEqual(JSON.parse(calls[0].init.body), { model: "claude-test", messages: [{ role: "user", content: INPUT.prompt }] });
+  assert.deepEqual(JSON.parse(calls[0].init.body), { model: "claude-test", max_tokens: 1, messages: [{ role: "user", content: INPUT.prompt }] });
 });
 
 // TST-316-003
