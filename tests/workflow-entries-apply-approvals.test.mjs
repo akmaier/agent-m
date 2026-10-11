@@ -18,7 +18,8 @@
 // sections, one queue, a register of one source the instance links. The expected values are read off the fixture's own texts, never off the
 // code. Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
 //   - The names the entry reads are GitHub's: GITHUB_ACTIONS, GITHUB_EVENT_NAME, GITHUB_WORKSPACE (the checkout), GITHUB_SERVER_URL and
-//     GITHUB_REPOSITORY (the instance repository), GITHUB_SHA (the commit of Agent M that runs) and, for the workflow's own token,
+//     GITHUB_REPOSITORY (the instance repository), GITHUB_REF_NAME (the branch the workflow runs for, which the entry reads and commits on — the clone's
+//     other functions would go to the server, which these tests do not reach), GITHUB_SHA (the commit of Agent M that runs) and, for the workflow's own token,
 //     GITHUB_TOKEN, which the workflow passes from `secrets.GITHUB_TOKEN`. main.mjs exports runEntry(name, env, { now }) -> EntryStatus,
 //     which the command line calls with process.env and the clock; the tests call it with the environment they build and a clock.
 //   - The outcomes: `done` after the commit, `nothing to do` when no approval is waiting, `not run` for a missing token, and `failed` when
@@ -123,7 +124,7 @@ async function withInstance(files, run) {
 }
 // What GitHub Actions gives the entry, and the token the workflow passes.
 const environment = (f, extra = {}) => ({ GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "push", GITHUB_WORKSPACE: f.clone, GITHUB_SERVER_URL: "https://github.com",
-  GITHUB_REPOSITORY: "alice/agent-m", GITHUB_SHA: f.head, GITHUB_TOKEN: "ghp_ALICEworkflowTOKEN0123456789abcdef", ...extra });
+  GITHUB_REPOSITORY: "alice/agent-m", GITHUB_REF_NAME: "main", GITHUB_SHA: f.head, GITHUB_TOKEN: "ghp_ALICEworkflowTOKEN0123456789abcdef", ...extra });
 const headOf = (f) => git(f.origin, "rev-parse", "main");
 const run = (f, extra) => { assert.ok(runEntry, `runEntry: ${entries.error?.message}`); return runEntry("onApprovalsCommitted", environment(f, extra), { now: NOW }); };
 
@@ -136,7 +137,7 @@ const run = (f, extra) => { assert.ok(runEntry, `runEntry: ${entries.error?.mess
 // expect: outcome `done`; one commit on the origin's main, on the head the entry read, that changes the SPEC and the queue's decisions
 //         and nothing else; the SPEC byte for byte the old SPEC with section 2 replaced by the proposal; the decisions the old file
 //         with the row `| 2026-03-01 10:00 UTC | 7 | uebernommen | approval:<the record> |` appended; the record untouched; the
-//         summary names the record applied
+//         summary and the commit's message name the record applied
 test("onApprovalsCommitted — an approval committed without the dashboard is applied in one commit, byte for byte", async () => {
   await withInstance(instanceFiles({ extra: { [RECORD_PATH]: record(WRITING) } }), async (f) => {
     const status = await run(f);
@@ -150,6 +151,7 @@ test("onApprovalsCommitted — an approval committed without the dashboard is ap
     assert.equal(git(f.origin, "show", `${after}:SPEC.md`).concat("\n"), HEAD + READING + WRITING_NEW);
     assert.equal(git(f.origin, "show", `${after}:${QUEUE}/entscheidungen.md`).concat("\n"), DECISIONS + ROW);
     assert.equal(git(f.origin, "show", `${after}:${RECORD_PATH}`).concat("\n"), record(WRITING), "the record stays as the person committed it");
+    assert.ok(git(f.origin, "log", "-1", "--format=%B", after).includes(RECORD_FILE), "the commit's message names the approval applied");
   });
 });
 
