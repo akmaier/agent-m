@@ -499,3 +499,48 @@ Before you save, Agent M states what becomes public, because the instance is a p
 public: the name, kind, authority, licence, versions, identifiers and hashes. The content becomes public only if its licence
 says it may be republished; restricted content goes to the repository you name, and it is public only as far as that repository
 is.
+
+## mailbox-routes
+
+There are two ways to connect a mailbox, and your mail provider decides which one you use. The *web API* route is for Microsoft
+365 and goes directly from the dashboard: you sign in with the provider's own sign-in, so Agent M never sees your password, and
+you register an app with Microsoft once, whose return address is this dashboard. It works because Microsoft allows web pages to
+call its mail API. The *IMAP and SMTP* route is for every other mail server, for example Gmail, FAU's Exchange, a university's
+IMAP server or a small provider. You give the mailbox password, which is stored in this browser after a notice, and you need a
+Bridge running and paired with this browser. It needs the Bridge because browsers let no web page open an IMAP or SMTP
+connection. Agent M proposes the route from your mail address, and you can change it.
+
+## mailbox-app-registration
+
+To sign in with Microsoft, you register an app with Microsoft once. The dashboard opens Microsoft's page for a new app
+registration and shows what to enter there: the name `Agent M`, the kind *single-page application*, and the return address of this
+dashboard, with a copy button. Then you copy the app's client ID back into the dashboard. Many institutions allow this only to
+their administrators. If Microsoft refuses the registration, ask the administrator of your institution's Microsoft account, and
+tell them what you need: a single-page application with this return address and the three mail permissions. Until it is
+registered, the IMAP route can serve in the meantime if your provider also offers IMAP.
+
+## mail-server-settings
+
+For the IMAP route you enter the IMAP server and the SMTP server with their ports. A mail provider usually lists these settings in
+its help pages, or in the mail settings of your account, under a heading such as *IMAP* or *server settings*. The dashboard presets
+the usual encryption for each port: port 993 with implicit TLS for IMAP, and port 587 with STARTTLS or port 465 with implicit TLS
+for SMTP. It also presets the account name as your address. Correct whatever differs for your provider.
+
+## gmail-app-password
+
+Gmail refuses your account password over IMAP. It accepts an *app password* instead: a password that Google creates for one
+program. An app password needs 2-Step Verification to be switched on for your Google account, so switch that on first, then create
+the app password in your account's security settings, on Google's page
+[Create and manage your app passwords](https://myaccount.google.com/apppasswords), and enter it as the mailbox password. Work or school accounts may not offer
+app passwords; then the organisation's administrator decides whether you can connect. The same applies when a mail server refuses
+the login although the password is right: some providers require an app password instead of the account password when two-factor
+login is on.
+
+## mailbox-processing-places
+
+Processing places are the places where the participants of this instance process the data they are given, for example *this
+machine*, *FAU data centre (EU)* or *US cloud provider*. You tick the places to which this mailbox's mails may be given. Nothing is
+ticked at first: until you tick a place, mails are only read and never handed to a participant. If you tick a place outside the
+European Union, Agent M tells you before saving that processing personal data there does not comply with the EU's rules, the GDPR
+for transferring personal data and the EU AI Act. You can still allow it, and this connection records that you did. You can change
+the places later under Settings, Mailbox, Processing places; a mail already handed to a participant is not recalled.
