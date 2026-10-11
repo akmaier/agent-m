@@ -63,6 +63,12 @@ PERMITTED_HOSTS = {
     "lme.tf.fau.de", "link.springer.com",
 }
 
+# Pages a module's code names and only links to, never calls: the module's folder -> the hosts, besides PERMITTED_HOSTS, that may stand in
+# its files. MOD-mail-routes' providerLinks() gives Microsoft's pages for registering the app and for withdrawing its access.
+PERMITTED_LINKS = {
+    "src/mail-routes/": {"entra.microsoft.com", "myapps.microsoft.com"},
+}
+
 ADDRESS = re.compile(r"\b(?:https?|wss?)://(\[[0-9a-f:]+\]|[a-z0-9.-]+)", re.I)
 
 CHANNELS = [
@@ -82,6 +88,12 @@ CHANNELS = [
     ("@import", re.compile(r"@import\b", re.I)),
     ("url()", re.compile(r"url\(\s*[\"']?\s*(?:[a-z][a-z0-9+.-]*:)?//", re.I)),
 ]
+
+
+def _mail_routes_lookup(text: str, at: int) -> bool:
+    """MOD-mail-routes: routeFor asks Microsoft's sign-in service, the provider's one origin the page names, and only it."""
+    return (text[at:].startswith("fetch(`${SIGN_IN_SERVICE}/")
+            and 'const SIGN_IN_SERVICE = "https://login.microsoftonline.com";' in text)
 
 
 def _prepared(text: str, at: int) -> bool:
@@ -192,6 +204,7 @@ def _bridge_client_transport(text: str, at: int) -> bool:
             and "body: JSON.stringify({ args })" in text)
 
 
+MAIL_ROUTES_LOOKUP = "the one lookup at Microsoft's sign-in service, login.microsoftonline.com"
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
 ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
 BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
@@ -211,6 +224,7 @@ PERMITTED_CHANNELS = {
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
     ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
     ("src/bridge-client/", "fetch"): (1, BRIDGE_CLIENT_TRANSPORT, _bridge_client_transport),
+    ("src/mail-routes/", "fetch"): (1, MAIL_ROUTES_LOOKUP, _mail_routes_lookup),
     # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -249,8 +263,14 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8", errors="replace")
 
 
-def foreign_hosts(text: str) -> set[str]:
-    return {h.lower() for h in ADDRESS.findall(text)} - PERMITTED_HOSTS
+def foreign_hosts(text: str, path: str = "") -> set[str]:
+    linked = set().union(*(hosts for folder, hosts in PERMITTED_LINKS.items() if path.startswith(folder)))
+    return {h.lower() for h in ADDRESS.findall(text)} - PERMITTED_HOSTS - linked
+
+
+def foreign_by_file(files: dict[str, str]) -> dict[str, list[str]]:
+    """Check 1 over the given site files: { path: the hosts written in its own code that are not permitted there }."""
+    return {f: sorted(foreign_hosts(t, f)) for f, t in files.items() if not f.startswith(VENDOR) and foreign_hosts(t, f)}
 
 
 def _entry(path: str, name: str, permitted) -> tuple[str, str]:
@@ -315,8 +335,7 @@ class NoServer(unittest.TestCase):
             self.assertIn(f, self.files)
 
     def test_every_address_in_the_own_code_names_a_permitted_host(self):
-        found = {f: sorted(foreign_hosts(t)) for f, t in self.files.items() if not f.startswith(VENDOR) and foreign_hosts(t)}
-        self.assertEqual(found, {})
+        self.assertEqual(foreign_by_file(self.files), {})
 
     def test_requests_leave_only_through_the_known_channels(self):
         self.assertEqual(channel_findings(self.files), [])
@@ -428,6 +447,31 @@ class NoServer(unittest.TestCase):
                                           "return fetch(url, init);\n  return fetch(url, init);\n}\nexport async function testEndpoint", 1)
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": duplicate_driver}),
                          [f"src/endpoint-calls/index.mjs: fetch found 3 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
+
+    def test_counter_proof_only_the_mail_routes_lookup_and_links_are_allowed(self):
+        # MOD-mail-routes (docs/architecture/MOD-mail-routes.md): routeFor asks Microsoft's sign-in service, the provider's one origin the page
+        # names; providerLinks() gives the addresses of Microsoft's pages for registering the app and for withdrawing its access, linked only.
+        path = "src/mail-routes/index.mjs"
+        accepted = ('const SIGN_IN_SERVICE = "https://login.microsoftonline.com";\n'
+                    'export async function routeFor(address) {\n'
+                    '  const status = (await fetch(`${SIGN_IN_SERVICE}/${encodeURIComponent(domain)}/v2.0/.well-known/openid-configuration`, '
+                    '{ credentials: "omit", cache: "no-store" })).status;\n}\n'
+                    'export function providerLinks() {\n'
+                    '  return { appRegistration: "https://entra.microsoft.com", accessWithdrawal: "https://myapps.microsoft.com" };\n}\n')
+        self.assertEqual(channel_findings({path: accepted}), [])
+        self.assertEqual(foreign_by_file({path: accepted}), {})
+        # The lookup at another origin, the lookup with a second call, and a link to another page are found.
+        other_origin = accepted.replace('"https://login.microsoftonline.com"', '"https://login.example.org"')
+        self.assertEqual(len(channel_findings({path: other_origin})), 1)
+        self.assertEqual(foreign_by_file({path: other_origin}), {path: ["login.example.org"]})
+        extra = accepted + "fetch(address);\n"
+        self.assertEqual(len(channel_findings({path: extra})), 2)
+        other_link = accepted.replace("https://myapps.microsoft.com", "https://tracker.example")
+        self.assertEqual(foreign_by_file({path: other_link}), {path: ["tracker.example"]})
+        # What the module is allowed is the module's alone: the same text in another module's folder is found, in its lookup and its links.
+        elsewhere = {"src/home/home.mjs": accepted}
+        self.assertEqual(len(channel_findings(elsewhere)), 1)
+        self.assertEqual(foreign_by_file(elsewhere), {"src/home/home.mjs": ["entra.microsoft.com", "myapps.microsoft.com"]})
 
     def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
         accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
