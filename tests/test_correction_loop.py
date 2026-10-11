@@ -124,7 +124,10 @@ const context = { kind, params: {}, product: { address: "https://github.com/alic
   instance: { snapshot: null, host: null }, connect: async () => null, participants: [drafterP],
   places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
   commit: "0".repeat(40) }, jobId: null };
-const job = await jobRunner.prepareJob("derive-requirements", context, { drafter: drafterP, reviewers: [] });
+// This run drives the loop with the finding it sets. Its candidate is no requirement as the artifact model reads one, which the
+// runner's own check requirement-form judges (tests/job-runner-requirement-form.test.mjs), so its kind runs without it.
+const prepared = await jobRunner.prepareJob("derive-requirements", context, { drafter: drafterP, reviewers: [] });
+const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "requirement-form") } };
 const result = await jobRunner.runJob(job, { drafter, reviewers: [] }, { attended: true, context });
 return { conflict: textTools.formatFinding(conflict), forPerson: result.forPerson.map(textTools.formatFinding),
   sent: inputs.map((input) => input.prompt + "\n" + input.findings.map(textTools.formatFinding).join("\n")),

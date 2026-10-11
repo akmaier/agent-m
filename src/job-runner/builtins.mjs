@@ -1,10 +1,11 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
-// `instruction` and `draft`, the writer `return-draft` and the check `document-schema`. The other built-in checks on the
-// artifact model come with the modules they use.
+// `instruction` and `draft`, the writer `return-draft` and the checks `document-schema` and `requirement-form`. The other
+// built-in checks on the artifact model come with the modules they use.
 //
 // Module: MOD-job-runner
 
 import { artifactSchemas, documentFindings, readDocument } from "../documents/index.mjs";
+import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 
 const part = (name, text) => ({ name, text, size: 0, sources: [], required: true });
 
@@ -16,6 +17,13 @@ const fits = (pattern, path) => new RegExp(`^${pattern.replace(/\./g, "\\.").rep
   .replace(/\{slug\}/g, SLUG)}$`).test(path);
 const schemaOf = (path) => Object.values(artifactSchemas()).find((schema) => [schema.path].flat()
   .some((entry) => fits(typeof entry === "string" ? entry : entry.pattern, path)));
+
+// A candidate written as the SPEC writes a requirement — its name and the job's source on the head line, then its rule, then
+// its check — for MOD-spec-document to read as it reads one. White space is folded into single blanks: a candidate is one
+// block of lines, whatever its rule and its check hold.
+const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
+const written = ({ name, rule, check }, source) =>
+  [`**${folded(name)}** *(${source})*`, folded(rule), `*Check:* ${folded(check)}`].filter(Boolean).join("\n");
 
 export const builtins = {
   recipes: {
@@ -34,6 +42,14 @@ export const builtins = {
       const schema = schemaOf(path);
       return schema ? documentFindings(schema, readDocument(schema, path, text)) : [];
     }),
+    // MOD-spec-document's requirementFindings on every drafted requirement: the candidates of a draft written as one section
+    // of a SPEC, each with the source the job names (its parameter `source`, as MOD-source-register's source-excerpt reads
+    // it), and read by parseSpec. A finding's line is that of its candidate's head line in that text.
+    "requirement-form": (draft, context) => {
+      const source = folded(context.params.source);
+      return requirementFindings(parseSpec(["## Candidates", ...draft.candidates.map((candidate) => written(candidate, source))]
+        .join("\n\n")));
+    },
   },
   writers: {
     // Writes nothing; hands the result to the caller.
