@@ -237,14 +237,14 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
   let didQuit = false;
   try {
     const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
-    const work = () => fetch(`http://127.0.0.1:${app.port}/v1/probes/agent`, { method: "POST", headers: { origin: app.origin, "x-agent-m-bridge-token": token, "content-type": "application/json" }, body: JSON.stringify({ args: {} }) });
+    const work = () => fetch(`http://127.0.0.1:${app.port}/v1/probes/unlisted-kind`, { method: "POST", headers: { origin: app.origin, "x-agent-m-bridge-token": token, "content-type": "application/json" }, body: JSON.stringify({ args: {} }) });
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Pause').click()");
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Resume')"));
     assert.equal((await work()).status, 503);
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Resume').click()");
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
-    assert.equal((await work()).status, 422); // the agent probe is handled now: an empty args names no offered agent (invalid-request)
+    assert.equal((await work()).status, 404);
     await quit(app);
     didQuit = true;
     await assert.rejects(fetch(`http://127.0.0.1:${app.port}/v1/pair`));
