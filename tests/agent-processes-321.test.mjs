@@ -203,7 +203,6 @@ test("TST-321003: abort stops the agent and its child before later output", asyn
         process.on("SIGTERM", () => {});
         process.send("ready");
         setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, "later"), 250);
-        setInterval(() => {}, 1_000);
       `)}], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
       child.once("message", (message) => {
         if (message === "ready") process.stdout.write("started\\n");
