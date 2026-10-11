@@ -1,7 +1,7 @@
 // strategies.mjs — the recipes and the precondition of approvalStrategies (MOD-approvals, Parts: strategies.mjs; Interfaces:
 // approvalStrategies). Of it, ITM-332 builds the recipes `use-cases` and `use-case-with-neighbours` and the precondition
-// `rests-on-accepted` for requirements and use cases; the recipes `accepted-use-cases` and `whole-architecture`, the
-// precondition `architecture-ready` and the architecture's part of `rests-on-accepted` are not built yet.
+// `rests-on-accepted` for requirements and use cases. ITM-437 builds the recipe `accepted-use-cases` and the precondition
+// `architecture-ready`; the recipe `whole-architecture` and the architecture's part of `rests-on-accepted` are not built yet.
 //
 // Module: MOD-approvals
 //
@@ -17,6 +17,8 @@ import { statuses } from "./status.mjs";
 
 const SPEC_PATH = "SPEC.md";
 const ACCEPTED_FIRST = "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED";
+const ONLY_ACCEPTED = "ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES";
+const AS_A_WHOLE = "THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE";
 
 // A failure of the module's own, by name, with the fields its message names.
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
@@ -42,6 +44,24 @@ const requirementPart = ({ name, source, rule, check }) => ({ name, size: 0, sou
   text: [`**${name}**${source === null ? "" : ` *(${source})*`}`, rule, check === null ? null : `*Check:* ${check}`]
     .filter((line) => line !== null).join("\n") });
 
+// The SPEC changes that are open, by their proposals' paths, in the order the files stand: the entries of the change queues
+// (docs/spec-freigaben/<queue>/NN-<slug>.md, where the queue has its index.md) that no row of the queue's entscheidungen.md
+// decides. A row is `| <when> | <entry number> | uebernommen | <reference> |`.
+const DECIDED_ROW = /^\|[^|]*\|\s*(\d+)\s*\|\s*uebernommen\s*\|/gm;
+async function openSpecChanges(snapshot) {
+  const open = [];
+  for (const index of snapshot.paths.filter((path) => /^docs\/spec-freigaben\/[^/]+\/index\.md$/.test(path))) {
+    const queue = index.slice(0, index.lastIndexOf("/"));
+    const rows = (await snapshot.read(`${queue}/entscheidungen.md`)) ?? "";
+    const decided = new Set([...rows.matchAll(DECIDED_ROW)].map((row) => Number(row[1])));
+    for (const path of snapshot.paths) {
+      const entry = path.startsWith(`${queue}/`) ? /^(\d{2,})-[^/]*\.md$/.exec(path.slice(queue.length + 1)) : null;
+      if (entry && !path.endsWith(".begruendung.md") && !decided.has(Number(entry[1]))) open.push(path);
+    }
+  }
+  return open;
+}
+
 // The values of a parameter that is a list of texts; none for any other.
 const listOf = (value) => (Array.isArray(value) ? value.filter((each) => typeof each === "string") : []);
 
@@ -57,6 +77,13 @@ const NOT_ACCEPTED = { open: "is open", changed: "has changed since it was accep
  *   part for each requirement it realises that the SPEC holds, named by the requirement, holding its text from the SPEC, in the
  *   order the use case names them; then every other use case as a part like the first. Throws UseCaseNotFound { useCase } when
  *   the product has no use case of that identifier;
+ * - recipe `accepted-use-cases`: the use cases a record names the current text of, as parts like those of `use-cases` but
+ *   without an artifact, one per file, in the order the files stand;
+ * - precondition `architecture-ready`: one finding, the first that holds of: an error under THE FIRST ARCHITECTURE IS DESIGNED
+ *   AS A WHOLE when the product has an architecture decision or module file already, pointing to UC-023; an error under
+ *   ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES naming each use case that is open or changed; a warning under THE
+ *   FIRST ARCHITECTURE IS DESIGNED AS A WHOLE naming, by its proposal's path, each SPEC change that is open — an entry of a
+ *   change queue that no row of the queue's entscheidungen.md decides; none when the product is ready;
  * - precondition `rests-on-accepted`: one error finding, under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, that names every
  *   requirement of the parameter `requirements` that the SPEC does not hold and every use case of the parameter `useCases` that
  *   no record names the current text of, or that is no use case of the product; none when all are accepted, or when the job
@@ -67,6 +94,8 @@ export const approvalStrategies = {
     "use-cases": async (context) => (await useCasesOf(context.product.snapshot)).map((each) => ({ ...partOf(each),
       artifacts: [{ id: each.id,
         keys: artifactSchemas().useCase.key.map((field) => String(each.document.fields[field] ?? "")) }] })),
+    "accepted-use-cases": async (context) => (await useCasesOf(context.product.snapshot))
+      .filter((each) => each.status === "accepted").map(partOf),
     "use-case-with-neighbours": async (context, params) => {
       const { snapshot } = context.product;
       const all = await useCasesOf(snapshot);
@@ -81,6 +110,24 @@ export const approvalStrategies = {
     },
   },
   preconditions: {
+    "architecture-ready": async (context) => {
+      const { snapshot, address } = context.product;
+      const reviewed = [...statuses(snapshot).values()];
+      const notAccepted = reviewed.filter((each) => each.kind === "use-case" && each.status !== "accepted");
+      const changes = await openSpecChanges(snapshot);
+      const found = (kind, rule, what, fix) => finding({ artifact: address, line: 1, kind, rule, what, fix });
+      if (reviewed.some((each) => each.kind !== "use-case")) {
+        return found("error", AS_A_WHOLE, "the product has an architecture already: a first architecture is not drafted beside it",
+          "change the architecture instead (UC-023)");
+      }
+      if (notAccepted.length > 0) {
+        return found("error", ONLY_ACCEPTED, `use cases that are not accepted: ${notAccepted.map((each) =>
+          `${each.id} (${NOT_ACCEPTED[each.status]})`).join("; ")}`, "accept them first (UC-008)");
+      }
+      return changes.length === 0 ? null : found("warning", AS_A_WHOLE,
+        `SPEC changes that are open, which the architecture is not derived from: ${changes.join("; ")}`,
+        "decide them first (UC-006), or go on: the architecture is derived from the SPEC as it stands");
+    },
     "rests-on-accepted": async (context) => {
       const { snapshot, address } = context.product;
       const requirements = listOf(context.params.requirements), useCases = listOf(context.params.useCases);
