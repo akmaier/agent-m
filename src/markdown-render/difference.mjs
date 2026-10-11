@@ -21,3 +21,10 @@ export function difference(before, after) {
   }
   return shown;
 }
+export function showDifference(before, after, { context = 3 } = {}) {
+  const lines = lineDiff(before, after), keep = new Set();
+  lines.forEach((line, i) => { if (line.op !== "same") for (let j = Math.max(0, i - context); j <= Math.min(lines.length - 1, i + context); j++) keep.add(j); });
+  const shown = document.createElement("pre"); shown.className = "diff";
+  lines.forEach((line, i) => { if (!keep.has(i)) return; const row = document.createElement("span"); row.className = CLASS[line.op]; row.textContent = `${SIGN[line.op]} ${line.text}`; shown.append(row, "\n"); });
+  return shown;
+}

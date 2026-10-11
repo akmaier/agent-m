@@ -7,8 +7,21 @@
 // These cases state the public renderer contract. They leave ITM-220's small-DOM compatibility
 // guard unchanged, including its source fallback.
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const FAULTS = {
+  "TST-342001": ["src/markdown-render/mermaid.mjs", "if (!safeSvg(e))", "if (false)"],
+  "TST-342002": ["src/markdown-render/render.mjs", 'frontMatter = "table"', 'frontMatter = "hidden"'],
+  "TST-342003": ["src/markdown-render/mermaid.mjs", "${esc(source)}", "${source}"],
+  "TST-342004": ["src/markdown-render/difference.mjs", 'added: "dadd"', 'added: "dctx"'],
+  "TST-342005": ["src/markdown-render/render.mjs", "return rendered;", "renderMermaid('flowchart LR\\nEager-->Load'); return rendered;"],
+};
 
 // The established renderer battery owns the browser-compatible small DOM. Loading it here puts
 // that real controlled DOM in this test process before the same public module is loaded; no test
@@ -171,4 +184,28 @@ test("TST-342004 showDifference marks a changed line and retains its requested c
     ["ddel", "- two"],
     ["dctx", "  three"],
   ]);
+});
+
+after(() => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_342_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-342-fault-")), copied = join(temporary, "repo");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    for (const [id, [file, needle, replacement]] of Object.entries(FAULTS)) {
+      const source = join(copied, file), original = readFileSync(source), count = original.toString().split(needle).length - 1;
+      assert.equal(count, 1, `${id}: unique fault target`);
+      const digest = (value) => createHash("sha256").update(value).digest("hex");
+      const invoke = () => { const env = { ...process.env, AGENT_M_342_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
+        return spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/markdown-render-342.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
+      const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/markdown-render-342.test.mjs")));
+      const faultStarted = new Date().toISOString(); writeFileSync(source, original.toString().replace(needle, replacement));
+      const faultHash = digest(readFileSync(source)), failed = invoke(), faultEnded = new Date().toISOString(); const restoreStarted = new Date().toISOString(); writeFileSync(source, original);
+      const restoredHash = digest(readFileSync(source)), passed = invoke(), restoredEnded = new Date().toISOString();
+      console.log("TST342-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, argv: [process.execPath, "--test", "--test-name-pattern", id], cwd: copied, childflag: "AGENT_M_342_FAULT_CHILD=1",
+        failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
+      assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));
+      assert.equal(restoredHash, originalHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id);
+      assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
+    }
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
