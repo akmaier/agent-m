@@ -1,6 +1,7 @@
 // MOD-group-document — group files and the hierarchy of one kind (docs/architecture/MOD-group-document.md): its
-// interface. Of it, ITM-300 builds `GroupTree` and `parseGroupFile`: a group file read into its groups, their members and
-// their lines. `GroupMove`, `Hierarchy`, `groupFileText`, `applyMoves` and `hierarchy` are not built yet.
+// interface. Built so far: `GroupTree` and `parseGroupFile`, a group file read into its groups, their members and their lines;
+// `GroupMove` and `applyMoves`, the moves a person makes applied in order to a new tree; `Hierarchy` and `hierarchy`, the
+// tree with every item of the kind in its one place and the findings. `groupFileText` is not built yet.
 //
 // Module: MOD-group-document
 //
@@ -29,4 +30,32 @@
  * }} GroupTree
  */
 
+/**
+ * One move a person makes to a group file. A group is named by the path of its titles from the top, `[]` being the top level
+ * itself: `create` makes a group titled `title` in the group `in`; `rename` gives the group `group` the title `title`; `move`
+ * puts the member `item` into the group `to`; `move-group` puts the group `group`, with all it holds, into the group `to`;
+ * `delete` removes the group `group`, which must be empty; `lift` moves what the group `group` holds up into its parent.
+ * @typedef {{ op: "create", title: string, in: string[] }
+ *   | { op: "rename", group: string[], title: string }
+ *   | { op: "move", item: string, to: string[] }
+ *   | { op: "move-group", group: string[], to: string[] }
+ *   | { op: "delete", group: string[] }
+ *   | { op: "lift", group: string[] }} GroupMove
+ */
+
+/**
+ * The hierarchy of the items of one kind: the tree with every item in its one place, the identifiers of the items that no
+ * group named and that stand at the top level of the tree now, the identifiers of the members that match no item, and the
+ * findings, each a MOD-text-tools `Finding`. A group the moves create, and a member placed for an item the file did not
+ * list, stand at line 0.
+ * @typedef {{
+ *   tree: GroupTree,
+ *   ungrouped: string[],
+ *   unknown: string[],
+ *   findings: Finding[],
+ * }} Hierarchy
+ */
+
 export { parseGroupFile } from "./group-file.mjs";
+export { applyMoves } from "./moves.mjs";
+export { hierarchy } from "./hierarchy.mjs";

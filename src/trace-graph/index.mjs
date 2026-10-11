@@ -1,10 +1,13 @@
 // MOD-trace-graph — the trace graph and everything derived from it (docs/architecture/MOD-trace-graph.md): its
-// interface. Of it, traceGraph and tracesTo are built. traceGraph reads, of its Data, SPEC.md through MOD-spec-document, the
-// test files through MOD-test-document, the use cases, the architecture decisions, the module files, the plan steps and the
-// backlog items through MOD-documents, and the group files through MOD-group-document, so that its graph holds every
-// requirement, test, document and group with the edges it states, and lists a file it cannot read with the reason. tracesTo
-// gives a requirement the tests that guard it. The code files and their imports, graphFindings, coverageGaps,
-// requirementImpact, architectureImpact, moduleOrder, moduleRows, compareGraphs and selfSufficiencyFindings are not built yet.
+// interface. Of it, traceGraph, graphFindings, tracesTo and selfSufficiencyFindings are built. traceGraph reads, of its Data,
+// SPEC.md through MOD-spec-document, the test files through MOD-test-document, the use cases, the architecture decisions, the
+// module files, the plan steps and the backlog items through MOD-documents, and the group files through MOD-group-document, so
+// that its graph holds every requirement, test, document and group with the edges it states and the facts the checks across
+// artifacts need, and lists a file it cannot read with the reason. graphFindings decides from the graph alone the checks across
+// artifacts, and selfSufficiencyFindings the links that reach a path the product repository does not hold, or the instance's
+// repository or dashboard; both are in checks.mjs. tracesTo gives a requirement the sources its node keeps and the tests that
+// guard it. The code files and their imports, coverageGaps, requirementImpact, architectureImpact, moduleOrder, moduleRows and
+// compareGraphs are not built yet.
 //
 // Module: MOD-trace-graph
 //
@@ -21,7 +24,9 @@
  * One node of the graph: an artifact or a code file, by its identifier, or a group of a group file. A document's `title` is
  * the `title` of its front matter and its `blob` the git blob SHA of its file; a group's `title` is its title, its `blob`
  * the SHA of its group file, and, since it carries no identifier, its `id` is where it stands, `<path>:<line>`. SPEC.md's
- * requirements and the test files' declarations carry neither a title nor a blob of their own: both are `null`.
+ * requirements and the test files' declarations carry neither a title nor a blob of their own: both are `null`. A node keeps,
+ * besides, the facts of its kind, and has the others as `null`: a module its `folder` and the interfaces it `provides`, a plan
+ * step or backlog item its `level` and its `tests`, a requirement its `sources`, the items of its source as the SPEC writes it.
  * @typedef {{
  *   id: string,
  *   kind: "requirement" | "SRC" | "UC" | "ARC" | "MOD" | "TST" | "ITM" | "RES" | "JOB" | "code" | "group",
@@ -29,40 +34,57 @@
  *   line: number,
  *   title: string | null,
  *   blob: string | null,
+ *   folder: string | null,
+ *   provides: string[] | null,
+ *   level: string | null,
+ *   tests: string[] | null,
+ *   sources: string[] | null,
  * }} GraphNode
  */
 
 /**
- * One link an artifact states to another, with the file and line that state it.
+ * One link an artifact states to another, with the file and line that state it. A `uses` edge keeps, besides, the `interface`
+ * it names after the module, `parseSpec` of MOD-spec-document.parseSpec; the `interface` of every other edge is `null`.
  * @typedef {{
  *   from: string,
  *   to: string,
  *   via: "realises" | "forced_by" | "designs" | "follows" | "refines" | "uses" | "guards" | "exercises" | "changes"
- *     | "builds_on" | "source" | "imports" | "names",
+ *     | "builds_on" | "imports" | "names",
+ *   interface: string | null,
  *   path: string,
  *   line: number,
  * }} GraphEdge
  */
 
 /**
- * The graph traceGraph builds: every node and every edge, and the files it could not read, with the reason. Its nodes are
- * the requirements of SPEC.md, the tests of the test files, the use cases, decisions, modules, plan steps and items, and the
- * groups of the group files; its edges are `guards` from a test, `realises`, `forced_by`, `designs`, `follows`, `refines`,
- * `uses`, `changes` and `builds_on` from a document's front matter — a `uses` edge points at the interface as the module file
- * writes it, `MOD-<slug>.<name>` —, and `names` from a document to each identifier its text writes on a line no other edge
- * states.
+ * One link a document writes in its text, a Markdown link `[text](target)` or an autolink `<target>`: the identifier of the
+ * document, the target as written, and the file and line.
+ * @typedef {{ from: string, target: string, path: string, line: number }} GraphLink
+ */
+
+/**
+ * The graph traceGraph builds: every node and every edge, the facts the checks across artifacts need, and the files it could
+ * not read, with the reason. Its nodes are the requirements of SPEC.md, the tests of the test files, the use cases, decisions,
+ * modules, plan steps and items, and the groups of the group files; its edges are `guards` from a test, `realises`, `forced_by`,
+ * `designs`, `follows`, `refines`, `uses`, `changes` and `builds_on` from a document's front matter — a `uses` edge points at
+ * the interface as the module file writes it, `MOD-<slug>.<name>` —, and `names` from a document to each identifier its text
+ * writes on a line no other edge states. `files` is every path the TextSource lists; `links` the links the documents write;
+ * `positions` the warnings MOD-identifiers' positionalReferences gives for the documents' texts, as it gives them.
  * @typedef {{
  *   commit: string | null,
  *   nodes: Map<string, GraphNode>,
  *   edges: GraphEdge[],
+ *   files: string[],
+ *   links: GraphLink[],
+ *   positions: Finding[],
  *   unread: { path: string, reason: string }[],
  * }} Graph
  */
 
 /**
- * For a requirement, its sources and every use case, decision, module, test and item that names it
- * (A REQUIREMENT SHOWS WHAT TRACES TO IT). tracesTo reads only the `guards` edges, so `tests` is the only list it fills;
- * the rest stay empty until a later item gives each its rule.
+ * For a requirement, the items of its source its node keeps, and every use case, decision, module, test and item that names
+ * it (A REQUIREMENT SHOWS WHAT TRACES TO IT). tracesTo reads the node and the `guards` edges, so `sources` and `tests` are the
+ * lists it fills; the rest stay empty until a later item gives each its rule.
  * @typedef {{
  *   sources: string[],
  *   useCases: string[],
@@ -74,4 +96,5 @@
  */
 
 export { traceGraph } from "./build.mjs";
+export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
 export { tracesTo } from "./derive.mjs";

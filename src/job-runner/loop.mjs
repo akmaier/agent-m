@@ -13,6 +13,7 @@
 
 import { finding, formatFinding } from "../text-tools/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
+import { classesOf } from "./builtins.mjs";
 import { failure, strategyOf } from "./registry.mjs";
 
 const line = (f) => formatFinding(f);
@@ -96,10 +97,12 @@ const partsFor = (kind, parts) => parts.filter((part) => kind.recipes.some((reci
  * context: JobContext, from?: unknown, onRound?: (round: Round) => void, onOutput?: (chunk: string) => void, onGate?:
  * (gate: string) => Promise<void>, signal?: AbortSignal }) -> Promise<JobResult> — refuses to start while prepared's
  * blocking or notFitting is not empty (NotStartable). It runs the correction loop — or, with `from`, begins with that
- * draft, and without a drafter only returns the findings on it —, then the kind's steps; at a gate point of the kind whose
- * gate in context.gates is not passed, it calls onGate and stops with that gate. A kind whose result a person reviews,
- * when a person attends, ends with its draft and writes nothing; any other calls the kind's writer at once. Throws a
- * driver's failure by name, and Cancelled when the signal is aborted — after a cancel, nothing more is written.
+ * draft, and without a drafter only returns the findings on it —, then the kind's steps; each check is handed the job's
+ * parts, and the result's classes are those of the kind's candidate-classes in the last round, null for a kind without it;
+ * at a gate point of the kind whose gate in context.gates is not passed, it calls onGate and stops with that gate. A kind
+ * whose result a person reviews, when a person attends, ends with its draft and writes nothing; any other calls the kind's
+ * writer at once. Throws a driver's failure by name, and Cancelled when the signal is aborted — after a cancel, nothing
+ * more is written.
  */
 export async function runJob(prepared, drivers, options) {
   const { attended, context, from, onRound, onOutput, onGate, signal } = options;
@@ -146,7 +149,7 @@ export async function runJob(prepared, drivers, options) {
     const found = [];
     let unchecked = false;
     if (readable) {
-      for (const check of kind.checks) found.push(...await strategyOf("checks", check)(draft, context));
+      for (const check of kind.checks) found.push(...await strategyOf("checks", check)(draft, context, prepared.parts));
       for (const reviewer of drivers.reviewers) {
         cancelled();
         const parts = [...reviewerParts, { name: "draft", text: draftText(draft), size: 0, sources: [], required: true,
@@ -182,6 +185,7 @@ export async function runJob(prepared, drivers, options) {
   }
 
   if (!readable) stoppedBecause = "unusable";
+  const classes = stoppedBecause === "unusable" ? null : classesOf(kind, draft, prepared.parts);
   const remaining = ["passed", "not checked"].includes(stoppedBecause) ? [] : open;
   const stepFindings = [];
   if (stoppedBecause !== "unusable") {
@@ -193,7 +197,8 @@ export async function runJob(prepared, drivers, options) {
     }
   }
   const result = { draft: stoppedBecause === "unusable" ? null : draft, raw: readable ? null : lastText,
-    drafter: prepared.drafter, rounds, remaining, forPerson, stepFindings, stoppedBecause, gate: null, usage, written: null };
+    drafter: prepared.drafter, rounds, remaining, forPerson, stepFindings, classes, stoppedBecause, gate: null, usage,
+    written: null };
   if ((kind.review === "person" && attended) || stoppedBecause === "unusable") return result;
 
   const notPassed = (point) => (kind.gatePoints.includes(point)

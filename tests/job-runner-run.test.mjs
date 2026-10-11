@@ -46,8 +46,13 @@ function driver(who, answers) {
 
 // ---------------------------------------------------------------- stand-ins
 
-// What the stand-in checks find — graph-checks and candidate-classes, each a function of the draft set by a test —; and
-// what the writers and steps did.
+// What the stand-in checks find — the stand-ins for graph-checks and for candidate-classes, each a function of the draft set by a
+// test —; and what the writers and steps did. The runner registers both checks itself, which
+// tests/job-runner-graph-checks.test.mjs and tests/job-runner-candidate-classes.test.mjs guard, so each stand-in is registered
+// under a name of this file's own, which `withStandIns` puts in the kinds' place.
+const STAND_IN_GRAPH = "graph-checks stand-in";
+const STAND_IN_CLASSES = "candidate-classes stand-in";
+const STAND_IN_FOR = { "graph-checks": STAND_IN_GRAPH, "candidate-classes": STAND_IN_CLASSES };
 let checkFindings = () => [];
 let classFindings = () => [];
 let stepFindings = () => [];
@@ -65,9 +70,9 @@ const STAND_INS = {
   recipes: Object.fromEntries(["chosen-requirements", "use-cases", "chapters-for-requirements", "source-excerpt",
     "spec-with-queues", "whole-spec", "accepted-use-cases", "chapters-for-architecture", "implementation-inputs",
     "chapters-for-implementation"].map((name) => [name, async () => [part(`${name} part`, `the text of ${name}`)]])),
-  checks: Object.fromEntries(["document-schema", "graph-checks", "candidate-classes", "requirement-form"]
-    .map((name) => [name, (draft) => (name === "graph-checks" ? checkFindings(draft)
-      : name === "candidate-classes" ? classFindings(draft) : [])])),
+  checks: Object.fromEntries(["document-schema", STAND_IN_GRAPH, STAND_IN_CLASSES, "requirement-form"]
+    .map((name) => [name, (draft) => (name === STAND_IN_GRAPH ? checkFindings(draft)
+      : name === STAND_IN_CLASSES ? classFindings(draft) : [])])),
   steps: { "due-diligence": async (draft) => ({ draft, findings: stepFindings(draft) }) },
   writers: Object.fromEntries(["open-files", "queue-entries", "branch-and-pull-request"].map((name) => [name, writer(name)])),
 };
@@ -89,13 +94,15 @@ const contextOf = (kind, { gates = [] } = {}) => ({
 });
 // These tests drive the loop with the findings they set. Their drafts are neither documents nor requirements as the artifact
 // model reads them, which the runner's own checks judge — document-schema (tests/job-runner-document-schema.test.mjs) and
-// requirement-form (tests/job-runner-requirement-form.test.mjs) —, so their kinds run without those.
+// requirement-form (tests/job-runner-requirement-form.test.mjs) —, so their kinds run without those; and graph-checks and
+// candidate-classes (tests/job-runner-graph-checks.test.mjs, tests/job-runner-candidate-classes.test.mjs) are replaced in them
+// by their stand-ins, which find what a test sets.
 const OWN_CHECKS = ["document-schema", "requirement-form"];
-const withoutOwnChecks = (job) => ({ ...job,
-  kind: { ...job.kind, checks: job.kind.checks.filter((check) => !OWN_CHECKS.includes(check)) } });
+const withStandIns = (job) => ({ ...job, kind: { ...job.kind, checks: job.kind.checks
+  .filter((check) => !OWN_CHECKS.includes(check)).map((check) => STAND_IN_FOR[check] ?? check) } });
 async function prepared(name, { reviewers = [], limit, gates } = {}) {
   const context = contextOf(await kindOf(name), { gates });
-  return { job: withoutOwnChecks(await prepareJob(name, context, { drafter: DRAFTER, reviewers, limit })), context };
+  return { job: withStandIns(await prepareJob(name, context, { drafter: DRAFTER, reviewers, limit })), context };
 }
 
 const USE_CASE = (text) => ({ files: [{ path: "docs/use-cases/UC-001-x.md", text, class: "new" }] });

@@ -1,10 +1,9 @@
 // MOD-job-runner — the one runner of every job kind (docs/architecture/MOD-job-runner.md): its interface — the registry of
 // strategies (registry.mjs) with the built-in recipes `instruction` and `draft`, the writer `return-draft` and the checks
-// `document-schema`, `requirement-form` and `test-declarations` (builtins.mjs); prepareJob (prepare.mjs), what a run panel
-// shows before the person's click; runJob with the correction loop, and writeResult (loop.mjs); provenanceLines and
-// roundsText (provenance.mjs), with the round record's schema rounds.schema.md. The other built-in checks on the artifact
-// model are registered once the modules they use offer what they call: MOD-documents' classifyCandidates, MOD-trace-graph's
-// graphFindings and selfSufficiencyFindings, MOD-group-document.
+// `document-schema`, `requirement-form`, `test-declarations`, `candidate-classes`, `group-rules` and `graph-checks`
+// (builtins.mjs); prepareJob (prepare.mjs), what a run panel shows before the person's click; runJob with the correction
+// loop, and writeResult (loop.mjs); provenanceLines and roundsText (provenance.mjs), with the round record's schema
+// rounds.schema.md.
 //
 // Module: MOD-job-runner
 //
@@ -13,8 +12,8 @@
 // reads the kinds through MOD-job-catalogue's kindOf and writes nothing. It knows no kind and no service by name. Every
 // other file of this folder is private to the module.
 
-// KindDefinition is MOD-job-catalogue's type; Participant MOD-participant-list's; Finding MOD-text-tools'; Snapshot and
-// Host MOD-repository-hosts'.
+// KindDefinition is MOD-job-catalogue's type; Participant MOD-participant-list's; Finding MOD-text-tools'; Classified
+// MOD-documents'; Snapshot and Host MOD-repository-hosts'.
 import { builtins } from "./builtins.mjs";
 import { registerStrategies } from "./registry.mjs";
 
@@ -25,9 +24,10 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
 
 /**
  * The plug-in contract: the recipes, checks, preconditions, steps and writers a module offers, each under its name. A
- * strategy throws only for a failure of its own input or output, and names it; a finding is returned, never thrown.
+ * strategy throws only for a failure of its own input or output, and names it; a finding is returned, never thrown. A check
+ * is also handed the job's parts, as a third argument, for one that judges the draft against what they show.
  * @typedef {{ recipes: Record<string, (context: JobContext, params: Record<string, unknown>) => Promise<Part[]>>,
- *   checks: Record<string, (draft: unknown, context: JobContext) => Finding[] | Promise<Finding[]>>,
+ *   checks: Record<string, (draft: unknown, context: JobContext, parts: Part[]) => Finding[] | Promise<Finding[]>>,
  *   preconditions: Record<string, (context: JobContext) => Promise<Finding | null>>,
  *   steps: Record<string, (draft: unknown, context: JobContext) => Promise<{ draft: unknown, findings: Finding[] }>>,
  *   writers: Record<string, (result: unknown, context: JobContext) => Promise<unknown>> }} Strategies
@@ -46,9 +46,12 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
 
 /**
  * One piece of a job's input: its size in tokens as estimated; the identifiers of the sources whose content it carries;
- * required false only where the kind says the part may be left out; and the recipe that gave it, whose named place of the
- * prompt it fills — set by the runner, not by the recipe.
- * @typedef {{ name: string, text: string, size: number, sources: string[], required: boolean, recipe: string }} Part
+ * required false only where the kind says the part may be left out; the recipe that gave it, whose named place of the
+ * prompt it fills — set by the runner, not by the recipe —; and the existing artifacts it shows the participant, each with its
+ * identifier and the values of its format's key — for a requirement its name and its rule —, against which candidate-classes
+ * classifies a draft. A part whose recipe gives none shows none.
+ * @typedef {{ name: string, text: string, size: number, sources: string[], required: boolean, recipe: string,
+ *   artifacts: Array<{ id: string, keys: string[] }> }} Part
  */
 
 /**
@@ -85,12 +88,13 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
 
 /**
  * A job's result: the draft as the output schema reads it; the raw answer, kept for a person when it could not be read;
- * the drafter; every round; what the loop left; what a person decides; what the kind's steps found; why the loop stopped;
- * the gate it stopped at; the usage of every exchange; what the writer did when it ran at once.
+ * the drafter; every round; what the loop left; what a person decides; what the kind's steps found; the classes of the last
+ * round's candidates, null for a kind without the check candidate-classes; why the loop stopped; the gate it stopped at; the
+ * usage of every exchange; what the writer did when it ran at once.
  * @typedef {{ draft: unknown, raw: string | null, drafter: Participant | null, rounds: Round[], remaining: Finding[],
- *   forPerson: Finding[], stepFindings: Finding[], stoppedBecause: "passed" | "limit" | "unchanged" | "unusable" |
- *   "not checked" | "gate", gate: string | null, usage: Array<{ participant: string, usage: Usage | null }>,
- *   written: WriteOutcome | null }} JobResult
+ *   forPerson: Finding[], stepFindings: Finding[], classes: Classified[] | null, stoppedBecause: "passed" | "limit" |
+ *   "unchanged" | "unusable" | "not checked" | "gate", gate: string | null, usage: Array<{ participant: string, usage:
+ *   Usage | null }>, written: WriteOutcome | null }} JobResult
  */
 
 /**
@@ -100,8 +104,8 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
  */
 
 /**
- * What a run panel shows before the person's click: blocking holds the findings of preconditions and of eligibility that
- * keep the job from starting.
+ * What a run panel shows before the person's click: blocking holds the findings of preconditions, of eligibility and of a
+ * check that needs what the context lacks — test-declarations without the product's host — that keep the job from starting.
  * @typedef {{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers: Participant[],
  *   parts: Part[], destinations: Destination[], fits: boolean, notFitting: Array<{ participant: Participant, size: number,
  *   context: number | null }>, leftOut: Array<{ part: string, reason: string }>, blocking: Finding[], limit: number }} Prepared

@@ -34,6 +34,11 @@ function source(files) {
 // git's blob SHA-1 of a text, as `git hash-object` gives it for the file: the SHA-1 of "blob <bytes>", a zero byte and the bytes.
 const gitBlob = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest("hex");
 
+// A node and an edge as the cases below assert them: what ITM-305 built. The facts that later items add — a node's folder, provides,
+// level, tests and sources, an edge's interface — are left out here and asserted in tests/trace-graph-facts.test.mjs.
+const core = ({ id, kind, path, line, title, blob }) => ({ id, kind, path, line, title, blob });
+const kept = ({ from, to, via, path, line }) => ({ from, to, via, path, line });
+
 // The line, from 1, on which a fixture file has exactly this text; the fixture must hold it once.
 function lineOf(lines, text) {
   const at = lines.flatMap((line, i) => (line === text ? [i + 1] : []));
@@ -44,7 +49,7 @@ function lineOf(lines, text) {
 // The edges that start at one node, in the order they stand in its file: by line, then by kind of edge, then by target.
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const edgesFrom = (graph, id) => graph.edges.filter((edge) => edge.from === id)
-  .sort((a, b) => a.line - b.line || compare(a.via, b.via) || compare(a.to, b.to));
+  .sort((a, b) => a.line - b.line || compare(a.via, b.via) || compare(a.to, b.to)).map(kept);
 
 const RULE = "A SAMPLE RULE";
 const OTHER_RULE = "ANOTHER SAMPLE RULE";
@@ -221,7 +226,7 @@ const fixture = (files = FILES) => source(Object.fromEntries(files));
 test("traceGraph — a use case is a node with its title and blob, a realises edge for the name it realises and a names edge for each name its text writes", async () => {
   const graph = await traceGraph(fixture());
   assert.deepEqual(graph.unread, [], "known positive: every file of the fixture was read");
-  assert.deepEqual(graph.nodes.get("UC-001"), {
+  assert.deepEqual(core(graph.nodes.get("UC-001")), {
     id: "UC-001", kind: "UC", path: UC_PATH, line: lineOf(UC_LINES, "id: UC-001"), title: "Read a file", blob: gitBlob(textOf(UC_PATH)),
   });
   const goal = lineOf(UC_LINES, `**Goal.** The reader reads a file whole; it extends UC-002 and applies \`${OTHER_RULE}\`.`);
@@ -244,7 +249,7 @@ test("traceGraph — a use case is a node with its title and blob, a realises ed
 //         refined ARC-001 among them, since this line is not the one the refines edge states
 test("traceGraph — an architecture decision is a node with refines, forced_by and designs edges, and its text's names", async () => {
   const graph = await traceGraph(fixture());
-  assert.deepEqual(graph.nodes.get("ARC-002"), {
+  assert.deepEqual(core(graph.nodes.get("ARC-002")), {
     id: "ARC-002", kind: "ARC", path: ARC_PATH, line: lineOf(ARC_LINES, "id: ARC-002"), title: "Reading lives in a module",
     blob: gitBlob(textOf(ARC_PATH)),
   });
@@ -273,7 +278,7 @@ test("traceGraph — an architecture decision is a node with refines, forced_by 
 //         two names the Responsibility line writes; no edge for the folder or the provided name
 test("traceGraph — a module file is a node with realises, follows and uses edges, and its text's names", async () => {
   const graph = await traceGraph(fixture());
-  assert.deepEqual(graph.nodes.get("MOD-reader"), {
+  assert.deepEqual(core(graph.nodes.get("MOD-reader")), {
     id: "MOD-reader", kind: "MOD", path: MOD_PATH, line: lineOf(MOD_LINES, "id: MOD-reader"), title: "Reading a file",
     blob: gitBlob(textOf(MOD_PATH)),
   });
@@ -300,7 +305,7 @@ test("traceGraph — a module file is a node with realises, follows and uses edg
 //         and one to MOD-reader at the Outcome line
 test("traceGraph — a plan step is a node with realises and changes edges, and its text's names", async () => {
   const graph = await traceGraph(fixture());
-  assert.deepEqual(graph.nodes.get("ITM-001"), {
+  assert.deepEqual(core(graph.nodes.get("ITM-001")), {
     id: "ITM-001", kind: "ITM", path: STEP_PATH, line: lineOf(STEP_LINES, "id: ITM-001"), title: "The reader", blob: gitBlob(textOf(STEP_PATH)),
   });
   assert.deepEqual(edgesFrom(graph, "ITM-001"), [
@@ -323,7 +328,7 @@ test("traceGraph — a plan step is a node with realises and changes edges, and 
 //         ANOTHER SAMPLE RULE at the origin's line, which the other edges do not state
 test("traceGraph — a backlog item is a node with realises, changes and builds_on edges, and its origin's name", async () => {
   const graph = await traceGraph(fixture());
-  assert.deepEqual(graph.nodes.get("ITM-002"), {
+  assert.deepEqual(core(graph.nodes.get("ITM-002")), {
     id: "ITM-002", kind: "ITM", path: ITEM_PATH, line: lineOf(ITEM_LINES, "id: ITM-002"), title: "The reader page", blob: gitBlob(textOf(ITEM_PATH)),
   });
   assert.deepEqual(edgesFrom(graph, "ITM-002"), [
@@ -350,7 +355,7 @@ test("traceGraph — the title of every group of a group file is read, at any de
     const line = lineOf(GROUP_LINES, TITLE_LINES[title]);
     return { id: `${GROUP_PATH}:${line}`, kind: "group", path: GROUP_PATH, line, title, blob: gitBlob(textOf(GROUP_PATH)) };
   };
-  const groups = [...graph.nodes.values()].filter((node) => node.kind === "group").sort((a, b) => a.line - b.line);
+  const groups = [...graph.nodes.values()].filter((node) => node.kind === "group").sort((a, b) => a.line - b.line).map(core);
   assert.deepEqual(groups, [group("Reading"), group("Details"), group("Later")]);
   assert.deepEqual(graph.edges.filter((edge) => edge.path === GROUP_PATH), []);
   assert.equal(graph.nodes.get("UC-001").path, UC_PATH, "a member the group file lists is not a node of the group file");

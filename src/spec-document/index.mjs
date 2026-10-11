@@ -1,8 +1,9 @@
 // MOD-spec-document — the SPEC and its requirements (docs/architecture/MOD-spec-document.md): its interface. Of it, ITM-206
 // builds specSkeleton, the SPEC a new product starts with (ADDING A PRODUCT CREATES ITS LAYOUT, UC-001), ITM-214 builds
 // parseSpec, with Spec, SpecSection and Requirement, the SPEC read in its form (A REQUIREMENT HAS FOUR FIELDS, UC-002),
-// ITM-224 keeps the module loading when its skeleton cannot be read, and ITM-301 builds requirementFindings, the findings of a
-// requirement (A REQUIREMENT HAS FOUR FIELDS, UC-005 and UC-018).
+// ITM-224 keeps the module loading when its skeleton cannot be read, ITM-301 builds requirementFindings, the findings of a
+// requirement (A REQUIREMENT HAS FOUR FIELDS, UC-005 and UC-018), and ITM-379 has parseSpec read a head line whose name is not in
+// capitals as a requirement too and requirementFindings name it (EVERY ARTIFACT HAS AN IDENTIFIER).
 //
 // Module: MOD-spec-document
 //

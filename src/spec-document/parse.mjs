@@ -22,7 +22,8 @@ const BOLD_NAME = "\\*\\*([^*\\s](?:[^*\\n]*[^*\\s])?)\\*\\*";
 // A head line: the name in bold, then the source in italics in parentheses, which runs until `)*`, over further lines if need be.
 const HEAD = new RegExp(`^${BOLD_NAME}[ \\t]+\\*\\(`);
 const SOURCE_END = ")*";
-// A name in bold alone on its line: the head line of a requirement whose source is missing, when its check follows.
+// A name in bold alone on its line: the head line of a requirement whose source is missing, when its check follows and its name is
+// in capitals.
 const BARE = new RegExp(`^${BOLD_NAME}[ \\t]*$`);
 const BOLD_START = /^\*\*[^*\n]+\*\*/;
 const CHECK = /^\*Check:\*[ \t]?/;
@@ -32,8 +33,14 @@ const PATH_SEPARATOR = /^\s*·\s*/;
 // The identifiers of the other kinds of artifact, none of which is a requirement's name.
 const OTHER_IDENTIFIER = /^(?:SRC|UC|ARC|MOD|TST|ITM|RES|JOB)-/;
 
-// A requirement's name: in capitals — a capital letter and no small one —, and not the identifier of another kind of artifact.
-const isName = (s) => /[A-Z]/.test(s) && !/[a-z]/.test(s) && !OTHER_IDENTIFIER.test(s);
+// A name in capitals: a capital letter and no small one.
+const inCapitals = (s) => /[A-Z]/.test(s) && !/[a-z]/.test(s);
+// A requirement's name: in capitals, and not the identifier of another kind of artifact.
+const isName = (s) => inCapitals(s) && !OTHER_IDENTIFIER.test(s);
+// The name on a head line that has a source: a requirement's, or a name that is not in capitals, which is read as a requirement
+// too so that the findings name it instead of passing over it (the module file, Data). Only the identifier of another kind of
+// artifact, which is in capitals, is none.
+const namesRequirement = (s) => !inCapitals(s) || isName(s);
 
 const blank = (line) => !line.text.trim();
 
@@ -74,7 +81,7 @@ function headAt(lines, i) {
   const line = lines[i];
   if (line.fenced) return null;
   const head = HEAD.exec(line.text);
-  if (head) return isName(head[1]) ? { name: head[1], rest: line.text.slice(head[0].length) } : null;
+  if (head) return namesRequirement(head[1]) ? { name: head[1], rest: line.text.slice(head[0].length) } : null;
   const bare = BARE.exec(line.text);
   return bare && isName(bare[1]) && checkFollows(lines, i) ? { name: bare[1], rest: null } : null;
 }

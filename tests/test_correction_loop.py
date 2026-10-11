@@ -26,8 +26,8 @@ const standIns = {
   recipes: Object.fromEntries(["chosen-requirements", "use-cases", "chapters-for-requirements", "source-excerpt",
     "spec-with-queues", "whole-spec", "accepted-use-cases", "chapters-for-architecture"]
     .map((name) => [name, async () => [{ name, text: `the text of ${name}`, size: 0, sources: [], required: true }]])),
-  checks: Object.fromEntries(["document-schema", "graph-checks", "candidate-classes", "requirement-form"]
-    .map((name) => [name, (draft) => (name === "graph-checks" ? find(draft) : [])])),
+  checks: Object.fromEntries(["document-schema", "graph-checks stand-in", "candidate-classes", "requirement-form"]
+    .map((name) => [name, (draft) => (name === "graph-checks stand-in" ? find(draft) : [])])),
   steps: { "due-diligence": async (draft) => ({ draft, findings: [] }) },
   writers: Object.fromEntries(["open-files", "queue-entries"].map((name) => [name,
     async (result) => ({ commits: [], files: [], pullRequest: null, shown: result.draft })])),
@@ -51,9 +51,12 @@ async function run(kindName, { drafterAnswers, reviewerAnswers = null, limit, at
     commit: "0".repeat(40) }, jobId: "JOB-20261011-0800-abcd" };
   const reviewers = reviewerAnswers ? [reviewerP] : [];
   // These runs drive the loop with the findings they set. Their drafts are no documents of the artifact model, which the
-  // runner's own check document-schema judges (tests/job-runner-document-schema.test.mjs), so their kinds run without it.
+  // runner's own check document-schema judges (tests/job-runner-document-schema.test.mjs), so their kinds run without it; and
+  // the runner registers graph-checks itself (tests/job-runner-graph-checks.test.mjs), so its stand-in, registered under a name
+  // of its own, is put in its place.
   const prepared = await jobRunner.prepareJob(kindName, context, { drafter: drafterP, reviewers, limit });
-  const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "document-schema") } };
+  const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "document-schema")
+    .map((check) => (check === "graph-checks" ? "graph-checks stand-in" : check)) } };
   const drafter = driver(drafterP, drafterAnswers);
   const reviewerDrivers = reviewerAnswers ? [driver(reviewerP, reviewerAnswers)] : [];
   const result = await jobRunner.runJob(job, { drafter, reviewers: reviewerDrivers }, { attended, context });
@@ -98,14 +101,16 @@ return out;
 """
 
 # The conflict run needs a check that finds the conflict on derive-requirements; it is its own call, so that its stand-in
-# for candidate-classes finds what the other runs' stand-in does not.
+# for candidate-classes finds what the other runs' check does not. The runner registers candidate-classes itself
+# (tests/job-runner-candidate-classes.test.mjs), so the stand-in is registered under a name of this run's own, which the
+# run puts in the kind's place.
 CONFLICT = r"""
 const conflict = { artifact: "SPEC.md", line: 9, kind: "error", rule: "A CONFLICT IS DECIDED BY A PERSON",
   what: "\"EXPORT AS CSV\" contradicts EXPORT IS A PDF", fix: "decide which holds" };
 const standIns = {
   recipes: Object.fromEntries(["source-excerpt", "spec-with-queues", "chapters-for-requirements"]
     .map((name) => [name, async () => [{ name, text: `the text of ${name}`, size: 0, sources: [], required: true }]])),
-  checks: { "requirement-form": () => [], "candidate-classes": () => [conflict] },
+  checks: { "requirement-form": () => [], "candidate-classes stand-in": () => [conflict] },
   writers: { "queue-entries": async () => ({ commits: [], files: [], pullRequest: null, shown: null }) },
 };
 for (const [category, strategies] of Object.entries(standIns)) for (const [name, strategy] of Object.entries(strategies)) {
@@ -125,9 +130,11 @@ const context = { kind, params: {}, product: { address: "https://github.com/alic
   places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
   commit: "0".repeat(40) }, jobId: null };
 // This run drives the loop with the finding it sets. Its candidate is no requirement as the artifact model reads one, which the
-// runner's own check requirement-form judges (tests/job-runner-requirement-form.test.mjs), so its kind runs without it.
+// runner's own check requirement-form judges (tests/job-runner-requirement-form.test.mjs), so its kind runs without it, and
+// with the stand-in in the place of candidate-classes.
 const prepared = await jobRunner.prepareJob("derive-requirements", context, { drafter: drafterP, reviewers: [] });
-const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "requirement-form") } };
+const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "requirement-form")
+  .map((check) => (check === "candidate-classes" ? "candidate-classes stand-in" : check)) } };
 const result = await jobRunner.runJob(job, { drafter, reviewers: [] }, { attended: true, context });
 return { conflict: textTools.formatFinding(conflict), forPerson: result.forPerson.map(textTools.formatFinding),
   sent: inputs.map((input) => input.prompt + "\n" + input.findings.map(textTools.formatFinding).join("\n")),
