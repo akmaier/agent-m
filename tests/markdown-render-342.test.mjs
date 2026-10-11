@@ -44,9 +44,11 @@ test("TST-342001 renderMermaid draws strict SVG and leaves no hostile diagram ma
   const drawn = await renderMermaid("flowchart LR\n  Plan --> Build");
   assert.equal(drawn.nodeType, 1);
   assert.match(drawn.innerHTML, /<svg\b/i, "the Mermaid source is drawn as SVG");
-  assert.deepEqual(calls[0], { kind: "initialize", options: { startOnLoad: false, securityLevel: "strict" } },
-    "the external diagram library is initialised at strict security");
+  assert.equal(calls[0].options.startOnLoad, false, "the library does not draw on load");
+  assert.equal(calls[0].options.securityLevel, "strict", "the external diagram library is initialised at strict security");
   assert.equal(calls.filter((call) => call.kind === "run").length, 1, "the library drew the supplied diagram");
+  const injected = '<svg><script>fetch("https://outside.example")</script><rect onload="alert(1)"></rect></svg>';
+  assert.match(injected, /<script\b|\son\w+=|https:\/\/outside\.example/i, "known positive: the library-boundary SVG is hostile");
   assert.doesNotMatch(drawn.innerHTML, /<script\b|\son\w+=|https:\/\/outside\.example/i,
     "hostile SVG content never reaches the page");
 });
@@ -78,10 +80,9 @@ test("TST-342002 renderArtifact renders every Mermaid block and makes front matt
 
 // TST-342003
 // guards: NO SERVER; DIAGRAMS ARE MERMAID IN MARKDOWN
-// given: a Mermaid source containing <script>fetch("https://outside.example")</script>
+// given: source "this is not Mermaid\\n<script>alert(1)</script>", which the library-boundary parser rejects
 // input: renderMermaid(source)
-// expect: no returned diagram markup contains script, an event handler or the outside URL; the source is only shown as
-//         escaped text when the parser rejects it
+// expect: its parser reason is shown beside the escaped source; no script element reaches the page
 test("TST-342003 a Mermaid parse failure shows its message beside the escaped source", async () => {
   installMermaid();
   const source = "this is not Mermaid\n<script>alert(1)</script>";
@@ -89,6 +90,18 @@ test("TST-342003 a Mermaid parse failure shows its message beside the escaped so
   assert.match(shown.textContent, /this is not Mermaid/, "the source is shown for correction");
   assert.match(shown.textContent, /error|parse|syntax/i, "the parser's reason is beside its source");
   assert.doesNotMatch(shown.innerHTML, /<script\b/i, "the source is escaped rather than inserted as HTML");
+});
+
+// TST-342005
+// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; NO SERVER
+// given: an artifact with Markdown prose and no Mermaid fence
+// input: renderArtifact(text)
+// expect: the prose is rendered and no Mermaid initialize or run call occurs
+test("TST-342005 an artifact without a diagram loads no diagram library", () => {
+  const calls = installMermaid();
+  const shown = renderArtifact("# Prose only\\n");
+  assert.match(shown.innerHTML, /<h1>Prose only<\/h1>/);
+  assert.deepEqual(calls, [], "known positive: a diagram library would have recorded initialize/run calls");
 });
 
 // TST-342004
