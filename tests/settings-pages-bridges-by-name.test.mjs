@@ -1,7 +1,7 @@
 // The Bridges this browser keeps, on the settings page (ITM-405) — MOD-settings-pages' route `bridge` and the Settings page's lines, as
 // docs/architecture/MOD-settings-pages.md states them: each Bridge as a line of its own under its name, with Test at its address — for one
 // reached through the jump host its HTTPS address, a certificate the browser does not trust named as a possible cause —, Change and Clear,
-// which names first the endpoints and the mailbox that name it; pairing a Bridge under the name it reports; + Bridge through the jump host,
+// which names first the endpoints that name it; pairing a Bridge under the name it reports; + Bridge through the jump host,
 // named by the person, with its port from the range and the two tunnel commands; the jump host's line with its own Test; the web server's
 // configuration for every Bridge reached through it.
 // Run: node --test tests/settings-pages-bridges-by-name.test.mjs
@@ -17,8 +17,9 @@
 //   - The Bridges by name stand beside the single `bridge` and the remote sessions the pages show today, which stay as they are: the existing
 //     tests of this module pin their form. A pairing whose answer names the Bridge stores it as `bridge:<name>`; one whose answer names none
 //     keeps the single `bridge`, as before.
-//   - Clear asks the person first, with the names of the endpoints (`bridge` is their field) and of the mailbox that name the Bridge; it clears
-//     nothing on a refusal, and never changes the endpoints that name it. Participants and resources are not named: their pages are not in this folder.
+//   - Clear asks the person first, with the names of the endpoints (`bridge` is their field) that name the Bridge; it clears nothing on a
+//     refusal, and never changes the endpoints that name it. The mailbox, participants and resources are not named: the store's catalogue holds
+//     no `mailbox` key yet, and the pages of the other two are not in this folder.
 //   - The jump host's Test calls its HTTPS address with its web-server login. The jump host serves only the paths of Bridges, so any answer of
 //     its web server after the login is taken as working; only the refused login, no answer, and a missing HTTPS address are not. The request
 //     carries a placeholder in the token header and no secret.
@@ -156,11 +157,11 @@ test("Settings — a Bridge through the jump host is tested at its HTTPS path, n
 });
 
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
-// given: two endpoints, one of which names the Bridge gpu-box in its `bridge`, and a mailbox that names laptop
+// given: two endpoints, one of which names the Bridge gpu-box in its `bridge`, and the Bridge laptop, which none names
 // input: Clear on the line of gpu-box, refused; Clear again, confirmed; Clear on laptop
 // expect: the question names the endpoint that names gpu-box and not the other; a refusal clears nothing; a confirmation clears the Bridge and its
-//         test record and leaves the endpoint as it was; the question for laptop names the mailbox
-test("Settings — Clear names the endpoints and the mailbox that name the Bridge before it clears it", async (t) => {
+//         test record and leaves the endpoint as it was; the question for laptop names no endpoint
+test("Settings — Clear names the endpoints that name the Bridge before it clears it", async (t) => {
   const store = freshStore();
   writeSetting(store, "bridge:gpu-box", { port: 40100, token: "gpu-token" });
   writeSetting(store, "bridge:laptop", { address: "http://127.0.0.1:4711", token: "laptop-token" });
@@ -168,7 +169,6 @@ test("Settings — Clear names the endpoints and the mailbox that name the Bridg
   const hpc = { url: "http://127.0.0.1:11434", kind: "ollama", model: "llama3", bridge: "gpu-box" };
   writeSetting(store, "endpoint:hpc", hpc);
   writeSetting(store, "endpoint:campus", { url: "https://models.example.test/v1", kind: "openai-compatible", model: "m", key: "k" });
-  writeSetting(store, "mailbox", { route: "imap", address: "me@example.test", bridge: "laptop" });
   stand(t, bridgeAnswer("Bridge"));
   const asked = [];
   let answer = false;
@@ -189,7 +189,8 @@ test("Settings — Clear names the endpoints and the mailbox that name the Bridg
 
   const second = await settingsPage(store);
   await click(byClass(lineOf(second, "laptop"), "settings-bridge-named-clear")[0]);
-  assert.match(asked.at(-1), /mailbox/i);
+  assert.equal(asked.length, 3);
+  assert.doesNotMatch(asked.at(-1), /hpc|campus/);
 });
 
 // guards: UC-044; THE DASHBOARD WRITES THE TUNNEL COMMANDS
@@ -246,6 +247,8 @@ test("Bridge route — + Bridge through the jump host takes the lowest free port
   const commands = byClass(page, "bridge-through-jump-commands")[0].textContent;
   assert.match(commands, /-R 127\.0\.0\.1:40101:127\.0\.0\.1:4711/);
   assert.match(commands, /-L 127\.0\.0\.1:40101:127\.0\.0\.1:40101/);
+  assert.match(commands, /-i ~\/\.ssh\/agent-m-remote -R /, "the reverse tunnel runs with the key of the computer behind NAT");
+  assert.match(commands, /-i ~\/\.ssh\/agent-m-local -L /, "the forward runs with the key of this computer");
   assert.ok(!commands.includes("lab-token"), "the commands carry no token");
   await add("lab-pc", "lab-token-2");
   assert.deepEqual(readSetting(store, "bridge:lab-pc"), { port: 40101, token: "lab-token-2" });
@@ -256,11 +259,13 @@ test("Bridge route — + Bridge through the jump host takes the lowest free port
   assert.match(byClass(page, "bridge-through-jump-result")[0].textContent, /no free port/i);
   assert.equal(calls.length, 0);
 
-  const bare = await bridgePage(freshStore());
+  const bareStore = freshStore();
+  const bare = await bridgePage(bareStore);
   byClass(bare, "bridge-through-jump-name")[0].value = "x";
   byClass(bare, "bridge-through-jump-token")[0].value = "t";
   await click(byClass(bare, "bridge-through-jump-add")[0]);
-  assert.match(byClass(bare, "bridge-through-jump-result")[0].textContent, /jump host/i);
+  assert.match(byClass(bare, "bridge-through-jump-result")[0].textContent, /jump host is required/i);
+  assert.equal(readSetting(bareStore, "bridge:x"), null);
 });
 
 // guards: A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; UC-011
@@ -323,6 +328,6 @@ test("Settings — the jump host's line has a Test of its own", async (t) => {
   const barePage = await settingsPage(bare);
   const before = calls.length;
   await click(byClass(byClass(barePage, "settings-jump-host")[0], "settings-jump-host-test")[0]);
-  assert.match(byClass(byClass(barePage, "settings-jump-host")[0], "settings-jump-host-result")[0].textContent, /HTTPS address/);
+  assert.match(byClass(byClass(barePage, "settings-jump-host")[0], "settings-jump-host-result")[0].textContent, /no HTTPS address is stored/i);
   assert.equal(calls.length, before);
 });
