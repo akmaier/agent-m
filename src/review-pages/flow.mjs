@@ -6,7 +6,7 @@
 // STATUS IS DERIVED FROM THE RECORDS (it is read from MOD-approvals only); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A
 // TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN. Nothing is written while a page is drawn.
 
-import { statuses, lastAcceptedText, acceptShown, fallbackAcceptLink, approvalSchema } from "../approvals/index.mjs";
+import { statuses, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema } from "../approvals/index.mjs";
 import { writeDocument } from "../documents/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
@@ -59,15 +59,14 @@ const recordOf = (id, kind, path, blob) => ({ path: `docs/approvals/${id}-${blob
 const shortBody = (body) => body.replace(/^---\n[^]*?\n---\n/, "");
 
 // What an acceptance of several files came to: the commit, and each file left out with its reason and the names it rests on.
+const reasonOf = (out) => `${out.reason}${out.names.length ? ` (${out.names.join(", ")})` : ""}`;
 function acceptedMessage(result, idOf) {
   const message = el("p", "result", `Accepted in commit ${result.commit.slice(0, 7)}.`);
-  for (const out of result.leftOut) {
-    message.append(el("br"), `${idOf(out.path)} was left out: ${out.reason}${out.names.length ? ` (${out.names.join(", ")})` : ""}.`);
-  }
+  for (const out of result.leftOut) message.append(el("br"), `${idOf(out.path)} was left out: ${reasonOf(out)}.`);
   return message;
 }
 // What a refused acceptance of several files says: the failure, and each file it left out with its reason.
-const refusedText = (failure, idOf) => [failure.message, ...(failure.leftOut ?? []).map((out) => `${idOf(out.path)}: ${out.reason}`)].join(" ");
+const refusedText = (failure, idOf) => [failure.message, ...(failure.leftOut ?? []).map((out) => `${idOf(out.path)}: ${reasonOf(out)}`)].join(" ");
 
 // What a read that fails says: a private repository without a token that reaches it is named, and nothing is shown.
 function problem(failure, token) {
@@ -229,6 +228,17 @@ export function reviewRoute(kind) {
     }
     target.append(renderArtifact(shortBody(body)));
     if (file.status === "accepted") return;
+    if (kind.restsOn) {
+      const open = await acceptanceBlockers(file.path, snapshot);
+      if (open.length) {
+        const rests = el("section", "rests-on", el("h3", null, "Rests on what is not accepted"));
+        const names = el("ul");
+        for (const name of open) names.append(el("li", "open-name", name));
+        rests.append(el("p", null, `${file.id} can be accepted once everything it names is accepted.`), names);
+        target.append(rests);
+        return;
+      }
+    }
     const record = recordOf(file.id, kind.kind, file.path, blob);
     const result = el("p", "result");
     const offerGitHub = () => {
@@ -252,7 +262,7 @@ export function reviewRoute(kind) {
           await redraw(where, { id }, el("p", "result", `Accepted in commit ${done.commit.slice(0, 7)}.`));
         } catch (failure) {
           accept.disabled = false;
-          result.textContent = failure.message;
+          result.textContent = refusedText(failure, (path) => idOf(path, snapshot));
           target.append(result);
           if (failure.name === "PermissionMissing") offerGitHub();
         }
