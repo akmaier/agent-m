@@ -27,4 +27,5 @@ limit: 5
 ## Purpose
 
 Changes the requirements a person names by their instruction, against every requirement of the product, each resulting
-requirement classed as new, a change, a duplicate or a conflict, under the same rules as a derivation.
+requirement classed as new, a change, a duplicate or a conflict, under the same rules as a derivation. A job takes the parameter `source`: the own source of the person who starts it,
+which every requirement it returns names among its sources.

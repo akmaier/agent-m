@@ -6,16 +6,44 @@
       "items": {
         "type": "object",
         "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "create",
+              "rename",
+              "move",
+              "move-group",
+              "delete",
+              "lift"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
           "item": {
             "type": "string"
           },
+          "in": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "group": {
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
-          "item",
-          "group"
+          "op"
         ]
       }
     }
