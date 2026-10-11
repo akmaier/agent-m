@@ -3,6 +3,7 @@
 
 import { isKnownKey } from "./catalogue.mjs";
 import { StoreError, getRaw, setRaw } from "./store.mjs";
+import { addAccounts, signInOf, viewOfObject, viewOfStorage } from "./sign-in.mjs";
 
 const VERSION = 1;
 const ITERATIONS = 600000;
@@ -55,9 +56,19 @@ function validateHead(file) {
     typeof file.exported !== "string" || typeof file.locked !== "boolean") throw notAnExport();
 }
 
+// The sign-in library's keys the export carries: exactly those the search for the exported connection's client identifier finds among them.
+const clientIdOf = (settings) => settings?.mailbox?.graph?.clientId;
+function validateForeign(foreign, settings) {
+  if (!isObject(foreign) || Object.values(foreign).some((value) => typeof value !== "string")) throw notAnExport();
+  const found = new Set(signInOf(viewOfObject(foreign), clientIdOf(settings)).keys);
+  if (Object.keys(foreign).some((key) => !found.has(key))) throw notAnExport();
+  return foreign;
+}
+
 function validatePlain(file) {
-  if (file.locked !== false || !isObject(file.foreign) || Object.keys(file.foreign).length !== 0) throw notAnExport();
-  return validateSettings(file.settings);
+  if (file.locked !== false) throw notAnExport();
+  const settings = validateSettings(file.settings);
+  return { settings, foreign: validateForeign(file.foreign, settings) };
 }
 
 async function decryptLocked(file, passphrase) {
@@ -68,27 +79,37 @@ async function decryptLocked(file, passphrase) {
     const key = await passphraseKey(passphrase, fromBase64(file.kdf.salt));
     const clear = await cryptoApi().subtle.decrypt({ name: "AES-GCM", iv: fromBase64(file.cipher.iv) }, key, fromBase64(file.data));
     const payload = JSON.parse(decoder.decode(clear));
-    if (!isObject(payload) || !isObject(payload.foreign) || Object.keys(payload.foreign).length !== 0) throw wrongPassphrase();
-    return validateSettings(payload.settings);
+    if (!isObject(payload) || !isObject(payload.foreign)) throw wrongPassphrase();
+    const settings = validateSettings(payload.settings);
+    return { settings, foreign: validateForeign(payload.foreign, settings) };
   } catch (error) {
     if (error instanceof StoreError && error.name === "NotAnExport") throw error;
     throw wrongPassphrase();
   }
 }
 
-// readExport(text, passphrase?) -> { instance, settings }. It is deliberately independent of Store/localStorage.
-export async function readExport(text, passphrase = "") {
+// The whole export: { instance, settings, foreign }, `foreign` the sign-in library's keys it carries.
+async function parseExport(text, passphrase) {
   let file;
   try { file = JSON.parse(text); } catch { throw notAnExport(); }
   validateHead(file);
-  const settings = file.locked ? await decryptLocked(file, passphrase) : validatePlain(file);
-  return { instance: file.instance, settings };
+  const { settings, foreign } = file.locked ? await decryptLocked(file, passphrase) : validatePlain(file);
+  return { instance: file.instance, settings, foreign };
+}
+
+// readExport(text, passphrase?) -> { instance, settings }. It is deliberately independent of Store/localStorage.
+export async function readExport(text, passphrase = "") {
+  const { instance, settings } = await parseExport(text, passphrase);
+  return { instance, settings };
 }
 
 // exportSettings(store, passphrase?) -> canonical version-1 JSON text.
 export async function exportSettings(store, passphrase = "") {
   const head = { "agent-m-settings": VERSION, instance: store.prefix.slice("agent-m:".length, -1), exported: new Date().toISOString() };
-  const payload = { settings: storedSettings(store), foreign: {} };
+  const view = viewOfStorage(store.storage);
+  const settings = storedSettings(store);
+  const foreign = Object.fromEntries(signInOf(view, clientIdOf(settings)).keys.map((key) => [key, view.get(key)]));
+  const payload = { settings, foreign };
   if (!passphrase) return JSON.stringify({ ...head, locked: false, ...payload });
 
   const salt = cryptoApi().getRandomValues(new Uint8Array(16));
@@ -102,12 +123,22 @@ export async function exportSettings(store, passphrase = "") {
 
 // importSettings(store, text, passphrase?) -> adds only absent keys after complete export validation.
 export async function importSettings(store, text, passphrase = "") {
-  const { settings } = await readExport(text, passphrase);
+  const { settings, foreign } = await parseExport(text, passphrase);
   const added = [], kept = [];
   for (const [key, value] of Object.entries(settings)) {
     if (getRaw(store, key) !== null) kept.push(key);
     else added.push(key);
   }
   for (const key of added) setRaw(store, key, JSON.stringify(settings[key]));
+  // The sign-in library's keys: written only where this browser holds none for the connection, and then with their persons named in the shared list.
+  if (Object.keys(foreign).length) {
+    const present = signInOf(viewOfStorage(store.storage), clientIdOf(settings)).keys.length > 0;
+    if (present) kept.push("mailbox-sign-in");
+    else {
+      for (const [key, value] of Object.entries(foreign)) store.storage.setItem(key, value);
+      addAccounts(store.storage, signInOf(viewOfObject(foreign), clientIdOf(settings)));
+      added.push("mailbox-sign-in");
+    }
+  }
   return { added, kept };
 }
