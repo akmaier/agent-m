@@ -20,7 +20,7 @@ function unsafeCss(value) {
   for (const match of value.matchAll(/\b([a-z-]+)\s*\(/gi)) {
     if (!allowed.has(match[1].toLowerCase())) return true;
   }
-  for (const match of value.matchAll(/\burl\(([^)]*)\)/gi)) {
+  for (const match of value.matchAll(/\burl\s*\(([^)]*)\)/gi)) {
     if (!/^\s*(?:#[-\w:.]+|'#[-\w:.]+'|"#[-\w:.]+")\s*$/.test(match[1])) return true;
   }
   const urls = [...value.matchAll(/\burl\s*\(/gi)].length;
