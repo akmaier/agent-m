@@ -51,9 +51,9 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
   assert.deepEqual(route("GET", "/v1/agents").answer, { agents: [{ name: "string", version: "string", ready: "boolean", loggedIn: "boolean" }], missing: [{ name: "string" }] });
   assert.deepEqual(route("POST", "/v1/jobs"), { method: "POST", path: "/v1/jobs", request: { product: "string", record: "string", commit: "string" }, answer: { accepted: "string" } });
   assert.deepEqual(route("GET", "/v1/jobs").answer, { jobs: [{ id: "string", product: "string", kind: "string", agent: "string", state: "string", started: "string", usage: "object" }] });
-  assert.deepEqual(route("GET", "/v1/jobs/{id}/log").answer, { lines: ["string"], next: "number", ended: "boolean" });
+  assert.deepEqual(route("GET", "/v1/jobs/{id}/log"), { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", ended: "boolean" } });
   assert.deepEqual(route("POST", "/v1/jobs/{id}/cancel").answer, { confirmed: "boolean" });
-  assert.deepEqual(route("POST", "/v1/ask").request, { agent: "string", endpoint: { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] }, input: "string" });
+  assert.deepEqual(route("POST", "/v1/ask").request, [{ agent: "string", input: "string" }, { endpoint: { name: "string", kind: ["openai-compatible", "anthropic"], baseUrl: "string", model: "string", key: ["string", "null"] }, input: "string" }]);
   assert.deepEqual(route("POST", "/v1/ask").answer, { ask: "string" });
   assert.deepEqual(route("GET", "/v1/ask/{ask}").answer, { state: ["running", "done", "failed"], text: ["string", "null"], usage: ["object", "null"], error: ["string", "null"] });
 });
@@ -114,14 +114,14 @@ after(() => {
     for (const [id, [file, needle, replacement]] of Object.entries(FAULTS)) {
       const source = join(copied, file), original = readFileSync(source);
       assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
-      const invoke = () => spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/bridge-http-323.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env: { ...process.env, AGENT_M_323_FAULT_CHILD: "1" } });
-      const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/bridge-http-323.test.mjs"));
-      let failed, passed, faultHash, restoredHash; const faultStarted = new Date().toISOString();
-      try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); }
-      finally { writeFileSync(source, original); restoredHash = digest(readFileSync(source)); }
-      passed = invoke();
-      console.log("TST323-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/bridge-http-323.test.mjs"], cwd: copied, failed: { status: failed.status, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, stdout: passed.stdout, stderr: passed.stderr } }));
-      assert.equal(failed.status, 1, id); assert.equal(restoredHash, originalHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id);
+      const invoke = () => { const env = { ...process.env, AGENT_M_323_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/bridge-http-323.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
+      const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/bridge-http-323.test.mjs")));
+      let failed, passed, faultHash, restoredHash, faultEnded, restoreStarted, restoredEnded, positiveEnded; const faultStarted = new Date().toISOString();
+      try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); faultEnded = new Date().toISOString(); }
+      finally { restoreStarted = new Date().toISOString(); writeFileSync(source, original); restoredHash = digest(readFileSync(source)); restoredEnded = new Date().toISOString(); }
+      passed = invoke(); positiveEnded = new Date().toISOString();
+      console.log("TST323-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/bridge-http-323.test.mjs"], cwd: copied, childflag: "AGENT_M_323_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
+      assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`)); assert.equal(restoredHash, originalHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id); assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
     }
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
