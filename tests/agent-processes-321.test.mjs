@@ -154,9 +154,9 @@ test("TST-321001: agent driver streams answers with reported or null usage", asy
 // level: unit
 // module: MOD-agent-processes
 // guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-011
-// given: a controlled Claude executable that records its arguments and whether the CI-provided credential variable reaches it.
-// input: one local driver with no key variable and one CI driver that names ANTHROPIC_API_KEY while the fixture environment supplies its value.
-// expect: neither command contains a key; local invocation has no credential variable, while CI invocation receives the named CI variable without the module reading or placing its value in command arguments.
+// given: a controlled Claude executable; a locally logged-in Agent; and an installed Agent that has no saved login but has a CI credential name.
+// input: one local driver with no key variable and one CI driver for the installed-but-logged-out Agent, naming ANTHROPIC_API_KEY while the fixture environment supplies its value.
+// expect: neither command contains a key; local invocation has no credential variable, while CI invocation still succeeds and receives the named CI variable without the module reading or placing its value in command arguments.
 test("TST-321002: local and CI invocations keep credentials out of command arguments", async () => {
   const folder = fixture();
   const localRecord = join(folder, "local.json");
@@ -171,7 +171,7 @@ test("TST-321002: local and CI invocations keep credentials out of command argum
     await withEnvironment({ CI: undefined, GITHUB_ACTIONS: undefined, ANTHROPIC_API_KEY: "local-parent-key" }, () =>
       withPath(folder, () => driver(CLAUDE, folder).send({ ...INPUT, workdir: folder })));
     await withEnvironment({ CI: "true", ANTHROPIC_API_KEY: "ci-secret-fixture" }, () =>
-      withPath(folder, () => driver(CLAUDE, folder, "ANTHROPIC_API_KEY").send({ ...INPUT, workdir: folder })));
+      withPath(folder, () => driver({ ...CLAUDE, loggedIn: false }, folder, "ANTHROPIC_API_KEY").send({ ...INPUT, workdir: folder })));
 
     assert.deepEqual(JSON.parse(readFileSync(localRecord, "utf8")), {
       argv: ["-p", INPUT.prompt],
