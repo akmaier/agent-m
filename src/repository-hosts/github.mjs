@@ -4,12 +4,14 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), history(path, { ref, limit }), listTags(), commitFiles(change), createTag(name, commit),
+// readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
 // createBranch(name, from) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
 const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
+// GitHub's search of issues and pull requests: an address of the API outside the repository's own, which the token reaches too.
+const SEARCH = `${API}/search/issues`;
 const PAGE = 100, MAX_PAGES = 1000;
 const JSON_ACCEPT = "application/vnd.github+json", RAW_ACCEPT = "application/vnd.github.raw+json";
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
@@ -31,7 +33,7 @@ function base64(bytes) {
 // under; links: the host's WebLinks, whose list of tokens is where a refused token is renewed and a repository added to it.
 export function githubAdapter(address, { token, tokenName }, links) {
   const repo = `${API}/repos/${address.path}`;
-  const gate = { allowed: [repo, `${RAW}/${address.path}`], tokenAt: repo, header: "Authorization",
+  const gate = { allowed: [repo, SEARCH, `${RAW}/${address.path}`], tokenAt: [repo, SEARCH], header: "Authorization",
     value: token ? `Bearer ${token}` : null, token };
   const context = { server: "github", host: "GitHub", web: address.web, authenticated: Boolean(token), tokenName,
     renewal: links.tokens, permission: "Contents", what: address.web };
@@ -112,6 +114,18 @@ export function githubAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       return tags;
+    },
+
+    // The numbers of open and closed issues, from GitHub's search ("Search issues and pull requests"): one search for each
+    // state, "repo:… is:issue state:…", asking for one result a page, since only its total_count is read — no issue is listed.
+    // is:issue leaves out the pull requests, which the search lists with the issues otherwise. The search has a limit of its
+    // own (failures.mjs), and answers 422, not 404, for a repository it does not hold or the client may not see.
+    async issueCounts() {
+      const count = async (state) => {
+        const query = new URLSearchParams({ q: `repo:${address.path} is:issue state:${state}`, per_page: "1" });
+        return (await read(`${SEARCH}?${query}`, { search: true })).total_count;
+      };
+      return { open: await count("open"), closed: await count("closed") };
     },
 
     // The commits that changed a path — the repository where the path is null —, newest first, from `ref` (the default branch where
