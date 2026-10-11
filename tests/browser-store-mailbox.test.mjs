@@ -179,7 +179,7 @@ test("mailbox — clearing the mailbox removes the connection and the library's 
 
 // guards: A CLEAR IS A REAL CLEAR; UC-037
 // given: the same browser, with a GitHub token and the mailbox stored for this instance
-// input: clearEverything(store); and clearSetting of the sign-in alone on a fresh browser
+// input: clearEverything(store); and clearSetting of the sign-in alone on a fresh browser, where another client identifier's sign-in is in progress
 // expect: every entry of this instance and the connection's library keys gone, the rest as it was; the sign-in's own clear removes the keys and leaves the connection
 test("mailbox — clearing everything removes the library's keys with every other entry, and the sign-in can be cleared alone", () => {
   const { storage, store } = browser();
@@ -189,8 +189,10 @@ test("mailbox — clearing everything removes the library's keys with every othe
   assert.ok(storage.getItem(`msal.3.token.keys.${OTHER_CLIENT}`) && storage.getItem("msal.version") && storage.getItem(`agent-m:${OTHER_INSTANCE}:mailbox`));
 
   const second = browser();
+  second.storage.setItem("msal.interaction.status", JSON.stringify({ clientId: OTHER_CLIENT, type: "signin" }));
   clearSetting(second.store, "mailbox-sign-in");
-  assert.deepEqual(MY_KEYS.filter((key) => second.storage.getItem(key) !== null), []);
+  assert.deepEqual(MY_KEYS.filter((key) => key !== "msal.interaction.status" && second.storage.getItem(key) !== null), []);
+  assert.ok(second.storage.getItem("msal.interaction.status"), "a sign-in in progress for another client identifier stays");
   assert.deepEqual(readSetting(second.store, "mailbox"), GRAPH, "the connection stays");
 });
 
@@ -228,7 +230,7 @@ test("mailbox — an export carries the connection and its sign-in keys, and an 
 });
 
 // guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; CONFIGURATION LIVES IN THE BROWSER
-// given: an export whose `foreign` holds, besides the connection's keys, a key of another site, a key under this instance's prefix and a key of another client identifier
+// given: an export whose `foreign` holds, besides the connection's keys, a key of another site, a key under this instance's prefix, a key of another client identifier and a library key whose value is not text
 // input: importSettings
 // expect: NotAnExport, and the browser's localStorage exactly as it was; the same file without those keys is imported (known positive)
 test("mailbox — an import refuses a foreign key that is not the connection's library key, and writes nothing", async () => {
@@ -242,6 +244,9 @@ test("mailbox — an import refuses a foreign key that is not the connection's l
     await assert.rejects(importSettings(destination, hostile), (error) => error.name === "NotAnExport", bad);
     assert.deepEqual(fresh.keys(), [], `${bad}: nothing written`);
   }
+  const notText = JSON.stringify({ ...file, foreign: { ...file.foreign, [`msal.${CLIENT}.request.origin`]: 5 } });
+  await assert.rejects(importSettings(destination, notText), (error) => error.name === "NotAnExport", "a value that is not text");
+  assert.deepEqual(fresh.keys(), []);
   assert.ok((await importSettings(destination, JSON.stringify(file))).added.includes("mailbox"), "known positive");
   assert.ok(storage.keys().length > 0);
 });
