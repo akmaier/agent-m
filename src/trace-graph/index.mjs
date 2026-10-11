@@ -1,12 +1,13 @@
 // MOD-trace-graph — the trace graph and everything derived from it (docs/architecture/MOD-trace-graph.md): its
-// interface. Of it, traceGraph, graphFindings, tracesTo and selfSufficiencyFindings are built. traceGraph reads, of its Data,
-// SPEC.md through MOD-spec-document, the test files through MOD-test-document, the use cases, the architecture decisions, the
-// module files, the plan steps and the backlog items through MOD-documents, and the group files through MOD-group-document, so
-// that its graph holds every requirement, test, document and group with the edges it states and the facts the checks across
-// artifacts need, and lists a file it cannot read with the reason. graphFindings decides from the graph alone the checks across
-// artifacts, and selfSufficiencyFindings the links that reach a path the product repository does not hold, or the instance's
-// repository or dashboard; both are in checks.mjs. tracesTo gives a requirement the sources its node keeps and the tests that
-// guard it. The code files and their imports, coverageGaps, requirementImpact, architectureImpact, moduleOrder, moduleRows and
+// interface. Of it, traceGraph, graphFindings, tracesTo, requirementImpact, coverageGaps and selfSufficiencyFindings are built.
+// traceGraph reads, of its Data, SPEC.md through MOD-spec-document, the test files through MOD-test-document, the use cases, the
+// architecture decisions, the module files, the plan steps and the backlog items through MOD-documents, and the group files through
+// MOD-group-document, so that its graph holds every requirement, test, document and group with the edges it states and the facts
+// the checks across artifacts need, and lists a file it cannot read with the reason. graphFindings decides from the graph alone the
+// checks across artifacts, and selfSufficiencyFindings the links that reach a path the product repository does not hold, or the
+// instance's repository or dashboard; both are in checks.mjs. tracesTo gives a requirement the sources its node keeps and the tests
+// that guard it, requirementImpact every place an artifact names it, and coverageGaps the requirements and use cases that lack a
+// counterpart and the names that match nothing. The code files and their imports, architectureImpact, moduleOrder, moduleRows and
 // compareGraphs are not built yet.
 //
 // Module: MOD-trace-graph
@@ -95,6 +96,31 @@
  * }} Traces
  */
 
+/**
+ * One row of the impact list of a requirement: one place at which an artifact names it, with the identifier and the kind of the
+ * artifact, the file and the line at which it does, and the edge by which it does, the `via` of the graph's edge.
+ * @typedef {{
+ *   id: string,
+ *   kind: "requirement" | "SRC" | "UC" | "ARC" | "MOD" | "TST" | "ITM" | "RES" | "JOB",
+ *   path: string,
+ *   line: number,
+ *   via: string,
+ * }} ImpactEntry
+ */
+
+/**
+ * The gaps of coverage, none of which blocks anything: the requirements of the SPEC that no use case realises and — once the graph
+ * holds a module, or a test — that no module realises, that no test guards; the use cases that realise no requirement; and the
+ * names that match no requirement or use case, each with the artifact, the file and the line of every place that states it.
+ * @typedef {{
+ *   requirementsWithoutUseCase: string[],
+ *   requirementsWithoutModule: string[],
+ *   requirementsWithoutTest: string[],
+ *   useCasesWithoutRequirement: string[],
+ *   unknownNames: { name: string, namedBy: { id: string, path: string, line: number }[] }[],
+ * }} Gaps
+ */
+
 export { traceGraph } from "./build.mjs";
 export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
-export { tracesTo } from "./derive.mjs";
+export { coverageGaps, requirementImpact, tracesTo } from "./derive.mjs";

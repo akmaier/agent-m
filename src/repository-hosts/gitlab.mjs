@@ -5,8 +5,8 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit), createBranch(name, from) — and adds what
-// both adapters share.
+// readFile(commit, path), history(path, { ref, limit }), listTags(), commitFiles(change), createTag(name, commit),
+// createBranch(name, from) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -14,6 +14,12 @@ const PAGE = 100, MAX_PAGES = 1000;
 // GitLab's role Maintainer: the access level that may push to a protected default branch (A GITLAB PRODUCT USES A PROJECT
 // ACCESS TOKEN); GitLab's default branch protection lets no Developer push.
 const MAINTAINER = 40;
+
+// An entry of the diff of a commit as the change the commit made to the file: added, deleted, renamed — with the path it came
+// from — or modified.
+const changeOf = (d) => (d.new_file ? { path: d.new_path, change: "added" }
+  : d.deleted_file ? { path: d.old_path, change: "deleted" }
+    : d.renamed_file ? { path: d.new_path, change: "renamed", from: d.old_path } : { path: d.new_path, change: "modified" });
 
 function base64(bytes) {
   let s = "";
@@ -95,6 +101,36 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       return tags;
+    },
+
+    // The commits that changed a path — the project where the path is null —, newest first, from `ref` (the default branch where
+    // none is given), at most `limit` of them (all where none is given), each with the files it changed. "List repository
+    // commits" (ref_name, path, follow, per_page up to 100, page) names the commits, page by page; the diff of a commit gives
+    // its files, up to 100 to a page, read page by page for a commit that changed more. A server of GitLab 18.10 or later
+    // follows a file across a rename unless `follow` is false: the commits asked for are those of the path itself, as GitHub's
+    // `path` gives them. A commit's author is named by name and e-mail, not by account: the entry's account is null.
+    async history(path, { ref, limit } = {}) {
+      const what = ref ? `${address.web} at ${ref}` : address.web;
+      const per = limit === undefined ? PAGE : Math.max(1, Math.min(PAGE, limit));
+      const query = `per_page=${per}${ref ? `&ref_name=${encodeURIComponent(ref)}` : ""}${path ? `&path=${encodeURIComponent(path)}&follow=false` : ""}`;
+      const listed = [];
+      for (let page = 1; page <= MAX_PAGES && (limit === undefined || listed.length < limit); page++) {
+        const items = await read(`${api}/repository/commits?${query}&page=${page}`, { what });
+        listed.push(...items);
+        if (items.length < per) break;
+      }
+      const entries = [];
+      for (const c of limit === undefined ? listed : listed.slice(0, limit)) {
+        const changes = [];
+        for (let page = 1; page <= MAX_PAGES; page++) {
+          const diffs = await read(`${api}/repository/commits/${c.id}/diff?per_page=${PAGE}&page=${page}`, { what: `${address.web} at ${c.id}` });
+          changes.push(...diffs.map(changeOf));
+          if (diffs.length < PAGE) break;
+        }
+        entries.push({ commit: c.id, parents: c.parent_ids, author: { account: null, name: c.author_name },
+          date: c.committed_date, message: c.message, changes });
+      }
+      return entries;
     },
 
     // One file's text at a commit, or null where the commit does not hold it.

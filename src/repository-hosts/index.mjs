@@ -1,6 +1,6 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, listTags, commitFiles, createTag, createBranch and webLinks. Every function of a
-// host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, commitFiles, createTag, createBranch and webLinks. Every
+// function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE NAMES HOW IT FAILS).
 //
 // Module: MOD-repository-hosts
 //
@@ -160,6 +160,13 @@ export function connect(address, credentials = {}) {
         },
       });
     },
+
+    // readHistory(path, { ref, limit }) -> HistoryEntry[] — the commits that changed a path, or, for a null path, the repository,
+    // newest first, from the branch, tag or commit `ref` (the default branch where none is given), at most `limit` of them (all
+    // where none is given). Each is { commit, parents, author: { account, name }, date, message, changes }: the account the
+    // server names for the author, or null; the date the commit was committed; every file it changed, as added, modified,
+    // deleted or renamed — with the path it came from. Crosses the network; fails as readSnapshot.
+    readHistory: (path, options) => adapter.history(path ?? null, options ?? {}),
 
     // listTags(pattern) -> { name, commit }[] — the tags of the repository, every one of them across however many pages the
     // server answers in, optionally only those whose name matches pattern, a glob with * as its only wildcard (e.g. "v*").
