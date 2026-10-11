@@ -36,9 +36,11 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
 /**
  * Everything a strategy may read: the kind, the job's parameters, the product and the instance, opening another
  * repository, the participants, the places every restricted source and the mailbox allow, the gates at this job's points,
- * the person, the time, Agent M's version, and the job's identifier.
+ * the person, the time, Agent M's version, and the job's identifier. `instance.checkout` is the folder of a checkout of the
+ * instance, at the commit `agentM.commit`, in which the participant works and from which the instance's snapshot is read; null in a
+ * browser.
  * @typedef {{ kind: KindDefinition, params: Record<string, unknown>, product: { address: string, snapshot: Snapshot,
- *   host: Host | null }, instance: { snapshot: Snapshot, host: Host | null }, connect: (address: string) => Promise<Host>,
+ *   host: Host | null }, instance: { snapshot: Snapshot, host: Host | null, checkout?: string | null }, connect: (address: string) => Promise<Host>,
  *   participants: Participant[], places: { sources: Record<string, string[]>, mailbox: string[] | null },
  *   gates: Array<{ name: string, point: string, passed: boolean }>, person: string | null, now: Date,
  *   agentM: { version: string, commit: string }, jobId: string | null }} JobContext
