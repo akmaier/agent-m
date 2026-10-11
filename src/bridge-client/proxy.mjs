@@ -1,7 +1,9 @@
+import { bridgePath } from "./paths.mjs";
+
 function pathOf(session) {
   if (typeof session?.name !== "string" || !session.name) throw new TypeError("remote session name is required");
   if (!Number.isInteger(session.port) || session.port < 1 || session.port > 65535) throw new TypeError("remote session port is required");
-  return `/bridge/${session.name}`;
+  return bridgePath(session.name);
 }
 
 function sharedHeader(origin) {
