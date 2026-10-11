@@ -5,8 +5,8 @@
 // linkedVersion, and sourceStrategies with the recipe source-excerpt and the four recipes of the book's chapters
 // (strategies.mjs) come with the job runner. ITM-315 adds sourceFindings, the requirements that name no source the product
 // links. ITM-313 adds recogniseLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names. ITM-383 adds
-// personSource, the source of the person who gives an instruction. Registering and fetching a source's content and the
-// module's other functions are not built yet.
+// personSource, the source of the person who gives an instruction. ITM-314 adds registrationCommits, the commit plan of a
+// registration. Fetching a source's content, a new version and the module's other functions are not built yet.
 //
 // Module: MOD-source-register
 //
@@ -20,10 +20,10 @@
 
 // Schema and Document, in the types below, are MOD-documents' types of those names; Host is MOD-repository-hosts'; Strategies
 // is MOD-job-runner's; Requirement is MOD-spec-document's and Finding MOD-text-tools'.
-import { loadSchema } from "../documents/index.mjs";
-import { finding } from "../text-tools/index.mjs";
+import { loadSchema, writeDocument } from "../documents/index.mjs";
+import { finding, sha256 } from "../text-tools/index.mjs";
 import { strategiesOf } from "./strategies.mjs";
-import { unquoted, versionRecord } from "./content.mjs";
+import { failure, unquoted, versionHash, versionRecord } from "./content.mjs";
 
 export { readContent } from "./content.mjs";
 export { recogniseLegalText } from "./legal-text.mjs";
@@ -83,6 +83,52 @@ export function permittedPlaces(entry) {
   const { licence, places } = entry.fields;
   if (typeof licence === "string" && REPUBLISHABLE.test(licence)) return "any";
   return Array.isArray(places) ? [...places] : [];
+}
+
+/**
+ * registrationCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean }[], instance: string) ->
+ * Promise<CommitPlan> — what to commit where when a source is registered: the register entry with its first version, and the
+ * files. The entry is the one the form builds: its `## Versions` holds the first version's row — version, date, edition, read
+ * from —, whose cell Files this function fills with the number of files, `listed below`, the version's hash, and the files
+ * only hashed after `not stored:`; under `### Files of <version>` it lists every file with the SHA-256 of its bytes. A file
+ * with `keep` goes to `docs/sources/<id>/<version>/<name>` of the instance when the licence permits republishing, of the
+ * entry's `content_repository` otherwise; a file without it goes nowhere, since the person only hashed it. The entry goes to the
+ * instance, first in the plan. Throws ContentRepositoryMissing { source } for a file to keep of a restricted source whose entry
+ * names no content repository, and TypeError for an entry whose `## Versions` holds no row.
+ * @param {Document} entry
+ */
+export async function registrationCommits(entry, files, instance) {
+  const versions = entry.sections.find((section) => section.heading === "## Versions");
+  const first = versions?.rows?.[0];
+  if (!first) throw new TypeError("registrationCommits: the entry's ## Versions holds the row of its first version");
+  const kept = files.filter((file) => file.keep);
+  const holder = permittedPlaces(entry) === "any" ? instance : entry.fields.content_repository;
+  if (kept.length && !holder) {
+    throw failure("ContentRepositoryMissing", `${entry.id} is restricted, and its entry names no repository for its files`, { source: entry.id });
+  }
+  const listed = await Promise.all(files.map(async (file) => ({ name: file.name, sha256: await sha256(file.bytes) })));
+  const version = unquoted(first.cells.Version);
+  const unstored = files.filter((file) => !file.keep).map((file) => file.name);
+  const count = listed.length === 1 ? "1 file" : `${listed.length} files`;
+  const cell = `${count}, listed below; version hash \`${await versionHash(listed)}\``
+    + (unstored.length ? `; not stored: ${unstored.join(", ")}` : "");
+  const rows = [{ ...first, cells: { ...first.cells, Files: cell } }];
+  const table = ["| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
+    `| ${["Version", "Date", "Edition", "Read from", "Files"].map((column) => rows[0].cells[column] ?? "—").join(" | ")} |`];
+  const block = [`### Files of ${version}`, "", "| File | SHA-256 |", "|---|---|",
+    ...listed.map((file) => `| \`${file.name}\` | \`${file.sha256}\` |`)];
+  const text = `\n${[...table, "", ...block].join("\n")}\n\n`;
+  // The first version is being written, not appended to a record that stands: the row as the form gave it is no row of the
+  // record yet, so the body is written without the section it stood in.
+  const body = String(entry.body ?? "").replace(/^## Versions\n[\s\S]*?(?=^## |(?![\s\S]))/m, "");
+  const entryFile = writeDocument(ENTRY, { ...entry, body, sections: entry.sections.map((section) => (section === versions
+    ? { ...section, text, rows } : section)) });
+  const plan = new Map([[instance, [{ path: `docs/sources/${entry.id}.md`, content: entryFile }]]]);
+  for (const file of kept) {
+    if (!plan.has(holder)) plan.set(holder, []);
+    plan.get(holder).push({ path: `docs/sources/${entry.id}/${version}/${file.name}`, content: file.bytes });
+  }
+  return [...plan].map(([repository, planned]) => ({ repository, files: planned }));
 }
 
 // The names an entry goes by in a requirement's source item: its identifier, its title, and a standard's designation.
