@@ -3,12 +3,24 @@
 // Guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
 // Level: unit
 import assert from "node:assert/strict";
-import test from "node:test";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test, { after } from "node:test";
 import { BridgeError, bridgeAt, testBridge, handOver, ask, probe } from "../src/bridge-client/index.mjs";
 const bridge = () => bridgeAt({ address: "http://127.0.0.1:4711", token: "bridge-token" });
 const endpoint = { name: "local", kind: "openai-compatible", baseUrl: "http://127.0.0.1:11434", model: "small", key: "endpoint-key" };
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 function withFetch(t, fn) { const prior = globalThis.fetch; globalThis.fetch = fn; t.after(() => { globalThis.fetch = prior; }); }
+const FAULTS = {
+  "TST-324001": ['const agents = await call(bridge, route.path, { method: route.method });', 'const agents = { agents: [], missing: [] };'],
+  "TST-324002": ['body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit })', 'body: JSON.stringify({ product: job.product, record: job.record, commit: "fault" })'],
+  "TST-324003": ['return { text: answer.text, usage: answer.usage ?? null };', 'return { text: answer.text, usage: null };'],
+  "TST-324004": ['["endpoint-test", "agent"].includes(kind)', '["endpoint-test"].includes(kind)'],
+  "TST-324005": ['if (answer.status === 401)', 'if (answer.status === 402)'],
+};
 // TST-324001
 // given: a paired Bridge and its pair/agents answers
 // input: testBridge(bridge)
@@ -34,3 +46,24 @@ function withFetch(t, fn) { const prior = globalThis.fetch; globalThis.fetch = f
 // input: selected client operations
 // expect: each named BridgeError is preserved and missing token sends no request
  test("TST-324005: selected calls name their declared BridgeErrors", async (t) => { let calls=0; withFetch(t, async ()=>{calls+=1; return response({error:"paused",message:"wait"},503);}); await assert.rejects(()=>handOver(bridgeAt({address:"http://127.0.0.1:4711",token:""}),{}),(e)=>e.name==="TokenMissing"); assert.equal(calls,0); await assert.rejects(()=>handOver(bridge(),{}),(e)=>e.name==="BridgeFailed"&&e.error==="paused"); globalThis.fetch=async()=>response({error:"token-refused",message:"pair again"},401); await assert.rejects(()=>handOver(bridge(),{}),(e)=>e.name==="TokenRefused"); globalThis.fetch=async()=>response({error:"invalid-request",message:"bad input"},422); await assert.rejects(()=>handOver(bridge(),{}),(e)=>e.name==="BridgeFailed"&&e.error==="invalid-request"); globalThis.fetch=async()=>{throw new DOMException("late","TimeoutError")}; await assert.rejects(()=>handOver(bridge(),{}),(e)=>e.name==="Timeout"); globalThis.fetch=async()=>{throw new TypeError("blocked")}; await assert.rejects(()=>testBridge(bridge()),(e)=>e.name==="NoAnswer"&&e.likely[0]==="blocked by the browser"&&e.message.includes("HTTPS")); });
+
+after(() => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_324_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-324-fault-")), copied = join(temporary, "repo"), digest = (value) => createHash("sha256").update(value).digest("hex");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    for (const [id, [needle, replacement]] of Object.entries(FAULTS)) {
+      const source = join(copied, "src/bridge-client/index.mjs"), original = readFileSync(source);
+      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
+      const argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/bridge-client-324.test.mjs"];
+      const invoke = () => { const env = { ...process.env, AGENT_M_324_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT; return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
+      const sourceHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/bridge-client-324.test.mjs")));
+      let failed, passed, faultHash, restoredHash, faultEnded, restoreStarted, restoredEnded, positiveEnded; const faultStarted = new Date().toISOString();
+      try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); faultEnded = new Date().toISOString(); }
+      finally { restoreStarted = new Date().toISOString(); writeFileSync(source, original); restoredHash = digest(readFileSync(source)); restoredEnded = new Date().toISOString(); }
+      passed = invoke(); positiveEnded = new Date().toISOString();
+      console.log("TST324-counterproof " + JSON.stringify({ id, source, needle, replacement, testHash, sourceHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv, cwd: copied, childflag: "AGENT_M_324_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr }));
+      assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`)); assert.equal(restoredHash, sourceHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id); assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
+    }
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
+});
