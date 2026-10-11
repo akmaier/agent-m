@@ -111,7 +111,8 @@ function apiRoute(method, path) {
 }
 
 export async function testBridge(bridge) {
-  const paired = await call(bridge, "/v1/pair", { method: "GET" });
+  const pairRoute = apiRoute("GET", "/v1/pair");
+  const paired = await call(bridge, pairRoute.path, { method: pairRoute.method });
   const route = apiRoute("GET", "/v1/agents");
   const agents = await call(bridge, route.path, { method: route.method });
   return { ...paired, ...agents };
