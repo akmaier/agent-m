@@ -52,10 +52,16 @@ async function withSvg(run) {
 // This is the library boundary only: the returned SVG is constructed by the stand-in as a browser
 // diagram library would, then the public module must retain strict initialisation and sanitise it.
 const SAFE_SVG = '<svg><style>.node:not(.hidden){font-family:var(--mermaid-font-family);fill:rgb(1,2,3);marker-end:url(#one)}</style><script>fetch("https://outside.example")</script><rect onload="alert(1)"></rect><text>drawn</text><path marker-start="url(#one)" marker-mid="url(\'#two\')" marker-end="url(&quot;#three&quot;)"></path></svg>';
-function installMermaid(svg = SAFE_SVG) {
+function installMermaid(svg = SAFE_SVG, vertices = new Map()) {
   const calls = [];
   globalThis.mermaid = {
     initialize(options) { calls.push({ kind: "initialize", options }); },
+    mermaidAPI: {
+      async getDiagramFromText(source) {
+        calls.push({ kind: "getDiagramFromText", source });
+        return { db: { getVertices: () => vertices } };
+      },
+    },
     async run({ nodes }) {
       calls.push({ kind: "run", nodes: [...nodes] });
       for (const node of nodes) {
@@ -96,6 +102,36 @@ test("TST-342001 renderMermaid draws strict SVG and leaves no hostile diagram ma
     assert.equal(refused.className, "unrendered", css);
     assert.match(refused.textContent, /external resource|Diagram error/i, css);
   }
+}));
+
+// TST-342006
+// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; NO SERVER
+// given: a Mermaid flowchart whose public parsed vertex metadata has a normal node and a distinct image-bearing node
+// input: renderMermaid(source) through the local library's getDiagramFromText()/getVertices() boundary
+// expect: a normal parsed diagram draws; image metadata is refused with its source before run can reach Mermaid's Image.src
+test("TST-342006 Mermaid image metadata is refused before the drawing boundary", async () => withSvg(async () => {
+  const normalVertices = new Map([["plain", { id: "plain" }]]);
+  const normalCalls = installMermaid(SAFE_SVG, normalVertices);
+  const normal = await renderMermaid("flowchart LR\n  plain[Plain]");
+  assert.equal(normalCalls.filter((call) => call.kind === "run").length, 1,
+    "a normal parsed diagram reaches the drawing boundary");
+  assert.match(normal.innerHTML, /<svg\b/i);
+
+  const resource = "https://outside.example/diagram.png";
+  const vertices = new Map([
+    ["plain", { id: "plain" }],
+    ["asset", { id: "asset", img: resource }],
+  ]);
+  const calls = installMermaid(SAFE_SVG, vertices);
+  const source = `flowchart LR\n  plain[Plain] --> asset@{ img: "${resource}" }`;
+  assert.equal(vertices.get("asset")?.img, resource, "known positive: the parsed asset id owns the image metadata");
+  assert.equal(vertices.get("plain")?.img, undefined, "the normal id does not collide with the asset metadata");
+  const refused = await renderMermaid(source);
+  assert.equal(calls.filter((call) => call.kind === "run").length, 0,
+    "image metadata never reaches the drawing boundary");
+  assert.equal(refused.className, "unrendered");
+  assert.match(refused.textContent, /image|resource|Diagram error/i);
+  assert.match(refused.textContent, /outside\.example/);
 }));
 
 // TST-342002
