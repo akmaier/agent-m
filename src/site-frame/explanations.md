@@ -530,7 +530,8 @@ for SMTP. It also presets the account name as your address. Correct whatever dif
 
 Gmail refuses your account password over IMAP. It accepts an *app password* instead: a password that Google creates for one
 program. An app password needs 2-Step Verification to be switched on for your Google account, so switch that on first, then create
-the app password in your account's security settings and enter it as the mailbox password. Work or school accounts may not offer
+the app password in your account's security settings, on Google's page
+[Create and manage your app passwords](https://myaccount.google.com/apppasswords), and enter it as the mailbox password. Work or school accounts may not offer
 app passwords; then the organisation's administrator decides whether you can connect. The same applies when a mail server refuses
 the login although the password is right: some providers require an app password instead of the account password when two-factor
 login is on.
