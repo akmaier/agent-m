@@ -112,16 +112,18 @@ const OTHER_RECORD = appendToRecord(appendToRecord(otherStarted.text, { part: "t
   { part: "end", at: new Date("2026-10-08T10:20:00Z"), state: "done", results: [], draft: null, usage: null, cost: { known: false, usage: null },
     reason: null, log: null, rounds: [{ number: 1, findings: [F6], answers: [{ finding: F6, how: "fixed", text: null }], changed: true }] });
 const started = startRecord(JOB);
-const JOB_RECORD = appendToRecord(appendToRecord(started.text, { part: "taken", at: new Date("2026-10-07T09:01:00Z"), by: "tab" }),
-  { part: "end", at: new Date("2026-10-07T09:20:00Z"), state: "done", results: ["waits for a person"], draft: null, rounds: ROUNDS, usage: null,
-    cost: { known: false, usage: null }, reason: null, log: null, stoppedBecause: "limit" });
+// The record of the drafting job, whose loop stopped for the reason given, after the rounds given.
+const draftingRecord = (rounds, stoppedBecause) => appendToRecord(appendToRecord(started.text, { part: "taken", at: new Date("2026-10-07T09:01:00Z"), by: "tab" }),
+  { part: "end", at: new Date("2026-10-07T09:20:00Z"), state: "done", results: ["waits for a person"], draft: null, rounds, usage: null,
+    cost: { known: false, usage: null }, reason: null, log: null, stoppedBecause });
+const JOB_RECORD = draftingRecord(ROUNDS, "limit");
 
 // UC-001, ARC-001, ARC-006 and MOD-shelf accepted; ARC-003 accepted at an earlier text and edited since; ARC-002, ARC-004 and MOD-desk open.
 // Where `reserve` is set: ARC-005 (forced by UC-002, open) and MOD-queue are in the architecture too.
-const stepsOf = ({ reserve = false } = {}) => [
+const stepsOf = ({ reserve = false, drafting = JOB_RECORD } = {}) => [
   { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "docs/use-cases/UC-001-borrow-a-book.md": UC1, "docs/use-cases/UC-002-reserve-a-book.md": UC2,
     [A(1, "lending")]: ARC1, [A(2, "desk")]: ARC2, [A(3, "shelf")]: ARC3_OLD, [A(4, "barcodes")]: ARC4, [A(6, "dates")]: ARC6,
-    [M("desk")]: MOD_DESK, [M("shelf")]: MOD_SHELF, [started.path]: JOB_RECORD, [otherStarted.path]: OTHER_RECORD,
+    [M("desk")]: MOD_DESK, [M("shelf")]: MOD_SHELF, [started.path]: drafting, [otherStarted.path]: OTHER_RECORD,
     ...(reserve ? { [A(5, "reservations")]: ARC5, [M("queue")]: MOD_QUEUE } : {}) },
   Object.fromEntries([recordOf("UC-001", "use-case", "docs/use-cases/UC-001-borrow-a-book.md", UC1), recordOf("ARC-001", "architecture-decision", A(1, "lending"), ARC1),
     recordOf("ARC-006", "architecture-decision", A(6, "dates"), ARC6), recordOf("ARC-003", "architecture-decision", A(3, "shelf"), ARC3_OLD),
@@ -265,13 +267,15 @@ test("MOD-review-pages decision/all — a further decision with its due-diligenc
 
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-022
 // given: the record of the job that drafted the architecture: two rounds — the first with two findings, one fixed and one answered
-//        with its reason, the second with two findings, one justified and one that no answer follows —, and the record of a newer job
+//        with its reason, the second with two findings, one justified and one that no answer follows, the loop having stopped at its
+//        limit —, and the record of a newer job
 //        of another kind, which has a round of its own
 // input: the route decision rendered with the id all
 // expect: a rounds section of the drafting job's two rounds and not of the other job's; in the first the finding on ARC-002 with
-//         "fixed" and the finding on ARC-003 with "answered:" and the reason; in the second the finding on ARC-004 with "justified:" and
-//         its reason, not left, and the finding on UC-001 marked left, the only one; each finding with its file, line, what it says and
-//         the rule it names; the count left, 1 finding
+//         "fixed" and the finding on ARC-003 with "answered:" and the reason, neither left; in the second both findings marked left,
+//         the one on ARC-004 still with its "justified:" and its reason — the loop stopped at its limit, and what is left is the last
+//         round's findings, as the record's writer counts it —; each finding with its file, line, what it says and the rule it
+//         names; the count left, 2 findings
 test("MOD-review-pages decision/all — the rounds of the drafting job, each finding with its correction or answer and the findings left", async () => {
   const target = await show(fakeHost());
   const rounds = byClass(target, "section", "rounds")[0];
@@ -292,10 +296,11 @@ test("MOD-review-pages decision/all — the rounds of the drafting job, each fin
   assert.match(second[0].textContent, /left/);
   assert.match(second[1].textContent, /ARC-004:20/);
   assert.match(byClass(second[1], "span", "answer")[0].textContent, /^justified: the registry shows no date for it\.$/);
-  assert.ok(!second[1].className.split(" ").includes("left"), "a finding the drafter justified is not left");
-  assert.equal(byClass(rounds, "li", "left").length, 1, "no other finding is left");
+  assert.ok(second[1].className.split(" ").includes("left"), "a finding the drafter justified is left too, at the limit");
+  assert.equal(byClass(rounds, "li", "left").length, 2, "the findings of the last round, and no other");
+  assert.equal(byClass(round[0], "li", "left").length, 0, "none of the first round");
   assert.ok(!rounds.textContent.includes("realises a requirement twice"), "not the rounds of another job");
-  assert.match(byClass(rounds, "p", "left-count")[0].textContent, /^Left: 1 finding$/);
+  assert.match(byClass(rounds, "p", "left-count")[0].textContent, /^Left: 2 findings$/);
 });
 
 // ---------------------------------------------------------------- Accept all N shown
@@ -362,3 +367,26 @@ test("MOD-review-pages decision/all — a decision that names an open use case i
   await until(() => byClass(target, "p", "result").length === 1, "the message");
   assert.match(byClass(target, "p", "result")[0].textContent, /ARC-005 was left out: rests on what is not accepted \(UC-002\)/);
 });
+
+// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-022
+// given: four drafting jobs, each with two rounds in which the drafter answered every finding — the loop having (1) stopped at its
+//        limit, (2) passed, (3) checked nothing, (4) stopped because a round left the findings unchanged
+// input: the route decision rendered with the id all for each
+// expect: as the record's writer counts what is left, which its `Left:` line states: the findings of the last round, answered or not,
+//         for (1) and (4) — the page says "Left: 1 finding" and marks that finding left, with its answer —; none for (2) and (3), where
+//         the last round's justified finding is not left and the page says "Left: none"
+const ANSWERED = [
+  { number: 1, findings: [F1], answers: [{ finding: F1, how: "fixed", text: null }], changed: true },
+  { number: 2, findings: [F5], answers: [{ finding: F5, how: "justified", text: "the registry shows no date for it." }], changed: true },
+];
+for (const [stopped, left] of [["limit", 1], ["passed", 0], ["not checked", 0], ["unchanged", 1]]) {
+  test(`MOD-review-pages decision/all — rounds that the loop left at "${stopped}": ${left ? "the last round's answered finding is left" : "nothing is left"}`, async () => {
+    const target = await show(fakeHost({ drafting: draftingRecord(ANSWERED, stopped) }));
+    const rounds = byClass(target, "section", "rounds")[0];
+    assert.ok(rounds, "a rounds section");
+    assert.equal(byClass(rounds, "li", "left").length, left);
+    assert.equal(byClass(rounds, "li", "left").length === 0 ? "" : byClass(byClass(rounds, "li", "left")[0], "span", "answer")[0].textContent,
+      left ? "justified: the registry shows no date for it." : "");
+    assert.equal(byClass(rounds, "p", "left-count")[0].textContent, left ? "Left: 1 finding" : "Left: none");
+  });
+}
