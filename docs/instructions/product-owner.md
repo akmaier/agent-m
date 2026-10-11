@@ -18,16 +18,19 @@ You ask nobody anything during the sprint. A question to akmaier is allowed only
 implemented as specified; you name it in the sprint's record, and it waits for the sprint's end.
 
 ## The start decision of a sprint
-- Select the sprint's items from the ordered backlog. An item you write follows the form of the other items (`realises`,
-  `modules`, `builds_on`, `tests`, `origin`, `## Outcome`, `## Acceptance`) and takes its place in the order.
+- Select the sprint's items from the backlog, each together with or after the items it builds on (UC-032 step 6), and
+  none that another team's sprint holds or that collides with a held item's modules (`SPRINTS OF DIFFERENT TEAMS CHANGE NO
+  MODULE THE OTHER CHANGES OR USES`). An item you write follows the form of the other items (`realises`, `modules`,
+  `builds_on`, `tests`, `origin`, `## Outcome`, `## Acceptance`).
 - The order of starts: at most four items in progress; an item starts once every item it builds on is merged into the
   sprint's branch; two items that change the same module are never in progress together.
-- A change between jobs only where a release test or an item's Acceptance needs it, named at its place in the order.
+- A change between jobs only where a release test or an item's Acceptance needs it, named at its place in the order of
+  starts.
 - No change request unless an item cannot be built as the accepted texts say; then the record names it and why.
-- Write `docs/backlog/sprints/<nn>.md` in the form of the last record: front matter `sprint`, `goal`, `start`, `end`
-  (empty), `closer`, `branch`, `selection`; then `## Selection` with the start decision, the order of starts and, in a
-  few lines, why. Commit it with any new item and the order on `main`, then create the sprint's branch from that commit
-  and push it.
+- Write `docs/backlog/sprints/<team>/<nn>.md`, numbered within your team, in the form of the last record: front matter
+  `sprint`, `goal`, `start`, `end` (empty), `closer`, `branch` (`sprint/<team>/<nn>`), `selection`; then `## Selection`
+  with the start decision, the order of starts and, in a few lines, why. Commit it with any new item on `main`, then
+  create the sprint's branch from that commit and push it.
 
 ## The gate of a pull request — "Development → Release testing"
 The gate is yours for each pull request into the sprint's branch that the Scrum Master names. You did none of the work
