@@ -90,7 +90,8 @@ function fakeGraph({ folders = { Reports: 7 }, inbox = 42 } = {}) {
 // given: a fake Microsoft Graph that holds INBOX with 42 mails and Reports with 7, and finds Drafts and Sent; the stand-in for the
 //        library's client, signed in as reports@example.org with all three scopes
 // input: mailbox(connection of the Microsoft route, null).test()
-// expect: { counts: { INBOX: 42, Reports: 7 }, drafts: true, sent: true, sending: "works", route: "graph", encryption: a text }
+// expect: { counts: { INBOX: 42, Reports: 7 }, drafts: true, sent: true, sending: "works", route: "graph", encryption: a text }; and,
+//         for a sign-in whose token lacks Mail.Send, `sending` is not "works" but a text that says why
 test("test — on the Microsoft route: the mails in each named folder, Drafts and Sent found, sending works", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   signedIn();
@@ -103,6 +104,10 @@ test("test — on the Microsoft route: the mails in each named folder, Drafts an
   assert.equal(answer.route, "graph");
   assert.equal(typeof answer.encryption, "string");
   assert.ok(answer.encryption.length > 0);
+  signedIn({ granted: ["Mail.ReadWrite", "offline_access"] });
+  const without = await mailbox(GRAPH_CONNECTION, null).test();
+  assert.notEqual(without.sending, "works");
+  assert.match(without.sending, /Mail\.Send/);
 });
 
 // guards: THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; A CREDENTIAL IS NEVER PLACED IN A URL
@@ -195,6 +200,8 @@ for (const [what, bridge, answer, name, check] of [
   ["a paused Bridge", BRIDGE, MESSAGE("paused", "The Bridge is paused.", 503), "BridgeUnavailable", (error) => assert.match(error.reason, /paused/)],
   ["a mail server that offers no TLS", BRIDGE, MESSAGE("no-encryption", "imap.example.org offers no TLS; no login was sent."), "NoEncryption",
     (error) => assert.equal(error.server, "imap.example.org")],
+  ["a mail server of the outgoing mail that offers no TLS", BRIDGE, MESSAGE("no-encryption", "smtp.example.org offers no TLS; no login was sent."), "NoEncryption",
+    (error) => assert.equal(error.server, "smtp.example.org")],
   ["a login the mail server refuses", BRIDGE, MESSAGE("login-refused", "AUTHENTICATIONFAILED Invalid credentials"), "LoginRefused",
     (error) => assert.equal(error.answer, "AUTHENTICATIONFAILED Invalid credentials")],
   ["a folder the mail server does not have", BRIDGE, MESSAGE("upstream-failed", "Mailbox doesn't exist: Reports"), "FolderNotFound", (error) => assert.equal(error.folder, "Reports")],
