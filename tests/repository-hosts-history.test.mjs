@@ -8,9 +8,11 @@
 // files of the commit, up to 300 and the rest on further pages, per_page up to 100 and page accepted, each file with its status
 // — added, removed, modified, renamed — and, for a rename, previous_filename) (docs.github.com/en/rest/commits/commits, read
 // 2026-10-11);
-// GitLab: "List repository commits" (GET /projects/:id/repository/commits: ref_name, path, per_page — default 20, up to 100 —,
-// page; id, message, author_name, author_email, committed_date, parent_ids — no account; docs.gitlab.com/api/commits and
-// docs.gitlab.com/api/rest/#pagination, read 2026-10-11) and the diff of a commit (GET
+// GitLab: "List repository commits" (GET /projects/:id/repository/commits: ref_name, path, follow, per_page — default 20, up to
+// 100 —, page; id, message, author_name, author_email, committed_date, parent_ids — no account; and `follow`, which since
+// GitLab 18.10 defaults to true: "follows file renames when filtering commits by path, and returns commits for the file even
+// if it was renamed", `false` "returns only commits where the file existed at its current path"; docs.gitlab.com/api/commits
+// and docs.gitlab.com/api/rest/#pagination, read 2026-10-11) and the diff of a commit (GET
 // /projects/:id/repository/commits/:sha/diff: old_path, new_path, new_file, renamed_file, deleted_file, paged by per_page and
 // page: gitlab.com/gitlab-org/gitlab/-/issues/423565, read 2026-10-11).
 // Run: node --test tests/repository-hosts-history.test.mjs
@@ -20,10 +22,12 @@
 // Level: unit
 //
 // One history serves every test: five commits of a repository, oldest first, by Alice, Bob and Carol — Carol's e-mail linked to
-// no account — , in which UC-001's file is renamed. A server lists the commits that touched a path itself, as `git log -- path`
-// does: a rename shows under the path it went to and under the path it left. A GitLab server names no account for an author, and
-// both servers give the date a commit was committed, which is not always the date its author gave it. Each test states its input
-// and its expected result before it runs (given / input / expect).
+// no account — , in which UC-001's file is renamed. readHistory gives the commits that changed the path it is asked for: GitHub
+// lists "only commits containing this file path"; a GitLab server that follows a file across a rename unless it is told not to
+// (`follow`, true by default) would also list the commits before the rename, which changed the earlier path — the fake GitLab
+// follows by default, so that the adapter has to ask for the commits of the path itself. A GitLab server names no account for an
+// author, and both servers give the date a commit was committed, which is not always the date its author gave it. Each test
+// states its input and its expected result before it runs (given / input / expect).
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -106,12 +110,21 @@ const onGitHub = (...commits) => commits.map((c) => entry(c, c.author.login));
 const onGitLab = (...commits) => commits.map((c) => entry(c, null));
 
 // The commits of `history` that a server lists, newest first: those reachable from `ref` — a commit's id, or the default
-// branch's name where none is given — that touched `path` itself or, for a folder, anything below it; null for a ref it does not know.
-function listed(history, ref, path) {
+// branch's name where none is given — that touched `path` itself or, for a folder, anything below it, a rename touching the path
+// it went to and the path it left; null for a ref it does not know. Where `follow` is set, a file is followed across a rename:
+// the commits before it, which changed the path it came from, are listed too.
+function listed(history, ref, path, follow = false) {
   const start = ref === undefined || ref === "main" ? history.length - 1 : history.findIndex((c) => c.sha === ref);
   if (start < 0) return null;
-  const touches = (c) => c.changes.some((ch) => [ch.path, ch.from].some((p) => p === path || p?.startsWith(`${path}/`)));
-  return history.slice(0, start + 1).reverse().filter((c) => path === undefined || touches(c));
+  const newestFirst = history.slice(0, start + 1).reverse();
+  if (path === undefined) return newestFirst;
+  const names = new Set([path]);
+  const within = (p) => p !== undefined && [...names].some((n) => p === n || p.startsWith(`${n}/`));
+  return newestFirst.filter((c) => {
+    const touched = c.changes.filter((ch) => within(ch.path) || within(ch.from));
+    if (follow) for (const ch of touched) if (ch.change === "renamed" && names.has(ch.path)) names.add(ch.from);
+    return touched.length > 0;
+  });
 }
 const page = (items, query, byDefault, most) => {
   const per = Math.min(most, Number(query.per_page ?? byDefault)), n = Number(query.page ?? 1);
@@ -187,9 +200,10 @@ function fakeGitLab({ history = HISTORY, answer = null } = {}) {
     if (r.origin !== GL_ORIGIN || !r.path.startsWith(GL_PREFIX)) return json(404, { message: "404 Not Found" });
     const rest = r.path.slice(GL_PREFIX.length);
     let m;
-    // "List repository commits": newest first (reverse chronological), 20 to a page unless per_page says otherwise, at most 100.
+    // "List repository commits": newest first (reverse chronological), 20 to a page unless per_page says otherwise, at most 100;
+    // a single file followed across renames unless `follow` is false.
     if (r.method === "GET" && rest === "/repository/commits") {
-      const all = listed(history, r.query.ref_name, r.query.path);
+      const all = listed(history, r.query.ref_name, r.query.path, r.query.follow !== "false");
       if (all === null) return json(404, { message: "404 Commit Not Found" });
       const p = page(all, r.query, 20, 100);
       return json(200, p.items.map(listing), headers(p));
@@ -240,10 +254,12 @@ test("MOD-repository-hosts readHistory — the commits of a file, newest first, 
 // ---------------------------------------------------------------- a rename
 
 // guards: THE NAME IS THE ID AND IT SURVIVES; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
-// given: the history above, in which the fourth commit renames docs/use-cases/UC-001-first.md to UC-001-the-first.md
+// given: the history above, in which the fourth commit renames docs/use-cases/UC-001-first.md to UC-001-the-first.md; the
+//        commits before it changed the earlier path, and a GitLab server follows a file across a rename unless it is told not to
 // input: readHistory of the new path on GitHub and on GitLab
-// expect: the fifth and the fourth commit; the fourth's one change { path: the new path, change: "renamed", from: the earlier
-//         path }, and the fifth's change of the file plain "modified", with no `from`
+// expect: the fifth and the fourth commit, not the second and the first, which changed the earlier path; the fourth's one
+//         change { path: the new path, change: "renamed", from: the earlier path }, and the fifth's change of the file plain
+//         "modified", with no `from`
 test("MOD-repository-hosts readHistory — a rename carries the path it came from (GitHub, GitLab)", async () => {
   const [gh, gl] = await onBoth((host) => host.readHistory(RENAMED, {}));
   assert.deepEqual(gh, onGitHub(C5, C4), "GitHub");
