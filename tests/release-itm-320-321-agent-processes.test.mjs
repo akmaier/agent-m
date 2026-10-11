@@ -39,7 +39,7 @@ function agents(folder, record) {
     const args = process.argv.slice(2);
     if (args[0] === "--version") process.stdout.write("2.1.300\\n");
     else if (args[0] === "auth") process.exit(0);
-    else { appendFileSync(${JSON.stringify(record)}, JSON.stringify({ name: "claude", args, cwd: process.cwd(), key: process.env.ANTHROPIC_API_KEY ?? null }) + "\\n"); process.stdout.write("claude answer\\n"); }
+    else { appendFileSync(${JSON.stringify(record)}, JSON.stringify({ name: "claude", args, cwd: process.cwd(), key: process.env.ANTHROPIC_API_KEY ?? null }) + "\\n"); process.stdout.write("ok\\n"); }
   `);
   executable(folder, "codex", `
     const args = process.argv.slice(2);
@@ -71,6 +71,9 @@ async function withEnvironment(values, run) {
 const driver = (agent, workdir, keyVariable = null) => agentDriver(agent, { workdir, keyVariable }, PARTICIPANT);
 
 // TST-320321901
+// level: release
+// module: MOD-agent-processes
+// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; ONE DEFINITION, THREE DRIVERS; UC-010; UC-011
 // given: controlled executables for every register row, all reporting the documented version and saved login.
 // input: installedAgents(), followed by testAgent on the discovered Claude row.
 // expect: all three public Agent records are discovered with their versions and login state; the public harmless test answers.
@@ -89,6 +92,9 @@ test("TST-320321901: public discovery reads the registered agents and tests one 
 });
 
 // TST-320321902
+// level: release
+// module: MOD-agent-processes
+// guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-010; UC-011
 // given: a controlled Claude and a local inherited credential plus a named CI credential.
 // input: public agentDriver.send locally, then in CI for an installed Agent without saved local login.
 // expect: local invocation omits the declared credential; CI inherits its named credential without changing argv or reading it in module code.
@@ -107,16 +113,24 @@ test("TST-320321902: public Driver separates local own-login execution from name
 });
 
 // TST-320321903
-// given: a controlled Claude that starts an ignoring descendant which would write a marker after cancellation.
+// level: release
+// module: MOD-agent-processes
+// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-010
+// given: a controlled Claude whose descendant first installs an ignoring SIGTERM handler and signals readiness over IPC before it could write a marker after cancellation.
 // input: public Driver.send with an AbortSignal aborted after the parent announces it started.
 // expect: Cancelled is named and the descendant marker remains absent after its scheduled write time.
 test("TST-320321903: public Driver cancellation stops the controlled descendant before its later write", async () => {
   const folder = fixture(), marker = join(folder, "later-marker");
   try {
     executable(folder, "claude", `
-      import { spawn } from "node:child_process"; import { writeFileSync } from "node:fs";
-      const child = spawn(${JSON.stringify(NODE)}, ["-e", ${JSON.stringify(`process.on("SIGTERM", () => {}); setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, "late"), 250); setInterval(() => {}, 1000);`)}], { stdio: "ignore" });
-      child.unref(); process.stdout.write("started\\n"); setInterval(() => {}, 1000);
+      import { spawn } from "node:child_process";
+      const child = spawn(${JSON.stringify(NODE)}, ["-e", ${JSON.stringify(`
+        process.on("SIGTERM", () => {});
+        process.send("ready");
+        setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, "late"), 250);
+      `)}], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
+      child.once("message", (message) => { if (message === "ready") process.stdout.write("started\\n"); });
+      setInterval(() => {}, 1000);
     `);
     const controller = new AbortController();
     await withPath(folder, async () => {
@@ -129,6 +143,9 @@ test("TST-320321903: public Driver cancellation stops the controlled descendant 
 });
 
 // TST-320321904
+// level: release
+// module: MOD-agent-processes
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-011
 // given: a missing Agent, a supported Agent without local login, and a controlled Agent that exits after output.
 // input: public Driver.send for each.
 // expect: AgentMissing, AgentNotLoggedIn, and AgentFailed preserve the named public failure boundary and exit details.
@@ -144,10 +161,10 @@ test("TST-320321904: public Driver names missing, local-login, and process failu
 });
 
 const FAULTS = {
-  TST320321901: ["return { answered: true, version: agent.version };", "return { answered: false, version: agent.version };"],
-  TST320321902: ["return ownLoginEnvironment();", "return process.env;"],
-  TST320321903: ["process.kill(-child.pid, \"SIGKILL\");", "child.kill(\"SIGTERM\");"],
-  TST320321904: ["throw failure(\"AgentNotLoggedIn\", \"the selected agent is not logged in\");", "throw failure(\"AgentMissing\", \"the selected agent is not logged in\");"],
+  "TST-320321901": { file: "src/agent-processes/index.mjs", needle: "return { answered: true, version: agent.version };", replacement: "return { answered: false, version: agent.version };" },
+  "TST-320321902": { file: "src/agent-processes/processes.mjs", needle: "return ownLoginEnvironment();", replacement: "return process.env;" },
+  "TST-320321903": { file: "src/agent-processes/processes.mjs", needle: "process.kill(-child.pid, \"SIGKILL\");", replacement: "child.kill(\"SIGTERM\");" },
+  "TST-320321904": { file: "src/agent-processes/processes.mjs", needle: "throw failure(\"AgentNotLoggedIn\", \"the selected agent is not logged in\");", replacement: "throw failure(\"AgentMissing\", \"the selected agent is not logged in\");" },
 };
 
 after(() => {
@@ -156,8 +173,8 @@ after(() => {
   const digest = (value) => createHash("sha256").update(value).digest("hex");
   try {
     cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
-    for (const [id, [needle, replacement]] of Object.entries(FAULTS)) {
-      const source = join(copied, "src/agent-processes/processes.mjs"), testPath = join(copied, "tests/release-itm-320-321-agent-processes.test.mjs");
+    for (const [id, { file, needle, replacement }] of Object.entries(FAULTS)) {
+      const source = join(copied, file), testPath = join(copied, "tests/release-itm-320-321-agent-processes.test.mjs");
       const original = readFileSync(source), sourceHash = digest(original), testHash = digest(readFileSync(testPath));
       assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique source fault target`);
       const invoke = () => {
@@ -173,8 +190,10 @@ after(() => {
       writeFileSync(source, original);
       const restoredHash = digest(readFileSync(source)), restoredEnded = new Date().toISOString();
       const passed = invoke(), positiveEnded = new Date().toISOString();
-      console.log("TST320321-counterproof " + JSON.stringify({ id, sourceHash, testHash, faultHash, restoredHash,
+      console.log("TST320321-counterproof " + JSON.stringify({ id, file, needle, replacement, sourceHash, testHash, faultHash, restoredHash,
         faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded,
+        argv: [NODE, "--test", "--test-name-pattern", id, "tests/release-itm-320-321-agent-processes.test.mjs"], cwd: copied,
+        childflag: "AGENT_M_RELEASE_FAULT_CHILD=1",
         failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr },
         passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
       assert.equal(failed.status, 1, id);
