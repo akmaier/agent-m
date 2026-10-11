@@ -1,23 +1,16 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
 // `instruction` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form` and
-// `test-declarations`. The other built-in checks on the artifact model come with the modules they use.
+// `test-declarations`, and what a built-in check needs of a job's context. The other built-in checks on the artifact model
+// come with the modules they use.
 //
 // Module: MOD-job-runner
 
-import { artifactSchemas, documentFindings, readDocument } from "../documents/index.mjs";
+import { artifactSchemaOf, documentFindings, readDocument } from "../documents/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
-import { testDeclarations, testFindings } from "../test-document/index.mjs";
+import { isTestFile, testDeclarations, testFindings } from "../test-document/index.mjs";
+import { finding } from "../text-tools/index.mjs";
 
 const part = (name, text) => ({ name, text, size: 0, sources: [], required: true });
-
-// The artifact schema whose path a drafted document's path matches: the first of the schemas MOD-documents owns with a path
-// pattern the path fits. A schema's `path` is a pattern or a list of them, each a text or { pattern, rule }; `{nnn}` stands
-// for three or more digits and `{slug}` for lower-case words joined by `-`, the two placeholders those schemas use.
-const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
-const fits = (pattern, path) => new RegExp(`^${pattern.replace(/\./g, "\\.").replace(/\{nnn\}/g, "\\d{3,}")
-  .replace(/\{slug\}/g, SLUG)}$`).test(path);
-const schemaOf = (path) => Object.values(artifactSchemas()).find((schema) => [schema.path].flat()
-  .some((entry) => fits(typeof entry === "string" ? entry : entry.pattern, path)));
 
 // A candidate written as the SPEC writes a requirement — its name and the job's source on the head line, then its rule, then
 // its check — for MOD-spec-document to read as it reads one. White space is folded into single blanks: a candidate is one
@@ -25,6 +18,9 @@ const schemaOf = (path) => Object.values(artifactSchemas()).find((schema) => [sc
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
 const written = ({ name, rule, check }, source) =>
   [`**${folded(name)}** *(${source})*`, folded(rule), `*Check:* ${folded(check)}`].filter(Boolean).join("\n");
+
+const EXPECTED_RESULT = "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS";
+const GOES_BACK = "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT";
 
 export const builtins = {
   recipes: {
@@ -37,10 +33,10 @@ export const builtins = {
       : [part("draft", typeof params.draft === "string" ? params.draft : JSON.stringify(params.draft, null, 2))]),
   },
   checks: {
-    // MOD-documents' documentFindings on every drafted document, each read by the artifact schema whose path it matches; a
-    // document whose path matches none of them is not judged here.
+    // MOD-documents' documentFindings on every drafted document, read with the schema artifactSchemaOf names for its path; a
+    // path no schema's pattern matches is not judged here.
     "document-schema": (draft) => draft.files.flatMap(({ path, text }) => {
-      const schema = schemaOf(path);
+      const schema = artifactSchemaOf(path);
       return schema ? documentFindings(schema, readDocument(schema, path, text)) : [];
     }),
     // MOD-spec-document's requirementFindings on every drafted requirement: the candidates of a draft written as one section
@@ -52,15 +48,32 @@ export const builtins = {
         .join("\n\n")));
     },
     // MOD-test-document's testFindings on every declaration in the files that the branch the coding participant reports adds
-    // or changes: the branch is read through the product's host with readSnapshot, and a file counts as changed when its blob
-    // differs from its blob in the product's own snapshot, where a file the branch adds has none. A host that fails is thrown.
+    // or changes, and an error for a file the branch adds that isTestFile calls a test file and that declares none. The branch
+    // is read through the product's host with readSnapshot; a file counts as changed when its blob differs from its blob in
+    // the product's own snapshot, where a file the branch adds has none. A branch the host does not hold is a finding sent
+    // back, since the participant reported a branch it has not pushed; any other failure of the host is thrown.
     "test-declarations": async (draft, context) => {
       const { host, snapshot } = context.product;
-      const branch = await host.readSnapshot(draft.branch);
+      let branch;
+      try {
+        branch = await host.readSnapshot(draft.branch);
+      } catch (error) {
+        if (error.name !== "NotFound") throw error;
+        return [finding({ artifact: "answer", line: 1, kind: "error", rule: GOES_BACK,
+          what: `the branch ${draft.branch} is not on the host`, fix: "push the branch, then report it" })];
+      }
       const found = [];
       for (const path of branch.paths) {
-        if (branch.blob(path) === snapshot.blob(path)) continue;
-        for (const declaration of testDeclarations(path, await branch.read(path))) found.push(...testFindings(declaration));
+        const before = snapshot.blob(path);
+        if (branch.blob(path) === before) continue;
+        const declarations = testDeclarations(path, await branch.read(path));
+        for (const declaration of declarations) found.push(...testFindings(declaration));
+        if (before === null && declarations.length === 0 && isTestFile(path)) {
+          found.push(finding({ artifact: path, line: 1, kind: "error", rule: EXPECTED_RESULT,
+            what: "the test file declares no test",
+            fix: "declare each test case in comment lines directly before it: its TST-<nnn> identifier, then level:, module:, "
+              + "guards:, given:, input: and expect:" }));
+        }
       }
       return found;
     },
@@ -70,3 +83,12 @@ export const builtins = {
     "return-draft": async (result) => ({ commits: [], files: [], pullRequest: null, shown: result.draft }),
   },
 };
+
+// What a built-in check needs of a job's context, for prepareJob to ask before the job starts: by the check's name, a function
+// of the context and the kind that gives a finding while the context lacks it, else null.
+export const needs = new Map([
+  ["test-declarations", (context, kind) => (context.product.host ? null : finding({ artifact: context.product.address, line: 1,
+    kind: "error", rule: EXPECTED_RESULT,
+    what: `the job of ${kind.name} reads the branch the participant reports, and the product has no host to read it from`,
+    fix: "connect the product's repository, with a token that can read it" }))],
+]);

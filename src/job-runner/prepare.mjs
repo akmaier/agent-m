@@ -15,6 +15,7 @@
 import { eligible } from "../participant-list/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
+import { needs } from "./builtins.mjs";
 import { strategyOf } from "./registry.mjs";
 
 const REGISTER = "docs/participants.md";
@@ -82,9 +83,9 @@ function blockingOf(destination, kind, parts, context, notLike, kindName) {
  * name is registered, evaluates its preconditions, builds the parts from its recipes, estimates their sizes, and checks
  * each destination with MOD-participant-list's eligible: the capabilities the kind needs, the places every part's sources
  * and the mailbox allow, the context against the size, and for a reviewing participant that it differs from the drafter
- * and from each other. Nothing is cut: what does not fit is named in notFitting. The limit is fixed here: the caller's,
- * else the kind's. Throws UnknownKind and InvalidKind as kindOf does, UnknownStrategy { strategy } for a strategy no
- * module registered, and whatever a recipe throws by name.
+ * and from each other, and asks each check the kind names what it needs of the context. Nothing is cut: what does not fit
+ * is named in notFitting. The limit is fixed here: the caller's, else the kind's. Throws UnknownKind and InvalidKind as
+ * kindOf does, UnknownStrategy { strategy } for a strategy no module registered, and whatever a recipe throws by name.
  */
 export async function prepareJob(name, context, choice) {
   const kind = await kindOf(name);
@@ -115,6 +116,10 @@ export async function prepareJob(name, context, choice) {
     const notLike = [choice.drafter, ...choice.reviewers.filter((other, which) => which !== at)].filter(Boolean);
     blocking.push(...blockingOf(destination, reviewing ?? kind, reviewerParts, context, notLike, kind.name));
   });
+  for (const check of kind.checks) {
+    const lacking = needs.get(check)?.(context, kind);
+    if (lacking) blocking.push(lacking);
+  }
 
   const notFitting = destinations
     .filter((destination) => eligible([destination.participant], { capabilities: [], size: destination.size }).leftOut.length)
