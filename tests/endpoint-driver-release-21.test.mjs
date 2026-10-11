@@ -16,7 +16,7 @@ const ANTHROPIC = { name: "anthropic", kind: "anthropic", baseUrl: "https://clau
 const PARTICIPANT = { name: "fixture", type: "model endpoint", model: "fixture", context: 100, price: null, capabilities: [], place: "test", route: "direct" };
 const INPUT = {
   prompt: "Prepared prompt only.",
-  parts: [{ text: "must not be appended" }],
+  parts: [{ name: "source", text: "must not be appended", size: 10, sources: [], required: true, recipe: "fixture", artifacts: [] }],
   output: null,
   findings: [],
   previous: null,
