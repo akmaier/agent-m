@@ -3,7 +3,8 @@
 // changed — of every reviewed file of a snapshot from one pass over docs/approvals/ (status.mjs). ITM-332 builds
 // approvalStrategies with the recipes use-cases and use-case-with-neighbours and the precondition rests-on-accepted for
 // requirements and use cases (strategies.mjs); its other recipes and preconditions are not built yet. ITM-333 builds
-// acceptShown, acceptanceBlockers and fallbackAcceptLink (accept.mjs); statusOf and lastAcceptedText are not built yet.
+// acceptShown, acceptanceBlockers and fallbackAcceptLink (accept.mjs). ITM-334 builds lastAcceptedText, the text the most
+// recent record of an identifier names (status.mjs); statusOf is not built yet.
 //
 // Module: MOD-approvals
 //
@@ -14,10 +15,10 @@
 // module, never a single document. statuses reads nothing itself: it is given a snapshot already held in memory (every
 // path and every blob SHA of the tree), and derives status from the records' own names, matched by identifier
 // (MOD-identifiers.kindOfIdentifier) — it never reads a record's text. The strategies read the use cases and the SPEC through
-// the product's snapshot of the job's context, whose read fetches a file once. acceptShown and acceptanceBlockers read through
-// the host and the snapshot they are given, and fallbackAcceptLink asks MOD-repository-hosts for the address of a page without
-// making a request. It uses MOD-documents, MOD-identifiers, MOD-repository-hosts, MOD-spec-document and MOD-text-tools only
-// through their index.mjs. Every other file of this folder is private to it.
+// the product's snapshot of the job's context, whose read fetches a file once. lastAcceptedText, acceptShown and
+// acceptanceBlockers read through the host and the snapshot they are given, and fallbackAcceptLink asks MOD-repository-hosts
+// for the address of a page without making a request. It uses MOD-documents, MOD-identifiers, MOD-repository-hosts,
+// MOD-spec-document and MOD-text-tools only through their index.mjs. Every other file of this folder is private to it.
 
 // Schema, in the type below, is MOD-documents' type of that name; Snapshot is MOD-repository-hosts'.
 import { loadSchema } from "../documents/index.mjs";
@@ -42,6 +43,6 @@ async function ownFile(url) {
 export const approvalSchema = loadSchema(
   disk ? disk.readFileSync(SCHEMA_FILE, "utf8") : await ownFile(SCHEMA_FILE), OWNER);
 
-export { statuses } from "./status.mjs";
+export { statuses, lastAcceptedText } from "./status.mjs";
 export { acceptShown, acceptanceBlockers, fallbackAcceptLink } from "./accept.mjs";
 export { approvalStrategies } from "./strategies.mjs";
