@@ -7,8 +7,9 @@
 // view, on the person's click. Everything else is read from the product's repository and its pull requests and derived when
 // shown; nothing is stored (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains itself (EVERY STEP EXPLAINS
 // ITSELF). The layout is the one of #uc and #arc: a head, panels, list tables, buttons and badges — no style of its own; each
-// table stands in a box that scrolls sideways where the page is narrower than the table, and the burn-down chart draws its
-// text at the size of the page's body text, both as the site's src/theme/lme.css gives them.
+// table stands in a box that scrolls sideways where the page is narrower than the table, and the burn-down chart keeps the
+// width at which its text is the size of the page's body text, scrolling sideways in its box where the page is narrower —
+// widths and sizes as the site's src/theme/lme.css gives them.
 //
 // Module: MOD-dashboard-app
 //
@@ -197,15 +198,18 @@ function remainingOverTime(items, mergedAt, start, end = "") {
   return points;
 }
 
-// The size of the page's body text, in px, as the browser draws it; null where nothing is drawn.
+// The size of the page's body text, and the width the site keeps the burn-down chart at (src/theme/lme.css), in px, as the
+// browser draws the page; null where nothing is drawn.
 const bodyTextSize = () => parseFloat(globalThis.getComputedStyle?.(document.body)?.fontSize) || null;
+const burnDownWidth = () => parseFloat(globalThis.getComputedStyle?.(document.documentElement)?.getPropertyValue?.("--burn-down-width")) || null;
 
-// The Mermaid chart of a sprint's items left over time. Given `size`, its title and its axes' labels and titles are drawn at
-// `size` px, by Mermaid's own configuration of the chart.
-function burnDownChart(name, points, size) {
+// The Mermaid chart of a sprint's items left over time. Given `width`, it is drawn that wide; given `size`, its title and its
+// axes' labels and titles are drawn at `size` px — both by Mermaid's own configuration of the chart.
+function burnDownChart(name, points, { width = null, size = null } = {}) {
   const most = Math.max(1, ...points.map((p) => p.remaining));
   const axis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
-  const config = size ? ["---", "config:", "  xyChart:", `    titleFontSize: ${size}`, `    xAxis: ${axis}`, `    yAxis: ${axis}`, "---"] : [];
+  const settings = [...(width ? [`    width: ${width}`] : []), ...(size ? [`    titleFontSize: ${size}`, `    xAxis: ${axis}`, `    yAxis: ${axis}`] : [])];
+  const config = settings.length ? ["---", "config:", "  xyChart:", ...settings, "---"] : [];
   return [...config, "xychart-beta", `  title "${name} — items remaining, times in UTC"`, `  x-axis [${points.map((p) => `"${p.label}"`).join(", ")}]`,
     `  y-axis "Items remaining" 0 --> ${most}`, `  line [${points.map((p) => p.remaining).join(", ")}]`].join("\n");
 }
@@ -230,7 +234,7 @@ function teamPanel(app, ctx, d, team) {
     "that changes or uses the same modules. The chart counts the selected items not done yet: at the sprint's start, after each " +
     "merge of one of its items, at the time of that merge in UTC, and now — or, once the sprint is closed, at its end — derived " +
     "now from the sprint's record and the pull requests the page reads anyway, never stored (book ch. 7 §5).</p>");
-  const chartOf = (points) => `<div class="md" data-burn-down="${h(team)}">${md(`\`\`\`mermaid\n${burnDownChart(newest.name, points, bodyTextSize())}\n\`\`\`\n`)}</div>`;
+  const chartOf = (points) => `<div class="md" data-burn-down="${h(team)}">${md(`\`\`\`mermaid\n${burnDownChart(newest.name, points, { width: burnDownWidth(), size: bodyTextSize() })}\n\`\`\`\n`)}</div>`;
   if (!newest || !entry || entry.final) {
     const last = newest ? `<p class="muted">Its last sprint, ${fileLink(app, newest.record.path, `<b>${h(newest.name)}</b>`)}, `
       + `${text(newest.record.fields.end) ? `ended on ${h(newest.record.fields.end)}` : "is closed"}.</p>` : `<p class="muted">It has run no sprint yet.</p>`;

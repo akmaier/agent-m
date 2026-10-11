@@ -2,7 +2,7 @@
    as lme.tf.fau.de shows them (FAU blue #04316a, dark blue #041e42, metallic #8c9fb1, and tints of them), the lab's logo in
    the header (src/brand/), and the header, menu and footer every page of the site carries. The font is the FAU sites'
    Source Sans where the reader has it installed; the site loads no font from anywhere (NO SERVER). Besides, the parts the
-   pages share: the buttons, the box a wide table scrolls in, and the line of the burn-down chart. */
+   pages share: the buttons, the box a wide table scrolls in, and the width and the line of the burn-down chart. */
 
 :root {
   --fau-blue: #04316a; --fau-dark: #041e42; --tf-metallic: #8c9fb1;
@@ -85,6 +85,10 @@ h1, h2, h3, h4 { color: var(--heading); line-height: 1.25; }
 
 /* A table wider than its panel scrolls sideways in a box of its own, so the page keeps the margins of its heading. */
 .table-scroll { overflow-x: auto; }
+/* The burn-down chart keeps this width — backlog-view.mjs has Mermaid draw it as wide —, at which its text is the page's body
+   text; a page narrower than that scrolls the chart sideways in its box, as it does a wide table. */
+:root { --burn-down-width: 700px; }
+[data-burn-down] .mermaid svg { width: var(--burn-down-width); }
 /* The burn-down chart's line — Mermaid's first line plot — in the accent and wider than the chart's axes, so that it reads at
    least as clearly as they do, in light and in dark mode. */
 [data-burn-down] .line-plot-0 path { stroke: var(--accent); stroke-width: 3px; }
