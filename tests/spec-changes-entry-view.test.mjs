@@ -27,6 +27,8 @@
 //     not decided yet), and nobody creates its anchor.
 //   - An earlier entry is one above it in the queue's index, and it creates an anchor when its proposal holds that heading as a section
 //     (a heading line outside fenced code, not a mention of it), unless it has the same anchor itself; of several, the first creates it.
+//   - The target of an entry is the file its own row names (Datei); the queue's line "Zieldatei aller Einträge" is Queue.target and finds no
+//     section: a queue written in another repository names the file there, products/<name>/SPEC.md, which a product's snapshot lacks.
 //   - An entry with a record is judged by the record, an entry without one by its anchor: a record that names the proposal's current
 //     blob approves the entry whether or not its anchor is there yet, and a record that names no section is not an approval of the
 //     section that holds.
@@ -142,13 +144,14 @@ function record(item, { proposal = item.proposal, section }) {
 }
 
 // The files of the fixture repository: the SPEC (none when `spec` is null), the queue with the entries given, a rationale for each
-// unless `rationales` is false, the records, the decision rows ({ entry, record }) and `extra` files.
-function repositoryFiles({ spec = SPEC, entries, records = [], decided = [], extra = {}, rationales = true }) {
+// unless `rationales` is false, the records, the decision rows ({ entry, record }), `extra` files, and the file the queue's line "Zieldatei
+// aller Einträge" names (the rows name SPEC.md).
+function repositoryFiles({ spec = SPEC, entries, records = [], decided = [], extra = {}, rationales = true, targetLine = "SPEC.md" }) {
   const files = {
     ...(spec === null ? {} : { "SPEC.md": spec }),
     [`${QUEUE}/index.md`]: text(
       "# SPEC approvals — queue 2026-03-01 · sample", "",
-      "**Zieldatei aller Einträge:** `SPEC.md`", "",
+      `**Zieldatei aller Einträge:** \`${targetLine}\``, "",
       "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |",
       "|---|---|---|---|---|",
       ...entries.map((item) => `| ${pad2(item.nr)} | \`SPEC.md\` | ${item.anchor} | — | — |`),
@@ -377,6 +380,28 @@ test("queues — an entry whose record names its current proposal is approved th
   const [queue] = await queues(snapshotOf(repositoryFiles({ entries: [creating, after], records: [approval] })));
   assert.deepEqual(queue.entries.map((e) => [e.number, e.state, e.createdBy]), [[1, "open", null], [2, "approved", 1]]);
   assert.equal(queue.entries[1].record, approval.path);
+});
+
+// guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006
+// given: the entries of the "what cannot be read" test — entry 01 with a record that names an earlier section, entry 02 that creates
+//        "## 1a. Added", entry 03 that starts with it —, first in a queue whose line "Zieldatei aller Einträge" names SPEC.md, to show
+//        the states and the views they give; then in a queue whose line names products/sample/SPEC.md, the path of the SPEC where the
+//        queue was written, which the snapshot does not hold, while its three rows name SPEC.md, which it does
+// input: queues(snapshot), entryView(QUEUE, 1, snapshot) and entryView(QUEUE, 3, snapshot) for each
+// expect: the same in both: stale, open and waiting for its anchor with createdBy 2; the view of entry 01 with the section that holds
+//         now and the view of entry 03 with none; and Queue.target as the line gives it, products/sample/SPEC.md in the second
+test("queues and entryView — the file an entry's own row names is its target, whatever the queue's line names", async () => {
+  const stale = entry(1, "## 1. Reading", PROPOSAL);
+  const entries = [stale, entry(2, "## 1. Reading", PROPOSAL + ADDED), entry(3, "## 1a. Added", ADDED_CHANGED)];
+  const records = [record(stale, { section: READING_EARLIER })];
+  for (const targetLine of ["SPEC.md", "products/sample/SPEC.md"]) {
+    const snapshot = snapshotOf(repositoryFiles({ entries, records, targetLine }));
+    const [queue] = await queues(snapshot);
+    assert.equal(queue.target, targetLine);
+    assert.deepEqual(queue.entries.map((e) => [e.state, e.createdBy]), [["stale", null], ["open", null], ["waiting for its anchor", 2]], targetLine);
+    assert.deepEqual((await entryView(QUEUE, 1, snapshot)).current, { text: READING, blob: gitBlob(READING) }, targetLine);
+    assert.equal((await entryView(QUEUE, 3, snapshot)).current, null, targetLine);
+  }
 });
 
 // ---------------------------------------------------------------- entryView
